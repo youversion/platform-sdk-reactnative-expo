@@ -1,0 +1,17 @@
+{
+  "name": "@youversion/platform-react-native-expo",
+  "version": "0.0.1",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@youversion/platform-react-ui": "^1.23.0",
+    "@youversion/platform-react-hooks": "^1.23.0",
+    "@youversion/platform-core": "^1.23.0"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0 <20.0.0",
+    "react-dom": ">=19.0.0 <20.0.0",
+    "react-native": "*",
+    "react-native-webview": "*"
+  }
+}

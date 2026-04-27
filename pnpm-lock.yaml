@@ -70,6 +70,30 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
+  packages/sdk:
+    dependencies:
+      '@youversion/platform-core':
+        specifier: ^1.23.0
+        version: 1.23.0
+      '@youversion/platform-react-hooks':
+        specifier: ^1.23.0
+        version: 1.23.0(react@19.2.0)
+      '@youversion/platform-react-ui':
+        specifier: ^1.23.0
+        version: 1.23.0(@types/react@19.2.14)(react-dom@19.2.0(react@19.2.0))(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)(typescript@5.9.3)
+      react:
+        specifier: '>=19.0.0 <20.0.0'
+        version: 19.2.0
+      react-dom:
+        specifier: '>=19.0.0 <20.0.0'
+        version: 19.2.0(react@19.2.0)
+      react-native:
+        specifier: '*'
+        version: 0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0)
+      react-native-webview:
+        specifier: '*'
+        version: 13.16.0(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.0))(react@19.2.0)
+
   packages/ui:
     dependencies:
       '@youversion/platform-react-hooks':
