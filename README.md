@@ -27,7 +27,7 @@ pnpm start
 ## Project Structure
 
 ```
-packages/sdk/src/
+packages/ui/src/
 ├── dom/           ← Expo DOM components ("use dom") wrapping the React Web SDK
 ├── native/        ← React Native components (sheets, pickers, screens)
 └── lib/           ← Native adapters, hooks, constants
