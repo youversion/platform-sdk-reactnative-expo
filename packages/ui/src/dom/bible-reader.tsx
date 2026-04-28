@@ -2,13 +2,6 @@
 
 import { YouVersionProvider, BibleReader } from '@youversion/platform-react-ui'
 
-type UUID = `${string}-${string}-${string}-${string}-${string}`
-
-// Monkey patch crypto.randomUUID since it's not available in React Native.
-if (!crypto?.randomUUID) {
-  crypto.randomUUID = () => '8675309' as UUID
-}
-
 export interface BibleReaderProps {
   appKey: string
   defaultVersionId?: number
