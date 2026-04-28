@@ -23,5 +23,12 @@ apps/example/web-build/
 # pnpm
 .pnpm-store/
 
+# Env
+.env
+.env*.local
+
 # Cursor
 .cursor/
+
+# Firecrawl
+.firecrawl/

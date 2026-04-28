@@ -5,7 +5,7 @@ export default function BibleScreen() {
   return (
     <View style={styles.container}>
       <BibleReader
-        appKey="E3hCj5PiDJfMZN6pCBoN2MGRnBQYXWjD2SMDbZA9XjFCCnLg"
+        appKey={process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY!}
         defaultVersionId={3034}
         style={styles.reader}
       />
