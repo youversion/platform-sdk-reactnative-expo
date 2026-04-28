@@ -41,6 +41,7 @@ DOM components use the `'use dom'` directive (Expo SDK 55). They render in a Web
 ### Font/Theme Overrides
 
 CSS custom properties on `[data-slot="yv-bible-renderer"]`:
+
 - `--yv-reader-font-size`
 - `--yv-reader-font-family`
 - `--yv-reader-bg`
@@ -48,7 +49,7 @@ CSS custom properties on `[data-slot="yv-bible-renderer"]`:
 
 ### Metro Config
 
-Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname)`. Expo SDK 52+ auto-configures monorepo support. **Don't** manually set `watchFolders` or `resolver.*`.
+Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname)`. Expo SDK 52+ auto-configures monorepo support. **Don't** manually set `watchFolders` or `resolver.`*.
 
 ### Entry Point
 
@@ -74,3 +75,4 @@ No test framework configured yet. When adding tests, use Vitest and configure at
 - Single published package — keep all exports in `packages/ui/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
+
