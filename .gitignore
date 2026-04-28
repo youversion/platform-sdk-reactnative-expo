@@ -1,0 +1,34 @@
+node_modules/
+dist/
+.expo/
+*.tsbuildinfo
+
+# Expo
+apps/example/.expo/
+apps/example/web-build/
+
+# OS
+.DS_Store
+*.pem
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Turbo
+.turbo/
+
+# pnpm
+.pnpm-store/
+
+# Env
+.env
+.env*.local
+
+# Cursor
+.cursor/
+
+# Firecrawl
+.firecrawl/
