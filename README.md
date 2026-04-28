@@ -1,6 +1,3 @@
-License
-Node.js >= 20.0.0
-
 # YouVersion Platform React Native Expo SDK
 
 A React Native SDK for integrating [YouVersion Platform](https://platform.youversion.com/) features into Expo apps using [Expo DOM Components](https://docs.expo.dev/guides/dom-components/).

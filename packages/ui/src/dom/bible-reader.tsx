@@ -24,12 +24,15 @@ export default function BibleReaderDOM({
   backgroundColor,
   foregroundColor,
 }: BibleReaderProps) {
+  const sanitizeCssValue = (value: string | undefined) =>
+    value?.replace(/[{};]/g, '').trim()
+
   const overrideCss = `
     [data-slot="yv-bible-renderer"] {
       ${fontSize ? `--yv-reader-font-size: ${fontSize}px !important;` : ''}
-      ${fontFamily ? `--yv-reader-font-family: ${fontFamily} !important;` : ''}
-      ${backgroundColor ? `--yv-reader-bg: ${backgroundColor} !important;` : ''}
-      ${foregroundColor ? `--yv-reader-fg: ${foregroundColor} !important;` : ''}
+      ${fontFamily ? `--yv-reader-font-family: ${sanitizeCssValue(fontFamily)} !important;` : ''}
+      ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
+      ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
     }
   `
 
@@ -45,6 +48,7 @@ export default function BibleReaderDOM({
           <button
             type="button"
             onClick={() => onSettingsPress()}
+            aria-label="Open reader settings"
             style={{
               position: 'absolute',
               top: 12,
