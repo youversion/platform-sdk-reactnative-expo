@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native'
-import { BibleReader } from '@youversion/platform-react-native-expo'
+import { BibleTextView } from '@youversion/platform-react-native-expo'
 
 export default function BibleScreen() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
@@ -19,9 +19,11 @@ export default function BibleScreen() {
 
   return (
     <View style={styles.container}>
-      <BibleReader
+      <BibleTextView
         appKey={appKey}
-        defaultVersionId={3034}
+        reference="JHN.1.1-4"
+        versionId={3034}
+        showVerseNumbers
         style={styles.reader}
       />
     </View>

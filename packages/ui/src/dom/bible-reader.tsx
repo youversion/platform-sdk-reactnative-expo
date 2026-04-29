@@ -1,6 +1,7 @@
 'use dom'
 
 import { YouVersionProvider, BibleReader } from '@youversion/platform-react-ui'
+import type { StyleProp, ViewStyle } from 'react-native'
 
 export interface BibleReaderProps {
   appKey: string
@@ -11,6 +12,7 @@ export interface BibleReaderProps {
   fontFamily?: string
   backgroundColor?: string
   foregroundColor?: string
+  style?: StyleProp<ViewStyle>
   dom?: import('expo/dom').DOMProps
 }
 
