@@ -23,10 +23,10 @@ export type DomError =
 export function toWebError(domError: DomError): Error | undefined {
   if (domError == null) return undefined
 
-  return Object.assign(new Error(domError.message), {
-    name: domError.name,
-    status: domError.status,
-    code: domError.code,
-  })
+  const err = new Error(domError.message)
+  if (domError.name != null) err.name = domError.name
+  if (domError.status != null) Object.assign(err, { status: domError.status })
+  if (domError.code != null) Object.assign(err, { code: domError.code })
+  return err
 }
 
