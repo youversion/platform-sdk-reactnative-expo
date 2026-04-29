@@ -1,7 +1,6 @@
 'use dom'
 
 import { BibleTextView, YouVersionProvider } from '@youversion/platform-react-ui'
-import type { StyleProp, ViewStyle } from 'react-native'
 
 type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
@@ -21,7 +20,6 @@ export type BibleTextViewProps = Omit<
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onVerseSelect?: (verses: number[]) => Promise<void>
   passageState?: DomPassageState
-  style?: StyleProp<ViewStyle>
   dom?: import('expo/dom').DOMProps
 }
 
