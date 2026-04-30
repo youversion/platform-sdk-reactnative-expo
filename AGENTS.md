@@ -67,7 +67,7 @@ The SDK requires `react >=19`, `react-dom >=19`, `react-native`, and `react-nati
 
 ## Testing
 
-No test framework configured yet. When adding tests, use Vitest and configure at the package level.
+No test framework configured yet. When adding tests, use Jest and configure at the package level.
 
 ## Code Style
 
