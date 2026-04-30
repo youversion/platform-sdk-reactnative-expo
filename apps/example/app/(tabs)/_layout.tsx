@@ -20,6 +20,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Text style={{ color }}>🔍</Text>,
         }}
       />
+      <Tabs.Screen
+        name="verse-of-the-day"
+        options={{
+          headerShown: false,
+          title: 'Verse',
+          tabBarIcon: ({ color }) => <Text style={{ color }}>☀️</Text>,
+        }}
+      />
     </Tabs>
   )
 }
