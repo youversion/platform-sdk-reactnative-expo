@@ -32,3 +32,8 @@ apps/example/web-build/
 
 # Firecrawl
 .firecrawl/
+
+# Superset
+.superset/
+
+opensrc/
