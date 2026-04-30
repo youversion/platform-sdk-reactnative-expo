@@ -9,8 +9,8 @@ export default function VerseOfTheDayScreen() {
       <View style={[styles.container, styles.missingKeyContainer]}>
         <Text style={styles.missingKeyTitle}>Missing app key</Text>
         <Text style={styles.missingKeyBody}>
-          Set <Text style={styles.missingKeyCode}>EXPO_PUBLIC_YOUVERSION_APP_KEY</Text> in
-          your environment (or an .env file) and restart the dev server.
+          Set EXPO_PUBLIC_YOUVERSION_APP_KEY in your environment (or an .env file) and restart
+          the dev server.
         </Text>
       </View>
     )
@@ -63,8 +63,5 @@ const styles = StyleSheet.create({
   missingKeyBody: {
     fontSize: 14,
     opacity: 0.85,
-  },
-  missingKeyCode: {
-    fontFamily: 'Menlo',
   },
 })
