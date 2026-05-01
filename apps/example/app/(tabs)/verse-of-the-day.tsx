@@ -10,7 +10,11 @@ export default function VerseOfTheDayScreen() {
           <View style={styles.preview}>
             <Text style={styles.previewLabel}>VerseOfTheDay</Text>
             <View style={styles.content}>
-              <VerseOfTheDay appKey={appKey} versionId={3034} />
+              <VerseOfTheDay
+                appKey={appKey}
+                versionId={3034}
+                dom={{ matchContents: true }}
+              />
             </View>
           </View>
         </View>
@@ -40,6 +44,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   content: {
+    flex: 1,
     padding: 16,
   },
 });
