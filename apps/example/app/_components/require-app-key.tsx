@@ -1,9 +1,10 @@
+import { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 export default function RequireAppKey({
   children,
 }: {
-  children: (appKey: string) => React.ReactNode;
+  children: (appKey: string) => ReactNode;
 }) {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY;
 

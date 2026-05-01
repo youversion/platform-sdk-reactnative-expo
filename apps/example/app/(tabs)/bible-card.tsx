@@ -1,6 +1,6 @@
 import { BibleCard } from "@youversion/platform-react-native-expo";
-import RequireAppKey from "../_components/require-app-key";
 import { View } from "react-native";
+import RequireAppKey from "../_components/require-app-key";
 
 export default function BibleCardScreen() {
   return (
