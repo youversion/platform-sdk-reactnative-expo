@@ -1,33 +1,30 @@
-import { Tabs } from 'expo-router'
-import { Text } from 'react-native'
+import { Tabs } from "expo-router";
+import { Text } from "react-native";
 
-export default function TabLayout() {
+export default function Layout() {
   return (
     <Tabs>
       <Tabs.Screen
         name="index"
         options={{
-          headerShown: false,
-          title: 'Bible',
+          title: "Bible",
           tabBarIcon: ({ color }) => <Text style={{ color }}>📖</Text>,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          headerShown: false,
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <Text style={{ color }}>🔍</Text>,
         }}
       />
       <Tabs.Screen
         name="verse-of-the-day"
         options={{
-          headerShown: false,
-          title: 'Verse',
+          title: "Verse",
           tabBarIcon: ({ color }) => <Text style={{ color }}>☀️</Text>,
         }}
       />
+      <Tabs.Screen
+        name="bible-card"
+        options={{
+          title: "BibleCard",
+          tabBarIcon: ({ color }) => <Text style={{ color }}>📜</Text>,
+        }}
+      />
     </Tabs>
-  )
+  );
 }
