@@ -27,7 +27,8 @@
     "expo-secure-store": ">=55.0.0 <56.0.0",
     "@gorhom/bottom-sheet": ">=5.0.0",
     "react-native-reanimated": ">=3.16.0",
-    "react-native-gesture-handler": ">=2.16.1"
+    "react-native-gesture-handler": ">=2.16.1",
+    "react-native-safe-area-context": ">=5.0.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.3.3",

@@ -31,35 +31,40 @@ import {
   useMemo,
   useRef,
   useState,
-} from 'react'
-import { Platform, StyleSheet } from 'react-native'
+} from "react";
+import { Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
-} from '@gorhom/bottom-sheet'
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet'
+} from "@gorhom/bottom-sheet";
+import type { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 
 // ---------------------------------------------------------------------------
 // Context — connects NativeSheet (portal client) to NativeSheetProvider (host)
 // ---------------------------------------------------------------------------
 
 type PortalEntry = {
-  content: React.ReactNode
-  onClose: () => void
-  open: boolean
-}
+  content: React.ReactNode;
+  onClose: () => void;
+  open: boolean;
+};
 
 type SheetContextValue = {
-  register: (content: React.ReactNode, onClose: () => void, open: boolean) => void
-  unregister: () => void
-}
+  register: (
+    content: React.ReactNode,
+    onClose: () => void,
+    open: boolean,
+  ) => void;
+  unregister: () => void;
+};
 
-const SheetContext = createContext<SheetContextValue | null>(null)
+const SheetContext = createContext<SheetContextValue | null>(null);
 
 function useSheetPortal() {
-  const ctx = useContext(SheetContext)
-  if (!ctx) throw new Error('Wrap your app root with <NativeSheetProvider>')
-  return ctx
+  const ctx = useContext(SheetContext);
+  if (!ctx) throw new Error("Wrap your app root with <NativeSheetProvider>");
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------
@@ -67,10 +72,10 @@ function useSheetPortal() {
 // ---------------------------------------------------------------------------
 
 type NativeSheetProps = {
-  isOpen: boolean
-  onClose: () => void
-  children: React.ReactNode
-}
+  isOpen: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+};
 
 /**
  * Renders nothing locally. Instead, portals its children to the root-level
@@ -83,22 +88,22 @@ type NativeSheetProps = {
  * would fire every time anyway.
  */
 export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
-  const { register, unregister } = useSheetPortal()
+  const { register, unregister } = useSheetPortal();
 
   // Sync children, onClose, and open state to the provider on every render.
   useEffect(() => {
-    if (Platform.OS === 'web') return
-    register(children, onClose, isOpen)
-  })
+    if (Platform.OS === "web") return;
+    register(children, onClose, isOpen);
+  });
 
   // Clean up portal registration when this component unmounts.
   useEffect(() => {
     return () => {
-      if (Platform.OS !== 'web') unregister()
-    }
-  }, [unregister])
+      if (Platform.OS !== "web") unregister();
+    };
+  }, [unregister]);
 
-  return null
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,63 +117,70 @@ const renderBackdrop = (props: BottomSheetBackdropProps) => (
     appearsOnIndex={0}
     disappearsOnIndex={-1}
   />
-)
+);
 
-export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
-  const [entry, setEntry] = useState<PortalEntry | null>(null)
-  const sheetRef = useRef<BottomSheet>(null)
+export function NativeSheetProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { bottom } = useSafeAreaInsets();
+  const [entry, setEntry] = useState<PortalEntry | null>(null);
+  const sheetRef = useRef<BottomSheet>(null);
 
   // Ref mirrors so callbacks captured in useMemo closures stay current.
-  const entryRef = useRef(entry)
-  entryRef.current = entry
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
 
   // Track whether we programmatically triggered a close so we don't double-fire onClose.
-  const closingRef = useRef(false)
+  const closingRef = useRef(false);
 
   const handleSheetChange = useCallback((index: number) => {
     // index -1 = fully closed. If user swiped/tapped backdrop to dismiss,
     // we need to notify the portal client.
     if (index === -1 && !closingRef.current) {
-      entryRef.current?.onClose()
+      entryRef.current?.onClose();
     }
-    closingRef.current = false
-  }, [])
+    closingRef.current = false;
+  }, []);
 
   // Track previous open state to detect transitions.
-  const wasOpenRef = useRef(false)
+  const wasOpenRef = useRef(false);
 
   // Drive BottomSheet imperatively when open state changes.
   useEffect(() => {
-    const isOpen = entry?.open ?? false
+    const isOpen = entry?.open ?? false;
     if (isOpen && !wasOpenRef.current) {
-      sheetRef.current?.snapToIndex(0)
+      sheetRef.current?.snapToIndex(0);
     } else if (!isOpen && wasOpenRef.current) {
-      closingRef.current = true
-      sheetRef.current?.close()
+      closingRef.current = true;
+      sheetRef.current?.close();
     }
-    wasOpenRef.current = isOpen
-  }, [entry?.open])
+    wasOpenRef.current = isOpen;
+  }, [entry?.open]);
 
   // Stable context value — register/unregister never change identity, so
   // consumers (NativeSheet) don't re-render from context changes alone.
   const ctx = useMemo<SheetContextValue>(
     () => ({
       register: (content, onClose, open) => {
-        setEntry({ content, onClose, open })
+        setEntry({ content, onClose, open });
       },
       unregister: () => {
-        setEntry(null)
-        closingRef.current = true
-        sheetRef.current?.close()
+        setEntry(null);
+        closingRef.current = true;
+        sheetRef.current?.close();
       },
     }),
     [],
-  )
+  );
 
   // On web, DOM components render inline (no WebView), so the web SDK's own
   // Radix popover handles footnotes. We skip the sheet entirely.
-  if (Platform.OS === 'web') {
-    return <SheetContext.Provider value={ctx}>{children}</SheetContext.Provider>
+  if (Platform.OS === "web") {
+    return (
+      <SheetContext.Provider value={ctx}>{children}</SheetContext.Provider>
+    );
   }
 
   return (
@@ -185,12 +197,12 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
-        <BottomSheetView>
+        <BottomSheetView style={{ paddingBottom: bottom, paddingInline: 8 }}>
           {entry?.content}
         </BottomSheetView>
       </BottomSheet>
     </SheetContext.Provider>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -198,6 +210,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   handle: {
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
   },
-})
+});
