@@ -10,6 +10,12 @@ export type BibleReaderProps = DomBibleReaderProps & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
+const EMPTY_FOOTNOTE: FootnoteData = {
+  verseNum: '',
+  notes: [],
+  verseHtml: '',
+}
+
 export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   ...domProps
@@ -22,13 +28,16 @@ export function BibleReader({
         (async (data: FootnoteData) => setFootnoteData(data)))
       : undefined
 
+  const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
+
   return (
     <>
       <BibleReaderDOM {...domProps} onFootnotePress={onFootnotePress} />
-      {footnoteData && !consumerOnFootnotePress && (
-        <NativeSheet isOpen onClose={() => setFootnoteData(null)}>
+      {showSheet && (
+        <NativeSheet isOpen={!!footnoteData} onClose={() => setFootnoteData(null)}>
           <FootnoteContent
-            data={footnoteData}
+            dom={{ matchContents: true }}
+            data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={domProps.themeBackground}
             fontSize={domProps.fontSize}
             appKey={domProps.appKey}

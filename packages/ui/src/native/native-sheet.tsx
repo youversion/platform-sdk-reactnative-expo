@@ -1,4 +1,6 @@
-import { Modal, Pressable, StyleSheet, View, Platform } from 'react-native'
+import { useEffect } from 'react'
+import { Platform } from 'react-native'
+import { useSheetPortal } from './native-sheet-provider'
 
 type NativeSheetProps = {
   isOpen: boolean
@@ -7,42 +9,21 @@ type NativeSheetProps = {
 }
 
 export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
-  if (Platform.OS === 'web') return null
+  const { register, unregister } = useSheetPortal()
 
-  return (
-    <Modal
-      visible={isOpen}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={styles.handle} />
-        <Pressable style={styles.closeArea} onPress={onClose} />
-        {children}
-      </View>
-    </Modal>
-  )
+  // Sync children, onClose, and open state to the root-level provider
+  // on every render so the portaled content stays fresh.
+  useEffect(() => {
+    if (Platform.OS === 'web') return
+    register(children, onClose, isOpen)
+  })
+
+  // Clean up when this component unmounts
+  useEffect(() => {
+    return () => {
+      if (Platform.OS !== 'web') unregister()
+    }
+  }, [unregister])
+
+  return null
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 36,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: '#ccc',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  closeArea: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    padding: 16,
-  },
-})
