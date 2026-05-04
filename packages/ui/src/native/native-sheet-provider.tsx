@@ -9,6 +9,7 @@ import {
 } from 'react'
 import {
   Animated,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -36,12 +37,15 @@ export function useSheetPortal() {
 }
 
 const ANIM_MS = 300
+const DISMISS_THRESHOLD = 80
 
 export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
   const [entry, setEntry] = useState<PortalEntry | null>(null)
   const { height } = useWindowDimensions()
   const translateY = useRef(new Animated.Value(height)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
+  const entryRef = useRef(entry)
+  entryRef.current = entry
 
   const isOpen = entry?.open ?? false
 
@@ -59,6 +63,37 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
       }),
     ]).start()
   }, [isOpen, height, translateY, backdropOpacity])
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
+      onPanResponderMove: (_, g) => {
+        if (g.dy > 0) {
+          translateY.setValue(g.dy)
+          backdropOpacity.setValue(1 - Math.min(g.dy / 300, 1))
+        }
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dy > DISMISS_THRESHOLD) {
+          entryRef.current?.onClose()
+        } else {
+          Animated.parallel([
+            Animated.timing(translateY, {
+              toValue: 0,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start()
+        }
+      },
+    }),
+  ).current
 
   const handleBackdropPress = useCallback(() => {
     entry?.onClose()
@@ -91,7 +126,9 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
             <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
           </Animated.View>
           <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            <View style={styles.handle} />
+            <View style={styles.handleArea} {...panResponder.panHandlers}>
+              <View style={styles.handle} />
+            </View>
             {entry.content}
           </Animated.View>
         </View>
@@ -114,13 +151,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     paddingBottom: 32,
   },
+  handleArea: {
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
   handle: {
-    alignSelf: 'center',
     width: 36,
     height: 5,
     borderRadius: 3,
     backgroundColor: '#ccc',
-    marginTop: 8,
-    marginBottom: 4,
   },
 })
