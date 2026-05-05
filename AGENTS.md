@@ -96,6 +96,7 @@ The SDK requires these as peer dependencies:
 - `@gorhom/bottom-sheet >=5` — for the native sheet
 - `react-native-gesture-handler >=2.16.1` — required by gorhom
 - `react-native-reanimated >=3.16.0` — required by gorhom
+- `react-native-safe-area-context >=5.0.0` — for sheet safe area insets
 
 ## Testing
 
