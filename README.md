@@ -12,12 +12,11 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 - Xcode (for iOS builds)
 - Android Studio (for Android builds)
 
-> **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies (`@gorhom/bottom-sheet`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`).
+> **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
 
 ## Getting Started
 
 ```bash
-# Install dependencies
 pnpm install
 
 # Build and run the example app (dev build)
@@ -47,19 +46,9 @@ export default function RootLayout() {
 }
 ```
 
-### Peer Dependencies
+## Peer Dependencies
 
-Your app must install:
-
-```json
-{
-  "@gorhom/bottom-sheet": ">=5.0.0",
-  "react-native-gesture-handler": ">=2.16.1",
-  "react-native-reanimated": ">=3.16.0",
-  "react-native-safe-area-context": ">=5.0.0",
-  "react-native-webview": "*"
-}
-```
+See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the full list. Key native deps: `@gorhom/bottom-sheet`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`, `react-native-webview`.
 
 ## Project Structure
 
