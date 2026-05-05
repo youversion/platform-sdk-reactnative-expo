@@ -13,8 +13,8 @@
     }
   },
   "dependencies": {
-    "@youversion/platform-react-hooks": "^1.23.0",
-    "@youversion/platform-react-ui": "^1.23.0"
+    "@youversion/platform-react-hooks": "^1.23.2",
+    "@youversion/platform-react-ui": "^1.23.2"
   },
   "peerDependencies": {
     "react": ">=19.0.0 <20.0.0",

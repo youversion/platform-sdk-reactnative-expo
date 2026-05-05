@@ -3,6 +3,7 @@
     "name": "example",
     "slug": "example",
     "version": "1.0.0",
+    "scheme": "yvp-rn-example",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
