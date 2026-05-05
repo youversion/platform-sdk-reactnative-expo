@@ -47,6 +47,7 @@ export function BibleTextView({
             dom={{ matchContents: true }}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={domProps.theme === 'system' ? undefined : domProps.theme}
+            fontSize={domProps.fontSize}
             appKey={domProps.appKey}
           />
         </NativeSheet>
