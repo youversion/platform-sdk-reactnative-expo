@@ -2,7 +2,6 @@
   "expo": {
     "name": "example",
     "slug": "example",
-    "scheme": "example",
     "version": "1.0.0",
     "scheme": "yvp-rn-example",
     "orientation": "portrait",
