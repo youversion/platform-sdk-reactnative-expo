@@ -214,7 +214,7 @@ export function NativeSheetProvider({
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
-        <BottomSheetView style={{ paddingBottom: bottom, paddingInline: 8 }}>
+        <BottomSheetView style={{ paddingBottom: bottom, paddingHorizontal: 8 }}>
           {entry?.content}
         </BottomSheetView>
       </BottomSheet>
