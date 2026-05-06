@@ -3,17 +3,12 @@ import { Platform } from 'react-native'
 import BibleReaderDOM from '../dom/bible-reader'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
+import { EMPTY_FOOTNOTE } from '../lib/footnote-data'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { NativeSheet } from './native-sheet'
 
 export type BibleReaderProps = DomBibleReaderProps & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
-
-const EMPTY_FOOTNOTE: FootnoteData = {
-  verseNum: '',
-  notes: [],
-  verseHtml: '',
 }
 
 export function BibleReader({

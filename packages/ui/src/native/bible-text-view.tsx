@@ -1,19 +1,14 @@
 import { useState } from 'react'
-import { Platform } from 'react-native'
+import { Platform, useColorScheme } from 'react-native'
 import BibleTextViewDOM from '../dom/bible-text-view'
 import type { BibleTextViewProps as DomBibleTextViewProps } from '../dom/bible-text-view'
 import FootnoteContent from '../dom/footnote-content'
+import { EMPTY_FOOTNOTE } from '../lib/footnote-data'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { NativeSheet } from './native-sheet'
 
 export type BibleTextViewProps = DomBibleTextViewProps & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
-
-const EMPTY_FOOTNOTE: FootnoteData = {
-  verseNum: '',
-  notes: [],
-  verseHtml: '',
 }
 
 export function BibleTextView({
@@ -22,6 +17,7 @@ export function BibleTextView({
 }: BibleTextViewProps) {
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  const colorScheme = useColorScheme()
 
   const onFootnotePress =
     Platform.OS !== 'web'
@@ -46,7 +42,7 @@ export function BibleTextView({
           <FootnoteContent
             dom={{ matchContents: true }}
             data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={domProps.theme === 'system' ? undefined : domProps.theme}
+            theme={domProps.theme === 'system' ? (colorScheme ?? 'light') : (domProps.theme ?? 'light')}
             fontSize={domProps.fontSize}
             appKey={domProps.appKey}
           />
