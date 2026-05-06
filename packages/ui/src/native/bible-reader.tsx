@@ -1,38 +1,38 @@
-import { useState } from 'react'
-import { Platform } from 'react-native'
-import BibleReaderDOM from '../dom/bible-reader'
-import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
-import FootnoteContent from '../dom/footnote-content'
-import type { FootnoteData } from '@youversion/platform-react-ui'
-import { NativeSheet } from './native-sheet'
+import { useState } from "react";
+import { Platform } from "react-native";
+import BibleReaderDOM from "../dom/bible-reader";
+import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reader";
+import FootnoteContent from "../dom/footnote-content";
+import type { FootnoteData } from "@youversion/platform-react-ui";
+import { NativeSheet } from "./native-sheet";
 
-export const EMPTY_FOOTNOTE: FootnoteData = {
+const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: "",
   notes: [],
   verseHtml: "",
 };
 
 export type BibleReaderProps = DomBibleReaderProps & {
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
+  onFootnotePress?: (data: FootnoteData) => Promise<void>;
+};
 
 export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   ...domProps
 }: BibleReaderProps) {
-  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
-  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);
 
   const onFootnotePress =
-    Platform.OS !== 'web'
+    Platform.OS !== "web"
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
-          setFootnoteData(data)
-          setFootnoteOpenKey((key) => key + 1)
+          setFootnoteData(data);
+          setFootnoteOpenKey((key) => key + 1);
         }))
-      : undefined
+      : undefined;
 
-  const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
+  const showSheet = Platform.OS !== "web" && !consumerOnFootnotePress;
 
   return (
     <>
@@ -53,5 +53,5 @@ export function BibleReader({
         </NativeSheet>
       )}
     </>
-  )
+  );
 }
