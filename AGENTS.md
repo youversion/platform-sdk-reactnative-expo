@@ -22,7 +22,7 @@ pnpm typecheck                        # turbo typecheck (all packages)
 packages/ui/src/
 ├── dom/          ← Expo DOM components ("use dom" directive) wrapping Web SDK
 ├── native/       ← React Native components (sheets, portal provider, wrappers)
-└── lib/          ← Shared adapters, hooks, constants
+└── lib/          ← Shared adapters, hooks, constants (sheet-store, storage, dom-error)
 
 apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ```
@@ -46,7 +46,7 @@ Compose a DOM component + `NativeSheet` for footnote display. Raw DOM components
 
 ### NativeSheet Portal Pattern
 
-Context-based portal instead of `<Modal>` — Modal unmounts children when hidden, destroying WebViews (~500ms cold-start). Portal keeps WebView warm. See `native/native-sheet.tsx`.
+Portal via `@rn-primitives/portal` + zustand store (`lib/sheet-store.ts`) instead of `<Modal>`. Modal unmounts children when hidden, destroying WebViews (~500ms cold-start). Portal keeps WebView warm. See `native/native-sheet.tsx`.
 
 ### FootnoteContent Pre-warming
 
@@ -69,6 +69,15 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 - Root `tsconfig.json` excludes `apps/example`
 - Each workspace has its own `tsconfig.json` extending root
 - `node-linker=hoisted` in `.npmrc` is required for Expo DOM + pnpm compatibility
+
+## Exports
+
+**DOM**: `BibleCard`, `VerseOfTheDay`, `FootnoteContent`, `BibleReaderDOM`, `BibleTextViewDOM`
+**Native**: `BibleReader`, `BibleTextView`, `NativeSheet`, `NativeSheetProvider`
+
+## Runtime Dependencies
+
+Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`. Consumers must install peer dep `@gorhom/bottom-sheet`.
 
 ## Peer Dependencies
 

@@ -46,9 +46,25 @@ export default function RootLayout() {
 }
 ```
 
+## API Reference
+
+### DOM Components (rendered in WebView)
+- `BibleReaderDOM` — Bible reader with footnote support
+- `BibleTextViewDOM` — Bible text passage viewer
+- `FootnoteContent` — Footnote display (pre-warmed WebView)
+- `BibleCard` — Bible card widget
+- `VerseOfTheDay` — Verse of the day widget
+
+### Native Components (React Native)
+- `BibleReader` — BibleReaderDOM + NativeSheet for footnote display
+- `BibleTextView` — BibleTextViewDOM + NativeSheet for footnote display
+- `NativeSheet` / `NativeSheetProvider` — Portal-based bottom sheet
+
 ## Peer Dependencies
 
-See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the full list. Key native deps: `@gorhom/bottom-sheet`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`, `react-native-webview`.
+**Peer deps** (install separately): `@gorhom/bottom-sheet`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`, `react-native-webview`. See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the full list.
+
+**Bundled runtime deps** (no install needed): `@rn-primitives/portal`, `zustand`
 
 ## Project Structure
 
