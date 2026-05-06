@@ -14,7 +14,10 @@
   },
   "dependencies": {
     "@youversion/platform-react-hooks": "^1.23.2",
-    "@youversion/platform-react-ui": "^1.23.2"
+    "@youversion/platform-react-ui": "^1.23.2",
+    "expo-secure-store": "^55.0.13",
+    "react-native-mmkv": "^4.3.1",
+    "react-native-nitro-modules": "^0.35.6"
   },
   "peerDependencies": {
     "react": ">=19.0.0 <20.0.0",
