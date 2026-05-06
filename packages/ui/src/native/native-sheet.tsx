@@ -1,94 +1,55 @@
 /**
- * Portal-based bottom sheet rendered at the app root via @gorhom/bottom-sheet.
+ * Portal-based bottom sheet using @rn-primitives/portal + @gorhom/bottom-sheet.
  *
  * WHY NOT React Native's `<Modal>`?
  * Modal unmounts its children when `visible={false}`. Our sheet content is a
  * DOM component (Expo "use dom" — renders in a WebView). WebViews take ~500ms+
  * to cold-start, so every open/close cycle would flash a blank sheet while the
- * WebView re-initialises. By rendering at the root via a portal pattern, we
- * keep children mounted across open/close — the WebView stays warm and
- * subsequent opens are instant.
+ * WebView re-initialises. By rendering at the root via a portal, we keep
+ * children mounted across open/close — the WebView stays warm and subsequent
+ * opens are instant.
  *
  * WHY NOT BottomSheetModal?
  * gorhom's BottomSheetModal unmounts children on dismiss, which defeats our
  * WebView pre-warming strategy. Instead we use the inline BottomSheet component
- * inside our own context-based portal, keeping content mounted at all times.
+ * inside the portal host, keeping content mounted at all times.
  *
- * WHY A PORTAL?
- * The NativeSheet is declared deep in the component tree (inside BibleReader),
- * but needs to overlay the entire screen (above tabs, nav bars, etc.). React
- * Native doesn't have `createPortal` like React DOM. Instead, we use a
- * context-based portal: NativeSheet registers its children with the provider
- * via context, and NativeSheetProvider renders them inside a BottomSheet at the
- * root of the app.
+ * WHY @rn-primitives/portal?
+ * React Native doesn't have `createPortal` like React DOM. We previously used
+ * a custom context-based portal. @rn-primitives/portal provides a battle-tested
+ * zustand-based portal primitive so we don't maintain our own. Open/close state
+ * is communicated via a companion zustand store (sheet-store.ts).
  */
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Platform, StyleSheet } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCallback, useEffect, useRef } from 'react'
+import { Platform, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
-} from "@gorhom/bottom-sheet";
-import type { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
+} from '@gorhom/bottom-sheet'
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet'
+import { Portal, PortalHost } from '@rn-primitives/portal'
+import { useSheetStore } from '../lib/sheet-store'
+
+const PORTAL_NAME = 'native-sheet'
+const HOST_NAME = 'native-sheet-host'
 
 // ---------------------------------------------------------------------------
-// Context — connects NativeSheet (portal client) to NativeSheetProvider (host)
-// ---------------------------------------------------------------------------
-
-type PortalEntry = {
-  content: React.ReactNode;
-  onClose: () => void;
-  open: boolean;
-  openKey?: number;
-};
-
-type SheetContextValue = {
-  register: (
-    content: React.ReactNode,
-    onClose: () => void,
-    open: boolean,
-    openKey?: number,
-  ) => void;
-  unregister: () => void;
-};
-
-const SheetContext = createContext<SheetContextValue | null>(null);
-
-function useSheetPortal() {
-  const ctx = useContext(SheetContext);
-  if (!ctx) throw new Error("Wrap your app root with <NativeSheetProvider>");
-  return ctx;
-}
-
-// ---------------------------------------------------------------------------
-// NativeSheet — portal client (renders nothing, syncs children to provider)
+// NativeSheet — portal client (transports children + signals open/close state)
 // ---------------------------------------------------------------------------
 
 type NativeSheetProps = {
-  isOpen: boolean;
-  onClose: () => void;
-  openKey?: number;
-  children: React.ReactNode;
-};
+  isOpen: boolean
+  onClose: () => void
+  openKey?: number
+  children: React.ReactNode
+}
 
 /**
- * Renders nothing locally. Instead, portals its children to the root-level
- * NativeSheetProvider overlay via React context — similar to React DOM's
- * `createPortal`, which doesn't exist in React Native.
- *
- * The useEffect without a dependency array runs after every render, keeping
- * the portaled content in sync with the latest children/props. This is
- * intentional — React elements are new objects each render, so a deps check
- * would fire every time anyway.
+ * Renders nothing locally. Transports children to the root-level
+ * NativeSheetProvider via @rn-primitives/portal, and signals open/close
+ * state to the companion zustand store.
  */
 export function NativeSheet({
   isOpen,
@@ -96,22 +57,26 @@ export function NativeSheet({
   openKey,
   children,
 }: NativeSheetProps) {
-  const { register, unregister } = useSheetPortal();
-
-  // Sync children, onClose, and open state to the provider on every render.
   useEffect(() => {
-    if (Platform.OS === "web") return;
-    register(children, onClose, isOpen, openKey);
-  });
+    if (Platform.OS === 'web') return
+    useSheetStore.setState({ isOpen, onClose, openKey })
+  }, [isOpen, onClose, openKey])
 
-  // Clean up portal registration when this component unmounts.
   useEffect(() => {
     return () => {
-      if (Platform.OS !== "web") unregister();
-    };
-  }, [unregister]);
+      if (Platform.OS !== 'web') {
+        useSheetStore.setState({ isOpen: false, onClose: null })
+      }
+    }
+  }, [])
 
-  return null;
+  if (Platform.OS === 'web') return null
+
+  return (
+    <Portal name={PORTAL_NAME} hostName={HOST_NAME}>
+      {children}
+    </Portal>
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -125,83 +90,58 @@ const renderBackdrop = (props: BottomSheetBackdropProps) => (
     appearsOnIndex={0}
     disappearsOnIndex={-1}
   />
-);
+)
 
 export function NativeSheetProvider({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
-  const { bottom } = useSafeAreaInsets();
-  const [entry, setEntry] = useState<PortalEntry | null>(null);
-  const sheetRef = useRef<BottomSheet>(null);
+  const { bottom } = useSafeAreaInsets()
+  const sheetRef = useRef<BottomSheet>(null)
 
-  // Ref mirrors so callbacks captured in useMemo closures stay current.
-  const entryRef = useRef(entry);
-  entryRef.current = entry;
+  const isOpen = useSheetStore((s) => s.isOpen)
+  const onClose = useSheetStore((s) => s.onClose)
+  const openKey = useSheetStore((s) => s.openKey)
 
-  // Track whether we programmatically triggered a close so we don't double-fire onClose.
-  const closingRef = useRef(false);
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
+
+  const closingRef = useRef(false)
 
   const handleSheetChange = useCallback((index: number) => {
     if (index !== -1) {
-      closingRef.current = false;
-      return;
+      closingRef.current = false
+      return
     }
-
-    // index -1 = fully closed. If user swiped/tapped backdrop to dismiss,
-    // we need to notify the portal client.
     if (!closingRef.current) {
-      entryRef.current?.onClose();
+      onCloseRef.current?.()
     }
-    closingRef.current = false;
-  }, []);
+    closingRef.current = false
+  }, [])
 
-  // Track previous open state to detect transitions.
-  const wasOpenRef = useRef(false);
-  const openKeyRef = useRef<number | undefined>(undefined);
+  const wasOpenRef = useRef(false)
+  const openKeyRef = useRef<number | undefined>(undefined)
 
-  // Drive BottomSheet imperatively when open state changes.
   useEffect(() => {
-    const isOpen = entry?.open ?? false;
-    const openKeyChanged = entry?.openKey !== openKeyRef.current;
+    const openKeyChanged = openKey !== openKeyRef.current
     if (isOpen && (!wasOpenRef.current || openKeyChanged)) {
-      closingRef.current = false;
-      sheetRef.current?.snapToIndex(0);
+      closingRef.current = false
+      sheetRef.current?.snapToIndex(0)
     } else if (!isOpen && wasOpenRef.current) {
-      closingRef.current = true;
-      sheetRef.current?.close();
+      closingRef.current = true
+      sheetRef.current?.close()
     }
-    wasOpenRef.current = isOpen;
-    openKeyRef.current = entry?.openKey;
-  }, [entry?.open, entry?.openKey]);
+    wasOpenRef.current = isOpen
+    openKeyRef.current = openKey
+  }, [isOpen, openKey])
 
-  // Stable context value — register/unregister never change identity, so
-  // consumers (NativeSheet) don't re-render from context changes alone.
-  const ctx = useMemo<SheetContextValue>(
-    () => ({
-      register: (content, onClose, open, openKey) => {
-        setEntry({ content, onClose, open, openKey });
-      },
-      unregister: () => {
-        setEntry(null);
-        closingRef.current = true;
-        sheetRef.current?.close();
-      },
-    }),
-    [],
-  );
-
-  // On web, DOM components render inline (no WebView), so the web SDK's own
-  // Radix popover handles footnotes. We skip the sheet entirely.
-  if (Platform.OS === "web") {
-    return (
-      <SheetContext.Provider value={ctx}>{children}</SheetContext.Provider>
-    );
+  if (Platform.OS === 'web') {
+    return <>{children}</>
   }
 
   return (
-    <SheetContext.Provider value={ctx}>
+    <>
       {children}
 
       <BottomSheet
@@ -215,11 +155,11 @@ export function NativeSheetProvider({
         handleIndicatorStyle={styles.handle}
       >
         <BottomSheetView style={{ paddingBottom: bottom, paddingHorizontal: 8 }}>
-          {entry?.content}
+          <PortalHost name={HOST_NAME} />
         </BottomSheetView>
       </BottomSheet>
-    </SheetContext.Provider>
-  );
+    </>
+  )
 }
 
 const styles = StyleSheet.create({
@@ -227,6 +167,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   handle: {
-    backgroundColor: "#ccc",
+    backgroundColor: '#ccc',
   },
-});
+})
