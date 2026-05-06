@@ -1,5 +1,5 @@
 /**
- * Portal-based bottom sheet rendered at the app root.
+ * Portal-based bottom sheet rendered at the app root via @gorhom/bottom-sheet.
  *
  * WHY NOT React Native's `<Modal>`?
  * Modal unmounts its children when `visible={false}`. Our sheet content is a
@@ -9,24 +9,18 @@
  * keep children mounted across open/close — the WebView stays warm and
  * subsequent opens are instant.
  *
- * This is the same strategy Shopify uses in their MobileBridge architecture:
- * keep WebViews alive and reuse them instead of destroying/recreating.
- * See: https://shopify.engineering/mobilebridge-native-webviews
+ * WHY NOT BottomSheetModal?
+ * gorhom's BottomSheetModal unmounts children on dismiss, which defeats our
+ * WebView pre-warming strategy. Instead we use the inline BottomSheet component
+ * inside our own context-based portal, keeping content mounted at all times.
  *
  * WHY A PORTAL?
  * The NativeSheet is declared deep in the component tree (inside BibleReader),
  * but needs to overlay the entire screen (above tabs, nav bars, etc.). React
  * Native doesn't have `createPortal` like React DOM. Instead, we use a
  * context-based portal: NativeSheet registers its children with the provider
- * via context, and NativeSheetProvider renders them in an absolute-positioned
- * overlay at the root of the app. This is the same pattern used by
- * @gorhom/bottom-sheet (BottomSheetModalProvider) and react-native-portal.
- *
- * WHY PanResponder FOR DISMISS?
- * The handle area uses PanResponder to track vertical drag gestures. If the
- * user drags down past DISMISS_THRESHOLD (80px), we call onClose. Otherwise
- * the sheet snaps back. This mimics native iOS/Android sheet dismiss behaviour
- * without requiring react-native-gesture-handler as a dependency.
+ * via context, and NativeSheetProvider renders them inside a BottomSheet at the
+ * root of the app.
  */
 
 import {
@@ -38,15 +32,12 @@ import {
   useRef,
   useState,
 } from 'react'
-import {
-  Animated,
-  PanResponder,
-  Platform,
-  Pressable,
-  StyleSheet,
-  View,
-  useWindowDimensions,
-} from 'react-native'
+import { Platform, StyleSheet } from 'react-native'
+import BottomSheet, {
+  BottomSheetBackdrop,
+  BottomSheetView,
+} from '@gorhom/bottom-sheet'
+import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet'
 
 // ---------------------------------------------------------------------------
 // Context — connects NativeSheet (portal client) to NativeSheetProvider (host)
@@ -111,80 +102,52 @@ export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
 }
 
 // ---------------------------------------------------------------------------
-// NativeSheetProvider — portal host (renders overlay at app root)
+// NativeSheetProvider — portal host (renders BottomSheet at app root)
 // ---------------------------------------------------------------------------
 
-const ANIM_MS = 300
-const DISMISS_THRESHOLD = 80
+const renderBackdrop = (props: BottomSheetBackdropProps) => (
+  <BottomSheetBackdrop
+    {...props}
+    pressBehavior="close"
+    appearsOnIndex={0}
+    disappearsOnIndex={-1}
+  />
+)
 
 export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
   const [entry, setEntry] = useState<PortalEntry | null>(null)
-  const { height } = useWindowDimensions()
-  const translateY = useRef(new Animated.Value(height)).current
-  const backdropOpacity = useRef(new Animated.Value(0)).current
+  const sheetRef = useRef<BottomSheet>(null)
 
-  // Ref mirror of entry so PanResponder callbacks (which are captured in a
-  // ref and never re-created) can access the latest onClose without going stale.
+  // Ref mirrors so callbacks captured in useMemo closures stay current.
   const entryRef = useRef(entry)
   entryRef.current = entry
 
-  const isOpen = entry?.open ?? false
+  // Track whether we programmatically triggered a close so we don't double-fire onClose.
+  const closingRef = useRef(false)
 
-  // Animate sheet and backdrop in/out when open state changes.
+  const handleSheetChange = useCallback((index: number) => {
+    // index -1 = fully closed. If user swiped/tapped backdrop to dismiss,
+    // we need to notify the portal client.
+    if (index === -1 && !closingRef.current) {
+      entryRef.current?.onClose()
+    }
+    closingRef.current = false
+  }, [])
+
+  // Track previous open state to detect transitions.
+  const wasOpenRef = useRef(false)
+
+  // Drive BottomSheet imperatively when open state changes.
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(translateY, {
-        toValue: isOpen ? 0 : height,
-        duration: ANIM_MS,
-        useNativeDriver: true,
-      }),
-      Animated.timing(backdropOpacity, {
-        toValue: isOpen ? 1 : 0,
-        duration: ANIM_MS,
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [isOpen, height, translateY, backdropOpacity])
-
-  // PanResponder lives in a ref so it's created once and never re-allocated.
-  // It drives translateY and backdropOpacity directly for 60fps drag tracking,
-  // then either dismisses or snaps back on release.
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, g) => g.dy > 5,
-      onPanResponderMove: (_, g) => {
-        // Only allow downward drag (positive dy).
-        if (g.dy > 0) {
-          translateY.setValue(g.dy)
-          backdropOpacity.setValue(1 - Math.min(g.dy / 300, 1))
-        }
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dy > DISMISS_THRESHOLD) {
-          entryRef.current?.onClose()
-        } else {
-          // Snap back to open position.
-          Animated.parallel([
-            Animated.timing(translateY, {
-              toValue: 0,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-            Animated.timing(backdropOpacity, {
-              toValue: 1,
-              duration: 150,
-              useNativeDriver: true,
-            }),
-          ]).start()
-        }
-      },
-    }),
-  ).current
-
-  const handleBackdropPress = useCallback(() => {
-    entry?.onClose()
-  }, [entry])
+    const isOpen = entry?.open ?? false
+    if (isOpen && !wasOpenRef.current) {
+      sheetRef.current?.snapToIndex(0)
+    } else if (!isOpen && wasOpenRef.current) {
+      closingRef.current = true
+      sheetRef.current?.close()
+    }
+    wasOpenRef.current = isOpen
+  }, [entry?.open])
 
   // Stable context value — register/unregister never change identity, so
   // consumers (NativeSheet) don't re-render from context changes alone.
@@ -195,6 +158,8 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
       },
       unregister: () => {
         setEntry(null)
+        closingRef.current = true
+        sheetRef.current?.close()
       },
     }),
     [],
@@ -210,54 +175,29 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
     <SheetContext.Provider value={ctx}>
       {children}
 
-      {/* Root-level overlay — absolutely positioned above all app content. */}
-      {entry && (
-        <View style={StyleSheet.absoluteFill} pointerEvents={isOpen ? 'auto' : 'none'}>
-          {/* Semi-transparent backdrop — tap to dismiss. */}
-          <Animated.View
-            style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}
-          >
-            <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
-          </Animated.View>
-
-          {/* Sheet container — slides up from bottom via translateY. */}
-          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-            {/* Drag handle — PanResponder target for swipe-to-dismiss. */}
-            <View style={styles.handleArea} {...panResponder.panHandlers}>
-              <View style={styles.handle} />
-            </View>
-
-            {/* Portaled content from NativeSheet (e.g., FootnoteContent DOM component). */}
-            {entry.content}
-          </Animated.View>
-        </View>
-      )}
+      <BottomSheet
+        ref={sheetRef}
+        index={-1}
+        enablePanDownToClose
+        enableDynamicSizing
+        backdropComponent={renderBackdrop}
+        onChange={handleSheetChange}
+        style={styles.sheet}
+        handleIndicatorStyle={styles.handle}
+      >
+        <BottomSheetView>
+          {entry?.content}
+        </BottomSheetView>
+      </BottomSheet>
     </SheetContext.Provider>
   )
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
   sheet: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingBottom: 32,
-  },
-  handleArea: {
-    paddingVertical: 10,
-    alignItems: 'center',
+    zIndex: 1000,
   },
   handle: {
-    width: 36,
-    height: 5,
-    borderRadius: 3,
     backgroundColor: '#ccc',
   },
 })
