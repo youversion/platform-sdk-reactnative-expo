@@ -48,6 +48,7 @@ type PortalEntry = {
   content: React.ReactNode;
   onClose: () => void;
   open: boolean;
+  openKey?: number;
 };
 
 type SheetContextValue = {
@@ -55,6 +56,7 @@ type SheetContextValue = {
     content: React.ReactNode,
     onClose: () => void,
     open: boolean,
+    openKey?: number,
   ) => void;
   unregister: () => void;
 };
@@ -74,6 +76,7 @@ function useSheetPortal() {
 type NativeSheetProps = {
   isOpen: boolean;
   onClose: () => void;
+  openKey?: number;
   children: React.ReactNode;
 };
 
@@ -87,13 +90,18 @@ type NativeSheetProps = {
  * intentional — React elements are new objects each render, so a deps check
  * would fire every time anyway.
  */
-export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
+export function NativeSheet({
+  isOpen,
+  onClose,
+  openKey,
+  children,
+}: NativeSheetProps) {
   const { register, unregister } = useSheetPortal();
 
   // Sync children, onClose, and open state to the provider on every render.
   useEffect(() => {
     if (Platform.OS === "web") return;
-    register(children, onClose, isOpen);
+    register(children, onClose, isOpen, openKey);
   });
 
   // Clean up portal registration when this component unmounts.
@@ -136,9 +144,14 @@ export function NativeSheetProvider({
   const closingRef = useRef(false);
 
   const handleSheetChange = useCallback((index: number) => {
+    if (index !== -1) {
+      closingRef.current = false;
+      return;
+    }
+
     // index -1 = fully closed. If user swiped/tapped backdrop to dismiss,
     // we need to notify the portal client.
-    if (index === -1 && !closingRef.current) {
+    if (!closingRef.current) {
       entryRef.current?.onClose();
     }
     closingRef.current = false;
@@ -146,25 +159,29 @@ export function NativeSheetProvider({
 
   // Track previous open state to detect transitions.
   const wasOpenRef = useRef(false);
+  const openKeyRef = useRef<number | undefined>(undefined);
 
   // Drive BottomSheet imperatively when open state changes.
   useEffect(() => {
     const isOpen = entry?.open ?? false;
-    if (isOpen && !wasOpenRef.current) {
+    const openKeyChanged = entry?.openKey !== openKeyRef.current;
+    if (isOpen && (!wasOpenRef.current || openKeyChanged)) {
+      closingRef.current = false;
       sheetRef.current?.snapToIndex(0);
     } else if (!isOpen && wasOpenRef.current) {
       closingRef.current = true;
       sheetRef.current?.close();
     }
     wasOpenRef.current = isOpen;
-  }, [entry?.open]);
+    openKeyRef.current = entry?.openKey;
+  }, [entry?.open, entry?.openKey]);
 
   // Stable context value — register/unregister never change identity, so
   // consumers (NativeSheet) don't re-render from context changes alone.
   const ctx = useMemo<SheetContextValue>(
     () => ({
-      register: (content, onClose, open) => {
-        setEntry({ content, onClose, open });
+      register: (content, onClose, open, openKey) => {
+        setEntry({ content, onClose, open, openKey });
       },
       unregister: () => {
         setEntry(null);
