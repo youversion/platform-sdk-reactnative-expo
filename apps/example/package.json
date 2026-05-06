@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.10",
-    "@expo/ui": "~55.0.13",
     "@youversion/platform-react-native-expo": "workspace:*",
     "expo": "~55.0.19",
     "expo-linking": "~55.0.14",
