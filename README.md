@@ -48,16 +48,11 @@ export default function RootLayout() {
 
 ## API Reference
 
-### DOM Components (rendered in WebView)
-- `BibleReaderDOM` — Bible reader with footnote support
-- `BibleTextViewDOM` — Bible text passage viewer
-- `FootnoteContent` — Footnote display (pre-warmed WebView)
+### Components
 - `BibleCard` — Bible card widget
 - `VerseOfTheDay` — Verse of the day widget
-
-### Native Components (React Native)
-- `BibleReader` — BibleReaderDOM + NativeSheet for footnote display
-- `BibleTextView` — BibleTextViewDOM + NativeSheet for footnote display
+- `BibleReader` — Bible reader with native sheet footnote display
+- `BibleTextView` — Bible text passage viewer with native sheet footnote display
 - `NativeSheet` / `NativeSheetProvider` — Portal-based bottom sheet
 
 ## Peer Dependencies

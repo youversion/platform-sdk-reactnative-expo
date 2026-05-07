@@ -42,7 +42,7 @@ DOM components use the `'use dom'` directive (Expo SDK 55). They render in a Web
 
 ### Native Wrappers (BibleReader, BibleTextView)
 
-Compose a DOM component + `NativeSheet` for footnote display. Raw DOM components exported as `BibleReaderDOM` and `BibleTextViewDOM`.
+Compose internal DOM components + `NativeSheet` for footnote display. Raw DOM components are not part of the package API.
 
 ### NativeSheet Portal Pattern
 
@@ -72,8 +72,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**DOM**: `BibleCard`, `VerseOfTheDay`, `FootnoteContent`, `BibleReaderDOM`, `BibleTextViewDOM`
-**Native**: `BibleReader`, `BibleTextView`, `NativeSheet`, `NativeSheetProvider`
+**Components**: `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`, `NativeSheet`, `NativeSheetProvider`
 
 ## Runtime Dependencies
 
