@@ -22,10 +22,9 @@ export default function FootnoteContentDOM({
 }: FootnoteContentDOMProps) {
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Disable WebView scroll */}
-      <style
-        dangerouslySetInnerHTML={{ __html: "html, body { overflow: hidden; }" }}
-      />
+      <style href="yv-footnote-content-scroll-lock" precedence="medium">
+        {"html, body { overflow: hidden; }"}
+      </style>
       <WebFootnoteContent {...data} fontSize={fontSize} theme={theme} />
     </YouVersionProvider>
   );
