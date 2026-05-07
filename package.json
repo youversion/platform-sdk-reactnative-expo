@@ -8,9 +8,18 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "eslint": "^9",
+    "eslint-config-expo": "^55.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.3",
     "turbo": "^2.9.7",
     "typescript": "5.9.3"
   }
