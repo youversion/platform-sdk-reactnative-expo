@@ -13,6 +13,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 };
 
 export type BibleReaderProps = DomBibleReaderProps & {
+  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>;
 };
 
