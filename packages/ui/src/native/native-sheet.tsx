@@ -22,7 +22,7 @@
  */
 
 import { useCallback, useEffect, useRef } from "react";
-import { Platform, StyleSheet } from "react-native";
+import { Platform, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { create } from "zustand";
 import BottomSheet, {
@@ -34,15 +34,18 @@ import { Portal, PortalHost } from "@rn-primitives/portal";
 
 const PORTAL_NAME = "native-sheet";
 const HOST_NAME = "native-sheet-host";
+let nextSheetId = 0;
 
 type SheetState = {
   isOpen: boolean;
   onClose: (() => void) | null;
+  activeSheetId: number | null;
 };
 
 export const useSheetStore = create<SheetState>(() => ({
   isOpen: false,
   onClose: null,
+  activeSheetId: null,
 }));
 
 type NativeSheetProps = {
@@ -63,25 +66,61 @@ export function NativeSheet({
   onClose,
   children,
 }: NativeSheetProps) {
+  const sheetIdRef = useRef<number | null>(null);
+  if (sheetIdRef.current === null) {
+    sheetIdRef.current = nextSheetId++;
+  }
+  const sheetId = sheetIdRef.current;
+
   useEffect(() => {
     if (Platform.OS === "web") return;
-    useSheetStore.setState({ isOpen, onClose });
-  }, [isOpen, onClose]);
+    useSheetStore.setState((state) => {
+      if (isOpen) {
+        return { isOpen: true, onClose, activeSheetId: sheetId };
+      }
+      if (state.activeSheetId === sheetId) {
+        return { isOpen: false, onClose: null, activeSheetId: null };
+      }
+      return state;
+    });
+  }, [isOpen, onClose, sheetId]);
 
   useEffect(() => {
     return () => {
       if (Platform.OS !== "web") {
-        useSheetStore.setState({ isOpen: false, onClose: null });
+        useSheetStore.setState((state) => {
+          if (state.activeSheetId !== sheetId) return state;
+          return { isOpen: false, onClose: null, activeSheetId: null };
+        });
       }
     };
-  }, []);
+  }, [sheetId]);
 
   if (Platform.OS === "web") return null;
 
   return (
-    <Portal name={PORTAL_NAME} hostName={HOST_NAME}>
-      {children}
+    <Portal name={`${PORTAL_NAME}-${sheetId}`} hostName={HOST_NAME}>
+      <SheetContent sheetId={sheetId}>{children}</SheetContent>
     </Portal>
+  );
+}
+
+function SheetContent({
+  sheetId,
+  children,
+}: {
+  sheetId: number;
+  children: React.ReactNode;
+}) {
+  const activeSheetId = useSheetStore((s) => s.activeSheetId);
+  const isActive = activeSheetId === sheetId;
+  return (
+    <View
+      pointerEvents={isActive ? "auto" : "none"}
+      style={isActive ? undefined : styles.hidden}
+    >
+      {children}
+    </View>
   );
 }
 
@@ -168,5 +207,11 @@ const styles = StyleSheet.create({
   },
   handle: {
     backgroundColor: "#ccc",
+  },
+  hidden: {
+    height: 1,
+    opacity: 0,
+    position: "absolute",
+    width: 1,
   },
 });
