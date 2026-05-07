@@ -22,7 +22,6 @@ export function BibleTextView({
   ...domProps
 }: BibleTextViewProps) {
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
-  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);
   const colorScheme = useColorScheme();
 
   const onFootnotePress =
@@ -30,7 +29,6 @@ export function BibleTextView({
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
           setFootnoteData(data);
-          setFootnoteOpenKey((key) => key + 1);
         }))
       : undefined;
 
@@ -49,7 +47,6 @@ export function BibleTextView({
         <NativeSheet
           isOpen={!!footnoteData}
           onClose={() => setFootnoteData(null)}
-          openKey={footnoteOpenKey}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

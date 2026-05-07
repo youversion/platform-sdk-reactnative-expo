@@ -38,19 +38,16 @@ const HOST_NAME = "native-sheet-host";
 type SheetState = {
   isOpen: boolean;
   onClose: (() => void) | null;
-  openKey: number | undefined;
 };
 
 export const useSheetStore = create<SheetState>(() => ({
   isOpen: false,
   onClose: null,
-  openKey: undefined,
 }));
 
 type NativeSheetProps = {
   isOpen: boolean;
   onClose: () => void;
-  openKey?: number;
   children: React.ReactNode;
 };
 
@@ -64,13 +61,12 @@ type NativeSheetProps = {
 export function NativeSheet({
   isOpen,
   onClose,
-  openKey,
   children,
 }: NativeSheetProps) {
   useEffect(() => {
     if (Platform.OS === "web") return;
-    useSheetStore.setState({ isOpen, onClose, openKey });
-  }, [isOpen, onClose, openKey]);
+    useSheetStore.setState({ isOpen, onClose });
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     return () => {
@@ -108,7 +104,6 @@ export function NativeSheetProvider({
 
   const isOpen = useSheetStore((s) => s.isOpen);
   const onClose = useSheetStore((s) => s.onClose);
-  const openKey = useSheetStore((s) => s.openKey);
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -127,11 +122,9 @@ export function NativeSheetProvider({
   }, []);
 
   const wasOpenRef = useRef(false);
-  const openKeyRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    const openKeyChanged = openKey !== openKeyRef.current;
-    if (isOpen && (!wasOpenRef.current || openKeyChanged)) {
+    if (isOpen && !wasOpenRef.current) {
       closingRef.current = false;
       sheetRef.current?.snapToIndex(0);
     } else if (!isOpen && wasOpenRef.current) {
@@ -139,8 +132,7 @@ export function NativeSheetProvider({
       sheetRef.current?.close();
     }
     wasOpenRef.current = isOpen;
-    openKeyRef.current = openKey;
-  }, [isOpen, openKey]);
+  }, [isOpen]);
 
   if (Platform.OS === "web") {
     return <>{children}</>;

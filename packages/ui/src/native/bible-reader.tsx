@@ -22,14 +22,12 @@ export function BibleReader({
   ...domProps
 }: BibleReaderProps) {
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
-  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);
 
   const onFootnotePress =
     Platform.OS !== "web"
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
           setFootnoteData(data);
-          setFootnoteOpenKey((key) => key + 1);
         }))
       : undefined;
 
@@ -42,7 +40,6 @@ export function BibleReader({
         <NativeSheet
           isOpen={!!footnoteData}
           onClose={() => setFootnoteData(null)}
-          openKey={footnoteOpenKey}
         >
           <FootnoteContent
             dom={{ matchContents: true }}
