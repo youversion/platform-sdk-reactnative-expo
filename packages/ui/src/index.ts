@@ -1,2 +1,2 @@
-export { BibleCard, VerseOfTheDay, FootnoteContent, BibleReaderDOM, BibleTextViewDOM } from './dom'
-export { BibleReader, BibleTextView, NativeSheet, NativeSheetProvider } from './native'
+export { BibleCard, VerseOfTheDay } from "./dom";
+export { BibleReader, BibleTextView } from "./native";
