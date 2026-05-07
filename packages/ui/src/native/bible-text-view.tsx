@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Platform, useColorScheme } from "react-native";
 import BibleTextViewDOM from "../dom/bible-text-view";
-import type { BibleTextViewProps as DomBibleTextViewProps } from "../dom/bible-text-view";
+import type { BibleTextViewProps as BibleTextViewDOMProps } from "../dom/bible-text-view";
 import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
 import { NativeSheet } from "./native-sheet";
@@ -12,7 +12,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: "",
 };
 
-export type BibleTextViewProps = DomBibleTextViewProps & {
+export type BibleTextViewProps = BibleTextViewDOMProps & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>;
 };
 

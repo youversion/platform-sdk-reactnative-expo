@@ -24,20 +24,28 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Platform, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { create } from "zustand";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { Portal, PortalHost } from "@rn-primitives/portal";
-import { useSheetStore } from "../lib/sheet-store";
 
 const PORTAL_NAME = "native-sheet";
 const HOST_NAME = "native-sheet-host";
 
-// ---------------------------------------------------------------------------
-// NativeSheet — portal client (transports children + signals open/close state)
-// ---------------------------------------------------------------------------
+type SheetState = {
+  isOpen: boolean;
+  onClose: (() => void) | null;
+  openKey: number | undefined;
+};
+
+export const useSheetStore = create<SheetState>(() => ({
+  isOpen: false,
+  onClose: null,
+  openKey: undefined,
+}));
 
 type NativeSheetProps = {
   isOpen: boolean;
@@ -48,8 +56,10 @@ type NativeSheetProps = {
 
 /**
  * Renders nothing locally. Transports children to the root-level
- * NativeSheetProvider via @rn-primitives/portal, and signals open/close
- * state to the companion zustand store.
+ * NativeSheetProvider via `@rn-primitives/portal`, and signals open/close
+ * state to the companion zustand store. This is all done to pre-warm Expo DOM
+ * components in order to avoid the ~500ms cold-boot issue for WebViews, so
+ * that the contents inside can feel native.
  */
 export function NativeSheet({
   isOpen,
@@ -78,10 +88,6 @@ export function NativeSheet({
     </Portal>
   );
 }
-
-// ---------------------------------------------------------------------------
-// NativeSheetProvider — portal host (renders BottomSheet at app root)
-// ---------------------------------------------------------------------------
 
 const renderBackdrop = (props: BottomSheetBackdropProps) => (
   <BottomSheetBackdrop
