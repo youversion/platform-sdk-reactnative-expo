@@ -21,30 +21,30 @@
  * is communicated via a companion zustand store (sheet-store.ts).
  */
 
-import { useCallback, useEffect, useRef } from 'react'
-import { Platform, StyleSheet } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useCallback, useEffect, useRef } from "react";
+import { Platform, StyleSheet } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BottomSheet, {
   BottomSheetBackdrop,
   BottomSheetView,
-} from '@gorhom/bottom-sheet'
-import type { BottomSheetBackdropProps } from '@gorhom/bottom-sheet'
-import { Portal, PortalHost } from '@rn-primitives/portal'
-import { useSheetStore } from '../lib/sheet-store'
+  type BottomSheetBackdropProps,
+} from "@gorhom/bottom-sheet";
+import { Portal, PortalHost } from "@rn-primitives/portal";
+import { useSheetStore } from "../lib/sheet-store";
 
-const PORTAL_NAME = 'native-sheet'
-const HOST_NAME = 'native-sheet-host'
+const PORTAL_NAME = "native-sheet";
+const HOST_NAME = "native-sheet-host";
 
 // ---------------------------------------------------------------------------
 // NativeSheet — portal client (transports children + signals open/close state)
 // ---------------------------------------------------------------------------
 
 type NativeSheetProps = {
-  isOpen: boolean
-  onClose: () => void
-  openKey?: number
-  children: React.ReactNode
-}
+  isOpen: boolean;
+  onClose: () => void;
+  openKey?: number;
+  children: React.ReactNode;
+};
 
 /**
  * Renders nothing locally. Transports children to the root-level
@@ -58,25 +58,25 @@ export function NativeSheet({
   children,
 }: NativeSheetProps) {
   useEffect(() => {
-    if (Platform.OS === 'web') return
-    useSheetStore.setState({ isOpen, onClose, openKey })
-  }, [isOpen, onClose, openKey])
+    if (Platform.OS === "web") return;
+    useSheetStore.setState({ isOpen, onClose, openKey });
+  }, [isOpen, onClose, openKey]);
 
   useEffect(() => {
     return () => {
-      if (Platform.OS !== 'web') {
-        useSheetStore.setState({ isOpen: false, onClose: null })
+      if (Platform.OS !== "web") {
+        useSheetStore.setState({ isOpen: false, onClose: null });
       }
-    }
-  }, [])
+    };
+  }, []);
 
-  if (Platform.OS === 'web') return null
+  if (Platform.OS === "web") return null;
 
   return (
     <Portal name={PORTAL_NAME} hostName={HOST_NAME}>
       {children}
     </Portal>
-  )
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -90,54 +90,54 @@ const renderBackdrop = (props: BottomSheetBackdropProps) => (
     appearsOnIndex={0}
     disappearsOnIndex={-1}
   />
-)
+);
 
 export function NativeSheetProvider({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const { bottom } = useSafeAreaInsets()
-  const sheetRef = useRef<BottomSheet>(null)
+  const { bottom } = useSafeAreaInsets();
+  const sheetRef = useRef<BottomSheet>(null);
 
-  const isOpen = useSheetStore((s) => s.isOpen)
-  const onClose = useSheetStore((s) => s.onClose)
-  const openKey = useSheetStore((s) => s.openKey)
+  const isOpen = useSheetStore((s) => s.isOpen);
+  const onClose = useSheetStore((s) => s.onClose);
+  const openKey = useSheetStore((s) => s.openKey);
 
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
-  const closingRef = useRef(false)
+  const closingRef = useRef(false);
 
   const handleSheetChange = useCallback((index: number) => {
     if (index !== -1) {
-      closingRef.current = false
-      return
+      closingRef.current = false;
+      return;
     }
     if (!closingRef.current) {
-      onCloseRef.current?.()
+      onCloseRef.current?.();
     }
-    closingRef.current = false
-  }, [])
+    closingRef.current = false;
+  }, []);
 
-  const wasOpenRef = useRef(false)
-  const openKeyRef = useRef<number | undefined>(undefined)
+  const wasOpenRef = useRef(false);
+  const openKeyRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    const openKeyChanged = openKey !== openKeyRef.current
+    const openKeyChanged = openKey !== openKeyRef.current;
     if (isOpen && (!wasOpenRef.current || openKeyChanged)) {
-      closingRef.current = false
-      sheetRef.current?.snapToIndex(0)
+      closingRef.current = false;
+      sheetRef.current?.snapToIndex(0);
     } else if (!isOpen && wasOpenRef.current) {
-      closingRef.current = true
-      sheetRef.current?.close()
+      closingRef.current = true;
+      sheetRef.current?.close();
     }
-    wasOpenRef.current = isOpen
-    openKeyRef.current = openKey
-  }, [isOpen, openKey])
+    wasOpenRef.current = isOpen;
+    openKeyRef.current = openKey;
+  }, [isOpen, openKey]);
 
-  if (Platform.OS === 'web') {
-    return <>{children}</>
+  if (Platform.OS === "web") {
+    return <>{children}</>;
   }
 
   return (
@@ -154,12 +154,14 @@ export function NativeSheetProvider({
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
-        <BottomSheetView style={{ paddingBottom: bottom, paddingHorizontal: 8 }}>
+        <BottomSheetView
+          style={{ paddingBottom: bottom, paddingHorizontal: 8 }}
+        >
           <PortalHost name={HOST_NAME} />
         </BottomSheetView>
       </BottomSheet>
     </>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
@@ -167,6 +169,6 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   handle: {
-    backgroundColor: '#ccc',
+    backgroundColor: "#ccc",
   },
-})
+});
