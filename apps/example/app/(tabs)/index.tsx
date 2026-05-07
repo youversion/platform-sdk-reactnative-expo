@@ -1,8 +1,5 @@
-import {
-  BibleReader,
-  BibleTextView,
-} from "@youversion/platform-react-native-expo";
-import { StyleSheet, Text, View } from "react-native";
+import { BibleReader, BibleTextView } from '@youversion/platform-react-native-expo'
+import { StyleSheet, Text, View } from 'react-native'
 
 export default function BibleScreen() {
   return (
@@ -10,11 +7,7 @@ export default function BibleScreen() {
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>BibleTextView</Text>
         <View style={styles.textView}>
-          <BibleTextView
-            reference="JHN.1.1-4"
-            versionId={3034}
-            showVerseNumbers
-          />
+          <BibleTextView reference="JHN.1.1-4" versionId={3034} showVerseNumbers />
         </View>
       </View>
 
@@ -23,7 +16,7 @@ export default function BibleScreen() {
         <BibleReader defaultVersionId={3034} style={styles.reader} />
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -54,4 +47,4 @@ const styles = StyleSheet.create({
   reader: {
     flex: 1,
   },
-});
+})
