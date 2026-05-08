@@ -11,7 +11,7 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 ```bash
 pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
-cd apps/example && pnpm start         # start dev server (after build)
+cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
 pnpm build                            # turbo build (all packages)
 pnpm typecheck                        # turbo typecheck (all packages)
 ```
@@ -21,8 +21,8 @@ pnpm typecheck                        # turbo typecheck (all packages)
 ```
 packages/ui/src/
 ├── dom/          ← Expo DOM components ("use dom" directive) wrapping Web SDK
-├── native/       ← React Native components (sheets, portal provider, wrappers)
-└── lib/          ← Shared adapters, hooks, constants (sheet-store, storage, dom-error)
+├── native/       ← React Native provider/context, wrappers, and internal sheet support
+└── lib/          ← Shared adapters, hooks, constants (storage, dom-error)
 
 apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ```
@@ -30,7 +30,7 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ## Development Workflow
 
 - First build: `cd apps/example && pnpm build:ios` (or `build:android`) — creates a dev client with native modules
-- Subsequent runs: `cd apps/example && pnpm start`
+- Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
 - Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
 - **Expo Go is not supported** — requires a dev build
 
@@ -40,13 +40,25 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 
 DOM components use the `'use dom'` directive (Expo SDK 55). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
 
-### Native Wrappers (BibleReader, BibleTextView)
+### Native Provider
 
-Compose internal DOM components + `NativeSheet` for footnote display. Raw DOM components are not part of the package API.
+`YouVersionProvider` is the public root provider. It supplies native context for `appKey` and resolved theme, and wraps the internal `NativeSheetProvider` so consumers only need one SDK provider.
+
+Keep `GestureHandlerRootView` outside `YouVersionProvider`; bottom-sheet gestures need it as an ancestor.
+
+### Native Wrappers
+
+`BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`, then pass serializable `appKey` and theme props into their DOM wrappers. Component-level theme props remain valid overrides.
+
+Raw DOM components are not part of the package API.
+
+Native provider context does not cross into Expo DOM WebViews. DOM wrappers keep their own web `YouVersionProvider` from `@youversion/platform-react-ui`.
 
 ### NativeSheet Portal Pattern
 
-Portal via `@rn-primitives/portal` + zustand store (`lib/sheet-store.ts`) instead of `<Modal>`. Modal unmounts children when hidden, destroying WebViews (~500ms cold-start). Portal keeps WebView warm. See `native/native-sheet.tsx`.
+Portal via `@rn-primitives/portal` + a local zustand store in `native/native-sheet.tsx` instead of `<Modal>`. Modal unmounts children when hidden, destroying WebViews (~500ms cold-start).
+
+Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
 
 ### FootnoteContent Pre-warming
 
@@ -72,7 +84,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`, `NativeSheet`, `NativeSheetProvider`
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`
 
 ## Runtime Dependencies
 

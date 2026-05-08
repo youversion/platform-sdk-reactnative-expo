@@ -24,7 +24,7 @@ cd apps/example
 pnpm build:ios       # or pnpm build:android
 
 # Start the dev server (after first build)
-pnpm start
+pnpm exec expo start --dev-client
 ```
 
 ## Setup
@@ -36,15 +36,21 @@ import { YouVersionProvider } from '@youversion/platform-react-native-expo'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
+  const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
+
+  if (!appKey) return null
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <YouVersionProvider appKey={process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY}>
+      <YouVersionProvider appKey={appKey}>
         {/* your app */}
       </YouVersionProvider>
     </GestureHandlerRootView>
   )
 }
 ```
+
+`GestureHandlerRootView` must wrap `YouVersionProvider`; the provider includes internal bottom-sheet support that depends on React Native Gesture Handler.
 
 ## API Reference
 
@@ -57,9 +63,24 @@ export default function RootLayout() {
 
 `BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`. Component-level `theme` props can still override the provider theme.
 
+```tsx
+function BibleScreen() {
+  return (
+    <>
+      <BibleTextView reference="JHN.1.1-4" versionId={3034} showVerseNumbers />
+      <BibleReader defaultVersionId={3034} />
+      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+      <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />
+    </>
+  )
+}
+```
+
+`YouVersionProvider` accepts `theme="light" | "dark" | "system"`. Components with theme props can override the provider theme for that instance.
+
 ## Peer Dependencies
 
-**Peer deps** (install separately): `@gorhom/bottom-sheet`, `react-native-gesture-handler`, `react-native-reanimated`, `react-native-safe-area-context`, `react-native-webview`. See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the full list.
+See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the canonical peer dependency list.
 
 **Bundled runtime deps** (no install needed): `@rn-primitives/portal`, `zustand`
 
@@ -68,7 +89,7 @@ export default function RootLayout() {
 ```
 packages/ui/src/
 ├── dom/           ← Expo DOM components ("use dom") wrapping the React Web SDK
-├── native/        ← React Native components (sheets, portal provider, wrappers)
+├── native/        ← React Native provider/context, wrappers, and internal sheet support
 └── lib/           ← Native adapters, hooks, constants
 ```
 
