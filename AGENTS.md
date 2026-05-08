@@ -10,7 +10,8 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 ```bash
 pnpm install                          # install all workspace deps
-cd apps/example && pnpm start         # start example app (Expo dev server)
+cd apps/example && pnpm build:ios     # build dev client (first time)
+cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
 pnpm build                            # turbo build (all packages)
 pnpm typecheck                        # turbo typecheck (all packages)
 ```
@@ -20,32 +21,52 @@ pnpm typecheck                        # turbo typecheck (all packages)
 ```
 packages/ui/src/
 ├── dom/          ← Expo DOM components ("use dom" directive) wrapping Web SDK
-├── native/       ← React Native components (sheets, pickers, screens)
-└── lib/          ← Shared adapters, hooks, constants
+├── native/       ← React Native provider/context, wrappers, and internal sheet support
+└── lib/          ← Shared adapters, hooks, constants (storage, dom-error)
 
 apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ```
 
 ## Development Workflow
 
-- Start the example app: `cd apps/example && pnpm start`
-- Platform targets: `pnpm ios`, `pnpm android`, `pnpm web` (from `apps/example/`)
-- The package uses source entry (`"main": "src/index.ts"`) — no build step needed during dev, Metro resolves TypeScript directly
+- First build: `cd apps/example && pnpm build:ios` (or `build:android`) — creates a dev client with native modules
+- Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
+- Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
+- **Expo Go is not supported** — requires a dev build
 
 ## Key Architecture Notes
 
 ### Expo DOM Components
 
-DOM components use the `'use dom'` directive (Expo SDK 55). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection — things that don't exist natively. **Never** try to use Web SDK components directly in React Native; always go through a DOM component wrapper.
+DOM components use the `'use dom'` directive (Expo SDK 55). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
+
+### Native Provider
+
+`YouVersionProvider` is the public root provider. It supplies native context for `appKey` and resolved theme, and wraps the internal `NativeSheetProvider` so consumers only need one SDK provider.
+
+Keep `GestureHandlerRootView` outside `YouVersionProvider`; bottom-sheet gestures need it as an ancestor.
+
+### Native Wrappers
+
+`BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`, then pass serializable `appKey` and theme props into their DOM wrappers. Component-level theme props remain valid overrides.
+
+Raw DOM components are not part of the package API.
+
+Native provider context does not cross into Expo DOM WebViews. DOM wrappers keep their own web `YouVersionProvider` from `@youversion/platform-react-ui`.
+
+### NativeSheet Portal Pattern
+
+Portal via `@rn-primitives/portal` + a local zustand store in `native/native-sheet.tsx` instead of `<Modal>`. Modal unmounts children when hidden, destroying WebViews (~500ms cold-start).
+
+Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
+
+### FootnoteContent Pre-warming
+
+Mounted immediately with empty placeholder data to cold-start the WebView during page load.
 
 ### Font/Theme Overrides
 
-CSS custom properties on `[data-slot="yv-bible-renderer"]`:
-
-- `--yv-reader-font-size`
-- `--yv-reader-font-family`
-- `--yv-reader-bg`
-- `--yv-reader-fg`
+CSS custom properties on `[data-slot="yv-bible-renderer"]`: `--yv-reader-font-size`, `--yv-reader-font-family`, `--yv-reader-bg`, `--yv-reader-fg`
 
 ### Metro Config
 
@@ -61,9 +82,17 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 - Each workspace has its own `tsconfig.json` extending root
 - `node-linker=hoisted` in `.npmrc` is required for Expo DOM + pnpm compatibility
 
-### Peer Dependencies
+## Exports
 
-The SDK requires `react >=19`, `react-dom >=19`, `react-native`, and `react-native-webview` as peers.
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`
+
+## Runtime Dependencies
+
+Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`. Consumers must install peer dep `@gorhom/bottom-sheet`.
+
+## Peer Dependencies
+
+See `packages/ui/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
 
 ## Testing
 
@@ -75,4 +104,3 @@ No test framework configured yet. When adding tests, use Jest and configure at t
 - Single published package — keep all exports in `packages/ui/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
-
