@@ -29,4 +29,3 @@ export function toWebError(domError: DomError): Error | undefined {
   if (domError.code != null) Object.assign(err, { code: domError.code })
   return err
 }
-

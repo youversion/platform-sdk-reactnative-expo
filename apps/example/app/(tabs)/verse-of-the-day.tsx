@@ -1,5 +1,5 @@
-import { VerseOfTheDay } from "@youversion/platform-react-native-expo";
-import { StyleSheet, Text, View } from "react-native";
+import { VerseOfTheDay } from '@youversion/platform-react-native-expo'
+import { StyleSheet, Text, View } from 'react-native'
 
 export default function VerseOfTheDayScreen() {
   return (
@@ -11,7 +11,7 @@ export default function VerseOfTheDayScreen() {
         </View>
       </View>
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -22,15 +22,15 @@ const styles = StyleSheet.create({
   preview: {
     flex: 1,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.15)",
+    borderColor: 'rgba(0,0,0,0.15)',
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: 'hidden',
   },
   previewLabel: {
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: '600',
     letterSpacing: 0.4,
     opacity: 0.7,
   },
@@ -38,4 +38,4 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-});
+})

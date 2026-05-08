@@ -68,5 +68,4 @@ apps/example/  Expo Router app consuming the SDK via workspace:*
 
 - **Expo DOM**: DOM components use `'use dom'` and run in a WebView-like DOM environment. Don’t render React Web SDK components directly in native; wrap them as DOM components.
 - **Exports**: single published package; keep exports in `packages/ui/src/` and re-export via barrel `index.ts` files.
-- **Metro**: keep `apps/example/metro.config.js` minimal (`getDefaultConfig(__dirname)` only). Don’t add custom `watchFolders`/`resolver.`*.
-
+- **Metro**: keep `apps/example/metro.config.js` minimal (`getDefaultConfig(__dirname)` only). Don’t add custom `watchFolders`/`resolver.`\*.

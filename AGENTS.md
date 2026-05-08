@@ -70,7 +70,7 @@ CSS custom properties on `[data-slot="yv-bible-renderer"]`: `--yv-reader-font-si
 
 ### Metro Config
 
-Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname)`. Expo SDK 52+ auto-configures monorepo support. **Don't** manually set `watchFolders` or `resolver.`*.
+Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname)`. Expo SDK 52+ auto-configures monorepo support. **Don't** manually set `watchFolders` or `resolver.`\*.
 
 ### Entry Point
 

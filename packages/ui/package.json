@@ -4,7 +4,9 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "test": "jest --watchAll"
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watchAll",
+    "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "jest-expo",

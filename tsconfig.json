@@ -8,8 +8,5 @@
     "skipLibCheck": true,
     "jsx": "react-jsx"
   },
-  "exclude": [
-    "node_modules",
-    "apps/example"
-  ],
+  "exclude": ["node_modules", "apps/example"]
 }
