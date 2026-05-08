@@ -31,11 +31,18 @@ const useSheetStore = create<SheetState>(() => ({
 
 type NativeSheetProps = {
   isOpen: boolean;
+  // Re-open signal for repeated actions while isOpen is already true.
+  openKey?: number;
   onClose: () => void;
   children: React.ReactNode;
 };
 
-export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
+export function NativeSheet({
+  isOpen,
+  openKey,
+  onClose,
+  children,
+}: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null);
   if (sheetIdRef.current === null) {
     sheetIdRef.current = nextSheetId++;
@@ -66,7 +73,7 @@ export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
 
   return (
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
-      <SheetHost isActive={isActive} onClose={onClose}>
+      <SheetHost isActive={isActive} openKey={openKey} onClose={onClose}>
         {children}
       </SheetHost>
     </Portal>
@@ -75,20 +82,26 @@ export function NativeSheet({ isOpen, onClose, children }: NativeSheetProps) {
 
 function SheetHost({
   isActive,
+  openKey,
   onClose,
   children,
 }: {
   isActive: boolean;
+  openKey?: number;
   onClose: () => void;
   children: React.ReactNode;
 }) {
   const { bottom } = useSafeAreaInsets();
   const sheetRef = useRef<BottomSheet>(null);
   const wasActiveRef = useRef(false);
+  const lastOpenKeyRef = useRef(openKey);
   const closingRef = useRef(false);
 
   useEffect(() => {
-    if (isActive && !wasActiveRef.current) {
+    // A second footnote tap may keep isActive=true, so use openKey to snap open
+    // again even when the boolean state did not change.
+    const openKeyChanged = openKey !== lastOpenKeyRef.current;
+    if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false;
       sheetRef.current?.snapToIndex(0);
     } else if (!isActive && wasActiveRef.current) {
@@ -96,7 +109,8 @@ function SheetHost({
       sheetRef.current?.close();
     }
     wasActiveRef.current = isActive;
-  }, [isActive]);
+    lastOpenKeyRef.current = openKey;
+  }, [isActive, openKey]);
 
   const handleSheetChange = useCallback(
     (index: number) => {

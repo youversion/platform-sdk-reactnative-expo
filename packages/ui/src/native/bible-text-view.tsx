@@ -28,12 +28,15 @@ export function BibleTextView({
   const resolvedTheme =
     theme === "system" ? (colorScheme === "dark" ? "dark" : "light") : theme;
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);
 
   const onFootnotePress =
     Platform.OS !== "web"
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
           setFootnoteData(data);
+          setFootnoteOpenKey((key) => key + 1);
         }))
       : undefined;
 
@@ -51,6 +54,7 @@ export function BibleTextView({
       {showSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
         >
           <FootnoteContent
