@@ -21,7 +21,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.faithtools.example"
+      "bundleIdentifier": "com.youversion.platform"
     },
     "android": {
       "adaptiveIcon": {
