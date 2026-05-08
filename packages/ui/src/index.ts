@@ -1,5 +1,8 @@
 export {
-  BibleCardDOM as BibleCard,
-  VerseOfTheDayDOM as VerseOfTheDay,
-} from "./dom";
-export { BibleReader, BibleTextView, NativeSheetProvider } from "./native";
+  BibleCard,
+  BibleReader,
+  BibleTextView,
+  VerseOfTheDay,
+  YouVersionProvider,
+} from "./native";
+export type { YouVersionProviderProps, YouVersionTheme } from "./native";

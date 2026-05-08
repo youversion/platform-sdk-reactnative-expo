@@ -6,6 +6,7 @@ import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteContentDOMProps } from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
 import { NativeSheet } from "./native-sheet";
+import { useYouVersion } from "./youversion-provider";
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: "",
@@ -13,7 +14,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: "",
 };
 
-export type BibleTextViewProps = BibleTextViewDOMProps & {
+export type BibleTextViewProps = Omit<BibleTextViewDOMProps, "appKey"> & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>;
 };
 
@@ -21,8 +22,12 @@ export function BibleTextView({
   onFootnotePress: consumerOnFootnotePress,
   ...domProps
 }: BibleTextViewProps) {
-  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
+  const context = useYouVersion();
+  const theme = domProps.theme ?? context.theme;
   const colorScheme = useColorScheme();
+  const resolvedTheme =
+    theme === "system" ? (colorScheme === "dark" ? "dark" : "light") : theme;
+  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
 
   const onFootnotePress =
     Platform.OS !== "web"
@@ -33,16 +38,16 @@ export function BibleTextView({
       : undefined;
 
   const showSheet = Platform.OS !== "web" && !consumerOnFootnotePress;
-  const footnoteTheme: FootnoteContentDOMProps["theme"] =
-    domProps.theme === "system"
-      ? colorScheme === "dark"
-        ? "dark"
-        : "light"
-      : (domProps.theme ?? "light");
+  const footnoteTheme: FootnoteContentDOMProps["theme"] = resolvedTheme;
 
   return (
     <>
-      <BibleTextViewDOM {...domProps} onFootnotePress={onFootnotePress} />
+      <BibleTextViewDOM
+        {...domProps}
+        appKey={context.appKey}
+        theme={theme}
+        onFootnotePress={onFootnotePress}
+      />
       {showSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
@@ -53,7 +58,7 @@ export function BibleTextView({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={footnoteTheme}
             fontSize={domProps.fontSize}
-            appKey={domProps.appKey}
+            appKey={context.appKey}
           />
         </NativeSheet>
       )}

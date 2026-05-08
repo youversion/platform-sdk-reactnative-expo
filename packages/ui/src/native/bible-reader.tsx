@@ -5,6 +5,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reade
 import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
 import { NativeSheet } from "./native-sheet";
+import { useYouVersion } from "./youversion-provider";
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: "",
@@ -12,7 +13,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: "",
 };
 
-export type BibleReaderProps = DomBibleReaderProps & {
+export type BibleReaderProps = Omit<DomBibleReaderProps, "appKey"> & {
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>;
 };
@@ -21,6 +22,8 @@ export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   ...domProps
 }: BibleReaderProps) {
+  const context = useYouVersion();
+  const themeBackground = domProps.themeBackground ?? context.theme;
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
 
   const onFootnotePress =
@@ -35,7 +38,12 @@ export function BibleReader({
 
   return (
     <>
-      <BibleReaderDOM {...domProps} onFootnotePress={onFootnotePress} />
+      <BibleReaderDOM
+        {...domProps}
+        appKey={context.appKey}
+        themeBackground={themeBackground}
+        onFootnotePress={onFootnotePress}
+      />
       {showSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
@@ -44,9 +52,9 @@ export function BibleReader({
           <FootnoteContent
             dom={{ matchContents: true }}
             data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={domProps.themeBackground}
+            theme={themeBackground}
             fontSize={domProps.fontSize}
-            appKey={domProps.appKey}
+            appKey={context.appKey}
           />
         </NativeSheet>
       )}

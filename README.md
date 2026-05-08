@@ -29,18 +29,18 @@ pnpm start
 
 ## Setup
 
-Wrap your app root with `NativeSheetProvider` to enable native bottom sheets:
+Wrap your app root with `YouVersionProvider`:
 
 ```tsx
-import { NativeSheetProvider } from '@youversion/platform-react-native-expo'
+import { YouVersionProvider } from '@youversion/platform-react-native-expo'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NativeSheetProvider>
+      <YouVersionProvider appKey={process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY}>
         {/* your app */}
-      </NativeSheetProvider>
+      </YouVersionProvider>
     </GestureHandlerRootView>
   )
 }
@@ -49,11 +49,13 @@ export default function RootLayout() {
 ## API Reference
 
 ### Components
+- `YouVersionProvider` — App-level provider for app key, theme, and native sheet support
 - `BibleCard` — Bible card widget
 - `VerseOfTheDay` — Verse of the day widget
 - `BibleReader` — Bible reader with native sheet footnote display
 - `BibleTextView` — Bible text passage viewer with native sheet footnote display
-- `NativeSheet` / `NativeSheetProvider` — Portal-based bottom sheet
+
+`BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`. Component-level `theme` props can still override the provider theme.
 
 ## Peer Dependencies
 

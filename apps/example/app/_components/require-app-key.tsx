@@ -1,18 +1,6 @@
-import { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-export default function RequireAppKey({
-  children,
-}: {
-  children: (appKey: string) => ReactNode;
-}) {
-  const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY;
-
-  if (!appKey) return <MissingAppKey />;
-  return <>{children(appKey)}</>;
-}
-
-function MissingAppKey() {
+export default function MissingAppKey() {
   return (
     <View style={[styles.container, styles.missingKeyContainer]}>
       <Text style={styles.missingKeyTitle}>Missing app key</Text>
