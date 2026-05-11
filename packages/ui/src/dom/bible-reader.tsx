@@ -1,17 +1,27 @@
 'use dom'
 
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 export type BibleReaderProps = {
   appKey: string
-  defaultVersionId?: number
   themeBackground?: 'light' | 'dark'
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+
+  book?: string
+  chapter?: string
+  versionId?: number
+
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+  onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
+
   onSettingsPress?: () => Promise<void>
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+
+  showToolbar?: boolean
+
   fontSize?: number
   fontFamily?: string
   backgroundColor?: string
@@ -22,9 +32,16 @@ export type BibleReaderProps = {
 
 export default function BibleReaderDOM({
   appKey,
-  defaultVersionId = 3034,
   themeBackground = 'light',
+  book,
+  chapter,
+  versionId,
+  onBookChange,
+  onChapterChange,
+  onVersionChange,
+  onChapterPickerPress,
   onFootnotePress,
+  showToolbar = true,
   fontSize,
   fontFamily,
   backgroundColor,
@@ -43,7 +60,17 @@ export default function BibleReaderDOM({
         }`}
       </style>
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-        <BibleReader.Root defaultVersionId={defaultVersionId} onFootnotePress={onFootnotePress}>
+        <BibleReader.Root
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          onBookChange={onBookChange}
+          onChapterChange={onChapterChange}
+          onVersionChange={onVersionChange}
+          onChapterPickerPress={onChapterPickerPress}
+          onFootnotePress={onFootnotePress}
+        >
+          {showToolbar && <BibleReader.Toolbar />}
           <BibleReader.Content />
         </BibleReader.Root>
       </div>

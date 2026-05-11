@@ -1,4 +1,6 @@
 export { BibleCard } from './bible-card'
+export { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+export type { BibleChapterPickerSheetProps } from './bible-chapter-picker-sheet'
 export { BibleReader } from './bible-reader'
 export { BibleTextView } from './bible-text-view'
 export { VerseOfTheDay } from './verse-of-the-day'
