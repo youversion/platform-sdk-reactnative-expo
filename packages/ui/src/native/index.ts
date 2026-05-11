@@ -1,5 +1,6 @@
 export { BibleCard } from './bible-card'
 export { BibleReader } from './bible-reader'
+export { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 export { BibleTextView } from './bible-text-view'
 export { VerseOfTheDay } from './verse-of-the-day'
 export { YouVersionProvider } from './youversion-provider'
