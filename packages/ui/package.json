@@ -18,7 +18,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@rn-primitives/portal": "^1.4.0",
     "@youversion/platform-react-hooks": "^1.24.0",
-    "@youversion/platform-react-ui": "link:/Users/cameronpak/Projects/platform-sdk-react/packages/ui",
+    "@youversion/platform-react-ui": "^1.28.0",
     "zustand": "^5.0.13"
   },
   "peerDependencies": {
