@@ -49,7 +49,7 @@ export default function BibleReaderDOM({
           ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
         }`}
       </style>
-      <div style={{ position: 'relative', height: '100%', width: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <BibleReader.Root
           defaultVersionId={defaultVersionId}
           onFootnotePress={onFootnotePress}
