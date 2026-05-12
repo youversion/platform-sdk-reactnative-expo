@@ -40,6 +40,8 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 
 DOM components use the `'use dom'` directive (Expo SDK 55). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
 
+The optional `dom` prop is forwarded to the underlying React Native `WebView` (Expo owns `source`). Use the [React Native WebView API Reference](https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md) for `style`, `containerStyle`, `scrollEnabled`, `contentInset` / `contentInsetAdjustmentBehavior`, injected script props, and the rest. Expo-only fields (e.g. `matchContents`) come from `DOMProps` in `expo/dom`, not that document.
+
 ### Native Provider
 
 `YouVersionProvider` is the public root provider. It supplies native context for `appKey` and resolved theme, and wraps the internal `NativeSheetProvider` so consumers only need one SDK provider.
@@ -59,6 +61,10 @@ Native provider context does not cross into Expo DOM WebViews. DOM wrappers keep
 Portal via `@rn-primitives/portal` + a local zustand store in `native/native-sheet.tsx` instead of `<Modal>`. Modal unmounts children when hidden, destroying WebViews (~500ms cold-start).
 
 Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
+
+Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
+
+Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
 
 ### FootnoteContent Pre-warming
 

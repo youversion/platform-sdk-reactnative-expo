@@ -44,6 +44,10 @@ _Avoid_: Picker selection
 A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**, receiving a **Picker Selection** via a native action. Public export usable standalone (e.g., with `BibleTextView`).
 _Avoid_: Picker modal, chapter popover
 
+**Chapter Picker Shell Layout**:
+The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the Web SDK book list (`overflow-y-auto` accordion) grows and the search bar (`section` with muted background) stays at the bottom of the visible sheet. The Web SDK renders list and search as siblings without a flex column wrapper, so this behavior is owned by the Expo DOM component until or unless the Web SDK adds an explicit layout root. Inside the WebView, `visualViewport` updates a `--yv-keyboard-overlap` custom property on the shell and `focusin` scrolls focused search fields into view to complement native sheet keyboard handling.
+_Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex context
+
 **Reader Controls**:
 The visible controls around reader content, including chapter navigation, version selection, and settings.
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
