@@ -8,12 +8,12 @@ import { NativeSheet } from "./native-sheet";
 import { useYouVersion } from "./youversion-provider";
 
 export type BibleReaderSettingsSheetProps = {
-  isOpen: boolean;
+  isSettingsSheetOpen: boolean;
   onClose: () => void;
 };
 
 export function BibleReaderSettingsSheet({
-  isOpen,
+  isSettingsSheetOpen,
   onClose,
 }: BibleReaderSettingsSheetProps) {
   const { appKey, theme } = useYouVersion();
@@ -37,7 +37,7 @@ export function BibleReaderSettingsSheet({
   );
 
   return (
-    <NativeSheet isOpen={isOpen} onClose={onClose}>
+    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose}>
       <BibleReaderSettingsDOM
         dom={{ matchContents: true }}
         appKey={appKey}

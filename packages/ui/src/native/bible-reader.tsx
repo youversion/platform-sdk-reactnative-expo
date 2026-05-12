@@ -91,7 +91,7 @@ export function BibleReader({
       />
       {Platform.OS !== "web" && (
         <BibleReaderSettingsSheet
-          isOpen={isSettingsSheetOpen}
+          isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
         />
       )}
