@@ -1,4 +1,4 @@
-import { Platform } from 'react-native'
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { NativeSheet } from './native-sheet'
@@ -40,6 +40,7 @@ export function BibleChapterPickerSheet({
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
+  const { height } = useWindowDimensions()
 
   if (Platform.OS === 'web') return null
 
@@ -59,15 +60,26 @@ export function BibleChapterPickerSheet({
 
   return (
     <NativeSheet isOpen={isOpen} onClose={onClose}>
-      <ChapterPickerContentDOM
-        dom={dom ?? { matchContents: true }}
-        appKey={context.appKey}
-        book={book}
-        chapter={chapter}
-        versionId={versionId}
-        theme={resolvedTheme}
-        onSelect={handleSelect}
-      />
+      <View style={[styles.content, { height: Math.round(height * 0.78) }]}>
+        <ChapterPickerContentDOM
+          dom={dom ?? { style: styles.dom }}
+          appKey={context.appKey}
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          theme={resolvedTheme}
+          onSelect={handleSelect}
+        />
+      </View>
     </NativeSheet>
   )
 }
+
+const styles = StyleSheet.create({
+  content: {
+    width: '100%',
+  },
+  dom: {
+    flex: 1,
+  },
+})
