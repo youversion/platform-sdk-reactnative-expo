@@ -50,6 +50,12 @@ export function BibleChapterPickerSheet({
 
   const resolvedTheme =
     themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
+  const pickerDom = {
+    style: styles.dom,
+    hideKeyboardAccessoryView: true,
+    scrollEnabled: false,
+    ...dom,
+  }
 
   const handleSelect = async (data: BibleChapterPickerSelectData) => {
     if (onSelect) {
@@ -66,6 +72,7 @@ export function BibleChapterPickerSheet({
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      enableContentPanningGesture={false}
       contentStyle={[
         styles.content,
         {
@@ -75,7 +82,7 @@ export function BibleChapterPickerSheet({
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <ChapterPickerContentDOM
-          dom={dom ?? { style: styles.dom }}
+          dom={pickerDom}
           appKey={context.appKey}
           book={book}
           chapter={chapter}

@@ -34,6 +34,7 @@ type NativeSheetProps = {
   // Re-open signal for repeated actions while isOpen is already true.
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
+  enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
 }
@@ -42,6 +43,7 @@ export function NativeSheet({
   isOpen,
   openKey,
   contentStyle,
+  enableContentPanningGesture,
   onClose,
   children,
 }: NativeSheetProps) {
@@ -79,6 +81,7 @@ export function NativeSheet({
         isActive={isActive}
         openKey={openKey}
         contentStyle={contentStyle}
+        enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
       >
         {children}
@@ -91,12 +94,14 @@ function SheetHost({
   isActive,
   openKey,
   contentStyle,
+  enableContentPanningGesture,
   onClose,
   children,
 }: {
   isActive: boolean
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
+  enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
 }) {
@@ -143,6 +148,7 @@ function SheetHost({
       index={-1}
       enablePanDownToClose
       enableDynamicSizing
+      enableContentPanningGesture={enableContentPanningGesture}
       backdropComponent={renderBackdrop}
       onChange={handleSheetChange}
       style={styles.sheet}
