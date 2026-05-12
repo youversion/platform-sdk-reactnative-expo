@@ -74,7 +74,7 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
       <View testID="harness-font-family">
         <Text>{settings.fontFamily}</Text>
       </View>
-      <BibleReaderSettingsSheet isOpen={isOpen} onClose={() => {}} />
+      <BibleReaderSettingsSheet isSettingsSheetOpen={isOpen} onClose={() => {}} />
     </>
   );
 }
