@@ -91,6 +91,8 @@ body {
 [data-yv-chapter-picker-shell] > [data-slot='accordion'] {
   flex: 1 1 auto;
   min-height: 0;
+  display: grid;
+  align-content: end;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
