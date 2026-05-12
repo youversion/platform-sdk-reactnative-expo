@@ -39,13 +39,12 @@ export function BibleChapterPickerSheet({
   onSelect,
   dom,
 }: BibleChapterPickerSheetProps) {
+  const context = useYouVersion()
+
   if (Platform.OS === 'web') return null
 
-  const context = useYouVersion()
   const resolvedTheme =
-    themeOverride === 'system'
-      ? context.theme
-      : (themeOverride ?? context.theme)
+    themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
 
   const handleSelect = async (data: BibleChapterPickerSelectData) => {
     if (onSelect) {

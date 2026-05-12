@@ -26,14 +26,16 @@ export default function ChapterPickerContentDOM({
 }: ChapterPickerContentDOMProps) {
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      <BibleChapterPicker.Root
-        book={book}
-        chapter={chapter}
-        versionId={versionId}
-        background={theme}
-      >
-        <BibleChapterPicker.Content onSelect={onSelect} />
-      </BibleChapterPicker.Root>
+      <div data-yv-sdk style={{ width: '100%' }}>
+        <BibleChapterPicker.Root
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          background={theme}
+        >
+          <BibleChapterPicker.Content onSelect={onSelect} />
+        </BibleChapterPicker.Root>
+      </div>
     </YouVersionProvider>
   )
 }
