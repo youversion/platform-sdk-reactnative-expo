@@ -7,6 +7,10 @@ import { useYouVersion } from './youversion-provider'
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 const DEFAULT_VERSION_ID = 3034
+const MUTED_BACKGROUND = {
+  light: '#f6f4f4',
+  dark: '#353333',
+}
 
 export type BibleChapterPickerSheetProps = {
   isOpen: boolean
@@ -59,8 +63,17 @@ export function BibleChapterPickerSheet({
   }
 
   return (
-    <NativeSheet isOpen={isOpen} onClose={onClose}>
-      <View style={[styles.content, { height: Math.round(height * 0.78) }]}>
+    <NativeSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      contentStyle={[
+        styles.content,
+        {
+          backgroundColor: MUTED_BACKGROUND[resolvedTheme],
+        },
+      ]}
+    >
+      <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <ChapterPickerContentDOM
           dom={dom ?? { style: styles.dom }}
           appKey={context.appKey}
@@ -77,6 +90,9 @@ export function BibleChapterPickerSheet({
 
 const styles = StyleSheet.create({
   content: {
+    paddingHorizontal: 0,
+  },
+  componentContent: {
     width: '100%',
   },
   dom: {
