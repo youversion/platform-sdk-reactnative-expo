@@ -4,26 +4,26 @@ import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/plat
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { StyleProp, ViewStyle } from 'react-native'
 
+import type { FontFamily } from '../lib/reader-fonts'
+
 export type BibleReaderProps = {
   appKey: string
   themeBackground?: 'light' | 'dark'
-
   book?: string
   chapter?: string
   versionId?: number
-
   onBookChange?: (book: string) => Promise<void>
   onChapterChange?: (chapter: string) => Promise<void>
   onVersionChange?: (versionId: number) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
-
   onSettingsPress?: () => Promise<void>
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-
   showToolbar?: boolean
-
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+  onOpenBibleThemeSettings?: () => void
   fontSize?: number
-  fontFamily?: string
+  fontFamily?: FontFamily
+  onFontSizeChange?: (fontSize: number) => void
+  onFontFamilyChange?: (fontFamily: FontFamily) => void
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
@@ -42,19 +42,23 @@ export default function BibleReaderDOM({
   onChapterPickerPress,
   onFootnotePress,
   showToolbar = true,
+  onOpenBibleThemeSettings,
   fontSize,
   fontFamily,
+  onFontSizeChange,
+  onFontFamilyChange,
   backgroundColor,
   foregroundColor,
 }: BibleReaderProps) {
   const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
+  // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
+  // because the in-WebView toolbar also mutates them — controlled props keep
+  // MMKV and the Web SDK's internal state in sync bidirectionally.
   return (
     <YouVersionProvider appKey={appKey} theme={themeBackground}>
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
-          ${fontSize ? `--yv-reader-font-size: ${fontSize}px !important;` : ''}
-          ${fontFamily ? `--yv-reader-font-family: ${sanitizeCssValue(fontFamily)} !important;` : ''}
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
           ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
         }`}
@@ -69,9 +73,14 @@ export default function BibleReaderDOM({
           onVersionChange={onVersionChange}
           onChapterPickerPress={onChapterPickerPress}
           onFootnotePress={onFootnotePress}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          onFontSizeChange={onFontSizeChange}
+          onFontFamilyChange={onFontFamilyChange}
         >
           {showToolbar && <BibleReader.Toolbar />}
           <BibleReader.Content />
+          <BibleReader.Toolbar border="top" onOpenBibleThemeSettings={onOpenBibleThemeSettings} />
         </BibleReader.Root>
       </div>
     </YouVersionProvider>

@@ -1,9 +1,12 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Platform } from 'react-native'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
+import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
 import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
@@ -18,30 +21,22 @@ const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 const DEFAULT_VERSION_ID = 3034
 
-export type BibleReaderProps = {
+export type BibleReaderProps = Omit<
+  DomBibleReaderProps,
+  | 'appKey'
+  | 'fontSize'
+  | 'fontFamily'
+  | 'onFontSizeChange'
+  | 'onFontFamilyChange'
+  | 'onOpenBibleThemeSettings'
+  | 'onFootnotePress'
+> & {
   themeBackground?: 'light' | 'dark' | 'system'
-
-  book?: string
   defaultBook?: string
-  onBookChange?: (book: string) => void | Promise<void>
-
-  chapter?: string
   defaultChapter?: string
-  onChapterChange?: (chapter: string) => void | Promise<void>
-
-  versionId?: number
   defaultVersionId?: number
-  onVersionChange?: (versionId: number) => void | Promise<void>
-
-  showToolbar?: boolean
-  onChapterPickerPress?: (data: BibleChapterPickerPressData) => void | Promise<void>
+  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async "native actions".
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-
-  fontSize?: number
-  fontFamily?: string
-  backgroundColor?: string
-  foregroundColor?: string
-  dom?: import('expo/dom').DOMProps
 }
 
 export function BibleReader({
@@ -58,17 +53,15 @@ export function BibleReader({
   showToolbar = true,
   onChapterPickerPress: consumerOnChapterPickerPress,
   onFootnotePress: consumerOnFootnotePress,
-  fontSize,
-  fontFamily,
   backgroundColor,
   foregroundColor,
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
   const themeBackground =
-    themeBackgroundProp === 'system'
-      ? context.theme
-      : (themeBackgroundProp ?? context.theme)
+    themeBackgroundProp === 'system' ? context.theme : (themeBackgroundProp ?? context.theme)
+
+  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
   const [book, setBook] = useControllableState({
     prop: controlledBook,
@@ -92,6 +85,13 @@ export function BibleReader({
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
 
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+
+  const handleOpenBibleThemeSettings = useCallback(() => {
+    setIsSettingsSheetOpen(true)
+  }, [])
+
   const onFootnotePress =
     Platform.OS !== 'web'
       ? (consumerOnFootnotePress ??
@@ -103,18 +103,17 @@ export function BibleReader({
 
   const handleChapterPickerPress =
     Platform.OS !== 'web' && showToolbar
-      ? (consumerOnChapterPickerPress
-          ? async (data: BibleChapterPickerPressData) => {
-              await Promise.resolve(consumerOnChapterPickerPress(data))
-            }
-          : async (_data: BibleChapterPickerPressData) => {
-              setIsPickerOpen(true)
-            })
+      ? consumerOnChapterPickerPress
+        ? async (data: BibleChapterPickerPressData) => {
+            await Promise.resolve(consumerOnChapterPickerPress(data))
+          }
+        : async (_data: BibleChapterPickerPressData) => {
+            setIsPickerOpen(true)
+          }
       : undefined
 
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
-  const showPickerSheet =
-    Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
+  const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
 
   return (
     <>
@@ -124,18 +123,33 @@ export function BibleReader({
         book={book}
         chapter={chapter}
         versionId={versionId}
-        onBookChange={async (b: string) => { setBook(b) }}
-        onChapterChange={async (c: string) => { setChapter(c) }}
-        onVersionChange={async (id: number) => { setVersionId(id) }}
+        fontSize={fontSize}
+        fontFamily={fontFamily}
+        onFontSizeChange={setFontSize}
+        onFontFamilyChange={setFontFamily}
+        onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
+        onBookChange={async (b: string) => {
+          setBook(b)
+        }}
+        onChapterChange={async (c: string) => {
+          setChapter(c)
+        }}
+        onVersionChange={async (id: number) => {
+          setVersionId(id)
+        }}
         showToolbar={showToolbar}
         onChapterPickerPress={handleChapterPickerPress}
         onFootnotePress={onFootnotePress}
-        fontSize={fontSize}
-        fontFamily={fontFamily}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
         dom={dom}
       />
+      {Platform.OS !== 'web' && (
+        <BibleReaderSettingsSheet
+          isSettingsSheetOpen={isSettingsSheetOpen}
+          onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
       {showFootnoteSheet && (
         <NativeSheet
           isOpen={!!footnoteData}

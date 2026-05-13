@@ -90,7 +90,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`
 
 ## Runtime Dependencies
 
