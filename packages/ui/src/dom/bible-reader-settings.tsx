@@ -13,9 +13,9 @@ export type BibleReaderSettingsDOMProps = {
   fontSize: number;
   fontFamily: FontFamily;
   // Expo DOM function props always cross the native <-> WebView bridge, so they must be async.
-  onFontIncreased: () => Promise<void>;
-  onFontDecreased: () => Promise<void>;
-  onFontSelected: (fontFamily: FontFamily) => Promise<void>;
+  onFontIncreased: () => void;
+  onFontDecreased: () => void;
+  onFontSelected: (fontFamily: FontFamily) => void;
   dom?: import("expo/dom").DOMProps;
 };
 
