@@ -49,7 +49,7 @@ export const useReaderSettingsStore = create<ReaderSettingsState>()(
           return currentState
         }
 
-        // Zustand types merge's first arg as `unknown` (PersistOptions), so TS can't infer persistedSate.
+        // Zustand types merge's first arg as `unknown` (PersistOptions), so TS can't infer persistedState.
         const persistedReaderSlice = persistedState as PersistedReaderSlice
         return {
           fontSize: clampBibleReaderFontSize(

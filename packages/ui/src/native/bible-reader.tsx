@@ -5,7 +5,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reade
 import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
 import type { FontFamily } from "../lib/reader-fonts";
-import { useReaderSettingsStore } from "../hooks/reader-settings-store";
+import { useReaderSettingsStore } from "../stores/reader-settings-store";
 import { BibleReaderSettingsSheet } from "./bible-reader-settings-sheet";
 import { NativeSheet } from "./native-sheet";
 import { useYouVersion } from "./youversion-provider";

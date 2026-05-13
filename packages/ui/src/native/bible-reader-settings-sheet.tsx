@@ -3,7 +3,7 @@ import { createBibleThemeSettingsContentHandlers } from "@youversion/platform-re
 
 import BibleReaderSettingsDOM from "../dom/bible-reader-settings";
 import type { FontFamily } from "../lib/reader-fonts";
-import { useReaderSettingsStore } from "../hooks/reader-settings-store";
+import { useReaderSettingsStore } from "../stores/reader-settings-store";
 import { NativeSheet } from "./native-sheet";
 import { useYouVersion } from "./youversion-provider";
 
