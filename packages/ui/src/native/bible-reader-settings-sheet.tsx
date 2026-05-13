@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { createBibleThemeSettingsContentHandlers } from "@youversion/platform-react-ui";
 import BibleReaderSettingsDOM from "../dom/bible-reader-settings";
 import { useReaderSettingsStore } from "../stores/reader-settings-store";
@@ -17,23 +17,16 @@ export function BibleReaderSettingsSheet({
   const { appKey, theme } = useYouVersion();
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore();
 
-  const fontSizeRef = useRef(fontSize);
-  fontSizeRef.current = fontSize;
-  const fontFamilyRef = useRef(fontFamily);
-  fontFamilyRef.current = fontFamily;
-
   const { onFontIncreased, onFontDecreased, onFontSelected } = useMemo(
     () =>
       createBibleThemeSettingsContentHandlers({
-        getFontSize: () => fontSizeRef.current,
-        getFontFamily: () => fontFamilyRef.current,
+        getFontSize: () => useReaderSettingsStore.getState().fontSize,
+        getFontFamily: () => useReaderSettingsStore.getState().fontFamily,
         setFontSize,
         setFontFamily,
       }),
     [setFontSize, setFontFamily],
   );
-
-
 
   return (
     <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose}>
