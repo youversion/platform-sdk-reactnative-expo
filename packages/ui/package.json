@@ -1,8 +1,43 @@
 {
   "name": "@youversion/platform-react-native-expo",
   "version": "0.0.1",
+  "description": "React Native Expo components for Bible applications, powered by the YouVersion Web SDK.",
+  "license": "Apache-2.0",
   "main": "src/index.ts",
+  "react-native": "src/index.ts",
+  "source": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "react-native": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/youversion/platform-sdk-reactnative-expo.git"
+  },
+  "homepage": "https://github.com/youversion/platform-sdk-reactnative-expo#readme",
+  "bugs": {
+    "url": "https://github.com/youversion/platform-sdk-reactnative-expo/issues"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "youversion",
+    "bible",
+    "sdk"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
+  },
   "scripts": {
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",

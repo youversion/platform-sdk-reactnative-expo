@@ -33,6 +33,7 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 - Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
 - Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
 - **Expo Go is not supported** — requires a dev build
+- See `docs/adr/0002-source-only-distribution.md` for why there is no build step
 
 ## Key Architecture Notes
 
@@ -64,8 +65,6 @@ Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide i
 
 Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
 
-Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
-
 ### FootnoteContent Pre-warming
 
 Mounted immediately with empty placeholder data to cold-start the WebView during page load.
@@ -90,7 +89,9 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`, `BibleChapterPickerSheet`
+
+**Types**: `BibleChapterPickerSheetProps`, `YouVersionProviderProps`, `YouVersionTheme`
 
 ## Runtime Dependencies
 
@@ -100,9 +101,18 @@ Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/pl
 
 See `packages/ui/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
 
+## Packaging
+
+- Source-only distribution (no build step) — see ADR-0002
+- `files`: `["src"]` — only `src/` shipped to npm
+- `exports` uses `react-native` conditional for Metro resolution
+- `react-dom` is a peer dep to prevent duplicate React instances
+- License: `Apache-2.0`, npm provenance enabled
+- Validate with `cd packages/ui && npm pack --dry-run`
+
 ## Testing
 
-No test framework configured yet. When adding tests, use Jest and configure at the package level.
+Jest with `jest-expo` preset configured at the package level (`packages/ui/package.json`). Run with `pnpm test`.
 
 ## Code Style
 
