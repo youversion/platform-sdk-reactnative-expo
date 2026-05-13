@@ -52,6 +52,14 @@ _Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex conte
 The visible controls around reader content, including chapter navigation, version selection, and settings.
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
+**Source-Only Distribution**:
+The published package ships raw TypeScript (`src/`) without a compile step. Metro resolves `.ts` natively and the Expo Metro plugin processes `'use dom'` directives from source files in `node_modules`. A compiled build would strip the directive, breaking Expo DOM Components. Consumers must use `moduleResolution: bundler` (default in Expo SDK 55+ projects).
+_Avoid_: Compiled output, pre-built, dist bundle
+
+**Dependency Boundary**:
+`@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies` (auto-installed). `react-dom` is a `peerDependency` to prevent duplicate React instances in apps that also target web. Transitive native module requirements (reanimated, gesture-handler, etc.) are listed as `peerDependencies` to protect consumers from missing runtime deps.
+_Avoid_: Bundled deps, vendored web SDK
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -63,6 +71,8 @@ _Avoid_: Toolbar when referring to product behavior rather than the Web SDK comp
 - **Reader Controls** trigger a **Picker Press**, which by default opens the built-in **Chapter Picker Sheet**.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
 - Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet**.
+- **Source-Only Distribution** is required because the Expo Metro plugin processes `'use dom'` from raw source in `node_modules`; compiled output would strip the directive.
+- The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 
 ## Example Dialogue
 
