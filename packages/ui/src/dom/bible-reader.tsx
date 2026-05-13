@@ -10,13 +10,13 @@ export type BibleReaderProps = {
   appKey: string
   defaultVersionId?: number
   themeBackground?: 'light' | 'dark'
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are native actions.
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-  onOpenBibleThemeSettings?: () => Promise<void>
+  onOpenBibleThemeSettings?: () => void
   fontSize?: number
   fontFamily?: FontFamily
-  onFontSizeChange?: (fontSize: number) => Promise<void>
-  onFontFamilyChange?: (fontFamily: FontFamily) => Promise<void>
+  onFontSizeChange?: (fontSize: number) => void
+  onFontFamilyChange?: (fontFamily: FontFamily) => void
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>

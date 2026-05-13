@@ -1,10 +1,9 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Platform } from "react-native";
 import BibleReaderDOM from "../dom/bible-reader";
 import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reader";
 import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
-import type { FontFamily } from "../lib/reader-fonts";
 import { useReaderSettingsStore } from "../stores/reader-settings-store";
 import { BibleReaderSettingsSheet } from "./bible-reader-settings-sheet";
 import { NativeSheet } from "./native-sheet";
@@ -54,26 +53,6 @@ export function BibleReader({
 
   const showFootnoteSheet = Platform.OS !== "web" && !consumerOnFootnotePress;
 
-  // Async because Expo DOM function props cross the bridge; useCallback for
-  // stable identity so the bridge doesn't re-proxy on every parent render.
-  const handleFontSizeChange = useCallback(
-    async (next: number) => {
-      setFontSize(next);
-    },
-    [setFontSize],
-  );
-
-  const handleFontFamilyChange = useCallback(
-    async (next: FontFamily) => {
-      setFontFamily(next);
-    },
-    [setFontFamily],
-  );
-
-  const handleOpenBibleThemeSettings = useCallback(async () => {
-    setIsSettingsSheetOpen(true);
-  }, []);
-
   return (
     <>
       <BibleReaderDOM
@@ -82,10 +61,14 @@ export function BibleReader({
         themeBackground={themeBackground}
         fontSize={fontSize}
         fontFamily={fontFamily}
-        onFontSizeChange={handleFontSizeChange}
-        onFontFamilyChange={handleFontFamilyChange}
+        onFontSizeChange={setFontSize}
+        onFontFamilyChange={setFontFamily}
         onOpenBibleThemeSettings={
-          Platform.OS !== "web" ? handleOpenBibleThemeSettings : undefined
+          Platform.OS !== "web"
+            ? () => {
+                setIsSettingsSheetOpen(true);
+              }
+            : undefined
         }
         onFootnotePress={onFootnotePress}
       />
