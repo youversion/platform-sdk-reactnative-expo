@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Platform } from "react-native";
 import BibleReaderDOM from "../dom/bible-reader";
 import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reader";
@@ -42,6 +42,10 @@ export function BibleReader({
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false);
 
+  const handleOpenBibleThemeSettings = useCallback(() => {
+    setIsSettingsSheetOpen(true);
+  }, []);
+
   const onFootnotePress =
     Platform.OS !== "web"
       ? (consumerOnFootnotePress ??
@@ -64,11 +68,7 @@ export function BibleReader({
         onFontSizeChange={setFontSize}
         onFontFamilyChange={setFontFamily}
         onOpenBibleThemeSettings={
-          Platform.OS !== "web"
-            ? () => {
-                setIsSettingsSheetOpen(true);
-              }
-            : undefined
+          Platform.OS !== "web" ? handleOpenBibleThemeSettings : undefined
         }
         onFootnotePress={onFootnotePress}
       />
