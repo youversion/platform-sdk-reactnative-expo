@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { createBibleThemeSettingsContentHandlers } from "@youversion/platform-react-ui";
 
 import BibleReaderSettingsDOM from "../dom/bible-reader-settings";
@@ -36,6 +36,23 @@ export function BibleReaderSettingsSheet({
     [setFontSize, setFontFamily],
   );
 
+  // Async because Expo DOM function props cross the bridge; useCallback for
+  // stable identity so the bridge doesn't re-proxy on every parent render.
+  const handleFontIncreased = useCallback(async () => {
+    onFontIncreased();
+  }, [onFontIncreased]);
+
+  const handleFontDecreased = useCallback(async () => {
+    onFontDecreased();
+  }, [onFontDecreased]);
+
+  const handleFontSelected = useCallback(
+    async (newFont: FontFamily) => {
+      onFontSelected(newFont);
+    },
+    [onFontSelected],
+  );
+
   return (
     <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose}>
       <BibleReaderSettingsDOM
@@ -44,15 +61,9 @@ export function BibleReaderSettingsSheet({
         theme={theme}
         fontSize={fontSize}
         fontFamily={fontFamily}
-        onFontIncreased={async () => {
-          onFontIncreased();
-        }}
-        onFontDecreased={async () => {
-          onFontDecreased();
-        }}
-        onFontSelected={async (newFont: FontFamily) => {
-          onFontSelected(newFont);
-        }}
+        onFontIncreased={handleFontIncreased}
+        onFontDecreased={handleFontDecreased}
+        onFontSelected={handleFontSelected}
       />
     </NativeSheet>
   );
