@@ -1,4 +1,4 @@
-import { VerseOfTheDay } from '@youversion/platform-react-native-expo'
+import { VerseOfTheDay } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 

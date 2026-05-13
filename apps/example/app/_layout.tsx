@@ -1,6 +1,6 @@
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { Stack } from 'expo-router'
-import { YouVersionProvider } from '@youversion/platform-react-native-expo'
+import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
 import MissingAppKey from './_components/missing-app-key'
 
 export default function RootLayout() {
