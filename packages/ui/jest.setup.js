@@ -51,6 +51,11 @@ jest.mock('react-native-mmkv', () => {
         store.delete(key)
         notify(key)
       },
+      remove(key) {
+        const existed = store.has(key)
+        this.delete(key)
+        return existed
+      },
       clearAll() {
         const keys = Array.from(store.keys())
         store.clear()
