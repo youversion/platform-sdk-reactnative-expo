@@ -23,6 +23,7 @@ export type BibleReaderProps = Omit<
   | "onFontSizeChange"
   | "onFontFamilyChange"
   | "onOpenBibleThemeSettings"
+  | "onFootnotePress"
 > & {
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>;
