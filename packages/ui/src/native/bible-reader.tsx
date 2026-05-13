@@ -5,7 +5,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from "../dom/bible-reade
 import FootnoteContent from "../dom/footnote-content";
 import type { FootnoteData } from "@youversion/platform-react-ui";
 import type { FontFamily } from "../lib/reader-fonts";
-import { useReaderSettings } from "../hooks/use-reader-settings";
+import { useReaderSettingsStore } from "../hooks/reader-settings-store";
 import { BibleReaderSettingsSheet } from "./bible-reader-settings-sheet";
 import { NativeSheet } from "./native-sheet";
 import { useYouVersion } from "./youversion-provider";
@@ -35,8 +35,8 @@ export function BibleReader({
 }: BibleReaderProps) {
   const context = useYouVersion();
   const themeBackground = domProps.themeBackground ?? context.theme;
-  const { fontSize, fontFamily, setFontSize, setFontFamily } =
-    useReaderSettings();
+  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore();
+
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.

@@ -3,10 +3,12 @@ import { BIBLE_READER_FONT } from "@youversion/platform-react-ui";
 import { Text, View } from "react-native";
 import type { ReactNode } from "react";
 
+import { useShallow } from "zustand/react/shallow";
+
 import { mmkvStorage } from "../../lib/storage";
 import { INTER_FONT, SOURCE_SERIF_FONT } from "../../lib/reader-fonts";
+import { useReaderSettingsStore } from "../../hooks/reader-settings-store";
 import { BibleReaderSettingsSheet } from "../bible-reader-settings-sheet";
-import { useReaderSettings } from "../../hooks/use-reader-settings";
 import { YouVersionProvider } from "../youversion-provider";
 
 // Stub the Expo DOM wrapper so we can assert orchestration without spinning
@@ -63,16 +65,18 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 );
 
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
-  // Mounting the hook here lets us read the latest values back out via testIDs
-  // and confirm that handler calls round-trip through MMKV.
-  const settings = useReaderSettings();
+  // Subscribe here so we can read the latest values back out via testIDs and
+  // confirm that handler calls round-trip through persisted settings.
+  const { fontSize, fontFamily } = useReaderSettingsStore(
+    useShallow((s) => ({ fontSize: s.fontSize, fontFamily: s.fontFamily })),
+  );
   return (
     <>
       <View testID="harness-font-size">
-        <Text>{String(settings.fontSize)}</Text>
+        <Text>{String(fontSize)}</Text>
       </View>
       <View testID="harness-font-family">
-        <Text>{settings.fontFamily}</Text>
+        <Text>{fontFamily}</Text>
       </View>
       <BibleReaderSettingsSheet isSettingsSheetOpen={isOpen} onClose={() => {}} />
     </>
@@ -82,6 +86,11 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 describe("BibleReaderSettingsSheet", () => {
   beforeEach(() => {
     mmkvStorage.clearAll();
+    useReaderSettingsStore.setState({
+      fontSize: BIBLE_READER_FONT.DEFAULT,
+      fontFamily: SOURCE_SERIF_FONT,
+    });
+    return useReaderSettingsStore.persist.rehydrate();
   });
 
   it("renders nothing when isOpen is false", () => {
