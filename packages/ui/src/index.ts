@@ -1,6 +1,7 @@
 export {
   BibleCard,
   BibleReader,
+  BibleReaderSettingsSheet,
   BibleTextView,
   VerseOfTheDay,
   YouVersionProvider,

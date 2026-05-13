@@ -1,5 +1,6 @@
 export { default as BibleCardDOM } from './bible-card'
 export { default as BibleReaderDOM } from './bible-reader'
+export { default as BibleReaderSettingsDOM } from './bible-reader-settings'
 export { default as BibleTextViewDOM } from './bible-text-view'
 export { default as FootnoteContentDOM } from './footnote-content'
 export { default as VerseOfTheDayDOM } from './verse-of-the-day'
