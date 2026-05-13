@@ -44,23 +44,15 @@ export default function BibleReaderSettingsDOM({
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          width: "100%",
-        }}
-      >
-        <div style={{ width: "100%", maxWidth: "32rem" }}>
-          <BibleThemeSettingsContent
-            theme={theme}
-            fontSize={fontSize}
-            fontFamily={fontFamily}
-            onFontIncreased={handleFontIncreased}
-            onFontDecreased={handleFontDecreased}
-            onFontSelected={handleFontSelected}
-          />
-        </div>
+      <div style={{ width: "100%" }}>
+        <BibleThemeSettingsContent
+          theme={theme}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          onFontIncreased={handleFontIncreased}
+          onFontDecreased={handleFontDecreased}
+          onFontSelected={handleFontSelected}
+        />
       </div>
     </YouVersionProvider>
   );
