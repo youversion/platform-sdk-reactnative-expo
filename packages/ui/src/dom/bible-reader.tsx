@@ -78,9 +78,13 @@ export default function BibleReaderDOM({
           onFontSizeChange={onFontSizeChange}
           onFontFamilyChange={onFontFamilyChange}
         >
-          {showToolbar && <BibleReader.Toolbar />}
+          {showToolbar && (
+            <BibleReader.Toolbar
+              border="bottom"
+              onOpenBibleThemeSettings={onOpenBibleThemeSettings}
+            />
+          )}
           <BibleReader.Content />
-          <BibleReader.Toolbar border="top" onOpenBibleThemeSettings={onOpenBibleThemeSettings} />
         </BibleReader.Root>
       </div>
     </YouVersionProvider>
