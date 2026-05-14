@@ -30,8 +30,9 @@ export type BibleReaderProps = Omit<
   | 'onFontFamilyChange'
   | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
+  | 'theme'
 > & {
-  themeBackground?: 'light' | 'dark' | 'system'
+  theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
   defaultChapter?: string
   defaultVersionId?: number
@@ -40,7 +41,7 @@ export type BibleReaderProps = Omit<
 }
 
 export function BibleReader({
-  themeBackground: themeBackgroundProp,
+  theme,
   book: controlledBook,
   defaultBook = DEFAULT_BOOK,
   onBookChange,
@@ -58,8 +59,7 @@ export function BibleReader({
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
-  const themeBackground =
-    themeBackgroundProp === 'system' ? context.theme : (themeBackgroundProp ?? context.theme)
+  const resolvedTheme = theme === 'system' ? context.theme : (theme ?? context.theme)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
@@ -119,7 +119,7 @@ export function BibleReader({
     <>
       <BibleReaderDOM
         appKey={context.appKey}
-        themeBackground={themeBackground}
+        theme={resolvedTheme}
         book={book}
         chapter={chapter}
         versionId={versionId}
@@ -159,7 +159,7 @@ export function BibleReader({
           <FootnoteContent
             dom={{ matchContents: true }}
             data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={themeBackground}
+            theme={resolvedTheme}
             fontSize={fontSize}
             appKey={context.appKey}
           />
@@ -172,7 +172,7 @@ export function BibleReader({
           book={book}
           chapter={chapter}
           versionId={versionId}
-          theme={themeBackgroundProp ?? context.theme}
+          theme={resolvedTheme}
           onSelect={async (data) => {
             setBook(data.book)
             setChapter(data.chapter)

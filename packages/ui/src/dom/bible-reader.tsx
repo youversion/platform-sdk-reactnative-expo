@@ -8,7 +8,7 @@ import type { FontFamily } from '../lib/reader-fonts'
 
 export type BibleReaderProps = {
   appKey: string
-  themeBackground?: 'light' | 'dark'
+  theme?: 'light' | 'dark'
   book?: string
   chapter?: string
   versionId?: number
@@ -32,7 +32,7 @@ export type BibleReaderProps = {
 
 export default function BibleReaderDOM({
   appKey,
-  themeBackground = 'light',
+  theme = 'light',
   book,
   chapter,
   versionId,
@@ -56,7 +56,7 @@ export default function BibleReaderDOM({
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
   return (
-    <YouVersionProvider appKey={appKey} theme={themeBackground}>
+    <YouVersionProvider appKey={appKey} theme={theme}>
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
