@@ -92,6 +92,18 @@ export function BibleReader({
     setIsSettingsSheetOpen(true)
   }, [])
 
+  const handleBookChange = useCallback(async (b: string) => {
+    setBook(b)
+  }, [setBook])
+
+  const handleChapterChange = useCallback(async (c: string) => {
+    setChapter(c)
+  }, [setChapter])
+
+  const handleVersionChange = useCallback(async (id: number) => {
+    setVersionId(id)
+  }, [setVersionId])
+
   const onFootnotePress =
     Platform.OS !== 'web'
       ? (consumerOnFootnotePress ??
@@ -101,16 +113,17 @@ export function BibleReader({
         }))
       : undefined
 
-  const handleChapterPickerPress =
-    Platform.OS !== 'web' && showToolbar
-      ? consumerOnChapterPickerPress
-        ? async (data: BibleChapterPickerPressData) => {
-            await Promise.resolve(consumerOnChapterPickerPress(data))
-          }
-        : async (_data: BibleChapterPickerPressData) => {
-            setIsPickerOpen(true)
-          }
-      : undefined
+  const handleChapterPickerPress = useCallback(
+    async (data: BibleChapterPickerPressData) => {
+      if (Platform.OS === 'web' || !showToolbar) return
+      if (consumerOnChapterPickerPress) {
+        await consumerOnChapterPickerPress(data)
+      } else {
+        setIsPickerOpen(true)
+      }
+    },
+    [consumerOnChapterPickerPress, showToolbar],
+  )
 
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
@@ -128,15 +141,9 @@ export function BibleReader({
         onFontSizeChange={setFontSize}
         onFontFamilyChange={setFontFamily}
         onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
-        onBookChange={async (b: string) => {
-          setBook(b)
-        }}
-        onChapterChange={async (c: string) => {
-          setChapter(c)
-        }}
-        onVersionChange={async (id: number) => {
-          setVersionId(id)
-        }}
+        onBookChange={handleBookChange}
+        onChapterChange={handleChapterChange}
+        onVersionChange={handleVersionChange}
         showToolbar={showToolbar}
         onChapterPickerPress={handleChapterPickerPress}
         onFootnotePress={onFootnotePress}
