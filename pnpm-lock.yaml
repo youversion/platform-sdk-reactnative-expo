@@ -112,8 +112,8 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0(@types/react@19.2.14)(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.6.0(react@19.2.5))
       '@youversion/platform-react-hooks':
-        specifier: ^1.24.0
-        version: 1.24.0(react@19.2.5)
+        specifier: ^1.28.0
+        version: 1.28.0(react@19.2.5)
       '@youversion/platform-react-ui':
         specifier: ^1.28.0
         version: 1.28.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@5.9.3)
@@ -1923,14 +1923,6 @@ packages:
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
 
-  '@youversion/platform-core@1.24.0':
-    resolution: {integrity: sha512-RwOUTEiKurTALYbgTtGwWzQnCEKePGOM2s+n3JWSueB9YqPVOlf1hFQVuby71A5fRUdrxtcwEmGMxIV48js3Qw==}
-    peerDependencies:
-      linkedom: ^0.18.12
-    peerDependenciesMeta:
-      linkedom:
-        optional: true
-
   '@youversion/platform-core@1.28.0':
     resolution: {integrity: sha512-vFMYz0B5FVwR7SbWC1xO7wpDo8x9oBlZN9KzGzo90AHHUjINofTOQalPCSKqch1kHz7A6eCj883VZxvUVOqxJQ==}
     peerDependencies:
@@ -1938,11 +1930,6 @@ packages:
     peerDependenciesMeta:
       linkedom:
         optional: true
-
-  '@youversion/platform-react-hooks@1.24.0':
-    resolution: {integrity: sha512-3MsOwCtt4IT95TN6AG3gv8Nv8P1boTBAlBVhv+LN/8xfRnLj/5wPnW0KS+APbPCS2PanHVU0Zj8OsXrpnKI3JA==}
-    peerDependencies:
-      react: '>=19.1.0 <20.0.0'
 
   '@youversion/platform-react-hooks@1.28.0':
     resolution: {integrity: sha512-lFFfAdrmLKDQy/0fakIPBnz1F2uBJvD42K5eqaTAw6w5hgMl8SS0Xz4EPg4r/fuFXQnDRnn6MhLbvhRAORXPUQ==}
@@ -7754,20 +7741,9 @@ snapshots:
 
   '@xmldom/xmldom@0.9.10': {}
 
-  '@youversion/platform-core@1.24.0':
-    dependencies:
-      zod: 4.1.12
-
   '@youversion/platform-core@1.28.0':
     dependencies:
       zod: 4.1.12
-
-  '@youversion/platform-react-hooks@1.24.0(react@19.2.5)':
-    dependencies:
-      '@youversion/platform-core': 1.24.0
-      react: 19.2.5
-    transitivePeerDependencies:
-      - linkedom
 
   '@youversion/platform-react-hooks@1.28.0(react@19.2.5)':
     dependencies:
