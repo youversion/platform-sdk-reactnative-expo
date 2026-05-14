@@ -31,6 +31,7 @@ export type BibleReaderProps = Omit<
   | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
   | 'theme'
+  | 'style'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
