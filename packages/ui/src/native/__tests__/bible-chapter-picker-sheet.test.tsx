@@ -81,6 +81,7 @@ describe('BibleChapterPickerSheet', () => {
     expect(getByTestId('sheet')).toBeTruthy()
 
     await act(async () => {
+      // userEvent.press not yet stable in @testing-library/react-native
       fireEvent.press(getByTestId('trigger-select'))
     })
 
@@ -103,6 +104,7 @@ describe('BibleChapterPickerSheet', () => {
     )
 
     await act(async () => {
+      // userEvent.press not yet stable in @testing-library/react-native
       fireEvent.press(getByTestId('trigger-select'))
     })
 
