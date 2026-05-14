@@ -5,7 +5,7 @@ import { Platform } from "react-native";
 import type { ReactNode } from "react";
 
 import { BibleTextView } from "../bible-text-view";
-import { youVersionProviderWrapper as wrapper } from "./test-utils";
+import { youVersionProviderWrapper as wrapper } from "@/test-utils/youversion-provider-wrapper";
 
 const sampleFootnote: FootnoteData = {
   verseNum: "3",

@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode } from "react";
 
-import { YouVersionProvider } from "../youversion-provider";
+import { YouVersionProvider } from "../native/youversion-provider";
 
 /** RTL `wrapper` factory shared by native component tests that need `YouVersionProvider`. */
 export function youVersionProviderWrapper(

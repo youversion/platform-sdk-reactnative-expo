@@ -2,7 +2,7 @@ import { render } from "@testing-library/react-native";
 import * as ReactNative from "react-native";
 
 import { BibleCard } from "../bible-card";
-import { youVersionProviderWrapper as wrapper } from "./test-utils";
+import { youVersionProviderWrapper as wrapper } from "@/test-utils/youversion-provider-wrapper";
 
 jest.mock("../../dom/bible-card", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
