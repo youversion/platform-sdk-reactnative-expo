@@ -11,6 +11,8 @@ let latestDomProps: {
 } = {}
 
 jest.mock('../../dom/chapter-picker-content', () => {
+  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
@@ -40,6 +42,8 @@ jest.mock('../../dom/chapter-picker-content', () => {
 
 jest.mock('../native-sheet', () => {
   const actual = jest.requireActual('../native-sheet')
+  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     ...actual,
