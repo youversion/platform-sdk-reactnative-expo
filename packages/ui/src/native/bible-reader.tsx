@@ -183,6 +183,7 @@ export function BibleReader({
           onSelect={async (data) => {
             setBook(data.book)
             setChapter(data.chapter)
+            setVersionId(data.versionId)
           }}
         />
       )}
