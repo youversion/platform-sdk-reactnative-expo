@@ -1,8 +1,8 @@
 import { render } from "@testing-library/react-native";
-import type { ReactNode } from "react";
+import * as ReactNative from "react-native";
 
 import { BibleCard } from "../bible-card";
-import { YouVersionProvider } from "../youversion-provider";
+import { youVersionProviderWrapper as wrapper } from "./test-utils";
 
 jest.mock("../../dom/bible-card", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -30,17 +30,6 @@ jest.mock("../../dom/bible-card", () => {
     },
   };
 });
-
-const wrapper = (providerTheme: "light" | "dark" | "system" = "light") => {
-  function YouVersionTestWrapper({ children }: { children: ReactNode }) {
-    return (
-      <YouVersionProvider appKey="test-key" theme={providerTheme}>
-        {children}
-      </YouVersionProvider>
-    );
-  }
-  return YouVersionTestWrapper;
-};
 
 describe("BibleCard", () => {
   it("forwards appKey from YouVersionProvider and passage props to the DOM entry", () => {
@@ -84,6 +73,21 @@ describe("BibleCard", () => {
     );
 
     expect(getByTestId("mock-theme").children).toContain("dark");
+  });
+
+  it("uses provider-resolved theme when provider theme is system and color scheme is dark", () => {
+    const spy = jest
+      .spyOn(ReactNative, "useColorScheme")
+      .mockReturnValue("dark");
+
+    const { getByTestId } = render(
+      <BibleCard reference="JHN.1.1" versionId={3034} />,
+      { wrapper: wrapper("system") },
+    );
+
+    expect(getByTestId("mock-theme").children).toContain("dark");
+
+    spy.mockRestore();
   });
 
   it("throws when YouVersionProvider is missing", () => {
