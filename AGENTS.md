@@ -64,8 +64,6 @@ Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide i
 
 Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
 
-Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
-
 ### FootnoteContent Pre-warming
 
 Mounted immediately with empty placeholder data to cold-start the WebView during page load.
@@ -102,7 +100,24 @@ See `packages/ui/package.json` `peerDependencies` for the canonical list. Requir
 
 ## Testing
 
-No test framework configured yet. When adding tests, use Jest and configure at the package level.
+Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.83 compatibility (see ADR-0003).
+
+### Testing layers
+
+Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
+
+1. **Pure logic** — plain Jest unit tests for state reducers, prop builders, action handlers. No framework.
+2. **DOM component tests** — `@testing-library/react` + jsdom testing `'use dom'` internals. **Not our responsibility** — the Web SDK owns DOM behavior. Add a separate jsdom Jest project only if we need to test SDK-authored DOM behavior (e.g. shell layout CSS, `visualViewport` keyboard handling).
+3. **Native screen tests** — `jest-expo` + `@testing-library/react-native` with DOM components **mocked as RN primitives**. This is our primary layer. Test native action contracts, orchestration, theme resolution, and error gating. Not prop forwarding or framework mechanics.
+4. **E2E/device tests** — Maestro/Detox on a built app. Validates the real native/DOM bridge. Not set up yet.
+
+### Conventions
+
+- Mock DOM components inside `jest.mock()` factories using `require('react-native')` — never render real DOM components in RNTL.
+- Mock `NativeSheet` with `jest.requireActual` spread to preserve `NativeSheetProvider`.
+- Prefer `userEvent` over `fireEvent` for new tests.
+- Use `latestDomProps` capture pattern to assert what crosses the native/DOM boundary.
+- Wrap async native action calls in `act(async () => { ... })`.
 
 ## Code Style
 
