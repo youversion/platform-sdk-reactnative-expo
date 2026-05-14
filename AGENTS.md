@@ -88,7 +88,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleChapterPickerSheet`
 
 ## Runtime Dependencies
 
@@ -100,7 +100,7 @@ See `packages/ui/package.json` `peerDependencies` for the canonical list. Requir
 
 ## Testing
 
-Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.83 compatibility (see ADR-0003).
+Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.83 compatibility.
 
 ### Testing layers
 
