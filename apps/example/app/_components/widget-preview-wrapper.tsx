@@ -9,8 +9,10 @@ export type WidgetPreviewWrapperProps = {
 export function WidgetPreviewWrapper({ title, children }: WidgetPreviewWrapperProps) {
   return (
     <View style={styles.container}>
-      <Text style={styles.previewLabel}>{title}</Text>
-      <View style={styles.content}>{children}</View>
+      <View style={styles.preview}>
+        <Text style={styles.previewLabel}>{title}</Text>
+        <View style={styles.content}>{children}</View>
+      </View>
     </View>
   )
 }
@@ -20,10 +22,20 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 12,
   },
+  preview: {
+    flex: 1,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.15)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   previewLabel: {
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     fontSize: 12,
     fontWeight: '600',
+    letterSpacing: 0.4,
+    opacity: 0.7,
   },
   content: {
     flex: 1,
