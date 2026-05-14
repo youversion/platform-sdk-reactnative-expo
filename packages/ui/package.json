@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",
+    "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit"
   },
   "jest": {
