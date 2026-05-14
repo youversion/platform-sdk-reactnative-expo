@@ -68,6 +68,15 @@ describe("BibleCard", () => {
     expect(getByTestId("mock-theme").children).toContain("dark");
   });
 
+  it('forwards theme="system" from BibleCard props to the DOM entry', () => {
+    const { getByTestId } = render(
+      <BibleCard reference="JHN.1.1" versionId={3034} theme="system" />,
+      { wrapper: wrapper("light") },
+    );
+
+    expect(getByTestId("mock-theme").children).toContain("system");
+  });
+
   it("uses the provider-resolved theme when BibleCard does not set theme", () => {
     const { getByTestId } = render(
       <BibleCard reference="JHN.1.1" versionId={3034} />,
