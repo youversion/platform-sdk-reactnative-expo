@@ -17,13 +17,7 @@ export type BibleChapterPickerSheetProps = {
   onClose: () => void
 
   book?: string
-  defaultBook?: string
-  onBookChange?: (book: string) => void | Promise<void>
-
   chapter?: string
-  defaultChapter?: string
-  onChapterChange?: (chapter: string) => void | Promise<void>
-
   versionId?: number
 
   theme?: 'light' | 'dark' | 'system'
