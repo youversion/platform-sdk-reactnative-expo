@@ -1,6 +1,10 @@
 'use dom'
 
-import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
+import type {
+  FootnoteData,
+  BibleChapterPickerPressData,
+  BibleVersionPickerPressData,
+} from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { StyleProp, ViewStyle } from 'react-native'
 
@@ -16,6 +20,7 @@ export type BibleReaderProps = {
   onChapterChange?: (chapter: string) => Promise<void>
   onVersionChange?: (versionId: number) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
@@ -39,6 +44,7 @@ export default function BibleReaderDOM({
   onChapterChange,
   onVersionChange,
   onChapterPickerPress,
+  onVersionPickerPress,
   onFootnotePress,
   showToolbar = true,
   onOpenBibleThemeSettings,
@@ -71,6 +77,7 @@ export default function BibleReaderDOM({
           onChapterChange={onChapterChange}
           onVersionChange={onVersionChange}
           onChapterPickerPress={onChapterPickerPress}
+          onVersionPickerPress={onVersionPickerPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
           fontFamily={fontFamily}

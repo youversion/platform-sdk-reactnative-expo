@@ -44,6 +44,10 @@ _Avoid_: Picker selection
 A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**, receiving a **Picker Selection** via a native action. Public export usable standalone (e.g., with `BibleTextView`).
 _Avoid_: Picker modal, chapter popover
 
+**Version Picker Sheet**:
+A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. It starts on version selection and lets the user switch to language selection inside the same sheet.
+_Avoid_: Version modal, stacked picker sheets
+
 **Chapter Picker Shell Layout**:
 The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the Web SDK book list (`overflow-y-auto` accordion) grows and the search bar (`section` with muted background) stays at the bottom of the visible sheet. The Web SDK renders list and search as siblings without a flex column wrapper, so this behavior is owned by the Expo DOM component until or unless the Web SDK adds an explicit layout root. Inside the WebView, `visualViewport` updates a `--yv-keyboard-overlap` custom property on the shell and `focusin` scrolls focused search fields into view to complement native sheet keyboard handling.
 _Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex context
@@ -70,6 +74,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location.
 - **Reader Controls** trigger a **Picker Press**, which by default opens the built-in **Chapter Picker Sheet**.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
+- A **Version Picker Sheet** receives version and language state via native actions and feeds version selection back to the **Native Wrapper** that owns reader or card state.
 - Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet**.
 - **Source-Only Distribution** is required because the Expo Metro plugin processes `'use dom'` from raw source in `node_modules`; compiled output would strip the directive.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
