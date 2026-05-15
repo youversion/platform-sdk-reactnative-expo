@@ -128,4 +128,4 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 
 ## Recommended Agent Skill
 
-This repo uses `CONTEXT.md` and `docs/adr/` for domain language and architectural decisions. Before planning changes, use the [grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs) skill to stress-test your plan against the documented domain model — it challenges terminology and updates docs inline as decisions crystallize. Install via [skills.sh/mattpocock/skills/grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs).
+This repo uses `CONTEXT.md` and `docs/adr/` for domain language and architectural decisions. Before planning changes, use the [grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs) skill to stress-test your plan against the documented domain model — it challenges terminology and updates docs inline as decisions crystallize.
