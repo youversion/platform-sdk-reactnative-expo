@@ -50,13 +50,14 @@ export function BibleCard({
   const handleVersionPickerPress = useCallback(
     async (_data: BibleVersionPickerPressData) => {
       if (Platform.OS === 'web') return
+      if (!showVersionPicker) return
       if (consumerOnVersionPickerPress) {
         await consumerOnVersionPickerPress(_data)
       } else {
         setIsVersionPickerOpen(true)
       }
     },
-    [consumerOnVersionPickerPress],
+    [consumerOnVersionPickerPress, showVersionPicker],
   )
 
   const showVersionPickerSheet =
