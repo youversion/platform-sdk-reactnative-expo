@@ -52,6 +52,8 @@ Keep `GestureHandlerRootView` outside `YouVersionProvider`; bottom-sheet gesture
 
 `BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`, then pass serializable `appKey` and theme props into their DOM wrappers. Component-level theme props remain valid overrides.
 
+`BibleCard` and `BibleReader` are stateful — they own `versionId` (via `useControllableState`) and coordinate picker sheets. When `onVersionPickerPress` is omitted, they open a built-in `BibleVersionPickerSheet`; when provided, the consumer handles the press and no sheet renders.
+
 Raw DOM components are not part of the package API.
 
 Native provider context does not cross into Expo DOM WebViews. DOM wrappers keep their own web `YouVersionProvider` from `@youversion/platform-react-ui`.
@@ -88,7 +90,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleChapterPickerSheet`
+**Components**: `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`
 
 ## Runtime Dependencies
 

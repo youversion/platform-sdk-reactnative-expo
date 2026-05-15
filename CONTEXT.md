@@ -40,12 +40,16 @@ _Avoid_: Passage id, USFM ref
 The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.
 _Avoid_: Picker selection
 
+**Version Picker Press**:
+The user action that requests opening version picker presentation from the current Bible version. Defaults to opening the built-in **Version Picker Sheet**; overridable via `onVersionPickerPress`. The payload contains `versionId` and `languageId`.
+_Avoid_: Picker press (use **Picker Press** for chapter picker)
+
 **Chapter Picker Sheet**:
 A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**, receiving a **Picker Selection** via a native action. Public export usable standalone (e.g., with `BibleTextView`).
 _Avoid_: Picker modal, chapter popover
 
 **Version Picker Sheet**:
-A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. It starts on version selection and lets the user switch to language selection inside the same sheet.
+A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. Language switching is handled internally by the DOM content — no native orchestration of language panels.
 _Avoid_: Version modal, stacked picker sheets
 
 **Chapter Picker Shell Layout**:
@@ -72,10 +76,11 @@ _Avoid_: Bundled deps, vendored web SDK
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location.
-- **Reader Controls** trigger a **Picker Press**, which by default opens the built-in **Chapter Picker Sheet**.
+- A **Version Picker Press** opens version picker presentation; the sheet commits a new `versionId` via `onSelect`.
+- **Reader Controls** trigger a **Picker Press** or **Version Picker Press**, which by default opens the built-in **Chapter Picker Sheet** or **Version Picker Sheet** respectively.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
-- A **Version Picker Sheet** receives version and language state via native actions and feeds version selection back to the **Native Wrapper** that owns reader or card state.
-- Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet**.
+- A **Version Picker Sheet** receives a new `versionId` via `onSelect` and feeds it back to the **Native Wrapper** that owns reader or card state.
+- Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
 - **Source-Only Distribution** is required because the Expo Metro plugin processes `'use dom'` from raw source in `node_modules`; compiled output would strip the directive.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 
@@ -89,6 +94,9 @@ _Avoid_: Bundled deps, vendored web SDK
 
 > **Dev:** "I don't want the built-in chapter picker sheet. Can I render my own?"
 > **Domain expert:** "Pass `onChapterPickerPress` to `BibleReader`. The built-in **Chapter Picker Sheet** is suppressed, and your callback receives the current **Picker Press** data."
+
+> **Dev:** "I want to show my own version picker UI when the user taps the version button in BibleCard."
+> **Domain expert:** "Pass `onVersionPickerPress` to `BibleCard`. The built-in **Version Picker Sheet** is suppressed, and your callback receives a **Version Picker Press** with `{ versionId, languageId }`."
 
 ## Flagged Ambiguities
 
