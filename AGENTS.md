@@ -125,3 +125,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 - Single published package — keep all exports in `packages/ui/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
+
+## Recommended Agent Skill
+
+This repo uses `CONTEXT.md` and `docs/adr/` for domain language and architectural decisions. Before planning changes, use the [grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs) skill to stress-test your plan against the documented domain model — it challenges terminology and updates docs inline as decisions crystallize. Install via [skills.sh/mattpocock/skills/grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs).
