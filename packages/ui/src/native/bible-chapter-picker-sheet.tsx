@@ -1,5 +1,5 @@
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
@@ -17,7 +17,13 @@ export type BibleChapterPickerSheetProps = {
   onClose: () => void
 
   book?: string
+  defaultBook?: string
+  onBookChange?: (book: string) => void | Promise<void>
+
   chapter?: string
+  defaultChapter?: string
+  onChapterChange?: (chapter: string) => void | Promise<void>
+
   versionId?: number
 
   theme?: 'light' | 'dark' | 'system'
@@ -29,7 +35,11 @@ export function BibleChapterPickerSheet({
   isOpen,
   onClose,
   book = DEFAULT_BOOK,
+  defaultBook,
+  onBookChange,
   chapter = DEFAULT_CHAPTER,
+  defaultChapter,
+  onChapterChange,
   versionId = DEFAULT_VERSION_ID,
   theme: themeOverride,
   onSelect,

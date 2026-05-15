@@ -37,8 +37,12 @@ The committed Bible location chosen from chapter picker content, represented as 
 _Avoid_: Passage id, USFM ref
 
 **Picker Press**:
-The user action that requests opening chapter picker presentation from the current Bible location.
+The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.
 _Avoid_: Picker selection
+
+**Chapter Picker Sheet**:
+A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**, receiving a **Picker Selection** via a native action. Public export usable standalone (e.g., with `BibleTextView`).
+_Avoid_: Picker modal, chapter popover
 
 **Reader Controls**:
 The visible controls around reader content, including chapter navigation, version selection, and settings.
@@ -52,7 +56,9 @@ _Avoid_: Toolbar when referring to product behavior rather than the Web SDK comp
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location.
-- **Reader Controls** may trigger a **Picker Press**, but the selected Bible location is still owned by the **Native Wrapper** when native sheets are involved.
+- **Reader Controls** trigger a **Picker Press**, which by default opens the built-in **Chapter Picker Sheet**.
+- A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
+- Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet**.
 
 ## Example Dialogue
 
@@ -60,7 +66,10 @@ _Avoid_: Toolbar when referring to product behavior rather than the Web SDK comp
 > **Domain expert:** "Use **Picker Selection** state instead: `book`, `chapter`, and `versionId`. The reader already builds its reference from that state."
 
 > **Dev:** "Should the Web SDK popover be reused on mobile?"
-> **Domain expert:** "No. Reuse the React Web SDK content, but replace the **Presentation Shell** with a **Native Sheet**."
+> **Domain expert:** "No. Reuse the React Web SDK content, but replace the **Presentation Shell** with a **Chapter Picker Sheet** wrapped in a **Native Sheet**."
+
+> **Dev:** "I don't want the built-in chapter picker sheet. Can I render my own?"
+> **Domain expert:** "Pass `onChapterPickerPress` to `BibleReader`. The built-in **Chapter Picker Sheet** is suppressed, and your callback receives the current **Picker Press** data."
 
 ## Flagged Ambiguities
 

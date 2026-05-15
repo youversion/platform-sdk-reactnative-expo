@@ -1,15 +1,15 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useState, useCallback } from 'react'
+import type { BibleChapterPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
+import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
+import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
-import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
-import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
-import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',

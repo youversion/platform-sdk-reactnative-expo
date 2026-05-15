@@ -1,11 +1,11 @@
 'use dom'
 
-import { useEffect } from 'react'
 import {
-  BibleChapterPicker,
-  YouVersionProvider,
-  type BibleChapterPickerSelectData,
+    BibleChapterPicker,
+    YouVersionProvider,
+    type BibleChapterPickerSelectData,
 } from '@youversion/platform-react-ui'
+import { useEffect } from 'react'
 
 export type ChapterPickerContentDOMProps = {
   appKey: string

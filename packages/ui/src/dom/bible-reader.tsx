@@ -1,6 +1,6 @@
 'use dom'
 
-import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
+import type { BibleChapterPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { StyleProp, ViewStyle } from 'react-native'
 
