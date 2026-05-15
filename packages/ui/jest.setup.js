@@ -6,9 +6,65 @@
  * register them here so tests can render components that pull these in
  * transitively (e.g. `NativeSheet`).
  */
-jest.mock('react-native-reanimated', () =>
-  require('react-native-reanimated/mock'),
-)
+
+// Provide a minimal nativeModuleProxy so NativeModules.js takes the fast path
+// instead of hitting the __fbBatchedBridgeConfig invariant. Each module name
+// resolves to a no-op proxy that returns {} for property access and () => {}
+// for function calls, plus a getConstants method returning empty dimensions.
+if (typeof global.nativeModuleProxy === 'undefined') {
+  const DISPLAY_METRICS = {
+    windowPhysicalPixels: {
+      width: 1170,
+      height: 2532,
+      scale: 3,
+      fontScale: 1,
+      densityDpi: 458,
+    },
+    screenPhysicalPixels: {
+      width: 1170,
+      height: 2532,
+      scale: 3,
+      fontScale: 1,
+      densityDpi: 458,
+    },
+  }
+
+  const moduleConstants = {
+    DeviceInfo: { Dimensions: DISPLAY_METRICS },
+    PlatformConstants: {
+      interfaceIdiom: 'phone',
+      forceTouchAvailable: false,
+      osVersion: '18.0',
+      systemName: 'iOS',
+      isTesting: true,
+    },
+  }
+
+  const noopModule = new Proxy(
+    {},
+    {
+      get(_t, prop) {
+        if (prop === 'getConstants') return () => ({})
+        return () => {}
+      },
+    },
+  )
+
+  global.nativeModuleProxy = new Proxy(
+    {},
+    {
+      get(_t, moduleName) {
+        if (moduleConstants[moduleName]) {
+          return {
+            getConstants: () => moduleConstants[moduleName],
+          }
+        }
+        return noopModule
+      },
+    },
+  )
+}
+jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
 /**
@@ -102,11 +158,8 @@ jest.mock('react-native-mmkv', () => {
 
   return {
     createMMKV: () => mockCreateMMKV(),
-    useMMKVNumber: (key, instance) =>
-      mockUseValue(key, instance, (mmkv, k) => mmkv.getNumber(k)),
-    useMMKVString: (key, instance) =>
-      mockUseValue(key, instance, (mmkv, k) => mmkv.getString(k)),
-    useMMKVBoolean: (key, instance) =>
-      mockUseValue(key, instance, (mmkv, k) => mmkv.getBoolean(k)),
+    useMMKVNumber: (key, instance) => mockUseValue(key, instance, (mmkv, k) => mmkv.getNumber(k)),
+    useMMKVString: (key, instance) => mockUseValue(key, instance, (mmkv, k) => mmkv.getString(k)),
+    useMMKVBoolean: (key, instance) => mockUseValue(key, instance, (mmkv, k) => mmkv.getBoolean(k)),
   }
 })

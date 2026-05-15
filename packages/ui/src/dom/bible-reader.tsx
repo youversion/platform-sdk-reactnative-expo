@@ -1,6 +1,6 @@
 'use dom'
 
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { StyleProp, ViewStyle } from 'react-native'
 
@@ -8,9 +8,15 @@ import type { FontFamily } from '../lib/reader-fonts'
 
 export type BibleReaderProps = {
   appKey: string
-  defaultVersionId?: number
-  themeBackground?: 'light' | 'dark'
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are native actions.
+  theme?: 'light' | 'dark'
+  book?: string
+  chapter?: string
+  versionId?: number
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+  onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
+  showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
   fontSize?: number
@@ -25,9 +31,16 @@ export type BibleReaderProps = {
 
 export default function BibleReaderDOM({
   appKey,
-  defaultVersionId = 3034,
-  themeBackground = 'light',
+  theme = 'light',
+  book,
+  chapter,
+  versionId,
+  onBookChange,
+  onChapterChange,
+  onVersionChange,
+  onChapterPickerPress,
   onFootnotePress,
+  showToolbar = true,
   onOpenBibleThemeSettings,
   fontSize,
   fontFamily,
@@ -42,7 +55,7 @@ export default function BibleReaderDOM({
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
   return (
-    <YouVersionProvider appKey={appKey} theme={themeBackground}>
+    <YouVersionProvider appKey={appKey} theme={theme}>
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
@@ -51,18 +64,26 @@ export default function BibleReaderDOM({
       </style>
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <BibleReader.Root
-          defaultVersionId={defaultVersionId}
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          onBookChange={onBookChange}
+          onChapterChange={onChapterChange}
+          onVersionChange={onVersionChange}
+          onChapterPickerPress={onChapterPickerPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
           fontFamily={fontFamily}
           onFontSizeChange={onFontSizeChange}
           onFontFamilyChange={onFontFamilyChange}
         >
+          {showToolbar && (
+            <BibleReader.Toolbar
+              border="bottom"
+              onOpenBibleThemeSettings={onOpenBibleThemeSettings}
+            />
+          )}
           <BibleReader.Content />
-          <BibleReader.Toolbar
-            border="top"
-            onOpenBibleThemeSettings={onOpenBibleThemeSettings}
-          />
         </BibleReader.Root>
       </div>
     </YouVersionProvider>

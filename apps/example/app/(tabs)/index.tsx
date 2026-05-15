@@ -13,7 +13,7 @@ export default function BibleScreen() {
 
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>BibleReader</Text>
-        <BibleReader defaultVersionId={3034} style={styles.reader} />
+        <BibleReader defaultVersionId={3034} />
       </View>
     </View>
   )
