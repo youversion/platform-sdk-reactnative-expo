@@ -5,7 +5,7 @@ import { Platform } from "react-native";
 import type { ReactNode } from "react";
 
 import { BibleTextView } from "../bible-text-view";
-import { YouVersionProvider } from "../youversion-provider";
+import { youVersionProviderWrapper as wrapper } from "../../test-utils/youversion-provider-wrapper";
 
 const sampleFootnote: FootnoteData = {
   verseNum: "3",
@@ -100,17 +100,6 @@ jest.mock("../native-sheet", () => {
       ) : null,
   };
 });
-
-const wrapper = (providerTheme: "light" | "dark" | "system" = "light") => {
-  function YouVersionTestWrapper({ children }: { children: ReactNode }) {
-    return (
-      <YouVersionProvider appKey="test-key" theme={providerTheme}>
-        {children}
-      </YouVersionProvider>
-    );
-  }
-  return YouVersionTestWrapper;
-};
 
 describe("BibleTextView", () => {
   const originalOs = Platform.OS;
