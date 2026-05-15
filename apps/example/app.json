@@ -24,6 +24,7 @@
       "bundleIdentifier": "com.youversion.platform"
     },
     "android": {
+      "package": "com.youversion.platform",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
