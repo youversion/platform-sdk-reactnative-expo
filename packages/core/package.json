@@ -15,6 +15,7 @@
     }
   },
   "dependencies": {
+    "expo-application": "~55.0.15",
     "expo-crypto": "~55.0.14"
   },
   "peerDependencies": {
