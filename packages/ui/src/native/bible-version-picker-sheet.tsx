@@ -60,6 +60,10 @@ export function BibleVersionPickerSheet({
     onClose()
   }
 
+  const handleShowLanguagePicker = async () => {
+    await Promise.resolve(setShowLanguagePicker((prevBool) => !prevBool))
+  }
+
   return (
     <NativeSheet
       isOpen={isOpen}
@@ -76,9 +80,7 @@ export function BibleVersionPickerSheet({
         <VersionPickerContentDOM
           dom={pickerDom}
           showLanguagePicker={showLanguagePicker}
-          handleShowLanguagePicker={async () => {
-            setShowLanguagePicker((prevBool) => !prevBool)
-          }}
+          handleShowLanguagePicker={handleShowLanguagePicker}
           appKey={context.appKey}
           versionId={versionId}
           theme={resolvedTheme}
