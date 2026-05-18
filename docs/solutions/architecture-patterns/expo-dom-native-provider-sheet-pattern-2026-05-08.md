@@ -109,6 +109,7 @@ After: keep the WebView mounted inside its own sheet host and close the sheet of
 ```
 
 ## Related
+- `docs/solutions/architecture-patterns/version-picker-shell-and-dom-ui-state-2026-05-18.md` — in-sheet UI state (e.g. language panel) must stay in the DOM WebView, not round-trip through native
 - `packages/ui/src/native/youversion-provider.tsx`
 - `packages/ui/src/native/native-sheet.tsx`
 - `packages/ui/src/native/bible-reader.tsx`

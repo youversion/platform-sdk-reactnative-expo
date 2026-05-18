@@ -29,8 +29,8 @@ State kept outside the Expo DOM runtime so it can coordinate native wrappers, sh
 _Avoid_: Shared DOM state, WebView state
 
 **Native Action**:
-A top-level async function prop passed from React Native into an Expo DOM component across the WebView boundary.
-_Avoid_: Nested action, callback object
+A top-level async function prop passed from React Native into an Expo DOM component across the WebView boundary—for committed outcomes (e.g. select version, close sheet), not in-sheet UI toggles.
+_Avoid_: Nested action, callback object; bridging DOM-only visibility or animation state
 
 **Picker Selection**:
 The committed Bible location chosen from chapter picker content, represented as `book`, `chapter`, and `versionId`.
@@ -49,8 +49,20 @@ A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**
 _Avoid_: Picker modal, chapter popover
 
 **Version Picker Sheet**:
-A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. Language switching is handled internally by the DOM content — no native orchestration of language panels.
-_Avoid_: Version modal, stacked picker sheets
+A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. In-sheet navigation (version list ↔ language list) is owned by the **Version Picker Shell Layout** — not native.
+_Avoid_: Version modal, stacked picker sheets, native language-panel flags
+
+**Version Picker Shell Layout**:
+The Expo DOM wrapper (`bible-version-picker-content.tsx`) for version picker sheet content. It owns the version ↔ language cross-fade, shell height, and keyboard overlap via `visualViewport` (same role as **Chapter Picker Shell Layout** for chapter picker). Web uses Radix popover + `isLanguagesOpen`; mobile duplicates layout outside that **Presentation Shell**.
+_Avoid_: Assuming `BibleVersionPicker.Content` popover layout applies inside **Native Sheet**
+
+**DOM-Owned Sheet UI State**:
+UI visibility and animation state that applies only inside one sheet's WebView and must not be lifted to React Native (e.g. language panel open inside **Version Picker Sheet**). A **Native Action** round-trip for such state breaks synchronous CSS transitions on first paint.
+_Avoid_: Shared picker UI state on native, `showLanguagePicker` bridge props
+
+**Sheet Reset Key**:
+A serializable number the **Version Picker Sheet** passes into its Expo DOM component on each open; incrementing it remounts the Web SDK picker tree to clear scroll, search, and in-sheet panel state.
+_Avoid_: Using `openKey` for this (reserve **openKey** for repeat-open while `isOpen` stays true, e.g. footnotes)
 
 **Chapter Picker Shell Layout**:
 The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the Web SDK book list (`overflow-y-auto` accordion) grows and the search bar (`section` with muted background) stays at the bottom of the visible sheet. The Web SDK renders list and search as siblings without a flex column wrapper, so this behavior is owned by the Expo DOM component until or unless the Web SDK adds an explicit layout root. Inside the WebView, `visualViewport` updates a `--yv-keyboard-overlap` custom property on the shell and `focusin` scrolls focused search fields into view to complement native sheet keyboard handling.
@@ -80,6 +92,8 @@ _Avoid_: Bundled deps, vendored web SDK
 - **Reader Controls** trigger a **Picker Press** or **Version Picker Press**, which by default opens the built-in **Chapter Picker Sheet** or **Version Picker Sheet** respectively.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
 - A **Version Picker Sheet** receives a new `versionId` via `onSelect` and feeds it back to the **Native Wrapper** that owns reader or card state.
+- **Version Picker Sheet** passes **Sheet Reset Key** and commit **Native Actions** into **Version Picker Shell Layout**; it does not pass **DOM-Owned Sheet UI State** (e.g. language panel visibility).
+- **DOM-Owned Sheet UI State** lives only inside the sheet's Expo DOM component; **Native-Owned State** covers sheet open/close and committed picker outcomes.
 - Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
 - **Source-Only Distribution** is required because the Expo Metro plugin processes `'use dom'` from raw source in `node_modules`; compiled output would strip the directive.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
@@ -98,8 +112,15 @@ _Avoid_: Bundled deps, vendored web SDK
 > **Dev:** "I want to show my own version picker UI when the user taps the version button in BibleCard."
 > **Domain expert:** "Pass `onVersionPickerPress` to `BibleCard`. The built-in **Version Picker Sheet** is suppressed, and your callback receives a **Version Picker Press** with `{ versionId, languageId }`."
 
+> **Dev:** "Should `showLanguagePicker` live on the native sheet so both panels stay in sync?"
+> **Domain expert:** "No — that's **DOM-Owned Sheet UI State**. Bridging it as a **Native Action** makes the first language open flash instead of cross-fading. Keep panel visibility in **Version Picker Shell Layout**; native only owns open/close, **Sheet Reset Key**, and committed `versionId`."
+
+> **Dev:** "I wired `onClick` on `BibleVersionPickerLanguageTrigger` but the popover state still changes."
+> **Domain expert:** "Call `event.preventDefault()` in the DOM wrapper so the Web SDK doesn't also run `setIsLanguagesOpen`. Mobile uses the shell cross-fade, not popover layout."
+
 ## Flagged Ambiguities
 
 - "DOM component" can mean browser UI in general or an Expo DOM wrapper. Resolved: use **Expo DOM Component** for files with `'use dom'` in this SDK.
 - "Selection" and "press" are distinct. Resolved: **Picker Press** opens presentation from the current location; **Picker Selection** commits a new location.
 - "Passage id", "USFM ref", and reader state were used interchangeably. Resolved: the chapter picker selection payload is reader state: `book`, `chapter`, and `versionId`.
+- "**Native-Owned State**" was read as "all picker state on native." Resolved: committed outcomes and sheet coordination are native-owned; in-sheet panels are **DOM-Owned Sheet UI State** (see ADR 0005).
