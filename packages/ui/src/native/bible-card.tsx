@@ -32,9 +32,15 @@ export function BibleCard({
   const resolvedTheme =
     themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
 
+  // This mimics how it's done in the React Web SDK.
+  // Controlled only when both versionId + onVersionChange are provided.
+  // versionId alone seeds uncontrolled state, preserving backwards compatibility
+  // with consumers who use the version picker without an onChange handler.
+  const isControlled = controlledVersionId !== undefined && onVersionChange !== undefined
+
   const [versionId, setVersionId] = useControllableState({
-    prop: controlledVersionId,
-    defaultProp: defaultVersionId,
+    prop: isControlled ? controlledVersionId : undefined,
+    defaultProp: isControlled ? defaultVersionId : (controlledVersionId ?? defaultVersionId),
     onChange: onVersionChange,
   })
 
@@ -81,6 +87,7 @@ export function BibleCard({
           versionId={versionId}
           theme={resolvedTheme}
           onSelect={async (newVersionId) => {
+            console.log('fart', newVersionId)
             setVersionId(newVersionId)
           }}
         />
