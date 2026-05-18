@@ -61,10 +61,7 @@ jest.mock('../bible-version-picker-sheet', () => {
       isOpen ? (
         <View testID="mock-version-picker-sheet">
           <Text testID="sheet-version-id">{String(versionId ?? 'none')}</Text>
-          <Pressable
-            testID="select-version"
-            onPress={() => onSelect?.(59)}
-          >
+          <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
             <Text>Select</Text>
           </Pressable>
           <Pressable testID="close-sheet" onPress={onClose}>
@@ -87,7 +84,7 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
-    const { getByTestId, queryByTestId } = render(<BibleCard />, { wrapper })
+    const { getByTestId, queryByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
 
     expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
 
@@ -99,7 +96,7 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('updates versionId when version picker selects a version', async () => {
-    const { getByTestId } = render(<BibleCard />, { wrapper })
+    const { getByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
 
     await act(async () => {
       fireEvent.press(getByTestId('trigger-version-picker'))
@@ -122,7 +119,7 @@ describe('BibleCard version picker integration', () => {
     const consumerHandler = jest.fn().mockResolvedValue(undefined)
 
     const { getByTestId, queryByTestId } = render(
-      <BibleCard onVersionPickerPress={consumerHandler} />,
+      <BibleCard reference="JHN.1.1" onVersionPickerPress={consumerHandler} />,
       { wrapper },
     )
 
@@ -135,14 +132,16 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('does not render version picker sheet when showVersionPicker is false', () => {
-    const { queryByTestId } = render(<BibleCard showVersionPicker={false} />, { wrapper })
+    const { queryByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker={false} />, {
+      wrapper,
+    })
 
     expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
     expect(latestDomProps.showVersionPicker).toBe(false)
   })
 
   it('resolves system theme to provider theme', () => {
-    render(<BibleCard theme="system" />, { wrapper })
+    render(<BibleCard reference="JHN.1.1" theme="system" />, { wrapper })
 
     expect(latestDomProps.versionId).toBeDefined()
   })
