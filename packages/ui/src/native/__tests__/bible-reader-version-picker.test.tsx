@@ -15,6 +15,7 @@ let latestDomProps: {
 } = {}
 
 jest.mock('../../dom/bible-reader', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
@@ -44,6 +45,7 @@ jest.mock('../../dom/bible-reader', () => {
 })
 
 jest.mock('../../dom/footnote-content', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     __esModule: true,
@@ -52,6 +54,7 @@ jest.mock('../../dom/footnote-content', () => {
 })
 
 jest.mock('../bible-chapter-picker-sheet', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     __esModule: true,
@@ -60,6 +63,7 @@ jest.mock('../bible-chapter-picker-sheet', () => {
 })
 
 jest.mock('../bible-version-picker-sheet', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
@@ -93,6 +97,7 @@ jest.mock('../bible-version-picker-sheet', () => {
 
 jest.mock('../native-sheet', () => {
   const actual = jest.requireActual('../native-sheet')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     ...actual,
@@ -107,6 +112,7 @@ jest.mock('../native-sheet', () => {
 })
 
 jest.mock('../bible-reader-settings-sheet', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     __esModule: true,
@@ -147,7 +153,7 @@ describe('BibleReader version picker integration', () => {
   })
 
   it('updates versionId when version picker selects a version', async () => {
-    const { getByTestId, getByText } = render(<BibleReader />, { wrapper })
+    const { getByTestId } = render(<BibleReader />, { wrapper })
 
     await act(async () => {
       fireEvent.press(getByTestId('trigger-version-picker'))

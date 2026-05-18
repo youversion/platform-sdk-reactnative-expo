@@ -1,6 +1,5 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import type { FootnoteData } from "@youversion/platform-react-ui";
-import * as ReactNative from "react-native";
 import { Platform } from "react-native";
 import type { ReactNode } from "react";
 

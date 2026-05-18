@@ -15,6 +15,7 @@ type MockDomProps = {
 let latestDomProps: MockDomProps = {}
 
 jest.mock('../../dom/bible-version-picker-content', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
@@ -40,6 +41,7 @@ jest.mock('../../dom/bible-version-picker-content', () => {
 
 jest.mock('../native-sheet', () => {
   const actual = jest.requireActual('../native-sheet')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
   return {
     ...actual,
