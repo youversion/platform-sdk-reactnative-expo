@@ -51,7 +51,7 @@ export function BibleVersionPickerSheet({
   const handleVersionChange = async (newVersionId: number) => {
     if (onSelect) {
       try {
-        await Promise.resolve(onSelect(newVersionId))
+        await onSelect(newVersionId)
       } catch {
         return
       }

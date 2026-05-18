@@ -90,10 +90,10 @@ export function BibleReader({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
-
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
 
   const handleOpenBibleThemeSettings = useCallback(() => {

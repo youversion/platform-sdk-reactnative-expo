@@ -1,12 +1,13 @@
 'use dom'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 import {
   BibleVersionPicker,
   BibleLanguagePickerContent,
   BibleVersionPickerLanguageTrigger,
   YouVersionProvider,
 } from '@youversion/platform-react-ui'
+import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 
 export type VersionPickerContentDOMProps = {
   appKey: string
@@ -29,14 +30,6 @@ export default function VersionPickerContentDOM({
   useEffect(() => {
     setShowLanguagePicker(false)
   }, [resetKey])
-
-  const openLanguagePicker = useCallback(() => {
-    setShowLanguagePicker(true)
-  }, [])
-
-  const closeLanguagePicker = useCallback(() => {
-    setShowLanguagePicker(false)
-  }, [])
 
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')
@@ -97,11 +90,7 @@ export default function VersionPickerContentDOM({
             >
               <div
                 data-yv-bible-version-picker
-                className={`yv:min-h-0 yv:h-full yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
-                  showLanguagePicker
-                    ? 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
-                    : 'yv:grow yv:opacity-100 yv:pointer-events-auto yv:blur-none yv:scale-100'
-                }`}
+                className={getVersionPickerPanelClassName(showLanguagePicker, 'version')}
               >
                 <div
                   style={{
@@ -115,10 +104,11 @@ export default function VersionPickerContentDOM({
                 >
                   <div style={{ paddingInline: '1rem', display: 'flex', justifyContent: 'end' }}>
                     <BibleVersionPickerLanguageTrigger
-                      disabled={false}
-                      onClick={(event: Event) => {
+                      onClick={(
+                        event: MouseEvent<HTMLButtonElement> | TouchEvent<HTMLButtonElement>,
+                      ) => {
                         event.preventDefault()
-                        openLanguagePicker()
+                        setShowLanguagePicker(true)
                       }}
                     />
                   </div>
@@ -128,13 +118,12 @@ export default function VersionPickerContentDOM({
 
               <div
                 data-yv-bible-language-picker
-                className={`yv:min-h-0 yv:h-full yv:absolute yv:inset-0 yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
-                  showLanguagePicker
-                    ? 'yv:grow yv:opacity-100 yv:pointer-events-auto yv:blur-none yv:scale-100'
-                    : 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
-                }`}
+                className={getVersionPickerPanelClassName(showLanguagePicker, 'language')}
               >
-                <BibleLanguagePickerContent onRequestClose={closeLanguagePicker} open={true} />
+                <BibleLanguagePickerContent
+                  onRequestClose={() => setShowLanguagePicker(false)}
+                  open={true}
+                />
               </div>
             </div>
           </div>

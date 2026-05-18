@@ -110,7 +110,7 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('passes controlled versionId to DOM component', () => {
-    render(<BibleCard versionId={100} />, { wrapper })
+    render(<BibleCard reference="JHN.1.1" versionId={100} />, { wrapper })
 
     expect(latestDomProps.versionId).toBe(100)
   })

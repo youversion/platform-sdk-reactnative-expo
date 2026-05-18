@@ -4,21 +4,21 @@ import type { ReactNode } from 'react'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
-let latestDomProps: {
+type MockDomProps = {
+  appKey?: string
   theme?: string
   versionId?: number
+  resetKey?: number
   onVersionChange?: (versionId: number) => Promise<void>
-} = {}
+}
+
+let latestDomProps: MockDomProps = {}
 
 jest.mock('../../dom/bible-version-picker-content', () => {
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
-    default: function MockDOM(props: {
-      theme?: string
-      versionId?: number
-      onVersionChange?: (versionId: number) => Promise<void>
-    }) {
+    default: function MockDOM(props: MockDomProps) {
       latestDomProps = props
       return (
         <View testID="mock-dom">
@@ -27,9 +27,7 @@ jest.mock('../../dom/bible-version-picker-content', () => {
           <Pressable
             testID="trigger-select"
             onPress={() => {
-              if (props.onVersionChange) {
-                props.onVersionChange(59)
-              }
+              void props.onVersionChange?.(59)
             }}
           >
             <Text>Select</Text>
@@ -154,5 +152,24 @@ describe('BibleVersionPickerSheet', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 
     expect(latestDomProps.versionId).toBe(3034)
+  })
+
+  it('passes appKey to DOM content', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.appKey).toBe('test-key')
+  })
+
+  it('passes resetKey to DOM content', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.resetKey).toEqual(expect.any(Number))
+  })
+
+  it('does not pass language panel state across the native bridge', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps).not.toHaveProperty('showLanguagePicker')
+    expect(latestDomProps).not.toHaveProperty('handleShowLanguagePicker')
   })
 })

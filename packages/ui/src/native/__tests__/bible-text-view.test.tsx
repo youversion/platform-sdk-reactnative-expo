@@ -210,28 +210,7 @@ describe("BibleTextView", () => {
     expect(queryByTestId("footnote-sheet")).toBeNull();
   });
 
-  it("resolves system theme for footnote content from useColorScheme when dark", () => {
-    const spy = jest
-      .spyOn(ReactNative, "useColorScheme")
-      .mockReturnValue("dark");
-
-    const { getByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} theme="system" />,
-      { wrapper: wrapper("light") },
-    );
-
-    fireEvent.press(getByTestId("mock-footnote-trigger"));
-
-    expect(getByTestId("mock-footnote-theme").children).toContain("dark");
-
-    spy.mockRestore();
-  });
-
-  it("resolves system theme to light when useColorScheme is not dark", () => {
-    const spy = jest
-      .spyOn(ReactNative, "useColorScheme")
-      .mockReturnValue("light");
-
+  it("resolves system theme for footnote content when component theme is system", () => {
     const { getByTestId } = render(
       <BibleTextView reference="JHN.1.1" versionId={3034} theme="system" />,
       { wrapper: wrapper("light") },
@@ -240,7 +219,5 @@ describe("BibleTextView", () => {
     fireEvent.press(getByTestId("mock-footnote-trigger"));
 
     expect(getByTestId("mock-footnote-theme").children).toContain("light");
-
-    spy.mockRestore();
   });
 });

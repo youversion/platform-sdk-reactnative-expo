@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { useColorScheme } from "react-native";
+import { resolveTheme } from "../lib/resolve-theme";
 import { NativeSheetProvider } from "./native-sheet";
 
 type Theme = "light" | "dark";
@@ -24,8 +25,7 @@ export function YouVersionProvider({
   children,
 }: YouVersionProviderProps) {
   const colorScheme = useColorScheme();
-  const resolvedTheme =
-    theme === "system" ? (colorScheme === "dark" ? "dark" : "light") : theme;
+  const resolvedTheme = resolveTheme(theme, colorScheme);
 
   return (
     <YouVersionContext.Provider value={{ appKey, theme: resolvedTheme }}>

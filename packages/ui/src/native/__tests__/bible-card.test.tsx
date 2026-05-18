@@ -4,6 +4,14 @@ import * as ReactNative from "react-native";
 import { BibleCard } from "../bible-card";
 import { youVersionProviderWrapper as wrapper } from "../../test-utils/youversion-provider-wrapper";
 
+jest.mock("../bible-version-picker-sheet", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require("react-native");
+  return {
+    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet-stub" />,
+  };
+});
+
 jest.mock("../../dom/bible-card", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, View } = require("react-native");
@@ -57,13 +65,13 @@ describe("BibleCard", () => {
     expect(getByTestId("mock-theme").children).toContain("dark");
   });
 
-  it('forwards theme="system" from BibleCard props to the DOM entry', () => {
+  it('resolves theme="system" to the provider theme before passing to the DOM entry', () => {
     const { getByTestId } = render(
       <BibleCard reference="JHN.1.1" versionId={3034} theme="system" />,
       { wrapper: wrapper("light") },
     );
 
-    expect(getByTestId("mock-theme").children).toContain("system");
+    expect(getByTestId("mock-theme").children).toContain("light");
   });
 
   it("uses the provider-resolved theme when BibleCard does not set theme", () => {
