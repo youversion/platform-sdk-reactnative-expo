@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import VersionPickerContentDOM from '../dom/version-picker-content'
+import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
 
