@@ -1,10 +1,7 @@
 'use dom'
 
 import { useEffect } from 'react'
-import {
-  BibleVersionPicker,
-  YouVersionProvider,
-} from '@youversion/platform-react-ui'
+import { BibleVersionPicker, YouVersionProvider } from '@youversion/platform-react-ui'
 
 export type VersionPickerContentDOMProps = {
   appKey: string
@@ -58,7 +55,7 @@ export default function VersionPickerContentDOM({
           background={theme}
           onVersionPickerPress={() => {}}
         >
-          <BibleVersionPicker.Content />
+          <BibleVersionPicker.Content open={true} />
         </BibleVersionPicker.Root>
       </div>
     </YouVersionProvider>
