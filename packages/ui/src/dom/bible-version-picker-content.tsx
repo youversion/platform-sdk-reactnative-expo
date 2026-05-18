@@ -1,6 +1,6 @@
 'use dom'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import {
   BibleVersionPicker,
   BibleLanguagePickerContent,
@@ -14,6 +14,8 @@ export type VersionPickerContentDOMProps = {
   theme?: 'light' | 'dark'
   resetKey?: number
   onVersionChange?: (versionId: number) => Promise<void>
+  showLanguagePicker: boolean
+  handleShowLanguagePicker: () => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
 
@@ -21,11 +23,11 @@ export default function VersionPickerContentDOM({
   appKey,
   versionId = 3034,
   theme = 'light',
+  showLanguagePicker,
+  handleShowLanguagePicker,
   resetKey,
   onVersionChange,
 }: VersionPickerContentDOMProps) {
-  const [showLanguagePicker, setShowLanguagePicker] = useState(false)
-
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')
     const viewport = window.visualViewport
@@ -104,29 +106,25 @@ export default function VersionPickerContentDOM({
                   <div style={{ paddingInline: '1rem', display: 'flex', justifyContent: 'end' }}>
                     <BibleVersionPickerLanguageTrigger
                       disabled={false}
-                      onClick={() => {
-                        setShowLanguagePicker((prevBool) => !prevBool)
-                      }}
+                      // This is intentional in order to not pass
+                      // a function/object as a prop back up the
+                      // React Native bridge, as it's not serializable
+                      onClick={() => handleShowLanguagePicker()}
                     />
                   </div>
-                  <BibleVersionPicker.Content open={!showLanguagePicker} />
+                  <BibleVersionPicker.Content open={true} />
                 </div>
               </div>
 
               <div
                 data-yv-bible-language-picker
-                className={`yv:min-h-0 yv:overflow-hidden yv:absolute yv:inset-0 yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
+                className={`yv:min-h-0 yv:h-full yv:absolute yv:inset-0 yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
                   showLanguagePicker
                     ? 'yv:grow yv:opacity-100 yv:pointer-events-auto yv:blur-none yv:scale-100'
                     : 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
                 }`}
               >
-                <BibleLanguagePickerContent
-                  onRequestClose={() => {
-                    setShowLanguagePicker((prevBool) => !prevBool)
-                  }}
-                  open={showLanguagePicker}
-                />
+                <BibleLanguagePickerContent onRequestClose={handleShowLanguagePicker} open={true} />
               </div>
             </div>
           </div>
@@ -157,6 +155,7 @@ body {
   [data-yv-bible-version-picker] {
     height: 100%;
 
+    /* This allows the keyboard to appear and content to resize to account for it. */
     section:has([data-slot="input-group"]) {
       flex: 0 0 auto;
       padding-bottom: calc(1rem + var(--yv-keyboard-overlap));
