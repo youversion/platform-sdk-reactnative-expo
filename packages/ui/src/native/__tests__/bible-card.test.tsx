@@ -85,9 +85,11 @@ describe("BibleCard", () => {
       { wrapper: wrapper("system") },
     );
 
-    expect(getByTestId("mock-theme").children).toContain("dark");
-
-    spy.mockRestore();
+    try {
+      expect(getByTestId("mock-theme").children).toContain("dark");
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("throws when YouVersionProvider is missing", () => {
