@@ -87,7 +87,6 @@ export function BibleCard({
           versionId={versionId}
           theme={resolvedTheme}
           onSelect={async (newVersionId) => {
-            console.log('fart', newVersionId)
             setVersionId(newVersionId)
           }}
         />
