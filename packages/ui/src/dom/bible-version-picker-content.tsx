@@ -54,8 +54,6 @@ export default function VersionPickerContentDOM({
     }
   }, [])
 
-  console.log({ showLanguagePicker })
-
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{versionPickerStyles}</style>
@@ -87,7 +85,7 @@ export default function VersionPickerContentDOM({
             >
               <div
                 data-yv-bible-version-picker
-                className={`yv:min-h-0 yv:overflow-hidden yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
+                className={`yv:min-h-0 yv:h-full yv:transition-all yv:duration-300 yv:ease-out yv:motion-reduce:transition-none ${
                   showLanguagePicker
                     ? 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
                     : 'yv:grow yv:opacity-100 yv:pointer-events-auto yv:blur-none yv:scale-100'
@@ -99,6 +97,8 @@ export default function VersionPickerContentDOM({
                     flexDirection: 'column',
                     gridTemplateRows: 'auto 1fr',
                     flexGrow: 1,
+                    height: '100%',
+                    minHeight: 0,
                   }}
                 >
                   <div style={{ paddingInline: '1rem', display: 'flex', justifyContent: 'end' }}>
