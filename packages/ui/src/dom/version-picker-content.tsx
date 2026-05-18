@@ -7,6 +7,7 @@ export type VersionPickerContentDOMProps = {
   appKey: string
   versionId?: number
   theme?: 'light' | 'dark'
+  resetKey?: number
   onVersionChange?: (versionId: number) => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
@@ -15,6 +16,7 @@ export default function VersionPickerContentDOM({
   appKey,
   versionId = 3034,
   theme = 'light',
+  resetKey,
   onVersionChange,
 }: VersionPickerContentDOMProps) {
   useEffect(() => {
@@ -49,7 +51,9 @@ export default function VersionPickerContentDOM({
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{versionPickerStyles}</style>
       <div data-yv-sdk data-yv-version-picker-shell>
+        {/* key remounts the picker tree on each sheet open to reset scroll and filter state */}
         <BibleVersionPicker.Root
+          key={resetKey}
           versionId={versionId}
           onVersionChange={onVersionChange}
           background={theme}

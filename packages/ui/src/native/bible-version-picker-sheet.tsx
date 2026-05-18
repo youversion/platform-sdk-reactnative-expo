@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/version-picker-content'
 import { NativeSheet } from './native-sheet'
@@ -28,6 +29,13 @@ export function BibleVersionPickerSheet({
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
   const { height } = useWindowDimensions()
+
+  // Bump resetKey on each open so the DOM component remounts its picker tree,
+  // resetting scroll position, search query, and language filter state
+  const resetKeyRef = useRef(0)
+  useEffect(() => {
+    if (isOpen) resetKeyRef.current += 1
+  }, [isOpen])
 
   if (Platform.OS === 'web') return null
 
@@ -69,6 +77,7 @@ export function BibleVersionPickerSheet({
           appKey={context.appKey}
           versionId={versionId}
           theme={resolvedTheme}
+          resetKey={resetKeyRef.current}
           onVersionChange={handleVersionChange}
         />
       </View>
