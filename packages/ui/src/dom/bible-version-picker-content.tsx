@@ -1,6 +1,6 @@
 'use dom'
 
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   BibleVersionPicker,
   BibleLanguagePickerContent,
@@ -14,8 +14,6 @@ export type VersionPickerContentDOMProps = {
   theme?: 'light' | 'dark'
   resetKey?: number
   onVersionChange?: (versionId: number) => Promise<void>
-  showLanguagePicker: boolean
-  handleShowLanguagePicker: () => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
 
@@ -23,11 +21,23 @@ export default function VersionPickerContentDOM({
   appKey,
   versionId = 3034,
   theme = 'light',
-  showLanguagePicker,
-  handleShowLanguagePicker,
   resetKey,
   onVersionChange,
 }: VersionPickerContentDOMProps) {
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false)
+
+  useEffect(() => {
+    setShowLanguagePicker(false)
+  }, [resetKey])
+
+  const openLanguagePicker = useCallback(() => {
+    setShowLanguagePicker(true)
+  }, [])
+
+  const closeLanguagePicker = useCallback(() => {
+    setShowLanguagePicker(false)
+  }, [])
+
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')
     const viewport = window.visualViewport
@@ -106,10 +116,10 @@ export default function VersionPickerContentDOM({
                   <div style={{ paddingInline: '1rem', display: 'flex', justifyContent: 'end' }}>
                     <BibleVersionPickerLanguageTrigger
                       disabled={false}
-                      // This is intentional in order to not pass
-                      // a function/object as a prop back up the
-                      // React Native bridge, as it's not serializable
-                      onClick={() => handleShowLanguagePicker()}
+                      onClick={(event: Event) => {
+                        event.preventDefault()
+                        openLanguagePicker()
+                      }}
                     />
                   </div>
                   <BibleVersionPicker.Content open={true} />
@@ -124,7 +134,7 @@ export default function VersionPickerContentDOM({
                     : 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
                 }`}
               >
-                <BibleLanguagePickerContent onRequestClose={handleShowLanguagePicker} open={true} />
+                <BibleLanguagePickerContent onRequestClose={closeLanguagePicker} open={true} />
               </div>
             </div>
           </div>

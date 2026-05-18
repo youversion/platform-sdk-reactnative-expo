@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { NativeSheet } from './native-sheet'
@@ -27,7 +27,6 @@ export function BibleVersionPickerSheet({
   onSelect,
   dom,
 }: BibleVersionPickerSheetProps) {
-  const [showLanguagePicker, setShowLanguagePicker] = useState(false)
   const context = useYouVersion()
   const { height } = useWindowDimensions()
 
@@ -60,10 +59,6 @@ export function BibleVersionPickerSheet({
     onClose()
   }
 
-  const handleShowLanguagePicker = async () => {
-    await Promise.resolve(setShowLanguagePicker((prevBool) => !prevBool))
-  }
-
   return (
     <NativeSheet
       isOpen={isOpen}
@@ -79,8 +74,6 @@ export function BibleVersionPickerSheet({
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <VersionPickerContentDOM
           dom={pickerDom}
-          showLanguagePicker={showLanguagePicker}
-          handleShowLanguagePicker={handleShowLanguagePicker}
           appKey={context.appKey}
           versionId={versionId}
           theme={resolvedTheme}

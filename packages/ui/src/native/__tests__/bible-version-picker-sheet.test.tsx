@@ -10,7 +10,7 @@ let latestDomProps: {
   onVersionChange?: (versionId: number) => Promise<void>
 } = {}
 
-jest.mock('../../dom/version-picker-content', () => {
+jest.mock('../../dom/bible-version-picker-content', () => {
   const { View, Text, Pressable } = require('react-native')
   return {
     __esModule: true,
