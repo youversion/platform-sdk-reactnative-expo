@@ -1,5 +1,5 @@
 import { mmkvStorage, secureStorage } from '@/storage'
-import { MMKV_KEYS, SECURE_STORAGE_KEYS } from './constants'
+import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from './constants'
 
 export type StoredTokens = {
   accessToken: string | null
@@ -17,9 +17,9 @@ export async function saveTokens(tokens: StoredTokens): Promise<void> {
     writeSecureValue(SECURE_STORAGE_KEYS.refreshToken, tokens.refreshToken),
   ])
   if (tokens.expiryDate) {
-    mmkvStorage.set(MMKV_KEYS.expiryDateISO, tokens.expiryDate.toISOString())
+    mmkvStorage.set(MMKV_AUTH_KEYS.expiryDateISO, tokens.expiryDate.toISOString())
   } else {
-    mmkvStorage.remove(MMKV_KEYS.expiryDateISO)
+    mmkvStorage.remove(MMKV_AUTH_KEYS.expiryDateISO)
   }
 }
 
@@ -30,7 +30,7 @@ export async function loadTokens(): Promise<StoredTokens> {
     secureStorage.get(SECURE_STORAGE_KEYS.idToken),
   ])
 
-  const expiryISO = mmkvStorage.getString(MMKV_KEYS.expiryDateISO)
+  const expiryISO = mmkvStorage.getString(MMKV_AUTH_KEYS.expiryDateISO)
   return {
     accessToken,
     refreshToken,

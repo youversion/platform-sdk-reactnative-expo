@@ -1,4 +1,4 @@
-import { MMKV_KEYS } from '@/auth/constants'
+import { MMKV_KEYS } from '@/constants'
 import { mmkvStorage } from '@/storage'
 import * as Application from 'expo-application'
 import * as Crypto from 'expo-crypto'

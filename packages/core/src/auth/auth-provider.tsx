@@ -2,7 +2,7 @@ import { mmkvStorage } from '@/storage'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { AuthContext, type AuthContextValue } from './auth-context'
-import { MMKV_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { refreshTokens } from './http'
 import { deriveUserInfo } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
@@ -36,10 +36,10 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     if (tokens.idToken) {
       const user = deriveUserInfo(tokens.idToken)
       setUserInfo(user)
-      mmkvStorage.set(MMKV_KEYS.cachedUserInfo, JSON.stringify(user))
+      mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
     } else {
       setUserInfo(null)
-      mmkvStorage.remove(MMKV_KEYS.cachedUserInfo)
+      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     }
   }, [])
 
@@ -135,7 +135,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [apiHost, appKey, config.redirectUri, config.scopes, applyTokens])
 
   const resetAuthState = useCallback(() => {
-    mmkvStorage.remove(MMKV_KEYS.cachedUserInfo)
+    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
@@ -168,7 +168,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
 function loadCachedUserInfo(): YVUserInfo | null {
   try {
-    const userJson = mmkvStorage.getString(MMKV_KEYS.cachedUserInfo)
+    const userJson = mmkvStorage.getString(MMKV_AUTH_KEYS.cachedUserInfo)
     if (!userJson) {
       return null
     }
