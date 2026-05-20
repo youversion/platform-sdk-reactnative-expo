@@ -14,10 +14,12 @@ jest.mock('@rn-primitives/portal', () => ({
 }))
 
 jest.mock('@gorhom/bottom-sheet', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require('react')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
 
-  const BottomSheet = React.forwardRef(
+  const MockBottomSheet = React.forwardRef(
     (
       {
         children,
@@ -35,10 +37,11 @@ jest.mock('@gorhom/bottom-sheet', () => {
       return <View testID="bottom-sheet">{children}</View>
     },
   )
+  MockBottomSheet.displayName = 'MockBottomSheet'
 
   return {
     __esModule: true,
-    default: BottomSheet,
+    default: MockBottomSheet,
     BottomSheetBackdrop: () => null,
     BottomSheetView: ({ children }: { children: ReactNode }) => (
       <View testID="bottom-sheet-view">{children}</View>
