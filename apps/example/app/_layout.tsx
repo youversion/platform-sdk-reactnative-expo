@@ -10,7 +10,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       {appKey ? (
         <YouVersionProvider appKey={appKey}>
-          <Stack screenOptions={{ headerShown: false }} />
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          </Stack>
         </YouVersionProvider>
       ) : (
         <MissingAppKey />
