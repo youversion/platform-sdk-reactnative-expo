@@ -1,13 +1,14 @@
 'use dom'
 
 import type {
-  FootnoteData,
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
+  FootnoteData,
 } from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
+import { applySDKConfig } from '../lib'
 
 import type { FontFamily } from '../lib/reader-fonts'
 
@@ -19,6 +20,8 @@ type NativeActionBibleReaderRootProps =
 
 export type BibleReaderProps = {
   appKey: string
+  apiHost: string
+  installationId: string
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -43,6 +46,8 @@ export type BibleReaderProps = {
 
 export default function BibleReaderDOM({
   appKey,
+  apiHost,
+  installationId,
   theme = 'light',
   book,
   chapter,
@@ -62,6 +67,7 @@ export default function BibleReaderDOM({
   backgroundColor,
   foregroundColor,
 }: BibleReaderProps) {
+  applySDKConfig({ appKey, apiHost, installationId })
   const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>

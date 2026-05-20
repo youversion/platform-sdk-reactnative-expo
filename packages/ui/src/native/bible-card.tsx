@@ -6,7 +6,7 @@ import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useYouVersion } from './youversion-provider'
+import { useTheme, useYouVersion } from './youversion-provider'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 
 const DEFAULT_VERSION_ID = 3034
@@ -39,9 +39,9 @@ export function BibleCard({
   showVersionPicker = true,
   ...props
 }: BibleCardProps) {
+  const themeContext = useTheme()
   const context = useYouVersion()
-  const resolvedTheme =
-    themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
+  const resolvedTheme = themeOverride === 'system' ? themeContext : (themeOverride ?? themeContext)
 
   // This mimics how it's done in the React Web SDK.
   // Controlled only when both versionId + onVersionChange are provided.
@@ -94,6 +94,8 @@ export function BibleCard({
       <BibleCardDOM
         {...props}
         appKey={context.appKey}
+        apiHost={context.apiHost}
+        installationId={context.installationId}
         theme={resolvedTheme}
         versionId={versionId}
         onVersionChange={handleVersionChange}

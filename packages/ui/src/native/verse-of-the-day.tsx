@@ -1,17 +1,24 @@
-import VerseOfTheDayDOM from "../dom/verse-of-the-day";
-import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from "../dom/verse-of-the-day";
-import { useYouVersion } from "./youversion-provider";
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
+import VerseOfTheDayDOM from '../dom/verse-of-the-day'
+import { useTheme } from './youversion-provider'
 
-export type VerseOfTheDayProps = Omit<VerseOfTheDayDOMProps, "appKey">;
+export type VerseOfTheDayProps = Omit<
+  VerseOfTheDayDOMProps,
+  'appKey' | 'apiHost' | 'installationId'
+>
 
 export function VerseOfTheDay({ theme, ...props }: VerseOfTheDayProps) {
-  const context = useYouVersion();
+  const context = useYouVersion()
+  const themeContext = useTheme()
 
   return (
     <VerseOfTheDayDOM
       {...props}
       appKey={context.appKey}
-      theme={theme ?? context.theme}
+      apiHost={context.apiHost}
+      installationId={context.installationId}
+      theme={theme ?? themeContext}
     />
-  );
+  )
 }
