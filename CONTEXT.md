@@ -24,9 +24,11 @@ _Avoid_: Modal, popup
 The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover.
 _Avoid_: Modal
 
-**Inactive Sheet Host Suppression**:
-An Android 12-and-below compatibility exception where an inactive **Native Sheet** does not mount its native `BottomSheet` host because those devices can visibly expose closed sheet chrome. This gives up closed-sheet WebView pre-warming only for that affected path.
-_Avoid_: Treating Android sheets as always mount-on-demand
+**Inactive Sheet Inertness**:
+A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.
+
+Implementation note: inactive Gorhom hosts may remain mounted for pre-warming, but their native host is pushed below the visible viewport, with sheet chrome, gestures, pointer events, and accessibility exposure disabled until active.
+_Avoid_: Treating a closed sheet host as harmless just because `index={-1}`
 
 **Native-Owned State**:
 State kept outside the Expo DOM runtime so it can coordinate native wrappers, sheets, and multiple DOM components.
@@ -90,7 +92,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - An **Expo DOM Component** sets up its own Web SDK provider because native provider context does not cross into the DOM runtime.
 - A **Native Wrapper** passes serializable props down to an **Expo DOM Component** and receives user events through **Native Actions**.
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
-- **Inactive Sheet Host Suppression** is an exception to the normal **Native Sheet** pre-warming model, not a replacement for it.
+- **Inactive Sheet Inertness** constrains the normal **Native Sheet** pre-warming model: pre-warmed sheet content must not make inactive sheets visible or usable.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location.
 - A **Version Picker Press** opens version picker presentation; the sheet commits a new `versionId` via `onSelect`.

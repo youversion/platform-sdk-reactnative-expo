@@ -14,7 +14,7 @@ import BottomSheet, {
 } from '@gorhom/bottom-sheet'
 import { Portal, PortalHost } from '@rn-primitives/portal'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Platform, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 
@@ -73,10 +73,7 @@ export function NativeSheet({
     }
   }, [sheetId])
 
-  const shouldSuppressInactiveHost =
-    Platform.OS === 'android' && Number(Platform.Version) <= 31 && !isActive
-
-  if (Platform.OS === 'web' || shouldSuppressInactiveHost) return null
+  if (Platform.OS === 'web') return null
 
   return (
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
@@ -118,6 +115,7 @@ function SheetHost({
     [bottom, contentStyle],
   )
   const enableActiveContentPanningGesture = isActive && (enableContentPanningGesture ?? true)
+  const inactiveBottomInset = isActive ? 0 : bottom
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
@@ -147,29 +145,53 @@ function SheetHost({
   )
 
   return (
-    <BottomSheet
-      ref={sheetRef}
-      index={-1}
-      animateOnMount={isActive}
-      enablePanDownToClose={isActive}
-      enableDynamicSizing
-      enableHandlePanningGesture={isActive}
-      enableContentPanningGesture={enableActiveContentPanningGesture}
-      backdropComponent={isActive ? renderBackdrop : undefined}
-      backgroundComponent={isActive ? undefined : null}
-      handleComponent={isActive ? undefined : null}
-      onChange={handleSheetChange}
-      style={styles.sheet}
-      handleIndicatorStyle={styles.handle}
+    <View
+      testID="native-sheet-inert-host"
+      pointerEvents={isActive ? 'auto' : 'none'}
+      accessibilityElementsHidden={!isActive}
+      importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+      collapsable={false}
+      style={StyleSheet.absoluteFill}
     >
-      <BottomSheetView style={bottomSheetContentStyle}>{children}</BottomSheetView>
-    </BottomSheet>
+      <BottomSheet
+        ref={sheetRef}
+        index={-1}
+        animateOnMount={isActive}
+        detached={!isActive && inactiveBottomInset > 0}
+        bottomInset={inactiveBottomInset}
+        containerStyle={isActive ? undefined : styles.inactiveContainer}
+        enablePanDownToClose={isActive}
+        enableDynamicSizing
+        enableHandlePanningGesture={isActive}
+        enableContentPanningGesture={enableActiveContentPanningGesture}
+        backdropComponent={isActive ? renderBackdrop : renderNoBackdrop}
+        backgroundComponent={isActive ? undefined : null}
+        handleComponent={isActive ? undefined : null}
+        accessible={isActive}
+        accessibilityElementsHidden={!isActive}
+        importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+        onChange={handleSheetChange}
+        style={styles.sheet}
+        handleIndicatorStyle={styles.handle}
+      >
+        <BottomSheetView
+          pointerEvents={isActive ? 'auto' : 'none'}
+          accessibilityElementsHidden={!isActive}
+          importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+          style={bottomSheetContentStyle}
+        >
+          {children}
+        </BottomSheetView>
+      </BottomSheet>
+    </View>
   )
 }
 
 const renderBackdrop = (props: BottomSheetBackdropProps) => (
   <BottomSheetBackdrop {...props} pressBehavior="close" appearsOnIndex={0} disappearsOnIndex={-1} />
 )
+
+const renderNoBackdrop = () => null
 
 export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
   if (Platform.OS === 'web') return <>{children}</>
@@ -184,6 +206,9 @@ export function NativeSheetProvider({ children }: { children: React.ReactNode })
 const styles = StyleSheet.create({
   sheet: {
     zIndex: 1000,
+  },
+  inactiveContainer: {
+    transform: [{ translateY: 1000 }],
   },
   handle: {
     backgroundColor: '#ccc',

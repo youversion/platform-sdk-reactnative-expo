@@ -22,6 +22,7 @@ The footnote flow exposed two easy traps:
 
 - Native React context does not cross into Expo DOM WebViews.
 - A WebView that is pre-warmed inside a tiny hidden wrapper can later open with blank or badly measured content.
+- A closed Gorhom sheet host can still be visible, draggable, or exposed to Android accessibility if inactive sheets are not made explicitly inert.
 
 ## Guidance
 Use a native provider for native concerns, then pass only serializable props into DOM components.
@@ -46,6 +47,8 @@ DOM wrappers still need their own web provider because each DOM component runs i
 
 For native sheets that display DOM content, portal each sheet's own `BottomSheet` to the root host. Do not share one sheet and hide inactive DOM content in a `1x1` wrapper.
 
+Inactive sheet hosts may stay mounted for WebView pre-warming, but they must be inert: no visible chrome, backdrop, gestures, pointer events, accessibility exposure, or bottom-edge drag surface until active. On Android, the inactive Gorhom container also needs to sit below the visible app and system-nav surface.
+
 ```tsx
 <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
   <SheetHost isActive={isActive} openKey={openKey} onClose={onClose}>
@@ -64,7 +67,7 @@ setFootnoteOpenKey((key) => key + 1);
 ## Why This Matters
 Expo DOM components run in isolated WebView contexts. Native context, live React nodes, and non-serializable values do not cross that boundary. Trying to make the DOM side read the native provider directly will fail conceptually even if the native tree compiles.
 
-WebView layout is also sensitive to the native container it first mounts into. Pre-warming content is good, but pre-warming it in a hidden `1x1` wrapper gives `matchContents` the wrong layout reality. Keeping each sheet's DOM content in its own stable `BottomSheetView` preserves the warm WebView benefit without blank sheet content.
+WebView layout is also sensitive to the native container it first mounts into. Pre-warming content is good, but pre-warming it in a hidden `1x1` wrapper gives `matchContents` the wrong layout reality. Keeping each sheet's DOM content in its own stable `BottomSheetView` preserves the warm WebView benefit without blank sheet content, as long as the inactive native host remains inert.
 
 The explicit `openKey` avoids another subtle state bug: repeated taps on the same footnote can be meaningful user events even when the underlying open boolean does not change.
 
@@ -73,6 +76,7 @@ The explicit `openKey` avoids another subtle state bug: repeated taps on the sam
 - Adding native provider APIs around DOM-backed components
 - Rendering DOM/WebView content inside native overlays, sheets, or portals
 - Debugging blank WebView content after an otherwise successful native sheet open
+- Debugging a bottom sheet lip, hidden drag handle, or inactive sheet accessibility node at app load
 - Debugging repeated tap behavior where the UI should reopen but boolean state stays unchanged
 
 ## Examples
@@ -100,11 +104,25 @@ Before: hiding inactive WebView content in a tiny wrapper.
 </View>
 ```
 
-After: keep the WebView mounted inside its own sheet host and close the sheet off-screen.
+After: keep the WebView mounted inside its own inert sheet host.
 
 ```tsx
-<BottomSheet index={-1} enableDynamicSizing>
-  <BottomSheetView>{children}</BottomSheetView>
+<BottomSheet
+  index={-1}
+  detached={!isActive && bottomInset > 0}
+  bottomInset={isActive ? 0 : bottomInset}
+  containerStyle={isActive ? undefined : styles.inactiveContainer}
+  enableHandlePanningGesture={isActive}
+  enableContentPanningGesture={isActive}
+  backdropComponent={isActive ? renderBackdrop : renderNoBackdrop}
+  backgroundComponent={isActive ? undefined : null}
+  handleComponent={isActive ? undefined : null}
+  importantForAccessibility={isActive ? "auto" : "no-hide-descendants"}
+  enableDynamicSizing
+>
+  <BottomSheetView pointerEvents={isActive ? "auto" : "none"}>
+    {children}
+  </BottomSheetView>
 </BottomSheet>
 ```
 
