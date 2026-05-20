@@ -98,6 +98,7 @@ function SheetHost({
   openKey,
   contentStyle,
   enableContentPanningGesture,
+  onClosed,
   onClose,
   children,
 }: {
@@ -105,6 +106,7 @@ function SheetHost({
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
+  onClosed?: () => void
   onClose: () => void
   children: React.ReactNode
 }) {
@@ -117,6 +119,7 @@ function SheetHost({
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
   )
+  const enableActiveContentPanningGesture = isActive && (enableContentPanningGesture ?? true)
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
@@ -139,27 +142,31 @@ function SheetHost({
         closingRef.current = false
         return
       }
-      if (!closingRef.current) onClose()
+      const closeStarted = closingRef.current || wasActiveRef.current
+      if (!closingRef.current && wasActiveRef.current) onClose()
+      if (closeStarted) onClosed?.()
       closingRef.current = false
     },
-    [onClose],
+    [onClose, onClosed],
   )
 
   return (
     <BottomSheet
       ref={sheetRef}
       index={-1}
-      enablePanDownToClose
+      animateOnMount={isActive}
+      enablePanDownToClose={isActive}
       enableDynamicSizing
-      enableContentPanningGesture={enableContentPanningGesture}
-      backdropComponent={renderBackdrop}
+      enableHandlePanningGesture={isActive}
+      enableContentPanningGesture={enableActiveContentPanningGesture}
+      backdropComponent={isActive ? renderBackdrop : undefined}
+      backgroundComponent={isActive ? undefined : null}
+      handleComponent={isActive ? undefined : null}
       onChange={handleSheetChange}
       style={styles.sheet}
       handleIndicatorStyle={styles.handle}
     >
-      <BottomSheetView style={bottomSheetContentStyle}>
-        {children}
-      </BottomSheetView>
+      <BottomSheetView style={bottomSheetContentStyle}>{children}</BottomSheetView>
     </BottomSheet>
   )
 }
