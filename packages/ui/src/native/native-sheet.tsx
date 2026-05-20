@@ -73,7 +73,10 @@ export function NativeSheet({
     }
   }, [sheetId])
 
-  if (Platform.OS === 'web') return null
+  const shouldSuppressInactiveHost =
+    Platform.OS === 'android' && Number(Platform.Version) <= 31 && !isActive
+
+  if (Platform.OS === 'web' || shouldSuppressInactiveHost) return null
 
   return (
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>

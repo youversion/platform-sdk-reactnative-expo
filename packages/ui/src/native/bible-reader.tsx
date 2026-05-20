@@ -4,12 +4,17 @@ import { Platform } from 'react-native'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
-import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
+import type {
+  FootnoteData,
+  BibleChapterPickerPressData,
+  BibleVersionPickerPressData,
+} from '@youversion/platform-react-ui'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -30,6 +35,7 @@ export type BibleReaderProps = Omit<
   | 'onFontFamilyChange'
   | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
+  | 'onVersionPickerPress'
   | 'theme'
   | 'style'
 > & {
@@ -37,8 +43,8 @@ export type BibleReaderProps = Omit<
   defaultBook?: string
   defaultChapter?: string
   defaultVersionId?: number
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async "native actions".
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
 }
 
 export function BibleReader({
@@ -54,6 +60,7 @@ export function BibleReader({
   onVersionChange,
   showToolbar = true,
   onChapterPickerPress: consumerOnChapterPickerPress,
+  onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
   backgroundColor,
   foregroundColor,
@@ -83,10 +90,10 @@ export function BibleReader({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
-
-  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
 
   const handleOpenBibleThemeSettings = useCallback(() => {
@@ -126,8 +133,22 @@ export function BibleReader({
     [consumerOnChapterPickerPress, showToolbar],
   )
 
+  const handleVersionPickerPress = useCallback(
+    async (data: BibleVersionPickerPressData) => {
+      if (Platform.OS === 'web' || !showToolbar) return
+      if (consumerOnVersionPickerPress) {
+        await consumerOnVersionPickerPress(data)
+      } else {
+        setIsVersionPickerOpen(true)
+      }
+    },
+    [consumerOnVersionPickerPress, showToolbar],
+  )
+
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
+  const showVersionPickerSheet =
+    Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
 
   return (
     <>
@@ -147,6 +168,7 @@ export function BibleReader({
         onVersionChange={handleVersionChange}
         showToolbar={showToolbar}
         onChapterPickerPress={handleChapterPickerPress}
+        onVersionPickerPress={handleVersionPickerPress}
         onFootnotePress={onFootnotePress}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
@@ -185,6 +207,17 @@ export function BibleReader({
             setBook(data.book)
             setChapter(data.chapter)
             setVersionId(data.versionId)
+          }}
+        />
+      )}
+      {showVersionPickerSheet && (
+        <BibleVersionPickerSheet
+          isOpen={isVersionPickerOpen}
+          onClose={() => setIsVersionPickerOpen(false)}
+          versionId={versionId}
+          theme={resolvedTheme}
+          onSelect={async (newVersionId) => {
+            setVersionId(newVersionId)
           }}
         />
       )}

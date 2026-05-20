@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Platform, useColorScheme } from "react-native";
+import { resolveTheme } from "../lib/resolve-theme";
 import BibleTextViewDOM from "../dom/bible-text-view";
 import type { BibleTextViewProps as BibleTextViewDOMProps } from "../dom/bible-text-view";
 import FootnoteContent from "../dom/footnote-content";
@@ -25,8 +26,7 @@ export function BibleTextView({
   const context = useYouVersion();
   const theme = domProps.theme ?? context.theme;
   const colorScheme = useColorScheme();
-  const resolvedTheme =
-    theme === "system" ? (colorScheme === "dark" ? "dark" : "light") : theme;
+  const resolvedTheme = resolveTheme(theme, colorScheme);
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null);
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0);

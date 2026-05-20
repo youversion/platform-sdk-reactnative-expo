@@ -7,7 +7,7 @@ export default function BibleCardScreen() {
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>BibleCard</Text>
         <View style={styles.content}>
-          <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+          <BibleCard reference="JHN.3.16" defaultVersionId={3034} dom={{ matchContents: true }} />
         </View>
       </View>
     </View>

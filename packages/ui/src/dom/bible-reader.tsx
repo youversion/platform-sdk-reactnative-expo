@@ -1,10 +1,21 @@
 'use dom'
 
-import type { FootnoteData, BibleChapterPickerPressData } from '@youversion/platform-react-ui'
+import type {
+  FootnoteData,
+  BibleChapterPickerPressData,
+  BibleVersionPickerPressData,
+} from '@youversion/platform-react-ui'
 import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
+import type { ComponentType, ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 import type { FontFamily } from '../lib/reader-fonts'
+
+type NativeActionBibleReaderRootProps =
+  import('@youversion/platform-react-ui').BibleReaderRootProps & {
+    onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+    children?: ReactNode
+  }
 
 export type BibleReaderProps = {
   appKey: string
@@ -16,6 +27,7 @@ export type BibleReaderProps = {
   onChapterChange?: (chapter: string) => Promise<void>
   onVersionChange?: (versionId: number) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
@@ -39,6 +51,7 @@ export default function BibleReaderDOM({
   onChapterChange,
   onVersionChange,
   onChapterPickerPress,
+  onVersionPickerPress,
   onFootnotePress,
   showToolbar = true,
   onOpenBibleThemeSettings,
@@ -50,6 +63,8 @@ export default function BibleReaderDOM({
   foregroundColor,
 }: BibleReaderProps) {
   const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
+  const NativeActionBibleReaderRoot =
+    BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
   // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
   // because the in-WebView toolbar also mutates them — controlled props keep
@@ -63,7 +78,7 @@ export default function BibleReaderDOM({
         }`}
       </style>
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
-        <BibleReader.Root
+        <NativeActionBibleReaderRoot
           book={book}
           chapter={chapter}
           versionId={versionId}
@@ -71,6 +86,7 @@ export default function BibleReaderDOM({
           onChapterChange={onChapterChange}
           onVersionChange={onVersionChange}
           onChapterPickerPress={onChapterPickerPress}
+          onVersionPickerPress={onVersionPickerPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
           fontFamily={fontFamily}
@@ -84,7 +100,7 @@ export default function BibleReaderDOM({
             />
           )}
           <BibleReader.Content />
-        </BibleReader.Root>
+        </NativeActionBibleReaderRoot>
       </div>
     </YouVersionProvider>
   )
