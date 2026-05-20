@@ -98,7 +98,6 @@ function SheetHost({
   openKey,
   contentStyle,
   enableContentPanningGesture,
-  onClosed,
   onClose,
   children,
 }: {
@@ -106,7 +105,6 @@ function SheetHost({
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
-  onClosed?: () => void
   onClose: () => void
   children: React.ReactNode
 }) {
@@ -142,12 +140,10 @@ function SheetHost({
         closingRef.current = false
         return
       }
-      const closeStarted = closingRef.current || wasActiveRef.current
       if (!closingRef.current && wasActiveRef.current) onClose()
-      if (closeStarted) onClosed?.()
       closingRef.current = false
     },
-    [onClose, onClosed],
+    [onClose],
   )
 
   return (
