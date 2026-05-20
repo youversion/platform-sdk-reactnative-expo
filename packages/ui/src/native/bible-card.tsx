@@ -11,9 +11,10 @@ const DEFAULT_VERSION_ID = 3034
 
 export type BibleCardProps = Omit<
   BibleCardDOMProps,
-  'appKey' | 'onVersionChange' | 'onVersionPickerPress' | 'theme'
+  'appKey' | 'onVersionChange' | 'onVersionPickerPress' | 'theme' | 'versionId'
 > & {
   theme?: 'light' | 'dark' | 'system'
+  versionId?: number
   defaultVersionId?: number
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>

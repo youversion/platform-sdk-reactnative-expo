@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { useColorScheme } from "react-native";
+import * as ReactNative from "react-native";
 import { resolveTheme } from "../lib/resolve-theme";
 import { NativeSheetProvider } from "./native-sheet";
 
@@ -24,7 +24,7 @@ export function YouVersionProvider({
   theme = "light",
   children,
 }: YouVersionProviderProps) {
-  const colorScheme = useColorScheme();
+  const colorScheme = ReactNative.useColorScheme();
   const resolvedTheme = resolveTheme(theme, colorScheme);
 
   return (
