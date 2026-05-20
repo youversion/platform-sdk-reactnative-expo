@@ -33,3 +33,6 @@ apps/example/web-build/
 
 # Firecrawl
 .firecrawl/
+
+# CodeGraph
+.codegraph/
