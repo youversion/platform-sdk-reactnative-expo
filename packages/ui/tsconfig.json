@@ -3,8 +3,7 @@
   "compilerOptions": {
     "types": ["jest"],
     "outDir": "dist",
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "baseUrl": "."
   },
   "include": ["src", "__tests__"]
 }

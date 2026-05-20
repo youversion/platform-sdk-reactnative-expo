@@ -1,6 +1,6 @@
-import { mmkvStorage } from '@/storage'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { mmkvStorage } from '../storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { refreshTokens } from './http'

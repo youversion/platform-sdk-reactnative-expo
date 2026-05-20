@@ -1,5 +1,5 @@
-import { getOrSetInstallationId } from '@/installation-id'
 import * as WebBrowser from 'expo-web-browser'
+import { getOrSetInstallationId } from '../installation-id'
 import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
 import { generatePKCEParameters } from './pkce'

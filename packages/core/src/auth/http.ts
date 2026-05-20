@@ -1,4 +1,4 @@
-import { getOrSetInstallationId } from '@/installation-id'
+import { getOrSetInstallationId } from '../installation-id'
 
 export type TokenResponse = {
   access_token: string

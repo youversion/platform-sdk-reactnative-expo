@@ -1,8 +1,8 @@
-import { MMKV_KEYS } from '@/constants'
-import { mmkvStorage } from '@/storage'
 import * as Application from 'expo-application'
 import * as Crypto from 'expo-crypto'
 import { Platform } from 'react-native'
+import { MMKV_KEYS } from './constants'
+import { mmkvStorage } from './storage'
 
 // Returns a stable installation identifier for this app on this device.
 export async function getOrSetInstallationId(): Promise<string> {

@@ -1,4 +1,4 @@
-import { mmkvStorage, secureStorage } from '@/storage'
+import { mmkvStorage, secureStorage } from '../storage'
 import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from './constants'
 
 export type StoredTokens = {

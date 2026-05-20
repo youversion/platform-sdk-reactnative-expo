@@ -1,8 +1,8 @@
-import AuthProvider from '@/auth/auth-provider'
-import type { AuthConfig } from '@/auth/types'
-import { DEFAULT_API_HOST } from '@/constants'
-import { getOrSetInstallationId } from '@/installation-id'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import AuthProvider from './auth/auth-provider'
+import type { AuthConfig } from './auth/types'
+import { DEFAULT_API_HOST } from './constants'
+import { getOrSetInstallationId } from './installation-id'
 import { YouVersionContext } from './youversion-context'
 
 export type YouVersionProviderProps = {
