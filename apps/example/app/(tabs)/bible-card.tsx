@@ -7,7 +7,7 @@ export default function BibleCardScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: top }]}>
-      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+      <BibleCard reference="JHN.1.1" versionId={3034} dom={{ matchContents: true }} />
     </View>
   )
 }

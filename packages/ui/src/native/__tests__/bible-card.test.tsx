@@ -12,6 +12,16 @@ jest.mock("../bible-version-picker-sheet", () => {
   };
 });
 
+jest.mock("../native-sheet", () => {
+  const actual = jest.requireActual("../native-sheet");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require("react-native");
+  return {
+    ...actual,
+    NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
+  };
+});
+
 jest.mock("../../dom/bible-card", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, View } = require("react-native");

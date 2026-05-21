@@ -3,21 +3,30 @@ import { useState, useCallback } from 'react'
 import { Platform } from 'react-native'
 import BibleCardDOM from '../dom/bible-card'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
+import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
+import { NativeSheet } from './native-sheet'
 import { useYouVersion } from './youversion-provider'
-import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
+import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 
 const DEFAULT_VERSION_ID = 3034
 
+const EMPTY_FOOTNOTE: FootnoteData = {
+  verseNum: '',
+  notes: [],
+  verseHtml: '',
+}
+
 export type BibleCardProps = Omit<
   BibleCardDOMProps,
-  'appKey' | 'onVersionChange' | 'onVersionPickerPress' | 'theme' | 'versionId'
+  'appKey' | 'onVersionChange' | 'onVersionPickerPress' | 'onFootnotePress' | 'theme' | 'versionId'
 > & {
   theme?: 'light' | 'dark' | 'system'
   versionId?: number
   defaultVersionId?: number
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
 export function BibleCard({
@@ -26,6 +35,7 @@ export function BibleCard({
   defaultVersionId = DEFAULT_VERSION_ID,
   onVersionChange,
   onVersionPickerPress: consumerOnVersionPickerPress,
+  onFootnotePress: consumerOnFootnotePress,
   showVersionPicker = true,
   ...props
 }: BibleCardProps) {
@@ -45,6 +55,9 @@ export function BibleCard({
     onChange: onVersionChange,
   })
 
+  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   const handleVersionChange = useCallback(
@@ -67,8 +80,18 @@ export function BibleCard({
     [consumerOnVersionPickerPress, showVersionPicker],
   )
 
+  const onFootnotePress =
+    Platform.OS !== 'web'
+      ? (consumerOnFootnotePress ??
+        (async (data: FootnoteData) => {
+          setFootnoteData(data)
+          setFootnoteOpenKey((key) => key + 1)
+        }))
+      : undefined
+
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showVersionPicker && !consumerOnVersionPickerPress
+  const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
 
   return (
     <>
@@ -79,6 +102,7 @@ export function BibleCard({
         versionId={versionId}
         onVersionChange={handleVersionChange}
         onVersionPickerPress={handleVersionPickerPress}
+        onFootnotePress={onFootnotePress}
         showVersionPicker={showVersionPicker}
       />
       {showVersionPickerSheet && (
@@ -91,6 +115,20 @@ export function BibleCard({
             setVersionId(newVersionId)
           }}
         />
+      )}
+      {showFootnoteSheet && (
+        <NativeSheet
+          isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
+          onClose={() => setFootnoteData(null)}
+        >
+          <FootnoteContent
+            dom={{ matchContents: true }}
+            data={footnoteData ?? EMPTY_FOOTNOTE}
+            theme={resolvedTheme}
+            appKey={context.appKey}
+          />
+        </NativeSheet>
       )}
     </>
   )
