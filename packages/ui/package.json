@@ -52,7 +52,7 @@
     "react-native-mmkv": "^4.3.1",
     "react-native-nitro-modules": "^0.35.6",
     "react-test-renderer": "19.2.5",
-    "expo-secure-store": "^55.0.13"
+    "expo-secure-store": "^55.0.13",
     "jest-expo": "~55.0.18"
   }
 }

@@ -63,7 +63,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
         idToken: response.id_token ?? idToken,
-        expiryDate: new Date(Date.now() + response.expires_in * 1000),
+        expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
       })
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)))
@@ -130,7 +130,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       accessToken: result.tokens.access_token,
       refreshToken: result.tokens.refresh_token,
       idToken: result.tokens.id_token ?? null,
-      expiryDate: new Date(Date.now() + result.tokens.expires_in * 1000),
+      expiryDate: new Date(Date.now() + Number(result.tokens.expires_in) * 1000),
     })
   }, [apiHost, appKey, config.redirectUri, config.scopes, applyTokens])
 
