@@ -72,6 +72,8 @@ Portal via `@rn-primitives/portal` + a local zustand store in `native/native-she
 
 Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
 
+Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert: offscreen, no sheet chrome, no gestures, no pointer events, and no accessibility exposure until active.
+
 Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
 
 ### FootnoteContent Pre-warming
