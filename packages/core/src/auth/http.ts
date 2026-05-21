@@ -74,8 +74,8 @@ function isTokenResponse(response: unknown): response is TokenResponse {
   const object = response as Record<string, unknown>
   return (
     typeof object.access_token === 'string' &&
-    object.refresh_token === 'string' &&
-    object.expires_in === 'number' &&
-    object.token_type === 'string'
+    typeof object.refresh_token === 'string' &&
+    typeof object.expires_in === 'string' &&
+    typeof object.token_type === 'string'
   )
 }

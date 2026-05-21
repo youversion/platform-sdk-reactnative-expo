@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser'
+import { fetch } from 'expo/fetch'
 import { getOrSetInstallationId } from '../installation-id'
 import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
@@ -39,8 +40,8 @@ export async function signInWithPKCE({
     scopes: scopes ?? DEFAULT_SCOPES,
     installationId,
   })
-  const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, redirectUriString)
 
+  const result = await WebBrowser.openAuthSessionAsync(authorizeUrl, redirectUriString)
   if (result.type !== 'success') {
     return { kind: 'cancel' }
   }
@@ -48,7 +49,6 @@ export async function signInWithPKCE({
   const returnedParams = new URL(result.url).searchParams
   const error = returnedParams.get('error')
   const returnedState = returnedParams.get('state')
-  const code = returnedParams.get('code')
 
   if (error) {
     throw new Error(
@@ -60,6 +60,7 @@ export async function signInWithPKCE({
     throw new Error('State mismatch - possible CSRF attack')
   }
 
+  const code = await obtainCodeFromCallback({ apiHost, callBackParams: returnedParams })
   if (!code) {
     throw new Error('Authorization returned no code')
   }
@@ -74,6 +75,35 @@ export async function signInWithPKCE({
 
   return { kind: 'success', tokens }
 }
+
+async function obtainCodeFromCallback({
+  apiHost,
+  callBackParams,
+}: {
+  apiHost: string
+  callBackParams: URLSearchParams
+}) {
+  const url = `https://${apiHost}/auth/callback?${callBackParams}`
+  const response = await fetch(url, { method: 'GET', redirect: 'manual' })
+
+  if (response.status !== 302) {
+    throw new Error(`auth/callback expected a 302, got ${response.status}`)
+  }
+
+  const location = response.headers.get('Location')
+  if (!location) {
+    throw new Error('auth/callback returned no Location header')
+  }
+
+  const locationUrl = new URL(location)
+  const code = locationUrl.searchParams.get('code')
+  if (!code) {
+    throw new Error('Location header had no code param')
+  }
+
+  return code
+}
+
 function buildAuthorizationUrl(args: {
   apiHost: string
   appKey: string
@@ -92,9 +122,10 @@ function buildAuthorizationUrl(args: {
     code_challenge_method: 'S256',
     state: args.state,
     nonce: args.nonce,
-    scope: ['openid', ...args.scopes].join(' '),
+    scope: [...new Set([...args.scopes, 'openid'])].sort().join(' '),
+    require_user_interaction: 'true',
     'x-yvp-installation-id': args.installationId,
   })
 
-  return `https://${args.apiHost}/auth/authorize?${params.toString()}`
+  return `https://${args.apiHost}/auth/authorize?${params.toString().replace(/\+/g, '%20')}`
 }
