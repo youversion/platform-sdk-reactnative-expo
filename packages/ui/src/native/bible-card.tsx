@@ -80,14 +80,13 @@ export function BibleCard({
     [consumerOnVersionPickerPress, showVersionPicker],
   )
 
+  const handleFootnotePress = useCallback(async (data: FootnoteData) => {
+    setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
+  }, [])
+
   const onFootnotePress =
-    Platform.OS !== 'web'
-      ? (consumerOnFootnotePress ??
-        (async (data: FootnoteData) => {
-          setFootnoteData(data)
-          setFootnoteOpenKey((key) => key + 1)
-        }))
-      : undefined
+    Platform.OS !== 'web' ? (consumerOnFootnotePress ?? handleFootnotePress) : undefined
 
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showVersionPicker && !consumerOnVersionPickerPress
