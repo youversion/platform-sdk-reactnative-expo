@@ -4,3 +4,5 @@ export { default as YouVersionProvider } from './youversion-provider'
 
 export { useYVAuth } from './auth'
 export type { AuthConfig, AuthScope, YVUserInfo } from './auth'
+
+export { mmkvStorage } from './storage'

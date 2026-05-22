@@ -1,8 +1,9 @@
-import { create } from 'zustand'
 import { BIBLE_READER_FONT, clampBibleReaderFontSize } from '@youversion/platform-react-ui'
+import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { mmkvStorage, READER_SETTINGS_PERSIST_KEY } from '../lib/storage'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { READER_SETTINGS_PERSIST_KEY } from '../lib/constants'
 import { SOURCE_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
 
 /** MMKV-backed storage for zustand `persist` (sync; hydrates at store creation). */
