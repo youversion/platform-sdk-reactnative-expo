@@ -18,12 +18,12 @@ export async function getOrSetInstallationId(): Promise<string> {
 }
 
 async function readDeviceId(): Promise<string> {
-  if (Platform.OS == 'ios') {
+  if (Platform.OS === 'ios') {
     const idfv = await Application.getIosIdForVendorAsync()
     if (idfv) {
       return idfv
     }
-  } else if (Platform.OS == 'android') {
+  } else if (Platform.OS === 'android') {
     const androidId = Application.getAndroidId()
     if (androidId) {
       return androidId

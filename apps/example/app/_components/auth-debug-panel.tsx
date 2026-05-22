@@ -2,9 +2,8 @@ import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 export default function AuthDebugPanel() {
-  if (!__DEV__) return null
-
   const { isAuthenticated, isLoading, userInfo, signIn, signOut, error } = useYVAuth()
+  if (!__DEV__) return null
 
   return (
     <View style={styles.container}>
