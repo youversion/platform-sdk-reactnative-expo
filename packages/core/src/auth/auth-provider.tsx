@@ -25,11 +25,14 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
+  const idTokenRef = useRef<string | null>(null)
+  const isRefreshingRef = useRef<boolean>(false)
 
   const applyTokens = useCallback(async (tokens: StoredTokens) => {
     await saveTokens(tokens)
     expiryRef.current = tokens.expiryDate
     refreshTokenRef.current = tokens.refreshToken
+    idTokenRef.current = tokens.idToken
     setIdToken(tokens.idToken)
     setAccessToken(tokens.accessToken)
 
@@ -53,6 +56,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       return
     }
 
+    if (isRefreshingRef.current) {
+      return
+    }
+    isRefreshingRef.current = true
+
     try {
       const response = await refreshTokens({
         apiHost,
@@ -62,13 +70,17 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       await applyTokens({
         accessToken: response.access_token,
         refreshToken: response.refresh_token,
-        idToken: response.id_token ?? idToken,
+        idToken: response.id_token ?? idTokenRef.current,
         expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
       })
     } catch (e) {
-      setError(e instanceof Error ? e : new Error(String(e)))
+      const err = e instanceof Error ? e : new Error(String(e))
+      setError(err)
+      throw err
+    } finally {
+      isRefreshingRef.current = false
     }
-  }, [apiHost, appKey, idToken, applyTokens])
+  }, [apiHost, appKey, applyTokens])
 
   useEffect(() => {
     let cancelled = false
@@ -81,6 +93,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
         expiryRef.current = stored.expiryDate
         refreshTokenRef.current = stored.refreshToken
+        idTokenRef.current = stored.idToken
         setAccessToken(stored.accessToken)
         setIdToken(stored.idToken)
         if (stored.idToken) {
@@ -119,28 +132,35 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const signIn = useCallback(async () => {
     setError(null)
-    const result = await signInWithPKCE({
-      apiHost,
-      appKey,
-      redirectUri: config.redirectUri,
-      scopes: config.scopes,
-    })
+    try {
+      const result = await signInWithPKCE({
+        apiHost,
+        appKey,
+        redirectUri: config.redirectUri,
+        scopes: config.scopes,
+      })
 
-    if (result.kind === 'cancel') {
-      return
+      if (result.kind === 'cancel') {
+        return
+      }
+      await applyTokens({
+        accessToken: result.tokens.access_token,
+        refreshToken: result.tokens.refresh_token,
+        idToken: result.tokens.id_token ?? null,
+        expiryDate: new Date(Date.now() + Number(result.tokens.expires_in) * 1000),
+      })
+    } catch (e) {
+      const err = e instanceof Error ? e : new Error(String(e))
+      setError(err)
+      throw err
     }
-    await applyTokens({
-      accessToken: result.tokens.access_token,
-      refreshToken: result.tokens.refresh_token,
-      idToken: result.tokens.id_token ?? null,
-      expiryDate: new Date(Date.now() + Number(result.tokens.expires_in) * 1000),
-    })
   }, [apiHost, appKey, config.redirectUri, config.scopes, applyTokens])
 
   const resetAuthState = useCallback(() => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     expiryRef.current = null
     refreshTokenRef.current = null
+    idTokenRef.current = null
     setAccessToken(null)
     setUserInfo(null)
     setIdToken(null)

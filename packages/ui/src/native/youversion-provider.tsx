@@ -42,9 +42,5 @@ export function YouVersionProvider({
 }
 
 export function useTheme(): Theme {
-  const context = useContext(ThemeContext)
-  if (!context) {
-    throw new Error('useTheme must be used inside of the YouVersionProvider.')
-  }
-  return context
+  return useContext(ThemeContext)
 }

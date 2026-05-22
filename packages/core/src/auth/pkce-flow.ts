@@ -3,6 +3,7 @@ import { fetch } from 'expo/fetch'
 import { getOrSetInstallationId } from '../installation-id'
 import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
+import { decodeIdToken } from './id-token'
 import { generatePKCEParameters } from './pkce'
 import type { AuthScope } from './types'
 
@@ -72,6 +73,13 @@ export async function signInWithPKCE({
     codeVerifier,
     redirectUri: redirectUriString,
   })
+
+  if (!tokens.id_token) {
+    throw new Error('Token response missing id_token')
+  }
+  if (decodeIdToken(tokens.id_token).nonce !== nonce) {
+    throw new Error('Nonce mismatch - possible id_token replay')
+  }
 
   return { kind: 'success', tokens }
 }
