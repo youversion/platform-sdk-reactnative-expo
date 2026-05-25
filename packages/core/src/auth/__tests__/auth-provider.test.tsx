@@ -1,3 +1,14 @@
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { useState } from 'react'
+import { AppState, Pressable, Text, View } from 'react-native'
+import AuthProvider from '../auth-provider'
+import { MMKV_AUTH_KEYS } from '../constants'
+import { refreshTokens, type TokenResponse } from '../http'
+import { signInWithPKCE } from '../pkce-flow'
+import { clearTokens, loadTokens, saveTokens } from '../token-storage'
+import type { AuthConfig } from '../types'
+import { useYVAuth } from '../use-yv-auth'
+
 const mockMmkv = new Map<string, string>()
 
 jest.mock('../../storage', () => ({
@@ -23,17 +34,6 @@ jest.mock('../http', () => ({
 jest.mock('../pkce-flow', () => ({
   signInWithPKCE: jest.fn(),
 }))
-
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { useState } from 'react'
-import { AppState, Pressable, Text, View } from 'react-native'
-import AuthProvider from '../auth-provider'
-import { MMKV_AUTH_KEYS } from '../constants'
-import { refreshTokens, type TokenResponse } from '../http'
-import { signInWithPKCE } from '../pkce-flow'
-import { clearTokens, loadTokens, saveTokens } from '../token-storage'
-import type { AuthConfig } from '../types'
-import { useYVAuth } from '../use-yv-auth'
 
 const mockLoadTokens = loadTokens as jest.Mock
 const mockSaveTokens = saveTokens as jest.Mock

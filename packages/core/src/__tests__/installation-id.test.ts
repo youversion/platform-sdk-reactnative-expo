@@ -1,3 +1,9 @@
+import * as Application from 'expo-application'
+import * as Crypto from 'expo-crypto'
+import { Platform } from 'react-native'
+import { MMKV_KEYS } from '../constants'
+import { getOrSetInstallationId } from '../installation-id'
+
 const mockMmkv = new Map<string, string>()
 
 // Platform object lives inside the factory so it's defined when the factory
@@ -22,12 +28,6 @@ jest.mock('expo-application', () => ({
 jest.mock('expo-crypto', () => ({
   randomUUID: jest.fn(),
 }))
-
-import * as Application from 'expo-application'
-import * as Crypto from 'expo-crypto'
-import { Platform } from 'react-native'
-import { MMKV_KEYS } from '../constants'
-import { getOrSetInstallationId } from '../installation-id'
 
 const mockGetIosIdForVendorAsync = Application.getIosIdForVendorAsync as jest.Mock
 const mockGetAndroidId = Application.getAndroidId as jest.Mock

@@ -1,3 +1,10 @@
+import { render, screen, waitFor } from '@testing-library/react-native'
+import { Text } from 'react-native'
+import AuthProvider from '../auth/auth-provider'
+import { getOrSetInstallationId } from '../installation-id'
+import { useYouVersion } from '../use-youversion'
+import YouVersionProvider from '../youversion-provider'
+
 jest.mock('../installation-id', () => ({
   getOrSetInstallationId: jest.fn(),
 }))
@@ -6,13 +13,6 @@ jest.mock('../auth/auth-provider', () => ({
   __esModule: true,
   default: jest.fn(({ children }: { children: React.ReactNode }) => children),
 }))
-
-import { render, screen, waitFor } from '@testing-library/react-native'
-import { Text } from 'react-native'
-import AuthProvider from '../auth/auth-provider'
-import { getOrSetInstallationId } from '../installation-id'
-import { useYouVersion } from '../use-youversion'
-import YouVersionProvider from '../youversion-provider'
 
 const mockGetOrSetInstallationId = getOrSetInstallationId as jest.Mock
 const MockAuthProvider = AuthProvider as unknown as jest.Mock

@@ -1,3 +1,7 @@
+import { mmkvStorage, secureStorage } from '../../storage'
+import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from '../constants'
+import { clearTokens, loadTokens, saveTokens, type StoredTokens } from '../token-storage'
+
 const mockSecureStore = new Map<string, string>()
 const mockMmkv = new Map<string, string>()
 
@@ -21,10 +25,6 @@ jest.mock('../../storage', () => ({
     remove: jest.fn((k: string) => mockMmkv.delete(k)),
   },
 }))
-
-import { mmkvStorage, secureStorage } from '../../storage'
-import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from '../constants'
-import { clearTokens, loadTokens, saveTokens, type StoredTokens } from '../token-storage'
 
 const fullTokens: StoredTokens = {
   accessToken: 'access',

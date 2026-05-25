@@ -1,3 +1,9 @@
+import * as WebBrowser from 'expo-web-browser'
+import { fetch as expoFetch } from 'expo/fetch'
+import { exchangeCodeForTokens } from '../http'
+import { generatePKCEParameters } from '../pkce'
+import { signInWithPKCE } from '../pkce-flow'
+
 jest.mock('expo-web-browser', () => ({
   openAuthSessionAsync: jest.fn(),
 }))
@@ -17,12 +23,6 @@ jest.mock('../http', () => ({
 jest.mock('../pkce', () => ({
   generatePKCEParameters: jest.fn(),
 }))
-
-import * as WebBrowser from 'expo-web-browser'
-import { fetch as expoFetch } from 'expo/fetch'
-import { exchangeCodeForTokens } from '../http'
-import { generatePKCEParameters } from '../pkce'
-import { signInWithPKCE } from '../pkce-flow'
 
 const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
 const mockExpoFetch = expoFetch as jest.Mock

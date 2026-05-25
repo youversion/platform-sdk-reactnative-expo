@@ -1,14 +1,14 @@
 import { createHash, randomBytes as nodeRandomBytes } from 'node:crypto'
 
+import * as Crypto from 'expo-crypto'
+import { generatePKCEParameters } from '../pkce'
+
 jest.mock('expo-crypto', () => ({
   getRandomBytesAsync: jest.fn(),
   digestStringAsync: jest.fn(),
   CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
   CryptoEncoding: { BASE64: 'base64' },
 }))
-
-import * as Crypto from 'expo-crypto'
-import { generatePKCEParameters } from '../pkce'
 
 const mockGetRandomBytesAsync = Crypto.getRandomBytesAsync as jest.Mock
 const mockDigestStringAsync = Crypto.digestStringAsync as jest.Mock

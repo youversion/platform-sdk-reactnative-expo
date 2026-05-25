@@ -1,8 +1,8 @@
+import { exchangeCodeForTokens, refreshTokens, type TokenResponse } from '../http'
+
 jest.mock('../../installation-id', () => ({
   getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
 }))
-
-import { exchangeCodeForTokens, refreshTokens, type TokenResponse } from '../http'
 
 const mockFetch = jest.fn()
 
