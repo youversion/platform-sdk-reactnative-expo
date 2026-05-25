@@ -6,12 +6,26 @@
   "scripts": {
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",
+    "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit"
   },
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/index.ts",
+      "!src/**/*.d.ts",
+      "!src/**/types.ts",
+      "!src/**/constants.ts"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 85,
+        "lines": 90
+      }
     }
   },
   "dependencies": {
@@ -28,12 +42,12 @@
     "react-native-nitro-modules": ">=0.35.0 <0.37.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.14",
     "expo-secure-store": "^55.0.13",
     "jest": "~29.7.0",
     "jest-expo": "~55.0.16",
-    "react": "19.2.0",
     "react-native-mmkv": "^4.3.1",
     "react-native-nitro-modules": "^0.35.6"
   }

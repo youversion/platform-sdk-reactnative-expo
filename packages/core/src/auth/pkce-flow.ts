@@ -62,9 +62,6 @@ export async function signInWithPKCE({
   }
 
   const code = await obtainCodeFromCallback({ apiHost, callBackParams: returnedParams })
-  if (!code) {
-    throw new Error('Authorization returned no code')
-  }
 
   const tokens = await exchangeCodeForTokens({
     apiHost,

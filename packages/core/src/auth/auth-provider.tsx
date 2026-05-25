@@ -100,6 +100,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           setUserInfo(deriveUserInfo(stored.idToken))
 
           await refreshToken()
+        } else {
+          setUserInfo(null)
+          mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
         }
       } catch (e) {
         if (!cancelled) {
@@ -115,8 +118,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     return () => {
       cancelled = true
     }
-    // Mount-only bootstrap: refreshToken reads from refs, so a stale closure
-    // is safe and re-running this would re-load tokens from storage.
+    // Mount-only: refreshToken reads from refs, so a stale closure is safe and
+    // re-running this would re-load tokens from storage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
