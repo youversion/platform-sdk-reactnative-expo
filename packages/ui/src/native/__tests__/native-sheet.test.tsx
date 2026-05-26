@@ -79,6 +79,31 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
   )
 }
 
+function TwoSheetHarness({
+  isOpenA,
+  isOpenB,
+  onCloseA,
+  onCloseB,
+}: {
+  isOpenA: boolean
+  isOpenB: boolean
+  onCloseA: () => void
+  onCloseB: () => void
+}) {
+  return (
+    <NativeSheetProvider>
+      <View>
+        <NativeSheet isOpen={isOpenA} onClose={onCloseA}>
+          <Text testID="sheet-a-content">A</Text>
+        </NativeSheet>
+        <NativeSheet isOpen={isOpenB} onClose={onCloseB}>
+          <Text testID="sheet-b-content">B</Text>
+        </NativeSheet>
+      </View>
+    </NativeSheetProvider>
+  )
+}
+
 describe('NativeSheet', () => {
   const originalOs = Platform.OS
   const originalVersion = Platform.Version
@@ -222,7 +247,7 @@ describe('NativeSheet', () => {
     expect(renderLatestBackdrop()).toBeNull()
   })
 
-  it('keeps inactive iOS sheet hosts mounted but inert', () => {
+  it('keeps inactive iOS sheet hosts mounted with default chrome to preserve WebView pre-warming', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -235,10 +260,123 @@ describe('NativeSheet', () => {
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
-    expect(latestBottomSheetProps.detached).toBe(true)
-    expect(latestBottomSheetProps.bottomInset).toBe(24)
-    expect(latestBottomSheetProps.handleComponent).toBeNull()
+    // box-none so the absoluteFill wrapper never swallows taps on the underlying app
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('box-none')
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
+        .accessibilityElementsHidden,
+    ).toBe(false)
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
+        .importantForAccessibility,
+    ).toBe('auto')
+    expect(latestBottomSheetProps.detached).toBe(false)
+    expect(latestBottomSheetProps.bottomInset).toBe(0)
+    expect(latestBottomSheetProps.containerStyle).toBeUndefined()
+    expect(latestBottomSheetProps.handleComponent).toBeUndefined()
+    expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
     expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
-    expect(renderLatestBackdrop()).toBeNull()
+    expect(renderLatestBackdrop()).toBeTruthy()
+    expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
+    expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(true)
+    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
+    expect(latestBottomSheetProps.accessible).toBe(true)
+    expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(false)
+    expect(latestBottomSheetProps.importantForAccessibility).toBe('auto')
+    expect(
+      getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('auto')
+    expect(
+      getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props
+        .accessibilityElementsHidden,
+    ).toBe(false)
+  })
+
+  it('notifies a displaced sheet via onClose when another sheet claims activeSheetId', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    const onCloseA = jest.fn()
+    const onCloseB = jest.fn()
+
+    const { rerender } = render(
+      <TwoSheetHarness
+        isOpenA={false}
+        isOpenB={false}
+        onCloseA={onCloseA}
+        onCloseB={onCloseB}
+      />,
+    )
+
+    // Open A from closed state.
+    await act(async () => {
+      rerender(
+        <TwoSheetHarness
+          isOpenA={true}
+          isOpenB={false}
+          onCloseA={onCloseA}
+          onCloseB={onCloseB}
+        />,
+      )
+    })
+    expect(onCloseA).not.toHaveBeenCalled()
+
+    // Open B while A's parent still considers A open. B steals activeSheetId.
+    // Without the displacement fix A's parent never learns its sheet closed and
+    // its boolean stays out of sync with reality, so a later tap on A's trigger
+    // sets the same boolean and React skips the update.
+    await act(async () => {
+      rerender(
+        <TwoSheetHarness
+          isOpenA={true}
+          isOpenB={true}
+          onCloseA={onCloseA}
+          onCloseB={onCloseB}
+        />,
+      )
+    })
+
+    expect(onCloseA).toHaveBeenCalledTimes(1)
+    expect(onCloseB).not.toHaveBeenCalled()
+  })
+
+  it('does not call onClose when the parent itself closes the sheet', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    const onClose = jest.fn()
+
+    function Harness({ isOpen }: { isOpen: boolean }) {
+      return (
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet isOpen={isOpen} onClose={onClose}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>
+      )
+    }
+
+    const { rerender } = render(<Harness isOpen={false} />)
+
+    await act(async () => {
+      rerender(<Harness isOpen={true} />)
+    })
+    expect(onClose).not.toHaveBeenCalled()
+
+    // Parent flips isOpen to false — no displacement, no notification needed.
+    await act(async () => {
+      rerender(<Harness isOpen={false} />)
+    })
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

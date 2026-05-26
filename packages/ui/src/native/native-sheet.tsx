@@ -79,6 +79,7 @@ export function NativeSheet({
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
       <SheetHost
         isActive={isActive}
+        isOpen={isOpen}
         openKey={openKey}
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
@@ -92,6 +93,7 @@ export function NativeSheet({
 
 function SheetHost({
   isActive,
+  isOpen,
   openKey,
   contentStyle,
   enableContentPanningGesture,
@@ -99,6 +101,7 @@ function SheetHost({
   children,
 }: {
   isActive: boolean
+  isOpen: boolean
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
@@ -114,8 +117,17 @@ function SheetHost({
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
   )
-  const enableActiveContentPanningGesture = isActive && (enableContentPanningGesture ?? true)
-  const inactiveBottomInset = isActive ? 0 : bottom
+
+  // The Android 12 leak (ADR 0006) needs an inert closed host. iOS does not leak
+  // the same way, and translating the host offscreen suspends matchContents in the
+  // pre-warmed WebView — small DOM sheets then open before content has laid out
+  // and visibly grow into place. Scope the inert-host treatment to Android.
+  const suppressInactive = Platform.OS === 'android' && !isActive
+  // The absoluteFill wrapper must never intercept touches itself — on iOS it would
+  // otherwise cover the whole screen and swallow taps on the underlying app. On
+  // Android we keep the explicit 'none' lock while inactive to satisfy ADR 0006.
+  const outerPointerEvents: 'none' | 'box-none' | 'auto' =
+    Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
@@ -127,10 +139,15 @@ function SheetHost({
     } else if (!isActive && wasActiveRef.current) {
       closingRef.current = true
       sheetRef.current?.close()
+      // If isOpen is still true the parent did not initiate this close — another
+      // sheet stole activeSheetId. Notify the parent so its state resyncs,
+      // otherwise a subsequent tap on this sheet's trigger sets the same boolean
+      // and React skips the update.
+      if (isOpen) onClose()
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, openKey])
+  }, [isActive, isOpen, openKey, onClose])
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -147,37 +164,39 @@ function SheetHost({
   return (
     <View
       testID="native-sheet-inert-host"
-      pointerEvents={isActive ? 'auto' : 'none'}
-      accessibilityElementsHidden={!isActive}
-      importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+      pointerEvents={outerPointerEvents}
+      accessibilityElementsHidden={suppressInactive}
+      importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
       collapsable={false}
       style={StyleSheet.absoluteFill}
     >
       <BottomSheet
         ref={sheetRef}
         index={-1}
-        animateOnMount={isActive}
-        detached={!isActive && inactiveBottomInset > 0}
-        bottomInset={inactiveBottomInset}
-        containerStyle={isActive ? undefined : styles.inactiveContainer}
-        enablePanDownToClose={isActive}
+        animateOnMount={!suppressInactive}
+        detached={suppressInactive && bottom > 0}
+        bottomInset={suppressInactive ? bottom : 0}
+        containerStyle={suppressInactive ? styles.inactiveContainer : undefined}
+        enablePanDownToClose={!suppressInactive}
         enableDynamicSizing
-        enableHandlePanningGesture={isActive}
-        enableContentPanningGesture={enableActiveContentPanningGesture}
-        backdropComponent={isActive ? renderBackdrop : renderNoBackdrop}
-        backgroundComponent={isActive ? undefined : null}
-        handleComponent={isActive ? undefined : null}
-        accessible={isActive}
-        accessibilityElementsHidden={!isActive}
-        importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+        enableHandlePanningGesture={!suppressInactive}
+        enableContentPanningGesture={
+          suppressInactive ? false : (enableContentPanningGesture ?? true)
+        }
+        backdropComponent={suppressInactive ? renderNoBackdrop : renderBackdrop}
+        backgroundComponent={suppressInactive ? null : undefined}
+        handleComponent={suppressInactive ? null : undefined}
+        accessible={!suppressInactive}
+        accessibilityElementsHidden={suppressInactive}
+        importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
         onChange={handleSheetChange}
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
         <BottomSheetView
-          pointerEvents={isActive ? 'auto' : 'none'}
-          accessibilityElementsHidden={!isActive}
-          importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={suppressInactive ? 'none' : 'auto'}
+          accessibilityElementsHidden={suppressInactive}
+          importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
           style={bottomSheetContentStyle}
         >
           {children}
