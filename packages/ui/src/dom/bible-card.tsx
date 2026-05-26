@@ -1,8 +1,10 @@
 'use dom'
 
-import { BibleCard, YouVersionProvider } from '@youversion/platform-react-ui'
+import { BibleCard } from '@youversion/platform-react-ui'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
+
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
 type NativeActionBibleCardProps = WebBibleCardProps & {

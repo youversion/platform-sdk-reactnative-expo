@@ -5,11 +5,12 @@ import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
 } from '@youversion/platform-react-ui'
-import { BibleReader, YouVersionProvider } from '@youversion/platform-react-ui'
+import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 import type { FontFamily } from '../lib/reader-fonts'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps =
   import('@youversion/platform-react-ui').BibleReaderRootProps & {

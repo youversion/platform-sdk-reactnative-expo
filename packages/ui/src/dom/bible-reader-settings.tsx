@@ -1,11 +1,9 @@
 "use dom";
 
-import {
-  BibleThemeSettingsContent,
-  YouVersionProvider,
-} from "@youversion/platform-react-ui";
+import { BibleThemeSettingsContent } from "@youversion/platform-react-ui";
 
 import type { FontFamily } from "../lib/reader-fonts";
+import { YouVersionProvider } from "../lib/web-yv-provider";
 
 export type BibleReaderSettingsDOMProps = {
   appKey: string;

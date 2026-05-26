@@ -1,10 +1,9 @@
 "use dom";
 
-import {
-  FootnoteContent as WebFootnoteContent,
-  YouVersionProvider,
-} from "@youversion/platform-react-ui";
+import { FootnoteContent as WebFootnoteContent } from "@youversion/platform-react-ui";
 import type { FootnoteData } from "@youversion/platform-react-ui";
+
+import { YouVersionProvider } from "../lib/web-yv-provider";
 
 export type FootnoteContentDOMProps = {
   data: FootnoteData;

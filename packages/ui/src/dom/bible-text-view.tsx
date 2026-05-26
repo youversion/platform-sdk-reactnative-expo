@@ -1,9 +1,10 @@
 'use dom'
 
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import { BibleTextView, YouVersionProvider } from '@youversion/platform-react-ui'
+import { BibleTextView } from '@youversion/platform-react-ui'
 
 import { toWebError, type DomError } from '../lib/dom-error'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
