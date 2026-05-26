@@ -74,9 +74,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
       })
     } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e))
-      setError(err)
-      throw err
+      setError(e instanceof Error ? e : new Error(String(e)))
     } finally {
       isRefreshingRef.current = false
     }
