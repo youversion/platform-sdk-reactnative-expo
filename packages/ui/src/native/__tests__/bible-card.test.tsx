@@ -29,18 +29,15 @@ jest.mock("../native-sheet", () => {
     ...actual,
     NativeSheet: ({
       isOpen,
-      openKey,
       onClose,
       children,
     }: {
       isOpen: boolean;
-      openKey?: number;
       onClose: () => void;
       children: ReactNode;
     }) =>
       isOpen ? (
         <View testID="footnote-sheet">
-          <Text testID="footnote-sheet-open-key">{String(openKey ?? "")}</Text>
           <Pressable testID="footnote-sheet-close" onPress={onClose}>
             <Text>Close</Text>
           </Pressable>
@@ -231,21 +228,6 @@ describe("BibleCard", () => {
     expect(getByTestId("mock-has-footnote-handler").children).toContain("no");
     fireEvent.press(getByTestId("mock-footnote-trigger"));
     expect(queryByTestId("footnote-sheet")).toBeNull();
-  });
-
-  it("keeps the footnote sheet open and advances openKey on a second tap while already open", () => {
-    const { getByTestId } = render(
-      <BibleCard reference="JHN.1.1" versionId={3034} />,
-      { wrapper: wrapper() },
-    );
-
-    fireEvent.press(getByTestId("mock-footnote-trigger"));
-    expect(getByTestId("footnote-sheet")).toBeTruthy();
-    expect(getByTestId("footnote-sheet-open-key").children).toContain("1");
-
-    fireEvent.press(getByTestId("mock-footnote-trigger"));
-    expect(getByTestId("footnote-sheet")).toBeTruthy();
-    expect(getByTestId("footnote-sheet-open-key").children).toContain("2");
   });
 
   it("closes the footnote sheet when NativeSheet calls onClose", () => {

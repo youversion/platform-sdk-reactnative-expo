@@ -56,8 +56,6 @@ export function BibleCard({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
-  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
-  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   const handleVersionChange = useCallback(
@@ -82,7 +80,6 @@ export function BibleCard({
 
   const handleFootnotePress = useCallback(async (data: FootnoteData) => {
     setFootnoteData(data)
-    setFootnoteOpenKey((key) => key + 1)
   }, [])
 
   const onFootnotePress =
@@ -118,7 +115,6 @@ export function BibleCard({
       {showFootnoteSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
-          openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
         >
           <FootnoteContent
