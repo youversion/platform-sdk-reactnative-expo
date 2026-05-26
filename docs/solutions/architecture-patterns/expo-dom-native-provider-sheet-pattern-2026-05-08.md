@@ -115,7 +115,9 @@ const suppressInactive = Platform.OS === "android" && !isActive;
   bottomInset={suppressInactive ? bottomInset : 0}
   containerStyle={suppressInactive ? styles.inactiveContainer : undefined}
   enableHandlePanningGesture={!suppressInactive}
-  enableContentPanningGesture={suppressInactive ? false : true}
+  enableContentPanningGesture={
+    suppressInactive ? false : (enableContentPanningGesture ?? true)
+  }
   backdropComponent={suppressInactive ? renderNoBackdrop : renderBackdrop}
   backgroundComponent={suppressInactive ? null : undefined}
   handleComponent={suppressInactive ? null : undefined}
@@ -125,7 +127,7 @@ const suppressInactive = Platform.OS === "android" && !isActive;
   <BottomSheetView pointerEvents={suppressInactive ? "none" : "auto"}>
     {children}
   </BottomSheetView>
-</BottomSheet>;
+</BottomSheet>
 ```
 
 ## Related
