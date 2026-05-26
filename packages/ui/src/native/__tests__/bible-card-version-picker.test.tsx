@@ -44,6 +44,16 @@ jest.mock('../../dom/bible-card', () => {
   }
 })
 
+jest.mock('../native-sheet', () => {
+  const actual = jest.requireActual('../native-sheet')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native')
+  return {
+    ...actual,
+    NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
+  }
+})
+
 jest.mock('../bible-version-picker-sheet', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
