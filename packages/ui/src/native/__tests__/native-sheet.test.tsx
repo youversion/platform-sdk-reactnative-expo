@@ -383,15 +383,19 @@ describe('NativeSheet', () => {
   describe('loader (Android only)', () => {
     function LoaderHarness({
       isOpen,
-      showLoader,
+      showAndroidLoader,
     }: {
       isOpen: boolean
-      showLoader?: boolean
+      showAndroidLoader?: boolean
     }) {
       return (
         <NativeSheetProvider>
           <View>
-            <NativeSheet isOpen={isOpen} onClose={() => {}} showLoader={showLoader}>
+            <NativeSheet
+              isOpen={isOpen}
+              onClose={() => {}}
+              showAndroidLoader={showAndroidLoader}
+            >
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
@@ -430,14 +434,14 @@ describe('NativeSheet', () => {
       setPlatform('android')
 
       const { getByTestId, queryByTestId, rerender } = render(
-        <LoaderHarness isOpen={false} showLoader />,
+        <LoaderHarness isOpen={false} showAndroidLoader />,
       )
 
       // Inactive: no loader rendered (loader only mounts while the sheet is opening/open).
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showLoader />)
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
       })
 
       expect(getByTestId('native-sheet-loader')).toBeTruthy()
@@ -452,11 +456,11 @@ describe('NativeSheet', () => {
       setPlatform('android')
 
       const { getByTestId, queryByTestId, rerender } = render(
-        <LoaderHarness isOpen={false} showLoader />,
+        <LoaderHarness isOpen={false} showAndroidLoader />,
       )
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showLoader />)
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
       })
       expect(getByTestId('native-sheet-loader')).toBeTruthy()
 
@@ -475,13 +479,13 @@ describe('NativeSheet', () => {
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
     })
 
-    it('skips the loader on iOS even when showLoader is true (iOS pre-warms via the inert-host exception)', async () => {
+    it('skips the loader on iOS even when showAndroidLoader is true (iOS pre-warms via the inert-host exception)', async () => {
       setPlatform('ios')
 
-      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} showLoader />)
+      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} showAndroidLoader />)
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showLoader />)
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
       })
 
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()

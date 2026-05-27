@@ -45,7 +45,7 @@ type NativeSheetProps = {
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
-  // Android only. iOS pre-warms matchContents and ignores this flag.
+  // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
   loaderMinHeight?: number
 }
