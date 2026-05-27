@@ -162,7 +162,7 @@ function SheetHost({
   // the same way, and translating the host offscreen suspends matchContents in the
   // pre-warmed WebView — small DOM sheets then open before content has laid out
   // and visibly grow into place. Scope the inert-host treatment to Android.
-  const suppressInactive = Platform.OS === 'android' && !isActive
+  const suppressInactiveSheet = Platform.OS === 'android' && !isActive
   // The absoluteFill wrapper must never intercept touches itself — on iOS it would
   // otherwise cover the whole screen and swallow taps on the underlying app. On
   // Android we keep the explicit 'none' lock while inactive to satisfy ADR 0006.
@@ -207,38 +207,46 @@ function SheetHost({
     <View
       testID="native-sheet-inert-host"
       pointerEvents={outerPointerEvents}
-      accessibilityElementsHidden={suppressInactive}
-      importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
+      accessibilityElementsHidden={suppressInactiveSheet}
+      importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
       collapsable={false}
       style={StyleSheet.absoluteFill}
     >
       <BottomSheet
         ref={sheetRef}
         index={-1}
-        animateOnMount={!suppressInactive}
-        detached={suppressInactive && bottom > 0}
-        bottomInset={suppressInactive ? bottom : 0}
-        containerStyle={suppressInactive ? styles.inactiveContainer : undefined}
-        enablePanDownToClose={!suppressInactive}
-        enableDynamicSizing
-        enableHandlePanningGesture={!suppressInactive}
-        enableContentPanningGesture={
-          suppressInactive ? false : (enableContentPanningGesture ?? true)
+        animateOnMount={!suppressInactiveSheet}
+        detached={suppressInactiveSheet && bottom > 0}
+        bottomInset={suppressInactiveSheet ? bottom : 0}
+        containerStyle={
+          suppressInactiveSheet ? styles.inactiveContainer : undefined
         }
-        backdropComponent={suppressInactive ? renderNoBackdrop : renderBackdrop}
-        backgroundComponent={suppressInactive ? null : undefined}
-        handleComponent={suppressInactive ? null : undefined}
-        accessible={!suppressInactive}
-        accessibilityElementsHidden={suppressInactive}
-        importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
+        enablePanDownToClose={!suppressInactiveSheet}
+        enableDynamicSizing
+        enableHandlePanningGesture={!suppressInactiveSheet}
+        enableContentPanningGesture={
+          suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
+        }
+        backdropComponent={
+          suppressInactiveSheet ? renderNoBackdrop : renderBackdrop
+        }
+        backgroundComponent={suppressInactiveSheet ? null : undefined}
+        handleComponent={suppressInactiveSheet ? null : undefined}
+        accessible={!suppressInactiveSheet}
+        accessibilityElementsHidden={suppressInactiveSheet}
+        importantForAccessibility={
+          suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
+        }
         onChange={handleSheetChange}
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
         <BottomSheetView
-          pointerEvents={suppressInactive ? 'none' : 'auto'}
-          accessibilityElementsHidden={suppressInactive}
-          importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
+          pointerEvents={suppressInactiveSheet ? 'none' : 'auto'}
+          accessibilityElementsHidden={suppressInactiveSheet}
+          importantForAccessibility={
+            suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
+          }
           style={bottomSheetContentStyle}
         >
           <View
