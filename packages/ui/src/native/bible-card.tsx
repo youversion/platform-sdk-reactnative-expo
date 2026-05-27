@@ -116,6 +116,7 @@ export function BibleCard({
         <NativeSheet
           isOpen={!!footnoteData}
           onClose={() => setFootnoteData(null)}
+          showAndroidLoader
         >
           <FootnoteContent
             dom={{ matchContents: true }}

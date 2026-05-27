@@ -47,7 +47,7 @@ DOM wrappers still need their own web provider because each DOM component runs i
 
 For native sheets that display DOM content, portal each sheet's own `BottomSheet` to the root host. Do not share one sheet and hide inactive DOM content in a `1x1` wrapper.
 
-Inactive sheet hosts may stay mounted for WebView pre-warming, but they must be inert: no visible chrome, backdrop, gestures, pointer events, accessibility exposure, or bottom-edge drag surface until active. On Android, the inactive Gorhom container also needs to sit below the visible app and system-nav surface.
+Inactive sheet hosts may stay mounted for WebView pre-warming, but they must be inert: no visible chrome, backdrop, gestures, pointer events, accessibility exposure, or bottom-edge drag surface until active. On Android, the inactive Gorhom container also needs to sit below the visible app and system-nav surface. iOS opts out of the inert-host treatment because translating the host offscreen suspends `matchContents` measurement in the pre-warmed WebView and small DOM sheets visibly grow into place on first open — see `docs/adr/0006-inactive-sheet-inertness.md` for the iOS exception.
 
 ```tsx
 <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
@@ -104,23 +104,27 @@ Before: hiding inactive WebView content in a tiny wrapper.
 </View>
 ```
 
-After: keep the WebView mounted inside its own inert sheet host.
+After: keep the WebView mounted inside its own platform-scoped inert sheet host. The inert treatment applies on Android only; iOS keeps default chrome so `matchContents` can pre-warm the WebView.
 
 ```tsx
+const suppressInactive = Platform.OS === "android" && !isActive;
+
 <BottomSheet
   index={-1}
-  detached={!isActive && bottomInset > 0}
-  bottomInset={isActive ? 0 : bottomInset}
-  containerStyle={isActive ? undefined : styles.inactiveContainer}
-  enableHandlePanningGesture={isActive}
-  enableContentPanningGesture={isActive}
-  backdropComponent={isActive ? renderBackdrop : renderNoBackdrop}
-  backgroundComponent={isActive ? undefined : null}
-  handleComponent={isActive ? undefined : null}
-  importantForAccessibility={isActive ? "auto" : "no-hide-descendants"}
+  detached={suppressInactive && bottomInset > 0}
+  bottomInset={suppressInactive ? bottomInset : 0}
+  containerStyle={suppressInactive ? styles.inactiveContainer : undefined}
+  enableHandlePanningGesture={!suppressInactive}
+  enableContentPanningGesture={
+    suppressInactive ? false : (enableContentPanningGesture ?? true)
+  }
+  backdropComponent={suppressInactive ? renderNoBackdrop : renderBackdrop}
+  backgroundComponent={suppressInactive ? null : undefined}
+  handleComponent={suppressInactive ? null : undefined}
+  importantForAccessibility={suppressInactive ? "no-hide-descendants" : "auto"}
   enableDynamicSizing
 >
-  <BottomSheetView pointerEvents={isActive ? "auto" : "none"}>
+  <BottomSheetView pointerEvents={suppressInactive ? "none" : "auto"}>
     {children}
   </BottomSheetView>
 </BottomSheet>

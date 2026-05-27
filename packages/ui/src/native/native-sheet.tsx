@@ -13,8 +13,16 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { Portal, PortalHost } from '@rn-primitives/portal'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 
@@ -37,7 +45,13 @@ type NativeSheetProps = {
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
+  // iOS pre-warms matchContents and ignores this flag.
+  showAndroidLoader?: boolean
+  loaderMinHeight?: number
 }
+
+const DEFAULT_LOADER_MIN_HEIGHT = 180
+const CONTENT_READY_HEIGHT_THRESHOLD = 4
 
 export function NativeSheet({
   isOpen,
@@ -46,6 +60,8 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   children,
+  showAndroidLoader = false,
+  loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
 }: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null)
   if (sheetIdRef.current === null) {
@@ -79,10 +95,13 @@ export function NativeSheet({
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
       <SheetHost
         isActive={isActive}
+        isOpen={isOpen}
         openKey={openKey}
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
+        showAndroidLoader={showAndroidLoader}
+        loaderMinHeight={loaderMinHeight}
       >
         {children}
       </SheetHost>
@@ -92,18 +111,24 @@ export function NativeSheet({
 
 function SheetHost({
   isActive,
+  isOpen,
   openKey,
   contentStyle,
   enableContentPanningGesture,
   onClose,
   children,
+  showAndroidLoader,
+  loaderMinHeight,
 }: {
   isActive: boolean
+  isOpen: boolean
   openKey?: number
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
+  showAndroidLoader: boolean
+  loaderMinHeight: number
 }) {
   const { bottom } = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
@@ -114,23 +139,50 @@ function SheetHost({
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
   )
-  const enableActiveContentPanningGesture = isActive && (enableContentPanningGesture ?? true)
-  const inactiveBottomInset = isActive ? 0 : bottom
+
+  // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
+  const isAndroidLoaderEnabled = showAndroidLoader && Platform.OS === 'android'
+  const [isSheetContentReady, setIsSheetContentReady] = useState(!isAndroidLoaderEnabled)
+  const handleContentLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      if (!isAndroidLoaderEnabled) return
+      if (event.nativeEvent.layout.height > CONTENT_READY_HEIGHT_THRESHOLD) {
+        setIsSheetContentReady(true)
+      }
+    },
+    [isAndroidLoaderEnabled],
+  )
+  const isLoading = isAndroidLoaderEnabled && !isSheetContentReady && isActive
+  const loaderWrapperStyle = useMemo<StyleProp<ViewStyle>>(
+    () => (isLoading ? { minHeight: loaderMinHeight } : undefined),
+    [isLoading, loaderMinHeight],
+  )
+
+  // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
+  const suppressInactiveSheet = Platform.OS === 'android' && !isActive
+  
+  // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
+  const outerPointerEvents: 'none' | 'box-none' | 'auto' =
+    Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
     // again even when the boolean state did not change.
     const openKeyChanged = openKey !== lastOpenKeyRef.current
+    // Re-show the loader when new content arrives (openKey bump).
+    if (isAndroidLoaderEnabled && openKeyChanged) setIsSheetContentReady(false)
     if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false
       sheetRef.current?.snapToIndex(0)
     } else if (!isActive && wasActiveRef.current) {
       closingRef.current = true
       sheetRef.current?.close()
+      // If another sheet displaced this one, call onClose to keep the parent's isOpen in sync (so it can re-open).
+      if (isOpen) onClose()
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, openKey])
+  }, [isActive, isOpen, openKey, onClose, isAndroidLoaderEnabled])
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -147,40 +199,71 @@ function SheetHost({
   return (
     <View
       testID="native-sheet-inert-host"
-      pointerEvents={isActive ? 'auto' : 'none'}
-      accessibilityElementsHidden={!isActive}
-      importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+      pointerEvents={outerPointerEvents}
+      accessibilityElementsHidden={suppressInactiveSheet}
+      importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
       collapsable={false}
       style={StyleSheet.absoluteFill}
     >
       <BottomSheet
         ref={sheetRef}
         index={-1}
-        animateOnMount={isActive}
-        detached={!isActive && inactiveBottomInset > 0}
-        bottomInset={inactiveBottomInset}
-        containerStyle={isActive ? undefined : styles.inactiveContainer}
-        enablePanDownToClose={isActive}
+        animateOnMount={!suppressInactiveSheet}
+        detached={suppressInactiveSheet && bottom > 0}
+        bottomInset={suppressInactiveSheet ? bottom : 0}
+        containerStyle={
+          suppressInactiveSheet ? styles.inactiveContainer : undefined
+        }
+        enablePanDownToClose={!suppressInactiveSheet}
         enableDynamicSizing
-        enableHandlePanningGesture={isActive}
-        enableContentPanningGesture={enableActiveContentPanningGesture}
-        backdropComponent={isActive ? renderBackdrop : renderNoBackdrop}
-        backgroundComponent={isActive ? undefined : null}
-        handleComponent={isActive ? undefined : null}
-        accessible={isActive}
-        accessibilityElementsHidden={!isActive}
-        importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+        enableHandlePanningGesture={!suppressInactiveSheet}
+        enableContentPanningGesture={
+          suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
+        }
+        backdropComponent={
+          suppressInactiveSheet ? renderNoBackdrop : renderBackdrop
+        }
+        backgroundComponent={suppressInactiveSheet ? null : undefined}
+        handleComponent={suppressInactiveSheet ? null : undefined}
+        accessible={!suppressInactiveSheet}
+        accessibilityElementsHidden={suppressInactiveSheet}
+        importantForAccessibility={
+          suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
+        }
         onChange={handleSheetChange}
         style={styles.sheet}
         handleIndicatorStyle={styles.handle}
       >
         <BottomSheetView
-          pointerEvents={isActive ? 'auto' : 'none'}
-          accessibilityElementsHidden={!isActive}
-          importantForAccessibility={isActive ? 'auto' : 'no-hide-descendants'}
+          pointerEvents={suppressInactiveSheet ? 'none' : 'auto'}
+          accessibilityElementsHidden={suppressInactiveSheet}
+          importantForAccessibility={
+            suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
+          }
           style={bottomSheetContentStyle}
         >
-          {children}
+          <View
+            testID="native-sheet-loader-wrapper"
+            style={loaderWrapperStyle}
+            collapsable={false}
+          >
+            <View
+              testID="native-sheet-content"
+              onLayout={isAndroidLoaderEnabled ? handleContentLayout : undefined}
+              collapsable={false}
+            >
+              {children}
+            </View>
+            {isLoading && (
+              <View
+                pointerEvents="none"
+                style={styles.loaderOverlay}
+                testID="native-sheet-loader"
+              >
+                <ActivityIndicator size="large" accessibilityLabel="Loading" />
+              </View>
+            )}
+          </View>
         </BottomSheetView>
       </BottomSheet>
     </View>
@@ -215,5 +298,10 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 8,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })
