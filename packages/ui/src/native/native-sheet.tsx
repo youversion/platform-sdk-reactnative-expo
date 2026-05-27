@@ -13,8 +13,16 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { Portal, PortalHost } from '@rn-primitives/portal'
-import { useCallback, useEffect, useMemo, useRef } from 'react'
-import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Platform,
+  StyleSheet,
+  View,
+  type LayoutChangeEvent,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 
@@ -37,7 +45,13 @@ type NativeSheetProps = {
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
+  // Android only. iOS pre-warms matchContents and ignores this flag.
+  showLoader?: boolean
+  loaderMinHeight?: number
 }
+
+const DEFAULT_LOADER_MIN_HEIGHT = 180
+const CONTENT_READY_HEIGHT_THRESHOLD = 4
 
 export function NativeSheet({
   isOpen,
@@ -46,6 +60,8 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   children,
+  showLoader = false,
+  loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
 }: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null)
   if (sheetIdRef.current === null) {
@@ -84,6 +100,8 @@ export function NativeSheet({
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
+        showLoader={showLoader}
+        loaderMinHeight={loaderMinHeight}
       >
         {children}
       </SheetHost>
@@ -99,6 +117,8 @@ function SheetHost({
   enableContentPanningGesture,
   onClose,
   children,
+  showLoader,
+  loaderMinHeight,
 }: {
   isActive: boolean
   isOpen: boolean
@@ -107,6 +127,8 @@ function SheetHost({
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
+  showLoader: boolean
+  loaderMinHeight: number
 }) {
   const { bottom } = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
@@ -116,6 +138,24 @@ function SheetHost({
   const bottomSheetContentStyle = useMemo(
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
+  )
+
+  // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
+  const loaderEnabled = showLoader && Platform.OS === 'android'
+  const [contentReady, setContentReady] = useState(!loaderEnabled)
+  const handleContentLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      if (!loaderEnabled) return
+      if (event.nativeEvent.layout.height > CONTENT_READY_HEIGHT_THRESHOLD) {
+        setContentReady(true)
+      }
+    },
+    [loaderEnabled],
+  )
+  const isLoading = loaderEnabled && !contentReady && isActive
+  const loaderWrapperStyle = useMemo<StyleProp<ViewStyle>>(
+    () => (isLoading ? { minHeight: loaderMinHeight } : undefined),
+    [isLoading, loaderMinHeight],
   )
 
   // The Android 12 leak (ADR 0006) needs an inert closed host. iOS does not leak
@@ -133,6 +173,8 @@ function SheetHost({
     // A second footnote tap may keep isActive=true, so use openKey to snap open
     // again even when the boolean state did not change.
     const openKeyChanged = openKey !== lastOpenKeyRef.current
+    // Re-show the loader when new content arrives (openKey bump).
+    if (loaderEnabled && openKeyChanged) setContentReady(false)
     if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false
       sheetRef.current?.snapToIndex(0)
@@ -147,7 +189,7 @@ function SheetHost({
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, isOpen, openKey, onClose])
+  }, [isActive, isOpen, openKey, onClose, loaderEnabled])
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -199,7 +241,28 @@ function SheetHost({
           importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
           style={bottomSheetContentStyle}
         >
-          {children}
+          <View
+            testID="native-sheet-loader-wrapper"
+            style={loaderWrapperStyle}
+            collapsable={false}
+          >
+            <View
+              testID="native-sheet-content"
+              onLayout={loaderEnabled ? handleContentLayout : undefined}
+              collapsable={false}
+            >
+              {children}
+            </View>
+            {isLoading && (
+              <View
+                pointerEvents="none"
+                style={styles.loaderOverlay}
+                testID="native-sheet-loader"
+              >
+                <ActivityIndicator size="large" accessibilityLabel="Loading" />
+              </View>
+            )}
+          </View>
         </BottomSheetView>
       </BottomSheet>
     </View>
@@ -234,5 +297,10 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 8,
+  },
+  loaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })

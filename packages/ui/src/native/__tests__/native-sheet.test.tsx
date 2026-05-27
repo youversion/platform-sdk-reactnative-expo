@@ -379,4 +379,112 @@ describe('NativeSheet', () => {
     })
     expect(onClose).not.toHaveBeenCalled()
   })
+
+  describe('loader (Android only)', () => {
+    function LoaderHarness({
+      isOpen,
+      showLoader,
+    }: {
+      isOpen: boolean
+      showLoader?: boolean
+    }) {
+      return (
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet isOpen={isOpen} onClose={() => {}} showLoader={showLoader}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>
+      )
+    }
+
+    const fireContentLayout = (
+      node: { props: { onLayout?: (e: unknown) => void } },
+      height: number,
+    ) => {
+      node.props.onLayout?.({ nativeEvent: { layout: { width: 320, height, x: 0, y: 0 } } })
+    }
+
+    const setPlatform = (os: 'ios' | 'android') => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: os,
+      })
+    }
+
+    it('does not render a loader by default', async () => {
+      setPlatform('android')
+
+      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} />)
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} />)
+      })
+
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('renders the loader and holds the wrapper at loaderMinHeight while the sheet is active on Android', async () => {
+      setPlatform('android')
+
+      const { getByTestId, queryByTestId, rerender } = render(
+        <LoaderHarness isOpen={false} showLoader />,
+      )
+
+      // Inactive: no loader rendered (loader only mounts while the sheet is opening/open).
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showLoader />)
+      })
+
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+      // The wrapper around the content gets a minHeight floor so the sheet snaps
+      // to a stable initial pose instead of zero.
+      expect(getByTestId('native-sheet-loader-wrapper').props.style).toMatchObject({
+        minHeight: 180,
+      })
+    })
+
+    it('hides the loader once content reports a non-trivial layout height', async () => {
+      setPlatform('android')
+
+      const { getByTestId, queryByTestId, rerender } = render(
+        <LoaderHarness isOpen={false} showLoader />,
+      )
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showLoader />)
+      })
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+
+      // A trivial height (e.g. 0 from the wrapping View before the WebView has
+      // laid out) must not flip the loader off.
+      await act(async () => {
+        fireContentLayout(getByTestId('native-sheet-content'), 0)
+      })
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+
+      // Once the WebView reports its real content size, the loader hides and
+      // the min-height floor drops so enableDynamicSizing can resize the sheet.
+      await act(async () => {
+        fireContentLayout(getByTestId('native-sheet-content'), 280)
+      })
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('skips the loader on iOS even when showLoader is true (iOS pre-warms via the inert-host exception)', async () => {
+      setPlatform('ios')
+
+      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} showLoader />)
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showLoader />)
+      })
+
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+  })
 })

@@ -29,7 +29,7 @@ export function BibleReaderSettingsSheet({
   );
 
   return (
-    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose}>
+    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose} showLoader>
       <BibleReaderSettingsDOM
         dom={{ matchContents: true }}
         appKey={appKey}
