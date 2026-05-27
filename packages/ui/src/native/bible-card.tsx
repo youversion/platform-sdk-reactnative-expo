@@ -1,4 +1,5 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
@@ -7,7 +8,7 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme, useYouVersion } from './youversion-provider'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
 
@@ -131,6 +132,8 @@ export function BibleCard({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             appKey={context.appKey}
+            apiHost={context.apiHost}
+            installationId={context.installationId}
           />
         </NativeSheet>
       )}
