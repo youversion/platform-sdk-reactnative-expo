@@ -46,7 +46,7 @@ type NativeSheetProps = {
   onClose: () => void
   children: React.ReactNode
   // Android only. iOS pre-warms matchContents and ignores this flag.
-  showLoader?: boolean
+  showAndroidLoader?: boolean
   loaderMinHeight?: number
 }
 
@@ -60,7 +60,7 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   children,
-  showLoader = false,
+  showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
 }: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null)
@@ -100,7 +100,7 @@ export function NativeSheet({
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
-        showLoader={showLoader}
+        showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
       >
         {children}
@@ -117,7 +117,7 @@ function SheetHost({
   enableContentPanningGesture,
   onClose,
   children,
-  showLoader,
+  showAndroidLoader,
   loaderMinHeight,
 }: {
   isActive: boolean
@@ -127,7 +127,7 @@ function SheetHost({
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
-  showLoader: boolean
+  showAndroidLoader: boolean
   loaderMinHeight: number
 }) {
   const { bottom } = useSafeAreaInsets()
@@ -141,7 +141,7 @@ function SheetHost({
   )
 
   // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
-  const loaderEnabled = showLoader && Platform.OS === 'android'
+  const loaderEnabled = showAndroidLoader && Platform.OS === 'android'
   const [contentReady, setContentReady] = useState(!loaderEnabled)
   const handleContentLayout = useCallback(
     (event: LayoutChangeEvent) => {
