@@ -141,31 +141,27 @@ function SheetHost({
   )
 
   // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
-  const loaderEnabled = showAndroidLoader && Platform.OS === 'android'
-  const [contentReady, setContentReady] = useState(!loaderEnabled)
+  const isAndroidLoaderEnabled = showAndroidLoader && Platform.OS === 'android'
+  const [isSheetContentReady, setIsSheetContentReady] = useState(!isAndroidLoaderEnabled)
   const handleContentLayout = useCallback(
     (event: LayoutChangeEvent) => {
-      if (!loaderEnabled) return
+      if (!isAndroidLoaderEnabled) return
       if (event.nativeEvent.layout.height > CONTENT_READY_HEIGHT_THRESHOLD) {
-        setContentReady(true)
+        setIsSheetContentReady(true)
       }
     },
-    [loaderEnabled],
+    [isAndroidLoaderEnabled],
   )
-  const isLoading = loaderEnabled && !contentReady && isActive
+  const isLoading = isAndroidLoaderEnabled && !isSheetContentReady && isActive
   const loaderWrapperStyle = useMemo<StyleProp<ViewStyle>>(
     () => (isLoading ? { minHeight: loaderMinHeight } : undefined),
     [isLoading, loaderMinHeight],
   )
 
-  // The Android 12 leak (ADR 0006) needs an inert closed host. iOS does not leak
-  // the same way, and translating the host offscreen suspends matchContents in the
-  // pre-warmed WebView — small DOM sheets then open before content has laid out
-  // and visibly grow into place. Scope the inert-host treatment to Android.
+  // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
-  // The absoluteFill wrapper must never intercept touches itself — on iOS it would
-  // otherwise cover the whole screen and swallow taps on the underlying app. On
-  // Android we keep the explicit 'none' lock while inactive to satisfy ADR 0006.
+  
+  // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
     Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
 
@@ -174,22 +170,19 @@ function SheetHost({
     // again even when the boolean state did not change.
     const openKeyChanged = openKey !== lastOpenKeyRef.current
     // Re-show the loader when new content arrives (openKey bump).
-    if (loaderEnabled && openKeyChanged) setContentReady(false)
+    if (isAndroidLoaderEnabled && openKeyChanged) setIsSheetContentReady(false)
     if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false
       sheetRef.current?.snapToIndex(0)
     } else if (!isActive && wasActiveRef.current) {
       closingRef.current = true
       sheetRef.current?.close()
-      // If isOpen is still true the parent did not initiate this close — another
-      // sheet stole activeSheetId. Notify the parent so its state resyncs,
-      // otherwise a subsequent tap on this sheet's trigger sets the same boolean
-      // and React skips the update.
+      // If another sheet displaced this one, call onClose to keep the parent's isOpen in sync (so it can re-open).
       if (isOpen) onClose()
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, isOpen, openKey, onClose, loaderEnabled])
+  }, [isActive, isOpen, openKey, onClose, isAndroidLoaderEnabled])
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -256,7 +249,7 @@ function SheetHost({
           >
             <View
               testID="native-sheet-content"
-              onLayout={loaderEnabled ? handleContentLayout : undefined}
+              onLayout={isAndroidLoaderEnabled ? handleContentLayout : undefined}
               collapsable={false}
             >
               {children}
