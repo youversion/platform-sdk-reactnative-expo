@@ -1,6 +1,6 @@
 import { mmkvStorage, secureStorage } from '../../storage'
 import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from '../constants'
-import { clearTokens, loadTokens, saveTokens, type StoredTokens } from '../token-storage'
+import { loadTokens, saveTokens, type StoredTokens } from '../token-storage'
 
 const mockSecureStore = new Map<string, string>()
 const mockMmkv = new Map<string, string>()
@@ -98,15 +98,3 @@ describe('loadTokens', () => {
   })
 })
 
-describe('clearTokens', () => {
-  it('removes every persisted value (round-trips to all-null)', async () => {
-    await saveTokens(fullTokens)
-    await clearTokens()
-    expect(await loadTokens()).toEqual({
-      accessToken: null,
-      refreshToken: null,
-      idToken: null,
-      expiryDate: null,
-    })
-  })
-})

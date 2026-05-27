@@ -5,7 +5,7 @@ import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
 import { refreshTokens, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
-import { clearTokens, loadTokens, saveTokens } from '../token-storage'
+import { loadTokens, saveTokens } from '../token-storage'
 import type { AuthConfig } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
@@ -24,7 +24,6 @@ jest.mock('../../storage', () => ({
 jest.mock('../token-storage', () => ({
   loadTokens: jest.fn(),
   saveTokens: jest.fn(() => Promise.resolve()),
-  clearTokens: jest.fn(() => Promise.resolve()),
 }))
 
 jest.mock('../http', () => ({
@@ -37,7 +36,6 @@ jest.mock('../pkce-flow', () => ({
 
 const mockLoadTokens = loadTokens as jest.Mock
 const mockSaveTokens = saveTokens as jest.Mock
-const mockClearTokens = clearTokens as jest.Mock
 const mockRefreshTokens = refreshTokens as jest.Mock
 const mockSignInWithPKCE = signInWithPKCE as jest.Mock
 const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
@@ -309,7 +307,12 @@ describe('AuthProvider — signOut', () => {
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(getText('accessToken')).toBe('null')
     expect(getText('userInfo')).toBe('null')
-    expect(mockClearTokens).toHaveBeenCalledTimes(1)
+    expect(mockSaveTokens).toHaveBeenCalledWith({
+      accessToken: null,
+      refreshToken: null,
+      idToken: null,
+      expiryDate: null,
+    })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
   })
 })

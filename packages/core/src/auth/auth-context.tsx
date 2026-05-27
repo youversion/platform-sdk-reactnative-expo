@@ -9,6 +9,7 @@ export type AuthContextValue = {
   error: Error | null
   signIn: () => Promise<void>
   signOut: () => Promise<void>
+  refreshNow: () => Promise<void>
   isLoading: boolean
 }
 

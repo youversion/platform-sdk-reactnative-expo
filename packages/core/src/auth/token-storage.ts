@@ -39,10 +39,6 @@ export async function loadTokens(): Promise<StoredTokens> {
   }
 }
 
-export async function clearTokens(): Promise<void> {
-  return saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
-}
-
 async function writeSecureValue(key: string, value: string | null): Promise<void> {
   if (value == null) {
     await secureStorage.remove(key)

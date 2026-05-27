@@ -19,6 +19,7 @@ describe('useYVAuth', () => {
       error: null,
       signIn: jest.fn(),
       signOut: jest.fn(),
+      refreshNow: jest.fn(),
       isLoading: false,
     }
     const wrapper = ({ children }: { children: ReactNode }) => (

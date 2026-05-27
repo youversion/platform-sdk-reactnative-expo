@@ -6,7 +6,7 @@ import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { refreshTokens } from './http'
 import { deriveUserInfo } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
-import { clearTokens, loadTokens, saveTokens, type StoredTokens } from './token-storage'
+import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, YVUserInfo } from './types'
 
 type AuthProviderProps = {
@@ -25,14 +25,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
-  const idTokenRef = useRef<string | null>(null)
   const isRefreshingRef = useRef<boolean>(false)
 
-  const applyTokens = useCallback(async (tokens: StoredTokens) => {
+  const setAuthState = useCallback(async (tokens: StoredTokens) => {
     await saveTokens(tokens)
     expiryRef.current = tokens.expiryDate
     refreshTokenRef.current = tokens.refreshToken
-    idTokenRef.current = tokens.idToken
     setIdToken(tokens.idToken)
     setAccessToken(tokens.accessToken)
 
@@ -40,45 +38,57 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       const user = deriveUserInfo(tokens.idToken)
       setUserInfo(user)
       mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
-    } else {
-      setUserInfo(null)
-      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     }
   }, [])
 
-  const refreshToken = useCallback(async () => {
-    if (!expiryRef.current || !refreshTokenRef.current) {
-      return
-    }
-    const expiresAt = expiryRef.current.getTime()
+  const clearAuthState = useCallback(async () => {
+    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    expiryRef.current = null
+    refreshTokenRef.current = null
+    setAccessToken(null)
+    setUserInfo(null)
+    setIdToken(null)
+    setError(null)
+    saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
+  }, [])
 
-    if (expiresAt > Date.now() + REFRESH_LEEWAY_SECONDS * 1000) {
-      return
-    }
+  const refreshToken = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (!expiryRef.current || !refreshTokenRef.current) {
+        return
+      }
+      const expiresAt = expiryRef.current.getTime()
 
-    if (isRefreshingRef.current) {
-      return
-    }
-    isRefreshingRef.current = true
+      if (!options?.force && expiresAt > Date.now() + REFRESH_LEEWAY_SECONDS * 1000) {
+        return
+      }
 
-    try {
-      const response = await refreshTokens({
-        apiHost,
-        appKey,
-        refreshToken: refreshTokenRef.current,
-      })
-      await applyTokens({
-        accessToken: response.access_token,
-        refreshToken: response.refresh_token,
-        idToken: response.id_token ?? idTokenRef.current,
-        expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
-      })
-    } catch (e) {
-      setError(e instanceof Error ? e : new Error(String(e)))
-    } finally {
-      isRefreshingRef.current = false
-    }
-  }, [apiHost, appKey, applyTokens])
+      if (isRefreshingRef.current) {
+        return
+      }
+      isRefreshingRef.current = true
+
+      try {
+        const response = await refreshTokens({
+          apiHost,
+          appKey,
+          refreshToken: refreshTokenRef.current,
+        })
+        await setAuthState({
+          accessToken: response.access_token,
+          refreshToken: response.refresh_token,
+          idToken: response.id_token ?? null,
+          expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
+        })
+      } catch (e) {
+        await clearAuthState()
+        setError(e instanceof Error ? e : new Error(String(e)))
+      } finally {
+        isRefreshingRef.current = false
+      }
+    },
+    [apiHost, appKey, setAuthState, clearAuthState],
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -89,14 +99,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           return
         }
 
-        expiryRef.current = stored.expiryDate
-        refreshTokenRef.current = stored.refreshToken
-        idTokenRef.current = stored.idToken
-        setAccessToken(stored.accessToken)
-        setIdToken(stored.idToken)
         if (stored.idToken) {
-          setUserInfo(deriveUserInfo(stored.idToken))
-
+          await setAuthState(stored)
           await refreshToken()
         } else {
           setUserInfo(null)
@@ -144,7 +148,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       if (result.kind === 'cancel') {
         return
       }
-      await applyTokens({
+      await setAuthState({
         accessToken: result.tokens.access_token,
         refreshToken: result.tokens.refresh_token,
         idToken: result.tokens.id_token ?? null,
@@ -155,23 +159,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       setError(err)
       throw err
     }
-  }, [apiHost, appKey, config.redirectUri, config.scopes, applyTokens])
-
-  const resetAuthState = useCallback(() => {
-    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
-    expiryRef.current = null
-    refreshTokenRef.current = null
-    idTokenRef.current = null
-    setAccessToken(null)
-    setUserInfo(null)
-    setIdToken(null)
-    setError(null)
-  }, [])
+  }, [apiHost, appKey, config.redirectUri, config.scopes, setAuthState])
 
   const signOut = useCallback(async () => {
-    await clearTokens()
-    resetAuthState()
-  }, [resetAuthState])
+    await clearAuthState()
+  }, [clearAuthState])
+
+  const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
   const value: AuthContextValue = useMemo(
     () => ({
@@ -182,9 +176,10 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       error,
       signIn,
       signOut,
+      refreshNow,
       isLoading,
     }),
-    [accessToken, idToken, userInfo, error, signIn, signOut, isLoading],
+    [accessToken, idToken, userInfo, error, signIn, signOut, refreshNow, isLoading],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
