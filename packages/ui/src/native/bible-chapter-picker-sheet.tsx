@@ -1,8 +1,9 @@
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
+import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { NativeSheet } from './native-sheet'
-import { useYouVersion } from './youversion-provider'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
@@ -36,12 +37,12 @@ export function BibleChapterPickerSheet({
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
+  const theme = useTheme()
   const { height } = useWindowDimensions()
 
   if (Platform.OS === 'web') return null
 
-  const resolvedTheme =
-    themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
+  const resolvedTheme = themeOverride === 'system' ? theme : (themeOverride ?? theme)
   const pickerDom = {
     style: styles.dom,
     hideKeyboardAccessoryView: true,

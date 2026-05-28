@@ -15,6 +15,10 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Widget</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="auth-debug">
+        <NativeTabs.Trigger.Label>Auth</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="lock.fill" md="lock" />
+      </NativeTabs.Trigger>
     </NativeTabs>
   )
 }

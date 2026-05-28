@@ -68,6 +68,61 @@ jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
 /**
+ * `expo/fetch` exports a `FetchResponse` class that extends the global
+ * `Response`. Under jest-expo the global isn't a real constructor, so loading
+ * the module throws "Super expression must either be null or a function".
+ *
+ * UI tests pull this in transitively via the core barrel (auth-provider →
+ * pkce-flow → expo/fetch). None of the UI tests exercise the network, so a
+ * stub keeps the module load-able.
+ */
+jest.mock('expo/fetch', () => ({
+  fetch: jest.fn(() => Promise.reject(new Error('expo/fetch is mocked in UI tests'))),
+}))
+
+/**
+ * Core's real `YouVersionProvider` gates children on async `getOrSetInstallationId`,
+ * so synchronous `getByTestId` calls after `render(...)` see `fallback` (null)
+ * instead of the wrapped component. UI tests verify the native wrapper, not
+ * core's loading semantics — swap in a sync passthrough provider backed by a
+ * test context. Other exports (`mmkvStorage`, types) keep their real values.
+ */
+jest.mock('@youversion/platform-react-native-expo-core', () => {
+  const React = require('react')
+  const actual = jest.requireActual('@youversion/platform-react-native-expo-core')
+
+  const TestContext = React.createContext(null)
+
+  function YouVersionProvider({ appKey, apiHost, children }) {
+    const value = React.useMemo(
+      () => ({
+        appKey,
+        apiHost: apiHost ?? 'https://api.youversion.com',
+        installationId: 'test-installation-id',
+      }),
+      [appKey, apiHost],
+    )
+    return React.createElement(TestContext.Provider, { value }, children)
+  }
+
+  function useYouVersion() {
+    const ctx = React.useContext(TestContext)
+    if (!ctx) {
+      throw new Error(
+        'YouVersionProvider is required. Wrap your app with <YouVersionProvider appKey="...">.',
+      )
+    }
+    return ctx
+  }
+
+  return {
+    ...actual,
+    YouVersionProvider,
+    useYouVersion,
+  }
+})
+
+/**
  * react-native-mmkv v4 ships on top of NitroModules, whose native turbo module
  * isn't available in a plain jest-expo runtime. This shim gives us a
  * deterministic, in-memory MMKV instance plus the React hooks the SDK uses,

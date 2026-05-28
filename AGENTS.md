@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Single published package `@youversion/platform-react-native-expo` in a pnpm/Turborepo monorepo.
+YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Two published packages in a pnpm/Turborepo monorepo: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (auth, storage).
 
 **Tech stack**: Expo SDK 55, React 19, TypeScript, pnpm 9, Turborepo
 
@@ -22,7 +22,11 @@ pnpm typecheck                        # turbo typecheck (all packages)
 packages/ui/src/
 ├── dom/          ← Expo DOM components ("use dom" directive) wrapping Web SDK
 ├── native/       ← React Native provider/context, wrappers, and internal sheet support
-└── lib/          ← Shared adapters, hooks, constants (storage, dom-error)
+└── lib/          ← Shared adapters, hooks, constants (dom-error)
+
+packages/core/src/
+├── auth/         ← Auth config, PKCE, OAuth/storage key constants
+└── storage/      ← MMKV + SecureStore adapters
 
 apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ```
@@ -108,7 +112,7 @@ Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/pl
 
 ## Peer Dependencies
 
-See `packages/ui/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
+See `packages/ui/package.json` and `packages/core/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
 
 ## Testing
 
@@ -134,7 +138,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 ## Code Style
 
 - TypeScript strict mode
-- Single published package — keep all exports in `packages/ui/src/`
+- Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
 
