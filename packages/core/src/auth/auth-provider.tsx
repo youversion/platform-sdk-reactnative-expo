@@ -49,10 +49,10 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshToken = useCallback(
     async (options?: { force?: boolean }) => {
-      if (!expiryRef.current || !refreshTokenRef.current) {
+      if (!refreshTokenRef.current) {
         return
       }
-      const expiresAt = expiryRef.current.getTime()
+      const expiresAt = expiryRef.current?.getTime() ?? 0
 
       if (!options?.force && expiresAt > Date.now() + REFRESH_LEEWAY_SECONDS * 1000) {
         return
