@@ -55,7 +55,6 @@ function makeJwt(payload: unknown): string {
 const noStoredTokens = {
   accessToken: null,
   refreshToken: null,
-  idToken: null,
   expiryDate: null,
 }
 
@@ -66,6 +65,8 @@ const validTokens = {
   expires_in: '3600',
   token_type: 'Bearer',
 }
+
+const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined }
 
 function AuthPeek() {
   const auth = useYVAuth()
@@ -134,10 +135,10 @@ describe('AuthProvider — mount', () => {
   })
 
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stored-access',
       refreshToken: 'stored-refresh',
-      idToken: makeJwt({ sub: 'u1', name: 'Ada' }),
       expiryDate: new Date(Date.now() + 60 * 60 * 1000),
     })
 
@@ -150,12 +151,7 @@ describe('AuthProvider — mount', () => {
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
     expect(getText('isAuthenticated')).toBe('true')
     expect(getText('accessToken')).toBe('stored-access')
-    expect(JSON.parse(getText('userInfo'))).toEqual({
-      id: 'u1',
-      name: 'Ada',
-      email: undefined,
-      avatarUrl: undefined,
-    })
+    expect(JSON.parse(getText('userInfo'))).toEqual(adaUserInfo)
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
@@ -163,7 +159,6 @@ describe('AuthProvider — mount', () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stale-access',
       refreshToken: 'stale-refresh',
-      idToken: makeJwt({ sub: 'u1' }),
       expiryDate: new Date(Date.now() - 1000),
     })
     mockRefreshTokens.mockResolvedValue(validTokens)
@@ -188,7 +183,6 @@ describe('AuthProvider — mount', () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stale-access',
       refreshToken: 'stale-refresh',
-      idToken: makeJwt({ sub: 'u1' }),
       expiryDate: new Date(Date.now() - 1000),
     })
     mockRefreshTokens.mockRejectedValue(new Error('refresh failed'))
@@ -225,7 +219,11 @@ describe('AuthProvider — signIn', () => {
   })
 
   it('on success, applies tokens and exposes user info', async () => {
-    mockSignInWithPKCE.mockResolvedValue({ kind: 'success', tokens: validTokens })
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+    })
 
     render(
       <AuthProvider {...defaultProps}>
@@ -239,12 +237,7 @@ describe('AuthProvider — signIn', () => {
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
     expect(getText('isAuthenticated')).toBe('true')
     expect(getText('accessToken')).toBe('new-access')
-    expect(JSON.parse(getText('userInfo'))).toEqual({
-      id: 'u1',
-      name: 'Ada',
-      email: undefined,
-      avatarUrl: undefined,
-    })
+    expect(JSON.parse(getText('userInfo'))).toEqual(adaUserInfo)
     expect(getText('error')).toBe('null')
     expect(mockSaveTokens).toHaveBeenCalled()
   })
@@ -258,6 +251,7 @@ describe('AuthProvider — signIn', () => {
       </AuthProvider>,
     )
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    mockSaveTokens.mockClear()
 
     fireEvent.press(screen.getByTestId('signIn'))
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
@@ -291,7 +285,6 @@ describe('AuthProvider — signOut', () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
-      idToken: makeJwt({ sub: 'u1', name: 'Ada' }),
       expiryDate: new Date(Date.now() + 60 * 60 * 1000),
     })
 
@@ -310,7 +303,6 @@ describe('AuthProvider — signOut', () => {
     expect(mockSaveTokens).toHaveBeenCalledWith({
       accessToken: null,
       refreshToken: null,
-      idToken: null,
       expiryDate: null,
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
@@ -322,7 +314,6 @@ describe('AuthProvider — refresh lock', () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
-      idToken: makeJwt({ sub: 'u1' }),
       expiryDate: new Date(Date.now() - 1000),
     })
 

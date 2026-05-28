@@ -29,7 +29,6 @@ jest.mock('../../storage', () => ({
 const fullTokens: StoredTokens = {
   accessToken: 'access',
   refreshToken: 'refresh',
-  idToken: 'id',
   expiryDate: new Date('2030-01-01T00:00:00.000Z'),
 }
 
@@ -44,7 +43,6 @@ describe('saveTokens', () => {
     await saveTokens(fullTokens)
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken, 'access')
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken, 'refresh')
-    expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.idToken, 'id')
   })
 
   it('writes expiryDate as an ISO string under the MMKV_AUTH key', async () => {
@@ -56,10 +54,9 @@ describe('saveTokens', () => {
   })
 
   it('removes each secure value when its token is null', async () => {
-    await saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
+    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken)
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken)
-    expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.idToken)
     expect(secureStorage.set).not.toHaveBeenCalled()
   })
 
@@ -73,11 +70,9 @@ describe('saveTokens', () => {
     await saveTokens({
       accessToken: 'a',
       refreshToken: null,
-      idToken: 'i',
       expiryDate: new Date('2030-01-01T00:00:00.000Z'),
     })
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken, 'a')
-    expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.idToken, 'i')
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken)
   })
 })
@@ -92,7 +87,6 @@ describe('loadTokens', () => {
     expect(await loadTokens()).toEqual({
       accessToken: null,
       refreshToken: null,
-      idToken: null,
       expiryDate: null,
     })
   })

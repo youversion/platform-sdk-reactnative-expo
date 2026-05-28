@@ -3,14 +3,15 @@ import { fetch } from 'expo/fetch'
 import { getOrSetInstallationId } from '../installation-id'
 import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
-import { decodeIdToken } from './id-token'
+import { decodeIdToken, deriveUserInfo } from './id-token'
 import { generatePKCEParameters } from './pkce'
-import type { AuthScope } from './types'
+import type { AuthScope, YVUserInfo } from './types'
 
 export type SignInResult =
   | {
       kind: 'success'
       tokens: TokenResponse
+      userInfo: YVUserInfo
     }
   | { kind: 'cancel' }
 
@@ -78,7 +79,7 @@ export async function signInWithPKCE({
     throw new Error('Nonce mismatch - possible id_token replay')
   }
 
-  return { kind: 'success', tokens }
+  return { kind: 'success', tokens, userInfo: deriveUserInfo(tokens.id_token) }
 }
 
 async function obtainCodeFromCallback({

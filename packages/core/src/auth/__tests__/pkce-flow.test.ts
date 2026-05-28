@@ -68,7 +68,7 @@ function arrangeHappyPath() {
   mockExchange.mockResolvedValue({
     access_token: 'access',
     refresh_token: 'refresh',
-    id_token: makeJwt({ nonce: 'NONCE' }),
+    id_token: makeJwt({ nonce: 'NONCE', sub: 'u1', name: 'Ada' }),
     expires_in: '3600',
     token_type: 'Bearer',
   })
@@ -208,7 +208,7 @@ describe('signInWithPKCE — id_token validation', () => {
 })
 
 describe('signInWithPKCE — happy path', () => {
-  it('returns { kind: "success", tokens } and forwards code+verifier to exchangeCodeForTokens', async () => {
+  it('returns { kind: "success", tokens, userInfo } and forwards code+verifier to exchangeCodeForTokens', async () => {
     arrangeHappyPath()
     const result = await signInWithPKCE(defaultProps())
 
@@ -220,6 +220,7 @@ describe('signInWithPKCE — happy path', () => {
         expires_in: '3600',
         token_type: 'Bearer',
       }),
+      userInfo: { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined },
     })
     expect(mockExchange).toHaveBeenCalledWith({
       apiHost: 'api.example.com',

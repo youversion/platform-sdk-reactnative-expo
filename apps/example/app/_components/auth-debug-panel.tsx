@@ -12,7 +12,6 @@ export default function AuthDebugPanel() {
     refreshNow,
     error,
     accessToken,
-    idToken,
   } = useYVAuth()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -37,7 +36,6 @@ export default function AuthDebugPanel() {
       <Text style={styles.row}>Email: {userInfo?.email ?? '—'}</Text>
       <Text style={styles.row}>Avatar: {truncate(userInfo?.avatarUrl ?? null)}</Text>
       <Text style={styles.row}>Access token: {truncate(accessToken)}</Text>
-      <Text style={styles.row}>Id token: {truncate(idToken)}</Text>
       {error && <Text style={styles.error}>Error: {error.message}</Text>}
       <View style={styles.buttons}>
         <Pressable style={styles.button} onPress={() => signIn().catch(() => {})}>

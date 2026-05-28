@@ -14,7 +14,6 @@ describe('useYVAuth', () => {
     const value: AuthContextValue = {
       isAuthenticated: true,
       accessToken: 'a',
-      idToken: 'i',
       userInfo: { id: 'u1' },
       error: null,
       signIn: jest.fn(),

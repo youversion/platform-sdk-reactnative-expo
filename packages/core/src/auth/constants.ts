@@ -1,7 +1,6 @@
 export const SECURE_STORAGE_KEYS = {
   accessToken: 'yvp.accessToken',
   refreshToken: 'yvp.refreshToken',
-  idToken: 'yvp.idToken',
 } as const
 
 export const MMKV_AUTH_KEYS = {
