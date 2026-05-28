@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
-import { refreshTokens, type TokenResponse } from '../http'
+import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
 import type { AuthConfig } from '../types'
@@ -27,6 +27,7 @@ jest.mock('../token-storage', () => ({
 }))
 
 jest.mock('../http', () => ({
+  ...jest.requireActual('../http'),
   refreshTokens: jest.fn(),
 }))
 
@@ -306,6 +307,49 @@ describe('AuthProvider — signOut', () => {
       expiryDate: null,
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+  })
+})
+
+describe('AuthProvider — refresh failure policy', () => {
+  const expiredStored = {
+    accessToken: 'stored-access',
+    refreshToken: 'stored-refresh',
+    expiryDate: new Date(Date.now() - 1000),
+  }
+  const clearedTokens = { accessToken: null, refreshToken: null, expiryDate: null }
+
+  it('keeps tokens on a transient error (e.g. network failure) so the user can retry', async () => {
+    mockLoadTokens.mockResolvedValue(expiredStored)
+    mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('error')).toBe('Network request failed')
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('accessToken')).toBe('stored-access')
+    expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
+  })
+
+  it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
+    mockLoadTokens.mockResolvedValue(expiredStored)
+    mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('error')).toMatch(/401/)
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
   })
 })
 

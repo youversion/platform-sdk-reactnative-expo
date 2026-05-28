@@ -3,7 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native'
 import { mmkvStorage } from '../storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
-import { refreshTokens } from './http'
+import { refreshTokens, TokenEndpointError } from './http'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, YVUserInfo } from './types'
@@ -75,7 +75,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
         })
       } catch (e) {
-        await clearAuthState()
+        if (e instanceof TokenEndpointError && e.isRevoked) {
+          await clearAuthState()
+        }
         setError(e instanceof Error ? e : new Error(String(e)))
       } finally {
         isRefreshingRef.current = false

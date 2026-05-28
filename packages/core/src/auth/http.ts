@@ -1,5 +1,21 @@
 import { getOrSetInstallationId } from '../installation-id'
 
+export class TokenEndpointError extends Error {
+  readonly status: number
+
+  constructor(status: number, body: string) {
+    super(`Token endpoint returned ${status}: ${body}`)
+    this.name = 'TokenEndpointError'
+    this.status = status
+  }
+
+  // OAuth2: 400 (invalid_grant) or 401 means the refresh token is dead.
+  // Any other status (network throw, 5xx, etc.) is transient — leave tokens alone.
+  get isRevoked(): boolean {
+    return this.status === 400 || this.status === 401
+  }
+}
+
 export type TokenResponse = {
   access_token: string
   refresh_token: string
@@ -56,7 +72,7 @@ async function postTokenEndpoint(
   })
 
   if (!response.ok) {
-    throw new Error(`Token endpoint returned ${response.status}: ${await response.text()}`)
+    throw new TokenEndpointError(response.status, await response.text())
   }
 
   const data: unknown = await response.json()
