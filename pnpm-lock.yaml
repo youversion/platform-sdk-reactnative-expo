@@ -163,6 +163,9 @@ importers:
       '@youversion/platform-react-hooks':
         specifier: ^1.30.0
         version: 1.30.0(react@19.2.5)
+      '@youversion/platform-react-native-expo-core':
+        specifier: workspace:*
+        version: link:../core
       '@youversion/platform-react-ui':
         specifier: ^1.30.0
         version: 1.30.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.83.6(@babel/core@7.29.0)(@react-native/metro-config@0.85.2(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@5.9.3)

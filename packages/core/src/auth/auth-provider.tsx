@@ -49,7 +49,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setUserInfo(null)
     setIdToken(null)
     setError(null)
-    saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
+    await saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
   }, [])
 
   const refreshToken = useCallback(
