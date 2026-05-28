@@ -1,6 +1,6 @@
 <!-- TODO: banner image (e.g. ./assets/github-rn-sdk-banner.png) -->
 
-[![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
 
 # YouVersion Platform SDK for React Native (Expo)
 
@@ -10,31 +10,30 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 
 ## Table of Contents
 
-- [YouVersion Platform SDK for React Native (Expo)](#youversion-platform-sdk-for-react-native-expo)
-  - [Table of Contents](#table-of-contents)
-  - [Features](#features)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
-  - [Getting Started](#getting-started)
-  - [Usage](#usage)
-    - [Displaying Scripture](#displaying-scripture)
-    - [Bible Reader](#bible-reader)
-      - [Custom picker flows (escape hatch)](#custom-picker-flows-escape-hatch)
-    - [Verse of the Day](#verse-of-the-day)
-    - [Sign In](#sign-in)
-  - [Sample App](#sample-app)
-  - [Documentation](#documentation)
-  - [Contributing](#contributing)
-  - [Support](#support)
-  - [License](#license)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Installation](#installation)
+  - [Expo](#expo)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+  - [Displaying Scripture](#displaying-scripture)
+  - [Bible Reader](#bible-reader)
+  - [Verse of the Day](#verse-of-the-day)
+  - [Sign In](#sign-in)
+- [Sample App](#sample-app)
+- [For Different Use Cases](#for-different-use-cases)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
 
 ## Features
 
-- 📖 **Scripture Display** — drop-in React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- 📚 **Bible Reader** — a complete Bible reading experience inside your app with `BibleReader`, including built-in chapter and version pickers
-- 🌅 **Verse of the Day** — built-in `VerseOfTheDay` component
-- 🎨 **Theming** — `light` / `dark` / `system` themes, with per-component overrides
-- 📱 **Native presentation** — footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- 📖 **Scripture Display** - Drop-in React Native components for Bible passages with `BibleTextView` and `BibleCard`
+- 📚 **Bible Reader** - A complete Bible reading experience inside your app with `BibleReader`, including built-in chapter and version pickers
+- 🌅 **Verse of the Day** - Built-in `VerseOfTheDay` component
+- 🎨 **Theming** - `light` / `dark` / `system` themes, with per-component overrides
+- 📱 **Native presentation** - Footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
@@ -45,6 +44,8 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 
 ## Installation
 
+### Expo
+
 > [!NOTE]
 > This SDK is not yet published to npm. The install commands below are placeholders for the upcoming release.
 
@@ -54,7 +55,7 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 npx expo install @youversion/platform-react-native-expo
 ```
 
-Install the peer dependencies (Expo will pick versions compatible with your SDK):
+Install the required peer dependencies (Expo will pick versions compatible with your SDK):
 
 ```bash
 npx expo install @gorhom/bottom-sheet expo-secure-store \
@@ -63,6 +64,8 @@ npx expo install @gorhom/bottom-sheet expo-secure-store \
   react-native-nitro-modules react-native-reanimated \
   react-native-safe-area-context react-native-webview
 ```
+
+Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
 
 See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the canonical list.
 
@@ -180,7 +183,12 @@ function VotdScreen() {
 
 ## Sample App
 
-The [`apps/example`](./apps/example) directory contains a sample Expo Router app demonstrating the SDK.
+Explore the [`apps/example`](./apps/example) directory for a sample Expo Router app demonstrating:
+
+- Bible reader integration
+- Bible card and Scripture display
+- Verse of the Day
+- Provider and native dependency setup
 
 To run it:
 
@@ -197,12 +205,31 @@ pnpm build:ios       # or: pnpm build:android
 pnpm exec expo start --dev-client
 ```
 
+Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
+
+See the [Contributing Guide](./CONTRIBUTING.md) for additional local development setup.
+
+## For Different Use Cases
+
+### React Native SDK
+
+Building an Expo app for iOS or Android? This SDK provides React Native components including `BibleTextView`, `BibleCard`, `BibleReader`, and `VerseOfTheDay`, with native bottom-sheet presentation for mobile interactions.
+
+### API Integration
+
+Need direct access to YouVersion Platform APIs? See [our API documentation](https://developers.youversion.com/overview) for advanced integration patterns and REST endpoints.
+
+### LLM Integration
+
+Building AI applications with Bible content? Access YouVersion's LLM-optimized endpoints and structured data designed for language models. See [our LLM documentation](https://developers.youversion.com/for-llms) for details.
+
 ## Documentation
 
 <!-- TODO: link to RN SDK page on developers.youversion.com once published -->
 
 - [API Documentation](https://developers.youversion.com/overview) — REST API reference
 - [LLM Integration Guide](https://developers.youversion.com/for-llms) — AI/ML integration docs
+- [Sample Code](./apps/example) — Working examples and provider setup
 
 ## Contributing
 

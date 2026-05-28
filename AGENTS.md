@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Single published package `@youversion/platform-react-native-expo` in a pnpm/Turborepo monorepo.
+YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Single package `@youversion/platform-react-native-expo` in a pnpm/Turborepo monorepo.
 
 **Tech stack**: Expo SDK 55, React 19, TypeScript, pnpm 9, Turborepo
 
@@ -11,9 +11,13 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 ```bash
 pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
+cd apps/example && pnpm build:android # Android dev client alternative
 cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
 pnpm build                            # turbo build (all packages)
 pnpm typecheck                        # turbo typecheck (all packages)
+pnpm test                             # turbo test
+pnpm lint                             # eslint
+pnpm format:check                     # prettier check
 ```
 
 ## Project Structure
@@ -29,8 +33,9 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 
 ## Development Workflow
 
-- First build: `cd apps/example && pnpm build:ios` (or `build:android`) — creates a dev client with native modules
+- First native run: `cd apps/example && pnpm build:ios` (or `pnpm build:android`) — creates and installs a dev client with native modules
 - Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
+- Example app requires `EXPO_PUBLIC_YOUVERSION_APP_KEY` in the environment or an `.env` file
 - Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
 - **Expo Go is not supported** — requires a dev build
 
@@ -104,11 +109,13 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Runtime Dependencies
 
-Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`. Consumers must install peer dep `@gorhom/bottom-sheet`.
+Package dependencies are installed with `@youversion/platform-react-native-expo`: `@radix-ui/react-use-controllable-state`, `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, and `@youversion/platform-react-ui`.
+
+Native modules and app-owned framework packages are peer dependencies. Consumers must install the peer dependencies listed in `packages/ui/package.json` with Expo-compatible versions.
 
 ## Peer Dependencies
 
-See `packages/ui/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
+See `packages/ui/package.json` `peerDependencies` for the canonical list. This includes `@gorhom/bottom-sheet`, Expo/RN framework peers, `react-dom`, and native module peers such as gesture handler, Reanimated, MMKV/Nitro, safe area context, WebView, and Secure Store. Requires a dev build (not Expo Go).
 
 ## Testing
 
@@ -134,7 +141,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 ## Code Style
 
 - TypeScript strict mode
-- Single published package — keep all exports in `packages/ui/src/`
+- Single package — keep all exports in `packages/ui/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
 
