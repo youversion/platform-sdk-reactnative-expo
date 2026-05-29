@@ -32,6 +32,7 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 - 📖 **Scripture Display** - Drop-in React Native components for Bible passages with `BibleTextView` and `BibleCard`
 - 📚 **Bible Reader** - A complete Bible reading experience inside your app with `BibleReader`, including built-in chapter and version pickers
 - 🌅 **Verse of the Day** - Built-in `VerseOfTheDay` component
+- 🔐 **Sign in** - Optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - 🎨 **Theming** - `light` / `dark` / `system` themes, with per-component overrides
 - 📱 **Native presentation** - Footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
@@ -52,8 +53,10 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
 <!-- TODO: replace with real install once package is published -->
 
 ```bash
-npx expo install @youversion/platform-react-native-expo
+npx expo install @youversion/platform-react-native-expo-ui @youversion/platform-react-native-expo-core
 ```
+
+The UI package depends on core at runtime; install both so TypeScript resolves `@youversion/platform-react-native-expo-core` when you use auth APIs.
 
 Install the required peer dependencies (Expo will pick versions compatible with your SDK):
 
@@ -67,7 +70,7 @@ npx expo install @gorhom/bottom-sheet expo-secure-store \
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
 
-See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` for the canonical list.
+See [`packages/ui/package.json`](./packages/ui/package.json) and [`packages/core/package.json`](./packages/core/package.json) `peerDependencies` for the canonical lists.
 
 ## Getting Started
 
@@ -106,7 +109,7 @@ All components below read `appKey` from `YouVersionProvider`. Component-level `t
 Display a verse range or single verse with `BibleTextView`:
 
 ```tsx
-import { BibleTextView } from '@youversion/platform-react-native-expo'
+import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
 
 function VerseScreen() {
   return (
@@ -122,7 +125,7 @@ function VerseScreen() {
 Display a Bible card with a verse and reader controls:
 
 ```tsx
-import { BibleCard } from '@youversion/platform-react-native-expo'
+import { BibleCard } from '@youversion/platform-react-native-expo-ui'
 
 function CardScreen() {
   return (
@@ -142,7 +145,7 @@ function CardScreen() {
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader } from '@youversion/platform-react-native-expo'
+import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 
 function ReaderScreen() {
   return <BibleReader defaultVersionId={3034} />
@@ -169,7 +172,7 @@ The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersio
 ### Verse of the Day
 
 ```tsx
-import { VerseOfTheDay } from '@youversion/platform-react-native-expo'
+import { VerseOfTheDay } from '@youversion/platform-react-native-expo-ui'
 
 function VotdScreen() {
   return <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />
@@ -178,8 +181,45 @@ function VotdScreen() {
 
 ### Sign In
 
-> [!NOTE]
-> Sign-in / authentication support is **coming soon** to this SDK. For current availability and implementation guidance, contact [YouVersion Platform Support](https://platform.youversion.com/support).
+Authentication is optional. Pass an `auth` config to `YouVersionProvider`, register the same `redirectUri` in the [YouVersion Platform](https://platform.youversion.com/) console, and handle the OAuth redirect in your app (for example with an Expo Router screen at `app/callback.tsx`).
+
+```tsx
+import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
+import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import * as Linking from 'expo-linking'
+import { Button } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+
+export default function RootLayout() {
+  const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
+  const redirectUri = Linking.createURL('callback')
+
+  if (!appKey) return null
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <YouVersionProvider
+        appKey={appKey}
+        auth={{ redirectUri, scopes: ['profile', 'email'] }}
+      >
+        {/* your app */}
+      </YouVersionProvider>
+    </GestureHandlerRootView>
+  )
+}
+
+function SignInButton() {
+  const { isAuthenticated, isLoading, signIn, signOut } = useYVAuth()
+
+  if (isLoading) return null
+  if (isAuthenticated) {
+    return <Button title="Sign out" onPress={() => signOut()} />
+  }
+  return <Button title="Sign in with YouVersion" onPress={() => signIn()} />
+}
+```
+
+`useYVAuth` must be used under `YouVersionProvider` with the `auth` prop set. Tokens are stored in `expo-secure-store`; profile metadata is cached in MMKV. See [`apps/example`](./apps/example) for a working callback route and dev auth debug tab.
 
 ## Sample App
 
@@ -188,6 +228,7 @@ Explore the [`apps/example`](./apps/example) directory for a sample Expo Router 
 - Bible reader integration
 - Bible card and Scripture display
 - Verse of the Day
+- PKCE sign-in, OAuth callback handling, and an auth debug tab
 - Provider and native dependency setup
 
 To run it:
