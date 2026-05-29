@@ -13,7 +13,7 @@ pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
 cd apps/example && pnpm build:android # Android dev client alternative
 cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
-pnpm build                            # turbo build (all packages)
+pnpm build                            # turbo build task (source-only packages have no compile step)
 pnpm typecheck                        # turbo typecheck (all packages)
 pnpm test                             # turbo test
 pnpm lint                             # eslint
@@ -81,9 +81,9 @@ Portal via `@rn-primitives/portal` + a local zustand store in `native/native-she
 
 Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
 
-Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert: offscreen, no sheet chrome, no gestures, no pointer events, and no accessibility exposure until active.
+Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert. Android applies the offscreen/no-chrome/no-gestures/no-pointer-events treatment; iOS intentionally keeps the default closed host so `matchContents` WebViews can pre-warm and measure correctly (see `docs/adr/0006-inactive-sheet-inertness.md`).
 
-Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
+`NativeSheet` currently exposes `enableContentPanningGesture`, Android loader controls, and content styling. Add typed `@gorhom/bottom-sheet` keyboard pass-throughs only when a sheet needs them, and cover the native action/sheet contract in tests.
 
 ### FootnoteContent Pre-warming
 
@@ -129,7 +129,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 **Core** bundles: `expo-application`, `expo-crypto`, `expo-web-browser`.
 
-Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions.
+Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions. Expo SDK 55 apps should also include `@expo/dom-webview` for Expo DOM Components and `react-native-worklets` when using Reanimated 4.
 
 ## Peer Dependencies
 
