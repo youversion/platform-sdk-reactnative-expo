@@ -61,7 +61,7 @@ The UI package depends on core at runtime; install both so TypeScript resolves `
 Install the required peer dependencies (Expo will pick versions compatible with your SDK):
 
 ```bash
-npx expo install @gorhom/bottom-sheet expo-secure-store \
+npx expo install @gorhom/bottom-sheet @expo/dom-webview expo-secure-store \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
