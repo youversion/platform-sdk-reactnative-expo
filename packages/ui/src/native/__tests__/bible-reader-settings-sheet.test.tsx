@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 import { useShallow } from "zustand/react/shallow";
 
-import { mmkvStorage } from "../../lib/storage";
+import { mmkvStorage } from "@youversion/platform-react-native-expo-core";
 import { INTER_FONT, SOURCE_SERIF_FONT } from "../../lib/reader-fonts";
 import { useReaderSettingsStore } from "../../stores/reader-settings-store";
 import { BibleReaderSettingsSheet } from "../bible-reader-settings-sheet";

@@ -1,0 +1,97 @@
+import { getOrSetInstallationId } from '../installation-id'
+
+export class TokenEndpointError extends Error {
+  readonly status: number
+
+  constructor(status: number, body: string) {
+    super(`Token endpoint returned ${status}: ${body}`)
+    this.name = 'TokenEndpointError'
+    this.status = status
+  }
+
+  // OAuth2: 400 (invalid_grant) or 401 means the refresh token is dead.
+  // Any other status (network throw, 5xx, etc.) is transient — leave tokens alone.
+  get isRevoked(): boolean {
+    return this.status === 400 || this.status === 401
+  }
+}
+
+export type TokenResponse = {
+  access_token: string
+  refresh_token: string
+  id_token?: string
+  expires_in: string
+  token_type: string
+  scope?: string
+}
+
+export async function exchangeCodeForTokens(args: {
+  apiHost: string
+  appKey: string
+  code: string
+  codeVerifier: string
+  redirectUri: string
+}): Promise<TokenResponse> {
+  return postTokenEndpoint(args.apiHost, args.appKey, {
+    grant_type: 'authorization_code',
+    code: args.code,
+    redirect_uri: args.redirectUri,
+    client_id: args.appKey,
+    code_verifier: args.codeVerifier,
+  })
+}
+
+export async function refreshTokens(args: {
+  apiHost: string
+  appKey: string
+  refreshToken: string
+}): Promise<TokenResponse> {
+  return postTokenEndpoint(args.apiHost, args.appKey, {
+    grant_type: 'refresh_token',
+    refresh_token: args.refreshToken,
+    client_id: args.appKey,
+  })
+}
+
+async function postTokenEndpoint(
+  apiHost: string,
+  appKey: string,
+  body: Record<string, string>,
+): Promise<TokenResponse> {
+  const installationId = await getOrSetInstallationId()
+  const headers = new Headers({
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'X-YVP-App-Key': appKey,
+    'X-YVP-Installation-Id': installationId,
+  })
+
+  const response = await fetch(`https://${apiHost}/auth/token`, {
+    method: 'POST',
+    body: new URLSearchParams(body).toString(),
+    headers: headers,
+  })
+
+  if (!response.ok) {
+    throw new TokenEndpointError(response.status, await response.text())
+  }
+
+  const data: unknown = await response.json()
+  if (!isTokenResponse(data)) {
+    throw new Error('Token endpoint returned a malformed response')
+  }
+
+  return data
+}
+
+function isTokenResponse(response: unknown): response is TokenResponse {
+  if (typeof response !== 'object' || response === null) {
+    return false
+  }
+  const object = response as Record<string, unknown>
+  return (
+    typeof object.access_token === 'string' &&
+    typeof object.refresh_token === 'string' &&
+    typeof object.expires_in === 'string' &&
+    typeof object.token_type === 'string'
+  )
+}

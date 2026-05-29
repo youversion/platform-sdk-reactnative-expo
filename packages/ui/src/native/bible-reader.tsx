@@ -1,20 +1,21 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useState, useCallback } from 'react'
-import { Platform } from 'react-native'
-import BibleReaderDOM from '../dom/bible-reader'
-import FootnoteContent from '../dom/footnote-content'
-import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
-import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
-import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
-import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
-import { NativeSheet } from './native-sheet'
-import { useYouVersion } from './youversion-provider'
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type {
-  FootnoteData,
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
+  FootnoteData,
 } from '@youversion/platform-react-ui'
+import { useCallback, useState } from 'react'
+import { Platform } from 'react-native'
+import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
+import BibleReaderDOM from '../dom/bible-reader'
+import FootnoteContent from '../dom/footnote-content'
+import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
+import { NativeSheet } from './native-sheet'
+import { useTheme } from './youversion-provider'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -38,6 +39,8 @@ export type BibleReaderProps = Omit<
   | 'onVersionPickerPress'
   | 'theme'
   | 'style'
+  | 'apiHost'
+  | 'installationId'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -67,7 +70,8 @@ export function BibleReader({
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
-  const resolvedTheme = theme === 'system' ? context.theme : (theme ?? context.theme)
+  const themeContext = useTheme()
+  const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
@@ -100,17 +104,26 @@ export function BibleReader({
     setIsSettingsSheetOpen(true)
   }, [])
 
-  const handleBookChange = useCallback(async (b: string) => {
-    setBook(b)
-  }, [setBook])
+  const handleBookChange = useCallback(
+    async (b: string) => {
+      setBook(b)
+    },
+    [setBook],
+  )
 
-  const handleChapterChange = useCallback(async (c: string) => {
-    setChapter(c)
-  }, [setChapter])
+  const handleChapterChange = useCallback(
+    async (c: string) => {
+      setChapter(c)
+    },
+    [setChapter],
+  )
 
-  const handleVersionChange = useCallback(async (id: number) => {
-    setVersionId(id)
-  }, [setVersionId])
+  const handleVersionChange = useCallback(
+    async (id: number) => {
+      setVersionId(id)
+    },
+    [setVersionId],
+  )
 
   const onFootnotePress =
     Platform.OS !== 'web'
@@ -154,6 +167,8 @@ export function BibleReader({
     <>
       <BibleReaderDOM
         appKey={context.appKey}
+        apiHost={context.apiHost}
+        installationId={context.installationId}
         theme={resolvedTheme}
         book={book}
         chapter={chapter}
@@ -193,6 +208,8 @@ export function BibleReader({
             theme={resolvedTheme}
             fontSize={fontSize}
             appKey={context.appKey}
+            apiHost={context.apiHost}
+            installationId={context.installationId}
           />
         </NativeSheet>
       )}

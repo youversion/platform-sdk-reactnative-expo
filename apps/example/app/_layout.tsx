@@ -1,18 +1,18 @@
-import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
+import * as Linking from 'expo-linking'
 import { Stack } from 'expo-router'
-import { YouVersionProvider } from '@youversion/platform-react-native-expo'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import MissingAppKey from './_components/missing-app-key'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
+  const redirectUri = Linking.createURL('callback')
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {appKey ? (
-        <YouVersionProvider appKey={appKey}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          </Stack>
+        <YouVersionProvider appKey={appKey} auth={{ redirectUri, scopes: ['profile', 'email'] }}>
+          <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
       ) : (
         <MissingAppKey />

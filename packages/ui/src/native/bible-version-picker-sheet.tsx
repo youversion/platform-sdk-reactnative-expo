@@ -1,8 +1,9 @@
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useRef } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { NativeSheet } from './native-sheet'
-import { useYouVersion } from './youversion-provider'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
 const MUTED_BACKGROUND = {
@@ -28,6 +29,7 @@ export function BibleVersionPickerSheet({
   dom,
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
+  const theme = useTheme()
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,
@@ -39,8 +41,7 @@ export function BibleVersionPickerSheet({
 
   if (Platform.OS === 'web') return null
 
-  const resolvedTheme =
-    themeOverride === 'system' ? context.theme : (themeOverride ?? context.theme)
+  const resolvedTheme = themeOverride === 'system' ? theme : (themeOverride ?? theme)
   const pickerDom = {
     style: styles.dom,
     hideKeyboardAccessoryView: true,

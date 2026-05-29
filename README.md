@@ -75,7 +75,7 @@ See [`packages/ui/package.json`](./packages/ui/package.json) `peerDependencies` 
 2. **Wrap your app root** with `YouVersionProvider`:
 
 ```tsx
-import { YouVersionProvider } from '@youversion/platform-react-native-expo'
+import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {

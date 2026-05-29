@@ -1,45 +1,46 @@
-import { createContext, useContext, type ReactNode } from "react";
-import * as ReactNative from "react-native";
-import { resolveTheme } from "../lib/resolve-theme";
-import { NativeSheetProvider } from "./native-sheet";
+import {
+  YouVersionProvider as CoreYouVersionProvider,
+  type AuthConfig,
+} from '@youversion/platform-react-native-expo-core'
+import { createContext, useContext, type ReactNode } from 'react'
+import * as ReactNative from 'react-native'
+import { resolveTheme } from '../lib/resolve-theme'
+import { NativeSheetProvider } from './native-sheet'
 
-type Theme = "light" | "dark";
-export type YouVersionTheme = Theme | "system";
+type Theme = 'light' | 'dark'
+export type YouVersionTheme = Theme | 'system'
 
-type YouVersionContextValue = {
-  appKey: string;
-  theme: Theme;
-};
-
-const YouVersionContext = createContext<YouVersionContextValue | null>(null);
+const ThemeContext = createContext<Theme>('light')
 
 export type YouVersionProviderProps = {
-  appKey: string;
-  theme?: YouVersionTheme;
-  children: ReactNode;
-};
+  appKey: string
+  apiHost?: string
+  theme?: YouVersionTheme
+  auth?: AuthConfig
+  fallback?: ReactNode
+  children: ReactNode
+}
 
 export function YouVersionProvider({
   appKey,
-  theme = "light",
+  apiHost,
+  theme = 'light',
+  auth,
+  fallback,
   children,
 }: YouVersionProviderProps) {
-  const colorScheme = ReactNative.useColorScheme();
-  const resolvedTheme = resolveTheme(theme, colorScheme);
+  const colorScheme = ReactNative.useColorScheme()
+  const resolvedTheme = resolveTheme(theme, colorScheme)
 
   return (
-    <YouVersionContext.Provider value={{ appKey, theme: resolvedTheme }}>
-      <NativeSheetProvider>{children}</NativeSheetProvider>
-    </YouVersionContext.Provider>
-  );
+    <CoreYouVersionProvider appKey={appKey} apiHost={apiHost} auth={auth} fallback={fallback}>
+      <ThemeContext.Provider value={resolvedTheme}>
+        <NativeSheetProvider>{children}</NativeSheetProvider>
+      </ThemeContext.Provider>
+    </CoreYouVersionProvider>
+  )
 }
 
-export function useYouVersion() {
-  const context = useContext(YouVersionContext);
-  if (!context) {
-    throw new Error(
-      'YouVersionProvider is required. Wrap your app with <YouVersionProvider appKey="...">.',
-    );
-  }
-  return context;
+export function useTheme(): Theme {
+  return useContext(ThemeContext)
 }
