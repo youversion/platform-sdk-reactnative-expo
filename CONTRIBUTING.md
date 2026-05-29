@@ -78,8 +78,6 @@ From `apps/example/`:
 ```bash
 pnpm build:ios      # expo run:ios
 pnpm build:android  # expo run:android
-pnpm ios            # expo run:ios
-pnpm android        # expo run:android
 pnpm web            # expo start --web
 pnpm typecheck      # tsc --noEmit
 ```
