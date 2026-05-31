@@ -10,15 +10,6 @@ import {
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 
-let latestDomProps: {
-  book?: string
-  chapter?: string
-  versionId?: number
-  onBookChange?: (book: string) => Promise<void>
-  onChapterChange?: (chapter: string) => Promise<void>
-  onVersionChange?: (versionId: number) => Promise<void>
-} = {}
-
 jest.mock('../../dom/bible-reader', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View, Text, Pressable } = require('react-native')
@@ -32,7 +23,6 @@ jest.mock('../../dom/bible-reader', () => {
       onChapterChange?: (chapter: string) => Promise<void>
       onVersionChange?: (versionId: number) => Promise<void>
     }) {
-      latestDomProps = props
       return (
         <View testID="mock-dom">
           <Text testID="book">{props.book ?? 'none'}</Text>
@@ -140,7 +130,6 @@ async function seedReaderLocation(location: {
 
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
-    latestDomProps = {}
     await resetReaderLocationStore()
   })
 
