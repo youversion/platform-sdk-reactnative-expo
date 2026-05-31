@@ -42,6 +42,10 @@ _Avoid_: Nested action, callback object; bridging DOM-only visibility or animati
 The committed Bible location chosen from chapter picker content, represented as `book`, `chapter`, and `versionId`.
 _Avoid_: Passage id, USFM ref
 
+**Reader Location**:
+The last committed Bible location (`book`, `chapter`, `versionId`) a **Native Wrapper** restores on launch for uncontrolled readers. Same shape as **Picker Selection**, but names the persisted snapshot rather than the commit event.
+_Avoid_: Reader navigation, passage state
+
 **Picker Press**:
 The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.
 _Avoid_: Picker selection
@@ -94,7 +98,8 @@ _Avoid_: Bundled deps, vendored web SDK
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
 - **Inactive Sheet Inertness** constrains the normal **Native Sheet** pre-warming model: pre-warmed sheet content must not make inactive sheets visible or usable.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
-- A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location.
+- A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location and may update **Reader Location** when the reader is uncontrolled.
+- **Reader Location** is **Native-Owned State** persisted across app launches (MMKV); controlled `book` / `chapter` / `versionId` props remain the source of truth and are not overwritten by stored **Reader Location**.
 - A **Version Picker Press** opens version picker presentation; the sheet commits a new `versionId` via `onSelect`.
 - **Reader Controls** trigger a **Picker Press** or **Version Picker Press**, which by default opens the built-in **Chapter Picker Sheet** or **Version Picker Sheet** respectively.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.

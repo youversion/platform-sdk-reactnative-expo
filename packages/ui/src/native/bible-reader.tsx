@@ -5,11 +5,13 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
+import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
@@ -75,23 +77,61 @@ export function BibleReader({
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
+  const {
+    book: storedBook,
+    chapter: storedChapter,
+    versionId: storedVersionId,
+    setLocation,
+  } = useReaderLocationStore(
+    useShallow((s) => ({
+      book: s.book,
+      chapter: s.chapter,
+      versionId: s.versionId,
+      setLocation: s.setLocation,
+    })),
+  )
+
   const [book, setBook] = useControllableState({
     prop: controlledBook,
-    defaultProp: defaultBook,
+    defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: onBookChange,
   })
 
   const [chapter, setChapter] = useControllableState({
     prop: controlledChapter,
-    defaultProp: defaultChapter,
+    defaultProp:
+      controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: onChapterChange,
   })
 
   const [versionId, setVersionId] = useControllableState({
     prop: controlledVersionId,
-    defaultProp: defaultVersionId,
+    defaultProp:
+      controlledVersionId !== undefined
+        ? defaultVersionId
+        : (storedVersionId ?? defaultVersionId),
     onChange: onVersionChange,
   })
+
+  useEffect(() => {
+    const readerLocationToPersist: { book?: string; chapter?: string; versionId?: number } = {}
+    if (controlledBook === undefined && book != null) readerLocationToPersist.book = book
+    if (controlledChapter === undefined && chapter != null) {
+      readerLocationToPersist.chapter = chapter
+    }
+    if (controlledVersionId === undefined && versionId != null) {
+      readerLocationToPersist.versionId = versionId
+    }
+    if (Object.keys(readerLocationToPersist).length > 0) setLocation(readerLocationToPersist)
+  }, [
+    book,
+    chapter,
+    versionId,
+    controlledBook,
+    controlledChapter,
+    controlledVersionId,
+    setLocation,
+  ])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
