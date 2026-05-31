@@ -28,15 +28,18 @@ export function parseStoredVersionId(value: unknown): number | null {
   return value
 }
 
+function isRecord(value: object): value is Record<string, unknown> {
+  return !Array.isArray(value)
+}
+
 export function parseStoredLocation(value: unknown): ReaderLocationFields {
-  if (value == null || typeof value !== 'object') {
+  if (value == null || typeof value !== 'object' || !isRecord(value)) {
     return { book: null, chapter: null, versionId: null }
   }
 
-  const record = value as Record<string, unknown>
   return {
-    book: parseStoredBook(record.book),
-    chapter: parseStoredChapter(record.chapter),
-    versionId: parseStoredVersionId(record.versionId),
+    book: parseStoredBook(value.book),
+    chapter: parseStoredChapter(value.chapter),
+    versionId: parseStoredVersionId(value.versionId),
   }
 }
