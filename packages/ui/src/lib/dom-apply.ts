@@ -13,3 +13,7 @@ export function applySDKConfig(config: {
     localStorage.setItem('x-yvp-installation-id', config.installationId)
   }
 }
+
+export function applyAuthToken(accessToken: string | null) {
+  YouVersionPlatformConfiguration.saveAuthData(accessToken, null, null, null)
+}
