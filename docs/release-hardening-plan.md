@@ -1,12 +1,23 @@
 # Release Hardening Plan — YPE-2789
 
-Engineering plan for hardening (and, as it turns out, *building*) the manual release procedure for `@youversion/platform-react-native-expo`. Mirrors the pattern shipped in `platform-sdk-swift` under [YPE-2684](https://github.com/youversion/platform-sdk-swift), adapted for npm + pnpm + Expo.
+Engineering plan for hardening (and, as it turns out, *building*) the manual release procedure for this repo's two publishable npm packages. Mirrors the pattern shipped in `platform-sdk-swift` under [YPE-2684](https://github.com/youversion/platform-sdk-swift), adapted for npm + pnpm + Expo + a multi-package workspace.
 
 This doc is the deliverable from the last AC item of YPE-2789. Implementation work follows the plan herein.
 
 ## Goal
 
-A single human-dispatched workflow that ships a chosen semver to GitHub (tag + release) and npm (`@youversion/platform-react-native-expo`), recoverable from any partial failure by re-dispatching the **same version** — no manual git/npm cleanup.
+A single human-dispatched workflow that ships a chosen semver to GitHub (tag + release) and npm — across **both** publishable packages in this workspace — recoverable from any partial failure by re-dispatching the **same version** with no manual git/npm cleanup.
+
+## Publishable packages
+
+The workspace publishes two packages, in dependency order:
+
+1. **`@youversion/platform-react-native-expo-core`** at `packages/core/`
+2. **`@youversion/platform-react-native-expo-ui`** at `packages/ui/` — depends on `…-core` via `workspace:*`
+
+Both ship at the same version on each release; they are version-locked the same way the Swift SDK's four podspecs are. This is the npm analog of Swift's `Core → UI → Reader → Umbrella` chain (two links instead of four).
+
+`workspace:*` is rewritten to the published version by pnpm at `pnpm publish` time. The release script verifies the rewrite landed in the published tarball.
 
 ## Current state (assessed)
 
@@ -18,7 +29,7 @@ The Swift SDK's parent ticket (YPE-2684) assumed an existing pipeline to harden.
 - No `NPM_TOKEN` or OIDC publish wiring in any workflow.
 - No `commit-lint.yml` workflow; no `commitlint.config.js`.
 - No `RELEASING.md` or `RELEASE-RUNBOOK.md`.
-- The publishable package (`packages/ui/`) has `main: src/index.ts` — no build output, no `dist/`. The package has never been published; current version is `0.0.1`.
+- Both publishable packages (`packages/core/`, `packages/ui/`) have `main: src/index.ts` — no build output, no `dist/`. Neither has ever been published; both are at the placeholder `0.0.1`.
 - Conventional-commit hygiene on `main` is good by convention but unenforced.
 
 YPE-2789's real scope is therefore "**build the manual release pipeline AND ship it hardened from day one**." The upside of this larger scope is that hardening informs the initial design instead of being retrofitted onto a fragile pipeline.
@@ -55,22 +66,27 @@ These are the npm/pnpm/Expo failure shapes that need first-class handling — th
 
 ## Phased work breakdown
 
-### Phase 1 — Build infrastructure (`packages/ui/`)
+### Phase 1 — Build infrastructure (both packages)
 
-Adds a real build step so we have something to publish.
+Adds a real build step so we have something to publish. Applies symmetrically to `packages/core/` and `packages/ui/`.
 
-- **`packages/ui/tsconfig.build.json`** — emits to `packages/ui/dist/`. Declarations + JS.
-- **`packages/ui/package.json`** — set `main: dist/index.js`, `types: dist/index.d.ts`, `files: ["dist"]`, add `"build": "tsc -p tsconfig.build.json"` script. Keep `version: 0.0.1` as the "Dev" baseline; release script overwrites it.
-- **Turbo wiring** — add `build` task to `turbo.json` (or extend existing) so `turbo run build --filter @youversion/platform-react-native-expo` works.
-- **Sanity gate** — Build verifies in CI on PRs (extends `ci.yml`).
+- **`packages/<pkg>/tsconfig.build.json`** — emits ESM + types to `packages/<pkg>/dist/`. Excludes `__tests__` (the default `tsconfig.json` includes them for typecheck/jest). Per the build-target decision, ESM-only + `.d.ts` — single output module format.
+- **`packages/<pkg>/package.json`** — set `main: dist/index.js`, `types: dist/index.d.ts`, `files: ["dist"]`, add `"build": "tsc -p tsconfig.build.json"` script. Keep `version: 0.0.1` as the "Dev" baseline; release script overwrites it at publish time.
+- **`turbo.json`** — already has a `build` task with `outputs: ["dist/**"]`. Adding a `build` script to each package automatically activates it. The `^build` dependency on typecheck/test already enforces that core builds before ui.
+- **`ci.yml`** — extend the existing workflow with a `build` job that runs `pnpm -r run build` so the new build step is gated on PRs.
 
 ### Phase 2 — Version-stamping
 
-Equivalent of Swift's `SDKVersion.swift` "Dev" sentinel pattern.
+Equivalent of Swift's `SDKVersion.swift` "Dev" sentinel pattern. The sentinel lives in `core` only — `ui` consumers can read it through their core dependency, so we don't duplicate.
 
-- **`packages/ui/src/version.ts`** — exports `export const SDK_VERSION = "Dev";`. Surfaceable to consumers if any want it; the value is the trigger for our "is this a Dev or released build?" check.
-- **`scripts/stamp-version.sh`** — writes the chosen version into both `packages/ui/package.json#version` and `packages/ui/src/version.ts`. Idempotent.
-- **`scripts/restore-dev-sdk-on-main.sh`** — resets `version.ts` to `"Dev"` on main after a successful release. Skips if already at `"Dev"` and tag is reachable from HEAD.
+- **`packages/core/src/version.ts`** — exports `export const SDK_VERSION = "Dev";`. The value is the trigger for our "is this a Dev or released build?" check during Dev-restore.
+- **`scripts/stamp-version.sh`** — writes the chosen version into:
+  - `packages/core/package.json#version`
+  - `packages/ui/package.json#version`
+  - `packages/core/src/version.ts` (SDK_VERSION constant)
+  
+  Idempotent — same inputs ⇒ same outputs. Driven by `npm pkg set` for the package.jsons and a focused sed for the TS constant.
+- **`scripts/restore-dev-sdk-on-main.sh`** — resets `core/src/version.ts` to `"Dev"` (and leaves package.json versions alone — those track the release). Skips if already at `"Dev"` AND the tag is reachable from HEAD.
 
 ### Phase 3 — Release scripts (`scripts/`)
 
@@ -81,11 +97,14 @@ Mirror the Swift script layout, adapted for npm.
   - Detect resume via `git ls-remote origin refs/tags/$VERSION`. If resume: checkout tag detached, overlay `scripts/` from `origin/main`, derive `$PREV_TAG`, regenerate notes.
   - If fresh: stamp version, build, generate notes, commit X (chore(release): $VERSION), tag, push X+tag.
   - Post-tag (idempotent in either path): GitHub release create, publish to npm, Dev-restore commit Y, push Y.
-- **`scripts/publish-npm.sh`** — bounded retry + idempotency.
-  - Pre-check via `npm view @youversion/platform-react-native-expo@$VERSION`. Skip publish if present.
-  - 2 attempts × 30s backoff.
-  - Classify stderr: transient signatures (`ETIMEDOUT`, `ECONNRESET`, `EAI_AGAIN`, `5\d\d`, `network`, `Could not resolve host`, provenance-attestation errors) → retry; hard signatures (`EAUTH`, `E401`, `EUNAUTHORIZED`, `EPRIVATE`, `E403`, `EINVALIDTAGNAME`, `EINVALIDPACKAGENAME`) → abort.
-  - On non-zero exit: re-check via `npm view`. If the version is now present, treat as success-after-the-fact (the `EPUBLISHCONFLICT` case from the AC).
+- **`scripts/publish-npm.sh`** — bounded retry + idempotency, applied to each package in dependency order.
+  - Iterates the package list in order: `core` first, then `ui`. Mirrors the Swift script's dependency-ordered pod loop.
+  - Per package:
+    - Pre-check via `npm view @youversion/platform-react-native-expo-<name>@$VERSION`. Skip publish if already present.
+    - 2 attempts × 30s backoff.
+    - Classify stderr: transient signatures (`ETIMEDOUT`, `ECONNRESET`, `EAI_AGAIN`, `5\d\d`, `network`, `Could not resolve host`, provenance-attestation errors) → retry; hard signatures (`EAUTH`, `E401`, `EUNAUTHORIZED`, `EPRIVATE`, `E403`, `EINVALIDTAGNAME`, `EINVALIDPACKAGENAME`) → abort.
+    - On non-zero exit: re-check via `npm view`. If the version is now present, treat as success-after-the-fact (the `EPUBLISHCONFLICT` case from the AC).
+  - Use `pnpm publish` (not raw `npm publish`) so `workspace:*` deps in `ui`'s package.json get rewritten to the actual core version in the published tarball. The release script verifies the rewrite by inspecting the published tarball's package.json after the fact.
 - **`scripts/generate-release-notes.mjs`** — port directly from Swift's `scripts/generate-release-notes.mjs`. Uses `@semantic-release/release-notes-generator` against a commit range; emits `notes.md`.
 - **`scripts/preview-release.mjs`** — port directly from Swift's. Used by commit-lint to show the predicted next version on every PR.
 - **`scripts/release-validate.mjs`** — semver + ≥ current-tag validation. Port + adapt.
@@ -119,7 +138,8 @@ Mirror the Swift script layout, adapted for npm.
   7. **Wrong `VERSION` input** (invalid semver, or ≤ current tag, or skips a major)
   8. **GitHub release create fails after tag pushed**
   9. **Dev-restore push fails because main diverged**
-  10. **Partial pnpm-workspace publish** (in case we ever publish more than one package)
+  10. **Partial workspace publish** — `core` published but `ui` failed (or vice versa). The publish script's per-package idempotency check handles re-dispatch.
+  11. **`workspace:*` did not get rewritten in the published `ui` tarball** — defensive check + recovery (unpublish + republish or release a patch).
 - Update `AGENTS.md` and `CONTRIBUTING.md` to link to RELEASING.md + RELEASE-RUNBOOK.md.
 
 ### Phase 7 — Required CI gates
@@ -167,13 +187,13 @@ Adding to that for clarity:
 
 | Phase | Approx. time |
 |---|---|
-| Build infrastructure | 1–2h |
-| Version-stamping | 1h |
-| Release scripts (porting + adapting) | 3–4h |
+| Build infrastructure (×2 packages) | 1.5–2.5h |
+| Version-stamping (×2 packages) | 1–1.5h |
+| Release scripts (porting + adapting + dual-pkg loop) | 4–5h |
 | Workflows | 2h |
 | commitlint config + workflow | 1h |
 | Docs (RELEASING + RELEASE-RUNBOOK) | 2–3h |
-| **Subtotal** | **10–13h** |
+| **Subtotal** | **11.5–15h** |
 
 Plus PR review and any iteration. Realistic total: 1.5–2 days of focused work.
 
