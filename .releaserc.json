@@ -1,0 +1,19 @@
+{
+  "_comment_": "Configuration file read by scripts/preview-release.mjs and scripts/generate-release-notes.mjs. We do NOT run semantic-release as a CLI here — release orchestration lives in scripts/release.sh. This file exists so the analyzer + release-notes-generator plugins are configured identically across PR previews and release-time notes generation.",
+  "branches": ["main"],
+  "tagFormat": "${version}",
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ]
+  ]
+}
