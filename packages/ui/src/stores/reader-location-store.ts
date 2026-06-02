@@ -53,15 +53,15 @@ export const useReaderLocationStore = create<ReaderLocationState>()(
 
         if (patch.book !== undefined) {
           const parsed = parseStoredBook(patch.book)
-          if (parsed != null) next.book = parsed
+          if (parsed !== null) next.book = parsed
         }
         if (patch.chapter !== undefined) {
           const parsed = parseStoredChapter(patch.chapter)
-          if (parsed != null) next.chapter = parsed
+          if (parsed !== null) next.chapter = parsed
         }
         if (patch.versionId !== undefined) {
           const parsed = parseStoredVersionId(patch.versionId)
-          if (parsed != null) next.versionId = parsed
+          if (parsed !== null) next.versionId = parsed
         }
 
         if (Object.keys(next).length === 0) return
