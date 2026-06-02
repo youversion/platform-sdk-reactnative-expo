@@ -8,8 +8,23 @@ A React Native SDK for integrating with the YouVersion Platform, to display Bibl
 
 Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`), wrapping web components as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/) while providing native affordances (bottom sheets, navigation, storage) through React Native.
 
+## For Different Use Cases
+
+### React Native SDK
+
+Building an Expo app for iOS or Android? This SDK provides React Native components including `BibleTextView`, `BibleCard`, `BibleReader`, and `VerseOfTheDay`, with native bottom-sheet presentation for mobile interactions.
+
+### API Integration
+
+Need direct access to YouVersion Platform APIs? See [our API documentation](https://developers.youversion.com/overview) for advanced integration patterns and REST endpoints.
+
+### LLM Integration
+
+Building AI applications with Bible content? Access YouVersion's LLM-optimized endpoints and structured data designed for language models. See [our LLM documentation](https://developers.youversion.com/for-llms) for details.
+
 ## Table of Contents
 
+- [For Different Use Cases](#for-different-use-cases)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
@@ -21,7 +36,6 @@ Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-r
   - [Verse of the Day](#verse-of-the-day)
   - [Sign In](#sign-in)
 - [Sample App](#sample-app)
-- [For Different Use Cases](#for-different-use-cases)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
 - [Support](#support)
@@ -249,20 +263,6 @@ pnpm exec expo start --dev-client
 Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
 
 See the [Contributing Guide](./CONTRIBUTING.md) for additional local development setup.
-
-## For Different Use Cases
-
-### React Native SDK
-
-Building an Expo app for iOS or Android? This SDK provides React Native components including `BibleTextView`, `BibleCard`, `BibleReader`, and `VerseOfTheDay`, with native bottom-sheet presentation for mobile interactions.
-
-### API Integration
-
-Need direct access to YouVersion Platform APIs? See [our API documentation](https://developers.youversion.com/overview) for advanced integration patterns and REST endpoints.
-
-### LLM Integration
-
-Building AI applications with Bible content? Access YouVersion's LLM-optimized endpoints and structured data designed for language models. See [our LLM documentation](https://developers.youversion.com/for-llms) for details.
 
 ## Documentation
 
