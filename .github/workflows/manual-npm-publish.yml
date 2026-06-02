@@ -1,0 +1,84 @@
+name: Manual npm Publish
+
+# Idempotent re-run of just the publish step. Use when a release.yml
+# dispatch reached the tag-push + GitHub-release stages but the npm
+# publish step failed — re-dispatching the full release.yml works (it's
+# resumable), but this is the surgical option when you only need to retry
+# publish and don't want to re-walk the whole pipeline.
+#
+# Safe to dispatch repeatedly against the same version: publish-npm.sh
+# pre-checks `npm view <pkg>@<version>` per package and skips if the
+# version is already on the registry.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The published tag/version to re-publish (must already exist on origin as a tag, e.g. 0.1.0)."
+        required: true
+        type: string
+      dist-tag:
+        description: "npm dist-tag to publish under (defaults to `latest`)."
+        required: false
+        type: string
+        default: latest
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: manual-npm-publish-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # Check out the tag, not main — we publish the exact tagged
+          # tree, not whatever main happens to look like right now.
+          ref: refs/tags/${{ inputs.version }}
+
+      - uses: ./.github/actions/setup
+
+      - name: Configure npm registry for publish
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: 'package.json'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Build publishable packages
+        # `pnpm publish` reads from each package's dist/ output (the
+        # publishConfig swap), so the tagged tree's TS source must be
+        # built into dist/ before we hand off to publish-npm.sh.
+        run: pnpm exec turbo run build
+
+      - name: Verify tag content matches inputs.version
+        # Sanity check: refuse to publish a tag whose stamped manifest
+        # version disagrees with the workflow input. Mirrors release.sh's
+        # tag-content verification on resume.
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -e
+          CORE_VER=$(node -p "require('./packages/core/package.json').version")
+          UI_VER=$(node -p "require('./packages/ui/package.json').version")
+          if [ "$CORE_VER" != "$VERSION" ] || [ "$UI_VER" != "$VERSION" ]; then
+            echo "❌ Tag tree disagrees with input." >&2
+            echo "   inputs.version=$VERSION  core=$CORE_VER  ui=$UI_VER" >&2
+            exit 1
+          fi
+          echo "✓ Tag tree manifests both read $VERSION."
+
+      - name: Publish to npm
+        env:
+          VERSION: ${{ inputs.version }}
+          DIST_TAG: ${{ inputs.dist-tag }}
+          PROVENANCE: "1"
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: bash scripts/publish-npm.sh

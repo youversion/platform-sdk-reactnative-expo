@@ -26,6 +26,12 @@ set -euo pipefail
 VERSION="${VERSION:-${1:-}}"
 DIST_TAG="${DIST_TAG:-latest}"
 DRY_RUN="${DRY_RUN:-0}"
+# PROVENANCE=1 appends `--provenance` to pnpm publish so npm generates a
+# signed attestation linking the tarball to this GitHub Actions run. Set
+# by release.yml / manual-npm-publish.yml when `id-token: write` is
+# granted. Off by default so local dry-runs and NPM_TOKEN-only setups
+# don't fail on the missing OIDC env vars.
+PROVENANCE="${PROVENANCE:-0}"
 
 if [ -z "$VERSION" ]; then
   echo "❌ VERSION env var is required" >&2
@@ -79,8 +85,13 @@ publish_one() {
     return 0
   fi
 
+  local provenance_flag=""
+  if [ "$PROVENANCE" = "1" ]; then
+    provenance_flag="--provenance"
+  fi
+
   if [ "$DRY_RUN" = "1" ]; then
-    echo "  🧪 DRY_RUN=1 — would run: pnpm --filter $pkg_name publish --tag $DIST_TAG --access public --no-git-checks"
+    echo "  🧪 DRY_RUN=1 — would run: pnpm --filter $pkg_name publish --tag $DIST_TAG --access public --no-git-checks $provenance_flag"
     return 0
   fi
 
@@ -96,10 +107,14 @@ publish_one() {
     # tree and we run from a detached tag head on resume.
     # `--access public` is required for the first publish of a scoped
     # package; a no-op after that.
+    # `--provenance` (when PROVENANCE=1) generates a signed attestation
+    # linking the tarball to this CI run. Needs `id-token: write` granted
+    # by the workflow, plus npm registry support — release.yml sets both.
     pnpm --filter "$pkg_name" publish \
       --tag "$DIST_TAG" \
       --access public \
       --no-git-checks \
+      $provenance_flag \
       > "$out" 2>&1
     local rc=$?
     set -e
