@@ -3,7 +3,9 @@
   "version": "0.0.1",
   "main": "src/index.ts",
   "types": "src/index.ts",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "main": "dist/index.js",
     "types": "dist/index.d.ts"
