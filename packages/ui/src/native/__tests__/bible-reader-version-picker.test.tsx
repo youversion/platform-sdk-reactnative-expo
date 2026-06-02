@@ -1,6 +1,11 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import {
+  readerLocationStoreInitialState,
+  useReaderLocationStore,
+} from '../../stores/reader-location-store'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 import type {
@@ -136,8 +141,11 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 describe('BibleReader version picker integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     latestDomProps = {}
+    mmkvStorage.clearAll()
+    useReaderLocationStore.setState(readerLocationStoreInitialState)
+    await useReaderLocationStore.persist.rehydrate()
   })
 
   it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
