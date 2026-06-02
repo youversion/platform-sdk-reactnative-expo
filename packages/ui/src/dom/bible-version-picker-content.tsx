@@ -49,7 +49,7 @@ export default function VersionPickerContentDOM({
 
     updateKeyboardOverlap()
     viewport.addEventListener('resize', updateKeyboardOverlap)
-    viewport.addEventListener('scroll', updateKeyboardOverlap)
+    viewport.addEventListener('scroll', updateKeyboardOverlap, { passive: true })
     root.addEventListener('focusin', handleFocusIn)
 
     return () => {

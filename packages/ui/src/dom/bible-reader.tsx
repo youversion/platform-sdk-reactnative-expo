@@ -44,6 +44,8 @@ export type BibleReaderProps = {
   dom?: import('expo/dom').DOMProps
 }
 
+const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
+
 export default function BibleReaderDOM({
   appKey,
   apiHost,
@@ -68,7 +70,6 @@ export default function BibleReaderDOM({
   foregroundColor,
 }: BibleReaderProps) {
   applySDKConfig({ appKey, apiHost, installationId })
-  const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 

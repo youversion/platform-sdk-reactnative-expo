@@ -28,8 +28,8 @@ export default function AuthDebugPanel() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>DEV — Auth state</Text>
-      {isLoading && <Text style={styles.row}>loading...</Text>}
+      <Text style={styles.title}>DEV: Auth state</Text>
+      {isLoading && <Text style={styles.row}>loading…</Text>}
       <Text style={styles.row}>Signed in: {isAuthenticated ? 'yes' : 'no'}</Text>
       <Text style={styles.row}>User id: {userInfo?.id ?? '—'}</Text>
       <Text style={styles.row}>Name: {userInfo?.name ?? '—'}</Text>
@@ -49,7 +49,7 @@ export default function AuthDebugPanel() {
           disabled={isRefreshing}
           onPress={() => handleRefresh().catch(() => {})}
         >
-          <Text style={styles.buttonText}>{isRefreshing ? 'Refreshing...' : 'Refresh'}</Text>
+          <Text style={styles.buttonText}>{isRefreshing ? 'Refreshing…' : 'Refresh'}</Text>
         </Pressable>
       </View>
     </View>
