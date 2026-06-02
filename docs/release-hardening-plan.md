@@ -1,8 +1,23 @@
-# Release Hardening Plan — YPE-2789
+# Release Hardening Plan — YPE-2790
 
 Engineering plan for hardening (and, as it turns out, *building*) the manual release procedure for this repo's two publishable npm packages. Mirrors the pattern shipped in `platform-sdk-swift` under [YPE-2684](https://github.com/youversion/platform-sdk-swift), adapted for npm + pnpm + Expo + a multi-package workspace.
 
-This doc is the deliverable from the last AC item of YPE-2789. Implementation work follows the plan herein.
+This doc is the deliverable from the last AC item of YPE-2790. Implementation work follows the plan herein.
+
+> **Note on commit history.** Phase 1 → Phase 3 commits (3a2d798 through cbc3f58) reference ticket `YPE-2789` in their subject lines. That number was an early misattribution — the correct ticket for this repo is **YPE-2790** (Harden and document manual release procedure — React Native SDK). The PR description links the correct ticket; fixing-forward instead of rewriting history. New commits from this point on reference YPE-2790.
+
+## RN-specific AC items (vs. the React-Web SDK ticket)
+
+YPE-2790's AC adds four React-Native-specific items above what the sibling React-Web ticket (YPE-2789) asks for. After scoping this repo:
+
+| AC item | Disposition |
+|---|---|
+| Native artifact verification (iOS/Android source stamps drift) | **No-op for the current SDK** — the publishable packages are pure TypeScript with no `.h` / `.m` / `.swift` / `.kt` / `.java` / `.podspec` / `.gradle` files and no `ios/` / `android/` directories. Runbook will document "if native sources are ever added, the stamp script must extend to them." |
+| Hermes / new arch / old arch atomic publish | **No-op for the current SDK** — no arch-specific artifacts shipped. Runbook note only. |
+| Codegen artifacts in tarball (TS types / native specs) | **Partial** — there are no codegen specs to verify, but the published tarball *does* contain `.d.ts` files emitted by the build. The post-publish verification reduces to "did `dist/index.d.ts` make it into the tarball?" which is already enforced by the `files: ["dist"]` whitelist + build job on CI. |
+| Peer-dep version-skew runbook section | **Real, kept.** RN/Expo peer-deps are wide and version-pinned (`react-native >= 0.83.0`, `expo >= 55.0.0 < 56.0.0`, etc.). A consumer pinning to a peer-dep version this SDK doesn't support is a real support burden; covered in Phase 6's runbook. |
+
+If a future PR adds native code (Expo Module / TurboModule / podspec/build.gradle artifacts), the relevant verification steps and runbook sections will need to be added at that time.
 
 ## Goal
 
@@ -32,7 +47,7 @@ The Swift SDK's parent ticket (YPE-2684) assumed an existing pipeline to harden.
 - Both publishable packages (`packages/core/`, `packages/ui/`) have `main: src/index.ts` — no build output, no `dist/`. Neither has ever been published; both are at the placeholder `0.0.1`.
 - Conventional-commit hygiene on `main` is good by convention but unenforced.
 
-YPE-2789's real scope is therefore "**build the manual release pipeline AND ship it hardened from day one**." The upside of this larger scope is that hardening informs the initial design instead of being retrofitted onto a fragile pipeline.
+YPE-2790's real scope is therefore "**build the manual release pipeline AND ship it hardened from day one**." The upside of this larger scope is that hardening informs the initial design instead of being retrofitted onto a fragile pipeline.
 
 ## Source pattern reference (Swift YPE-2684)
 
@@ -140,6 +155,8 @@ Mirror the Swift script layout, adapted for npm.
   9. **Dev-restore push fails because main diverged**
   10. **Partial workspace publish** — `core` published but `ui` failed (or vice versa). The publish script's per-package idempotency check handles re-dispatch.
   11. **`workspace:*` did not get rewritten in the published `ui` tarball** — defensive check + recovery (unpublish + republish or release a patch).
+  12. **Peer-dep version skew with consumer projects** (RN-specific) — consumer pinned to a `react-native` / `expo` / `react-native-reanimated` / `react-native-mmkv` version this SDK's `peerDependencies` range doesn't include. Symptom is a consumer-side install error or a runtime crash on import. Recovery: consumer upgrades their peer-dep, OR we publish a patch with a wider `peerDependencies` range.
+  13. **Future-native checklist** (RN-specific, currently no-op) — if native sources, codegen specs, or arch-specific artifacts get added to the SDK, the runbook entries for "iOS/Android source stamps mismatch", "codegen output missing from tarball", and "Hermes / new arch / old arch partial publish" become live. They're stubbed out today.
 - Update `AGENTS.md` and `CONTRIBUTING.md` to link to RELEASING.md + RELEASE-RUNBOOK.md.
 
 ### Phase 7 — Required CI gates
@@ -166,7 +183,7 @@ Out-of-band step for a repo admin; called out in the PR description.
 ## Open questions
 
 1. **Auth path.** The cleanest publish surface is OIDC + provenance, but it requires this repo to be part of the org's npm-publish trust policy. Is that set up, or do we need to start with `NPM_TOKEN`? If the latter, we still wire OIDC as the future-default in the workflow with a feature-flagged switch.
-2. **Scope of "BREAKING CHANGE requires manual approval"** (the last line of YPE-2789's ticket body). This phrasing matches the breaking-change signoff gate we just shipped in Swift under [YPE-2521](https://github.com/youversion/platform-sdk-swift/pull/144). Is that gate **in scope for YPE-2789**, or is it a separate sibling ticket pending? The pattern ports cleanly — a `.github/workflows/major-release-signoff.yml` analog using the same matcher logic — and the same parent Notion doc explicitly says the gate will replicate to React Native. Flagging so we can either include it in this PR or open a sibling ticket.
+2. **Scope of "BREAKING CHANGE requires manual approval"** (the last line of YPE-2790's ticket body). This phrasing matches the breaking-change signoff gate we just shipped in Swift under [YPE-2521](https://github.com/youversion/platform-sdk-swift/pull/144). Is that gate **in scope for YPE-2790**, or is it a separate sibling ticket pending? The pattern ports cleanly — a `.github/workflows/major-release-signoff.yml` analog using the same matcher logic — and the same parent Notion doc explicitly says the gate will replicate to React Native. Flagging so we can either include it in this PR or open a sibling ticket.
 3. **`dist-tag` default.** `latest` is the safe default for the first published version. Once we ship a `next` / `beta` channel (whenever that's a real need), the resume-mode preservation logic gets exercised. No work needed for this PR if we're shipping `latest` only — flag for follow-up.
 4. **What's the first version we ship?** Current `0.0.1` is the dev placeholder. First real release should be `0.1.0` or `1.0.0` depending on stability stance. Out of scope for this ticket but worth deciding before the workflow actually gets dispatched.
 5. **Build target.** Does `packages/ui/` need to ship CJS + ESM + types, or just ESM + types? The current `src/index.ts` shape suggests ESM-only is fine. Confirm with consumers.
