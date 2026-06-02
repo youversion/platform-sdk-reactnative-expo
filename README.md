@@ -1,4 +1,4 @@
-<!-- TODO: banner image (e.g. ./assets/github-rn-sdk-banner.png) -->
+<!-- TODO: Banner image (e.g. ./assets/github-rn-sdk-banner.png) (tracking: [YPE-2833](https://lifechurch.atlassian.net/browse/YPE-2833)). -->
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
 
