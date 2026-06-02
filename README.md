@@ -266,7 +266,7 @@ Building AI applications with Bible content? Access YouVersion's LLM-optimized e
 
 ## Documentation
 
-<!-- TODO: link to RN SDK page on developers.youversion.com once published -->
+<!-- TODO: Link to RN SDK page on developers.youversion.com once published (tracking: [YPE-2832](https://lifechurch.atlassian.net/browse/YPE-2832)). -->
 
 - [API Documentation](https://developers.youversion.com/overview) — REST API reference
 - [LLM Integration Guide](https://developers.youversion.com/for-llms) — AI/ML integration docs
