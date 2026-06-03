@@ -6,6 +6,10 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 **Tech stack**: Expo SDK 55, React 19, TypeScript, pnpm 9, Turborepo
 
+## Release
+
+Releases are manually dispatched via `.github/workflows/release.yml` with an explicit version input. The script publishes both packages to npm in dependency order with bounded retry + per-package idempotency. If a dispatched release fails partway, **re-dispatch with the same version** — resume mode picks up where the previous run left off. See [RELEASING.md](./RELEASING.md) for the normal flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for failure-mode recovery.
+
 ## Setup Commands
 
 ```bash
