@@ -21,11 +21,15 @@ export function VerseOfTheDay({
 
   const handleShare = useCallback(
     async (data: VerseOfTheDayShareData) => {
-      if (consumerOnShare) {
-        await consumerOnShare(data)
-        return
+      try {
+        if (consumerOnShare) {
+          await consumerOnShare(data)
+          return
+        }
+        await Share.share({ message: data.text })
+      } catch (error) {
+        console.error('VerseOfTheDay share failed:', error)
       }
-      await Share.share({ message: data.text })
     },
     [consumerOnShare],
   )

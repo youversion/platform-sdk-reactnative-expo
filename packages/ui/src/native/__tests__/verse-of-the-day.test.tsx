@@ -149,6 +149,20 @@ describe('VerseOfTheDay', () => {
     expect(Share.share).toHaveBeenCalledWith({ message: sampleShareData.text })
   })
 
+  it('does not throw when Share.share rejects', async () => {
+    jest.spyOn(Share, 'share').mockRejectedValue(new Error('Share unavailable'))
+
+    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+
+    await act(async () => {
+      fireEvent.press(getByTestId('mock-share-trigger'))
+    })
+
+    expect(Share.share).toHaveBeenCalledTimes(1)
+  })
+
   it('invokes consumer onShare and does not call Share.share', async () => {
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
     const { getByTestId } = render(
