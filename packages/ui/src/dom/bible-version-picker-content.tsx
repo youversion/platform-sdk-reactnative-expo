@@ -5,9 +5,10 @@ import {
   BibleVersionPicker,
   BibleLanguagePickerContent,
   BibleVersionPickerLanguageTrigger,
-  YouVersionProvider,
 } from '@youversion/platform-react-ui'
+
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VersionPickerContentDOMProps = {
   appKey: string
