@@ -1,11 +1,9 @@
 'use dom'
 
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
-
+import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
 import { applySDKConfig } from '../lib'
 import { YouVersionProvider } from '../lib/web-yv-provider'
-
-type WebVerseOfTheDayProps = import('@youversion/platform-react-ui').VerseOfTheDayProps
 
 export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
   appKey: string
@@ -20,12 +18,14 @@ export default function VerseOfTheDayDOM({
   apiHost,
   installationId,
   theme = 'light',
+  onShare,
   ...props
 }: VerseOfTheDayProps) {
   applySDKConfig({ appKey, apiHost, installationId })
+
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      <VerseOfTheDay {...props} />
+      <VerseOfTheDay {...props} onShare={onShare} />
     </YouVersionProvider>
   )
 }
