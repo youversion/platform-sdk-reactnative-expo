@@ -79,6 +79,31 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
   )
 }
 
+function TwoSheetHarness({
+  isOpenA,
+  isOpenB,
+  onCloseA,
+  onCloseB,
+}: {
+  isOpenA: boolean
+  isOpenB: boolean
+  onCloseA: () => void
+  onCloseB: () => void
+}) {
+  return (
+    <NativeSheetProvider>
+      <View>
+        <NativeSheet isOpen={isOpenA} onClose={onCloseA}>
+          <Text testID="sheet-a-content">A</Text>
+        </NativeSheet>
+        <NativeSheet isOpen={isOpenB} onClose={onCloseB}>
+          <Text testID="sheet-b-content">B</Text>
+        </NativeSheet>
+      </View>
+    </NativeSheetProvider>
+  )
+}
+
 describe('NativeSheet', () => {
   const originalOs = Platform.OS
   const originalVersion = Platform.Version
@@ -222,7 +247,7 @@ describe('NativeSheet', () => {
     expect(renderLatestBackdrop()).toBeNull()
   })
 
-  it('keeps inactive iOS sheet hosts mounted but inert', () => {
+  it('keeps inactive iOS sheet hosts mounted with default chrome to preserve WebView pre-warming', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -235,10 +260,235 @@ describe('NativeSheet', () => {
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
-    expect(latestBottomSheetProps.detached).toBe(true)
-    expect(latestBottomSheetProps.bottomInset).toBe(24)
-    expect(latestBottomSheetProps.handleComponent).toBeNull()
+    // box-none so the absoluteFill wrapper never swallows taps on the underlying app
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('box-none')
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
+        .accessibilityElementsHidden,
+    ).toBe(false)
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
+        .importantForAccessibility,
+    ).toBe('auto')
+    expect(latestBottomSheetProps.detached).toBe(false)
+    expect(latestBottomSheetProps.bottomInset).toBe(0)
+    expect(latestBottomSheetProps.containerStyle).toBeUndefined()
+    expect(latestBottomSheetProps.handleComponent).toBeUndefined()
+    expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
     expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
-    expect(renderLatestBackdrop()).toBeNull()
+    expect(renderLatestBackdrop()).toBeTruthy()
+    expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
+    expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(true)
+    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
+    expect(latestBottomSheetProps.accessible).toBe(true)
+    expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(false)
+    expect(latestBottomSheetProps.importantForAccessibility).toBe('auto')
+    expect(
+      getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('auto')
+    expect(
+      getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props
+        .accessibilityElementsHidden,
+    ).toBe(false)
+  })
+
+  it('notifies a displaced sheet via onClose when another sheet claims activeSheetId', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    const onCloseA = jest.fn()
+    const onCloseB = jest.fn()
+
+    const { rerender } = render(
+      <TwoSheetHarness
+        isOpenA={false}
+        isOpenB={false}
+        onCloseA={onCloseA}
+        onCloseB={onCloseB}
+      />,
+    )
+
+    // Open A from closed state.
+    await act(async () => {
+      rerender(
+        <TwoSheetHarness
+          isOpenA={true}
+          isOpenB={false}
+          onCloseA={onCloseA}
+          onCloseB={onCloseB}
+        />,
+      )
+    })
+    expect(onCloseA).not.toHaveBeenCalled()
+
+    // Open B while A's parent still considers A open. B steals activeSheetId.
+    // Without the displacement fix A's parent never learns its sheet closed and
+    // its boolean stays out of sync with reality, so a later tap on A's trigger
+    // sets the same boolean and React skips the update.
+    await act(async () => {
+      rerender(
+        <TwoSheetHarness
+          isOpenA={true}
+          isOpenB={true}
+          onCloseA={onCloseA}
+          onCloseB={onCloseB}
+        />,
+      )
+    })
+
+    expect(onCloseA).toHaveBeenCalledTimes(1)
+    expect(onCloseB).not.toHaveBeenCalled()
+  })
+
+  it('does not call onClose when the parent itself closes the sheet', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    const onClose = jest.fn()
+
+    function Harness({ isOpen }: { isOpen: boolean }) {
+      return (
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet isOpen={isOpen} onClose={onClose}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>
+      )
+    }
+
+    const { rerender } = render(<Harness isOpen={false} />)
+
+    await act(async () => {
+      rerender(<Harness isOpen={true} />)
+    })
+    expect(onClose).not.toHaveBeenCalled()
+
+    // Parent flips isOpen to false — no displacement, no notification needed.
+    await act(async () => {
+      rerender(<Harness isOpen={false} />)
+    })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  describe('loader (Android only)', () => {
+    function LoaderHarness({
+      isOpen,
+      showAndroidLoader,
+    }: {
+      isOpen: boolean
+      showAndroidLoader?: boolean
+    }) {
+      return (
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet
+              isOpen={isOpen}
+              onClose={() => {}}
+              showAndroidLoader={showAndroidLoader}
+            >
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>
+      )
+    }
+
+    const fireContentLayout = (
+      node: { props: { onLayout?: (e: unknown) => void } },
+      height: number,
+    ) => {
+      node.props.onLayout?.({ nativeEvent: { layout: { width: 320, height, x: 0, y: 0 } } })
+    }
+
+    const setPlatform = (os: 'ios' | 'android') => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: os,
+      })
+    }
+
+    it('does not render a loader by default', async () => {
+      setPlatform('android')
+
+      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} />)
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} />)
+      })
+
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('renders the loader and holds the wrapper at loaderMinHeight while the sheet is active on Android', async () => {
+      setPlatform('android')
+
+      const { getByTestId, queryByTestId, rerender } = render(
+        <LoaderHarness isOpen={false} showAndroidLoader />,
+      )
+
+      // Inactive: no loader rendered (loader only mounts while the sheet is opening/open).
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+      })
+
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+      // The wrapper around the content gets a minHeight floor so the sheet snaps
+      // to a stable initial pose instead of zero.
+      expect(getByTestId('native-sheet-loader-wrapper').props.style).toMatchObject({
+        minHeight: 180,
+      })
+    })
+
+    it('hides the loader once content reports a non-trivial layout height', async () => {
+      setPlatform('android')
+
+      const { getByTestId, queryByTestId, rerender } = render(
+        <LoaderHarness isOpen={false} showAndroidLoader />,
+      )
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+      })
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+
+      // A trivial height (e.g. 0 from the wrapping View before the WebView has
+      // laid out) must not flip the loader off.
+      await act(async () => {
+        fireContentLayout(getByTestId('native-sheet-content'), 0)
+      })
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
+
+      // Once the WebView reports its real content size, the loader hides and
+      // the min-height floor drops so enableDynamicSizing can resize the sheet.
+      await act(async () => {
+        fireContentLayout(getByTestId('native-sheet-content'), 280)
+      })
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('skips the loader on iOS even when showAndroidLoader is true (iOS pre-warms via the inert-host exception)', async () => {
+      setPlatform('ios')
+
+      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} showAndroidLoader />)
+
+      await act(async () => {
+        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+      })
+
+      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
   })
 })

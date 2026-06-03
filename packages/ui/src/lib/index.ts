@@ -1,2 +1,2 @@
-export * from "./storage";
-export { type DomError, toWebError } from "./dom-error";
+export { applyAuthToken, applySDKConfig } from './dom-apply'
+export { toWebError, type DomError } from './dom-error'

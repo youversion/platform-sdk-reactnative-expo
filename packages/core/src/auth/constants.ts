@@ -1,0 +1,13 @@
+export const SECURE_STORAGE_KEYS = {
+  accessToken: 'yvp.accessToken',
+  refreshToken: 'yvp.refreshToken',
+} as const
+
+export const MMKV_AUTH_KEYS = {
+  expiryDateISO: 'yvp.expiryDate',
+  cachedUserInfo: 'yvp.userInfo',
+} as const
+
+export const DEFAULT_SCOPES = ['profile', 'email'] as const
+
+export const REFRESH_LEEWAY_SECONDS = 60 // 60 seconds

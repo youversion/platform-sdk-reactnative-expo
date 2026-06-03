@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Single published package `@youversion/platform-react-native-expo` in a pnpm/Turborepo monorepo.
+YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Two published packages in a pnpm/Turborepo monorepo: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (auth, storage).
 
 **Tech stack**: Expo SDK 55, React 19, TypeScript, pnpm 9, Turborepo
 
@@ -11,9 +11,13 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 ```bash
 pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
+cd apps/example && pnpm build:android # Android dev client alternative
 cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
-pnpm build                            # turbo build (all packages)
+pnpm build                            # turbo build task (source-only packages have no compile step)
 pnpm typecheck                        # turbo typecheck (all packages)
+pnpm test                             # turbo test
+pnpm lint                             # eslint
+pnpm format:check                     # prettier check
 ```
 
 ## Project Structure
@@ -22,15 +26,20 @@ pnpm typecheck                        # turbo typecheck (all packages)
 packages/ui/src/
 ├── dom/          ← Expo DOM components ("use dom" directive) wrapping Web SDK
 ├── native/       ← React Native provider/context, wrappers, and internal sheet support
-└── lib/          ← Shared adapters, hooks, constants (storage, dom-error)
+└── lib/          ← Shared adapters, hooks, constants (dom-error)
+
+packages/core/src/
+├── auth/         ← Auth config, PKCE, OAuth/storage key constants
+└── storage/      ← MMKV + SecureStore adapters
 
 apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 ```
 
 ## Development Workflow
 
-- First build: `cd apps/example && pnpm build:ios` (or `build:android`) — creates a dev client with native modules
+- First native run: `cd apps/example && pnpm build:ios` (or `pnpm build:android`) — creates and installs a dev client with native modules
 - Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
+- Example app requires `EXPO_PUBLIC_YOUVERSION_APP_KEY` in the environment or an `.env` file
 - Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
 - **Expo Go is not supported** — requires a dev build
 
@@ -72,9 +81,9 @@ Portal via `@rn-primitives/portal` + a local zustand store in `native/native-she
 
 Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
 
-Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert: offscreen, no sheet chrome, no gestures, no pointer events, and no accessibility exposure until active.
+Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert. Android applies the offscreen/no-chrome/no-gestures/no-pointer-events treatment; iOS intentionally keeps the default closed host so `matchContents` WebViews can pre-warm and measure correctly (see `docs/adr/0006-inactive-sheet-inertness.md`).
 
-Optional `keyboardBehavior`, `keyboardBlurBehavior`, `android_keyboardInputMode`, and `enableBlurKeyboardOnGesture` pass through to `@gorhom/bottom-sheet` for sheets that host inputs (e.g. chapter picker WebView + keyboard).
+`NativeSheet` currently exposes `enableContentPanningGesture`, Android loader controls, and content styling. Add typed `@gorhom/bottom-sheet` keyboard pass-throughs only when a sheet needs them, and cover the native action/sheet contract in tests.
 
 ### FootnoteContent Pre-warming
 
@@ -100,15 +109,31 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`
+**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`
+
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `mmkvStorage`, and auth types (`AuthConfig`, `AuthScope`, `YVUserInfo`)
+
+UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
+
+## Auth (core)
+
+- Optional PKCE OAuth when `auth: { redirectUri, scopes? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
+- `useYVAuth()` throws if `auth` was not configured on the provider.
+- Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
+- OAuth browser session via `expo-web-browser`; redirect handling is app-owned (example: `apps/example/app/callback.tsx` + `Linking.createURL('callback')`).
+- Register the same `redirectUri` in the YouVersion Platform console as used in app code.
 
 ## Runtime Dependencies
 
-Bundled (no install needed): `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`. Consumers must install peer dep `@gorhom/bottom-sheet`.
+**UI** bundles: `@radix-ui/react-use-controllable-state`, `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`, and `@youversion/platform-react-native-expo-core`.
+
+**Core** bundles: `expo-application`, `expo-crypto`, `expo-web-browser`.
+
+Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions. Expo SDK 55 apps should also include `@expo/dom-webview` for Expo DOM Components and `react-native-worklets` when using Reanimated 4.
 
 ## Peer Dependencies
 
-See `packages/ui/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
+See `packages/ui/package.json` and `packages/core/package.json` `peerDependencies` for the canonical list. Requires a dev build (not Expo Go).
 
 ## Testing
 
@@ -134,7 +159,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 ## Code Style
 
 - TypeScript strict mode
-- Single published package — keep all exports in `packages/ui/src/`
+- Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
 

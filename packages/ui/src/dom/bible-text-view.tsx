@@ -3,6 +3,7 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { BibleTextView } from '@youversion/platform-react-ui'
 
+import { applySDKConfig } from '../lib'
 import { toWebError, type DomError } from '../lib/dom-error'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -18,6 +19,8 @@ export type BibleTextViewProps = Omit<
   'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
 > & {
   appKey: string
+  apiHost: string
+  installationId: string
   theme?: 'light' | 'dark' | 'system'
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onVerseSelect?: (verses: number[]) => Promise<void>
@@ -29,12 +32,15 @@ export type BibleTextViewProps = Omit<
 
 export default function BibleTextViewDOM({
   appKey,
+  apiHost,
+  installationId,
   theme = 'light',
   onVerseSelect,
   onFootnotePress,
   passageState,
   ...props
 }: BibleTextViewProps) {
+  applySDKConfig({ apiHost, appKey, installationId })
   const webPassageState: WebBibleTextViewProps['passageState'] =
     passageState != null
       ? {

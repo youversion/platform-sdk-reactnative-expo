@@ -1,9 +1,10 @@
 'use dom'
 
-import { BibleCard } from '@youversion/platform-react-ui'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
+import { BibleCard } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
 
+import { applySDKConfig } from '../lib'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
@@ -18,21 +19,26 @@ export type BibleCardProps = Omit<
   'onVersionChange' | 'onVersionPickerPress' | 'onFootnotePress'
 > & {
   appKey: string
-  theme?: 'light' | 'dark'
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  apiHost: string
+  installationId: string
+  theme?: 'light' | 'dark'
   dom?: import('expo/dom').DOMProps
 }
 
 export default function BibleCardDOM({
   appKey,
+  apiHost,
+  installationId,
   theme = 'light',
   onVersionChange,
   onVersionPickerPress,
   onFootnotePress,
   ...props
 }: BibleCardProps) {
+  applySDKConfig({ appKey, apiHost, installationId })
   const NativeActionBibleCard = BibleCard as ComponentType<NativeActionBibleCardProps>
 
   return (

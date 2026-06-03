@@ -1,21 +1,23 @@
-import { useMemo } from "react";
-import { createBibleThemeSettingsContentHandlers } from "@youversion/platform-react-ui";
-import BibleReaderSettingsDOM from "../dom/bible-reader-settings";
-import { useReaderSettingsStore } from "../stores/reader-settings-store";
-import { NativeSheet } from "./native-sheet";
-import { useYouVersion } from "./youversion-provider";
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
+import { useMemo } from 'react'
+import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
+import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { NativeSheet } from './native-sheet'
+import { useTheme } from './youversion-provider'
 
 export type BibleReaderSettingsSheetProps = {
-  isSettingsSheetOpen: boolean;
-  onClose: () => void;
-};
+  isSettingsSheetOpen: boolean
+  onClose: () => void
+}
 
 export function BibleReaderSettingsSheet({
   isSettingsSheetOpen,
   onClose,
 }: BibleReaderSettingsSheetProps) {
-  const { appKey, theme } = useYouVersion();
-  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore();
+  const { appKey } = useYouVersion()
+  const theme = useTheme()
+  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
   const { onFontIncreased, onFontDecreased, onFontSelected } = useMemo(
     () =>
@@ -26,10 +28,10 @@ export function BibleReaderSettingsSheet({
         setFontFamily,
       }),
     [setFontSize, setFontFamily],
-  );
+  )
 
   return (
-    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose}>
+    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose} showAndroidLoader>
       <BibleReaderSettingsDOM
         dom={{ matchContents: true }}
         appKey={appKey}
@@ -41,5 +43,5 @@ export function BibleReaderSettingsSheet({
         onFontSelected={onFontSelected}
       />
     </NativeSheet>
-  );
+  )
 }
