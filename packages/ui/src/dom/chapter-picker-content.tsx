@@ -3,9 +3,10 @@
 import { useEffect } from 'react'
 import {
   BibleChapterPicker,
-  YouVersionProvider,
   type BibleChapterPickerSelectData,
 } from '@youversion/platform-react-ui'
+
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type ChapterPickerContentDOMProps = {
   appKey: string
@@ -43,7 +44,7 @@ export default function ChapterPickerContentDOM({
 
     updateKeyboardOverlap()
     viewport.addEventListener('resize', updateKeyboardOverlap)
-    viewport.addEventListener('scroll', updateKeyboardOverlap)
+    viewport.addEventListener('scroll', updateKeyboardOverlap, { passive: true })
     root.addEventListener('focusin', handleFocusIn)
 
     return () => {

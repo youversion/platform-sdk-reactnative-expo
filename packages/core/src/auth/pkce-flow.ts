@@ -28,8 +28,10 @@ export async function signInWithPKCE({
   redirectUri,
   scopes,
 }: SignInWithPKCEProps): Promise<SignInResult> {
-  const { codeVerifier, codeChallenge, nonce, state } = await generatePKCEParameters()
-  const installationId = await getOrSetInstallationId()
+  const [{ codeVerifier, codeChallenge, nonce, state }, installationId] = await Promise.all([
+    generatePKCEParameters(),
+    getOrSetInstallationId(),
+  ])
   const redirectUriString = redirectUri.endsWith('/') ? redirectUri.slice(0, -1) : redirectUri
 
   const authorizeUrl = buildAuthorizationUrl({

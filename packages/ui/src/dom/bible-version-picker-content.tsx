@@ -5,9 +5,10 @@ import {
   BibleVersionPicker,
   BibleLanguagePickerContent,
   BibleVersionPickerLanguageTrigger,
-  YouVersionProvider,
 } from '@youversion/platform-react-ui'
+
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VersionPickerContentDOMProps = {
   appKey: string
@@ -49,7 +50,7 @@ export default function VersionPickerContentDOM({
 
     updateKeyboardOverlap()
     viewport.addEventListener('resize', updateKeyboardOverlap)
-    viewport.addEventListener('scroll', updateKeyboardOverlap)
+    viewport.addEventListener('scroll', updateKeyboardOverlap, { passive: true })
     root.addEventListener('focusin', handleFocusIn)
 
     return () => {

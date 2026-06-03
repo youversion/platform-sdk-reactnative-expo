@@ -2,7 +2,7 @@ import {
   YouVersionProvider as CoreYouVersionProvider,
   type AuthConfig,
 } from '@youversion/platform-react-native-expo-core'
-import { createContext, useContext, type ReactNode } from 'react'
+import { createContext, use, type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 import { resolveTheme } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
@@ -42,5 +42,5 @@ export function YouVersionProvider({
 }
 
 export function useTheme(): Theme {
-  return useContext(ThemeContext)
+  return use(ThemeContext)
 }

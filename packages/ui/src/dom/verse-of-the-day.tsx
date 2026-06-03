@@ -1,9 +1,10 @@
 'use dom'
 
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
-import { VerseOfTheDay, YouVersionProvider } from '@youversion/platform-react-ui'
+import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
 import { applySDKConfig } from '../lib'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebVerseOfTheDayProps = import('@youversion/platform-react-ui').VerseOfTheDayProps
 type NativeActionVerseOfTheDayProps = WebVerseOfTheDayProps & {

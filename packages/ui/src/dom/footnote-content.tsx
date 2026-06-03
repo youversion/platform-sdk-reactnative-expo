@@ -1,11 +1,10 @@
 'use dom'
 
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import {
-  FootnoteContent as WebFootnoteContent,
-  YouVersionProvider,
-} from '@youversion/platform-react-ui'
+import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
+
 import { applySDKConfig } from '../lib'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type FootnoteContentDOMProps = {
   data: FootnoteData
