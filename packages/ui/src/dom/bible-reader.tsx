@@ -1,5 +1,6 @@
 'use dom'
 
+import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -8,7 +9,7 @@ import type {
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { applySDKConfig } from '../lib'
+import { applyAuthToken, applySDKConfig } from '../lib'
 
 import type { FontFamily } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
@@ -16,13 +17,16 @@ import { YouVersionProvider } from '../lib/web-yv-provider'
 type NativeActionBibleReaderRootProps =
   import('@youversion/platform-react-ui').BibleReaderRootProps & {
     onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+    onSignInPress?: () => Promise<void>
+    onSignOutPress?: () => Promise<void>
     children?: ReactNode
   }
 
-export type BibleReaderProps = {
+type BibleReaderBaseProps = {
   appKey: string
   apiHost: string
   installationId: string
+  accessToken: string | null
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -32,6 +36,9 @@ export type BibleReaderProps = {
   onVersionChange?: (versionId: number) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  onSignInPress?: () => Promise<void>
+  onSignOutPress?: () => Promise<void>
+  userInfo?: YVUserInfo | null
   showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
@@ -45,40 +52,51 @@ export type BibleReaderProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
+export type BibleReaderProps = BibleReaderBaseProps &
+  (
+    | { includeAuth: true; authRedirectUrl: string }
+    | { includeAuth?: false; authRedirectUrl?: never }
+  )
 
-export default function BibleReaderDOM({
-  appKey,
-  apiHost,
-  installationId,
-  theme = 'light',
-  book,
-  chapter,
-  versionId,
-  onBookChange,
-  onChapterChange,
-  onVersionChange,
-  onChapterPickerPress,
-  onVersionPickerPress,
-  onFootnotePress,
-  showToolbar = true,
-  onOpenBibleThemeSettings,
-  fontSize,
-  fontFamily,
-  onFontSizeChange,
-  onFontFamilyChange,
-  backgroundColor,
-  foregroundColor,
-}: BibleReaderProps) {
+export default function BibleReaderDOM(props: BibleReaderProps) {
+  const {
+    appKey,
+    apiHost,
+    installationId,
+    accessToken,
+    theme = 'light',
+    book,
+    chapter,
+    versionId,
+    onBookChange,
+    onChapterChange,
+    onVersionChange,
+    onChapterPickerPress,
+    onVersionPickerPress,
+    onSignInPress,
+    onSignOutPress,
+    userInfo,
+    onFootnotePress,
+    showToolbar = true,
+    onOpenBibleThemeSettings,
+    fontSize,
+    fontFamily,
+    onFontSizeChange,
+    onFontFamilyChange,
+    backgroundColor,
+    foregroundColor,
+  } = props
   applySDKConfig({ appKey, apiHost, installationId })
+  applyAuthToken(accessToken)
+  const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
   // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
-  return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+  const providerContent = (
+    <>
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
@@ -95,6 +113,8 @@ export default function BibleReaderDOM({
           onVersionChange={onVersionChange}
           onChapterPickerPress={onChapterPickerPress}
           onVersionPickerPress={onVersionPickerPress}
+          onSignInPress={onSignInPress}
+          onSignOutPress={onSignOutPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
           fontFamily={fontFamily}
@@ -110,6 +130,38 @@ export default function BibleReaderDOM({
           <BibleReader.Content />
         </NativeActionBibleReaderRoot>
       </div>
+    </>
+  )
+
+  // Map core's YVUserInfo (resolved avatarUrl) to the Web SDK's
+  // YouVersionUserInfoJSON shape so the in-WebView toolbar reflects the
+  // natively-owned auth state. `null` => signed out; `undefined` is preserved
+  // so the provider only takes control when the host actually supplies it.
+  const providerUserInfo =
+    userInfo === undefined
+      ? undefined
+      : userInfo === null
+        ? null
+        : {
+            id: userInfo.id,
+            name: userInfo.name,
+            email: userInfo.email,
+            avatar_url: userInfo.avatarUrl,
+          }
+
+  return props.includeAuth ? (
+    <YouVersionProvider
+      includeAuth
+      authRedirectUrl={props.authRedirectUrl}
+      appKey={appKey}
+      theme={theme}
+      userInfo={providerUserInfo}
+    >
+      {providerContent}
+    </YouVersionProvider>
+  ) : (
+    <YouVersionProvider appKey={appKey} theme={theme}>
+      {providerContent}
     </YouVersionProvider>
   )
 }

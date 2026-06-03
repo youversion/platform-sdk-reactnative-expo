@@ -43,8 +43,11 @@ export default function YouVersionProvider({
   }, [])
 
   const config = useMemo(
-    () => (installationId ? { installationId, appKey, apiHost } : null),
-    [installationId, appKey, apiHost],
+    () =>
+      installationId
+        ? { installationId, appKey, apiHost, authRedirectUrl: auth?.redirectUri }
+        : null,
+    [installationId, appKey, apiHost, auth?.redirectUri],
   )
 
   if (!config) {
