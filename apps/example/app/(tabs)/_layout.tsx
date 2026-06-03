@@ -12,7 +12,7 @@ export default function Layout() {
         <NativeTabs.Trigger.Icon sf="sun.max.fill" md="wb_sunny" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="bible-card">
-        <NativeTabs.Trigger.Label>Widget</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Label>Card</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="auth-debug">
