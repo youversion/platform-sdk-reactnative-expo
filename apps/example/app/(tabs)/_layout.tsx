@@ -15,9 +15,9 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Card</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="auth-debug">
-        <NativeTabs.Trigger.Label>Auth</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="lock.fill" md="lock" />
+      <NativeTabs.Trigger name="profile">
+        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
       </NativeTabs.Trigger>
     </NativeTabs>
   )

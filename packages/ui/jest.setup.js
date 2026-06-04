@@ -115,10 +115,24 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     return ctx
   }
 
+  function useYVAuth() {
+    return {
+      isAuthenticated: false,
+      accessToken: null,
+      userInfo: null,
+      error: null,
+      signIn: jest.fn(),
+      signOut: jest.fn(),
+      refreshNow: jest.fn(),
+      isLoading: false,
+    }
+  }
+
   return {
     ...actual,
     YouVersionProvider,
     useYouVersion,
+    useYVAuth,
   }
 })
 

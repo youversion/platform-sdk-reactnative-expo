@@ -1,5 +1,5 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -43,6 +43,10 @@ export type BibleReaderProps = Omit<
   | 'style'
   | 'apiHost'
   | 'installationId'
+  | 'accessToken'
+  | 'onSignInPress'
+  | 'onSignOutPress'
+  | 'userInfo'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -72,6 +76,11 @@ export function BibleReader({
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
+  const auth = useYVAuthOptional()
+  const accessToken = auth?.accessToken ?? null
+  const userInfo = auth?.userInfo ?? null
+  const signIn = auth?.signIn
+  const signOut = auth?.signOut
   const themeContext = useTheme()
   const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
 
@@ -203,12 +212,21 @@ export function BibleReader({
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
 
+  const authProps = context.authRedirectUrl
+    ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
+    : ({} as const)
+
   return (
     <>
       <BibleReaderDOM
+        {...authProps}
         appKey={context.appKey}
         apiHost={context.apiHost}
         installationId={context.installationId}
+        accessToken={accessToken}
+        onSignInPress={signIn}
+        onSignOutPress={signOut}
+        userInfo={userInfo}
         theme={resolvedTheme}
         book={book}
         chapter={chapter}
