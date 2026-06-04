@@ -58,6 +58,7 @@ export type BibleReaderProps = BibleReaderBaseProps &
     | { includeAuth?: false; authRedirectUrl?: never }
   )
 
+const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 export default function BibleReaderDOM(props: BibleReaderProps) {
   const {
     appKey,
@@ -88,7 +89,6 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
-  const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 

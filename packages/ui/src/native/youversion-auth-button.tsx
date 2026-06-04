@@ -21,11 +21,15 @@ export function YouVersionAuthButton({
 }: YouVersionAuthButtonProps) {
   const { isAuthenticated, signOut, signIn } = useYVAuth()
 
-  const authFunction = () => {
-    if (mode === 'auto') {
-      return isAuthenticated ? signOut() : signIn()
-    } else {
-      return mode === 'signIn' ? signIn() : signOut()
+  const authFunction = async () => {
+    try {
+      if (mode === 'auto') {
+        await (isAuthenticated ? signOut() : signIn())
+      } else {
+        await (mode === 'signIn' ? signIn() : signOut())
+      }
+    } catch (error) {
+      console.error(error)
     }
   }
 
