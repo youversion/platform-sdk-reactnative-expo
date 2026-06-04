@@ -6,5 +6,3 @@ export { useYVAuth, useYVAuthOptional } from './auth'
 export type { AuthConfig, AuthScope, YVUserInfo } from './auth'
 
 export { mmkvStorage } from './storage'
-
-export { SDK_VERSION } from './version'

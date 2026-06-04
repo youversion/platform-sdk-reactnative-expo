@@ -21,16 +21,10 @@
     "format:check": "prettier --check ."
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
-    "@semantic-release/commit-analyzer": "^13.0.0",
-    "@semantic-release/release-notes-generator": "^14.0.0",
-    "conventional-changelog-conventionalcommits": "^8.0.0",
     "eslint": "^9",
     "eslint-config-expo": "^55.0.0",
     "eslint-config-prettier": "^10.1.8",
     "prettier": "^3.8.3",
-    "semver": "^7.6.0",
     "turbo": "^2.9.7",
     "typescript": "5.9.3"
   }
