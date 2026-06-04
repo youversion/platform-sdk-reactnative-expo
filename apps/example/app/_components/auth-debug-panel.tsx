@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 export default function AuthDebugPanel() {
-  const { isAuthenticated, isLoading, userInfo, signIn, signOut, refreshNow, error, accessToken } =
-    useYVAuth()
+  const { isAuthenticated, isLoading, userInfo, refreshNow, error, accessToken } = useYVAuth()
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   if (!__DEV__) return null
@@ -31,7 +30,7 @@ export default function AuthDebugPanel() {
       <Text style={styles.row}>Access token: {truncate(accessToken)}</Text>
       {error && <Text style={styles.error}>Error: {error.message}</Text>}
       <View style={styles.buttons}>
-        <YouVersionAuthButton />
+        <YouVersionAuthButton background="light" size="default" radius="rectangular" outline />
         <Pressable
           style={[styles.button, isRefreshing && styles.buttonDisabled]}
           disabled={isRefreshing}
