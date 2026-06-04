@@ -1,2 +1,2 @@
 export type { AuthConfig, AuthScope, YVUserInfo } from './types'
-export { useYVAuth } from './use-yv-auth'
+export { useYVAuth, useYVAuthOptional } from './use-yv-auth'

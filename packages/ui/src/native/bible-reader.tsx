@@ -1,5 +1,5 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion, useYVAuth } from '@youversion/platform-react-native-expo-core'
+import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -76,7 +76,11 @@ export function BibleReader({
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
-  const { accessToken, signIn, signOut, userInfo } = useYVAuth()
+  const auth = useYVAuthOptional()
+  const accessToken = auth?.accessToken ?? null
+  const userInfo = auth?.userInfo ?? null
+  const signIn = auth?.signIn
+  const signOut = auth?.signOut
   const themeContext = useTheme()
   const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
 

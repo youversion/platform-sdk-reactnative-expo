@@ -6,11 +6,12 @@ export {
   BibleTextView,
   BibleVersionPickerSheet,
   VerseOfTheDay,
+  YouVersionAuthButton,
   YouVersionProvider,
-} from "./native";
+} from './native'
 export type {
   BibleChapterPickerSheetProps,
   BibleVersionPickerSheetProps,
   YouVersionProviderProps,
   YouVersionTheme,
-} from "./native";
+} from './native'

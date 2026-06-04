@@ -8,3 +8,8 @@ export function useYVAuth(): AuthContextValue {
   }
   return ctx
 }
+
+/** Like {@link useYVAuth} but returns `null` instead of throwing when `auth` is not configured. */
+export function useYVAuthOptional(): AuthContextValue | null {
+  return use(AuthContext)
+}

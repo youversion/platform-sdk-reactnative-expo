@@ -1,5 +1,5 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
-import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui/src/native'
+import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
 import { Image, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 export default function ProfileScreen() {
@@ -20,11 +20,7 @@ export default function ProfileScreen() {
           <Text style={[styles.name, { color: c.fg }]}>{userInfo?.name ?? '(no name)'}</Text>
           <Text style={[styles.email, { color: c.email }]}>{userInfo?.email ?? '(no email)'}</Text>
           <View style={styles.button}>
-            <YouVersionAuthButton
-              mode="signOut"
-              background={isDark ? 'dark' : 'light'}
-              outline
-            />
+            <YouVersionAuthButton mode="signOut" background={isDark ? 'dark' : 'light'} outline />
           </View>
         </View>
       ) : (
