@@ -1,5 +1,5 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text } from 'react-native'
 import { BibleAppLogo } from './bible-app-logo'
 
 type YouVersionAuthButtonProps = {
@@ -22,7 +22,7 @@ export function YouVersionAuthButton({
   const { isAuthenticated, signOut, signIn } = useYVAuth()
 
   const authFunction = () => {
-    if (mode == 'auto') {
+    if (mode === 'auto') {
       return isAuthenticated ? signOut() : signIn()
     } else {
       return mode === 'signIn' ? signIn() : signOut()

@@ -11,7 +11,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {appKey ? (
-        <YouVersionProvider appKey={appKey} auth={{ redirectUri, scopes: ['profile', 'email'] }}>
+        <YouVersionProvider
+          appKey={appKey}
+          theme="system"
+          auth={{ redirectUri, scopes: ['profile', 'email'] }}
+        >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
       ) : (

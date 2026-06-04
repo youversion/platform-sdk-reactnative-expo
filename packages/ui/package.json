@@ -30,7 +30,7 @@
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@rn-primitives/portal": "^1.4.0",
     "@youversion/platform-react-native-expo-core": "workspace:*",
-    "@youversion/platform-react-ui": "^1.31.0",
+    "@youversion/platform-react-ui": "^2.0.0",
     "zustand": "^5.0.13"
   },
   "peerDependencies": {
@@ -42,8 +42,8 @@
     "react-native-gesture-handler": ">=2.16.1",
     "react-native-reanimated": ">=3.16.0",
     "react-native-safe-area-context": ">=5.0.0",
-    "react-native-webview": ">=13.13.0",
-    "react-native-svg": ">=15.15.0"
+    "react-native-svg": ">=15.15.0",
+    "react-native-webview": ">=13.13.0"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.3.3",

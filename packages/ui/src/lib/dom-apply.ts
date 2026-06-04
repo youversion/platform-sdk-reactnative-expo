@@ -15,5 +15,5 @@ export function applySDKConfig(config: {
 }
 
 export function applyAuthToken(accessToken: string | null) {
-  YouVersionPlatformConfiguration.saveAuthData(accessToken, null, null, null)
+  YouVersionPlatformConfiguration.saveAuthData(accessToken, null, null)
 }
