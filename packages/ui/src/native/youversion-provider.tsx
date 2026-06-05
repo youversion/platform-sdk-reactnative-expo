@@ -44,3 +44,13 @@ export function useTheme(override?: ThemeInput): Theme {
   const providerTheme = use(ThemeContext)
   return override === 'system' ? providerTheme : (override ?? providerTheme)
 }
+
+/**
+ * Resolves a component-level theme override against the provider theme so each
+ * sheet/component doesn't hand-roll the same fallback. `'system'` (or omitting
+ * the override) follows the provider; an explicit `'light'`/`'dark'` wins.
+ */
+export function useResolvedTheme(override?: ThemeInput): Theme {
+  const providerTheme = useTheme()
+  return override === 'system' ? providerTheme : (override ?? providerTheme)
+}

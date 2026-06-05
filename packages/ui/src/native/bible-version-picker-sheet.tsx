@@ -4,7 +4,8 @@ import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
+import { useTheme } from 'src/hooks/use-theme'
 
 const DEFAULT_VERSION_ID = 3034
 

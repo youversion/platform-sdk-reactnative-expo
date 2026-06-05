@@ -8,7 +8,8 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
+import { useTheme } from 'src/hooks/use-theme'
 
 const DEFAULT_VERSION_ID = 3034
 

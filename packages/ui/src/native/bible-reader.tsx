@@ -17,7 +17,8 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
+import { useTheme } from 'src/hooks/use-theme'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
