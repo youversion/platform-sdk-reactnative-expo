@@ -8,8 +8,7 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useResolvedTheme } from './youversion-provider'
-import { useTheme } from 'src/hooks/use-theme'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
 
@@ -21,15 +20,8 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 export type BibleCardProps = Omit<
   BibleCardDOMProps,
-  | 'appKey'
-  | 'apiHost'
-  | 'installationId'
-  | 'onVersionChange'
-  | 'onVersionPickerPress'
-  | 'theme'
-  | 'versionId'
+  'appKey' | 'apiHost' | 'installationId' | 'onVersionChange' | 'onVersionPickerPress' | 'versionId'
 > & {
-  theme?: 'light' | 'dark' | 'system'
   versionId?: number
   defaultVersionId?: number
   onVersionChange?: (versionId: number) => void
@@ -38,7 +30,6 @@ export type BibleCardProps = Omit<
 }
 
 export function BibleCard({
-  theme: themeOverride,
   versionId: controlledVersionId,
   defaultVersionId = DEFAULT_VERSION_ID,
   onVersionChange,
@@ -48,7 +39,7 @@ export function BibleCard({
   ...props
 }: BibleCardProps) {
   const context = useYouVersion()
-  const resolvedTheme = useTheme(themeOverride)
+  const resolvedTheme = useTheme()
 
   // This mimics how it's done in the React Web SDK.
   // Controlled only when both versionId + onVersionChange are provided.

@@ -4,8 +4,7 @@ import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-import { useResolvedTheme } from './youversion-provider'
-import { useTheme } from 'src/hooks/use-theme'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
 
@@ -22,12 +21,11 @@ export function BibleVersionPickerSheet({
   isOpen,
   onClose,
   versionId = DEFAULT_VERSION_ID,
-  theme: themeOverride,
   onSelect,
   dom,
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
-  const resolvedTheme = useTheme(themeOverride)
+  const resolvedTheme = useTheme()
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,

@@ -17,8 +17,7 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useResolvedTheme } from './youversion-provider'
-import { useTheme } from 'src/hooks/use-theme'
+import { useTheme } from './youversion-provider'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -58,7 +57,6 @@ export type BibleReaderProps = Omit<
 }
 
 export function BibleReader({
-  theme,
   book: controlledBook,
   defaultBook = DEFAULT_BOOK,
   onBookChange,
@@ -82,7 +80,7 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const resolvedTheme = useTheme(theme)
+  const resolvedTheme = useTheme()
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
