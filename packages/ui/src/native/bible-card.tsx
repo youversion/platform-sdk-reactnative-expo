@@ -8,7 +8,7 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
 
@@ -46,9 +46,8 @@ export function BibleCard({
   showVersionPicker = true,
   ...props
 }: BibleCardProps) {
-  const themeContext = useTheme()
   const context = useYouVersion()
-  const resolvedTheme = themeOverride === 'system' ? themeContext : (themeOverride ?? themeContext)
+  const resolvedTheme = useResolvedTheme(themeOverride)
 
   // This mimics how it's done in the React Web SDK.
   // Controlled only when both versionId + onVersionChange are provided.
@@ -126,6 +125,7 @@ export function BibleCard({
           isOpen={!!footnoteData}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
+          theme={resolvedTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

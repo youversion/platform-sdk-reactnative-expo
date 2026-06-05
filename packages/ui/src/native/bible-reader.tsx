@@ -17,7 +17,7 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -81,8 +81,7 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const themeContext = useTheme()
-  const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
+  const resolvedTheme = useResolvedTheme(theme)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
@@ -259,6 +258,7 @@ export function BibleReader({
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
+          theme={resolvedTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

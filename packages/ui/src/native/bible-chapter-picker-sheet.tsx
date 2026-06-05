@@ -2,16 +2,13 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
+import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useResolvedTheme } from './youversion-provider'
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 const DEFAULT_VERSION_ID = 3034
-const MUTED_BACKGROUND = {
-  light: '#f6f4f4',
-  dark: '#353333',
-}
 
 export type BibleChapterPickerSheetProps = {
   isOpen: boolean
@@ -37,12 +34,11 @@ export function BibleChapterPickerSheet({
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
-  const theme = useTheme()
+  const resolvedTheme = useResolvedTheme(themeOverride)
   const { height } = useWindowDimensions()
 
   if (Platform.OS === 'web') return null
 
-  const resolvedTheme = themeOverride === 'system' ? theme : (themeOverride ?? theme)
   const pickerDom = {
     style: styles.dom,
     hideKeyboardAccessoryView: true,
@@ -66,10 +62,12 @@ export function BibleChapterPickerSheet({
       isOpen={isOpen}
       onClose={onClose}
       enableContentPanningGesture={false}
+      theme={resolvedTheme}
+      backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
       contentStyle={[
         styles.content,
         {
-          backgroundColor: MUTED_BACKGROUND[resolvedTheme],
+          backgroundColor: SHEET_MUTED_BACKGROUND[resolvedTheme],
         },
       ]}
     >

@@ -4,10 +4,9 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 import { createContext, use, type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { resolveTheme } from '../lib/resolve-theme'
+import { resolveTheme, type Theme, type ThemeInput } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
 
-type Theme = 'light' | 'dark'
 export type YouVersionTheme = Theme | 'system'
 
 const ThemeContext = createContext<Theme>('light')
@@ -43,4 +42,14 @@ export function YouVersionProvider({
 
 export function useTheme(): Theme {
   return use(ThemeContext)
+}
+
+/**
+ * Resolves a component-level theme override against the provider theme so each
+ * sheet/component doesn't hand-roll the same fallback. `'system'` (or omitting
+ * the override) follows the provider; an explicit `'light'`/`'dark'` wins.
+ */
+export function useResolvedTheme(override?: ThemeInput): Theme {
+  const providerTheme = useTheme()
+  return override === 'system' ? providerTheme : (override ?? providerTheme)
 }

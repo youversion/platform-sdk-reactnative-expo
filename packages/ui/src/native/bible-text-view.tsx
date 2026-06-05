@@ -64,6 +64,7 @@ export function BibleTextView({
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
+          theme={footnoteTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}
