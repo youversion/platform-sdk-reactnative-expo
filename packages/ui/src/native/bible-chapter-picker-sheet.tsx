@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-import { useResolvedTheme } from './youversion-provider'
+import { useTheme } from './youversion-provider'
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
@@ -29,12 +29,11 @@ export function BibleChapterPickerSheet({
   book = DEFAULT_BOOK,
   chapter = DEFAULT_CHAPTER,
   versionId = DEFAULT_VERSION_ID,
-  theme: themeOverride,
   onSelect,
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
-  const resolvedTheme = useResolvedTheme(themeOverride)
+  const resolvedTheme = useTheme()
   const { height } = useWindowDimensions()
 
   if (Platform.OS === 'web') return null
