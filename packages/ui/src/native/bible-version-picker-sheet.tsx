@@ -21,11 +21,12 @@ export function BibleVersionPickerSheet({
   isOpen,
   onClose,
   versionId = DEFAULT_VERSION_ID,
+  theme: themeOverride,
   onSelect,
   dom,
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
-  const resolvedTheme = useTheme()
+  const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,
