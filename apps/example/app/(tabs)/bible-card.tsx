@@ -7,7 +7,12 @@ export default function BibleCardScreen() {
   const isDark = useColorScheme() === 'dark'
 
   return (
-    <View style={[styles.container, { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
+      ]}
+    >
       <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
     </View>
   )

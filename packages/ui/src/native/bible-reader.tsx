@@ -57,6 +57,7 @@ export type BibleReaderProps = Omit<
 }
 
 export function BibleReader({
+  theme,
   book: controlledBook,
   defaultBook = DEFAULT_BOOK,
   onBookChange,
@@ -80,7 +81,7 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const resolvedTheme = useTheme()
+  const resolvedTheme = useTheme(theme)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 

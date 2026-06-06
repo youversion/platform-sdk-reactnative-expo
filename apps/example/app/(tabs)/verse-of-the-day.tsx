@@ -7,7 +7,12 @@ export default function VerseOfTheDayScreen() {
   const isDark = useColorScheme() === 'dark'
 
   return (
-    <View style={[styles.container, { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
+      ]}
+    >
       <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />
     </View>
   )

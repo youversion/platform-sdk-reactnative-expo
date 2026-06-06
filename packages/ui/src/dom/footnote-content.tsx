@@ -4,6 +4,7 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
 
 import { applySDKConfig } from '../lib'
+import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type FootnoteContentDOMProps = {
@@ -28,7 +29,11 @@ export default function FootnoteContentDOM({
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style href="yv-footnote-content-scroll-lock" precedence="medium">
-        {'html, body { overflow: hidden; }'}
+        {`html, body { overflow: hidden }`}
+      </style>
+      <style>
+        {`html, body { background: ${SHEET_SURFACE[theme]}; }
+[data-yv-sdk][data-yv-theme="${theme}"] { --yv-background: ${SHEET_SURFACE[theme]}; }`}
       </style>
       <WebFootnoteContent {...data} fontSize={fontSize} theme={theme} />
     </YouVersionProvider>

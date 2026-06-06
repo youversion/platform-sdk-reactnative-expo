@@ -29,11 +29,12 @@ export function BibleChapterPickerSheet({
   book = DEFAULT_BOOK,
   chapter = DEFAULT_CHAPTER,
   versionId = DEFAULT_VERSION_ID,
+  theme: themeOverride,
   onSelect,
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
-  const resolvedTheme = useTheme()
+  const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
   if (Platform.OS === 'web') return null
