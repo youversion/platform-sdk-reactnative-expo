@@ -83,8 +83,7 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const themeContext = useTheme()
-  const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
+  const resolvedTheme = useTheme(theme)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
