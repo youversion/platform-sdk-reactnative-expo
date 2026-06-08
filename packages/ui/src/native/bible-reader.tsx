@@ -273,6 +273,7 @@ export function BibleReader({
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
+          theme={resolvedTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

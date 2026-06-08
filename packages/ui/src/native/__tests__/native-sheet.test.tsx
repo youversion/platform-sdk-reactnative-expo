@@ -1,7 +1,8 @@
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { Text, View, Platform } from 'react-native'
+import { Platform, Text, View } from 'react-native'
 
+import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
 import { NativeSheet, NativeSheetProvider } from '../native-sheet'
 
 let latestBottomSheetProps: Record<string, unknown> = {}
@@ -40,11 +41,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
         close: () => onChange?.(-1),
         snapToIndex: (index: number) => onChange?.(index),
       }))
-      return (
-        <View testID="bottom-sheet">
-          {children}
-        </View>
-      )
+      return <View testID="bottom-sheet">{children}</View>
     },
   )
   MockBottomSheet.displayName = 'MockBottomSheet'
@@ -53,13 +50,7 @@ jest.mock('@gorhom/bottom-sheet', () => {
     __esModule: true,
     default: MockBottomSheet,
     BottomSheetBackdrop: () => <View testID="bottom-sheet-backdrop" />,
-    BottomSheetView: ({
-      children,
-      ...props
-    }: {
-      children: ReactNode
-      [key: string]: unknown
-    }) => (
+    BottomSheetView: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
       <View testID="bottom-sheet-view" {...props}>
         {children}
       </View>
@@ -147,9 +138,9 @@ describe('NativeSheet', () => {
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
-    expect(getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props.pointerEvents).toBe(
-      'none',
-    )
+    expect(
+      getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('none')
     expect(
       getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
         .accessibilityElementsHidden,
@@ -171,9 +162,9 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.accessible).toBe(false)
     expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(true)
     expect(latestBottomSheetProps.importantForAccessibility).toBe('no-hide-descendants')
-    expect(getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props.pointerEvents).toBe(
-      'none',
-    )
+    expect(
+      getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props.pointerEvents,
+    ).toBe('none')
     expect(
       getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props
         .accessibilityElementsHidden,
@@ -362,23 +353,13 @@ describe('NativeSheet', () => {
     const onCloseB = jest.fn()
 
     const { rerender } = render(
-      <TwoSheetHarness
-        isOpenA={false}
-        isOpenB={false}
-        onCloseA={onCloseA}
-        onCloseB={onCloseB}
-      />,
+      <TwoSheetHarness isOpenA={false} isOpenB={false} onCloseA={onCloseA} onCloseB={onCloseB} />,
     )
 
     // Open A from closed state.
     await act(async () => {
       rerender(
-        <TwoSheetHarness
-          isOpenA={true}
-          isOpenB={false}
-          onCloseA={onCloseA}
-          onCloseB={onCloseB}
-        />,
+        <TwoSheetHarness isOpenA={true} isOpenB={false} onCloseA={onCloseA} onCloseB={onCloseB} />,
       )
     })
     expect(onCloseA).not.toHaveBeenCalled()
@@ -389,12 +370,7 @@ describe('NativeSheet', () => {
     // sets the same boolean and React skips the update.
     await act(async () => {
       rerender(
-        <TwoSheetHarness
-          isOpenA={true}
-          isOpenB={true}
-          onCloseA={onCloseA}
-          onCloseB={onCloseB}
-        />,
+        <TwoSheetHarness isOpenA={true} isOpenB={true} onCloseA={onCloseA} onCloseB={onCloseB} />,
       )
     })
 
@@ -448,11 +424,7 @@ describe('NativeSheet', () => {
       return (
         <NativeSheetProvider>
           <View>
-            <NativeSheet
-              isOpen={isOpen}
-              onClose={() => {}}
-              showAndroidLoader={showAndroidLoader}
-            >
+            <NativeSheet isOpen={isOpen} onClose={() => {}} showAndroidLoader={showAndroidLoader}>
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
@@ -546,6 +518,62 @@ describe('NativeSheet', () => {
       })
 
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+  })
+
+  describe('theme styling', () => {
+    const cases = [
+      { theme: 'light' as const, text: 'black' },
+      { theme: 'dark' as const, text: 'white' },
+    ]
+
+    beforeEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+    })
+
+    it.each(cases)('themes the sheet chrome for the $theme theme', ({ theme }) => {
+      render(
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} theme={theme}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>,
+      )
+
+      expect(latestBottomSheetProps.backgroundStyle).toEqual({
+        backgroundColor: SHEET_SURFACE[theme],
+      })
+      expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
+        { backgroundColor: '#ccc' },
+        { backgroundColor: SHEET_HANDLE[theme] },
+      ])
+    })
+
+    it.each(cases)('themes the header text for the $theme theme', ({ theme, text }) => {
+      const { getByText } = render(
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet
+              isOpen={true}
+              onClose={() => {}}
+              theme={theme}
+              showHeader
+              headerTitle="Versions"
+            >
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>,
+      )
+
+      expect(getByText('Versions').props.style).toMatchObject({ color: text })
+      expect(getByText('Cancel').props.style).toMatchObject({ color: text })
     })
   })
 
