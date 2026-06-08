@@ -589,13 +589,16 @@ describe('NativeSheet', () => {
       theme?: 'light' | 'dark'
       onClose?: () => void
     }) {
-      const headerProps = showHeader
-        ? ({ showHeader: true, headerTitle: headerTitle ?? 'Title' } as const)
-        : ({ showHeader: false } as const)
       return (
         <NativeSheetProvider>
           <View>
-            <NativeSheet isOpen={true} onClose={onClose} theme={theme} {...headerProps}>
+            <NativeSheet
+              isOpen={true}
+              onClose={onClose}
+              theme={theme}
+              showHeader={showHeader}
+              headerTitle={headerTitle}
+            >
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
@@ -622,6 +625,13 @@ describe('NativeSheet', () => {
 
       expect(getByText('Choose a version')).toBeTruthy()
       expect(getByText('Cancel')).toBeTruthy()
+    })
+
+    it('renders the Cancel control even without a headerTitle', () => {
+      const { getByText, queryByText } = render(<HeaderHarness showHeader />)
+
+      expect(getByText('Cancel')).toBeTruthy()
+      expect(queryByText('Choose a version')).toBeNull()
     })
 
     it('calls onClose when the Cancel control is pressed', async () => {

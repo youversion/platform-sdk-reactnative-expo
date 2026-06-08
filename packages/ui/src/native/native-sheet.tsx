@@ -41,11 +41,6 @@ const useSheetStore = create<SheetState>(() => ({
   activeSheetId: null,
 }))
 
-// Header is optional, but when shown it must carry a title.
-type NativeSheetHeaderProps =
-  | { showHeader: true; headerTitle: string }
-  | { showHeader?: false; headerTitle?: never }
-
 type NativeSheetProps = {
   isOpen: boolean
   // Re-open signal for repeated actions while isOpen is already true.
@@ -59,7 +54,9 @@ type NativeSheetProps = {
   loaderMinHeight?: number
   theme?: Theme
   backgroundColor?: string
-} & NativeSheetHeaderProps
+  showHeader?: boolean
+  headerTitle?: string
+}
 
 const DEFAULT_LOADER_MIN_HEIGHT = 180
 const CONTENT_READY_HEIGHT_THRESHOLD = 4
