@@ -2,14 +2,11 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useRef } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
+import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from './youversion-provider'
 
 const DEFAULT_VERSION_ID = 3034
-const MUTED_BACKGROUND = {
-  light: '#f6f4f4',
-  dark: '#353333',
-}
 
 export type BibleVersionPickerSheetProps = {
   isOpen: boolean
@@ -29,7 +26,7 @@ export function BibleVersionPickerSheet({
   dom,
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
-  const theme = useTheme()
+  const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,
@@ -41,7 +38,6 @@ export function BibleVersionPickerSheet({
 
   if (Platform.OS === 'web') return null
 
-  const resolvedTheme = themeOverride === 'system' ? theme : (themeOverride ?? theme)
   const pickerDom = {
     style: styles.dom,
     hideKeyboardAccessoryView: true,
@@ -65,10 +61,12 @@ export function BibleVersionPickerSheet({
       isOpen={isOpen}
       onClose={onClose}
       enableContentPanningGesture={false}
+      theme={resolvedTheme}
+      backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
       contentStyle={[
         styles.content,
         {
-          backgroundColor: MUTED_BACKGROUND[resolvedTheme],
+          backgroundColor: SHEET_MUTED_BACKGROUND[resolvedTheme],
         },
       ]}
     >

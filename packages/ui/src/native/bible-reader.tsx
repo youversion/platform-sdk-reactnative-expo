@@ -81,8 +81,7 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const themeContext = useTheme()
-  const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
+  const resolvedTheme = useTheme(theme)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
@@ -116,9 +115,7 @@ export function BibleReader({
   const [versionId, setVersionId] = useControllableState({
     prop: controlledVersionId,
     defaultProp:
-      controlledVersionId !== undefined
-        ? defaultVersionId
-        : (storedVersionId ?? defaultVersionId),
+      controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: onVersionChange,
   })
 
@@ -259,6 +256,7 @@ export function BibleReader({
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
+          theme={resolvedTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

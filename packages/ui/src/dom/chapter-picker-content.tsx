@@ -1,10 +1,10 @@
 'use dom'
 
-import { useEffect } from 'react'
 import {
   BibleChapterPicker,
   type BibleChapterPickerSelectData,
 } from '@youversion/platform-react-ui'
+import { useEffect } from 'react'
 
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -57,7 +57,7 @@ export default function ChapterPickerContentDOM({
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{chapterPickerStyles}</style>
-      <div data-yv-sdk data-yv-chapter-picker-shell>
+      <div data-yv-sdk data-yv-theme={theme} data-yv-chapter-picker-shell>
         <BibleChapterPicker.Root
           book={book}
           chapter={chapter}
@@ -87,6 +87,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--yv-background);
+  color: var(--yv-foreground);
 }
 
 [data-yv-chapter-picker-shell] > [data-slot='accordion'] {

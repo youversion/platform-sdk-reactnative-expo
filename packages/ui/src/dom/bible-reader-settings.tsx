@@ -1,21 +1,21 @@
-"use dom";
+'use dom'
 
-import { BibleThemeSettingsContent } from "@youversion/platform-react-ui";
+import { BibleThemeSettingsContent } from '@youversion/platform-react-ui'
 
-import type { FontFamily } from "../lib/reader-fonts";
-import { YouVersionProvider } from "../lib/web-yv-provider";
+import type { FontFamily } from '../lib/reader-fonts'
+import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type BibleReaderSettingsDOMProps = {
-  appKey: string;
-  theme: "light" | "dark";
-  fontSize: number;
-  fontFamily: FontFamily;
+  appKey: string
+  theme: 'light' | 'dark'
+  fontSize: number
+  fontFamily: FontFamily
   // Expo DOM function props always cross the native <-> WebView bridge, so they must be async.
-  onFontIncreased: () => void;
-  onFontDecreased: () => void;
-  onFontSelected: (fontFamily: FontFamily) => void;
-  dom?: import("expo/dom").DOMProps;
-};
+  onFontIncreased: () => void
+  onFontDecreased: () => void
+  onFontSelected: (fontFamily: FontFamily) => void
+  dom?: import('expo/dom').DOMProps
+}
 
 export default function BibleReaderSettingsDOM({
   appKey,
@@ -31,18 +31,19 @@ export default function BibleReaderSettingsDOM({
   // through would crash the DOM <-> native bridge. These wrappers swallow the
   // event and forward only serializable args.
   const handleFontIncreased = () => {
-    void onFontIncreased();
-  };
+    void onFontIncreased()
+  }
   const handleFontDecreased = () => {
-    void onFontDecreased();
-  };
+    void onFontDecreased()
+  }
   const handleFontSelected = (family: FontFamily) => {
-    void onFontSelected(family);
-  };
+    void onFontSelected(family)
+  }
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      <div style={{ width: "100%" }}>
+      <style>{settingsStyles}</style>
+      <div data-yv-sdk data-yv-theme={theme} data-yv-settings-shell>
         <BibleThemeSettingsContent
           theme={theme}
           fontSize={fontSize}
@@ -53,5 +54,12 @@ export default function BibleReaderSettingsDOM({
         />
       </div>
     </YouVersionProvider>
-  );
+  )
 }
+
+const settingsStyles = `
+[data-yv-settings-shell] {
+  width: 100%;
+  color: var(--yv-foreground);
+}
+`

@@ -1,12 +1,18 @@
 import { BibleCard } from '@youversion/platform-react-native-expo-ui'
-import { StyleSheet, View } from 'react-native'
+import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleCardScreen() {
   const { top } = useSafeAreaInsets()
+  const isDark = useColorScheme() === 'dark'
 
   return (
-    <View style={[styles.container, { paddingTop: top }]}>
+    <View
+      style={[
+        styles.container,
+        { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
+      ]}
+    >
       <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
     </View>
   )

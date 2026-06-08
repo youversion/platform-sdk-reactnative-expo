@@ -25,6 +25,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
+import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
+import type { Theme } from '../lib/resolve-theme'
 
 const HOST_NAME = 'native-sheet-host'
 let nextSheetId = 0
@@ -48,6 +50,8 @@ type NativeSheetProps = {
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
   loaderMinHeight?: number
+  theme?: Theme
+  backgroundColor?: string
 }
 
 const DEFAULT_LOADER_MIN_HEIGHT = 180
@@ -62,6 +66,8 @@ export function NativeSheet({
   children,
   showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
+  theme,
+  backgroundColor,
 }: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null)
   if (sheetIdRef.current === null) {
@@ -102,6 +108,8 @@ export function NativeSheet({
         onClose={onClose}
         showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
+        theme={theme}
+        backgroundColor={backgroundColor}
       >
         {children}
       </SheetHost>
@@ -119,6 +127,8 @@ function SheetHost({
   children,
   showAndroidLoader,
   loaderMinHeight,
+  theme,
+  backgroundColor,
 }: {
   isActive: boolean
   isOpen: boolean
@@ -129,6 +139,8 @@ function SheetHost({
   children: React.ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
+  theme?: Theme
+  backgroundColor?: string
 }) {
   const { bottom } = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
@@ -138,6 +150,16 @@ function SheetHost({
   const bottomSheetContentStyle = useMemo(
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
+  )
+
+  const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
+  const backgroundStyle = useMemo<StyleProp<ViewStyle>>(
+    () => (surfaceColor ? { backgroundColor: surfaceColor } : undefined),
+    [surfaceColor],
+  )
+  const handleIndicatorStyle = useMemo<StyleProp<ViewStyle>>(
+    () => (theme ? [styles.handle, { backgroundColor: SHEET_HANDLE[theme] }] : styles.handle),
+    [theme],
   )
 
   // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
@@ -224,6 +246,7 @@ function SheetHost({
           suppressInactiveSheet ? renderNoBackdrop : renderBackdrop
         }
         backgroundComponent={suppressInactiveSheet ? null : undefined}
+        backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}
         accessible={!suppressInactiveSheet}
         accessibilityElementsHidden={suppressInactiveSheet}
@@ -232,7 +255,7 @@ function SheetHost({
         }
         onChange={handleSheetChange}
         style={styles.sheet}
-        handleIndicatorStyle={styles.handle}
+        handleIndicatorStyle={handleIndicatorStyle}
       >
         <BottomSheetView
           pointerEvents={suppressInactiveSheet ? 'none' : 'auto'}

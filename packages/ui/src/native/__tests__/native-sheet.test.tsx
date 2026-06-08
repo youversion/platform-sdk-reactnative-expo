@@ -294,6 +294,63 @@ describe('NativeSheet', () => {
     ).toBe(false)
   })
 
+  it('themes the sheet background and handle indicator from the theme prop', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <NativeSheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} theme="dark">
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </NativeSheetProvider>,
+    )
+
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#1f1d1d' })
+    expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
+      { backgroundColor: '#ccc' },
+      { backgroundColor: '#5a5757' },
+    ])
+  })
+
+  it('prefers an explicit backgroundColor over the themed surface', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <NativeSheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} theme="dark" backgroundColor="#123456">
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </NativeSheetProvider>,
+    )
+
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#123456' })
+  })
+
+  it('leaves the sheet background unthemed when no theme or backgroundColor is given', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(<SheetHarness isOpen={true} />)
+
+    expect(latestBottomSheetProps.backgroundStyle).toBeUndefined()
+    expect(latestBottomSheetProps.handleIndicatorStyle).toEqual({ backgroundColor: '#ccc' })
+  })
+
   it('notifies a displaced sheet via onClose when another sheet claims activeSheetId', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,

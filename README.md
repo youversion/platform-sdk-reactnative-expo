@@ -112,7 +112,7 @@ export default function RootLayout() {
 
 `GestureHandlerRootView` must wrap `YouVersionProvider` — the provider includes internal bottom-sheet support that depends on React Native Gesture Handler.
 
-`YouVersionProvider` accepts `theme="light" | "dark" | "system"`. Components below can override the provider theme for that instance.
+`YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
 
 ## Usage
 

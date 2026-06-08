@@ -1,11 +1,11 @@
 'use dom'
 
-import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 import {
-  BibleVersionPicker,
   BibleLanguagePickerContent,
+  BibleVersionPicker,
   BibleVersionPickerLanguageTrigger,
 } from '@youversion/platform-react-ui'
+import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 import { YouVersionProvider } from '../lib/web-yv-provider'
@@ -63,7 +63,7 @@ export default function VersionPickerContentDOM({
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{versionPickerStyles}</style>
-      <div data-yv-sdk data-yv-version-picker-shell>
+      <div data-yv-sdk data-yv-theme={theme} data-yv-version-picker-shell>
         {/* key remounts the picker tree on each sheet open to reset scroll and filter state */}
         <BibleVersionPicker.Root
           key={resetKey}
@@ -150,6 +150,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   background: var(--yv-background);
+  color: var(--yv-foreground);
 
   [data-yv-bible-language-picker],
   [data-yv-bible-version-picker] {

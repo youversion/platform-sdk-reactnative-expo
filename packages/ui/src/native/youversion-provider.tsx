@@ -4,10 +4,9 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 import { createContext, use, type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { resolveTheme } from '../lib/resolve-theme'
+import { resolveTheme, type Theme, type ThemeInput } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
 
-type Theme = 'light' | 'dark'
 export type YouVersionTheme = Theme | 'system'
 
 const ThemeContext = createContext<Theme>('light')
@@ -24,7 +23,7 @@ export type YouVersionProviderProps = {
 export function YouVersionProvider({
   appKey,
   apiHost,
-  theme = 'light',
+  theme = 'system',
   auth,
   fallback,
   children,
@@ -41,6 +40,7 @@ export function YouVersionProvider({
   )
 }
 
-export function useTheme(): Theme {
-  return use(ThemeContext)
+export function useTheme(override?: ThemeInput): Theme {
+  const providerTheme = use(ThemeContext)
+  return override === 'system' ? providerTheme : (override ?? providerTheme)
 }
