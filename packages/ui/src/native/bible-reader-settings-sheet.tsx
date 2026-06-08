@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useTheme } from '../hooks/use-theme'
 
 export type BibleReaderSettingsSheetProps = {
   isSettingsSheetOpen: boolean

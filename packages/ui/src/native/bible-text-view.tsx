@@ -8,7 +8,7 @@ import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import FootnoteContent from '../dom/footnote-content'
 import { resolveTheme } from '../lib/resolve-theme'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useTheme } from '../hooks/use-theme'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',

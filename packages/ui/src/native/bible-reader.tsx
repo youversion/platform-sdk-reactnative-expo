@@ -5,19 +5,21 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
+import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
+import { useTheme } from '../hooks'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -81,7 +83,8 @@ export function BibleReader({
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
-  const resolvedTheme = useTheme(theme)
+  const themeContext = useTheme()
+  const resolvedTheme = theme === 'system' ? themeContext : (theme ?? themeContext)
 
   const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
 
@@ -204,6 +207,20 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
+  const onOpenWindow = useCallback(
+    async (event: WebViewOpenWindowEvent) => {
+      try {
+        await WebBrowser.openBrowserAsync(event.nativeEvent.targetUrl, {
+          dismissButtonStyle: 'close',
+        })
+        dom?.onOpenWindow?.(event)
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    [dom],
+  )
+
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
@@ -242,7 +259,7 @@ export function BibleReader({
         onFootnotePress={onFootnotePress}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
-        dom={dom}
+        dom={{ ...dom, onOpenWindow }}
       />
       {Platform.OS !== 'web' && (
         <BibleReaderSettingsSheet
@@ -256,7 +273,6 @@ export function BibleReader({
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           showAndroidLoader
-          theme={resolvedTheme}
         >
           <FootnoteContent
             dom={{ matchContents: true }}

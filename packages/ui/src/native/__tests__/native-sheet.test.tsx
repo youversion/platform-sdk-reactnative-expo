@@ -1,4 +1,4 @@
-import { act, render } from '@testing-library/react-native'
+import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { Text, View, Platform } from 'react-native'
 
@@ -546,6 +546,84 @@ describe('NativeSheet', () => {
       })
 
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+    })
+  })
+
+  describe('header', () => {
+    function HeaderHarness({
+      showHeader,
+      headerTitle,
+      theme,
+      onClose = () => {},
+    }: {
+      showHeader?: boolean
+      headerTitle?: string
+      theme?: 'light' | 'dark'
+      onClose?: () => void
+    }) {
+      const headerProps = showHeader
+        ? ({ showHeader: true, headerTitle: headerTitle ?? 'Title' } as const)
+        : ({ showHeader: false } as const)
+      return (
+        <NativeSheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={onClose} theme={theme} {...headerProps}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </NativeSheetProvider>
+      )
+    }
+
+    beforeEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+    })
+
+    it('does not render the header by default', () => {
+      const { queryByText } = render(<SheetHarness isOpen={true} />)
+
+      expect(queryByText('Cancel')).toBeNull()
+    })
+
+    it('renders the title and a Cancel control when showHeader is true', () => {
+      const { getByText } = render(<HeaderHarness showHeader headerTitle="Choose a version" />)
+
+      expect(getByText('Choose a version')).toBeTruthy()
+      expect(getByText('Cancel')).toBeTruthy()
+    })
+
+    it('calls onClose when the Cancel control is pressed', async () => {
+      const onClose = jest.fn()
+      const user = userEvent.setup()
+      const { getByText } = render(
+        <HeaderHarness showHeader headerTitle="Choose a version" onClose={onClose} />,
+      )
+
+      await user.press(getByText('Cancel'))
+
+      expect(onClose).toHaveBeenCalledTimes(1)
+    })
+
+    it('uses dark header text colors when the theme is dark', () => {
+      const { getByText } = render(
+        <HeaderHarness showHeader headerTitle="Choose a version" theme="dark" />,
+      )
+
+      expect(getByText('Choose a version').props.style).toMatchObject({ color: 'white' })
+      expect(getByText('Cancel').props.style).toMatchObject({ color: 'white' })
+    })
+
+    it('uses light header text colors when the theme is not dark', () => {
+      const { getByText } = render(
+        <HeaderHarness showHeader headerTitle="Choose a version" theme="light" />,
+      )
+
+      expect(getByText('Choose a version').props.style).toMatchObject({ color: 'black' })
+      expect(getByText('Cancel').props.style).toMatchObject({ color: 'black' })
     })
   })
 })

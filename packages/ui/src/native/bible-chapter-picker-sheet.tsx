@@ -2,9 +2,9 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
+import { useTheme } from '../hooks/use-theme'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
@@ -70,6 +70,8 @@ export function BibleChapterPickerSheet({
           backgroundColor: SHEET_MUTED_BACKGROUND[resolvedTheme],
         },
       ]}
+      showHeader={true}
+      headerTitle="Books"
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <ChapterPickerContentDOM
