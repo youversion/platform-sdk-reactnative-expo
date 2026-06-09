@@ -227,7 +227,8 @@ export function BibleReader({
             automaticallyAdjustContentInsets: false,
           }
         : {}),
-      style: StyleSheet.flatten([{ width, height }, dom?.style]),
+      // dom?.style first so the full-window dimensions always win.
+      style: StyleSheet.flatten([dom?.style, { width, height }]),
     }),
     [dom, width, height, isLandscape],
   )
