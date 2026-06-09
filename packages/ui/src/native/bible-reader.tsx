@@ -7,6 +7,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
@@ -214,7 +215,12 @@ export function BibleReader({
     : ({} as const)
 
   const { width, height } = useWindowDimensions()
+  const insets = useSafeAreaInsets()
   const isLandscape = width > height
+  // iOS clears the status bar via contentInsetAdjustmentBehavior, but Android
+  // (edge-to-edge) draws under it and has no such WebView prop, so pad the
+  // reader down by the top inset there and shrink the WebView to match.
+  const topInset = Platform.OS === 'android' ? insets.top : 0
   const readerDom = useMemo(
     () => ({
       ...dom,
@@ -227,15 +233,14 @@ export function BibleReader({
             automaticallyAdjustContentInsets: false,
           }
         : {}),
-      // dom?.style first so the full-window dimensions always win.
-      style: StyleSheet.flatten([dom?.style, { width, height }]),
+      style: StyleSheet.flatten([dom?.style, { width, height: height - topInset }]),
     }),
-    [dom, width, height, isLandscape],
+    [dom, width, height, topInset, isLandscape],
   )
 
   return (
     <>
-      <View style={styles.readerHost}>
+      <View style={[styles.readerHost, { paddingTop: topInset }]}>
         <BibleReaderDOM
           {...authProps}
           appKey={context.appKey}
