@@ -12,9 +12,12 @@ export function useLockOrientation(
 ) {
   useFocusEffect(
     useCallback(() => {
-      ScreenOrientation.lockAsync(lock)
+      // Fire-and-forget: lockAsync can reject on platforms that don't support
+      // orientation locking, so surface failures instead of swallowing them.
+      // Cleanup must stay synchronous, so the release lock chains .catch() too.
+      ScreenOrientation.lockAsync(lock).catch(console.error)
       return () => {
-        ScreenOrientation.lockAsync(releaseLock)
+        ScreenOrientation.lockAsync(releaseLock).catch(console.error)
       }
     }, [lock, releaseLock]),
   )
