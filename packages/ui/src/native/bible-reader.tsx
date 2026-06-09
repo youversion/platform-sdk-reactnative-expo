@@ -55,6 +55,13 @@ export type BibleReaderProps = Omit<
   defaultVersionId?: number
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  /**
+   * Android draws edge-to-edge, so the reader pads itself down by the
+   * safe-area top inset to clear the status bar. Set this if the consumer
+   * already applies its own top inset (e.g. a `SafeAreaView` wrapper) to
+   * avoid double spacing. No-op on iOS.
+   */
+  disableTopInset?: boolean
 }
 
 export function BibleReader({
@@ -74,6 +81,7 @@ export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   backgroundColor,
   foregroundColor,
+  disableTopInset = false,
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
@@ -220,7 +228,7 @@ export function BibleReader({
   // iOS clears the status bar via contentInsetAdjustmentBehavior, but Android
   // (edge-to-edge) draws under it and has no such WebView prop, so pad the
   // reader down by the top inset there and shrink the WebView to match.
-  const topInset = Platform.OS === 'android' ? insets.top : 0
+  const topInset = Platform.OS === 'android' && !disableTopInset ? insets.top : 0
   const readerDom = useMemo(
     () => ({
       ...dom,
