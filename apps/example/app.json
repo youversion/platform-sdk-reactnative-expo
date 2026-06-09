@@ -4,7 +4,7 @@
     "slug": "example",
     "version": "1.0.0",
     "scheme": "yvp-rn-example",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -21,7 +21,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.youversion.platform"
+      "bundleIdentifier": "com.youversion.platform",
+      "infoPlist": {
+        "UISupportedInterfaceOrientations": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ]
+      }
     },
     "android": {
       "package": "com.youversion.platform",

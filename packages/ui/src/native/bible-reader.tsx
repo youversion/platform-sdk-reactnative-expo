@@ -5,8 +5,8 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
-import { useCallback, useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
@@ -213,37 +213,58 @@ export function BibleReader({
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
 
+  const { width, height } = useWindowDimensions()
+  const isLandscape = width > height
+  const readerDom = useMemo(
+    () => ({
+      ...dom,
+      // We size the WebView to the full window, so in landscape suppress the
+      // iOS content-inset adjustment that would otherwise add a top inset.
+      // Portrait keeps the default so the toolbar still clears the status bar.
+      ...(isLandscape
+        ? {
+            contentInsetAdjustmentBehavior: 'never' as const,
+            automaticallyAdjustContentInsets: false,
+          }
+        : {}),
+      style: StyleSheet.flatten([{ width, height }, dom?.style]),
+    }),
+    [dom, width, height, isLandscape],
+  )
+
   return (
     <>
-      <BibleReaderDOM
-        {...authProps}
-        appKey={context.appKey}
-        apiHost={context.apiHost}
-        installationId={context.installationId}
-        accessToken={accessToken}
-        onSignInPress={signIn}
-        onSignOutPress={signOut}
-        userInfo={userInfo}
-        theme={resolvedTheme}
-        book={book}
-        chapter={chapter}
-        versionId={versionId}
-        fontSize={fontSize}
-        fontFamily={fontFamily}
-        onFontSizeChange={setFontSize}
-        onFontFamilyChange={setFontFamily}
-        onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
-        onBookChange={handleBookChange}
-        onChapterChange={handleChapterChange}
-        onVersionChange={handleVersionChange}
-        showToolbar={showToolbar}
-        onChapterPickerPress={handleChapterPickerPress}
-        onVersionPickerPress={handleVersionPickerPress}
-        onFootnotePress={onFootnotePress}
-        backgroundColor={backgroundColor}
-        foregroundColor={foregroundColor}
-        dom={dom}
-      />
+      <View style={styles.readerHost}>
+        <BibleReaderDOM
+          {...authProps}
+          appKey={context.appKey}
+          apiHost={context.apiHost}
+          installationId={context.installationId}
+          accessToken={accessToken}
+          onSignInPress={signIn}
+          onSignOutPress={signOut}
+          userInfo={userInfo}
+          theme={resolvedTheme}
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          onFontSizeChange={setFontSize}
+          onFontFamilyChange={setFontFamily}
+          onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
+          onBookChange={handleBookChange}
+          onChapterChange={handleChapterChange}
+          onVersionChange={handleVersionChange}
+          showToolbar={showToolbar}
+          onChapterPickerPress={handleChapterPickerPress}
+          onVersionPickerPress={handleVersionPickerPress}
+          onFootnotePress={onFootnotePress}
+          backgroundColor={backgroundColor}
+          foregroundColor={foregroundColor}
+          dom={readerDom}
+        />
+      </View>
       {Platform.OS !== 'web' && (
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
@@ -298,3 +319,10 @@ export function BibleReader({
     </>
   )
 }
+
+const styles = StyleSheet.create({
+  readerHost: {
+    flex: 1,
+  },
+ 
+})

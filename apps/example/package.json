@@ -10,16 +10,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/dom-webview": "~55.0.6",
     "@expo/metro-runtime": "~55.0.11",
     "@gorhom/bottom-sheet": "^5.2.13",
     "@rn-primitives/portal": "^1.4.0",
-    "@expo/dom-webview": "~55.0.6",
     "@youversion/platform-react-native-expo-core": "workspace:*",
     "@youversion/platform-react-native-expo-ui": "workspace:*",
     "expo": "~55.0.24",
     "expo-dev-client": "~55.0.34",
     "expo-linking": "~55.0.15",
     "expo-router": "~55.0.14",
+    "expo-screen-orientation": "~55.0.16",
     "expo-status-bar": "~55.0.6",
     "react": "19.2.5",
     "react-dom": "19.2.5",
