@@ -21,14 +21,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.youversion.platform",
-      "infoPlist": {
-        "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ]
-      }
+      "bundleIdentifier": "com.youversion.platform"
     },
     "android": {
       "package": "com.youversion.platform",
