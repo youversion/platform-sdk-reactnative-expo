@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
+import { withEmbedDomDefaults } from '../lib'
 import { useTheme } from './youversion-provider'
 
 export type VerseOfTheDayProps = Omit<
@@ -14,6 +15,7 @@ export type VerseOfTheDayProps = Omit<
 export function VerseOfTheDay({
   theme,
   onShare: consumerOnShare,
+  dom,
   ...props
 }: VerseOfTheDayProps) {
   const context = useYouVersion()
@@ -39,6 +41,7 @@ export function VerseOfTheDay({
   return (
     <VerseOfTheDayDOM
       {...props}
+      dom={withEmbedDomDefaults(dom)}
       appKey={context.appKey}
       apiHost={context.apiHost}
       installationId={context.installationId}

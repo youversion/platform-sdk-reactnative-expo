@@ -6,6 +6,7 @@ import { Platform } from 'react-native'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
+import { withEmbedDomDefaults } from '../lib'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from './youversion-provider'
@@ -44,6 +45,7 @@ export function BibleCard({
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
   showVersionPicker = true,
+  dom,
   ...props
 }: BibleCardProps) {
   const context = useYouVersion()
@@ -99,6 +101,7 @@ export function BibleCard({
     <>
       <BibleCardDOM
         {...props}
+        dom={withEmbedDomDefaults(dom)}
         appKey={context.appKey}
         apiHost={context.apiHost}
         installationId={context.installationId}

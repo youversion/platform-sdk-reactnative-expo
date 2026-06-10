@@ -16,7 +16,7 @@ let latestDomProps: {
   appKey?: string
   versionId?: number
   theme?: string
-  dom?: { matchContents?: boolean }
+  dom?: { matchContents?: boolean; containerStyle?: unknown }
   onShare?: (data: VerseOfTheDayShareData) => Promise<void>
 } = {}
 
@@ -82,6 +82,26 @@ describe('VerseOfTheDay', () => {
     expect(getByTestId('mock-app-key').children).toContain('test-key')
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
+  })
+
+  it('applies the embed dom defaults when no dom prop is passed', () => {
+    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+
+    expect(latestDomProps.dom).toEqual({
+      matchContents: true,
+      containerStyle: { flex: 0, width: '100%' },
+    })
+  })
+
+  it('merges a consumer containerStyle after the embed defaults', () => {
+    render(<VerseOfTheDay versionId={3034} dom={{ containerStyle: { width: 300 } }} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestDomProps.dom?.containerStyle).toEqual([
+      { flex: 0, width: '100%' },
+      { width: 300 },
+    ])
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {

@@ -14,14 +14,7 @@ export default function VerseOfTheDayScreen() {
       ]}
     >
       <View style={styles.card}>
-        <VerseOfTheDay
-          versionId={3034}
-          // flex: 0 lets the matchContents-measured height win over the
-          // WebView container's default flex: 1 (whose 0% basis discards the
-          // measured height); width: '100%' keeps the viewport determinate so
-          // the DOM body has a real width to lay out against.
-          dom={{ matchContents: true, containerStyle: { flex: 0, width: '100%' } }}
-        />
+        <VerseOfTheDay versionId={3034} />
       </View>
     </View>
   )
