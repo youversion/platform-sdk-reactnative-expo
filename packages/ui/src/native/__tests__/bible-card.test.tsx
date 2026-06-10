@@ -149,6 +149,9 @@ describe("BibleCard", () => {
     expect(latestDomProps.dom).toEqual({
       matchContents: true,
       containerStyle: { flex: 0, width: "100%" },
+      scrollEnabled: false,
+      bounces: false,
+      overScrollMode: "never",
     });
   });
 

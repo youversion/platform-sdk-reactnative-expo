@@ -13,11 +13,24 @@ import type { DOMProps } from 'expo/dom'
 const EMBED_CONTAINER_STYLE = { flex: 0, width: '100%' } as const
 
 /**
+ * A content-sized embed has nothing to scroll, but the WebView still
+ * rubber-bands (iOS) or shows the overscroll glow (Android) when dragged.
+ * Only applied alongside `matchContents` — an opted-out, fixed-height embed
+ * may legitimately need to scroll its overflow.
+ */
+const EMBED_SCROLL_DEFAULTS = {
+  scrollEnabled: false,
+  bounces: false,
+  overScrollMode: 'never',
+} as const
+
+/**
  * Applies the embed sizing contract to a consumer-provided `dom` prop:
- * `matchContents` on by default, and the container kept out of flex sizing so
- * the measured content height applies. Consumer values win — passing
- * `matchContents: false` restores plain flex sizing with no container
- * defaults, and a consumer `containerStyle` is merged after ours.
+ * `matchContents` on by default, the container kept out of flex sizing so
+ * the measured content height applies, and scrolling disabled. Consumer
+ * values win — passing `matchContents: false` restores plain flex sizing
+ * with no container or scroll defaults, and a consumer `containerStyle` is
+ * merged after ours.
  */
 export function withEmbedDomDefaults(dom?: DOMProps): DOMProps {
   const matchContents = dom?.matchContents ?? true
@@ -25,6 +38,7 @@ export function withEmbedDomDefaults(dom?: DOMProps): DOMProps {
     return { ...dom, matchContents }
   }
   return {
+    ...EMBED_SCROLL_DEFAULTS,
     ...dom,
     matchContents,
     containerStyle: dom?.containerStyle

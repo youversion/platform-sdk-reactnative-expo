@@ -17,9 +17,15 @@ A second trap lives on the native side: `react-native-webview` hardcodes `flex: 
 The native embed wrappers own this contract so consumers can drop the components into any layout without `dom` boilerplate. `withEmbedDomDefaults` (`packages/ui/src/lib/embed-dom-props.ts`) defaults the `dom` prop to:
 
 ```tsx
-{ matchContents: true, containerStyle: { flex: 0, width: '100%' } }
+{
+  matchContents: true,
+  containerStyle: { flex: 0, width: '100%' },
+  scrollEnabled: false,
+  bounces: false,
+  overScrollMode: 'never',
+}
 ```
 
-`flex: 0` lets the matched height win; `width: '100%'` keeps the DOM viewport width determinate (and overrides the matched width, which is what an embed filling its wrapper wants). A zero-height WKWebView still loads and reports its first measurement on iOS, so no placeholder `minHeight` is required.
+`flex: 0` lets the matched height win; `width: '100%'` keeps the DOM viewport width determinate (and overrides the matched width, which is what an embed filling its wrapper wants). A zero-height WKWebView still loads and reports its first measurement on iOS, so no placeholder `minHeight` is required. A content-sized embed has nothing to scroll, so scrolling, the iOS rubber-band bounce, and the Android overscroll glow are disabled by default alongside `matchContents`.
 
 Consumer values still win: `matchContents: false` restores plain flex sizing with no container defaults, and a consumer `containerStyle` is merged after the defaults so it overrides per-key. See `apps/example/app/(tabs)/verse-of-the-day.tsx` and `bible-card.tsx` for the reference layout (centered, `maxWidth`-capped wrapper around a bare component).
