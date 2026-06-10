@@ -4,8 +4,10 @@
   "main": "index.js",
   "scripts": {
     "start": "expo start",
+    "start:clear-cache": "npx expo start -c",
     "web": "expo start --web",
     "build:ios": "expo run:ios",
+    "build:ios-device": "expo run:ios --device",
     "build:android": "expo run:android",
     "typecheck": "tsc --noEmit"
   },
