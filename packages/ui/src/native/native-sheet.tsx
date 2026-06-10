@@ -17,7 +17,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Platform,
+  Pressable,
   StyleSheet,
+  Text,
   View,
   type LayoutChangeEvent,
   type StyleProp,
@@ -52,6 +54,8 @@ type NativeSheetProps = {
   loaderMinHeight?: number
   theme?: Theme
   backgroundColor?: string
+  showHeader?: boolean
+  headerTitle?: string
 }
 
 const DEFAULT_LOADER_MIN_HEIGHT = 180
@@ -68,6 +72,8 @@ export function NativeSheet({
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
   theme,
   backgroundColor,
+  showHeader = false,
+  headerTitle,
 }: NativeSheetProps) {
   const sheetIdRef = useRef<number | null>(null)
   if (sheetIdRef.current === null) {
@@ -110,6 +116,8 @@ export function NativeSheet({
         loaderMinHeight={loaderMinHeight}
         theme={theme}
         backgroundColor={backgroundColor}
+        showHeader={showHeader}
+        headerTitle={headerTitle}
       >
         {children}
       </SheetHost>
@@ -129,6 +137,8 @@ function SheetHost({
   loaderMinHeight,
   theme,
   backgroundColor,
+  showHeader,
+  headerTitle,
 }: {
   isActive: boolean
   isOpen: boolean
@@ -141,6 +151,8 @@ function SheetHost({
   loaderMinHeight: number
   theme?: Theme
   backgroundColor?: string
+  showHeader?: boolean
+  headerTitle?: string
 }) {
   const { bottom } = useSafeAreaInsets()
   const sheetRef = useRef<BottomSheet>(null)
@@ -182,7 +194,7 @@ function SheetHost({
 
   // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
-  
+
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
     Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
@@ -233,26 +245,20 @@ function SheetHost({
         animateOnMount={!suppressInactiveSheet}
         detached={suppressInactiveSheet && bottom > 0}
         bottomInset={suppressInactiveSheet ? bottom : 0}
-        containerStyle={
-          suppressInactiveSheet ? styles.inactiveContainer : undefined
-        }
+        containerStyle={suppressInactiveSheet ? styles.inactiveContainer : undefined}
         enablePanDownToClose={!suppressInactiveSheet}
         enableDynamicSizing
         enableHandlePanningGesture={!suppressInactiveSheet}
         enableContentPanningGesture={
           suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
         }
-        backdropComponent={
-          suppressInactiveSheet ? renderNoBackdrop : renderBackdrop
-        }
+        backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}
         accessible={!suppressInactiveSheet}
         accessibilityElementsHidden={suppressInactiveSheet}
-        importantForAccessibility={
-          suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
-        }
+        importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
         onChange={handleSheetChange}
         style={styles.sheet}
         handleIndicatorStyle={handleIndicatorStyle}
@@ -260,16 +266,36 @@ function SheetHost({
         <BottomSheetView
           pointerEvents={suppressInactiveSheet ? 'none' : 'auto'}
           accessibilityElementsHidden={suppressInactiveSheet}
-          importantForAccessibility={
-            suppressInactiveSheet ? 'no-hide-descendants' : 'auto'
-          }
+          importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
           style={bottomSheetContentStyle}
         >
-          <View
-            testID="native-sheet-loader-wrapper"
-            style={loaderWrapperStyle}
-            collapsable={false}
-          >
+          {showHeader && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingBottom: 16,
+                marginHorizontal: 4,
+              }}
+            >
+              <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
+                <Text style={{ color: theme === 'dark' ? 'white' : 'black', fontSize: 16 }}>
+                  Cancel
+                </Text>
+              </Pressable>
+              <Text
+                style={{
+                  color: theme === 'dark' ? 'white' : 'black',
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                }}
+              >
+                {headerTitle}
+              </Text>
+              <View style={{ flex: 1 }} />
+            </View>
+          )}
+          <View testID="native-sheet-loader-wrapper" style={loaderWrapperStyle} collapsable={false}>
             <View
               testID="native-sheet-content"
               onLayout={isAndroidLoaderEnabled ? handleContentLayout : undefined}
@@ -278,11 +304,7 @@ function SheetHost({
               {children}
             </View>
             {isLoading && (
-              <View
-                pointerEvents="none"
-                style={styles.loaderOverlay}
-                testID="native-sheet-loader"
-              >
+              <View pointerEvents="none" style={styles.loaderOverlay} testID="native-sheet-loader">
                 <ActivityIndicator size="large" accessibilityLabel="Loading" />
               </View>
             )}

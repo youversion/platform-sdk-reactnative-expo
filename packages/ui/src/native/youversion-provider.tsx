@@ -2,14 +2,13 @@ import {
   YouVersionProvider as CoreYouVersionProvider,
   type AuthConfig,
 } from '@youversion/platform-react-native-expo-core'
-import { createContext, use, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { resolveTheme, type Theme, type ThemeInput } from '../lib/resolve-theme'
+import { ThemeContext } from '../hooks'
+import { resolveTheme, type Theme } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
 
 export type YouVersionTheme = Theme | 'system'
-
-const ThemeContext = createContext<Theme>('light')
 
 export type YouVersionProviderProps = {
   appKey: string
@@ -38,9 +37,4 @@ export function YouVersionProvider({
       </ThemeContext.Provider>
     </CoreYouVersionProvider>
   )
-}
-
-export function useTheme(override?: ThemeInput): Theme {
-  const providerTheme = use(ThemeContext)
-  return override === 'system' ? providerTheme : (override ?? providerTheme)
 }

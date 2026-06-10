@@ -103,7 +103,14 @@ export default function VersionPickerContentDOM({
                     minHeight: 0,
                   }}
                 >
-                  <div style={{ paddingInline: '1rem', display: 'flex', justifyContent: 'end' }}>
+                  <div
+                    style={{
+                      paddingTop: '1rem',
+                      paddingInline: '1rem',
+                      display: 'flex',
+                      justifyContent: 'end',
+                    }}
+                  >
                     <BibleVersionPickerLanguageTrigger
                       onClick={(
                         event: MouseEvent<HTMLButtonElement> | TouchEvent<HTMLButtonElement>,
