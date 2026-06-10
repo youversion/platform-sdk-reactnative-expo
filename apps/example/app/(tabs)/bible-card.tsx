@@ -13,7 +13,13 @@ export default function BibleCardScreen() {
         { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
       ]}
     >
-      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+      <BibleCard
+        reference="JHN.3.16"
+        versionId={3034}
+        dom={{
+          matchContents: true,
+        }}
+      />
     </View>
   )
 }

@@ -8,6 +8,7 @@ import { useShallow } from "zustand/react/shallow";
 import { mmkvStorage } from "@youversion/platform-react-native-expo-core";
 import { INTER_FONT, SOURCE_SERIF_FONT } from "../../lib/reader-fonts";
 import { useReaderSettingsStore } from "../../stores/reader-settings-store";
+import { READER_LINE_SPACING } from "../../stores/types/reader-line-spacing";
 import { BibleReaderSettingsSheet } from "../bible-reader-settings-sheet";
 import { YouVersionProvider } from "../youversion-provider";
 
@@ -22,14 +23,17 @@ jest.mock("../../dom/bible-reader-settings", () => {
     default: function MockDOM(props: {
       fontSize: number;
       fontFamily: string;
+      lineSpacing: number;
       onFontIncreased: () => Promise<void>;
       onFontDecreased: () => Promise<void>;
       onFontSelected: (next: string) => Promise<void>;
+      onLineSpacingChange: () => Promise<void>;
     }) {
       return (
         <V testID="mock-dom">
           <T testID="font-size">{String(props.fontSize)}</T>
           <T testID="font-family">{props.fontFamily}</T>
+          <T testID="line-spacing">{String(props.lineSpacing)}</T>
           <P testID="increase" onPress={() => props.onFontIncreased()}>
             <T>A+</T>
           </P>
@@ -38,6 +42,9 @@ jest.mock("../../dom/bible-reader-settings", () => {
           </P>
           <P testID="select-inter" onPress={() => props.onFontSelected('"Inter", sans-serif')}>
             <T>Inter</T>
+          </P>
+          <P testID="cycle-line-spacing" onPress={() => props.onLineSpacingChange()}>
+            <T>Line spacing</T>
           </P>
         </V>
       );
@@ -67,8 +74,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
   // Subscribe here so we can read the latest values back out via testIDs and
   // confirm that handler calls round-trip through persisted settings.
-  const { fontSize, fontFamily } = useReaderSettingsStore(
-    useShallow((s) => ({ fontSize: s.fontSize, fontFamily: s.fontFamily })),
+  const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore(
+    useShallow((s) => ({
+      fontSize: s.fontSize,
+      fontFamily: s.fontFamily,
+      lineSpacing: s.lineSpacing,
+    })),
   );
   return (
     <>
@@ -77,6 +88,9 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
       </View>
       <View testID="harness-font-family">
         <Text>{fontFamily}</Text>
+      </View>
+      <View testID="harness-line-spacing">
+        <Text>{String(lineSpacing)}</Text>
       </View>
       <BibleReaderSettingsSheet isSettingsSheetOpen={isOpen} onClose={() => {}} />
     </>
@@ -89,6 +103,7 @@ describe("BibleReaderSettingsSheet", () => {
     useReaderSettingsStore.setState({
       fontSize: BIBLE_READER_FONT.DEFAULT,
       fontFamily: SOURCE_SERIF_FONT,
+      lineSpacing: READER_LINE_SPACING.DEFAULT,
     });
     return useReaderSettingsStore.persist.rehydrate();
   });
@@ -110,6 +125,9 @@ describe("BibleReaderSettingsSheet", () => {
       String(BIBLE_READER_FONT.DEFAULT),
     );
     expect(getByTestId("font-family").children).toContain(SOURCE_SERIF_FONT);
+    expect(getByTestId("line-spacing").children).toContain(
+      String(READER_LINE_SPACING.DEFAULT),
+    );
   });
 
   it("increase/decrease handlers step font size by STEP and clamp at bounds", () => {
@@ -138,6 +156,16 @@ describe("BibleReaderSettingsSheet", () => {
     expect(getByTestId("harness-font-family").children[0]).toHaveProperty(
       "props.children",
       INTER_FONT,
+    );
+  });
+
+  it("line-spacing handler cycles the persisted spacing DEFAULT -> LG", () => {
+    const { getByTestId } = render(<SheetHarness isOpen />, { wrapper });
+
+    fireEvent.press(getByTestId("cycle-line-spacing"));
+    expect(getByTestId("harness-line-spacing").children[0]).toHaveProperty(
+      "props.children",
+      String(READER_LINE_SPACING.LG),
     );
   });
 });
