@@ -9,7 +9,7 @@ import FootnoteContent from '../dom/footnote-content'
 import { withEmbedDomDefaults } from '../lib'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
+import { useTheme } from '../hooks/use-theme'
 
 const DEFAULT_VERSION_ID = 3034
 

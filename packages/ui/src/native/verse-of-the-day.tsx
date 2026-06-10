@@ -4,8 +4,8 @@ import { useCallback } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
+import { useTheme } from '../hooks/use-theme'
 import { withEmbedDomDefaults } from '../lib'
-import { useTheme } from './youversion-provider'
 
 export type VerseOfTheDayProps = Omit<
   VerseOfTheDayDOMProps,

@@ -5,20 +5,22 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
+import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
+import { useTheme } from '../hooks'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from './youversion-provider'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -213,6 +215,20 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
+  const onOpenWindow = useCallback(
+    async (event: WebViewOpenWindowEvent) => {
+      try {
+        await WebBrowser.openBrowserAsync(event.nativeEvent.targetUrl, {
+          dismissButtonStyle: 'close',
+        })
+        dom?.onOpenWindow?.(event)
+      } catch (error) {
+        console.error(error)
+      }
+    },
+    [dom],
+  )
+
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
@@ -232,6 +248,7 @@ export function BibleReader({
   const readerDom = useMemo(
     () => ({
       ...dom,
+      onOpenWindow,
       // We size the WebView to the full window, so in landscape suppress the
       // iOS content-inset adjustment that would otherwise add a top inset.
       // Portrait keeps the default so the toolbar still clears the status bar.
@@ -243,7 +260,7 @@ export function BibleReader({
         : {}),
       style: StyleSheet.flatten([dom?.style, { width, height: height - topInset }]),
     }),
-    [dom, width, height, topInset, isLandscape],
+    [dom, onOpenWindow, width, height, topInset, isLandscape],
   )
 
   return (
@@ -338,5 +355,4 @@ const styles = StyleSheet.create({
   readerHost: {
     flex: 1,
   },
- 
 })
