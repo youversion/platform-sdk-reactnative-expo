@@ -2,7 +2,7 @@
 
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
-import { applySDKConfig } from '../lib'
+import { applySDKConfig, ContentSizedBody } from '../lib'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
@@ -25,6 +25,7 @@ export default function VerseOfTheDayDOM({
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
+      <ContentSizedBody />
       <VerseOfTheDay {...props} onShare={onShare} />
     </YouVersionProvider>
   )

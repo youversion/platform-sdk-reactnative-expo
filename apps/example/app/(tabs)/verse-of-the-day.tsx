@@ -13,7 +13,16 @@ export default function VerseOfTheDayScreen() {
         { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
       ]}
     >
-      <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />
+      <View style={styles.card}>
+        <VerseOfTheDay
+          versionId={3034}
+          // flex: 0 lets the matchContents-measured height win over the
+          // WebView container's default flex: 1 (whose 0% basis discards the
+          // measured height); width: '100%' keeps the viewport determinate so
+          // the DOM body has a real width to lay out against.
+          dom={{ matchContents: true, containerStyle: { flex: 0, width: '100%' } }}
+        />
+      </View>
     </View>
   )
 }
@@ -22,5 +31,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 480,
   },
 })
