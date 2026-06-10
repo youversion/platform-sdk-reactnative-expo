@@ -8,7 +8,7 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 ## Release
 
-Releases are manually dispatched via `.github/workflows/release.yml` with an explicit version input. The script publishes both packages to npm in dependency order with bounded retry + per-package idempotency. If a dispatched release fails partway, **re-dispatch with the same version** — resume mode picks up where the previous run left off. See [RELEASING.md](./RELEASING.md) for the normal flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for failure-mode recovery.
+Releases use [Changesets](https://github.com/changesets/changesets), matching the flow in [`platform-sdk-react`](https://github.com/youversion/platform-sdk-react). Run `pnpm changeset` on PRs that should ship. Merging to `main` triggers `.github/workflows/release.yml`, which either opens a "Version Packages" PR (when changesets are pending) or publishes both packages atomically (when the Version PR merges). See [PUBLISHING.md](./PUBLISHING.md) for the full flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for RN-specific failure modes.
 
 ## Setup Commands
 

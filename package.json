@@ -18,9 +18,13 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo build && npm exec --yes -- changeset publish"
   },
   "devDependencies": {
+    "@changesets/cli": "2.29.7",
     "eslint": "^9",
     "eslint-config-expo": "^55.0.0",
     "eslint-config-prettier": "^10.1.8",
