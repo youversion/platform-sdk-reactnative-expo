@@ -3,7 +3,7 @@ import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleCardScreen() {
-  const { top, bottom } = useSafeAreaInsets()
+  const { top } = useSafeAreaInsets()
   const isDark = useColorScheme() === 'dark'
 
   return (
@@ -18,9 +18,6 @@ export default function BibleCardScreen() {
         versionId={3034}
         dom={{
           matchContents: true,
-          style: {
-            paddingBottom: bottom,
-          },
         }}
       />
     </View>

@@ -1,5 +1,6 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -79,6 +80,7 @@ export function BibleReader({
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
+  const { bottom } = useSafeAreaInsets()
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
@@ -258,7 +260,7 @@ export function BibleReader({
         onFootnotePress={onFootnotePress}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
-        dom={{ ...dom, style: { paddingBlockEnd: 100 } }}
+        dom={{ ...dom, style: { paddingBlockEnd: bottom } }}
       />
       {Platform.OS !== 'web' && (
         <BibleReaderSettingsSheet
