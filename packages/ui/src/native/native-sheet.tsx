@@ -274,15 +274,11 @@ function SheetHost({
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
-                justifyContent: 'center',
                 paddingBottom: 16,
+                marginHorizontal: 4,
               }}
             >
-              <Pressable
-                onPress={onClose}
-                style={{ position: 'absolute', left: 4, bottom: 12 }}
-                accessibilityRole="button"
-              >
+              <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
                 <Text style={{ color: theme === 'dark' ? 'white' : 'black', fontSize: 16 }}>
                   Cancel
                 </Text>
@@ -296,6 +292,7 @@ function SheetHost({
               >
                 {headerTitle}
               </Text>
+              <View style={{ flex: 1 }} />
             </View>
           )}
           <View testID="native-sheet-loader-wrapper" style={loaderWrapperStyle} collapsable={false}>
