@@ -260,7 +260,8 @@ export function BibleReader({
         onFootnotePress={onFootnotePress}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
-        dom={{ ...dom, style: { paddingBlockEnd: bottom } }}
+        bottomSafeArea={bottom}
+        dom={{ ...dom, onOpenWindow }}
       />
       {Platform.OS !== 'web' && (
         <BibleReaderSettingsSheet

@@ -49,6 +49,7 @@ type BibleReaderBaseProps = {
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
+  bottomSafeArea?: number
   dom?: import('expo/dom').DOMProps
 }
 
@@ -59,6 +60,9 @@ export type BibleReaderProps = BibleReaderBaseProps &
   )
 
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
+
+const READER_BOTTOM_PADDING = 48
+
 export default function BibleReaderDOM(props: BibleReaderProps) {
   const {
     appKey,
@@ -86,6 +90,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onFontFamilyChange,
     backgroundColor,
     foregroundColor,
+    bottomSafeArea = 0,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
@@ -108,12 +113,22 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
       <style href="yv-bible-reader-host-height" precedence="medium">
         {`html, body, #root { height: 100%; }`}
       </style>
+
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
           ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
         }`}
       </style>
+
+      {bottomSafeArea > 0 && (
+        <style href="yv-bible-reader-scroll-padding" precedence="medium">
+          {`main:has([data-slot="yv-bible-renderer"]) {
+            padding-bottom: ${READER_BOTTOM_PADDING + bottomSafeArea}px !important;
+          }`}
+        </style>
+      )}
+
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
           book={book}
