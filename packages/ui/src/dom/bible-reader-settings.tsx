@@ -10,10 +10,12 @@ export type BibleReaderSettingsDOMProps = {
   theme: 'light' | 'dark'
   fontSize: number
   fontFamily: FontFamily
+  lineSpacing: number
   // Expo DOM function props always cross the native <-> WebView bridge, so they must be async.
   onFontIncreased: () => void
   onFontDecreased: () => void
   onFontSelected: (fontFamily: FontFamily) => void
+  onLineSpacingChange: () => void
   dom?: import('expo/dom').DOMProps
 }
 
@@ -22,9 +24,11 @@ export default function BibleReaderSettingsDOM({
   theme,
   fontSize,
   fontFamily,
+  lineSpacing,
   onFontIncreased,
   onFontDecreased,
   onFontSelected,
+  onLineSpacingChange,
 }: BibleReaderSettingsDOMProps) {
   // React invokes button onClick handlers with a SyntheticEvent. That event
   // isn't JSON-serializable, so passing the bridge-bound handlers straight
@@ -39,6 +43,9 @@ export default function BibleReaderSettingsDOM({
   const handleFontSelected = (family: FontFamily) => {
     void onFontSelected(family)
   }
+  const handleLineSpacingChange = () => {
+    void onLineSpacingChange()
+  }
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
@@ -48,9 +55,11 @@ export default function BibleReaderSettingsDOM({
           theme={theme}
           fontSize={fontSize}
           fontFamily={fontFamily}
+          lineSpacing={lineSpacing}
           onFontIncreased={handleFontIncreased}
           onFontDecreased={handleFontDecreased}
           onFontSelected={handleFontSelected}
+          onChangeLineSpacing={handleLineSpacingChange}
         />
       </div>
     </YouVersionProvider>

@@ -44,8 +44,10 @@ type BibleReaderBaseProps = {
   onOpenBibleThemeSettings?: () => void
   fontSize?: number
   fontFamily?: FontFamily
+  lineSpacing?: number
   onFontSizeChange?: (fontSize: number) => void
   onFontFamilyChange?: (fontFamily: FontFamily) => void
+  onLineSpacingChange?: (lineSpacing: number) => void
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
@@ -86,8 +88,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onOpenBibleThemeSettings,
     fontSize,
     fontFamily,
+    lineSpacing,
     onFontSizeChange,
     onFontFamilyChange,
+    onLineSpacingChange,
     backgroundColor,
     foregroundColor,
     bottomSafeArea = 0,
@@ -144,8 +148,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
           fontFamily={fontFamily}
+          lineSpacing={lineSpacing}
           onFontSizeChange={onFontSizeChange}
           onFontFamilyChange={onFontFamilyChange}
+          onChangeLineSpacing={onLineSpacingChange}
         >
           {showToolbar && (
             <BibleReader.Toolbar

@@ -37,8 +37,10 @@ export type BibleReaderProps = Omit<
   | 'appKey'
   | 'fontSize'
   | 'fontFamily'
+  | 'lineSpacing'
   | 'onFontSizeChange'
   | 'onFontFamilyChange'
+  | 'onLineSpacingChange'
   | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
   | 'onVersionPickerPress'
@@ -87,7 +89,8 @@ export function BibleReader({
   const signOut = auth?.signOut
   const resolvedTheme = useTheme(theme)
 
-  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
+  const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
+    useReaderSettingsStore()
 
   const {
     book: storedBook,
@@ -248,8 +251,10 @@ export function BibleReader({
         versionId={versionId}
         fontSize={fontSize}
         fontFamily={fontFamily}
+        lineSpacing={lineSpacing}
         onFontSizeChange={setFontSize}
         onFontFamilyChange={setFontFamily}
+        onLineSpacingChange={setLineSpacing}
         onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
         onBookChange={handleBookChange}
         onChapterChange={handleChapterChange}

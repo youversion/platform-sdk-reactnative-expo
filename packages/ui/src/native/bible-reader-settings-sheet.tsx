@@ -17,17 +17,20 @@ export function BibleReaderSettingsSheet({
 }: BibleReaderSettingsSheetProps) {
   const { appKey } = useYouVersion()
   const theme = useTheme()
-  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
+  const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
+    useReaderSettingsStore()
 
-  const { onFontIncreased, onFontDecreased, onFontSelected } = useMemo(
+  const { onFontIncreased, onFontDecreased, onFontSelected, onChangeLineSpacing } = useMemo(
     () =>
       createBibleThemeSettingsContentHandlers({
         getFontSize: () => useReaderSettingsStore.getState().fontSize,
         getFontFamily: () => useReaderSettingsStore.getState().fontFamily,
+        getLineSpacing: () => useReaderSettingsStore.getState().lineSpacing,
         setFontSize,
         setFontFamily,
+        setLineSpacing,
       }),
-    [setFontSize, setFontFamily],
+    [setFontSize, setFontFamily, setLineSpacing],
   )
 
   return (
@@ -38,9 +41,11 @@ export function BibleReaderSettingsSheet({
         theme={theme}
         fontSize={fontSize}
         fontFamily={fontFamily}
+        lineSpacing={lineSpacing}
         onFontIncreased={onFontIncreased}
         onFontDecreased={onFontDecreased}
         onFontSelected={onFontSelected}
+        onLineSpacingChange={onChangeLineSpacing}
       />
     </NativeSheet>
   )
