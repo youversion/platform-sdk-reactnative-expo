@@ -1,6 +1,6 @@
 import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, useColorScheme, View } from 'react-native'
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
