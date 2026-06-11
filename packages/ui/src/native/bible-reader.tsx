@@ -8,6 +8,7 @@ import type {
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
@@ -51,6 +52,9 @@ export type BibleReaderProps = Omit<
   | 'onSignInPress'
   | 'onSignOutPress'
   | 'userInfo'
+  // The reader owns its own bottom scroll padding (it reads the safe-area bottom
+  // inset internally), so consumers don't pass it — it lives inside the WebView.
+  | 'bottomSafeArea'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -77,7 +81,6 @@ export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   backgroundColor,
   foregroundColor,
-  bottomSafeArea,
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
@@ -232,6 +235,11 @@ export function BibleReader({
   const authProps = context.authRedirectUrl
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
+
+  // The reader pads its own scroll content by the safe-area bottom inset so the
+  // closing attribution clears a tab bar / home indicator. This inset lives
+  // inside the WebView, so the SDK owns it rather than the consumer.
+  const { bottom: bottomSafeArea } = useSafeAreaInsets()
 
   const readerDom = useMemo(
     () => ({

@@ -4,15 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
-  const { top, bottom } = useSafeAreaInsets()
+  const { top } = useSafeAreaInsets()
 
   return (
     <View
       style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top }]}
     >
-      {/* Pass the bottom inset (tab bar + home indicator) so the reader pads its
-          scroll content and the closing attribution clears the tab bar. */}
-      <BibleReader defaultVersionId={3034} bottomSafeArea={bottom} />
+      <BibleReader defaultVersionId={3034} />
     </View>
   )
 }
