@@ -28,10 +28,7 @@ jest.mock('../../dom/bible-reader', () => {
           <Text testID="book">{props.book ?? 'none'}</Text>
           <Text testID="chapter">{props.chapter ?? 'none'}</Text>
           <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Pressable
-            testID="trigger-chapter-change"
-            onPress={() => props.onChapterChange?.('5')}
-          >
+          <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('5')}>
             <Text>Chapter</Text>
           </Pressable>
         </View>
@@ -73,13 +70,8 @@ jest.mock('../native-sheet', () => {
   const { View } = require('react-native')
   return {
     ...actual,
-    NativeSheet: ({
-      isOpen,
-      children,
-    }: {
-      isOpen: boolean
-      children: ReactNode
-    }) => (isOpen ? <View testID="sheet">{children}</View> : null),
+    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
   }
 })
 
@@ -113,11 +105,7 @@ async function resetReaderLocationStore() {
   await useReaderLocationStore.persist.rehydrate()
 }
 
-async function seedReaderLocation(location: {
-  book: string
-  chapter: string
-  versionId: number
-}) {
+async function seedReaderLocation(location: { book: string; chapter: string; versionId: number }) {
   mmkvStorage.set(
     READER_LOCATION_PERSIST_KEY,
     JSON.stringify({
@@ -157,10 +145,9 @@ describe('BibleReader Reader Location persistence', () => {
   it('controlled props win over stored Reader Location', async () => {
     await seedReaderLocation({ book: 'GEN', chapter: '2', versionId: 59 })
 
-    const { getByTestId } = render(
-      <BibleReader book="PSA" chapter="23" versionId={111} />,
-      { wrapper },
-    )
+    const { getByTestId } = render(<BibleReader book="PSA" chapter="23" versionId={111} />, {
+      wrapper,
+    })
 
     expect(getByTestId('book').props.children).toBe('PSA')
     expect(getByTestId('chapter').props.children).toBe('23')

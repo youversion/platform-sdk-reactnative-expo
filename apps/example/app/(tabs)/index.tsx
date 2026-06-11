@@ -7,8 +7,18 @@ export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
 
   return (
-    <View style={[styles.container, { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' }]}>
-      <BibleReader defaultVersionId={3034} />
+    <View
+      style={[
+        styles.container,
+        { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
+      ]}
+    >
+      <BibleReader
+        dom={{
+          scrollEnabled: false,
+        }}
+        defaultVersionId={3034}
+      />
     </View>
   )
 }

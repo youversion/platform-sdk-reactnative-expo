@@ -1,5 +1,6 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -36,8 +37,10 @@ export type BibleReaderProps = Omit<
   | 'appKey'
   | 'fontSize'
   | 'fontFamily'
+  | 'lineSpacing'
   | 'onFontSizeChange'
   | 'onFontFamilyChange'
+  | 'onLineSpacingChange'
   | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
   | 'onVersionPickerPress'
@@ -79,13 +82,15 @@ export function BibleReader({
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
+  const { bottom } = useSafeAreaInsets()
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const signOut = auth?.signOut
   const resolvedTheme = useTheme(theme)
 
-  const { setFontFamily, setFontSize, fontSize, fontFamily } = useReaderSettingsStore()
+  const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
+    useReaderSettingsStore()
 
   const {
     book: storedBook,
@@ -246,8 +251,10 @@ export function BibleReader({
         versionId={versionId}
         fontSize={fontSize}
         fontFamily={fontFamily}
+        lineSpacing={lineSpacing}
         onFontSizeChange={setFontSize}
         onFontFamilyChange={setFontFamily}
+        onLineSpacingChange={setLineSpacing}
         onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
         onBookChange={handleBookChange}
         onChapterChange={handleChapterChange}
@@ -258,6 +265,7 @@ export function BibleReader({
         onFootnotePress={onFootnotePress}
         backgroundColor={backgroundColor}
         foregroundColor={foregroundColor}
+        bottomSafeArea={bottom}
         dom={{ ...dom, onOpenWindow }}
       />
       {Platform.OS !== 'web' && (

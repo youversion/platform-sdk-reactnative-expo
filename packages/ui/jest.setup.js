@@ -67,6 +67,10 @@ if (typeof global.nativeModuleProxy === 'undefined') {
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
 /**
  * `expo/fetch` exports a `FetchResponse` class that extends the global
  * `Response`. Under jest-expo the global isn't a real constructor, so loading
