@@ -17,13 +17,7 @@ export type BibleChapterPickerSheetProps = {
   onClose: () => void
 
   book?: string
-  defaultBook?: string
-  onBookChange?: (book: string) => void | Promise<void>
-
   chapter?: string
-  defaultChapter?: string
-  onChapterChange?: (chapter: string) => void | Promise<void>
-
   versionId?: number
 
   theme?: 'light' | 'dark' | 'system'
@@ -36,8 +30,6 @@ export function BibleChapterPickerSheet({
   onClose,
   book = DEFAULT_BOOK,
   chapter = DEFAULT_CHAPTER,
-  onBookChange,
-  onChapterChange,
   versionId = DEFAULT_VERSION_ID,
   theme: themeOverride,
   onSelect,

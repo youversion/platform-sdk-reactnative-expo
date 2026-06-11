@@ -89,9 +89,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleTextView`, `BibleChapterPickerSheet`
-
-**Types**: `BibleChapterPickerSheetProps`, `YouVersionProviderProps`, `YouVersionTheme`
+**Components**: `YouVersionProvider`, `BibleCard`, `VerseOfTheDay`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleChapterPickerSheet`
 
 ## Runtime Dependencies
 
@@ -112,7 +110,24 @@ See `packages/ui/package.json` `peerDependencies` for the canonical list. Requir
 
 ## Testing
 
-Jest with `jest-expo` preset configured at the package level (`packages/ui/package.json`). Run with `pnpm test`.
+Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.83 compatibility.
+
+### Testing layers
+
+Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
+
+1. **Pure logic** — plain Jest unit tests for state reducers, prop builders, action handlers. No framework.
+2. **DOM component tests** — `@testing-library/react` + jsdom testing `'use dom'` internals. **Not our responsibility** — the Web SDK owns DOM behavior. Add a separate jsdom Jest project only if we need to test SDK-authored DOM behavior (e.g. shell layout CSS, `visualViewport` keyboard handling).
+3. **Native screen tests** — `jest-expo` + `@testing-library/react-native` with DOM components **mocked as RN primitives**. This is our primary layer. Test native action contracts, orchestration, theme resolution, and error gating. Not prop forwarding or framework mechanics.
+4. **E2E/device tests** — Maestro/Detox on a built app. Validates the real native/DOM bridge. Not set up yet.
+
+### Conventions
+
+- Mock DOM components inside `jest.mock()` factories using `require('react-native')` — never render real DOM components in RNTL.
+- Mock `NativeSheet` with `jest.requireActual` spread to preserve `NativeSheetProvider`.
+- Prefer `userEvent` over `fireEvent` for new tests.
+- Use `latestDomProps` capture pattern to assert what crosses the native/DOM boundary.
+- Wrap async native action calls in `act(async () => { ... })`.
 
 ## Code Style
 

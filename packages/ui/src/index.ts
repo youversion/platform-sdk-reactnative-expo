@@ -2,6 +2,7 @@ export {
   BibleCard,
   BibleChapterPickerSheet,
   BibleReader,
+  BibleReaderSettingsSheet,
   BibleTextView,
   VerseOfTheDay,
   YouVersionProvider,
