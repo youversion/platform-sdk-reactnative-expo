@@ -250,6 +250,7 @@ export function BibleReader({
   const topInset = Platform.OS === 'android' && !isTopInsetDisabled ? insets.top : 0
   const readerDom = useMemo(
     () => ({
+      scrollEnabled: false,
       ...dom,
       onOpenWindow,
       // We size the WebView to the full window, so in landscape suppress the
