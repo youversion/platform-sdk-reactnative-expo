@@ -31,7 +31,10 @@
     "@rn-primitives/portal": "^1.4.0",
     "@youversion/platform-react-native-expo-core": "workspace:*",
     "@youversion/platform-react-ui": "^2.0.0",
+    "expo-localization": "~55.0.8",
     "expo-web-browser": "~55.0.16",
+    "i18next": "^26.3.1",
+    "react-i18next": "^17.0.8",
     "zustand": "^5.0.13"
   },
   "peerDependencies": {

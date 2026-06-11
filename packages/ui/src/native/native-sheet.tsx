@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
 
 const HOST_NAME = 'native-sheet-host'
@@ -155,6 +156,7 @@ function SheetHost({
   headerTitle?: string
 }) {
   const { bottom } = useSafeAreaInsets()
+  const { t } = useSdkTranslation()
   const sheetRef = useRef<BottomSheet>(null)
   const wasActiveRef = useRef(false)
   const lastOpenKeyRef = useRef(openKey)
@@ -305,7 +307,7 @@ function SheetHost({
             </View>
             {isLoading && (
               <View pointerEvents="none" style={styles.loaderOverlay} testID="native-sheet-loader">
-                <ActivityIndicator size="large" accessibilityLabel="Loading" />
+                <ActivityIndicator size="large" accessibilityLabel={t('loading')} />
               </View>
             )}
           </View>

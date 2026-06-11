@@ -1,0 +1,7 @@
+{
+  "signIn": "Sign in",
+  "signInWithYouVersion": "Sign in with <bold>{{brandName}}</bold>",
+  "signOut": "Sign Out",
+  "signOutOfYouVersion": "Sign out of <bold>{{brandName}}</bold>",
+  "loading": "Loading"
+}

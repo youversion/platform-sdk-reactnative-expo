@@ -6,7 +6,9 @@ import { getSdkHeaders } from './sdk-version'
 // `additionalHeaders` ships in the next Web SDK release; widen the prop type
 // locally until that publishes.
 type BaseProps = ComponentProps<typeof BaseYouVersionProvider>
-type ProviderProps = BaseProps & { additionalHeaders?: Record<string, string> }
+type ProviderProps = BaseProps & {
+  additionalHeaders?: Record<string, string>
+}
 
 const TypedProvider = BaseYouVersionProvider as ComponentType<ProviderProps>
 

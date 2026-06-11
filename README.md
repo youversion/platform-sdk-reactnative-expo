@@ -114,6 +114,28 @@ export default function RootLayout() {
 
 `YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
 
+### Localization
+
+The SDK owns a private i18next instance for native UI strings (auth button labels, sheet loader accessibility). **By default**, native SDK copy follows the **device locale** (via bundled `expo-localization`). No extra setup is required:
+
+```tsx
+<YouVersionProvider appKey={appKey}>
+  {/* your app */}
+</YouVersionProvider>
+```
+
+Pass an explicit **`locale`** when your app manages language (for example an in-app language picker) so SDK strings stay in sync with the rest of your UI:
+
+```tsx
+<YouVersionProvider appKey={appKey} locale={appLocale}>
+  {/* your app */}
+</YouVersionProvider>
+```
+
+`locale` controls **native** SDK UI copy only (auth button, sheet chrome, loader accessibility). Bible content and in-WebView UI (reader, pickers, footnotes) remain in the Web SDK default language — see [ADR 0007](./docs/adr/0007-app-locale-vs-bible-language-id.md) and [ADR 0009](./docs/adr/0009-deferred-dom-localization.md). Bible translation selection (`versionId`, version picker) is separate from app locale.
+
+`i18next`, `react-i18next`, and `expo-localization` are bundled with the UI package for SDK localization — consumers do not install them unless they want `expo-localization` for their own app screens.
+
 ## Usage
 
 All components below read `appKey` from `YouVersionProvider`. Component-level `theme` props can still override the provider theme.
