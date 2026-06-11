@@ -77,6 +77,7 @@ export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   backgroundColor,
   foregroundColor,
+  bottomSafeArea,
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
@@ -276,6 +277,7 @@ export function BibleReader({
           onFootnotePress={onFootnotePress}
           backgroundColor={backgroundColor}
           foregroundColor={foregroundColor}
+          bottomSafeArea={bottomSafeArea}
           dom={readerDom}
         />
       </View>

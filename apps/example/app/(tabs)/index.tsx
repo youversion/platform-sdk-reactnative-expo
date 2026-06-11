@@ -8,9 +8,11 @@ export default function BibleScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top, paddingBottom: bottom }]}
+      style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top }]}
     >
-      <BibleReader defaultVersionId={3034} />
+      {/* Pass the bottom inset (tab bar + home indicator) so the reader pads its
+          scroll content and the closing attribution clears the tab bar. */}
+      <BibleReader defaultVersionId={3034} bottomSafeArea={bottom} />
     </View>
   )
 }
