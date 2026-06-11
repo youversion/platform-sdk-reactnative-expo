@@ -6,7 +6,7 @@ export default function BibleScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff' }]}>
-      <BibleReader defaultVersionId={3034} />
+      <BibleReader defaultVersionId={3034} dom={{ scrollEnabled: false }} />
     </View>
   )
 }

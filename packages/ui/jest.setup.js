@@ -67,6 +67,10 @@ if (typeof global.nativeModuleProxy === 'undefined') {
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}))
+
 /**
  * `react-native-safe-area-context` throws "No safe area value available" when
  * `useSafeAreaInsets` runs without a `<SafeAreaProvider>`. UI tests render
