@@ -7,8 +7,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Platform, StyleSheet, useWindowDimensions, View } from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Platform, StyleSheet, View } from 'react-native'
 import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
@@ -59,13 +58,6 @@ export type BibleReaderProps = Omit<
   defaultVersionId?: number
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-  /**
-   * Android draws edge-to-edge, so the reader pads itself down by the
-   * safe-area top inset to clear the status bar. Set this if the consumer
-   * already applies its own top inset (e.g. a `SafeAreaView` wrapper) to
-   * avoid double spacing. No-op on iOS.
-   */
-  isTopInsetDisabled?: boolean
 }
 
 export function BibleReader({
@@ -85,7 +77,6 @@ export function BibleReader({
   onFootnotePress: consumerOnFootnotePress,
   backgroundColor,
   foregroundColor,
-  isTopInsetDisabled = false,
   dom,
 }: BibleReaderProps) {
   const context = useYouVersion()
@@ -241,35 +232,21 @@ export function BibleReader({
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
 
-  const { width, height } = useWindowDimensions()
-  const insets = useSafeAreaInsets()
-  const isLandscape = width > height
-  // iOS clears the status bar via contentInsetAdjustmentBehavior, but Android
-  // (edge-to-edge) draws under it and has no such WebView prop, so pad the
-  // reader down by the top inset there and shrink the WebView to match.
-  const topInset = Platform.OS === 'android' && !isTopInsetDisabled ? insets.top : 0
   const readerDom = useMemo(
     () => ({
       scrollEnabled: false,
+      contentInsetAdjustmentBehavior: 'never' as const,
+      automaticallyAdjustContentInsets: false,
       ...dom,
       onOpenWindow,
-      // We size the WebView to the full window, so in landscape suppress the
-      // iOS content-inset adjustment that would otherwise add a top inset.
-      // Portrait keeps the default so the toolbar still clears the status bar.
-      ...(isLandscape
-        ? {
-            contentInsetAdjustmentBehavior: 'never' as const,
-            automaticallyAdjustContentInsets: false,
-          }
-        : {}),
-      style: StyleSheet.flatten([dom?.style, { width, height: height - topInset }]),
+      style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
     }),
-    [dom, onOpenWindow, width, height, topInset, isLandscape],
+    [dom, onOpenWindow],
   )
 
   return (
     <>
-      <View style={[styles.readerHost, { paddingTop: topInset }]}>
+      <View style={{ flex: 1 }}>
         <BibleReaderDOM
           {...authProps}
           appKey={context.appKey}
@@ -299,7 +276,6 @@ export function BibleReader({
           onFootnotePress={onFootnotePress}
           backgroundColor={backgroundColor}
           foregroundColor={foregroundColor}
-          bottomSafeArea={insets.bottom}
           dom={readerDom}
         />
       </View>
@@ -358,8 +334,4 @@ export function BibleReader({
   )
 }
 
-const styles = StyleSheet.create({
-  readerHost: {
-    flex: 1,
-  },
-})
+
