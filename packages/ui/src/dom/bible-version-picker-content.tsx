@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import {
   BibleLanguagePickerContent,
   BibleVersionPicker,
@@ -19,7 +21,7 @@ export type VersionPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-export default function VersionPickerContentDOM({
+function VersionPickerContentDOM({
   appKey,
   versionId = 3034,
   theme = 'light',
@@ -177,3 +179,6 @@ body {
   }
 }
 `
+
+const RecoveredVersionPickerContentDOM = withDomBridgeRecovery(VersionPickerContentDOM)
+export default RecoveredVersionPickerContentDOM

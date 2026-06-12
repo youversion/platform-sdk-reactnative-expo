@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { BibleTextView } from '@youversion/platform-react-ui'
 
@@ -30,7 +32,7 @@ export type BibleTextViewProps = Omit<
   dom?: import('expo/dom').DOMProps
 }
 
-export default function BibleTextViewDOM({
+function BibleTextViewDOM({
   appKey,
   apiHost,
   installationId,
@@ -60,3 +62,6 @@ export default function BibleTextViewDOM({
     </YouVersionProvider>
   )
 }
+
+const RecoveredBibleTextViewDOM = withDomBridgeRecovery(BibleTextViewDOM)
+export default RecoveredBibleTextViewDOM

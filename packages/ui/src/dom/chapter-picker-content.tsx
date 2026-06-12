@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import {
   BibleChapterPicker,
   type BibleChapterPickerSelectData,
@@ -18,7 +20,7 @@ export type ChapterPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-export default function ChapterPickerContentDOM({
+function ChapterPickerContentDOM({
   appKey,
   book,
   chapter,
@@ -103,3 +105,6 @@ body {
   padding-bottom: calc(1rem + var(--yv-keyboard-overlap));
 }
 `
+
+const RecoveredChapterPickerContentDOM = withDomBridgeRecovery(ChapterPickerContentDOM)
+export default RecoveredChapterPickerContentDOM

@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
 import { applySDKConfig, ContentSizedBody } from '../lib'
@@ -13,7 +15,7 @@ export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
   dom?: import('expo/dom').DOMProps
 }
 
-export default function VerseOfTheDayDOM({
+function VerseOfTheDayDOM({
   appKey,
   apiHost,
   installationId,
@@ -30,3 +32,6 @@ export default function VerseOfTheDayDOM({
     </YouVersionProvider>
   )
 }
+
+const RecoveredVerseOfTheDayDOM = withDomBridgeRecovery(VerseOfTheDayDOM)
+export default RecoveredVerseOfTheDayDOM
