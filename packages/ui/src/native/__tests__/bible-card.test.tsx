@@ -68,6 +68,10 @@ jest.mock("../../dom/footnote-content", () => {
   };
 });
 
+let latestDomProps: {
+  dom?: { matchContents?: boolean; containerStyle?: unknown };
+} = {};
+
 jest.mock("../../dom/bible-card", () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Pressable, Text, View } = require("react-native");
@@ -78,9 +82,10 @@ jest.mock("../../dom/bible-card", () => {
       reference?: string;
       versionId?: number;
       theme?: string;
-      dom?: { matchContents?: boolean };
+      dom?: { matchContents?: boolean; containerStyle?: unknown };
       onFootnotePress?: (data: FootnoteData) => Promise<void>;
     }) {
+      latestDomProps = props;
       return (
         <View testID="mock-bible-card-dom">
           <Text testID="mock-app-key">{props.appKey}</Text>
@@ -108,6 +113,10 @@ jest.mock("../../dom/bible-card", () => {
 describe("BibleCard", () => {
   const originalOs = Platform.OS;
 
+  beforeEach(() => {
+    latestDomProps = {};
+  });
+
   afterEach(() => {
     Object.defineProperty(Platform, "OS", {
       configurable: true,
@@ -130,6 +139,36 @@ describe("BibleCard", () => {
     expect(getByTestId("mock-reference").children).toContain("JHN.3.16");
     expect(getByTestId("mock-version-id").children).toContain("3034");
     expect(getByTestId("mock-dom-match-contents").children).toContain("1");
+  });
+
+  it("applies the embed dom defaults when no dom prop is passed", () => {
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: wrapper(),
+    });
+
+    expect(latestDomProps.dom).toEqual({
+      matchContents: true,
+      containerStyle: { flex: 0, width: "100%" },
+      scrollEnabled: false,
+      bounces: false,
+      overScrollMode: "never",
+    });
+  });
+
+  it("merges a consumer containerStyle after the embed defaults", () => {
+    render(
+      <BibleCard
+        reference="JHN.3.16"
+        versionId={3034}
+        dom={{ containerStyle: { width: 300 } }}
+      />,
+      { wrapper: wrapper() },
+    );
+
+    expect(latestDomProps.dom?.containerStyle).toEqual([
+      { flex: 0, width: "100%" },
+      { width: 300 },
+    ]);
   });
 
   it("forwards a component-level theme override to the DOM entry", () => {

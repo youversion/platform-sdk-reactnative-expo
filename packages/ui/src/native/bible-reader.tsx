@@ -1,14 +1,14 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useEffect, useState } from 'react'
-import { Platform } from 'react-native'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Platform, StyleSheet, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
@@ -52,6 +52,9 @@ export type BibleReaderProps = Omit<
   | 'onSignInPress'
   | 'onSignOutPress'
   | 'userInfo'
+  // The reader owns its own bottom scroll padding (it reads the safe-area bottom
+  // inset internally), so consumers don't pass it — it lives inside the WebView.
+  | 'bottomSafeArea'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -82,7 +85,6 @@ export function BibleReader({
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
-  const { bottom } = useSafeAreaInsets()
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
@@ -234,40 +236,59 @@ export function BibleReader({
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
 
+  // The reader pads its own scroll content by the safe-area bottom inset so the
+  // closing attribution clears a tab bar / home indicator. This inset lives
+  // inside the WebView, so the SDK owns it rather than the consumer.
+  const { bottom: bottomSafeArea } = useSafeAreaInsets()
+
+  const readerDom = useMemo(
+    () => ({
+      scrollEnabled: false,
+      contentInsetAdjustmentBehavior: 'never' as const,
+      automaticallyAdjustContentInsets: false,
+      ...dom,
+      onOpenWindow,
+      style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
+    }),
+    [dom, onOpenWindow],
+  )
+
   return (
     <>
-      <BibleReaderDOM
-        {...authProps}
-        appKey={context.appKey}
-        apiHost={context.apiHost}
-        installationId={context.installationId}
-        accessToken={accessToken}
-        onSignInPress={signIn}
-        onSignOutPress={signOut}
-        userInfo={userInfo}
-        theme={resolvedTheme}
-        book={book}
-        chapter={chapter}
-        versionId={versionId}
-        fontSize={fontSize}
-        fontFamily={fontFamily}
-        lineSpacing={lineSpacing}
-        onFontSizeChange={setFontSize}
-        onFontFamilyChange={setFontFamily}
-        onLineSpacingChange={setLineSpacing}
-        onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
-        onBookChange={handleBookChange}
-        onChapterChange={handleChapterChange}
-        onVersionChange={handleVersionChange}
-        showToolbar={showToolbar}
-        onChapterPickerPress={handleChapterPickerPress}
-        onVersionPickerPress={handleVersionPickerPress}
-        onFootnotePress={onFootnotePress}
-        backgroundColor={backgroundColor}
-        foregroundColor={foregroundColor}
-        bottomSafeArea={bottom}
-        dom={{ ...dom, onOpenWindow }}
-      />
+      <View style={{ flex: 1 }}>
+        <BibleReaderDOM
+          {...authProps}
+          appKey={context.appKey}
+          apiHost={context.apiHost}
+          installationId={context.installationId}
+          accessToken={accessToken}
+          onSignInPress={signIn}
+          onSignOutPress={signOut}
+          userInfo={userInfo}
+          theme={resolvedTheme}
+          book={book}
+          chapter={chapter}
+          versionId={versionId}
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          lineSpacing={lineSpacing}
+          onFontSizeChange={setFontSize}
+          onFontFamilyChange={setFontFamily}
+          onLineSpacingChange={setLineSpacing}
+          onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
+          onBookChange={handleBookChange}
+          onChapterChange={handleChapterChange}
+          onVersionChange={handleVersionChange}
+          showToolbar={showToolbar}
+          onChapterPickerPress={handleChapterPickerPress}
+          onVersionPickerPress={handleVersionPickerPress}
+          onFootnotePress={onFootnotePress}
+          backgroundColor={backgroundColor}
+          foregroundColor={foregroundColor}
+          bottomSafeArea={bottomSafeArea}
+          dom={readerDom}
+        />
+      </View>
       {Platform.OS !== 'web' && (
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
@@ -322,3 +343,5 @@ export function BibleReader({
     </>
   )
 }
+
+
