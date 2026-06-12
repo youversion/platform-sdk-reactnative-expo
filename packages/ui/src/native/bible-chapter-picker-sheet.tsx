@@ -61,6 +61,9 @@ export function BibleChapterPickerSheet({
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      // Pre-warmed: the book/chapter data is fetched over the network, so the
+      // WebView stays mounted to hide data latency, not WebView cold start.
+      keepMounted
       enableContentPanningGesture={false}
       theme={resolvedTheme}
       backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}

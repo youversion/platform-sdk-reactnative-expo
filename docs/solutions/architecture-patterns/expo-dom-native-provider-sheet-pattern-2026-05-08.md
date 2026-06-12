@@ -15,6 +15,8 @@ tags: [expo-dom, react-native, native-sheet, webview, provider]
 
 # Expo DOM Native Provider And Sheet Pattern
 
+> **Partially superseded (2026-06):** measurement showed on-demand WebView cold start is ~170ms on low-mid-range hardware, so `NativeSheet` now defaults to mount-on-open and the pre-warm/inert-host treatment described below applies only to `keepMounted` sheets (version/chapter pickers). See `docs/adr/0009-mount-on-open-native-sheets.md`. The portal-not-Modal and no-1×1-wrapper guidance still stands.
+
 ## Context
 The React Native Expo SDK wraps `@youversion/platform-react-ui` DOM components for native apps. Consumers should get a native-feeling API with one `YouVersionProvider`, while the implementation still has to respect Expo DOM boundaries and keep WebView content warm for footnote sheets.
 

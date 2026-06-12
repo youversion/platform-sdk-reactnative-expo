@@ -1,6 +1,8 @@
 # Inactive sheet inertness
 
-The default **Native Sheet** model keeps each sheet's Expo DOM content mounted inside its own closed `BottomSheet` host. This pre-warms the WebView and avoids remounting sheet content on first open.
+> **Amended by [ADR 0009](0009-mount-on-open-native-sheets.md):** `NativeSheet` now defaults to mount-on-open, so most sheets have no closed resident host and need none of this treatment. This ADR applies only to `keepMounted` sheets (version picker, chapter picker), which keep a resident host to hide network-data latency.
+
+A `keepMounted` **Native Sheet** keeps its Expo DOM content mounted inside its own closed `BottomSheet` host. This pre-warms the WebView and its network data and avoids remounting sheet content on first open.
 
 Inactive sheets must still be inert. Before a sheet-opening user action, they must not be visible, draggable, touch-blocking, or otherwise in the user's way. A mounted closed host is acceptable only while it satisfies that product requirement.
 
@@ -12,4 +14,4 @@ The preferred fix preserves WebView pre-warming by keeping inactive **Native She
 
 iOS does not exhibit the closed-sheet leak that motivated this ADR — a closed `BottomSheet` at `index={-1}` is already invisible and non-interactive on iOS. Applying the inert-host treatment universally translated the entire host 1000pt offscreen, which on iOS suspends `matchContents` measurement in the pre-warmed Expo DOM WebView. Small native sheets (footnotes, theme settings) that rely on `matchContents` then snap open before content has laid out, animate to a near-zero height, and visibly grow into place once the WebView reports its real size. Larger pickers were unaffected because they wrap their DOM content in a fixed-height `View` that gives `enableDynamicSizing` a stable measure immediately.
 
-iOS therefore opts out of the inert-host treatment: inactive hosts render with default chrome, default `backgroundComponent`, default `handleComponent`, no `bottomInset`/`detached`, and no offscreen container translation. WebView pre-warming proceeds normally, and the first `snapToIndex(0)` animates to the correct content height in a single pass. This exception is scoped via `Platform.OS === 'android'` in [`packages/ui/src/native/native-sheet.tsx`](../../packages/ui/src/native/native-sheet.tsx).
+iOS therefore opts out of the inert-host treatment: inactive hosts render with default chrome, default `backgroundComponent`, default `handleComponent`, no `bottomInset`/`detached`, and no offscreen container translation. WebView pre-warming proceeds normally, and the first `snapToIndex(0)` animates to the correct content height in a single pass. This exception is scoped via `keepMounted && Platform.OS === 'android'` in [`packages/ui/src/native/native-sheet.tsx`](../../packages/ui/src/native/native-sheet.tsx).

@@ -2,9 +2,12 @@
  * Per-sheet BottomSheets, lifted to a root PortalHost and coordinated by a
  * shared active-sheet store.
  *
- * The content is usually an Expo DOM WebView. Keeping each sheet's content in
- * its own stable BottomSheetView avoids pre-warming a WebView inside a tiny
- * hidden wrapper, which breaks matchContents measurement on first open.
+ * The content is usually an Expo DOM WebView. By default the sheet host (and
+ * its WebView) mounts when the sheet opens and unmounts after the close
+ * animation finishes — a warm-engine WebView cold start is ~170ms and hides
+ * inside the open animation (ADR 0009). Sheets whose content needs network
+ * data on first paint can pass `keepMounted` to pre-warm; those closed hosts
+ * get the inert-host treatment on Android (ADR 0006).
  */
 
 import BottomSheet, {
@@ -49,8 +52,12 @@ type NativeSheetProps = {
   enableContentPanningGesture?: boolean
   onClose: () => void
   children: React.ReactNode
-  // iOS pre-warms matchContents and ignores this flag.
-  showAndroidLoader?: boolean
+  // Keep the host and content mounted while closed. Only worth it when the
+  // content needs network data on first paint (e.g. pickers); the WebView
+  // itself cold-starts fast enough to mount on open (ADR 0009).
+  keepMounted?: boolean
+  // Overlay a spinner until the content reports a real layout height.
+  showLoader?: boolean
   loaderMinHeight?: number
   theme?: Theme
   backgroundColor?: string
@@ -68,7 +75,8 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   children,
-  showAndroidLoader = false,
+  keepMounted = false,
+  showLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
   theme,
   backgroundColor,
@@ -82,6 +90,14 @@ export function NativeSheet({
   const sheetId = sheetIdRef.current
 
   const isActive = useSheetStore((s) => s.activeSheetId === sheetId)
+
+  // Mount-on-open lifecycle: the host renders from open until the close
+  // animation finishes (SheetHost reports that via onFullyClosed).
+  const [isHostRendered, setIsHostRendered] = useState(isOpen)
+  useEffect(() => {
+    if (isOpen) setIsHostRendered(true)
+  }, [isOpen])
+  const handleHostFullyClosed = useCallback(() => setIsHostRendered(false), [])
 
   useEffect(() => {
     if (Platform.OS === 'web') return
@@ -102,6 +118,7 @@ export function NativeSheet({
   }, [sheetId])
 
   if (Platform.OS === 'web') return null
+  if (!keepMounted && !isHostRendered) return null
 
   return (
     <Portal name={`native-sheet-${sheetId}`} hostName={HOST_NAME}>
@@ -112,7 +129,9 @@ export function NativeSheet({
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
-        showAndroidLoader={showAndroidLoader}
+        onFullyClosed={keepMounted ? undefined : handleHostFullyClosed}
+        keepMounted={keepMounted}
+        showLoader={showLoader}
         loaderMinHeight={loaderMinHeight}
         theme={theme}
         backgroundColor={backgroundColor}
@@ -132,8 +151,10 @@ function SheetHost({
   contentStyle,
   enableContentPanningGesture,
   onClose,
+  onFullyClosed,
+  keepMounted,
   children,
-  showAndroidLoader,
+  showLoader,
   loaderMinHeight,
   theme,
   backgroundColor,
@@ -146,8 +167,10 @@ function SheetHost({
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
   onClose: () => void
+  onFullyClosed?: () => void
+  keepMounted: boolean
   children: React.ReactNode
-  showAndroidLoader: boolean
+  showLoader: boolean
   loaderMinHeight: number
   theme?: Theme
   backgroundColor?: string
@@ -174,26 +197,30 @@ function SheetHost({
     [theme],
   )
 
-  // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
-  const isAndroidLoaderEnabled = showAndroidLoader && Platform.OS === 'android'
-  const [isSheetContentReady, setIsSheetContentReady] = useState(!isAndroidLoaderEnabled)
+  // Both platforms: mount-on-open content starts at zero height until the
+  // matchContents size arrives, so the loader holds a stable initial pose.
+  const isLoaderEnabled = showLoader
+  const [isSheetContentReady, setIsSheetContentReady] = useState(!isLoaderEnabled)
   const handleContentLayout = useCallback(
     (event: LayoutChangeEvent) => {
-      if (!isAndroidLoaderEnabled) return
+      if (!isLoaderEnabled) return
       if (event.nativeEvent.layout.height > CONTENT_READY_HEIGHT_THRESHOLD) {
         setIsSheetContentReady(true)
       }
     },
-    [isAndroidLoaderEnabled],
+    [isLoaderEnabled],
   )
-  const isLoading = isAndroidLoaderEnabled && !isSheetContentReady && isActive
+  const isLoading = isLoaderEnabled && !isSheetContentReady && isActive
   const loaderWrapperStyle = useMemo<StyleProp<ViewStyle>>(
     () => (isLoading ? { minHeight: loaderMinHeight } : undefined),
     [isLoading, loaderMinHeight],
   )
 
-  // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
-  const suppressInactiveSheet = Platform.OS === 'android' && !isActive
+  // Only keep-mounted sheets have closed hosts to make inert (ADR 0006).
+  // Android 12 needs the treatment; on iOS it breaks pre-warmed WebView sizing.
+  // Mount-on-open hosts only exist while opening, open, or animating closed —
+  // suppressing them would strip the chrome mid-animation.
+  const suppressInactiveSheet = keepMounted && Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
@@ -204,7 +231,7 @@ function SheetHost({
     // again even when the boolean state did not change.
     const openKeyChanged = openKey !== lastOpenKeyRef.current
     // Re-show the loader when new content arrives (openKey bump).
-    if (isAndroidLoaderEnabled && openKeyChanged) setIsSheetContentReady(false)
+    if (isLoaderEnabled && openKeyChanged) setIsSheetContentReady(false)
     if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false
       sheetRef.current?.snapToIndex(0)
@@ -216,18 +243,25 @@ function SheetHost({
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, isOpen, openKey, onClose, isAndroidLoaderEnabled])
+  }, [isActive, isOpen, openKey, onClose, isLoaderEnabled])
 
+  // Only treat index -1 as "fully closed" once the sheet has actually reached
+  // an open index; some BottomSheet versions report -1 on mount, which would
+  // unmount a mount-on-open host mid-open.
+  const hasOpenedRef = useRef(false)
   const handleSheetChange = useCallback(
     (index: number) => {
       if (index !== -1) {
+        hasOpenedRef.current = true
         closingRef.current = false
         return
       }
       if (!closingRef.current && wasActiveRef.current) onClose()
       closingRef.current = false
+      // The close animation has finished — a mount-on-open host can unmount.
+      if (hasOpenedRef.current) onFullyClosed?.()
     },
-    [onClose],
+    [onClose, onFullyClosed],
   )
 
   return (
@@ -239,9 +273,12 @@ function SheetHost({
       collapsable={false}
       style={StyleSheet.absoluteFill}
     >
+      {/* Mount-on-open hosts mount at index 0 so animateOnMount performs the
+          open — snapToIndex(0) is a no-op on a freshly mounted closed sheet.
+          Keep-mounted hosts stay resident at -1 and open imperatively. */}
       <BottomSheet
         ref={sheetRef}
-        index={-1}
+        index={keepMounted ? -1 : 0}
         animateOnMount={!suppressInactiveSheet}
         detached={suppressInactiveSheet && bottom > 0}
         bottomInset={suppressInactiveSheet ? bottom : 0}
@@ -298,7 +335,7 @@ function SheetHost({
           <View testID="native-sheet-loader-wrapper" style={loaderWrapperStyle} collapsable={false}>
             <View
               testID="native-sheet-content"
-              onLayout={isAndroidLoaderEnabled ? handleContentLayout : undefined}
+              onLayout={isLoaderEnabled ? handleContentLayout : undefined}
               collapsable={false}
             >
               {children}

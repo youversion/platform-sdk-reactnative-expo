@@ -24,11 +24,19 @@ _Avoid_: Modal, popup
 The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover.
 _Avoid_: Modal
 
-**Inactive Sheet Inertness**:
-A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.
+**Mount-on-Open Sheet**:
+The default **Native Sheet** lifecycle: the sheet host and its DOM content render only from a sheet-opening user action until the close animation finishes, then unmount. The measured WebView cold start (~170ms) hides inside the open animation, so no resident host is needed (ADR 0009).
+_Avoid_: Pre-warming sheets whose content is local-data only
 
-Implementation note: inactive Gorhom hosts may remain mounted for pre-warming, but their native host is pushed below the visible viewport, with sheet chrome, gestures, pointer events, and accessibility exposure disabled until active.
-_Avoid_: Treating a closed sheet host as harmless just because `index={-1}`
+**Keep-Mounted Sheet**:
+A **Native Sheet** that opts out of mount-on-open (via `keepMounted`) because its open latency is dominated by network data, not WebView cold start — the version and chapter pickers. Only these sheets are subject to **Inactive Sheet Inertness**.
+_Avoid_: keepMounted as a default, pre-warm for cold-start reasons alone
+
+**Inactive Sheet Inertness**:
+A **Keep-Mounted Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for data pre-warming is acceptable only while this requirement holds.
+
+Implementation note: inactive keep-mounted Gorhom hosts stay mounted for pre-warming, but their native host is pushed below the visible viewport, with sheet chrome, gestures, pointer events, and accessibility exposure disabled until active. Mount-on-open hosts are never suppressed — they only exist while opening, open, or animating closed.
+_Avoid_: Treating a closed sheet host as harmless just because `index={-1}`; applying inertness treatment to mount-on-open hosts
 
 **Native-Owned State**:
 State kept outside the Expo DOM runtime so it can coordinate native wrappers, sheets, and multiple DOM components.
@@ -96,7 +104,8 @@ _Avoid_: Bundled deps, vendored web SDK
 - An **Expo DOM Component** sets up its own Web SDK provider because native provider context does not cross into the DOM runtime.
 - A **Native Wrapper** passes serializable props down to an **Expo DOM Component** and receives user events through **Native Actions**.
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
-- **Inactive Sheet Inertness** constrains the normal **Native Sheet** pre-warming model: pre-warmed sheet content must not make inactive sheets visible or usable.
+- A **Native Sheet** is a **Mount-on-Open Sheet** by default; a **Keep-Mounted Sheet** is the exception for network-data-bound pickers.
+- **Inactive Sheet Inertness** constrains the **Keep-Mounted Sheet** pre-warming model: pre-warmed sheet content must not make inactive sheets visible or usable.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location and may update **Reader Location** when the reader is uncontrolled.
 - **Reader Location** is **Native-Owned State** persisted across app launches (MMKV); controlled `book` / `chapter` / `versionId` props remain the source of truth and are not overwritten by stored **Reader Location**.

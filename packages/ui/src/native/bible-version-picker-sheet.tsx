@@ -60,6 +60,9 @@ export function BibleVersionPickerSheet({
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      // Pre-warmed: the version list is fetched over the network, so the
+      // WebView stays mounted to hide data latency, not WebView cold start.
+      keepMounted
       enableContentPanningGesture={false}
       theme={resolvedTheme}
       backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}

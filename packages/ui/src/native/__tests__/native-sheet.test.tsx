@@ -12,6 +12,19 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: mockBottomInset }),
 }))
 
+// ActivityIndicator's native component resolves to undefined under jest-expo
+// (react-test-renderer crashes rendering it), so substitute a plain View.
+jest.mock('react-native/Libraries/Components/ActivityIndicator/ActivityIndicator', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const React = require('react')
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { View } = require('react-native')
+  const MockActivityIndicator = (props: Record<string, unknown>) => (
+    <View testID="activity-indicator" {...props} />
+  )
+  return { __esModule: true, default: MockActivityIndicator }
+})
+
 jest.mock('@rn-primitives/portal', () => ({
   Portal: ({ children }: { children: ReactNode }) => <>{children}</>,
   PortalHost: () => null,
@@ -58,11 +71,19 @@ jest.mock('@gorhom/bottom-sheet', () => {
   }
 })
 
-function SheetHarness({ isOpen }: { isOpen: boolean }) {
+function SheetHarness({
+  isOpen,
+  keepMounted,
+  onClose = () => {},
+}: {
+  isOpen: boolean
+  keepMounted?: boolean
+  onClose?: () => void
+}) {
   return (
     <NativeSheetProvider>
       <View>
-        <NativeSheet isOpen={isOpen} onClose={() => {}}>
+        <NativeSheet isOpen={isOpen} onClose={onClose} keepMounted={keepMounted}>
           <Text testID="sheet-content">Sheet content</Text>
         </NativeSheet>
       </View>
@@ -120,7 +141,7 @@ describe('NativeSheet', () => {
     })
   })
 
-  it('keeps inactive Android 12 sheet hosts mounted but inert', () => {
+  it('keeps inactive keep-mounted Android 12 sheet hosts mounted but inert', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -134,7 +155,7 @@ describe('NativeSheet', () => {
 
     mockBottomInset = 24
 
-    const { getByTestId } = render(<SheetHarness isOpen={false} />)
+    const { getByTestId } = render(<SheetHarness isOpen={false} keepMounted />)
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
@@ -149,6 +170,8 @@ describe('NativeSheet', () => {
       getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
         .importantForAccessibility,
     ).toBe('no-hide-descendants')
+    // Keep-mounted hosts stay resident at -1 and open imperatively.
+    expect(latestBottomSheetProps.index).toBe(-1)
     expect(latestBottomSheetProps.detached).toBe(true)
     expect(latestBottomSheetProps.bottomInset).toBe(24)
     expect(latestBottomSheetProps.containerStyle).toEqual({ transform: [{ translateY: 1000 }] })
@@ -171,7 +194,7 @@ describe('NativeSheet', () => {
     ).toBe(true)
   })
 
-  it('restores sheet chrome and gestures when Android 12 sheets become active', async () => {
+  it('restores sheet chrome and gestures when keep-mounted Android 12 sheets become active', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -185,10 +208,10 @@ describe('NativeSheet', () => {
 
     mockBottomInset = 24
 
-    const { getByTestId, rerender } = render(<SheetHarness isOpen={false} />)
+    const { getByTestId, rerender } = render(<SheetHarness isOpen={false} keepMounted />)
 
     await act(async () => {
-      rerender(<SheetHarness isOpen={true} />)
+      rerender(<SheetHarness isOpen={true} keepMounted />)
     })
 
     expect(getByTestId('bottom-sheet')).toBeTruthy()
@@ -213,7 +236,7 @@ describe('NativeSheet', () => {
     expect(getByTestId('bottom-sheet-view').props.accessibilityElementsHidden).toBe(false)
   })
 
-  it('keeps inactive newer Android sheet hosts mounted but inert', () => {
+  it('keeps inactive keep-mounted newer Android sheet hosts mounted but inert', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -227,7 +250,7 @@ describe('NativeSheet', () => {
 
     mockBottomInset = 24
 
-    const { getByTestId } = render(<SheetHarness isOpen={false} />)
+    const { getByTestId } = render(<SheetHarness isOpen={false} keepMounted />)
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
@@ -238,7 +261,7 @@ describe('NativeSheet', () => {
     expect(renderLatestBackdrop()).toBeNull()
   })
 
-  it('keeps inactive iOS sheet hosts mounted with default chrome to preserve WebView pre-warming', () => {
+  it('keeps inactive keep-mounted iOS sheet hosts mounted with default chrome to preserve WebView pre-warming', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -247,7 +270,7 @@ describe('NativeSheet', () => {
 
     mockBottomInset = 24
 
-    const { getByTestId } = render(<SheetHarness isOpen={false} />)
+    const { getByTestId } = render(<SheetHarness isOpen={false} keepMounted />)
 
     expect(getByTestId('bottom-sheet', { includeHiddenElements: true })).toBeTruthy()
     expect(getByTestId('sheet-content', { includeHiddenElements: true })).toBeTruthy()
@@ -413,18 +436,106 @@ describe('NativeSheet', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  describe('loader (Android only)', () => {
-    function LoaderHarness({
-      isOpen,
-      showAndroidLoader,
-    }: {
-      isOpen: boolean
-      showAndroidLoader?: boolean
-    }) {
+  describe('mount-on-open (default)', () => {
+    it('does not render the host or content while closed', () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'android',
+      })
+
+      const { queryByTestId } = render(<SheetHarness isOpen={false} />)
+
+      expect(queryByTestId('bottom-sheet', { includeHiddenElements: true })).toBeNull()
+      expect(queryByTestId('sheet-content', { includeHiddenElements: true })).toBeNull()
+      expect(queryByTestId('native-sheet-inert-host', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('mounts the host with full chrome when opened', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'android',
+      })
+      Object.defineProperty(Platform, 'Version', {
+        configurable: true,
+        enumerable: true,
+        value: 31,
+      })
+
+      const { getByTestId, rerender } = render(<SheetHarness isOpen={false} />)
+
+      await act(async () => {
+        rerender(<SheetHarness isOpen={true} />)
+      })
+
+      expect(getByTestId('bottom-sheet')).toBeTruthy()
+      expect(getByTestId('sheet-content')).toBeTruthy()
+      // Mounts already at index 0 — snapToIndex(0) is a no-op on a freshly
+      // mounted closed sheet, so animateOnMount must perform the open.
+      expect(latestBottomSheetProps.index).toBe(0)
+      expect(latestBottomSheetProps.animateOnMount).toBe(true)
+      // No inert treatment on a freshly mounted open sheet, even on Android 12.
+      expect(getByTestId('native-sheet-inert-host').props.pointerEvents).toBe('auto')
+      expect(latestBottomSheetProps.containerStyle).toBeUndefined()
+      expect(latestBottomSheetProps.handleComponent).toBeUndefined()
+      expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
+    })
+
+    it('unmounts the host after the close animation reports fully closed', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+
+      const { queryByTestId, rerender } = render(<SheetHarness isOpen={false} />)
+
+      await act(async () => {
+        rerender(<SheetHarness isOpen={true} />)
+      })
+      expect(queryByTestId('sheet-content')).toBeTruthy()
+
+      // Parent closes the sheet; the mocked BottomSheet reports index -1
+      // synchronously, standing in for the finished close animation.
+      await act(async () => {
+        rerender(<SheetHarness isOpen={false} />)
+      })
+
+      expect(queryByTestId('bottom-sheet', { includeHiddenElements: true })).toBeNull()
+      expect(queryByTestId('sheet-content', { includeHiddenElements: true })).toBeNull()
+    })
+
+    it('remounts cleanly on a second open', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+
+      const { queryByTestId, rerender } = render(<SheetHarness isOpen={false} />)
+
+      await act(async () => {
+        rerender(<SheetHarness isOpen={true} />)
+      })
+      await act(async () => {
+        rerender(<SheetHarness isOpen={false} />)
+      })
+      expect(queryByTestId('sheet-content', { includeHiddenElements: true })).toBeNull()
+
+      await act(async () => {
+        rerender(<SheetHarness isOpen={true} />)
+      })
+      expect(queryByTestId('sheet-content')).toBeTruthy()
+    })
+  })
+
+  describe('loader', () => {
+    function LoaderHarness({ isOpen, showLoader }: { isOpen: boolean; showLoader?: boolean }) {
       return (
         <NativeSheetProvider>
           <View>
-            <NativeSheet isOpen={isOpen} onClose={() => {}} showAndroidLoader={showAndroidLoader}>
+            <NativeSheet isOpen={isOpen} onClose={() => {}} showLoader={showLoader}>
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
@@ -459,18 +570,18 @@ describe('NativeSheet', () => {
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
     })
 
-    it('renders the loader and holds the wrapper at loaderMinHeight while the sheet is active on Android', async () => {
+    it('renders the loader and holds the wrapper at loaderMinHeight while the sheet is active', async () => {
       setPlatform('android')
 
       const { getByTestId, queryByTestId, rerender } = render(
-        <LoaderHarness isOpen={false} showAndroidLoader />,
+        <LoaderHarness isOpen={false} showLoader />,
       )
 
-      // Inactive: no loader rendered (loader only mounts while the sheet is opening/open).
+      // Closed: nothing mounted, so no loader either.
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+        rerender(<LoaderHarness isOpen={true} showLoader />)
       })
 
       expect(getByTestId('native-sheet-loader')).toBeTruthy()
@@ -485,11 +596,11 @@ describe('NativeSheet', () => {
       setPlatform('android')
 
       const { getByTestId, queryByTestId, rerender } = render(
-        <LoaderHarness isOpen={false} showAndroidLoader />,
+        <LoaderHarness isOpen={false} showLoader />,
       )
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+        rerender(<LoaderHarness isOpen={true} showLoader />)
       })
       expect(getByTestId('native-sheet-loader')).toBeTruthy()
 
@@ -508,16 +619,16 @@ describe('NativeSheet', () => {
       expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
     })
 
-    it('skips the loader on iOS even when showAndroidLoader is true (iOS pre-warms via the inert-host exception)', async () => {
+    it('renders the loader on iOS too (mount-on-open sheets have no pre-warmed size)', async () => {
       setPlatform('ios')
 
-      const { queryByTestId, rerender } = render(<LoaderHarness isOpen={false} showAndroidLoader />)
+      const { getByTestId, rerender } = render(<LoaderHarness isOpen={false} showLoader />)
 
       await act(async () => {
-        rerender(<LoaderHarness isOpen={true} showAndroidLoader />)
+        rerender(<LoaderHarness isOpen={true} showLoader />)
       })
 
-      expect(queryByTestId('native-sheet-loader', { includeHiddenElements: true })).toBeNull()
+      expect(getByTestId('native-sheet-loader')).toBeTruthy()
     })
   })
 

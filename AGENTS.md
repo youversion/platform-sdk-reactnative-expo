@@ -81,13 +81,9 @@ Portal via `@rn-primitives/portal` + a local zustand store in `native/native-she
 
 Each `NativeSheet` portals its own `BottomSheet` to the root host. Do not hide inactive DOM/WebView content in a 1×1 wrapper; that breaks `matchContents` measurement.
 
-Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but they must stay inert. Android applies the offscreen/no-chrome/no-gestures/no-pointer-events treatment; iOS intentionally keeps the default closed host so `matchContents` WebViews can pre-warm and measure correctly (see `docs/adr/0006-inactive-sheet-inertness.md`).
+`NativeSheet` defaults to **mount-on-open**: the host and its WebView children render only from open until the close animation finishes, with `showLoader` covering the ~170ms cold start (hidden by the open animation; see `docs/adr/0009-mount-on-open-native-sheets.md`). Sheets gated on network data (version/chapter pickers) pass `keepMounted` to keep a resident closed host; only those get the inert-host treatment — Android applies offscreen/no-chrome/no-gestures/no-pointer-events, iOS keeps the default closed host so `matchContents` WebViews can pre-warm and measure (see `docs/adr/0006-inactive-sheet-inertness.md`). Never suppress a mount-on-open host; it must keep its chrome while animating closed.
 
-`NativeSheet` currently exposes `enableContentPanningGesture`, Android loader controls, and content styling. Add typed `@gorhom/bottom-sheet` keyboard pass-throughs only when a sheet needs them, and cover the native action/sheet contract in tests.
-
-### FootnoteContent Pre-warming
-
-Mounted immediately with empty placeholder data to cold-start the WebView during page load.
+`NativeSheet` currently exposes `keepMounted`, `enableContentPanningGesture`, loader controls, and content styling. Add typed `@gorhom/bottom-sheet` keyboard pass-throughs only when a sheet needs them, and cover the native action/sheet contract in tests.
 
 ### Font/Theme Overrides
 
