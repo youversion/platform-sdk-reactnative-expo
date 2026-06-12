@@ -72,6 +72,19 @@ jest.mock('react-native-safe-area-context', () => ({
 }))
 
 /**
+ * `react-native-safe-area-context` throws "No safe area value available" when
+ * `useSafeAreaInsets` runs without a `<SafeAreaProvider>`. UI tests render
+ * native wrappers (e.g. `BibleReader`) directly without one, so provide a
+ * default zero-inset mock. Test files that need specific insets (e.g.
+ * `native-sheet.test.tsx`) override this with their own file-level mock.
+ */
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+  SafeAreaProvider: ({ children }) => children,
+  SafeAreaView: ({ children }) => children,
+}))
+
+/**
  * `expo/fetch` exports a `FetchResponse` class that extends the global
  * `Response`. Under jest-expo the global isn't a real constructor, so loading
  * the module throws "Super expression must either be null or a function".

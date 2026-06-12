@@ -3,22 +3,14 @@ import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleScreen() {
-  const { top } = useSafeAreaInsets()
   const isDark = useColorScheme() === 'dark'
+  const { top } = useSafeAreaInsets()
 
   return (
     <View
-      style={[
-        styles.container,
-        { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
-      ]}
+      style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top }]}
     >
-      <BibleReader
-        dom={{
-          scrollEnabled: false,
-        }}
-        defaultVersionId={3034}
-      />
+      <BibleReader defaultVersionId={3034} />
     </View>
   )
 }

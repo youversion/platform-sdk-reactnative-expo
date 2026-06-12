@@ -12,10 +12,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/dom-webview": "~55.0.6",
     "@expo/metro-runtime": "~55.0.11",
     "@gorhom/bottom-sheet": "^5.2.13",
     "@rn-primitives/portal": "^1.4.0",
-    "@expo/dom-webview": "~55.0.6",
     "@youversion/platform-react-native-expo-core": "workspace:*",
     "@youversion/platform-react-native-expo-ui": "workspace:*",
     "expo": "~55.0.24",
