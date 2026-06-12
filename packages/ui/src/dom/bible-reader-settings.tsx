@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import { BibleThemeSettingsContent } from '@youversion/platform-react-ui'
 
 import type { FontFamily } from '../lib/reader-fonts'
@@ -19,7 +21,7 @@ export type BibleReaderSettingsDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-export default function BibleReaderSettingsDOM({
+function BibleReaderSettingsDOM({
   appKey,
   theme,
   fontSize,
@@ -72,3 +74,6 @@ const settingsStyles = `
   color: var(--yv-foreground);
 }
 `
+
+const RecoveredBibleReaderSettingsDOM = withDomBridgeRecovery(BibleReaderSettingsDOM)
+export default RecoveredBibleReaderSettingsDOM

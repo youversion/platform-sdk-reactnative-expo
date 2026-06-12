@@ -1,5 +1,7 @@
 'use dom'
 
+import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
+
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { BibleCard } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
@@ -28,7 +30,7 @@ export type BibleCardProps = Omit<
   dom?: import('expo/dom').DOMProps
 }
 
-export default function BibleCardDOM({
+function BibleCardDOM({
   appKey,
   apiHost,
   installationId,
@@ -53,3 +55,6 @@ export default function BibleCardDOM({
     </YouVersionProvider>
   )
 }
+
+const RecoveredBibleCardDOM = withDomBridgeRecovery(BibleCardDOM)
+export default RecoveredBibleCardDOM
