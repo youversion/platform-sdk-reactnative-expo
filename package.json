@@ -23,5 +23,10 @@
     "prettier": "^3.8.3",
     "turbo": "^2.9.7",
     "typescript": "5.9.3"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "expo@55.0.24": "patches/expo@55.0.24.patch"
+    }
   }
 }

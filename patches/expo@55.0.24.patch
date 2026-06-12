@@ -1,0 +1,40 @@
+diff --git a/src/dom/dom-entry.tsx b/src/dom/dom-entry.tsx
+index baf98794ab01fba6e3bfbdacdd4648dd044041ba..e5061875e6c93ddff3c8dffaab121a6dfad907a0 100644
+--- a/src/dom/dom-entry.tsx
++++ b/src/dom/dom-entry.tsx
+@@ -65,10 +65,31 @@ function convertError(error: any) {
+ }
+ 
+ export function registerDOMComponent(AppModule: any) {
+-  if (typeof window.$$EXPO_DOM_HOST_OS === 'undefined') {
+-    throw new Error(
+-      'Top OS ($$EXPO_DOM_HOST_OS) is not defined. This is a bug in the DOM Component runtime.'
+-    );
++  if (
++    typeof window.$$EXPO_DOM_HOST_OS === 'undefined' ||
++    typeof window.$$EXPO_INITIAL_PROPS === 'undefined'
++  ) {
++    // PATCH(expo#41798): On Android, the native side injects these globals via
++    // onPageStarted + evaluateJavascript, which is not guaranteed to run before
++    // page scripts. In release builds the page loads from local file:// assets
++    // fast enough that this deferred entry script often evaluates first.
++    // Instead of throwing, poll until the injection lands, then register.
++    let attempts = 0;
++    const timer = setInterval(() => {
++      if (
++        typeof window.$$EXPO_DOM_HOST_OS !== 'undefined' &&
++        typeof window.$$EXPO_INITIAL_PROPS !== 'undefined'
++      ) {
++        clearInterval(timer);
++        registerDOMComponent(AppModule);
++      } else if (++attempts > 600) {
++        clearInterval(timer);
++        throw new Error(
++          'Top OS ($$EXPO_DOM_HOST_OS) is not defined. This is a bug in the DOM Component runtime.'
++        );
++      }
++    }, 50);
++    return;
+   }
+   process.env.EXPO_DOM_HOST_OS = window.$$EXPO_DOM_HOST_OS;
+ 
