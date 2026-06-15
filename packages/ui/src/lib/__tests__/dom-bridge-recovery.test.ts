@@ -32,12 +32,12 @@ describe('expo wire-constant drift detection', () => {
   const domEntrySrc = readFileSync(join(expoDomDir, 'dom-entry.tsx'), 'utf8')
 
   // Pulls `export const NAME = 'value'` out of expo's source so we compare
-  // against the canonical string rather than restating it here.
+  // against the canonical string rather than restating it here. The regex
+  // captures the quoted literal; slice strips the surrounding quotes.
   const extract = (name: string, src: string): string => {
     const match = src.match(new RegExp(`export const ${name} = ('[^']+')`))
     if (!match) throw new Error(`expo constant ${name} not found in source`)
-    // eslint-disable-next-line @typescript-eslint/no-eval
-    return eval(match[1])
+    return match[1].slice(1, -1)
   }
 
   it('DOM_EVENT matches expo injection.ts', () => {
