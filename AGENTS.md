@@ -4,7 +4,7 @@
 
 YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Two published packages in a pnpm/Turborepo monorepo: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (auth, storage).
 
-**Tech stack**: Expo SDK 55, React 19, TypeScript, pnpm 9, Turborepo
+**Tech stack**: Expo SDK 56, React 19, TypeScript 6, pnpm 9, Turborepo
 
 ## Setup Commands
 
