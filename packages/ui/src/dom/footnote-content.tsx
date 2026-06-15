@@ -1,7 +1,5 @@
 'use dom'
 
-import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
-
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
 
@@ -19,7 +17,7 @@ export type FootnoteContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-function FootnoteContentDOM({
+export default function FootnoteContentDOM({
   data,
   theme = 'light',
   fontSize,
@@ -42,5 +40,3 @@ function FootnoteContentDOM({
   )
 }
 
-const RecoveredFootnoteContentDOM = withDomBridgeRecovery(FootnoteContentDOM)
-export default RecoveredFootnoteContentDOM

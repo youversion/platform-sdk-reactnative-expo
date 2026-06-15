@@ -1,7 +1,5 @@
 'use dom'
 
-import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
-
 import {
   BibleChapterPicker,
   type BibleChapterPickerSelectData,
@@ -20,7 +18,7 @@ export type ChapterPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-function ChapterPickerContentDOM({
+export default function ChapterPickerContentDOM({
   appKey,
   book,
   chapter,
@@ -106,5 +104,3 @@ body {
 }
 `
 
-const RecoveredChapterPickerContentDOM = withDomBridgeRecovery(ChapterPickerContentDOM)
-export default RecoveredChapterPickerContentDOM

@@ -1,7 +1,5 @@
 'use dom'
 
-import { withDomBridgeRecovery } from '../lib/dom-bridge-recovery'
-
 import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
@@ -71,7 +69,7 @@ const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g,
 
 const READER_BOTTOM_PADDING = 48
 
-function BibleReaderDOM(props: BibleReaderProps) {
+export default function BibleReaderDOM(props: BibleReaderProps) {
   const {
     appKey,
     apiHost,
@@ -229,5 +227,3 @@ function BibleReaderDOM(props: BibleReaderProps) {
   )
 }
 
-const RecoveredBibleReaderDOM = withDomBridgeRecovery(BibleReaderDOM)
-export default RecoveredBibleReaderDOM
