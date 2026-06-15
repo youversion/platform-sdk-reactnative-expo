@@ -5,11 +5,6 @@
   "engines": {
     "node": ">=20.0.0"
   },
-  "pnpm": {
-    "overrides": {
-      "expo": "56.0.12"
-    }
-  },
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
