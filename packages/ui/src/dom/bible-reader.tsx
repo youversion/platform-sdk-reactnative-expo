@@ -226,4 +226,3 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     </YouVersionProvider>
   )
 }
-

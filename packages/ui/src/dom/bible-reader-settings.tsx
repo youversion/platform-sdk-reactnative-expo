@@ -79,4 +79,3 @@ const settingsStyles = `
   color: var(--yv-foreground);
 }
 `
-
