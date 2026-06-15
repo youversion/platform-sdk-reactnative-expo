@@ -47,9 +47,9 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 
 ### Expo DOM Components
 
-DOM components use the `'use dom'` directive (Expo SDK 55). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
+DOM components use the `'use dom'` directive (Expo SDK 56). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
 
-The optional `dom` prop is forwarded to the underlying React Native `WebView` (Expo owns `source`). Use the [React Native WebView API Reference](https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md) for `style`, `containerStyle`, `scrollEnabled`, `contentInset` / `contentInsetAdjustmentBehavior`, injected script props, and the rest. Expo-only fields (e.g. `matchContents`) come from `DOMProps` in `expo/dom`, not that document.
+The optional `dom` prop is forwarded to the underlying WebView. In SDK 56 the default backing WebView is **`@expo/dom-webview`** (purpose-built for DOM components), not `react-native-webview`. Use the [React Native WebView API Reference](https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md) for `style`, `containerStyle`, `scrollEnabled`, `contentInset` / `contentInsetAdjustmentBehavior`, injected script props, and the rest — `@expo/dom-webview` mirrors that surface. Expo-only fields (e.g. `matchContents`) come from `DOMProps` in `expo/dom`, not that document. Consumers can opt back into `react-native-webview` per-component via `dom={{ useExpoDOMWebView: false }}`.
 
 ### Native Provider
 
@@ -129,7 +129,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 **Core** bundles: `expo-application`, `expo-crypto`, `expo-web-browser`.
 
-Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions. Expo SDK 55 apps should also include `@expo/dom-webview` for Expo DOM Components and `react-native-worklets` when using Reanimated 4.
+Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions. Expo SDK 56 apps should also include `@expo/dom-webview` for Expo DOM Components and `react-native-worklets` when using Reanimated 4.
 
 ## Peer Dependencies
 
@@ -137,7 +137,7 @@ See `packages/ui/package.json` and `packages/core/package.json` `peerDependencie
 
 ## Testing
 
-Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.83 compatibility.
+Jest with jest-expo preset configured in `packages/ui/package.json`. Test files in `__tests__` directories alongside source. `jest.setup.js` provides `global.nativeModuleProxy` for RN 0.85 compatibility.
 
 ### Testing layers
 
