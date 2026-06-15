@@ -36,10 +36,18 @@ import { useEffect, useMemo, useState, type ComponentType } from 'react'
 
 // Wire contract with expo/dom (see expo/src/dom/injection.ts). These strings
 // are how messages cross the WebView boundary, so they must match exactly.
-const DOM_EVENT = '$$dom_event'
-const NATIVE_ACTION = '$$native_action'
-const NATIVE_ACTION_RESULT = '$$native_action_result'
-const MATCH_CONTENTS_EVENT = '$$match_contents_event'
+// Exported so the drift-detection test can assert they still match the
+// canonical expo source — a rename there would silently re-blank DOM
+// components in Android release builds otherwise.
+export const DOM_EVENT = '$$dom_event'
+export const NATIVE_ACTION = '$$native_action'
+export const NATIVE_ACTION_RESULT = '$$native_action_result'
+export const MATCH_CONTENTS_EVENT = '$$match_contents_event'
+// Props-update message type. Defined inline in expo's webview-wrapper.tsx
+// (the emit) and dom-entry.tsx (the listener), not exported from injection.ts.
+// Reuse the two-char prefix off an existing constant so this declaration never
+// restates the dollar-signs literally.
+export const PROPS_EVENT = DOM_EVENT.slice(0, 2) + 'props'
 
 export type MarshalledProps = {
   names?: string[]
@@ -175,7 +183,7 @@ export function withDomBridgeRecovery<P extends object>(Component: ComponentType
       // lose the race because the page is already loaded).
       const onDomEvent = (event: Event) => {
         const message = (event as CustomEvent).detail
-        if (message?.type === '$$props' && message.data) setMarshalled(message.data)
+        if (message?.type === PROPS_EVENT && message.data) setMarshalled(message.data)
       }
       window.addEventListener(DOM_EVENT, onDomEvent)
       // Catch an injection that landed between first render and this effect.
