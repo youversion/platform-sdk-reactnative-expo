@@ -3,12 +3,14 @@ import type { DOMProps } from 'expo/dom'
 /**
  * Container defaults for content-sized embeds (ADR 0007).
  *
- * react-native-webview hardcodes `flex: 1` on the WebView's container, and
- * Yoga resolves an `auto` flex-basis to 0 whenever `flex > 0` — which makes
- * Yoga discard the explicit height that `matchContents` reports. Only
- * overriding the `flex` key itself lets the measured height win. `width:
- * '100%'` keeps the DOM viewport width determinate (and overrides the
- * measured width), so embeds fill whatever wrapper the consumer lays out.
+ * Both backing WebViews hardcode `flex: 1` on the container: `react-native-webview`
+ * on its outer container `View`, and `@expo/dom-webview` via `webviewStyles.container`
+ * (`{ flex: 1 }`) applied to both the container `View` and the native view. Yoga
+ * resolves an `auto` flex-basis to 0 whenever `flex > 0` — which makes Yoga discard
+ * the explicit height that `matchContents` reports. Only overriding the `flex` key
+ * itself lets the measured height win. `width: '100%'` keeps the DOM viewport width
+ * determinate (and overrides the measured width), so embeds fill whatever wrapper the
+ * consumer lays out.
  */
 const EMBED_CONTAINER_STYLE = { flex: 0, width: '100%' } as const
 

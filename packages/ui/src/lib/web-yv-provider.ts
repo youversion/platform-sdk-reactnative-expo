@@ -1,7 +1,13 @@
+// Import first: installs the Android `localStorage` shim (see dom-local-storage)
+// before the Web SDK module below evaluates and any provider renders.
+import { ensureDomLocalStorage } from './dom-local-storage'
+
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
 import { createElement, type ComponentProps, type ComponentType } from 'react'
 
 import { getSdkHeaders } from './sdk-version'
+
+ensureDomLocalStorage()
 
 // `additionalHeaders` ships in the next Web SDK release; widen the prop type
 // locally until that publishes.

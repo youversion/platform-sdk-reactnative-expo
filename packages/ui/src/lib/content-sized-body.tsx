@@ -1,12 +1,13 @@
 /**
- * Expo's DOM template pins `html, body { height: 100% }` and `#root { height: 100% }`,
- * so `document.body` always measures the WebView frame, never the content. That makes
- * `dom={{ matchContents: true }}` circular: the body-size observer reports the frame
- * height back as the frame height. Embeds that should size to their content (cards)
- * render this override so the body grows with content and matchContents can measure it.
+ * Keeps `html`, `body`, and `#root` content-sized so `dom={{ matchContents: true }}`
+ * can measure the content height rather than a frame height.
  *
- * Rendered inside `#root`, so it comes after the template's `#expo-reset` style in
- * document order and wins the cascade at equal specificity.
+ * The SDK 56 DOM template (`expo-dom-component-style`) sets only
+ * `html, body { -webkit-overflow-scrolling: touch }` and `#root { display: flex; flex: 1 }`
+ * — it no longer pins `height: 100%` the way earlier templates did, so content sizing is
+ * already the default. This override is therefore a thin defensive belt against a template
+ * regression: rendered inside `#root`, it comes after the template style in document order
+ * and wins the cascade at equal specificity, pinning `height: auto` explicitly.
  */
 const CONTENT_SIZED_BODY_CSS = `html, body, #root { height: auto; }`
 

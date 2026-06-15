@@ -44,5 +44,12 @@
     "@types/react": "~19.2.14",
     "typescript": "~6.0.3"
   },
+  "expo": {
+    "autolinking": {
+      "buildFromSource": [
+        "expo-dom-webview"
+      ]
+    }
+  },
   "private": true
 }

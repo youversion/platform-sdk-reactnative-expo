@@ -17,7 +17,17 @@ The recovery module evaluated before expo's generated DOM entry called `register
 
 ## Why it was retired (SDK 56)
 
-Expo SDK 56 ships **`@expo/dom-webview`** as the default backing WebView for DOM components. Unlike `react-native-webview`, it is purpose-built for the DOM bridge and does not use the `onPageStarted` + `evaluateJavascript` injection path that lost the race — so it cannot lose the race. The upstream issue (expo/expo#41798) was closed on 2026-05-14, before SDK 56 went stable.
+Expo SDK 56 ships **`@expo/dom-webview`** as the default backing WebView for DOM components, and — more importantly — SDK 56 changed *how* the host-OS globals are delivered. The generated DOM HTML now reads them **synchronously** in an inline `<script>` that runs before the bundle:
+
+```html
+<script>
+  var injectedObject = JSON.parse(window.ReactNativeWebView.injectedObjectJson());
+  window.$$EXPO_DOM_HOST_OS = injectedObject.EXPO_DOM_HOST_OS;
+  window.$$EXPO_INITIAL_PROPS = injectedObject.initialProps;
+</script>
+```
+
+`injectedObjectJson()` is a native `@JavascriptInterface` method (`addJavascriptInterface(rncWebViewBridge, "ReactNativeWebView")`, registered before `loadUrl`), so its value is pulled synchronously at parse time — there is no async injection to lose a race against. This is the mechanism that retires the race, **not** the absence of `onPageStarted` + `evaluateJavascript`. `@expo/dom-webview` still uses that path (`DomWebView.kt` `onPageStarted` → `evaluateJavascript` for `injectedJavaScriptBeforeContentLoaded` and the optional Expo-modules bridge); it simply no longer carries the host-OS globals through it. Verified against the actual shipped release asset (`www.bundle/*.html`) and `node_modules/@expo/dom-webview/android/.../DomWebView.kt`. The upstream issue (expo/expo#41798) was closed on 2026-05-14, before SDK 56 went stable.
 
 Keeping the recovery module under `@expo/dom-webview` would have been actively harmful: its `bootstrap()` runs at module-eval time and detects a "lost race" whenever `$$EXPO_DOM_HOST_OS` is unset at the moment the module evaluates — which happens routinely under `@expo/dom-webview`'s different injection timing. It would then override expo's real injection with placeholder globals and a transport rebuild built for the old `react-native-webview` primitives. On-device testing on a Samsung A15 (Android 14) confirmed DOM WebViews did not render with the recovery module still in place under SDK 56; removing it restored them.
 

@@ -47,9 +47,32 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 
 ### Expo DOM Components
 
-DOM components use the `'use dom'` directive (Expo SDK 56). They render in a WebView-based DOM environment that provides `localStorage`, `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
+DOM components use the `'use dom'` directive (Expo SDK 56). They render in a WebView-based DOM environment that provides `localStorage` (Android needs a shim — see below), `DOMParser`, CSS injection. **Never** use Web SDK components directly in React Native; always go through a DOM component wrapper.
 
 The optional `dom` prop is forwarded to the underlying WebView. In SDK 56 the default backing WebView is **`@expo/dom-webview`** (purpose-built for DOM components), not `react-native-webview`. Use the [React Native WebView API Reference](https://github.com/react-native-webview/react-native-webview/blob/master/docs/Reference.md) for `style`, `containerStyle`, `scrollEnabled`, `contentInset` / `contentInsetAdjustmentBehavior`, injected script props, and the rest — `@expo/dom-webview` mirrors that surface. Expo-only fields (e.g. `matchContents`) come from `DOMProps` in `expo/dom`, not that document. Consumers can opt back into `react-native-webview` per-component via `dom={{ useExpoDOMWebView: false }}`.
+
+#### Android: `localStorage` is null in the DOM WebView (blank-render fix)
+
+On Android, `@expo/dom-webview`'s native `DomWebView.kt` enables JavaScript and file access but **never sets `WebSettings.domStorageEnabled`, which defaults to `false`**. With DOM storage off, `window.localStorage` evaluates to **`null`** (not `undefined`). The Web SDK's `YouVersionProvider` and our `applySDKConfig` call `localStorage.getItem`/`setItem`, so on Android they throw, the DOM error boundary catches it, and the component renders **blank** (the native WebView is present and painting an empty page). iOS (WKWebView) and `react-native-webview` both default DOM storage **on**, so this only regressed when SDK 56 made `@expo/dom-webview` the default backing WebView. `@expo/dom-webview` exposes no prop to flip it, and `typeof null === 'object'` means a `typeof localStorage !== 'undefined'` guard does not catch it.
+
+Fix (shipped in this package): an in-memory `Storage` shim in `lib/dom-local-storage.ts` (`ensureDomLocalStorage()`), self-installing on import and invoked from `lib/web-yv-provider.ts` (imported first by all DOM components) so it is in place before the Web SDK module evaluates. `dom-apply.ts` also guards with `localStorage != null`. The shim is per-WebView/non-persistent, which is fine: DOM WebViews are long-lived (pre-warmed) and the installation id is re-supplied from native props on every mount. Long-term fix is upstream — `@expo/dom-webview` should enable `domStorageEnabled`.
+
+#### Android: build `@expo/dom-webview` from source (codegen hardening)
+
+> Note: this `buildFromSource` setting is **codegen hardening**, not the blank-render fix — that was the null-`localStorage` issue above. Device testing showed clean builds with `buildFromSource` still rendered blank until the shim landed. Keep this setting for clean/CI codegen correctness regardless.
+
+`@expo/dom-webview` autolinks on Android as a **prebuilt AAR** (its `expo-module.config.json` declares a `publication` consumed from a bundled `local-maven-repo`), and ships no "should-use-publication" gate, so the prebuilt binary is preferred by default. A prebuilt AAR can link cleanly yet silently fail Fabric view registration when its codegen doesn't match the consuming app's RN/new-arch build — producing a **blank DOM WebView with no crash**. This only surfaces on clean builds where native is regenerated from scratch (e.g. CI / `expo prebuild` with cleared caches); iOS is unaffected because CocoaPods builds the module from source. Force the Android module to build from source so it always matches the app's codegen:
+
+```jsonc
+// package.json
+"expo": {
+  "autolinking": {
+    "buildFromSource": ["expo-dom-webview"]
+  }
+}
+```
+
+The pattern matches the autolinking *project name* (`@expo/dom-webview` → `expo-dom-webview`). The example app sets this; consumer apps shipping Android builds should too. See `docs/adr/0008-…` for the related (now-fixed) injection race.
 
 ### Native Provider
 
