@@ -7,7 +7,7 @@
   },
   "pnpm": {
     "overrides": {
-      "expo": "55.0.26"
+      "expo": "56.0.12"
     }
   },
   "scripts": {
