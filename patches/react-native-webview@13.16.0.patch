@@ -1,0 +1,61 @@
+diff --git a/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java b/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
+index 0287e1c56b07b6c23b4049f3992d88b86fdc5c79..7f49273af70c8fb83da27652a33bae497b20375b 100644
+--- a/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
++++ b/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewClient.java
+@@ -17,6 +17,7 @@ import android.webkit.WebViewClient;
+ import androidx.annotation.Nullable;
+ import androidx.annotation.RequiresApi;
+ import androidx.core.util.Pair;
++import androidx.webkit.WebViewAssetLoader;
+ 
+ import com.facebook.common.logging.FLog;
+ import com.facebook.react.bridge.Arguments;
+@@ -49,6 +50,26 @@ public class RNCWebViewClient extends WebViewClient {
+         basicAuthCredential = credential;
+     }
+ 
++    // Serves Expo DOM component bundles over the secure https://appassets.androidplatform.net
++    // origin (mapped to android_asset) so React can mount in release builds. The bundle URL is
++    // rewritten from file:///android_asset/www.bundle/... to this origin in RNCWebViewManagerImpl.
++    // Other (non-appassets) requests fall through untouched, so non-DOM WebViews are unaffected.
++    private WebViewAssetLoader assetLoader;
++
++    @Override
++    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
++        if (assetLoader == null) {
++            assetLoader = new WebViewAssetLoader.Builder()
++                .addPathHandler("/assets/", new WebViewAssetLoader.AssetsPathHandler(view.getContext().getApplicationContext()))
++                .build();
++        }
++        WebResourceResponse response = assetLoader.shouldInterceptRequest(request.getUrl());
++        if (response != null) {
++            return response;
++        }
++        return super.shouldInterceptRequest(view, request);
++    }
++
+     @Override
+     public void onPageFinished(WebView webView, String url) {
+         super.onPageFinished(webView, url);
+diff --git a/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt b/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
+index f83033b3597a425da159555233bacce250ccfce0..d5e0f30516a6534e9bb7f991f42f59f1afb06b67 100644
+--- a/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
++++ b/android/src/main/java/com/reactnativecommunity/webview/RNCWebViewManagerImpl.kt
+@@ -398,7 +398,16 @@ class RNCWebViewManagerImpl(private val newArch: Boolean = false) {
+                 return
+             }
+             if (source.hasKey("uri")) {
+-                val url = source.getString("uri")
++                // Expo DOM components ship inside the APK and are loaded from
++                // file:///android_asset/www.bundle/... in release builds. Modern Android
++                // WebViews refuse to mount React from a file:// origin (the page loads but
++                // produces zero DOM), so serve the embedded bundle over the secure
++                // WebViewAssetLoader origin instead. The bytes are still read from
++                // android_asset by the AssetsPathHandler registered in RNCWebViewClient.
++                val rawUrl = source.getString("uri")
++                val url = if (rawUrl != null && rawUrl.startsWith("file:///android_asset/www.bundle"))
++                    "https://appassets.androidplatform.net/assets/" + rawUrl.removePrefix("file:///android_asset/")
++                else rawUrl
+                 val previousUrl = view.url
+                 if (previousUrl != null && previousUrl == url) {
+                     return

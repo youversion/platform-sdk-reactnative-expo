@@ -158,7 +158,10 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.backgroundComponent).toBeNull()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(false)
     expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(false)
-    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(false)
+    // Stays true even when inactive: toggling this swaps @gorhom's content wrapper
+    // component type, which remounts the DOM WebView and cold-starts it on every open.
+    // Inertness is provided by the offscreen transform + pointerEvents/accessibility.
+    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
     expect(latestBottomSheetProps.accessible).toBe(false)
     expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(true)
     expect(latestBottomSheetProps.importantForAccessibility).toBe('no-hide-descendants')

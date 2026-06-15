@@ -2,9 +2,9 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import { useMemo } from 'react'
 import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
+import { useTheme } from '../hooks/use-theme'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from '../hooks/use-theme'
 
 export type BibleReaderSettingsSheetProps = {
   isSettingsSheetOpen: boolean

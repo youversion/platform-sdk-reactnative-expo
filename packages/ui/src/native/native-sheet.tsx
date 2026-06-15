@@ -60,6 +60,11 @@ type NativeSheetProps = {
 
 const DEFAULT_LOADER_MIN_HEIGHT = 180
 const CONTENT_READY_HEIGHT_THRESHOLD = 4
+// Minimum spacing between @gorhom imperative open/close calls. The animatingRef
+// guard already blocks overlap during a snap; this adds a cooldown AFTER settle so
+// a spam of taps can't issue back-to-back snaps faster than the native animation
+// thread tolerates, which is what freezes the app.
+const SHEET_ACTION_THROTTLE_MS = 300
 
 export function NativeSheet({
   isOpen,
@@ -159,6 +164,15 @@ function SheetHost({
   const wasActiveRef = useRef(false)
   const lastOpenKeyRef = useRef(openKey)
   const closingRef = useRef(false)
+  // Serialize @gorhom imperative calls. currentIndexRef = the sheet's real index,
+  // desiredIndexRef = where we want it, animatingRef = a snap/close is in flight.
+  const currentIndexRef = useRef(-1)
+  const desiredIndexRef = useRef(-1)
+  const animatingRef = useRef(false)
+  // Throttle gate: timer is non-null during a cooldown window; pending marks that
+  // a newer desired index arrived mid-window and must flush when the window ends.
+  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingReconcileRef = useRef(false)
   const bottomSheetContentStyle = useMemo(
     () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
     [bottom, contentStyle],
@@ -249,9 +263,12 @@ function SheetHost({
         enablePanDownToClose={!suppressInactiveSheet}
         enableDynamicSizing
         enableHandlePanningGesture={!suppressInactiveSheet}
-        enableContentPanningGesture={
-          suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
-        }
+        // Must stay STABLE across active/inactive. @gorhom swaps the content wrapper's
+        // component type when this flips (BottomSheetDraggableView <-> Animated.View),
+        // which remounts children and cold-starts the DOM WebView on every open. An
+        // inactive sheet is already inert via the offscreen transform + pointerEvents
+        // 'none' + accessibility hiding, so it never receives content-pan gestures.
+        enableContentPanningGesture={enableContentPanningGesture ?? true}
         backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
