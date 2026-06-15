@@ -36,6 +36,10 @@ jest.mock('@gorhom/bottom-sheet', () => {
       },
       ref: React.Ref<{ close: () => void; snapToIndex: (index: number) => void }>,
     ) => {
+      // Module-level mutable capture cell for the latest render's props —
+      // intentional test infra, so the react-hooks/globals rule is scoped off
+      // for this assignment.
+      // eslint-disable-next-line react-hooks/globals
       latestBottomSheetProps = props
       React.useImperativeHandle(ref, () => ({
         close: () => onChange?.(-1),
