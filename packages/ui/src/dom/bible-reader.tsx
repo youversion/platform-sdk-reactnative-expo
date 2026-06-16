@@ -8,6 +8,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
+import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib'
 
@@ -42,6 +43,7 @@ type BibleReaderBaseProps = {
   showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
+  onExternalLinkPress?: (url: string) => Promise<void>
   fontSize?: number
   fontFamily?: FontFamily
   lineSpacing?: number
@@ -86,6 +88,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onFootnotePress,
     showToolbar = true,
     onOpenBibleThemeSettings,
+    onExternalLinkPress,
     fontSize,
     fontFamily,
     lineSpacing,
@@ -98,6 +101,22 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
+
+  useEffect(() => {
+    if (!onExternalLinkPress) return
+    const handleClick = (event: MouseEvent) => {
+      const anchor = (event.target as Element | null)?.closest?.('a')
+      if (!anchor) return
+      const href = anchor.href
+      const opensNewTab = anchor.getAttribute('target') === '_blank'
+      if (!href || (!opensNewTab && !/^https?:\/\//i.test(href))) return
+      event.preventDefault()
+      void onExternalLinkPress(href)
+    }
+    document.addEventListener('click', handleClick, true)
+    return () => document.removeEventListener('click', handleClick, true)
+  }, [onExternalLinkPress])
+
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
