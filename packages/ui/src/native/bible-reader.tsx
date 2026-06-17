@@ -14,6 +14,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reade
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks'
+import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
@@ -265,7 +266,7 @@ export function BibleReader({
           chapter={chapter}
           versionId={versionId}
           fontSize={fontSize}
-          fontFamily={fontFamily}
+          fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
           onFontSizeChange={setFontSize}
           onFontFamilyChange={setFontFamily}

@@ -12,7 +12,8 @@ import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib'
 
-import type { FontFamily } from '../lib/reader-fonts'
+import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
+import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps =
@@ -45,7 +46,8 @@ type BibleReaderBaseProps = {
   onOpenBibleThemeSettings?: () => void
   onExternalLinkPress?: (url: string) => Promise<void>
   fontSize?: number
-  fontFamily?: FontFamily
+  // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
+  fontFamily?: FontFamilyToken
   lineSpacing?: number
   onFontSizeChange?: (fontSize: number) => void
   onFontFamilyChange?: (fontFamily: FontFamily) => void
@@ -101,6 +103,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
+
+  // fontFamily crosses the bridge as a quote-free token; resolve it back to the
+  // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
+  const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
 
   useEffect(() => {
     if (!onExternalLinkPress) return
@@ -166,7 +172,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           onSignOutPress={onSignOutPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
-          fontFamily={fontFamily}
+          fontFamily={resolvedFontFamily}
           lineSpacing={lineSpacing}
           onFontSizeChange={onFontSizeChange}
           onFontFamilyChange={onFontFamilyChange}
