@@ -54,14 +54,7 @@ const TOKEN_TO_FONT_FAMILY: Record<string, FontFamily> = {
  * into an Expo DOM component's props. Unknown values (e.g. a consumer-supplied
  * custom stack) pass through unchanged.
  */
-export function encodeFontFamilyForDom(fontFamily: FontFamily): FontFamilyToken
-export function encodeFontFamilyForDom(
-  fontFamily: FontFamily | undefined,
-): FontFamilyToken | undefined
-export function encodeFontFamilyForDom(
-  fontFamily: FontFamily | undefined,
-): FontFamilyToken | undefined {
-  if (fontFamily == null) return fontFamily
+export function encodeFontFamilyForDom(fontFamily: FontFamily): FontFamilyToken {
   return FONT_FAMILY_TO_TOKEN[fontFamily] ?? fontFamily
 }
 
@@ -70,10 +63,6 @@ export function encodeFontFamilyForDom(
  * canonical font family the Web SDK expects. Inverse of
  * {@link encodeFontFamilyForDom}; unknown values pass through unchanged.
  */
-export function decodeFontFamilyFromDom(token: FontFamilyToken): FontFamily
-export function decodeFontFamilyFromDom(
-  token: FontFamilyToken | undefined,
-): FontFamily | undefined
 export function decodeFontFamilyFromDom(
   token: FontFamilyToken | undefined,
 ): FontFamily | undefined {

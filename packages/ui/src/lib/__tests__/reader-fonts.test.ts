@@ -34,8 +34,7 @@ describe('reader-fonts bridge tokens', () => {
     expect(decodeFontFamilyFromDom('Comic Sans MS, cursive')).toBe('Comic Sans MS, cursive')
   })
 
-  it('preserves undefined', () => {
-    expect(encodeFontFamilyForDom(undefined)).toBeUndefined()
+  it('decodes undefined to undefined (DOM reader fontFamily is optional)', () => {
     expect(decodeFontFamilyFromDom(undefined)).toBeUndefined()
   })
 })
