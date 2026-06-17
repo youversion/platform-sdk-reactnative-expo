@@ -75,11 +75,12 @@ The UI package depends on core at runtime; install both so TypeScript resolves `
 Install the required peer dependencies (Expo will pick versions compatible with your SDK):
 
 ```bash
-npx expo install @gorhom/bottom-sheet @expo/dom-webview expo-secure-store \
+npx expo install @gorhom/bottom-sheet @expo/dom-webview \
+  expo-application expo-crypto expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
-  react-native-safe-area-context react-native-webview
+  react-native-safe-area-context react-native-svg react-native-webview
 ```
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
