@@ -57,23 +57,6 @@ On Android, `@expo/dom-webview`'s native `DomWebView.kt` enables JavaScript and 
 
 Fix (shipped in this package): an in-memory `Storage` shim in `lib/dom-local-storage.ts` (`ensureDomLocalStorage()`), self-installing on import and invoked from `lib/web-yv-provider.ts` (imported first by all DOM components) so it is in place before the Web SDK module evaluates. `dom-apply.ts` also guards with `localStorage != null`. The shim is per-WebView/non-persistent, which is fine: DOM WebViews are long-lived (pre-warmed) and the installation id is re-supplied from native props on every mount. Long-term fix is upstream — `@expo/dom-webview` should enable `domStorageEnabled`.
 
-#### Android: build `@expo/dom-webview` from source (codegen hardening)
-
-> Note: this `buildFromSource` setting is **codegen hardening**, not the blank-render fix — that was the null-`localStorage` issue above. Device testing showed clean builds with `buildFromSource` still rendered blank until the shim landed. Keep this setting for clean/CI codegen correctness regardless.
-
-`@expo/dom-webview` autolinks on Android as a **prebuilt AAR** (its `expo-module.config.json` declares a `publication` consumed from a bundled `local-maven-repo`), and ships no "should-use-publication" gate, so the prebuilt binary is preferred by default. A prebuilt AAR can link cleanly yet silently fail Fabric view registration when its codegen doesn't match the consuming app's RN/new-arch build — producing a **blank DOM WebView with no crash**. This only surfaces on clean builds where native is regenerated from scratch (e.g. CI / `expo prebuild` with cleared caches); iOS is unaffected because CocoaPods builds the module from source. Force the Android module to build from source so it always matches the app's codegen:
-
-```jsonc
-// package.json
-"expo": {
-  "autolinking": {
-    "buildFromSource": ["expo-dom-webview"]
-  }
-}
-```
-
-The pattern matches the autolinking *project name* (`@expo/dom-webview` → `expo-dom-webview`). The example app sets this; consumer apps shipping Android builds should too. See `docs/adr/0008-…` for the related (now-fixed) injection race.
-
 ### Native Provider
 
 `YouVersionProvider` is the public root provider. It supplies native context for `appKey` and resolved theme, and wraps the internal `NativeSheetProvider` so consumers only need one SDK provider.

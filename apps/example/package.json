@@ -6,6 +6,7 @@
     "start": "expo start",
     "start:clear-cache": "npx expo start -c",
     "web": "expo start --web",
+    "prebuild": "expo prebuild",
     "build:ios": "expo run:ios",
     "build:ios-device": "expo run:ios --device",
     "build:android-release": "expo run:android --variant release",
@@ -43,13 +44,6 @@
   "devDependencies": {
     "@types/react": "19.2.14",
     "typescript": "6.0.3"
-  },
-  "expo": {
-    "autolinking": {
-      "buildFromSource": [
-        "expo-dom-webview"
-      ]
-    }
   },
   "private": true
 }
