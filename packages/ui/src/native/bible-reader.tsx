@@ -9,12 +9,12 @@ import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import type { WebViewOpenWindowEvent } from 'react-native-webview/lib/WebViewTypes'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks'
+import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
@@ -51,6 +51,7 @@ export type BibleReaderProps = Omit<
   | 'accessToken'
   | 'onSignInPress'
   | 'onSignOutPress'
+  | 'onExternalLinkPress'
   | 'userInfo'
   // The reader owns its own bottom scroll padding (it reads the safe-area bottom
   // inset internally), so consumers don't pass it — it lives inside the WebView.
@@ -213,19 +214,15 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
-  const onOpenWindow = useCallback(
-    async (event: WebViewOpenWindowEvent) => {
-      try {
-        await WebBrowser.openBrowserAsync(event.nativeEvent.targetUrl, {
-          dismissButtonStyle: 'close',
-        })
-        dom?.onOpenWindow?.(event)
-      } catch (error) {
-        console.error(error)
-      }
-    },
-    [dom],
-  )
+  const onExternalLinkPress = useCallback(async (url: string) => {
+    try {
+      await WebBrowser.openBrowserAsync(url, {
+        dismissButtonStyle: 'close',
+      })
+    } catch (error) {
+      console.error(error)
+    }
+  }, [])
 
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
@@ -247,10 +244,9 @@ export function BibleReader({
       contentInsetAdjustmentBehavior: 'never' as const,
       automaticallyAdjustContentInsets: false,
       ...dom,
-      onOpenWindow,
       style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
     }),
-    [dom, onOpenWindow],
+    [dom],
   )
 
   return (
@@ -270,12 +266,14 @@ export function BibleReader({
           chapter={chapter}
           versionId={versionId}
           fontSize={fontSize}
-          fontFamily={fontFamily}
+          fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
           onFontSizeChange={setFontSize}
           onFontFamilyChange={setFontFamily}
           onLineSpacingChange={setLineSpacing}
-          onOpenBibleThemeSettings={Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined}
+          onOpenBibleThemeSettings={
+            Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined
+          }
           onBookChange={handleBookChange}
           onChapterChange={handleChapterChange}
           onVersionChange={handleVersionChange}
@@ -283,6 +281,7 @@ export function BibleReader({
           onChapterPickerPress={handleChapterPickerPress}
           onVersionPickerPress={handleVersionPickerPress}
           onFootnotePress={onFootnotePress}
+          onExternalLinkPress={Platform.OS !== 'web' ? onExternalLinkPress : undefined}
           backgroundColor={backgroundColor}
           foregroundColor={foregroundColor}
           bottomSafeArea={bottomSafeArea}
@@ -343,5 +342,3 @@ export function BibleReader({
     </>
   )
 }
-
-

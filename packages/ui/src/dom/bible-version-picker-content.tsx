@@ -28,7 +28,13 @@ export default function VersionPickerContentDOM({
 }: VersionPickerContentDOMProps) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
+  // Reset language-panel visibility whenever the picker remounts (resetKey
+  // bumps on each sheet open). setState-in-effect is the "reset on prop change"
+  // flow here; the alternative (adjusting state during render) trips
+  // react-hooks/refs instead, and a key-based remount would change the DOM
+  // component contract.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowLanguagePicker(false)
   }, [resetKey])
 

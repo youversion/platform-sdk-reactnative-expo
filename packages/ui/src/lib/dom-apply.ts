@@ -9,7 +9,10 @@ export function applySDKConfig(config: {
   YouVersionPlatformConfiguration.apiHost = config.apiHost
   YouVersionPlatformConfiguration.installationId = config.installationId
 
-  if (typeof localStorage !== 'undefined') {
+  // `typeof localStorage` is `'object'` when it is `null` (Android DOM WebView
+  // with DOM storage disabled), so the nullish check is required, not just the
+  // `typeof` guard. `dom-local-storage` normally shims this to a real object.
+  if (typeof localStorage !== 'undefined' && localStorage != null) {
     localStorage.setItem('x-yvp-installation-id', config.installationId)
   }
 }
