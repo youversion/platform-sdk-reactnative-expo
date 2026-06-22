@@ -1,0 +1,11 @@
+{
+  "rules": [
+    {
+      "id": "native-i18n-no-hardcoded-strings",
+      "rule": "User-visible strings in packages/ui/src/native/** must use useSdkTranslation() with t('key') or <Trans i18nKey=\"key\">. Add every new key to packages/ui/src/i18n/locales/en.json (typed as SdkTranslationKey). Flag hardcoded English in Text children, accessibilityLabel, and SDK-owned headerTitle values — e.g. \"Cancel\", \"Loading\", \"Books\", \"Versions\". Do not flag packages/ui/src/dom/** (ADR 0009), test files, or consumer-provided prop values. See docs/contributing/native-i18n.md.",
+      "scope": ["packages/ui/src/native/**"],
+      "severity": "high",
+      "enabled": true
+    }
+  ]
+}

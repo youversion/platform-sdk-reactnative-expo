@@ -1,0 +1,24 @@
+{
+  "files": [
+    {
+      "path": "docs/contributing/native-i18n.md",
+      "description": "Contributor guide for native UI localization — required pattern, scope, exceptions"
+    },
+    {
+      "path": "packages/ui/src/i18n/locales/en.json",
+      "description": "Canonical English locale keys (SdkTranslationKey source of truth)"
+    },
+    {
+      "path": "docs/adr/0008-sdk-owned-i18next-no-consumer-overrides.md",
+      "description": "SDK-owned i18next instance and locale prop scope"
+    },
+    {
+      "path": "docs/adr/0009-deferred-dom-localization.md",
+      "description": "DOM/WebView copy exempt from native i18n — English only"
+    },
+    {
+      "path": "docs/adr/0007-app-locale-vs-bible-language-id.md",
+      "description": "App locale vs Bible languageId — do not conflate"
+    }
+  ]
+}
