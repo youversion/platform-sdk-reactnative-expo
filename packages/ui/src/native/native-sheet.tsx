@@ -282,7 +282,7 @@ function SheetHost({
             >
               <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
                 <Text style={{ color: theme === 'dark' ? 'white' : 'black', fontSize: 16 }}>
-                  Cancel
+                  {t('cancel')}
                 </Text>
               </Pressable>
               <Text
