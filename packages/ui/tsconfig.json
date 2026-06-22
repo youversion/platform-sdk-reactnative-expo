@@ -2,9 +2,8 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "dist",
-    "baseUrl": ".",
-    "resolveJsonModule": true
-    "types": ["jest", "node"],
+    "resolveJsonModule": true,
+    "types": ["jest", "node"]
   },
   "include": ["src", "__tests__"]
 }

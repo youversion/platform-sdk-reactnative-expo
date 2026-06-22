@@ -3,7 +3,7 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
+  useState,
   type ReactNode,
 } from 'react'
 import type { i18n as I18nInstance } from 'i18next'
@@ -26,10 +26,7 @@ export type LocaleProviderProps = {
 }
 
 export function LocaleProvider({ locale, children }: LocaleProviderProps) {
-  const i18nRef = useRef<I18nInstance | null>(null)
-  if (i18nRef.current === null) {
-    i18nRef.current = createSdkI18n()
-  }
+  const [i18n] = useState(createSdkI18n)
 
   const locales = useLocales()
   const primary = locales[0]
@@ -40,20 +37,20 @@ export function LocaleProvider({ locale, children }: LocaleProviderProps) {
 
   useEffect(() => {
     let cancelled = false
-    i18nRef.current?.changeLanguage(lng).catch((err) => {
+    i18n.changeLanguage(lng).catch((err) => {
       if (!cancelled) console.error('[SDK i18n] changeLanguage failed:', err)
     })
     return () => {
       cancelled = true
     }
-  }, [lng])
+  }, [lng, i18n])
 
   const value = useMemo(
     () => ({
       lng,
-      i18n: i18nRef.current!,
+      i18n,
     }),
-    [lng],
+    [lng, i18n],
   )
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>
