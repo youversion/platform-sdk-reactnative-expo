@@ -10,6 +10,8 @@ type YouVersionAuthButtonProps = {
   outline?: boolean
   mode?: 'auto' | 'signIn' | 'signOut'
   size?: 'default' | 'short' | 'icon'
+  /** Override the button label. When omitted the SDK uses localized default strings. */
+  text?: string
 }
 
 export function YouVersionAuthButton({
@@ -18,6 +20,7 @@ export function YouVersionAuthButton({
   outline = false,
   mode = 'auto',
   size = 'default',
+  text,
 }: YouVersionAuthButtonProps) {
   const { isAuthenticated, signOut, signIn } = useYVAuth()
   const { t, i18n } = useSdkTranslation()
@@ -37,31 +40,33 @@ export function YouVersionAuthButton({
   const textStyle = background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight
   const boldComponent = <Text style={{ fontWeight: 'bold' }} />
 
-  const unauthedButtonText =
-    size === 'short' ? (
-      <Text style={textStyle}>{t('signIn')}</Text>
-    ) : (
-      <Trans
-        i18n={i18n}
-        i18nKey="signInWithYouVersion"
-        parent={Text}
-        style={textStyle}
-        components={{ bold: boldComponent }}
-      />
-    )
+  const unauthedButtonText = text ? (
+    <Text style={textStyle}>{text}</Text>
+  ) : size === 'short' ? (
+    <Text style={textStyle}>{t('signIn')}</Text>
+  ) : (
+    <Trans
+      i18n={i18n}
+      i18nKey="signInWithYouVersion"
+      parent={Text}
+      style={textStyle}
+      components={{ bold: boldComponent }}
+    />
+  )
 
-  const authedButtonText =
-    size === 'short' ? (
-      <Text style={textStyle}>{t('signOut')}</Text>
-    ) : (
-      <Trans
-        i18n={i18n}
-        i18nKey="signOutOfYouVersion"
-        parent={Text}
-        style={textStyle}
-        components={{ bold: boldComponent }}
-      />
-    )
+  const authedButtonText = text ? (
+    <Text style={textStyle}>{text}</Text>
+  ) : size === 'short' ? (
+    <Text style={textStyle}>{t('signOut')}</Text>
+  ) : (
+    <Trans
+      i18n={i18n}
+      i18nKey="signOutOfYouVersion"
+      parent={Text}
+      style={textStyle}
+      components={{ bold: boldComponent }}
+    />
+  )
 
   return (
     <Pressable

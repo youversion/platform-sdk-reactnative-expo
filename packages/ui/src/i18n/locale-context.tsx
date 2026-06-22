@@ -3,13 +3,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
 import type { i18n as I18nInstance } from 'i18next'
 import { useLocales } from 'expo-localization'
 
-import { SDK_I18N_FALLBACK_LNG } from './constants'
+import { detectDeviceLocale } from './detect-device-locale'
 import { createSdkI18n } from './create-sdk-i18n'
 
 type LocaleContextValue = {
@@ -29,20 +30,20 @@ export function LocaleProvider({ locale, children }: LocaleProviderProps) {
   const [i18n] = useState(createSdkI18n)
 
   const locales = useLocales()
-  const primary = locales[0]
-  const deviceLocale =
-    primary?.languageTag ?? primary?.languageCode ?? SDK_I18N_FALLBACK_LNG
+  const deviceLocale = detectDeviceLocale(locales[0])
 
   const lng = locale ?? deviceLocale
 
+  // Track a version counter so stale changeLanguage resolutions (from a
+  // previous lng value) don't overwrite the current language.
+  const lngVersionRef = useRef(0)
   useEffect(() => {
-    let cancelled = false
+    const version = ++lngVersionRef.current
     i18n.changeLanguage(lng).catch((err) => {
-      if (!cancelled) console.error('[SDK i18n] changeLanguage failed:', err)
+      if (lngVersionRef.current === version) {
+        console.error('[SDK i18n] changeLanguage failed:', err)
+      }
     })
-    return () => {
-      cancelled = true
-    }
   }, [lng, i18n])
 
   const value = useMemo(

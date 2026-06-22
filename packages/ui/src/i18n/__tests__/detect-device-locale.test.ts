@@ -1,29 +1,15 @@
-import { getLocales } from 'expo-localization'
-
 import { detectDeviceLocale } from '../detect-device-locale'
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(),
-}))
-
-const getLocalesMock = getLocales as jest.Mock
 
 describe('detectDeviceLocale', () => {
   it('prefers languageTag over languageCode', () => {
-    getLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
-
-    expect(detectDeviceLocale()).toBe('es-MX')
+    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es-MX')
   })
 
   it('falls back to languageCode when languageTag is missing', () => {
-    getLocalesMock.mockReturnValue([{ languageCode: 'fr' }])
-
-    expect(detectDeviceLocale()).toBe('fr')
+    expect(detectDeviceLocale({ languageCode: 'fr' } as any)).toBe('fr')
   })
 
   it('falls back to en when no locales are available', () => {
-    getLocalesMock.mockReturnValue([])
-
-    expect(detectDeviceLocale()).toBe('en')
+    expect(detectDeviceLocale(undefined)).toBe('en')
   })
 })

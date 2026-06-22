@@ -113,9 +113,13 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     const handleClick = (event: MouseEvent) => {
       const anchor = (event.target as Element | null)?.closest?.('a')
       if (!anchor) return
+      const rawHref = anchor.getAttribute('href') ?? ''
       const href = anchor.href
       const opensNewTab = anchor.getAttribute('target') === '_blank'
-      if (!href || (!opensNewTab && !/^https?:\/\//i.test(href))) return
+      // Use the raw attribute for the protocol guard so relative/hash hrefs
+      // (which the browser resolves to absolute URLs in anchor.href) are not
+      // accidentally intercepted as external links.
+      if (!rawHref || (!opensNewTab && !/^https?:\/\//i.test(rawHref))) return
       event.preventDefault()
       void onExternalLinkPress(href)
     }
@@ -152,7 +156,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
 
       {bottomSafeArea > 0 && (
         <style href="yv-bible-reader-scroll-padding" precedence="medium">
-          {`main:has([data-slot="yv-bible-renderer"]) {
+          {`main {
             padding-bottom: ${READER_BOTTOM_PADDING + bottomSafeArea}px !important;
           }`}
         </style>
