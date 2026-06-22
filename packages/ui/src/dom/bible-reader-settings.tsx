@@ -2,14 +2,16 @@
 
 import { BibleThemeSettingsContent } from '@youversion/platform-react-ui'
 
-import type { FontFamily } from '../lib/reader-fonts'
+import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
+import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type BibleReaderSettingsDOMProps = {
   appKey: string
   theme: 'light' | 'dark'
   fontSize: number
-  fontFamily: FontFamily
+  // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
+  fontFamily: FontFamilyToken
   lineSpacing: number
   // Expo DOM function props always cross the native <-> WebView bridge, so they must be async.
   onFontIncreased: () => void
@@ -47,6 +49,11 @@ export default function BibleReaderSettingsDOM({
     void onLineSpacingChange()
   }
 
+  // fontFamily crosses the bridge as a quote-free token; resolve it back to the
+  // canonical CSS stack so the Web SDK highlights the active font. See
+  // lib/reader-fonts.ts.
+  const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{settingsStyles}</style>
@@ -54,7 +61,7 @@ export default function BibleReaderSettingsDOM({
         <BibleThemeSettingsContent
           theme={theme}
           fontSize={fontSize}
-          fontFamily={fontFamily}
+          fontFamily={resolvedFontFamily}
           lineSpacing={lineSpacing}
           onFontIncreased={handleFontIncreased}
           onFontDecreased={handleFontDecreased}

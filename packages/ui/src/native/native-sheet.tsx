@@ -76,11 +76,11 @@ export function NativeSheet({
   showHeader = false,
   headerTitle,
 }: NativeSheetProps) {
-  const sheetIdRef = useRef<number | null>(null)
-  if (sheetIdRef.current === null) {
-    sheetIdRef.current = nextSheetId++
-  }
-  const sheetId = sheetIdRef.current
+  // Stable per-sheet ID, assigned once on first render. useState with a lazy
+  // initializer keeps this out of the render-phase ref reads the new
+  // react-hooks/refs rule flags (a useRef + .current assignment during render
+  // is the older idiom for the same "compute once" intent).
+  const [sheetId] = useState(() => nextSheetId++)
 
   const isActive = useSheetStore((s) => s.activeSheetId === sheetId)
 
@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

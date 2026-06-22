@@ -2,6 +2,7 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import { useMemo } from 'react'
 import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
+import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
@@ -40,7 +41,7 @@ export function BibleReaderSettingsSheet({
         appKey={appKey}
         theme={theme}
         fontSize={fontSize}
-        fontFamily={fontFamily}
+        fontFamily={encodeFontFamilyForDom(fontFamily)}
         lineSpacing={lineSpacing}
         onFontIncreased={onFontIncreased}
         onFontDecreased={onFontDecreased}
