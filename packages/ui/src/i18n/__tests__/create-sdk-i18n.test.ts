@@ -5,6 +5,7 @@ describe('createSdkI18n', () => {
   it('initializes with the translation namespace and English fallback', () => {
     const i18n = createSdkI18n()
 
+    expect(i18n.options.lng).toBe(SDK_I18N_FALLBACK_LNG)
     expect(i18n.options.fallbackLng).toEqual([SDK_I18N_FALLBACK_LNG])
     expect(i18n.options.defaultNS).toBe(SDK_I18N_NAMESPACE)
     expect(i18n.options.interpolation?.escapeValue).toBe(false)

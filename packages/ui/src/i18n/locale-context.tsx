@@ -27,12 +27,11 @@ export type LocaleProviderProps = {
 }
 
 export function LocaleProvider({ locale, children }: LocaleProviderProps) {
-  const [i18n] = useState(createSdkI18n)
-
   const locales = useLocales()
   const deviceLocale = detectDeviceLocale(locales[0])
-
   const lng = locale ?? deviceLocale
+
+  const [i18n] = useState(() => createSdkI18n(lng))
 
   // Track a version counter so stale changeLanguage resolutions (from a
   // previous lng value) don't overwrite the current language.

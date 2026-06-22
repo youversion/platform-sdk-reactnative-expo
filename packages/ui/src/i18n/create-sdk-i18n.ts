@@ -8,12 +8,12 @@ import {
 } from './constants'
 import { buildSdkResources } from './locales'
 
-export function createSdkI18n(): I18nInstance {
+export function createSdkI18n(lng: string = SDK_I18N_FALLBACK_LNG): I18nInstance {
   const i18n = createInstance()
 
   void i18n.use(initReactI18next).init({
     resources: buildSdkResources(),
-    lng: SDK_I18N_FALLBACK_LNG,
+    lng,
     fallbackLng: SDK_I18N_FALLBACK_LNG,
     ns: [SDK_I18N_NAMESPACE],
     defaultNS: SDK_I18N_NAMESPACE,

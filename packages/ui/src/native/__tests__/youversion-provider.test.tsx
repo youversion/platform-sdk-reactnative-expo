@@ -16,8 +16,13 @@ jest.mock('expo-localization', () => ({
 const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 function LocaleProbe() {
-  const { lng } = useLocale()
-  return <Text testID="locale-lng">{lng}</Text>
+  const { lng, i18n } = useLocale()
+  return (
+    <>
+      <Text testID="locale-lng">{lng}</Text>
+      <Text testID="i18n-language">{i18n.language}</Text>
+    </>
+  )
 }
 
 describe('YouVersionProvider locale', () => {
@@ -41,5 +46,15 @@ describe('YouVersionProvider locale', () => {
     )
 
     expect(getByTestId('locale-lng').children).toContain('es')
+  })
+
+  it('initializes i18n with resolved lng on first render', () => {
+    const { getByTestId } = render(
+      <YouVersionProvider appKey="test-key" locale="es">
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    expect(getByTestId('i18n-language').children).toContain('es')
   })
 })
