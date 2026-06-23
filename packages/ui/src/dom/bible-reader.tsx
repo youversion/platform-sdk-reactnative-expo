@@ -156,7 +156,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
 
       {bottomSafeArea > 0 && (
         <style href="yv-bible-reader-scroll-padding" precedence="medium">
-          {`main {
+          {`main:has([data-slot="yv-bible-renderer"]) {
             padding-bottom: ${READER_BOTTOM_PADDING + bottomSafeArea}px !important;
           }`}
         </style>
