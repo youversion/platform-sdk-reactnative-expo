@@ -5,6 +5,7 @@ import {
 import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 import { ThemeContext } from '../hooks'
+import { LocaleProvider } from '../i18n'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
 
@@ -14,6 +15,8 @@ export type YouVersionProviderProps = {
   appKey: string
   apiHost?: string
   theme?: YouVersionTheme
+  /** When omitted, native SDK strings follow the device locale (expo-localization). */
+  locale?: string
   auth?: AuthConfig
   fallback?: ReactNode
   children: ReactNode
@@ -23,6 +26,7 @@ export function YouVersionProvider({
   appKey,
   apiHost,
   theme = 'system',
+  locale,
   auth,
   fallback,
   children,
@@ -32,9 +36,11 @@ export function YouVersionProvider({
 
   return (
     <CoreYouVersionProvider appKey={appKey} apiHost={apiHost} auth={auth} fallback={fallback}>
-      <ThemeContext.Provider value={resolvedTheme}>
-        <NativeSheetProvider>{children}</NativeSheetProvider>
-      </ThemeContext.Provider>
+      <LocaleProvider locale={locale}>
+        <ThemeContext.Provider value={resolvedTheme}>
+          <NativeSheetProvider>{children}</NativeSheetProvider>
+        </ThemeContext.Provider>
+      </LocaleProvider>
     </CoreYouVersionProvider>
   )
 }

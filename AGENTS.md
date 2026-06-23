@@ -169,6 +169,10 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
 
+## Native UI localization
+
+User-visible strings in `packages/ui/src/native/**` must use `useSdkTranslation()` with `t('key')` or `<Trans i18nKey>`; add keys to `packages/ui/src/i18n/locales/en.json` (typed via `SdkTranslationKey`). Do not hardcode copy in `Text` children, `accessibilityLabel`, or SDK-owned `headerTitle` values. `packages/ui/src/dom/**` is exempt ([ADR 0009](./docs/adr/0009-deferred-dom-localization.md)). Greptile enforces this at high severity — see [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md) and `.greptile/rules.md`.
+
 ## Recommended Agent Skill
 
 This repo uses `CONTEXT.md` and `docs/adr/` for domain language and architectural decisions. Before planning changes, use the [grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs) skill to stress-test your plan against the documented domain model — it challenges terminology and updates docs inline as decisions crystallize.

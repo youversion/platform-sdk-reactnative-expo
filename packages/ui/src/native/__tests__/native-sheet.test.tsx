@@ -3,7 +3,12 @@ import type { ReactNode } from 'react'
 import { Platform, Text, View } from 'react-native'
 
 import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
-import { NativeSheet, NativeSheetProvider } from '../native-sheet'
+import { NativeSheet } from '../native-sheet'
+import { YouVersionProvider } from '../youversion-provider'
+
+jest.mock('@youversion/platform-react-native-expo-core', () => ({
+  YouVersionProvider: ({ children }: { children: ReactNode }) => children,
+}))
 
 let latestBottomSheetProps: Record<string, unknown> = {}
 let mockBottomInset = 0
@@ -62,15 +67,19 @@ jest.mock('@gorhom/bottom-sheet', () => {
   }
 })
 
+function SheetProvider({ children }: { children: ReactNode }) {
+  return <YouVersionProvider appKey="test-key">{children}</YouVersionProvider>
+}
+
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
   return (
-    <NativeSheetProvider>
+    <SheetProvider>
       <View>
         <NativeSheet isOpen={isOpen} onClose={() => {}}>
           <Text testID="sheet-content">Sheet content</Text>
         </NativeSheet>
       </View>
-    </NativeSheetProvider>
+    </SheetProvider>
   )
 }
 
@@ -86,7 +95,7 @@ function TwoSheetHarness({
   onCloseB: () => void
 }) {
   return (
-    <NativeSheetProvider>
+    <SheetProvider>
       <View>
         <NativeSheet isOpen={isOpenA} onClose={onCloseA}>
           <Text testID="sheet-a-content">A</Text>
@@ -95,7 +104,7 @@ function TwoSheetHarness({
           <Text testID="sheet-b-content">B</Text>
         </NativeSheet>
       </View>
-    </NativeSheetProvider>
+    </SheetProvider>
   )
 }
 
@@ -297,13 +306,13 @@ describe('NativeSheet', () => {
     })
 
     render(
-      <NativeSheetProvider>
+      <SheetProvider>
         <View>
           <NativeSheet isOpen={true} onClose={() => {}} theme="dark">
             <Text testID="sheet-content">Sheet content</Text>
           </NativeSheet>
         </View>
-      </NativeSheetProvider>,
+      </SheetProvider>,
     )
 
     expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#1f1d1d' })
@@ -321,13 +330,13 @@ describe('NativeSheet', () => {
     })
 
     render(
-      <NativeSheetProvider>
+      <SheetProvider>
         <View>
           <NativeSheet isOpen={true} onClose={() => {}} theme="dark" backgroundColor="#123456">
             <Text testID="sheet-content">Sheet content</Text>
           </NativeSheet>
         </View>
-      </NativeSheetProvider>,
+      </SheetProvider>,
     )
 
     expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#123456' })
@@ -393,13 +402,13 @@ describe('NativeSheet', () => {
 
     function Harness({ isOpen }: { isOpen: boolean }) {
       return (
-        <NativeSheetProvider>
+        <SheetProvider>
           <View>
             <NativeSheet isOpen={isOpen} onClose={onClose}>
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
-        </NativeSheetProvider>
+        </SheetProvider>
       )
     }
 
@@ -426,13 +435,13 @@ describe('NativeSheet', () => {
       showAndroidLoader?: boolean
     }) {
       return (
-        <NativeSheetProvider>
+        <SheetProvider>
           <View>
             <NativeSheet isOpen={isOpen} onClose={() => {}} showAndroidLoader={showAndroidLoader}>
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
-        </NativeSheetProvider>
+        </SheetProvider>
       )
     }
 
@@ -541,13 +550,13 @@ describe('NativeSheet', () => {
 
     it.each(cases)('themes the sheet chrome for the $theme theme', ({ theme }) => {
       render(
-        <NativeSheetProvider>
+        <SheetProvider>
           <View>
             <NativeSheet isOpen={true} onClose={() => {}} theme={theme}>
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
-        </NativeSheetProvider>,
+        </SheetProvider>,
       )
 
       expect(latestBottomSheetProps.backgroundStyle).toEqual({
@@ -561,7 +570,7 @@ describe('NativeSheet', () => {
 
     it.each(cases)('themes the header text for the $theme theme', ({ theme, text }) => {
       const { getByText } = render(
-        <NativeSheetProvider>
+        <SheetProvider>
           <View>
             <NativeSheet
               isOpen={true}
@@ -573,7 +582,7 @@ describe('NativeSheet', () => {
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
-        </NativeSheetProvider>,
+        </SheetProvider>,
       )
 
       expect(getByText('Versions').props.style).toMatchObject({ color: text })
@@ -594,7 +603,7 @@ describe('NativeSheet', () => {
       onClose?: () => void
     }) {
       return (
-        <NativeSheetProvider>
+        <SheetProvider>
           <View>
             <NativeSheet
               isOpen={true}
@@ -606,7 +615,7 @@ describe('NativeSheet', () => {
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
-        </NativeSheetProvider>
+        </SheetProvider>
       )
     }
 
