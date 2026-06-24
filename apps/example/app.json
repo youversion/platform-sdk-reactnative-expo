@@ -8,7 +8,8 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

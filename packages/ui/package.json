@@ -45,6 +45,7 @@
   "peerDependencies": {
     "@gorhom/bottom-sheet": ">=5.0.0",
     "expo": ">=56.0.0 <57.0.0",
+    "expo-localization": ">=56.0.0 <57.0.0",
     "expo-web-browser": ">=56.0.0 <57.0.0",
     "react": ">=19.1.0 <20.0.0",
     "react-dom": ">=19.1.0 <20.0.0",
