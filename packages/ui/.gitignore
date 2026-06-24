@@ -1,0 +1,4 @@
+# Native build artifacts (Android/Gradle regenerates these per app build).
+android/build
+android/.gradle
+android/.cxx
