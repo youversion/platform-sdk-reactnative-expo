@@ -53,9 +53,16 @@ Required packages:
 - `@youversion/platform-react-native-expo-core`
 - `@youversion/platform-react-native-expo-ui`
 
-### NPM_TOKEN fallback
+### NPM_TOKEN fallback (off by default)
 
-The workflow also passes `NODE_AUTH_TOKEN` from `NPM_TOKEN` secret as a fallback for packages where trusted publishing isn't configured yet. Generate one as an **Automation** token (not Publish or Read-only — automation tokens bypass 2FA, which CI cannot satisfy) at `https://www.npmjs.com/settings/<username>/tokens` and add it under Settings → Secrets and variables → Actions → `NPM_TOKEN`. Remove it once both packages are on trusted publishing.
+The workflow does not carry a standing `NPM_TOKEN`. OIDC trusted publishing is the only auth path. An automation token bypasses 2FA, so a secret left in the repo widens the attack surface for little gain.
+
+Configure trusted publishing on both packages before the first release. If a bootstrap publish must run before that is live, add a temporary fallback:
+
+1. Generate an **Automation** token at `https://www.npmjs.com/settings/<username>/tokens`. Pick Automation, not Publish or Read-only. Automation tokens bypass 2FA, which CI cannot satisfy.
+2. Add it under Settings → Secrets and variables → Actions → `NPM_TOKEN`.
+3. Add `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` to the publish step env in `release.yml`.
+4. Remove both the secret and that line once both packages are on trusted publishing.
 
 ## Troubleshooting
 
@@ -73,6 +80,8 @@ The workflow also passes `NODE_AUTH_TOKEN` from `NPM_TOKEN` secret as a fallback
 - Review `Release` workflow logs.
 
 ### Need to unpublish
+
+Unpublish and deprecate are manual steps. They run from a maintainer's machine and need npm publish rights on the `@youversion` scope. The release workflow does not do this for you.
 
 Cannot unpublish after 72 hours. Within 72 hours:
 
