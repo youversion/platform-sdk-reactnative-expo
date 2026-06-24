@@ -5,6 +5,7 @@ export {
   BibleReaderSettingsSheet,
   BibleTextView,
   BibleVersionPickerSheet,
+  ScriptureTextView,
   VerseOfTheDay,
   YouVersionAuthButton,
   YouVersionProvider,
@@ -12,6 +13,7 @@ export {
 export type {
   BibleChapterPickerSheetProps,
   BibleVersionPickerSheetProps,
+  ScriptureTextViewProps,
   YouVersionProviderProps,
   YouVersionTheme,
 } from './native'

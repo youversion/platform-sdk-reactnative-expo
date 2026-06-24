@@ -7,6 +7,10 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Bible</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="native-reader">
+        <NativeTabs.Trigger.Label>Native</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="text.book.closed.fill" md="auto_stories" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="verse-of-the-day">
         <NativeTabs.Trigger.Label>VOTD</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="sun.max.fill" md="wb_sunny" />

@@ -95,6 +95,10 @@ Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but the
 
 Mounted immediately with empty placeholder data to cold-start the WebView during page load.
 
+### Bundled Native Module (hanging indent)
+
+The UI package ships its own Expo native module — `YouVersionScriptureParagraph` (`packages/ui/ios/`, `packages/ui/android/`, `packages/ui/expo-module.config.json`) — for the faithful poetry/list **hanging indent** that RN `<Text>` can't express (`NSParagraphStyle` on iOS, `LeadingMarginSpan` on Android; ADR 0011). It **autolinks** when the package is installed, so consumers author no native module. The JS wrapper is `src/native/scripture/scripture-paragraph-native.tsx` (`requireNativeView('YouVersionScriptureParagraph')`, web-guarded), and `ScriptureTextView` wires it as the **default** `renderHangingParagraph` on native (web falls back to the renderer's RN approximation); the prop stays as a consumer override. The module ships **source** (podspec `source_files` + gradle build-from-source), so unlike `@expo/dom-webview` it needs no `buildFromSource` entry. This makes `@youversion/platform-react-native-expo-ui` a native module package: `package.json` `files` ships `ios`/`android`/`expo-module.config.json`, and `.npmignore` keeps `android/build` artifacts out. In jest, `requireNativeView` is stubbed in `jest.setup.js`.
+
 ### Font/Theme Overrides
 
 CSS custom properties on `[data-slot="yv-bible-renderer"]`: `--yv-reader-font-size`, `--yv-reader-font-family`, `--yv-reader-bg`, `--yv-reader-fg`
