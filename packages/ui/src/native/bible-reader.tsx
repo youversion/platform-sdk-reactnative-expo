@@ -245,6 +245,7 @@ export function BibleReader({
       automaticallyAdjustContentInsets: false,
       ...dom,
       style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
+      domStorageEnabled: true,
     }),
     [dom],
   )

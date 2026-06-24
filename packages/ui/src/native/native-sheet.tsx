@@ -27,8 +27,8 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
-import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
 
 const HOST_NAME = 'native-sheet-host'

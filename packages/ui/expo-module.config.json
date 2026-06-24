@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["YouVersionScriptureParagraphModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.youversion.scriptureparagraph.YouVersionScriptureParagraphModule"]
+  }
+}

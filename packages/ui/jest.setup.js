@@ -67,6 +67,19 @@ if (typeof global.nativeModuleProxy === 'undefined') {
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
+/**
+ * The scripture reader ships a bundled hanging-indent native view (the autolinked
+ * `YouVersionScriptureParagraph` Expo module in packages/ui/ios|android), resolved at
+ * module load via `requireNativeView`. jest has no native view to bind, so stub it to a
+ * passthrough host component. Tests exercise the JS renderer + orchestration, not the
+ * native paragraph layout (that's a layer-4/device concern).
+ */
+jest.mock('expo', () => {
+  const actual = jest.requireActual('expo')
+  const { View } = require('react-native')
+  return { ...actual, requireNativeView: () => View }
+})
+
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))

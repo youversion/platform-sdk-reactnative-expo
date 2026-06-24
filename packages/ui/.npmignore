@@ -1,0 +1,14 @@
+# Native build artifacts (Android/Gradle regenerates these per app build).
+android/build
+android/.gradle
+android/.cxx
+
+# Tests, fixtures, and coverage are dev-only.
+**/__tests__
+**/__fixtures__
+**/*.test.ts
+**/*.test.tsx
+coverage
+.turbo
+jest.setup.js
+babel.config.js

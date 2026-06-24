@@ -8,14 +8,16 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.youversion.platform"
+      "bundleIdentifier": "com.youversion.platform",
+      "appleTeamId": "64J8D24PR8"
     },
     "android": {
       "package": "com.youversion.platform",
