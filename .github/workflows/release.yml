@@ -35,9 +35,8 @@ jobs:
       - name: Update npm to latest version
         run: npm install -g npm@latest
 
-      - name: Build packages
-        run: pnpm build
-
+      # No separate build step: `pnpm release` runs `turbo build` before
+      # `changeset publish`, so the build only happens on the publish path.
       - name: Create Release Pull Request or Publish to NPM
         id: changesets
         uses: changesets/action@v1
@@ -51,11 +50,12 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Fallback only — trusted publishing on npm is the primary path. If
-          # OIDC isn't configured for a package, changesets/action transparently
-          # uses NODE_AUTH_TOKEN.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+          # Publishing auth comes solely from OIDC trusted publishing. We do not
+          # pass a long-lived NPM_TOKEN. An automation token bypasses 2FA, so a
+          # standing secret widens the attack surface for little gain. If a
+          # bootstrap publish needs it before trusted publishing is live, add
+          # NODE_AUTH_TOKEN here as a temporary fallback and remove it after.
 
       - name: Publish summary
         if: steps.changesets.outputs.published == 'true'
