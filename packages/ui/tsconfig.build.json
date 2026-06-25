@@ -5,7 +5,10 @@
     "declarationMap": true,
     "sourceMap": true,
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    // Source imports ./i18n/locales/en.json. Set this explicitly so the build
+    // does not rely on it being implied by moduleResolution: bundler.
+    "resolveJsonModule": true
   },
   "include": ["src"],
   "exclude": [
