@@ -8,10 +8,12 @@ import type {
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
+import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib'
 
-import type { FontFamily } from '../lib/reader-fonts'
+import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
+import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps =
@@ -42,13 +44,18 @@ type BibleReaderBaseProps = {
   showToolbar?: boolean
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onOpenBibleThemeSettings?: () => void
+  onExternalLinkPress?: (url: string) => Promise<void>
   fontSize?: number
-  fontFamily?: FontFamily
+  // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
+  fontFamily?: FontFamilyToken
+  lineSpacing?: number
   onFontSizeChange?: (fontSize: number) => void
   onFontFamilyChange?: (fontFamily: FontFamily) => void
+  onLineSpacingChange?: (lineSpacing: number) => void
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
+  bottomSafeArea?: number
   dom?: import('expo/dom').DOMProps
 }
 
@@ -59,6 +66,9 @@ export type BibleReaderProps = BibleReaderBaseProps &
   )
 
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
+
+const READER_BOTTOM_PADDING = 48
+
 export default function BibleReaderDOM(props: BibleReaderProps) {
   const {
     appKey,
@@ -80,15 +90,43 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onFootnotePress,
     showToolbar = true,
     onOpenBibleThemeSettings,
+    onExternalLinkPress,
     fontSize,
     fontFamily,
+    lineSpacing,
     onFontSizeChange,
     onFontFamilyChange,
+    onLineSpacingChange,
     backgroundColor,
     foregroundColor,
+    bottomSafeArea = 0,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
+
+  // fontFamily crosses the bridge as a quote-free token; resolve it back to the
+  // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
+  const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+
+  useEffect(() => {
+    if (!onExternalLinkPress) return
+    const handleClick = (event: MouseEvent) => {
+      const anchor = (event.target as Element | null)?.closest?.('a')
+      if (!anchor) return
+      const rawHref = anchor.getAttribute('href') ?? ''
+      const href = anchor.href
+      const opensNewTab = anchor.getAttribute('target') === '_blank'
+      // Use the raw attribute for the protocol guard so relative/hash hrefs
+      // (which the browser resolves to absolute URLs in anchor.href) are not
+      // accidentally intercepted as external links.
+      if (!rawHref || (!opensNewTab && !/^https?:\/\//i.test(rawHref))) return
+      event.preventDefault()
+      void onExternalLinkPress(href)
+    }
+    document.addEventListener('click', handleClick, true)
+    return () => document.removeEventListener('click', handleClick, true)
+  }, [onExternalLinkPress])
+
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
@@ -97,12 +135,33 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   // MMKV and the Web SDK's internal state in sync bidirectionally.
   const providerContent = (
     <>
+      {/*
+       * Expo's DOM host template sets `#root { display: flex; flex: 1 }` but
+       * never gives `html`/`body`/`#root` an actual `height: 100%`, so the
+       * reader's `h-full` chain never resolves to the viewport. Without this,
+       * the WebView's native scroll moves the whole document (toolbar included)
+       * instead of the reader's inner `overflow-y-auto` Content area. Re-assert
+       * the height chain so the toolbar stays sticky and Content owns the scroll.
+       */}
+      <style href="yv-bible-reader-host-height" precedence="medium">
+        {`html, body, #root { height: 100%; }`}
+      </style>
+
       <style href="yv-bible-reader-overrides" precedence="medium">
         {`[data-slot="yv-bible-renderer"] {
           ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
           ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
         }`}
       </style>
+
+      {bottomSafeArea > 0 && (
+        <style href="yv-bible-reader-scroll-padding" precedence="medium">
+          {`main:has([data-slot="yv-bible-renderer"]) {
+            padding-bottom: ${READER_BOTTOM_PADDING + bottomSafeArea}px !important;
+          }`}
+        </style>
+      )}
+
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
           book={book}
@@ -117,9 +176,11 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           onSignOutPress={onSignOutPress}
           onFootnotePress={onFootnotePress}
           fontSize={fontSize}
-          fontFamily={fontFamily}
+          fontFamily={resolvedFontFamily}
+          lineSpacing={lineSpacing}
           onFontSizeChange={onFontSizeChange}
           onFontFamilyChange={onFontFamilyChange}
+          onChangeLineSpacing={onLineSpacingChange}
         >
           {showToolbar && (
             <BibleReader.Toolbar

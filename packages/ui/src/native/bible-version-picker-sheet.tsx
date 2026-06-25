@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { useTheme } from '../hooks/use-theme'
@@ -30,10 +30,15 @@ export function BibleVersionPickerSheet({
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,
-  // resetting scroll position, search query, and language filter state
-  const resetKeyRef = useRef(0)
+  // resetting scroll position, search query, and language filter state. Kept in
+  // state (not a ref) so the new value flows through render into resetKey
+  // without reading a ref during render (react-hooks/refs). The setState here
+  // is the "reset on prop change" flow; suppressing set-state-in-effect because
+  // the alternative (ref + render read) trips react-hooks/refs instead.
+  const [resetKey, setResetKey] = useState(0)
   useEffect(() => {
-    if (isOpen) resetKeyRef.current += 1
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isOpen) setResetKey((k) => k + 1)
   }, [isOpen])
 
   if (Platform.OS === 'web') return null
@@ -78,7 +83,7 @@ export function BibleVersionPickerSheet({
           appKey={context.appKey}
           versionId={versionId}
           theme={resolvedTheme}
-          resetKey={resetKeyRef.current}
+          resetKey={resetKey}
           onVersionChange={handleVersionChange}
         />
       </View>

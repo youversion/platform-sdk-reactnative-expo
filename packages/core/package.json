@@ -21,7 +21,11 @@
   "jest": {
     "preset": "jest-expo",
     "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1"
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^react$": "<rootDir>/../../node_modules/react",
+      "^react/(.*)$": "<rootDir>/../../node_modules/react/$1",
+      "^react-dom$": "<rootDir>/../../node_modules/react-dom",
+      "^react-dom/(.*)$": "<rootDir>/../../node_modules/react-dom/$1"
     },
     "collectCoverageFrom": [
       "src/**/*.{ts,tsx}",
@@ -37,27 +41,22 @@
       }
     }
   },
-  "dependencies": {
-    "expo-application": "~55.0.15",
-    "expo-crypto": "~55.0.15",
-    "expo-web-browser": "~55.0.16"
-  },
   "peerDependencies": {
-    "expo": ">=55.0.0 <56.0.0",
-    "expo-secure-store": ">=55.0.0 <56.0.0",
+    "expo-application": ">=56.0.0 <57.0.0",
+    "expo-crypto": ">=56.0.0 <57.0.0",
+    "expo-web-browser": ">=56.0.0 <57.0.0",
+    "expo": ">=56.0.0 <57.0.0",
+    "expo-secure-store": ">=56.0.0 <57.0.0",
     "react": ">=19.0.0 <20.0.0",
-    "react-native": ">=0.83.0",
-    "react-native-mmkv": "^4.0.0",
+    "react-native": ">=0.85.0",
+    "react-native-mmkv": ">=4.0.0 <5.0.0",
     "react-native-nitro-modules": ">=0.35.0 <0.37.0"
   },
   "devDependencies": {
-    "@testing-library/react-native": "^13.3.3",
+    "@testing-library/react-native": "13.3.3",
     "@types/jest": "29.5.14",
-    "@types/react": "~19.2.14",
-    "expo-secure-store": "^55.0.13",
-    "jest": "~29.7.0",
-    "jest-expo": "~55.0.16",
-    "react-native-mmkv": "^4.3.1",
-    "react-native-nitro-modules": "^0.35.6"
+    "@types/react": "19.2.14",
+    "jest": "29.7.0",
+    "jest-expo": "56.0.5"
   }
 }

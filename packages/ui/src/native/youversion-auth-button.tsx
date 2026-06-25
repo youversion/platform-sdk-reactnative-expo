@@ -1,5 +1,7 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import { Pressable, StyleSheet, Text } from 'react-native'
+import { Trans } from 'react-i18next'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { BibleAppLogo } from './bible-app-logo'
 
 type YouVersionAuthButtonProps = {
@@ -8,6 +10,7 @@ type YouVersionAuthButtonProps = {
   outline?: boolean
   mode?: 'auto' | 'signIn' | 'signOut'
   size?: 'default' | 'short' | 'icon'
+  /** Override the button label. When omitted the SDK uses localized default strings. */
   text?: string
 }
 
@@ -20,6 +23,7 @@ export function YouVersionAuthButton({
   text,
 }: YouVersionAuthButtonProps) {
   const { isAuthenticated, signOut, signIn } = useYVAuth()
+  const { t, i18n } = useSdkTranslation()
 
   const authFunction = async () => {
     try {
@@ -33,32 +37,35 @@ export function YouVersionAuthButton({
     }
   }
 
+  const textStyle = background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight
+  const boldComponent = <Text style={{ fontWeight: 'bold' }} />
+
   const unauthedButtonText = text ? (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      {text}
-    </Text>
+    <Text style={textStyle}>{text}</Text>
   ) : size === 'short' ? (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      Sign in
-    </Text>
+    <Text style={textStyle}>{t('signIn')}</Text>
   ) : (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      Sign in with <Text style={{ fontWeight: 'bold' }}>YouVersion</Text>
-    </Text>
+    <Trans
+      i18n={i18n}
+      i18nKey="signInWithYouVersion"
+      parent={Text}
+      style={textStyle}
+      components={{ bold: boldComponent }}
+    />
   )
 
   const authedButtonText = text ? (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      {text}
-    </Text>
+    <Text style={textStyle}>{text}</Text>
   ) : size === 'short' ? (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      Sign Out
-    </Text>
+    <Text style={textStyle}>{t('signOut')}</Text>
   ) : (
-    <Text style={background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight}>
-      Sign out of <Text style={{ fontWeight: 'bold' }}>YouVersion</Text>
-    </Text>
+    <Trans
+      i18n={i18n}
+      i18nKey="signOutOfYouVersion"
+      parent={Text}
+      style={textStyle}
+      components={{ bold: boldComponent }}
+    />
   )
 
   return (

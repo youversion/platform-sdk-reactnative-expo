@@ -13,7 +13,9 @@ export default function BibleCardScreen() {
         { paddingTop: top, backgroundColor: isDark ? '#000000' : '#ffffff' },
       ]}
     >
-      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+      <View style={styles.card}>
+        <BibleCard reference="JHN.3.16" versionId={3034} />
+      </View>
     </View>
   )
 }
@@ -22,5 +24,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  card: {
+    width: '100%',
+    maxWidth: 480,
   },
 })

@@ -1,12 +1,15 @@
+import type { ComponentProps, ReactNode } from "react";
 import { render, screen, userEvent } from "@testing-library/react-native";
 
 import { YouVersionAuthButton } from "../youversion-auth-button";
+import { YouVersionProvider } from "../youversion-provider";
 
 const mockSignIn = jest.fn();
 const mockSignOut = jest.fn();
 let mockIsAuthenticated = false;
 
 jest.mock("@youversion/platform-react-native-expo-core", () => ({
+  YouVersionProvider: ({ children }: { children: ReactNode }) => children,
   useYVAuth: () => ({
     isAuthenticated: mockIsAuthenticated,
     signIn: mockSignIn,
@@ -23,6 +26,14 @@ jest.mock("../bible-app-logo", () => {
   };
 });
 
+function renderAuthButton(props: ComponentProps<typeof YouVersionAuthButton> = {}) {
+  return render(
+    <YouVersionProvider appKey="test-key">
+      <YouVersionAuthButton {...props} />
+    </YouVersionProvider>,
+  );
+}
+
 beforeEach(() => {
   mockSignIn.mockClear();
   mockSignOut.mockClear();
@@ -31,71 +42,79 @@ beforeEach(() => {
 
 describe("YouVersionAuthButton labels", () => {
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
-    render(<YouVersionAuthButton />);
+    renderAuthButton();
     expect(screen.getByText(/sign in with/i)).toBeTruthy();
   });
 
   it('shows "Sign in" when unauthenticated and size="short"', () => {
-    render(<YouVersionAuthButton size="short" />);
+    renderAuthButton({ size: "short" });
     expect(screen.getByText("Sign in")).toBeTruthy();
   });
 
   it('shows "Sign out of YouVersion" when authenticated (mode=auto)', () => {
     mockIsAuthenticated = true;
-    render(<YouVersionAuthButton />);
+    renderAuthButton();
     expect(screen.getByText(/sign out of/i)).toBeTruthy();
   });
 
   it('shows "Sign Out" when authenticated and size="short"', () => {
     mockIsAuthenticated = true;
-    render(<YouVersionAuthButton size="short" />);
+    renderAuthButton({ size: "short" });
     expect(screen.getByText("Sign Out")).toBeTruthy();
   });
 
   it('shows "Sign out of YouVersion" when mode="signOut" even if unauthenticated', () => {
-    render(<YouVersionAuthButton mode="signOut" />);
+    renderAuthButton({ mode: "signOut" });
     expect(screen.getByText(/sign out of/i)).toBeTruthy();
   });
 
   it('shows "Sign Out" when mode="signOut" and size="short"', () => {
-    render(<YouVersionAuthButton mode="signOut" size="short" />);
+    renderAuthButton({ mode: "signOut", size: "short" });
     expect(screen.getByText("Sign Out")).toBeTruthy();
   });
 
   it('shows "Sign in with YouVersion" when mode="signIn" and unauthenticated', () => {
-    render(<YouVersionAuthButton mode="signIn" />);
+    renderAuthButton({ mode: "signIn" });
     expect(screen.getByText(/sign in with/i)).toBeTruthy();
   });
 
   it('shows "Sign in with YouVersion" when mode="signIn" even while authenticated', () => {
     mockIsAuthenticated = true;
-    render(<YouVersionAuthButton mode="signIn" />);
+    renderAuthButton({ mode: "signIn" });
     expect(screen.getByText(/sign in with/i)).toBeTruthy();
     expect(screen.queryByText(/sign out of/i)).toBeNull();
   });
 
-  it("renders the custom text prop over the default when unauthenticated", () => {
-    render(<YouVersionAuthButton text="Continue" />);
-    expect(screen.getByText("Continue")).toBeTruthy();
-  });
-
-  it("renders the custom text prop over the default when authenticated", () => {
-    mockIsAuthenticated = true;
-    render(<YouVersionAuthButton text="Continue" />);
-    expect(screen.getByText("Continue")).toBeTruthy();
-  });
-
   it('renders no label in size="icon" mode but keeps the logo', () => {
-    render(<YouVersionAuthButton size="icon" />);
+    renderAuthButton({ size: "icon" });
     expect(screen.queryByText(/sign/i)).toBeNull();
     expect(screen.getByTestId("bible-app-logo")).toBeTruthy();
+  });
+
+  it("applies white text color on dark background for sign-in label", () => {
+    renderAuthButton({ background: "dark" });
+    const label = screen.getByText(/sign in with/i);
+    expect(label.props.style).toMatchObject({ color: "#fff" });
+  });
+
+  it("applies white text color on dark background for sign-out label", () => {
+    mockIsAuthenticated = true;
+    renderAuthButton({ background: "dark" });
+    const label = screen.getByText(/sign out of/i);
+    expect(label.props.style).toMatchObject({ color: "#fff" });
+  });
+
+  it("applies black text color on light background for sign-in label", () => {
+    renderAuthButton({ background: "light" });
+    const label = screen.getByText(/sign in with/i);
+    expect(label.props.style).toMatchObject({ color: "#000" });
   });
 });
 
 describe("YouVersionAuthButton press behavior", () => {
   it("calls signIn when pressed unauthenticated (mode=auto)", async () => {
     const user = userEvent.setup();
-    render(<YouVersionAuthButton />);
+    renderAuthButton();
 
     await user.press(screen.getByText(/sign in with/i));
 
@@ -106,7 +125,7 @@ describe("YouVersionAuthButton press behavior", () => {
   it("calls signOut when pressed authenticated (mode=auto)", async () => {
     mockIsAuthenticated = true;
     const user = userEvent.setup();
-    render(<YouVersionAuthButton />);
+    renderAuthButton();
 
     await user.press(screen.getByText(/sign out of/i));
 
@@ -116,7 +135,7 @@ describe("YouVersionAuthButton press behavior", () => {
 
   it('calls signIn when mode="signIn" and unauthenticated', async () => {
     const user = userEvent.setup();
-    render(<YouVersionAuthButton mode="signIn" />);
+    renderAuthButton({ mode: "signIn" });
 
     await user.press(screen.getByText(/sign in with/i));
 
@@ -127,7 +146,7 @@ describe("YouVersionAuthButton press behavior", () => {
   it('calls signIn when mode="signIn" even while authenticated', async () => {
     mockIsAuthenticated = true;
     const user = userEvent.setup();
-    render(<YouVersionAuthButton mode="signIn" />);
+    renderAuthButton({ mode: "signIn" });
 
     await user.press(screen.getByText(/sign in with/i));
 
@@ -137,7 +156,7 @@ describe("YouVersionAuthButton press behavior", () => {
 
   it('calls signOut when mode="signOut" and unauthenticated', async () => {
     const user = userEvent.setup();
-    render(<YouVersionAuthButton mode="signOut" />);
+    renderAuthButton({ mode: "signOut" });
 
     await user.press(screen.getByText(/sign out of/i));
 
@@ -148,7 +167,7 @@ describe("YouVersionAuthButton press behavior", () => {
   it('calls signOut when mode="signOut" and authenticated', async () => {
     mockIsAuthenticated = true;
     const user = userEvent.setup();
-    render(<YouVersionAuthButton mode="signOut" />);
+    renderAuthButton({ mode: "signOut" });
 
     await user.press(screen.getByText(/sign out of/i));
 

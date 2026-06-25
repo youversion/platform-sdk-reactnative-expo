@@ -4,7 +4,7 @@ import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/plat
 import { BibleCard } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
 
-import { applySDKConfig } from '../lib'
+import { applySDKConfig, ContentSizedBody } from '../lib'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
@@ -43,6 +43,7 @@ export default function BibleCardDOM({
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
+      <ContentSizedBody />
       <NativeActionBibleCard
         {...props}
         onVersionChange={onVersionChange}

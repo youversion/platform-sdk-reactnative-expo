@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
 
 const HOST_NAME = 'native-sheet-host'
@@ -75,11 +76,11 @@ export function NativeSheet({
   showHeader = false,
   headerTitle,
 }: NativeSheetProps) {
-  const sheetIdRef = useRef<number | null>(null)
-  if (sheetIdRef.current === null) {
-    sheetIdRef.current = nextSheetId++
-  }
-  const sheetId = sheetIdRef.current
+  // Stable per-sheet ID, assigned once on first render. useState with a lazy
+  // initializer keeps this out of the render-phase ref reads the new
+  // react-hooks/refs rule flags (a useRef + .current assignment during render
+  // is the older idiom for the same "compute once" intent).
+  const [sheetId] = useState(() => nextSheetId++)
 
   const isActive = useSheetStore((s) => s.activeSheetId === sheetId)
 
@@ -155,6 +156,7 @@ function SheetHost({
   headerTitle?: string
 }) {
   const { bottom } = useSafeAreaInsets()
+  const { t } = useSdkTranslation()
   const sheetRef = useRef<BottomSheet>(null)
   const wasActiveRef = useRef(false)
   const lastOpenKeyRef = useRef(openKey)
@@ -280,7 +282,7 @@ function SheetHost({
             >
               <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
                 <Text style={{ color: theme === 'dark' ? 'white' : 'black', fontSize: 16 }}>
-                  Cancel
+                  {t('cancel')}
                 </Text>
               </Pressable>
               <Text
@@ -305,7 +307,7 @@ function SheetHost({
             </View>
             {isLoading && (
               <View pointerEvents="none" style={styles.loaderOverlay} testID="native-sheet-loader">
-                <ActivityIndicator size="large" accessibilityLabel="Loading" />
+                <ActivityIndicator size="large" accessibilityLabel={t('loading')} />
               </View>
             )}
           </View>
@@ -345,7 +347,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   loaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
