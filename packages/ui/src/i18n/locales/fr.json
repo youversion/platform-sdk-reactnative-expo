@@ -1,8 +1,0 @@
-{
-  "signIn": "Se connecter",
-  "signInWithYouVersion": "Se connecter avec <bold>{{brandName}}</bold>",
-  "signOut": "Se déconnecter",
-  "signOutOfYouVersion": "Se déconnecter de <bold>{{brandName}}</bold>",
-  "loading": "Chargement",
-  "cancel": "Annuler"
-}
