@@ -6,6 +6,10 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 **Tech stack**: Expo SDK 56, React 19, TypeScript 6, pnpm 9, Turborepo
 
+## Release
+
+Releases use [Changesets](https://github.com/changesets/changesets), matching the flow in [`platform-sdk-react`](https://github.com/youversion/platform-sdk-react). Run `pnpm changeset` on PRs that should ship. Merging to `main` triggers `.github/workflows/release.yml`, which either opens a "Version Packages" PR (when changesets are pending) or publishes both packages atomically (when the Version PR merges). See [PUBLISHING.md](./PUBLISHING.md) for the full flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for RN-specific failure modes.
+
 ## Setup Commands
 
 ```bash

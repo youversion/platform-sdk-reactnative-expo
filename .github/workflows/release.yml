@@ -1,0 +1,67 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+# `id-token: write` is required so NPM Trusted Publishing can mint a short-lived
+# OIDC token at publish time. With trusted publishing configured on npm there's
+# no long-lived NPM_TOKEN to rotate, and every published tarball carries a
+# provenance attestation linking it to this exact workflow run.
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          # Required so changesets can read the full commit history when
+          # generating the Version Packages PR body.
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      # Trusted publishing requires npm >= 11.5. Pin to latest to avoid the
+      # OIDC handshake silently falling back to NPM_TOKEN on older npm.
+      - name: Update npm to latest version
+        run: npm install -g npm@latest
+
+      # No separate build step: `pnpm release` runs `turbo build` before
+      # `changeset publish`, so the build only happens on the publish path.
+      - name: Create Release Pull Request or Publish to NPM
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          # First merge of a release-bearing PR: this creates / updates the
+          # "Version Packages" PR. Merging that PR re-triggers the workflow,
+          # which then takes the publish branch below.
+          version: pnpm version-packages
+          publish: pnpm release
+          commit: 'chore: version packages'
+          title: 'chore: version packages'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+          # Publishing auth comes solely from OIDC trusted publishing. We do not
+          # pass a long-lived NPM_TOKEN. An automation token bypasses 2FA, so a
+          # standing secret widens the attack surface for little gain. If a
+          # bootstrap publish needs it before trusted publishing is live, add
+          # NODE_AUTH_TOKEN here as a temporary fallback and remove it after.
+
+      - name: Publish summary
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "## Published Packages :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following packages were published to NPM:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo '${{ steps.changesets.outputs.publishedPackages }}' | jq -r '.[] | "- \(.name)@\(.version)"' >> $GITHUB_STEP_SUMMARY
