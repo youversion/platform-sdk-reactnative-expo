@@ -54,3 +54,29 @@ jobs:
         with:
           name: coverage
           path: "**/coverage/"
+
+  locale-parity:
+    name: Locale parity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check locale key parity
+        run: node scripts/check-locale-parity.mjs
+
+  locale-json-guard:
+    name: Locale JSON guard
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Block hand-edited locale JSON
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "HEAD_COMMIT_MESSAGE=$(git log -1 --pretty=%B)" >> "$GITHUB_ENV"
+          node scripts/check-locale-parity.mjs --guard

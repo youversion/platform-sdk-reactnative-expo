@@ -2,6 +2,7 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useState } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { useTheme } from '../hooks/use-theme'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
@@ -26,6 +27,7 @@ export function BibleVersionPickerSheet({
   dom,
 }: BibleVersionPickerSheetProps) {
   const context = useYouVersion()
+  const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
@@ -75,7 +77,7 @@ export function BibleVersionPickerSheet({
         },
       ]}
       showHeader={true}
-      headerTitle="Versions"
+      headerTitle={t('versions')}
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <VersionPickerContentDOM

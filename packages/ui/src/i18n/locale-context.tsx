@@ -10,7 +10,7 @@ import {
 import type { i18n as I18nInstance } from 'i18next'
 import { useLocales } from 'expo-localization'
 
-import { detectDeviceLocale } from './detect-device-locale'
+import { detectDeviceLocale, resolveSdkLocale } from './detect-device-locale'
 import { createSdkI18n } from './create-sdk-i18n'
 
 type LocaleContextValue = {
@@ -29,7 +29,8 @@ export type LocaleProviderProps = {
 export function LocaleProvider({ locale, children }: LocaleProviderProps) {
   const locales = useLocales()
   const deviceLocale = detectDeviceLocale(locales[0])
-  const lng = locale ?? deviceLocale
+  const lng =
+    locale !== undefined ? resolveSdkLocale([locale]) : deviceLocale
 
   const [i18n] = useState(() => createSdkI18n(lng))
 

@@ -2,8 +2,15 @@
   "rules": [
     {
       "id": "native-i18n-no-hardcoded-strings",
-      "rule": "User-visible strings in packages/ui/src/native/** must use useSdkTranslation() with t('key') or <Trans i18nKey=\"key\">. Add every new key to packages/ui/src/i18n/locales/en.json (typed as SdkTranslationKey). Flag hardcoded English in Text children, accessibilityLabel, and SDK-owned headerTitle values — e.g. \"Cancel\", \"Loading\", \"Books\", \"Versions\". Do not flag packages/ui/src/dom/** (ADR 0009), test files, or consumer-provided prop values. See docs/contributing/native-i18n.md.",
+      "rule": "User-visible strings in packages/ui/src/native/** must use useSdkTranslation() with t('key') or <Trans i18nKey=\"key\">. Add every new key under reactnative.* in platform-localization (sources/common/en.json); synced locale JSON arrives via the Distribute React Native Localization workflow. Flag any newly added or changed user-visible English literal in Text children, accessibilityLabel, accessibilityHint, placeholder, alert/Alert strings, and SDK-owned headerTitle values — not just known examples like Cancel, Loading, Books, or Versions. Do not flag packages/ui/src/dom/** (ADR 0009), __tests__/**, *.test.*, consumer-provided prop pass-through, or non-user-facing literals (test IDs, log messages, style tokens, route names). See docs/contributing/native-i18n.md.",
       "scope": ["packages/ui/src/native/**"],
+      "severity": "high",
+      "enabled": true
+    },
+    {
+      "id": "i18n-no-direct-locale-json-edits",
+      "rule": "Translation JSON under packages/ui/src/i18n/locales/ (en.json, es.json, fr.json, and any future locale) is generated and synced from the platform-localization repo. Do not hand-edit these files or add/change/remove string values directly in a PR. New keys must be added under reactnative.* in platform-localization (sources/common/en.json) and arrive via the 'Distribute React Native Localization' workflow. Flag any diff that adds or edits string values in these files. Exceptions: the automated localization sync PR, and locales/index.ts (locale registration, which is hand-editable).",
+      "scope": ["packages/ui/src/i18n/locales/**/*.json"],
       "severity": "high",
       "enabled": true
     }

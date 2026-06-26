@@ -16,11 +16,11 @@ How to add user-visible copy in `packages/ui/src/native/**` without hardcoding E
 
 ## Required pattern
 
-1. Add the English string to `packages/ui/src/i18n/locales/en.json`.
+1. Add the English string under `reactnative.*` in [`platform-localization`](https://github.com/youversion/platform-localization) (`sources/common/en.json`).
 2. Call `useSdkTranslation()` in the native component.
 3. Render with `t('key')` or `<Trans i18nKey="key">` for rich text.
 
-Keys are typed automatically: `SdkTranslationKey` is derived from `en.json`. Do not add parallel string constants.
+Keys are typed automatically: `SdkTranslationKey` is derived from the synced `en.json` in this repo. Do not add parallel string constants.
 
 ### Simple label
 
@@ -59,11 +59,16 @@ const { t, i18n } = useSdkTranslation()
 />
 ```
 
-Matching entry in `en.json`:
+Matching entry in `platform-localization` (`sources/common/en.json`):
 
 ```json
 {
-  "signInWithYouVersion": "Sign in with <bold>{{brandName}}</bold>"
+  "reactnative": {
+    "signInWithYouVersion": {
+      "_value": "Sign in with <bold>{{brandName}}</bold>",
+      "_comment": ""
+    }
+  }
 }
 ```
 
@@ -101,11 +106,34 @@ Do not copy production hardcoding patterns into non-test source files.
 
 ## Adding a new locale key
 
-1. Add the key and English value to `packages/ui/src/i18n/locales/en.json`.
-2. Use the key via `t('yourKey')` or `<Trans i18nKey="yourKey">`.
-3. TypeScript will accept the key through `SdkTranslationKey` — no manual type updates.
+1. Add the key under `reactnative.*` in [`platform-localization`](https://github.com/youversion/platform-localization) `sources/common/en.json` with `_value` and `_comment`.
+2. Run `npm run generate` in platform-localization (or open a PR — CI validates).
+3. Use the key via `t('yourKey')` or `<Trans i18nKey="yourKey">` in native components.
+4. After merge, the **Distribute React Native Localization** workflow syncs `dist/reactnative/*.json` into `packages/ui/src/i18n/locales/` in this repo.
 
-Non-English locale files are not shipped yet; `en.json` is the canonical catalog.
+Do **not** edit `packages/ui/src/i18n/locales/en.json` directly — it is generated from platform-localization. `SdkTranslationKey` updates automatically when the synced `en.json` changes.
+
+### Local development
+
+To test with assembled locale files before distribution:
+
+```bash
+# In platform-localization
+npm run assemble
+cp dist/reactnative/*.json /path/to/platform-sdk-reactnative-expo/packages/ui/src/i18n/locales/
+```
+
+Or bootstrap from the current SDK catalog:
+
+```bash
+REACTNATIVE_SDK_PATH=/path/to/platform-sdk-reactnative-expo npm run import:reactnative
+```
+
+## Locale files in this repo
+
+Non-English locale JSON (`es.json`, `fr.json`, etc.) is synced from platform-localization by automation. Register new locales in `packages/ui/src/i18n/locales/index.ts` when distribution adds them.
+
+Device and explicit `locale` props are normalized from BCP-47 tags (e.g. `es-MX` → `es`) to supported 2-letter codes before `changeLanguage`.
 
 ## Related docs
 

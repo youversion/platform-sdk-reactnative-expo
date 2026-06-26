@@ -4,5 +4,7 @@
   "signOut": "Sign Out",
   "signOutOfYouVersion": "Sign out of <bold>{{brandName}}</bold>",
   "loading": "Loading",
-  "cancel": "Cancel"
+  "cancel": "Cancel",
+  "versions": "Versions",
+  "books": "Books"
 }

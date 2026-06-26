@@ -19,6 +19,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "check:locale-parity": "node scripts/check-locale-parity.mjs",
+    "check:locale-json-guard": "node scripts/check-locale-parity.mjs --guard",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo build && pnpm exec changeset publish"
@@ -28,6 +30,7 @@
     "eslint": "9",
     "eslint-config-expo": "56.0.4",
     "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-i18next": "^6.1.4",
     "prettier": "3.8.3",
     "turbo": "2.9.7",
     "typescript": "6.0.3"
