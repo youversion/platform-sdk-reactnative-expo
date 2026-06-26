@@ -4,6 +4,5 @@
   "signOut": "Cerrar sesión",
   "signOutOfYouVersion": "Cerrar sesión de <bold>{{brandName}}</bold>",
   "loading": "Cargando",
-  "cancel": "Cancelar",
-  "__extraTestKey": "boom"
+  "cancel": "Cancelar"
 }
