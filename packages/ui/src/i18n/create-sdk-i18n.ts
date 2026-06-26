@@ -1,11 +1,7 @@
 import { createInstance, type i18n as I18nInstance } from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
-import {
-  SDK_DEFAULT_BRAND_NAME,
-  SDK_I18N_FALLBACK_LNG,
-  SDK_I18N_NAMESPACE,
-} from './constants'
+import { SDK_DEFAULT_BRAND_NAME, SDK_I18N_FALLBACK_LNG, SDK_I18N_NAMESPACE } from './constants'
 import { buildSdkResources, supportedSdkLngs } from './locales'
 
 export function createSdkI18n(lng: string = SDK_I18N_FALLBACK_LNG): I18nInstance {

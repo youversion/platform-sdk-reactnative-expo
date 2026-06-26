@@ -47,13 +47,13 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - name: Run Jest
-        run:  pnpm exec turbo run test -- --coverage --ci --maxWorkers=2
+        run: pnpm exec turbo run test -- --coverage --ci --maxWorkers=2
       - name: Upload coverage
         uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage
-          path: "**/coverage/"
+          path: '**/coverage/'
 
   locale-parity:
     name: Locale parity

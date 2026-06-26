@@ -101,26 +101,21 @@ describe('VerseOfTheDay', () => {
       wrapper: wrapper(),
     })
 
-    expect(latestDomProps.dom?.containerStyle).toEqual([
-      { flex: 0, width: '100%' },
-      { width: 300 },
-    ])
+    expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {
-    const { getByTestId } = render(
-      <VerseOfTheDay versionId={3034} theme="dark" />,
-      { wrapper: wrapper('light') },
-    )
+    const { getByTestId } = render(<VerseOfTheDay versionId={3034} theme="dark" />, {
+      wrapper: wrapper('light'),
+    })
 
     expect(getByTestId('mock-theme').children).toContain('dark')
   })
 
   it('forwards theme="system" from VerseOfTheDay props to the DOM entry', () => {
-    const { getByTestId } = render(
-      <VerseOfTheDay versionId={3034} theme="system" />,
-      { wrapper: wrapper('light') },
-    )
+    const { getByTestId } = render(<VerseOfTheDay versionId={3034} theme="system" />, {
+      wrapper: wrapper('light'),
+    })
 
     expect(getByTestId('mock-theme').children).toContain('system')
   })
@@ -188,10 +183,9 @@ describe('VerseOfTheDay', () => {
 
   it('invokes consumer onShare and does not call Share.share', async () => {
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
-    const { getByTestId } = render(
-      <VerseOfTheDay versionId={3034} onShare={consumerOnShare} />,
-      { wrapper: wrapper() },
-    )
+    const { getByTestId } = render(<VerseOfTheDay versionId={3034} onShare={consumerOnShare} />, {
+      wrapper: wrapper(),
+    })
 
     await act(async () => {
       fireEvent.press(getByTestId('mock-share-trigger'))

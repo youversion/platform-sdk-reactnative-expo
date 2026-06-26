@@ -1,10 +1,10 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, ReactNode } from 'react'
 
-import { YouVersionProvider } from "../native/youversion-provider";
+import { YouVersionProvider } from '../native/youversion-provider'
 
 /** RTL `wrapper` factory shared by native component tests that need `YouVersionProvider`. */
 export function youVersionProviderWrapper(
-  providerTheme: "light" | "dark" | "system" = "light",
+  providerTheme: 'light' | 'dark' | 'system' = 'light',
   locale?: string,
 ): ComponentType<{ children: ReactNode }> {
   function YouVersionTestWrapper({ children }: { children: ReactNode }) {
@@ -12,7 +12,7 @@ export function youVersionProviderWrapper(
       <YouVersionProvider appKey="test-key" theme={providerTheme} locale={locale}>
         {children}
       </YouVersionProvider>
-    );
+    )
   }
-  return YouVersionTestWrapper;
+  return YouVersionTestWrapper
 }

@@ -21,13 +21,13 @@ tags: [expo-dom, version-picker, native-action, webview, css-transition]
 
 ## What crosses the native bridge
 
-| Concern | Owner | Mechanism |
-| --- | --- | --- |
-| Sheet open / close | Native | `isOpen` on **Native Sheet** |
-| Committed `versionId` | Native → consumer | `onSelect` after DOM `onVersionChange` |
-| Scroll / search / panel reset on reopen | Native → DOM | **Sheet Reset Key** (`resetKey` prop) |
-| Version ↔ language panel visibility | DOM only | `useState` in shell — not serializable props, not **Native Actions** |
-| Keyboard overlap in search fields | DOM only | `visualViewport` + `--yv-keyboard-overlap` on shell |
+| Concern                                 | Owner             | Mechanism                                                            |
+| --------------------------------------- | ----------------- | -------------------------------------------------------------------- |
+| Sheet open / close                      | Native            | `isOpen` on **Native Sheet**                                         |
+| Committed `versionId`                   | Native → consumer | `onSelect` after DOM `onVersionChange`                               |
+| Scroll / search / panel reset on reopen | Native → DOM      | **Sheet Reset Key** (`resetKey` prop)                                |
+| Version ↔ language panel visibility     | DOM only          | `useState` in shell — not serializable props, not **Native Actions** |
+| Keyboard overlap in search fields       | DOM only          | `visualViewport` + `--yv-keyboard-overlap` on shell                  |
 
 ## Failure mode we hit
 

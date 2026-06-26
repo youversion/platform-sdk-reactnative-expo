@@ -15,7 +15,9 @@ describe('createSdkI18n', () => {
   it('interpolates brandName via defaultVariables', () => {
     const i18n = createSdkI18n()
 
-    expect(i18n.t('signInWithYouVersion')).toBe(`Sign in with <bold>${SDK_DEFAULT_BRAND_NAME}</bold>`)
+    expect(i18n.t('signInWithYouVersion')).toBe(
+      `Sign in with <bold>${SDK_DEFAULT_BRAND_NAME}</bold>`,
+    )
   })
 
   it('changeLanguage updates active translations when locale resources exist', async () => {

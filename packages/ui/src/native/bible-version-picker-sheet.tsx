@@ -76,7 +76,7 @@ export function BibleVersionPickerSheet({
       ]}
       showHeader={true}
       // Keys will arrive via platform-localization sync
-      // eslint-disable-next-line i18next/no-literal-string
+
       headerTitle="Versions"
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>

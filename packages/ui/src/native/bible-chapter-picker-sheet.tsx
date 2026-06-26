@@ -72,7 +72,7 @@ export function BibleChapterPickerSheet({
       ]}
       showHeader={true}
       // Keys will arrive via platform-localization sync
-      // eslint-disable-next-line i18next/no-literal-string
+
       headerTitle="Books"
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>

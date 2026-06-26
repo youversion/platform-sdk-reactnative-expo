@@ -29,8 +29,7 @@ export type LocaleProviderProps = {
 export function LocaleProvider({ locale, children }: LocaleProviderProps) {
   const locales = useLocales()
   const deviceLocale = detectDeviceLocale(locales[0])
-  const lng =
-    locale !== undefined ? resolveSdkLocale([locale]) : deviceLocale
+  const lng = locale !== undefined ? resolveSdkLocale([locale]) : deviceLocale
 
   const [i18n] = useState(() => createSdkI18n(lng))
 

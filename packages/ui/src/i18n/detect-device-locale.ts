@@ -16,9 +16,7 @@ export function resolveSdkLocale(
     return fallbackLng
   }
 
-  const supportedLower = new Map(
-    supportedLngs.map((lng) => [lng.toLowerCase(), lng] as const),
-  )
+  const supportedLower = new Map(supportedLngs.map((lng) => [lng.toLowerCase(), lng] as const))
 
   for (const tag of languageTags) {
     const lower = tag.toLowerCase()

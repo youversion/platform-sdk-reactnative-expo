@@ -118,9 +118,7 @@ function isSyncPullRequest(env) {
   const allowedMessagePatterns = ['Distribute React Native Localization']
   const messages = [env.PR_TITLE, env.HEAD_COMMIT_MESSAGE].filter(Boolean)
   if (
-    messages.some((message) =>
-      allowedMessagePatterns.some((pattern) => message.includes(pattern)),
-    )
+    messages.some((message) => allowedMessagePatterns.some((pattern) => message.includes(pattern)))
   ) {
     return true
   }
@@ -162,9 +160,7 @@ function checkGuard() {
     return
   }
 
-  console.error(
-    'Locale JSON guard failed — locale *.json files must not be hand-edited in PRs.',
-  )
+  console.error('Locale JSON guard failed — locale *.json files must not be hand-edited in PRs.')
   console.error('Changed files:')
   for (const file of changedLocaleJson) {
     console.error(`  - ${file}`)

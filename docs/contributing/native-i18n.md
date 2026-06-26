@@ -86,12 +86,12 @@ Do not hardcode titles like `"Books"` or `"Versions"`.
 
 ## Common violations
 
-| Hardcoded | Fix |
-| --- | --- |
-| `<Text>Cancel</Text>` | `{t('cancel')}` |
-| `accessibilityLabel="Loading"` | `accessibilityLabel={t('loading')}` |
-| `headerTitle="Books"` | `headerTitle={t('books')}` (add key first) |
-| `headerTitle="Versions"` | `headerTitle={t('versions')}` (add key first) |
+| Hardcoded                      | Fix                                           |
+| ------------------------------ | --------------------------------------------- |
+| `<Text>Cancel</Text>`          | `{t('cancel')}`                               |
+| `accessibilityLabel="Loading"` | `accessibilityLabel={t('loading')}`           |
+| `headerTitle="Books"`          | `headerTitle={t('books')}` (add key first)    |
+| `headerTitle="Versions"`       | `headerTitle={t('versions')}` (add key first) |
 
 Greptile enforces this rule at **high** severity for `packages/ui/src/native/**` — see `.greptile/rules.md`.
 

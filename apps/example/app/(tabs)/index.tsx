@@ -8,7 +8,10 @@ export default function BibleScreen() {
 
   return (
     <View
-      style={[styles.container, { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top }]}
+      style={[
+        styles.container,
+        { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top },
+      ]}
     >
       <BibleReader defaultVersionId={3034} />
     </View>

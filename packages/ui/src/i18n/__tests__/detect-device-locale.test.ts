@@ -25,9 +25,7 @@ describe('resolveSdkLocale', () => {
   })
 
   it('uses the first supported language in the preference list', () => {
-    expect(resolveSdkLocale(['de-DE', 'fr-FR', 'en-US'], supportedLngs, fallbackLng)).toBe(
-      'fr',
-    )
+    expect(resolveSdkLocale(['de-DE', 'fr-FR', 'en-US'], supportedLngs, fallbackLng)).toBe('fr')
   })
 })
 
