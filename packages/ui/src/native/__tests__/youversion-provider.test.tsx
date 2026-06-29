@@ -26,18 +26,18 @@ function LocaleProbe() {
 }
 
 describe('YouVersionProvider locale', () => {
-  // This test will not work until we get more locales set up in the SDK
-  // it('uses device locale when locale prop is omitted', () => {
-  //   useLocalesMock.mockReturnValue([{ languageTag: 'de-DE', languageCode: 'de' }])
+  it('falls back to en when locale prop is omitted and device locale is unsupported', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'de-DE', languageCode: 'de' }])
 
-  //   const { getByTestId } = render(
-  //     <YouVersionProvider appKey="test-key">
-  //       <LocaleProbe />
-  //     </YouVersionProvider>,
-  //   )
+    const { getByTestId } = render(
+      <YouVersionProvider appKey="test-key">
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
 
-  //   expect(getByTestId('locale-lng').children).toContain('de-DE')
-  // })
+    expect(getByTestId('locale-lng').children).toContain('en')
+    expect(getByTestId('i18n-language').children).toContain('en')
+  })
 
   it('passes the locale prop through locale context as lng', () => {
     const { getByTestId } = render(
