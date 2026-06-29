@@ -277,7 +277,7 @@ function SheetHost({
                 flexDirection: 'row',
                 alignItems: 'center',
                 paddingBottom: 16,
-                marginHorizontal: 4,
+                paddingHorizontal: 16,
               }}
             >
               <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
