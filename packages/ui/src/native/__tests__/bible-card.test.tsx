@@ -10,6 +10,7 @@ import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from "../../stores/bible-card-version-store";
+import { BIBLE_CARD_VERSION_PERSIST_KEY } from "../../lib/constants";
 import { youVersionProviderWrapper as wrapper } from "../../test-utils/youversion-provider-wrapper";
 
 const sampleFootnote: FootnoteData = {
@@ -120,7 +121,7 @@ describe("BibleCard", () => {
 
   beforeEach(async () => {
     latestDomProps = {};
-    mmkvStorage.clearAll();
+    mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY);
     useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState);
     await useBibleCardVersionStore.persist.rehydrate();
   });

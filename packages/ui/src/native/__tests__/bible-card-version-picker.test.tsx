@@ -2,6 +2,7 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
@@ -96,7 +97,7 @@ const wrapper = ({ children }: { children: ReactNode }) => (
 )
 
 async function resetBibleCardVersionStore() {
-  mmkvStorage.clearAll()
+  mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
   await useBibleCardVersionStore.persist.rehydrate()
 }
