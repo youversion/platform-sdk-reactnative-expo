@@ -112,7 +112,7 @@ After: keep the WebView mounted inside its own platform-scoped inert sheet host.
 ```tsx
 const suppressInactive = Platform.OS === 'android' && !isActive
 
-;<BottomSheet
+<BottomSheet
   index={-1}
   detached={suppressInactive && bottomInset > 0}
   bottomInset={suppressInactive ? bottomInset : 0}
