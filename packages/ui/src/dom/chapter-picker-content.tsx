@@ -6,6 +6,7 @@ import {
 } from '@youversion/platform-react-ui'
 import { useEffect } from 'react'
 
+import { useDismissKeyboardOnClose } from '../lib/dom-dismiss-keyboard'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type ChapterPickerContentDOMProps = {
@@ -14,6 +15,8 @@ export type ChapterPickerContentDOMProps = {
   chapter?: string
   versionId?: number
   theme?: 'light' | 'dark'
+  // Drives WebView keyboard dismissal on close; the native sheet flips this.
+  isOpen?: boolean
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
@@ -24,8 +27,11 @@ export default function ChapterPickerContentDOM({
   chapter,
   versionId = 3034,
   theme = 'light',
+  isOpen,
   onSelect,
 }: ChapterPickerContentDOMProps) {
+  useDismissKeyboardOnClose(isOpen)
+
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-chapter-picker-shell]')
     const viewport = window.visualViewport

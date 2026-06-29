@@ -7,6 +7,7 @@ import {
 } from '@youversion/platform-react-ui'
 import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 
+import { useDismissKeyboardOnClose } from '../lib/dom-dismiss-keyboard'
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -15,6 +16,8 @@ export type VersionPickerContentDOMProps = {
   versionId?: number
   theme?: 'light' | 'dark'
   resetKey?: number
+  // Drives WebView keyboard dismissal on close; the native sheet flips this.
+  isOpen?: boolean
   onVersionChange?: (versionId: number) => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
@@ -24,9 +27,12 @@ export default function VersionPickerContentDOM({
   versionId = 3034,
   theme = 'light',
   resetKey,
+  isOpen,
   onVersionChange,
 }: VersionPickerContentDOMProps) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
+
+  useDismissKeyboardOnClose(isOpen)
 
   // Reset language-panel visibility whenever the picker remounts (resetKey
   // bumps on each sheet open). setState-in-effect is the "reset on prop change"

@@ -81,6 +81,7 @@ export function BibleChapterPickerSheet({
           chapter={chapter}
           versionId={versionId}
           theme={resolvedTheme}
+          isOpen={isOpen}
           onSelect={handleSelect}
         />
       </View>

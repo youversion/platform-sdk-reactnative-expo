@@ -84,6 +84,7 @@ export function BibleVersionPickerSheet({
           versionId={versionId}
           theme={resolvedTheme}
           resetKey={resetKey}
+          isOpen={isOpen}
           onVersionChange={handleVersionChange}
         />
       </View>

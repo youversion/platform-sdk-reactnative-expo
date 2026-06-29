@@ -97,6 +97,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - A **Native Wrapper** passes serializable props down to an **Expo DOM Component** and receives user events through **Native Actions**.
 - A **Presentation Shell** is platform-owned; web uses Radix surfaces while native uses a **Native Sheet**.
 - **Inactive Sheet Inertness** constrains the normal **Native Sheet** pre-warming model: pre-warmed sheet content must not make inactive sheets visible or usable.
+- Closing a **Native Sheet** dismisses any soft keyboard raised by its content, including a keyboard raised by an input inside an **Expo DOM Component**.
 - **Native-Owned State** coordinates interactions between reader content and sheet content because DOM runtimes do not share state with native or each other.
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location and may update **Reader Location** when the reader is uncontrolled.
 - **Reader Location** is **Native-Owned State** persisted across app launches (MMKV); controlled `book` / `chapter` / `versionId` props remain the source of truth and are not overwritten by stored **Reader Location**.
