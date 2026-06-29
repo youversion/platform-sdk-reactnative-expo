@@ -40,21 +40,21 @@ describe('YouVersionProvider locale', () => {
 
   it('passes the locale prop through locale context as lng', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="es">
+      <YouVersionProvider appKey="test-key" locale="en">
         <LocaleProbe />
       </YouVersionProvider>,
     )
 
-    expect(getByTestId('locale-lng').children).toContain('es')
+    expect(getByTestId('locale-lng').children).toContain('en')
   })
 
   it('initializes i18n with resolved lng on first render', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="es">
+      <YouVersionProvider appKey="test-key" locale="en">
         <LocaleProbe />
       </YouVersionProvider>,
     )
 
-    expect(getByTestId('i18n-language').children).toContain('es')
+    expect(getByTestId('i18n-language').children).toContain('en')
   })
 })
