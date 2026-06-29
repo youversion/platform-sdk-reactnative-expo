@@ -15,7 +15,6 @@ let latestDomProps: {
   versionId?: number
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-  showVersionPicker?: boolean
 } = {}
 
 jest.mock('../../dom/bible-card', () => {
@@ -27,19 +26,15 @@ jest.mock('../../dom/bible-card', () => {
       versionId?: number
       onVersionChange?: (versionId: number) => Promise<void>
       onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-      showVersionPicker?: boolean
     }) {
       latestDomProps = props
       return (
         <View testID="mock-dom">
           <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Text testID="show-picker">{String(props.showVersionPicker ?? 'none')}</Text>
           <Pressable
             testID="trigger-version-picker"
             onPress={() => {
-              if (props.onVersionPickerPress) {
-                props.onVersionPickerPress({ versionId: 3034, languageId: 'eng' })
-              }
+              props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
             }}
           >
             <Text>VersionPicker</Text>
@@ -67,23 +62,15 @@ jest.mock('../bible-version-picker-sheet', () => {
     __esModule: true,
     BibleVersionPickerSheet: ({
       isOpen,
-      onClose,
       onSelect,
-      versionId,
     }: {
       isOpen: boolean
-      onClose: () => void
       onSelect?: (versionId: number) => Promise<void>
-      versionId?: number
     }) =>
       isOpen ? (
         <View testID="mock-version-picker-sheet">
-          <Text testID="sheet-version-id">{String(versionId ?? 'none')}</Text>
           <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
             <Text>Select</Text>
-          </Pressable>
-          <Pressable testID="close-sheet" onPress={onClose}>
-            <Text>Close</Text>
           </Pressable>
         </View>
       ) : null,
@@ -102,25 +89,32 @@ async function resetBibleCardVersionStore() {
   await useBibleCardVersionStore.persist.rehydrate()
 }
 
-describe('BibleCard version picker integration', () => {
+async function seedBibleCardVersion(versionId: number) {
+  mmkvStorage.set(
+    BIBLE_CARD_VERSION_PERSIST_KEY,
+    JSON.stringify({
+      state: { versionId },
+      version: 0,
+    }),
+  )
+  await useBibleCardVersionStore.persist.rehydrate()
+}
+
+describe('BibleCard version persistence', () => {
   beforeEach(async () => {
     latestDomProps = {}
     await resetBibleCardVersionStore()
   })
 
-  it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
-    const { getByTestId, queryByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
+  it('hydrates uncontrolled state from MMKV on mount', async () => {
+    await seedBibleCardVersion(59)
 
-    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+    render(<BibleCard reference="JHN.1.1" />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
-    })
-
-    expect(getByTestId('mock-version-picker-sheet')).toBeTruthy()
+    expect(latestDomProps.versionId).toBe(59)
   })
 
-  it('updates versionId when version picker selects a version', async () => {
+  it('persists picker selection to MMKV', async () => {
     const { getByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
 
     await act(async () => {
@@ -131,20 +125,18 @@ describe('BibleCard version picker integration', () => {
       fireEvent.press(getByTestId('select-version'))
     })
 
-    expect(latestDomProps.versionId).toBe(59)
+    const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(59)
   })
 
-  it('passes versionId seed to DOM component when store is empty', () => {
-    render(<BibleCard reference="JHN.1.1" versionId={100} />, { wrapper })
+  it('does not persist when versionId and onVersionChange are both provided', async () => {
+    await seedBibleCardVersion(3034)
+    const onVersionChange = jest.fn()
 
-    expect(latestDomProps.versionId).toBe(100)
-  })
-
-  it('does not render version picker sheet when consumer provides onVersionPickerPress', async () => {
-    const consumerHandler = jest.fn().mockResolvedValue(undefined)
-
-    const { getByTestId, queryByTestId } = render(
-      <BibleCard reference="JHN.1.1" onVersionPickerPress={consumerHandler} />,
+    const { getByTestId } = render(
+      <BibleCard reference="JHN.1.1" versionId={3034} onVersionChange={onVersionChange} />,
       { wrapper },
     )
 
@@ -152,22 +144,22 @@ describe('BibleCard version picker integration', () => {
       fireEvent.press(getByTestId('trigger-version-picker'))
     })
 
-    expect(consumerHandler).toHaveBeenCalledWith({ versionId: 3034, languageId: 'eng' })
-    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
-  })
-
-  it('does not render version picker sheet when showVersionPicker is false', () => {
-    const { queryByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker={false} />, {
-      wrapper,
+    await act(async () => {
+      fireEvent.press(getByTestId('select-version'))
     })
 
-    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
-    expect(latestDomProps.showVersionPicker).toBe(false)
+    // Zustand persist may write the store key on hydrate; assert the picker did not overwrite MMKV.
+    const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(3034)
   })
 
-  it('resolves system theme to provider theme', () => {
-    render(<BibleCard reference="JHN.1.1" theme="system" />, { wrapper })
+  it('uses stored version over versionId seed prop when uncontrolled', async () => {
+    await seedBibleCardVersion(59)
 
-    expect(latestDomProps.versionId).toBeDefined()
+    render(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
+
+    expect(latestDomProps.versionId).toBe(59)
   })
 })

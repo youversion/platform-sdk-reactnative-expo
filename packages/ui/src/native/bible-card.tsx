@@ -1,12 +1,14 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Platform } from 'react-native'
+import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
-import { withEmbedDomDefaults } from '../lib'
+import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib'
+import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
@@ -57,11 +59,25 @@ export function BibleCard({
   // with consumers who use the version picker without an onChange handler.
   const isControlled = controlledVersionId !== undefined && onVersionChange !== undefined
 
+  const { versionId: storedVersionId, setVersionId: setStoredVersionId } = useBibleCardVersionStore(
+    useShallow((s) => ({
+      versionId: s.versionId,
+      setVersionId: s.setVersionId,
+    })),
+  )
+
   const [versionId, setVersionId] = useControllableState({
     prop: isControlled ? controlledVersionId : undefined,
-    defaultProp: isControlled ? defaultVersionId : (controlledVersionId ?? defaultVersionId),
+    defaultProp: isControlled
+      ? defaultVersionId
+      : (storedVersionId ?? controlledVersionId ?? defaultVersionId),
     onChange: onVersionChange,
   })
+
+  useEffect(() => {
+    if (isControlled || versionId == null) return
+    setStoredVersionId(versionId)
+  }, [versionId, isControlled, setStoredVersionId])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
@@ -131,7 +147,7 @@ export function BibleCard({
           theme={resolvedTheme}
         >
           <FootnoteContent
-            dom={{ matchContents: true }}
+            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             appKey={context.appKey}

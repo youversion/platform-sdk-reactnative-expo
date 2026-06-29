@@ -93,6 +93,8 @@ describe('VerseOfTheDay', () => {
       scrollEnabled: false,
       bounces: false,
       overScrollMode: 'never',
+      showsVerticalScrollIndicator: false,
+      showsHorizontalScrollIndicator: false,
     })
   })
 
