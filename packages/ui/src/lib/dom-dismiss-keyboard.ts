@@ -20,8 +20,11 @@ import { useEffect } from 'react'
  * `document` / `HTMLElement`.
  */
 export function useDismissKeyboardOnClose(isOpen: boolean | undefined): void {
+  const prevIsOpen = useRef<boolean | undefined>(undefined)
   useEffect(() => {
-    if (isOpen !== false) return
+    const wasOpen = prevIsOpen.current
+    prevIsOpen.current = isOpen
+    if (wasOpen !== true || isOpen !== false) return
     const active = document.activeElement
     if (active instanceof HTMLElement) active.blur()
   }, [isOpen])
