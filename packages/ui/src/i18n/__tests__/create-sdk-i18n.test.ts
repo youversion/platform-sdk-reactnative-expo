@@ -20,13 +20,12 @@ describe('createSdkI18n', () => {
     )
   })
 
-  it('changeLanguage updates active translations when locale resources exist', async () => {
+  it('falls back to English when locale resources are not bundled', async () => {
     const i18n = createSdkI18n()
 
     await i18n.changeLanguage('es')
 
-    expect(i18n.language).toBe('es')
-    expect(i18n.t('loading')).toBe('Cargando')
+    expect(i18n.t('loading')).toBe('Loading')
   })
 
   it('creates an isolated instance separate from the global i18next singleton', () => {

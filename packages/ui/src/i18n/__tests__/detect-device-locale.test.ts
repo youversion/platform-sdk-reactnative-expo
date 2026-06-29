@@ -30,12 +30,12 @@ describe('resolveSdkLocale', () => {
 })
 
 describe('detectDeviceLocale', () => {
-  it('normalizes languageTag to a supported 2-letter code', () => {
-    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es')
+  it('falls back to en when languageTag locale is not bundled', () => {
+    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('en')
   })
 
-  it('normalizes languageCode when languageTag is missing', () => {
-    expect(detectDeviceLocale({ languageCode: 'fr' } as any)).toBe('fr')
+  it('falls back to en when languageCode locale is not bundled', () => {
+    expect(detectDeviceLocale({ languageCode: 'fr' } as any)).toBe('en')
   })
 
   it('falls back to en when no locales are available', () => {

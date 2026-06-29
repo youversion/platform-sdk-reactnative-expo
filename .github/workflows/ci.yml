@@ -78,5 +78,5 @@ jobs:
           PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
-          echo "HEAD_COMMIT_MESSAGE=$(git log -1 --pretty=%B)" >> "$GITHUB_ENV"
+          echo "HEAD_COMMIT_MESSAGE=$(git log -1 --pretty=%s)" >> "$GITHUB_ENV"
           node scripts/check-locale-parity.mjs --guard
