@@ -6,6 +6,7 @@ import {
 } from '@youversion/platform-react-ui'
 import { useEffect } from 'react'
 
+import { attachPickerKeyboardViewportListeners } from '../lib/picker-keyboard-viewport'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type ChapterPickerContentDOMProps = {
@@ -30,30 +31,9 @@ export default function ChapterPickerContentDOM({
 }: ChapterPickerContentDOMProps) {
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-chapter-picker-shell]')
-    const viewport = window.visualViewport
-    if (!root || !viewport) return
+    if (!root) return
 
-    const updateKeyboardOverlap = () => {
-      const overlap = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-      root.style.setProperty('--yv-keyboard-overlap', `${overlap}px`)
-    }
-
-    const handleFocusIn = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement) {
-        event.target.scrollIntoView({ block: 'nearest' })
-      }
-    }
-
-    updateKeyboardOverlap()
-    viewport.addEventListener('resize', updateKeyboardOverlap)
-    viewport.addEventListener('scroll', updateKeyboardOverlap, { passive: true })
-    root.addEventListener('focusin', handleFocusIn)
-
-    return () => {
-      viewport.removeEventListener('resize', updateKeyboardOverlap)
-      viewport.removeEventListener('scroll', updateKeyboardOverlap)
-      root.removeEventListener('focusin', handleFocusIn)
-    }
+    return attachPickerKeyboardViewportListeners(root)
   }, [])
 
   return (
@@ -89,14 +69,18 @@ body {
 
 [data-yv-chapter-picker-shell] {
   --yv-keyboard-overlap: 0px;
+  --yv-visible-height: 100vh;
+  --yv-viewport-offset-top: 0px;
   width: 100%;
-  height: 100vh;
+  height: var(--yv-visible-height, 100vh);
+  max-height: 100vh;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--yv-background);
   color: var(--yv-foreground);
+  transform: translateY(var(--yv-viewport-offset-top, 0px));
 }
 
 [data-yv-chapter-picker-shell] > [data-slot='accordion'] {
@@ -110,6 +94,6 @@ body {
 
 [data-yv-chapter-picker-shell] > section {
   flex: 0 0 auto;
-  padding-bottom: calc(1rem + var(--yv-keyboard-overlap));
+  padding-bottom: 1rem;
 }
 `

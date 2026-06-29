@@ -27,7 +27,7 @@ tags: [expo-dom, version-picker, native-action, webview, css-transition]
 | Committed `versionId` | Native → consumer | `onSelect` after DOM `onVersionChange` |
 | Scroll / search / panel reset on reopen | Native → DOM | **Sheet Reset Key** (`resetKey` prop) |
 | Version ↔ language panel visibility | DOM only | `useState` in shell — not serializable props, not **Native Actions** |
-| Keyboard overlap in search fields | DOM only | `visualViewport` + `--yv-keyboard-overlap` on shell |
+| Keyboard overlap in search fields | DOM only | `visualViewport` → `--yv-visible-height` shrinks shell; search bar uses fixed bottom padding |
 
 ## Failure mode we hit
 
