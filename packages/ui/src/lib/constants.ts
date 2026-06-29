@@ -3,3 +3,6 @@ export const READER_SETTINGS_PERSIST_KEY = 'yv-reader:settings'
 
 /** Zustand `persist` name / MMKV key for persisted Reader Location blob. */
 export const READER_LOCATION_PERSIST_KEY = 'yv-reader:location'
+
+/** Zustand `persist` name / MMKV key for persisted Bible Card version blob. */
+export const BIBLE_CARD_VERSION_PERSIST_KEY = 'yv-bible-card:version'

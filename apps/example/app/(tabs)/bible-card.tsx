@@ -14,7 +14,7 @@ export default function BibleCardScreen() {
       ]}
     >
       <View style={styles.card}>
-        <BibleCard reference="JHN.3.16" versionId={3034} />
+        <BibleCard reference="JHN.3.16" defaultVersionId={3034} />
       </View>
     </View>
   )
