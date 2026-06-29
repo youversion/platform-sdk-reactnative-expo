@@ -7,6 +7,7 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 
 let latestDomProps: {
   theme?: string
+  resetKey?: number
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
 } = {}
 
@@ -18,6 +19,7 @@ jest.mock('../../dom/chapter-picker-content', () => {
     __esModule: true,
     default: function MockDOM(props: {
       theme?: string
+      resetKey?: number
       onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
     }) {
       latestDomProps = props
@@ -44,11 +46,26 @@ jest.mock('../native-sheet', () => {
   const actual = jest.requireActual('../native-sheet')
   // require() is intentional: ESM imports cannot be used inside jest.mock() factories
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
+  const { View, Pressable, Text } = require('react-native')
   return {
     ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
+    NativeSheet: ({
+      isOpen,
+      onClose,
+      children,
+    }: {
+      isOpen: boolean
+      onClose: () => void
+      children: ReactNode
+    }) =>
+      isOpen ? (
+        <View testID="sheet">
+          <Pressable testID="trigger-close" onPress={onClose}>
+            <Text>Close</Text>
+          </Pressable>
+          {children}
+        </View>
+      ) : null,
   }
 })
 
@@ -134,5 +151,27 @@ describe('BibleChapterPickerSheet', () => {
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="system" />, { wrapper })
 
     expect(latestDomProps.theme).toBe('light')
+  })
+
+  it('passes resetKey to DOM content', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.resetKey).toEqual(expect.any(Number))
+  })
+
+  it('increments resetKey when the sheet closes', () => {
+    const { getByTestId, rerender } = render(
+      <BibleChapterPickerSheet isOpen={true} onClose={() => {}} />,
+      { wrapper },
+    )
+
+    const firstKey = latestDomProps.resetKey
+
+    // Tapping out routes through NativeSheet's onClose, which bumps resetKey so the
+    // picker tree remounts (clearing the book search filter) before the next open.
+    fireEvent.press(getByTestId('trigger-close'))
+    rerender(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />)
+
+    expect(latestDomProps.resetKey).toBeGreaterThan(firstKey!)
   })
 })

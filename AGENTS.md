@@ -6,6 +6,10 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 **Tech stack**: Expo SDK 56, React 19, TypeScript 6, pnpm 9, Turborepo
 
+## Release
+
+Releases use [Changesets](https://github.com/changesets/changesets), matching the flow in [`platform-sdk-react`](https://github.com/youversion/platform-sdk-react). Run `pnpm changeset` on PRs that should ship. Merging to `main` triggers `.github/workflows/release.yml`, which either opens a "Version Packages" PR (when changesets are pending) or publishes both packages atomically (when the Version PR merges). See [PUBLISHING.md](./PUBLISHING.md) for the full flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for RN-specific failure modes.
+
 ## Setup Commands
 
 ```bash
@@ -170,6 +174,10 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 - Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
+
+## Native UI localization
+
+User-visible strings in `packages/ui/src/native/**` must use `useSdkTranslation()` with `t('key')` or `<Trans i18nKey>`; add keys to `packages/ui/src/i18n/locales/en.json` (typed via `SdkTranslationKey`). Do not hardcode copy in `Text` children, `accessibilityLabel`, or SDK-owned `headerTitle` values. `packages/ui/src/dom/**` is exempt ([ADR 0009](./docs/adr/0009-deferred-dom-localization.md)). Greptile enforces this at high severity — see [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md) and `.greptile/rules.md`.
 
 ## Recommended Agent Skill
 

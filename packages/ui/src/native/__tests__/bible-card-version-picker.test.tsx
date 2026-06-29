@@ -1,6 +1,12 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
+import {
+  bibleCardVersionStoreInitialState,
+  useBibleCardVersionStore,
+} from '../../stores/bible-card-version-store'
 import { BibleCard } from '../bible-card'
 import { YouVersionProvider } from '../youversion-provider'
 import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
@@ -90,9 +96,16 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+async function resetBibleCardVersionStore() {
+  mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
+  useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
+  await useBibleCardVersionStore.persist.rehydrate()
+}
+
 describe('BibleCard version picker integration', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     latestDomProps = {}
+    await resetBibleCardVersionStore()
   })
 
   it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
@@ -121,7 +134,7 @@ describe('BibleCard version picker integration', () => {
     expect(latestDomProps.versionId).toBe(59)
   })
 
-  it('passes controlled versionId to DOM component', () => {
+  it('passes versionId seed to DOM component when store is empty', () => {
     render(<BibleCard reference="JHN.1.1" versionId={100} />, { wrapper })
 
     expect(latestDomProps.versionId).toBe(100)

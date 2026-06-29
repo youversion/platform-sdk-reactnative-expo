@@ -17,6 +17,7 @@ export type ChapterPickerContentDOMProps = {
   theme?: 'light' | 'dark'
   // Drives WebView keyboard dismissal on close; the native sheet flips this.
   isOpen?: boolean
+  resetKey?: number
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
@@ -28,6 +29,7 @@ export default function ChapterPickerContentDOM({
   versionId = 3034,
   theme = 'light',
   isOpen,
+  resetKey,
   onSelect,
 }: ChapterPickerContentDOMProps) {
   useDismissKeyboardOnClose(isOpen)
@@ -64,11 +66,18 @@ export default function ChapterPickerContentDOM({
     <YouVersionProvider appKey={appKey} theme={theme}>
       <style>{chapterPickerStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-chapter-picker-shell>
+        {/* key remounts the picker tree when resetKey changes (on sheet close) to clear scroll and filter state */}
         <BibleChapterPicker.Root
+          key={resetKey}
           book={book}
           chapter={chapter}
           versionId={versionId}
           background={theme}
+          // Required, not a no-op: the Web SDK renders the picker inline only when
+          // onChapterPickerPress is present; omitting it wraps Content in its own
+          // Popover (a collapsed trigger). Selection flows through Content's onSelect,
+          // so this handler is intentionally empty.
+          onChapterPickerPress={() => {}}
         >
           <BibleChapterPicker.Content onSelect={onSelect} />
         </BibleChapterPicker.Root>
@@ -99,8 +108,8 @@ body {
 [data-yv-chapter-picker-shell] > [data-slot='accordion'] {
   flex: 1 1 auto;
   min-height: 0;
-  display: grid;
-  align-content: end;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }

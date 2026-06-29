@@ -3,7 +3,16 @@
   "version": "0.0.1",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage",
@@ -30,8 +39,11 @@
     "@radix-ui/react-use-controllable-state": "1.2.2",
     "@rn-primitives/portal": "1.4.0",
     "@youversion/platform-react-native-expo-core": "workspace:*",
-    "@youversion/platform-react-ui": "2.1.0",
-    "zustand": "5.0.13"
+    "@youversion/platform-react-ui": "^2.1.0",
+    "expo-localization": "~56.0.6",
+    "i18next": "^26.3.1",
+    "react-i18next": "^17.0.8",
+    "zustand": "^5.0.13"
   },
   "peerDependencies": {
     "@gorhom/bottom-sheet": ">=5.0.0",

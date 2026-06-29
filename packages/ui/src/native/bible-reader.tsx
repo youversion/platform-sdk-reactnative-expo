@@ -14,6 +14,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reade
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks'
+import { withSheetDomDefaults } from '../lib'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
@@ -303,7 +304,7 @@ export function BibleReader({
           theme={resolvedTheme}
         >
           <FootnoteContent
-            dom={{ matchContents: true }}
+            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             fontSize={fontSize}

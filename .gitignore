@@ -36,3 +36,6 @@ apps/example/web-build/
 
 # CodeGraph
 .codegraph/
+
+#omc
+.omc
