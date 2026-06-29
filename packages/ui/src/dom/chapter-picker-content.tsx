@@ -104,7 +104,6 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-content: start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
