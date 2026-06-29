@@ -7,6 +7,7 @@ import BibleTextViewDOM from '../dom/bible-text-view'
 import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import FootnoteContent from '../dom/footnote-content'
 import { resolveTheme } from '../lib/resolve-theme'
+import { withSheetDomDefaults } from '../lib'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -67,7 +68,7 @@ export function BibleTextView({
           theme={footnoteTheme}
         >
           <FootnoteContent
-            dom={{ matchContents: true }}
+            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={footnoteTheme}
             fontSize={domProps.fontSize}

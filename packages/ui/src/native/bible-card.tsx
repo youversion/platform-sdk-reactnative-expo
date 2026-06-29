@@ -7,7 +7,7 @@ import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
-import { withEmbedDomDefaults } from '../lib'
+import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
@@ -147,7 +147,7 @@ export function BibleCard({
           theme={resolvedTheme}
         >
           <FootnoteContent
-            dom={{ matchContents: true }}
+            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             appKey={context.appKey}

@@ -2,6 +2,7 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import { useMemo } from 'react'
 import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
+import { withSheetDomDefaults } from '../lib'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { NativeSheet } from './native-sheet'
@@ -37,7 +38,7 @@ export function BibleReaderSettingsSheet({
   return (
     <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose} showAndroidLoader theme={theme}>
       <BibleReaderSettingsDOM
-        dom={{ matchContents: true }}
+        dom={withSheetDomDefaults()}
         appKey={appKey}
         theme={theme}
         fontSize={fontSize}
