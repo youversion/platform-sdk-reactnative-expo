@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 /**
  * Dismiss the soft keyboard a DOM picker's search input raised when its native
