@@ -1,10 +1,15 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import type { FootnoteData } from "@youversion/platform-react-ui";
+import { mmkvStorage } from "@youversion/platform-react-native-expo-core";
 import * as ReactNative from "react-native";
 import { Platform } from "react-native";
 import type { ReactNode } from "react";
 
 import { BibleCard } from "../bible-card";
+import {
+  bibleCardVersionStoreInitialState,
+  useBibleCardVersionStore,
+} from "../../stores/bible-card-version-store";
 import { youVersionProviderWrapper as wrapper } from "../../test-utils/youversion-provider-wrapper";
 
 const sampleFootnote: FootnoteData = {
@@ -113,8 +118,11 @@ jest.mock("../../dom/bible-card", () => {
 describe("BibleCard", () => {
   const originalOs = Platform.OS;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     latestDomProps = {};
+    mmkvStorage.clearAll();
+    useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState);
+    await useBibleCardVersionStore.persist.rehydrate();
   });
 
   afterEach(() => {
