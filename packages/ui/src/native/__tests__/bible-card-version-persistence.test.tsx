@@ -132,6 +132,7 @@ describe('BibleCard version persistence', () => {
   })
 
   it('does not persist when versionId and onVersionChange are both provided', async () => {
+    await seedBibleCardVersion(3034)
     const onVersionChange = jest.fn()
 
     const { getByTestId } = render(
@@ -147,9 +148,11 @@ describe('BibleCard version persistence', () => {
       fireEvent.press(getByTestId('select-version'))
     })
 
+    // Zustand persist may write the store key on hydrate; assert the picker did not overwrite MMKV.
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
-    const parsed = raw ? (JSON.parse(raw) as { state: { versionId?: number | null } }) : null
-    expect(parsed?.state?.versionId).not.toBe(59)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(3034)
   })
 
   it('uses stored version over versionId seed prop when uncontrolled', async () => {
