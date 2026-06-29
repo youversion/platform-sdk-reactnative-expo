@@ -1,5 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
+import { useState } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { useTheme } from '../hooks/use-theme'
@@ -37,6 +38,17 @@ export function BibleChapterPickerSheet({
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
+  // Bump resetKey on close so the DOM component remounts its picker tree on the
+  // dismiss transition, resetting scroll position, search query, and language
+  // filter state before the next open. Done in the close handler (an event)
+  // rather than an effect — see https://react.dev/learn/you-might-not-need-an-effect.
+  const [resetKey, setResetKey] = useState(0)
+
+  const handleClose = () => {
+    setResetKey((k) => k + 1)
+    onClose()
+  }
+
   if (Platform.OS === 'web') return null
 
   const pickerDom = {
@@ -54,13 +66,13 @@ export function BibleChapterPickerSheet({
         return
       }
     }
-    onClose()
+    handleClose()
   }
 
   return (
     <NativeSheet
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
       backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
@@ -81,6 +93,7 @@ export function BibleChapterPickerSheet({
           chapter={chapter}
           versionId={versionId}
           theme={resolvedTheme}
+          resetKey={resetKey}
           onSelect={handleSelect}
         />
       </View>
