@@ -15,15 +15,17 @@ import type { DOMProps } from 'expo/dom'
 const EMBED_CONTAINER_STYLE = { flex: 0, width: '100%' } as const
 
 /**
- * A content-sized embed has nothing to scroll, but the WebView still
- * rubber-bands (iOS) or shows the overscroll glow (Android) when dragged.
- * Only applied alongside `matchContents` — an opted-out, fixed-height embed
- * may legitimately need to scroll its overflow.
+ * Scroll chrome defaults for `matchContents` embeds that should not scroll.
+ * `showsVerticalScrollIndicator` / `showsHorizontalScrollIndicator` are required
+ * on Android `@expo/dom-webview`, which ignores `scrollEnabled` and defaults
+ * native scrollbars to visible.
  */
-const EMBED_SCROLL_DEFAULTS = {
+const MATCH_CONTENTS_SCROLL_CHROME = {
   scrollEnabled: false,
   bounces: false,
   overScrollMode: 'never',
+  showsVerticalScrollIndicator: false,
+  showsHorizontalScrollIndicator: false,
 } as const
 
 /**
@@ -40,11 +42,24 @@ export function withEmbedDomDefaults(dom?: DOMProps): DOMProps {
     return { ...dom, matchContents }
   }
   return {
-    ...EMBED_SCROLL_DEFAULTS,
+    ...MATCH_CONTENTS_SCROLL_CHROME,
     ...dom,
     matchContents,
     containerStyle: dom?.containerStyle
       ? [EMBED_CONTAINER_STYLE, dom.containerStyle]
       : EMBED_CONTAINER_STYLE,
+  }
+}
+
+/**
+ * Sheet-hosted `matchContents` embeds (footnotes, reader settings). Applies the
+ * same scroll-chrome defaults as screen embeds but leaves container sizing to
+ * the NativeSheet / bottom-sheet host (ADR 0007).
+ */
+export function withSheetDomDefaults(dom?: DOMProps): DOMProps {
+  return {
+    ...MATCH_CONTENTS_SCROLL_CHROME,
+    ...dom,
+    matchContents: dom?.matchContents ?? true,
   }
 }
