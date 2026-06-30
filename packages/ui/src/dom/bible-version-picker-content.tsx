@@ -8,6 +8,7 @@ import {
 import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 
 import { useDismissKeyboardOnClose } from '../lib/dom-dismiss-keyboard'
+import { attachPickerKeyboardViewportListeners } from '../lib/picker-keyboard-viewport'
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -46,30 +47,9 @@ export default function VersionPickerContentDOM({
 
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')
-    const viewport = window.visualViewport
-    if (!root || !viewport) return
+    if (!root) return
 
-    const updateKeyboardOverlap = () => {
-      const overlap = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-      root.style.setProperty('--yv-keyboard-overlap', `${overlap}px`)
-    }
-
-    const handleFocusIn = (event: FocusEvent) => {
-      if (event.target instanceof HTMLElement) {
-        event.target.scrollIntoView({ block: 'nearest' })
-      }
-    }
-
-    updateKeyboardOverlap()
-    viewport.addEventListener('resize', updateKeyboardOverlap)
-    viewport.addEventListener('scroll', updateKeyboardOverlap, { passive: true })
-    root.addEventListener('focusin', handleFocusIn)
-
-    return () => {
-      viewport.removeEventListener('resize', updateKeyboardOverlap)
-      viewport.removeEventListener('scroll', updateKeyboardOverlap)
-      root.removeEventListener('focusin', handleFocusIn)
-    }
+    return attachPickerKeyboardViewportListeners(root)
   }, [])
 
   return (
@@ -161,25 +141,45 @@ body {
 }
 
 [data-yv-version-picker-shell] {
-  --yv-keyboard-overlap: 0px;
+  --yv-visible-height: 100vh;
+  --yv-viewport-offset-top: 0px;
   width: 100%;
-  height: 100vh;
+  height: var(--yv-visible-height, 100vh);
+  max-height: 100vh;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--yv-background);
   color: var(--yv-foreground);
+  transform: translateY(var(--yv-viewport-offset-top, 0px));
+}
 
-  [data-yv-bible-language-picker],
-  [data-yv-bible-version-picker] {
-    height: 100%;
+[data-yv-version-picker-shell] > * {
+  min-height: 0;
+  height: 100%;
+}
 
-    /* This allows the keyboard to appear and content to resize to account for it. */
-    section:has([data-slot="input-group"]) {
-      flex: 0 0 auto;
-      padding-bottom: calc(1rem + var(--yv-keyboard-overlap));
-    }
-  }
+[data-yv-version-picker-shell] [data-yv-bible-language-picker],
+[data-yv-version-picker-shell] [data-yv-bible-version-picker] {
+  height: 100%;
+  min-height: 0;
+}
+
+[data-yv-version-picker-shell] [data-yv-bible-version-picker] > div,
+[data-yv-version-picker-shell] [data-yv-bible-version-picker] [data-yv-sdk] {
+  min-height: 0;
+  height: 100%;
+}
+
+[data-yv-version-picker-shell] [data-yv-bible-language-picker] [data-yv-sdk],
+[data-yv-version-picker-shell] [data-yv-bible-version-picker] [data-yv-sdk] {
+  min-height: 0;
+  height: 100%;
+}
+
+[data-yv-version-picker-shell] section:has([data-slot="input-group"]) {
+  flex: 0 0 auto;
+  padding-bottom: 1rem;
 }
 `

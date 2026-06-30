@@ -5,14 +5,16 @@ Applies to `packages/ui/src/native/**`. Full guide: [docs/contributing/native-i1
 ## Required pattern
 
 - Call `useSdkTranslation()` and render copy with `t('key')` or `<Trans i18nKey="key">`.
-- Add the key to `packages/ui/src/i18n/locales/en.json`. Keys are typed via `SdkTranslationKey`.
+- Add new keys under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Keys are typed via `SdkTranslationKey` after sync.
 
 ## Flag as high severity
 
-Hardcoded user-visible English in:
+Any newly added or changed user-visible English literal in native source — not only known examples. Flag hardcoded English in:
 
 - `<Text>` children owned by the SDK
-- `accessibilityLabel` on SDK controls (loaders, buttons, sheet chrome)
+- `accessibilityLabel` and `accessibilityHint` on SDK controls (loaders, buttons, sheet chrome)
+- `placeholder` on SDK-owned inputs
+- `alert()` / `Alert.alert()` strings set by the SDK
 - `headerTitle` passed by SDK components (not consumer props)
 
 ### Violation examples
@@ -38,11 +40,9 @@ const { t } = useSdkTranslation()
 // ❌ Hardcoded sheet title set by the SDK
 <NativeSheet headerTitle="Versions" />
 
-// ✅ Localized (add key to en.json first)
+// ✅ Localized (add key to platform-localization first)
 <NativeSheet headerTitle={t('versions')} />
 ```
-
-Known violations to catch on new/changed lines: `"Cancel"`, `"Loading"`, `"Books"`, `"Versions"`.
 
 ## Do not flag
 
@@ -51,10 +51,24 @@ Known violations to catch on new/changed lines: `"Cancel"`, `"Loading"`, `"Books
 - Strings passed through from consumer props (e.g. `YouVersionAuthButton` `text` override)
 - Non-user-facing literals (test IDs, log messages, style tokens, route names)
 
+## Locale files are generated — do not hand-edit
+
+Translation JSON under `packages/ui/src/i18n/locales/` (`en.json`, `es.json`, `fr.json`, and future locales) is **generated and synced** from [platform-localization](https://github.com/youversion/platform-localization). Do not add, edit, or remove string values in these files in a PR.
+
+**Correct workflow:**
+
+1. Add the key under `reactnative.*` in platform-localization `sources/common/en.json`.
+2. Merge the platform-localization PR; CI assembles `dist/reactnative/*.json`.
+3. The **Distribute React Native Localization** workflow syncs assembled files into this repo.
+4. Register new locale codes in `packages/ui/src/i18n/locales/index.ts` when distribution adds them (`index.ts` is hand-editable; locale JSON is not).
+
+Flag any PR diff that hand-edits locale JSON string values. Exception: automated localization sync PRs from the distribution workflow.
+
 ## Review checklist
 
 1. Does the PR add or change user-visible native copy?
-2. Is every new string backed by an `en.json` key?
-3. Are accessibility labels localized?
+2. Is every new string backed by a platform-localization key (not a hand-edited locale JSON file)?
+3. Are accessibility labels and hints localized?
 4. Are SDK-owned sheet headers localized?
 5. Is the change correctly scoped to native only (not DOM)?
+6. Were locale JSON files left untouched (except sync PRs)?

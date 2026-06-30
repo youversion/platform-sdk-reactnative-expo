@@ -2,11 +2,23 @@
   "files": [
     {
       "path": "docs/contributing/native-i18n.md",
-      "description": "Contributor guide for native UI localization — required pattern, scope, exceptions"
+      "description": "Contributor guide for native UI localization — required pattern, scope, exceptions, and platform-localization sync workflow"
     },
     {
       "path": "packages/ui/src/i18n/locales/en.json",
-      "description": "Canonical English locale keys (SdkTranslationKey source of truth)"
+      "description": "Generated English locale keys (SdkTranslationKey source of truth) — synced from platform-localization; do not hand-edit"
+    },
+    {
+      "path": "packages/ui/src/i18n/locales/es.json",
+      "description": "Generated Spanish locale — synced from platform-localization; do not hand-edit"
+    },
+    {
+      "path": "packages/ui/src/i18n/locales/fr.json",
+      "description": "Generated French locale — synced from platform-localization; do not hand-edit"
+    },
+    {
+      "path": "packages/ui/src/i18n/locales/index.ts",
+      "description": "Hand-editable locale registration — add new locale codes here when distribution adds them"
     },
     {
       "path": "docs/adr/0008-sdk-owned-i18next-no-consumer-overrides.md",

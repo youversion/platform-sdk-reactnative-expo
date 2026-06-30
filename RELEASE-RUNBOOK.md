@@ -48,7 +48,7 @@ Cross-reference with the consumer's `package.json`.
 **Recovery — two options:**
 
 - **Consumer upgrades.** Document required peer-dep ranges in the GitHub release notes. Consumers update their RN / Expo / native modules to a satisfying version.
-- **SDK widens the range.** If a swath of consumers is affected and the SDK *would actually work* with the older peer-dep, ship a patch widening `peerDependencies`. Be conservative — widening too far papers over a real incompatibility and produces opaque runtime crashes.
+- **SDK widens the range.** If a swath of consumers is affected and the SDK _would actually work_ with the older peer-dep, ship a patch widening `peerDependencies`. Be conservative — widening too far papers over a real incompatibility and produces opaque runtime crashes.
 
 **Prevention.** When bumping a major peer range (e.g. `expo >=55` → `expo >=56`), describe the consumer impact in the changeset body. The changeset becomes part of the release notes consumers will read before upgrading.
 
@@ -58,10 +58,10 @@ Cross-reference with the consumer's `package.json`.
 
 This SDK is currently pure TypeScript — no `.h` / `.m` / `.swift` / `.kt` / `.java` / `.podspec` / `.gradle` / codegen specs ship in the tarballs. The following failure classes are stubbed out today and become live if native sources are ever added directly to the published packages:
 
-| Class | What to watch for if/when native code lands |
-|---|---|
+| Class                                                         | What to watch for if/when native code lands                                                                                     |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
 | iOS / Android source stamps drift from `package.json#version` | Add a pre-publish check that the version stamped in podspec / `build.gradle` / native constants matches `package.json#version`. |
-| Codegen output missing from published tarball | `npm pack` + `tar -tzf` post-publish to verify codegen-emitted files are present. |
-| Hermes / new-arch / old-arch partial publish | If the SDK ever ships arch-specific artifacts, they need to publish atomically. |
+| Codegen output missing from published tarball                 | `npm pack` + `tar -tzf` post-publish to verify codegen-emitted files are present.                                               |
+| Hermes / new-arch / old-arch partial publish                  | If the SDK ever ships arch-specific artifacts, they need to publish atomically.                                                 |
 
 When any of these become real, mirror the pattern from [`platform-sdk-swift`'s RELEASE-RUNBOOK.md](https://github.com/youversion/platform-sdk-swift/blob/main/RELEASE-RUNBOOK.md) for the CocoaPods analogs.

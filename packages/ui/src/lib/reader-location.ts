@@ -24,7 +24,8 @@ export function parseStoredChapter(value: unknown): string | null {
 }
 
 export function parseStoredVersionId(value: unknown): number | null {
-  if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 1) return null
+  if (typeof value !== 'number' || !Number.isFinite(value) || !Number.isInteger(value) || value < 1)
+    return null
   return value
 }
 

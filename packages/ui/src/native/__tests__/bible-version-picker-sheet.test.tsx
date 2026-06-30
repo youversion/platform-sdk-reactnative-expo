@@ -127,25 +127,19 @@ describe('BibleVersionPickerSheet', () => {
   })
 
   it('explicit theme overrides provider theme', () => {
-    render(
-      <BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="dark" />,
-      {
-        wrapper: ({ children }) => (
-          <YouVersionProvider appKey="test-key" theme="light">
-            {children}
-          </YouVersionProvider>
-        ),
-      },
-    )
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
+      wrapper: ({ children }) => (
+        <YouVersionProvider appKey="test-key" theme="light">
+          {children}
+        </YouVersionProvider>
+      ),
+    })
 
     expect(latestDomProps.theme).toBe('dark')
   })
 
   it('system theme defers to provider resolved theme', () => {
-    render(
-      <BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="system" />,
-      { wrapper },
-    )
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="system" />, { wrapper })
 
     expect(latestDomProps.theme).toBe('light')
   })

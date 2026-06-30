@@ -3,10 +3,7 @@
   "changelog": "@changesets/cli/changelog",
   "commit": false,
   "fixed": [
-    [
-      "@youversion/platform-react-native-expo-core",
-      "@youversion/platform-react-native-expo-ui"
-    ]
+    ["@youversion/platform-react-native-expo-core", "@youversion/platform-react-native-expo-ui"]
   ],
   "linked": [],
   "access": "public",

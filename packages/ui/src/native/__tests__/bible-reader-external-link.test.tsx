@@ -49,13 +49,19 @@ jest.mock('../../dom/footnote-content', () => {
 jest.mock('../bible-chapter-picker-sheet', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
-  return { __esModule: true, BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" /> }
+  return {
+    __esModule: true,
+    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
+  }
 })
 
 jest.mock('../bible-version-picker-sheet', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
-  return { __esModule: true, BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" /> }
+  return {
+    __esModule: true,
+    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
+  }
 })
 
 jest.mock('../bible-reader-settings-sheet', () => {

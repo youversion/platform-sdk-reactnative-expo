@@ -177,7 +177,13 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 
 ## Native UI localization
 
-User-visible strings in `packages/ui/src/native/**` must use `useSdkTranslation()` with `t('key')` or `<Trans i18nKey>`; add keys to `packages/ui/src/i18n/locales/en.json` (typed via `SdkTranslationKey`). Do not hardcode copy in `Text` children, `accessibilityLabel`, or SDK-owned `headerTitle` values. `packages/ui/src/dom/**` is exempt ([ADR 0009](./docs/adr/0009-deferred-dom-localization.md)). Greptile enforces this at high severity — see [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md) and `.greptile/rules.md`.
+User-visible strings in `packages/ui/src/native/**` must be localized. Follow this **before** opening a PR — Greptile enforces it at **high** severity:
+
+- **Use the hook.** Render copy with `useSdkTranslation()` → `t('key')`, or `<Trans i18nKey="key">` for rich text. This covers `Text` children, `accessibilityLabel`/`accessibilityHint`, `placeholder`, SDK-set `Alert` strings, and SDK-owned `headerTitle` values — never hardcode them.
+- **Add keys upstream, not here.** New keys go under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Do **not** hand-edit `packages/ui/src/i18n/locales/*.json` — those files are generated and synced, and `SdkTranslationKey` types update automatically after sync.
+- **Exempt.** `packages/ui/src/dom/**` (WebView Bible UI stays English — [ADR 0009](./docs/adr/0009-deferred-dom-localization.md)), consumer-provided prop overrides, test files, and non-user-facing literals (test IDs, logs, style tokens).
+
+Full guide: [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md); enforcement rules: `.greptile/rules.md`.
 
 ## Recommended Agent Skill
 
