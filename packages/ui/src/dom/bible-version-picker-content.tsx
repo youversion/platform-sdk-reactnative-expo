@@ -135,7 +135,6 @@ body {
 }
 
 [data-yv-version-picker-shell] {
-  --yv-keyboard-overlap: 0px;
   --yv-visible-height: 100vh;
   --yv-viewport-offset-top: 0px;
   width: 100%;

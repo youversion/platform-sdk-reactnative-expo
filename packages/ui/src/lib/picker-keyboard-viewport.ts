@@ -19,7 +19,6 @@ export function getPickerViewportCssProperties(
   metrics: PickerViewportMetrics,
 ): Record<string, string> {
   return {
-    '--yv-keyboard-overlap': `${metrics.overlap}px`,
     '--yv-visible-height': `${metrics.visibleHeight}px`,
     '--yv-viewport-offset-top': `${metrics.offsetTop}px`,
   }

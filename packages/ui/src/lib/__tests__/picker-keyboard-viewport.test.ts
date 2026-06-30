@@ -48,7 +48,6 @@ describe('getPickerViewportCssProperties', () => {
         offsetTop: 50,
       }),
     ).toEqual({
-      '--yv-keyboard-overlap': '350px',
       '--yv-visible-height': '400px',
       '--yv-viewport-offset-top': '50px',
     })
