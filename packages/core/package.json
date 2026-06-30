@@ -11,12 +11,11 @@
     "types": "dist/index.d.ts"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "clean": "rm -rf dist",
-    "test": "jest --passWithNoTests",
-    "test:watch": "jest --watchAll",
-    "test:coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit"
+    "build": "expo-module tsc -p tsconfig.build.json",
+    "test": "expo-module test --passWithNoTests",
+    "test:watch": "expo-module test --watchAll",
+    "test:coverage": "expo-module test --coverage",
+    "typecheck": "expo-module typecheck"
   },
   "jest": {
     "preset": "jest-expo",
@@ -56,6 +55,7 @@
     "@testing-library/react-native": "13.3.3",
     "@types/jest": "29.5.14",
     "@types/react": "19.2.14",
+    "expo-module-scripts": "~56.0.3",
     "jest": "29.7.0",
     "jest-expo": "56.0.5"
   }

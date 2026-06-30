@@ -80,7 +80,13 @@ npx expo install @gorhom/bottom-sheet @expo/dom-webview \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
-  react-native-safe-area-context react-native-svg react-native-webview
+  react-native-safe-area-context react-native-svg
+```
+
+If you're on Reanimated 4 / Worklets, also install `react-native-worklets` (optional — not needed on Reanimated 3):
+
+```bash
+npx expo install react-native-worklets
 ```
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
