@@ -17,7 +17,7 @@ pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
 cd apps/example && pnpm build:android # Android dev client alternative
 cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
-pnpm build                            # turbo build (compiles each package to dist/ for publish)
+pnpm build                            # turbo build (expo-module build compiles each package to build/ for publish)
 pnpm typecheck                        # turbo typecheck (all packages)
 pnpm test                             # turbo test
 pnpm lint                             # eslint
@@ -44,7 +44,7 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 - First native run: `cd apps/example && pnpm build:ios` (or `pnpm build:android`) — creates and installs a dev client with native modules
 - Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
 - Example app requires `EXPO_PUBLIC_YOUVERSION_APP_KEY` in the environment or an `.env` file
-- Source entry (`"main": "src/index.ts"`) — Metro resolves TypeScript directly for local dev; publishing compiles to `dist/` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
+- Source entry (`"main": "src/index.ts"`) — Metro resolves TypeScript directly for local dev; publishing compiles to `build/` via `expo-module-scripts` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
 - **Expo Go is not supported** — requires a dev build
 
 ## Key Architecture Notes

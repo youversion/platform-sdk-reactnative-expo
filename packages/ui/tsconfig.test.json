@@ -1,0 +1,15 @@
+{
+  // Typecheck-only config covering source + tests. The build config
+  // (tsconfig.json) excludes tests so expo-module build does not emit them;
+  // this re-includes them for `pnpm typecheck` and editor coverage.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["jest", "node"],
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["src", "__tests__"],
+  "exclude": []
+}

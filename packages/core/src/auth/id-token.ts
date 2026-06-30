@@ -1,4 +1,4 @@
-import { YVUserInfo } from './types'
+import type { YVUserInfo } from './types'
 
 export type IdTokenPayload = {
   sub?: string
@@ -15,7 +15,7 @@ export function decodeIdToken(jwt: string): IdTokenPayload {
   if (segments.length !== 3) {
     throw new Error("Invalid JWT: expected 3 segments separated by '.'")
   }
-  const payloadJson = base64URLDecodeToString(segments[1])
+  const payloadJson = base64URLDecodeToString(segments[1]!)
   return JSON.parse(payloadJson)
 }
 

@@ -1,8 +1,16 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "expo-module-scripts/tsconfig.base",
   "compilerOptions": {
-    "types": ["jest", "node"],
-    "outDir": "dist"
+    "rootDir": "src",
+    "outDir": "build"
   },
-  "include": ["src", "__tests__"]
+  "include": ["src"],
+  "exclude": [
+    "src/**/__tests__/**",
+    "src/**/__mocks__/**",
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/test-utils/**",
+    "src/**/test-utils/**"
+  ]
 }

@@ -1,5 +1,5 @@
 import { createContext, use } from 'react'
-import { ThemeInput } from '../lib/resolve-theme'
+import type { ThemeInput } from '../lib/resolve-theme'
 
 export type Theme = 'light' | 'dark'
 

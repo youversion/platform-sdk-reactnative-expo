@@ -17,7 +17,7 @@ This is a deliberate, narrow exception to the project's "don't bridge across the
 ## Considered alternatives
 
 - **`Keyboard.dismiss()` from the native shell** (e.g. `BottomSheet` `onAnimate`/`onClose`). Shipped first; confirmed a no-op on device because it never sees the WebView input.
-- **A native module calling `InputMethodManager` / `resignFirstResponder` on the WebView's window.** Would work but adds native code to a source-only SDK for what a one-line `blur()` solves.
+- **A native module calling `InputMethodManager` / `resignFirstResponder` on the WebView's window.** Would work but adds native code to a JS-only SDK for what a one-line `blur()` solves.
 
 ## Consequences
 

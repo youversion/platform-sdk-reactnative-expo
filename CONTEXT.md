@@ -83,7 +83,7 @@ The visible controls around reader content, including chapter navigation, versio
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Compiled Distribution**:
-The published package ships a compiled `dist/` build (`tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `dist/` at publish time, applied only by `pnpm publish`. See ADR 0011 (supersedes the earlier source-only model).
+The published package ships a compiled `build/` output (`expo-module build`, plain `tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `build/` at publish time, applied only by `pnpm publish`. See ADR 0011 (supersedes the earlier source-only model).
 _Avoid_: Source-only, "a compiled build strips the directive"
 
 **Dependency Boundary**:
@@ -109,7 +109,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - **Version Picker Sheet** passes **Sheet Reset Key** and commit **Native Actions** into **Version Picker Shell Layout**; it does not pass **DOM-Owned Sheet UI State** (e.g. language panel visibility).
 - **DOM-Owned Sheet UI State** lives only inside the sheet's Expo DOM component; **Native-Owned State** covers sheet open/close and committed picker outcomes.
 - Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
-- **Compiled Distribution** ships `dist/` to npm; `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
+- **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 
 ## Example Dialogue

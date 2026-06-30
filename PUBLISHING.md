@@ -24,9 +24,9 @@ The `fixed` group in [`.changeset/config.json`](.changeset/config.json) keeps bo
 
 ### What gets published
 
-The tarball ships a compiled `dist/` build (JS + `.d.ts`), not raw TypeScript — see [ADR 0011](docs/adr/0011-compiled-distribution.md). Top-level `main` / `types` point at `src/` for in-repo dev; `publishConfig` swaps them to `dist/` at publish time and `files: ["dist"]` keeps source out of the tarball.
+The tarball ships a compiled `build/` output (JS + `.d.ts`), not raw TypeScript — see [ADR 0011](docs/adr/0011-compiled-distribution.md). Each package builds with [`expo-module-scripts`](https://www.npmjs.com/package/expo-module-scripts) (`expo-module build`, plain `tsc` under the hood). Top-level `main` / `types` point at `src/` for in-repo dev; `publishConfig` swaps them to `build/` at publish time and `files: ["build"]` keeps source out of the tarball.
 
-This swap is applied by **`pnpm publish`** (which `pnpm changeset publish` uses) — *not* by `npm publish`, which would ship `main → src/index.ts` and leak source. Always release through the `Release` workflow / `pnpm changeset publish`; never raw `npm publish`.
+This swap is applied by **`pnpm publish`** (which `pnpm changeset publish` uses) — _not_ by `npm publish`. Under raw `npm publish`, `main` stays `src/index.ts` while `files: ["build"]` excludes `src/`, so the tarball would be broken (entry point missing or unable to resolve its imports). Always release through the `Release` workflow / `pnpm changeset publish`; never raw `npm publish`.
 
 **Before the first publish**, confirm DOM components survive the compiled build end to end: build and `pnpm pack` the UI package, install the tarball into a throwaway Expo dev build, and verify a DOM component (e.g. `BibleReader`) renders on device. ADR 0011 verified the mechanism but not a full install-and-run.
 

@@ -42,7 +42,7 @@ function sha256AsBase64(input: string): Promise<string> {
 function bytesToBase64URL(bytes: Uint8Array): string {
   let binary = ''
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
+    binary += String.fromCharCode(bytes[i]!)
   }
   return base64ToBase64URL(btoa(binary))
 }
