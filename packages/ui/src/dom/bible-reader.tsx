@@ -55,7 +55,7 @@ type BibleReaderBaseProps = {
   backgroundColor?: string
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
-  bottomSafeArea?: number
+  bottomScrollPadding?: number
   dom?: import('expo/dom').DOMProps
 }
 
@@ -66,8 +66,6 @@ export type BibleReaderProps = BibleReaderBaseProps &
   )
 
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
-
-const READER_BOTTOM_PADDING = 48
 
 export default function BibleReaderDOM(props: BibleReaderProps) {
   const {
@@ -99,7 +97,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onLineSpacingChange,
     backgroundColor,
     foregroundColor,
-    bottomSafeArea = 0,
+    bottomScrollPadding = 0,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
@@ -154,10 +152,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
         }`}
       </style>
 
-      {bottomSafeArea > 0 && (
+      {bottomScrollPadding > 0 && (
         <style href="yv-bible-reader-scroll-padding" precedence="medium">
-          {`main:has([data-slot="yv-bible-renderer"]) {
-            padding-bottom: ${READER_BOTTOM_PADDING + bottomSafeArea}px !important;
+          {`[data-yv-sdk] > main {
+            padding-bottom: ${bottomScrollPadding}px !important;
           }`}
         </style>
       )}
