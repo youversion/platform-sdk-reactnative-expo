@@ -1,6 +1,7 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import { useState } from 'react'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { useTheme } from '../hooks/use-theme'
@@ -35,6 +36,7 @@ export function BibleChapterPickerSheet({
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
+  const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
@@ -83,9 +85,7 @@ export function BibleChapterPickerSheet({
         },
       ]}
       showHeader={true}
-      // Keys will arrive via platform-localization sync
-
-      headerTitle="Books"
+      headerTitle={t('booksHeading')}
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         <ChapterPickerContentDOM

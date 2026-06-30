@@ -18,6 +18,7 @@
     "clean:cache": "bash scripts/clear-cache.sh",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "lint:native-i18n": "node scripts/test-native-i18n-eslint.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:locale-parity": "node scripts/check-locale-parity.mjs",

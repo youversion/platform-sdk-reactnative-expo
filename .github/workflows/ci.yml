@@ -19,6 +19,8 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Run ESLint
         run: pnpm lint --max-warnings=0
+      - name: Run native i18n ESLint regression tests
+        run: pnpm lint:native-i18n
 
   typecheck:
     name: Typecheck
