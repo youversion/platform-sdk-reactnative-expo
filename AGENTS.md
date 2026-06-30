@@ -95,6 +95,8 @@ Inactive `NativeSheet` hosts may remain mounted for WebView pre-warming, but the
 
 `NativeSheet` currently exposes `enableContentPanningGesture`, Android loader controls, and content styling. Add typed `@gorhom/bottom-sheet` keyboard pass-throughs only when a sheet needs them, and cover the native action/sheet contract in tests.
 
+A soft keyboard raised by a search input inside an Expo DOM WebView cannot be dismissed from native: RN's `Keyboard.dismiss()` only blurs the focused RN `TextInput` (via `TextInputState`), and the WebView's HTML input is invisible to it, so the call is a no-op. Instead, the picker DOM components (`dom/bible-version-picker-content.tsx`, `dom/chapter-picker-content.tsx`) receive the sheet's `isOpen` and, via `useDismissKeyboardOnClose` (`lib/dom-dismiss-keyboard.ts`), blur `document.activeElement` inside the WebView when `isOpen` flips to false (Cancel, pan-down, backdrop, and displacement all drive `isOpen` false). This is a one-way native→DOM command on close, not bridged UI state. See `docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md`.
+
 ### FootnoteContent Pre-warming
 
 Mounted immediately with empty placeholder data to cold-start the WebView during page load.

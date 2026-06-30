@@ -95,6 +95,7 @@ export function BibleChapterPickerSheet({
           chapter={chapter}
           versionId={versionId}
           theme={resolvedTheme}
+          isOpen={isOpen}
           resetKey={resetKey}
           onSelect={handleSelect}
         />
