@@ -13,7 +13,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.cameronpak.www"
+      "bundleIdentifier": "com.youversion.platform"
     },
     "android": {
       "package": "com.youversion.platform",
