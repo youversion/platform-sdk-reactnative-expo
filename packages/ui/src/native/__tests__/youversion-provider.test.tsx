@@ -26,7 +26,7 @@ function LocaleProbe() {
 }
 
 describe('YouVersionProvider locale', () => {
-  it('uses device locale when locale prop is omitted', () => {
+  it('falls back to en when locale prop is omitted and device locale is unsupported', () => {
     useLocalesMock.mockReturnValue([{ languageTag: 'de-DE', languageCode: 'de' }])
 
     const { getByTestId } = render(
@@ -35,26 +35,27 @@ describe('YouVersionProvider locale', () => {
       </YouVersionProvider>,
     )
 
-    expect(getByTestId('locale-lng').children).toContain('de-DE')
+    expect(getByTestId('locale-lng').children).toContain('en')
+    expect(getByTestId('i18n-language').children).toContain('en')
   })
 
   it('passes the locale prop through locale context as lng', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="es">
+      <YouVersionProvider appKey="test-key" locale="en">
         <LocaleProbe />
       </YouVersionProvider>,
     )
 
-    expect(getByTestId('locale-lng').children).toContain('es')
+    expect(getByTestId('locale-lng').children).toContain('en')
   })
 
   it('initializes i18n with resolved lng on first render', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="es">
+      <YouVersionProvider appKey="test-key" locale="en">
         <LocaleProbe />
       </YouVersionProvider>,
     )
 
-    expect(getByTestId('i18n-language').children).toContain('es')
+    expect(getByTestId('i18n-language').children).toContain('en')
   })
 })

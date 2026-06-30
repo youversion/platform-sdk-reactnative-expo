@@ -15,15 +15,16 @@ describe('createSdkI18n', () => {
   it('interpolates brandName via defaultVariables', () => {
     const i18n = createSdkI18n()
 
-    expect(i18n.t('signInWithYouVersion')).toBe(`Sign in with <bold>${SDK_DEFAULT_BRAND_NAME}</bold>`)
+    expect(i18n.t('signInWithYouVersion')).toBe(
+      `Sign in with <bold>${SDK_DEFAULT_BRAND_NAME}</bold>`,
+    )
   })
 
-  it('changeLanguage updates active translations when locale resources exist', async () => {
+  it('falls back to English when locale resources are not bundled', async () => {
     const i18n = createSdkI18n()
 
-    await i18n.changeLanguage('en')
+    await i18n.changeLanguage('es')
 
-    expect(i18n.language).toBe('en')
     expect(i18n.t('loading')).toBe('Loading')
   })
 

@@ -43,23 +43,26 @@ describe('YouVersionProvider', () => {
   it.each([
     ['with custom apiHost', { apiHost: 'api.custom.com' }, 'api.custom.com'],
     ['with default apiHost', {}, 'api.youversion.com'],
-  ])('provides context to children once installationId resolves (%s)', async (_label, props, expectedHost) => {
-    mockGetOrSetInstallationId.mockResolvedValue('inst-1')
+  ])(
+    'provides context to children once installationId resolves (%s)',
+    async (_label, props, expectedHost) => {
+      mockGetOrSetInstallationId.mockResolvedValue('inst-1')
 
-    render(
-      <YouVersionProvider appKey="appkey" {...props}>
-        <ContextPeek />
-      </YouVersionProvider>,
-    )
+      render(
+        <YouVersionProvider appKey="appkey" {...props}>
+          <ContextPeek />
+        </YouVersionProvider>,
+      )
 
-    await waitFor(() => {
-      expect(JSON.parse(screen.getByTestId('ctx').props.children)).toEqual({
-        installationId: 'inst-1',
-        appKey: 'appkey',
-        apiHost: expectedHost,
+      await waitFor(() => {
+        expect(JSON.parse(screen.getByTestId('ctx').props.children)).toEqual({
+          installationId: 'inst-1',
+          appKey: 'appkey',
+          apiHost: expectedHost,
+        })
       })
-    })
-  })
+    },
+  )
 
   it('wraps children in AuthProvider when an auth config is provided', async () => {
     mockGetOrSetInstallationId.mockResolvedValue('inst-1')

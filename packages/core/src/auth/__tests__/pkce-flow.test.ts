@@ -176,7 +176,9 @@ describe('signInWithPKCE — obtainCodeFromCallback', () => {
       status: 302,
       headers: { get: jest.fn(() => 'https://app/cb?state=STATE') },
     })
-    await expect(signInWithPKCE(defaultProps())).rejects.toThrow('Location header had no code param')
+    await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
+      'Location header had no code param',
+    )
   })
 })
 

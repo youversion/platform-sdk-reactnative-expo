@@ -28,9 +28,7 @@ describe('web YouVersionProvider', () => {
   })
 
   it('preserves consumer additionalHeaders on non-colliding keys', () => {
-    expect(
-      renderShim({ additionalHeaders: { 'x-custom': 'ok' } }).additionalHeaders,
-    ).toEqual({
+    expect(renderShim({ additionalHeaders: { 'x-custom': 'ok' } }).additionalHeaders).toEqual({
       'x-yvp-sdk': 'ReactNativeSDK=Dev',
       'x-custom': 'ok',
     })
@@ -46,5 +44,4 @@ describe('web YouVersionProvider', () => {
       'x-custom': 'ok',
     })
   })
-
 })
