@@ -52,7 +52,7 @@ Building AI applications with Bible content? Access YouVersion's LLM-optimized e
 
 ## Requirements
 
-- Expo SDK 55
+- Expo SDK 56
 - A YouVersion Platform API key ([Register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
