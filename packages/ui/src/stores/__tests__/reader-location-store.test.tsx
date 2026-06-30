@@ -3,10 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { READER_LOCATION_PERSIST_KEY } from '../../lib/constants'
-import {
-  readerLocationStoreInitialState,
-  useReaderLocationStore,
-} from '../reader-location-store'
+import { readerLocationStoreInitialState, useReaderLocationStore } from '../reader-location-store'
 
 function useReaderLocationSlice() {
   return useReaderLocationStore(

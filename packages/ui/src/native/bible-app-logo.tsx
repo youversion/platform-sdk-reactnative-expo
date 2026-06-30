@@ -15,13 +15,7 @@ export interface BibleAppLogoProps extends SvgProps {
 
 export function BibleAppLogo({ size = 26, ...props }: BibleAppLogoProps) {
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 26 26"
-      fill="none"
-      {...props}
-    >
+    <Svg width={size} height={size} viewBox="0 0 26 26" fill="none" {...props}>
       <Rect
         x="0.0303045"
         y="0.0303045"

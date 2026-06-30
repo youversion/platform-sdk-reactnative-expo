@@ -120,9 +120,7 @@ export default function RootLayout() {
 The SDK owns a private i18next instance for native UI strings (auth button labels, sheet loader accessibility). **By default**, native SDK copy follows the **device locale** (via bundled `expo-localization`). No extra setup is required:
 
 ```tsx
-<YouVersionProvider appKey={appKey}>
-  {/* your app */}
-</YouVersionProvider>
+<YouVersionProvider appKey={appKey}>{/* your app */}</YouVersionProvider>
 ```
 
 Pass an explicit **`locale`** when your app manages language (for example an in-app language picker) so SDK strings stay in sync with the rest of your UI:
@@ -151,8 +149,8 @@ import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
 function VerseScreen() {
   return (
     <BibleTextView
-      reference="JHN.3.16"          // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
-      versionId={3034}              // 3034 = NIV (find IDs at platform.youversion.com)
+      reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
+      versionId={3034} // 3034 = NIV (find IDs at platform.youversion.com)
       showVerseNumbers
     />
   )
@@ -165,13 +163,7 @@ Display a Bible card with a verse and reader controls:
 import { BibleCard } from '@youversion/platform-react-native-expo-ui'
 
 function CardScreen() {
-  return (
-    <BibleCard
-      reference="JHN.3.16"
-      versionId={3034}
-      dom={{ matchContents: true }}
-    />
-  )
+  return <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
 }
 ```
 
@@ -235,10 +227,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <YouVersionProvider
-        appKey={appKey}
-        auth={{ redirectUri, scopes: ['profile', 'email'] }}
-      >
+      <YouVersionProvider appKey={appKey} auth={{ redirectUri, scopes: ['profile', 'email'] }}>
         {/* your app */}
       </YouVersionProvider>
     </GestureHandlerRootView>

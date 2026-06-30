@@ -16,6 +16,7 @@ tags: [expo-dom, react-native, native-sheet, webview, provider]
 # Expo DOM Native Provider And Sheet Pattern
 
 ## Context
+
 The React Native Expo SDK wraps `@youversion/platform-react-ui` DOM components for native apps. Consumers should get a native-feeling API with one `YouVersionProvider`, while the implementation still has to respect Expo DOM boundaries and keep WebView content warm for footnote sheets.
 
 The footnote flow exposed two easy traps:
@@ -25,6 +26,7 @@ The footnote flow exposed two easy traps:
 - A closed Gorhom sheet host can still be visible, draggable, or exposed to Android accessibility if inactive sheets are not made explicitly inert.
 
 ## Guidance
+
 Use a native provider for native concerns, then pass only serializable props into DOM components.
 
 ```tsx
@@ -60,11 +62,12 @@ Inactive sheet hosts may stay mounted for WebView pre-warming, but they must be 
 Repeated user actions need an event signal, not only boolean state. Footnote taps can keep `footnoteData` non-null, so `isOpen` remains `true`. Increment an `openKey` on each default footnote press and have the sheet snap open when the key changes.
 
 ```tsx
-setFootnoteData(data);
-setFootnoteOpenKey((key) => key + 1);
+setFootnoteData(data)
+setFootnoteOpenKey((key) => key + 1)
 ```
 
 ## Why This Matters
+
 Expo DOM components run in isolated WebView contexts. Native context, live React nodes, and non-serializable values do not cross that boundary. Trying to make the DOM side read the native provider directly will fail conceptually even if the native tree compiles.
 
 WebView layout is also sensitive to the native container it first mounts into. Pre-warming content is good, but pre-warming it in a hidden `1x1` wrapper gives `matchContents` the wrong layout reality. Keeping each sheet's DOM content in its own stable `BottomSheetView` preserves the warm WebView benefit without blank sheet content, as long as the inactive native host remains inert.
@@ -72,6 +75,7 @@ WebView layout is also sensitive to the native container it first mounts into. P
 The explicit `openKey` avoids another subtle state bug: repeated taps on the same footnote can be meaningful user events even when the underlying open boolean does not change.
 
 ## When to Apply
+
 - Wrapping web SDK components with Expo DOM for React Native consumers
 - Adding native provider APIs around DOM-backed components
 - Rendering DOM/WebView content inside native overlays, sheets, or portals
@@ -80,6 +84,7 @@ The explicit `openKey` avoids another subtle state bug: repeated taps on the sam
 - Debugging repeated tap behavior where the UI should reopen but boolean state stays unchanged
 
 ## Examples
+
 Before: exposing native infrastructure directly.
 
 ```tsx
@@ -99,15 +104,13 @@ After: one public SDK provider and provider-based components.
 Before: hiding inactive WebView content in a tiny wrapper.
 
 ```tsx
-<View style={{ height: 1, width: 1, position: "absolute", opacity: 0 }}>
-  {children}
-</View>
+<View style={{ height: 1, width: 1, position: 'absolute', opacity: 0 }}>{children}</View>
 ```
 
 After: keep the WebView mounted inside its own platform-scoped inert sheet host. The inert treatment applies on Android only; iOS keeps default chrome so `matchContents` can pre-warm the WebView.
 
 ```tsx
-const suppressInactive = Platform.OS === "android" && !isActive;
+const suppressInactive = Platform.OS === 'android' && !isActive
 
 <BottomSheet
   index={-1}
@@ -115,22 +118,19 @@ const suppressInactive = Platform.OS === "android" && !isActive;
   bottomInset={suppressInactive ? bottomInset : 0}
   containerStyle={suppressInactive ? styles.inactiveContainer : undefined}
   enableHandlePanningGesture={!suppressInactive}
-  enableContentPanningGesture={
-    suppressInactive ? false : (enableContentPanningGesture ?? true)
-  }
+  enableContentPanningGesture={suppressInactive ? false : (enableContentPanningGesture ?? true)}
   backdropComponent={suppressInactive ? renderNoBackdrop : renderBackdrop}
   backgroundComponent={suppressInactive ? null : undefined}
   handleComponent={suppressInactive ? null : undefined}
-  importantForAccessibility={suppressInactive ? "no-hide-descendants" : "auto"}
+  importantForAccessibility={suppressInactive ? 'no-hide-descendants' : 'auto'}
   enableDynamicSizing
 >
-  <BottomSheetView pointerEvents={suppressInactive ? "none" : "auto"}>
-    {children}
-  </BottomSheetView>
+  <BottomSheetView pointerEvents={suppressInactive ? 'none' : 'auto'}>{children}</BottomSheetView>
 </BottomSheet>
 ```
 
 ## Related
+
 - `docs/solutions/architecture-patterns/version-picker-shell-and-dom-ui-state-2026-05-18.md` — in-sheet UI state (e.g. language panel) must stay in the DOM WebView, not round-trip through native
 - `packages/ui/src/native/youversion-provider.tsx`
 - `packages/ui/src/native/native-sheet.tsx`

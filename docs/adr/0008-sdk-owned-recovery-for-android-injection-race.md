@@ -13,17 +13,17 @@ Expo DOM components depend on globals (`$$EXPO_DOM_HOST_OS`, `$$EXPO_INITIAL_PRO
 
 Patching expo in the consuming app fixed the symptom but not the product: every consumer of this SDK would have had to carry the same patch in their own Expo install. Because DOM component web bundles are compiled from SDK-shipped source inside the consumer's app build, a fix that lived in our source landed in every consumer's WebView automatically. The SDK therefore owned the recovery temporarily.
 
-The recovery module evaluated before expo's generated DOM entry called `registerDOMComponent` (the entry required the component module as the call's argument). When it detected a lost race — `ReactNativeWebView` present but `$$EXPO_DOM_HOST_OS` missing — it defined placeholder globals, trapped the late injection, and rebuilt the bridge on the raw transport primitives that were **not** gated by `IS_DOM` (`window.ReactNativeWebView.postMessage` and the `$$dom_event` CustomEvents). This ADR's closing line was: *"retire this module entirely if expo ships an injection mechanism that cannot lose the race."*
+The recovery module evaluated before expo's generated DOM entry called `registerDOMComponent` (the entry required the component module as the call's argument). When it detected a lost race — `ReactNativeWebView` present but `$$EXPO_DOM_HOST_OS` missing — it defined placeholder globals, trapped the late injection, and rebuilt the bridge on the raw transport primitives that were **not** gated by `IS_DOM` (`window.ReactNativeWebView.postMessage` and the `$$dom_event` CustomEvents). This ADR's closing line was: _"retire this module entirely if expo ships an injection mechanism that cannot lose the race."_
 
 ## Why it was retired (SDK 56)
 
-Expo SDK 56 ships **`@expo/dom-webview`** as the default backing WebView for DOM components, and — more importantly — SDK 56 changed *how* the host-OS globals are delivered. The generated DOM HTML now reads them **synchronously** in an inline `<script>` that runs before the bundle:
+Expo SDK 56 ships **`@expo/dom-webview`** as the default backing WebView for DOM components, and — more importantly — SDK 56 changed _how_ the host-OS globals are delivered. The generated DOM HTML now reads them **synchronously** in an inline `<script>` that runs before the bundle:
 
 ```html
 <script>
-  var injectedObject = JSON.parse(window.ReactNativeWebView.injectedObjectJson());
-  window.$$EXPO_DOM_HOST_OS = injectedObject.EXPO_DOM_HOST_OS;
-  window.$$EXPO_INITIAL_PROPS = injectedObject.initialProps;
+  var injectedObject = JSON.parse(window.ReactNativeWebView.injectedObjectJson())
+  window.$$EXPO_DOM_HOST_OS = injectedObject.EXPO_DOM_HOST_OS
+  window.$$EXPO_INITIAL_PROPS = injectedObject.initialProps
 </script>
 ```
 

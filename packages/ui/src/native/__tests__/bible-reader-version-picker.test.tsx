@@ -86,10 +86,7 @@ jest.mock('../bible-version-picker-sheet', () => {
       isOpen ? (
         <View testID="mock-version-picker-sheet">
           <Text testID="sheet-version-id">{String(versionId ?? 'none')}</Text>
-          <Pressable
-            testID="select-version"
-            onPress={() => onSelect?.(59)}
-          >
+          <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
             <Text>Select</Text>
           </Pressable>
           <Pressable testID="close-sheet" onPress={onClose}>
@@ -106,13 +103,8 @@ jest.mock('../native-sheet', () => {
   const { View } = require('react-native')
   return {
     ...actual,
-    NativeSheet: ({
-      isOpen,
-      children,
-    }: {
-      isOpen: boolean
-      children: ReactNode
-    }) => (isOpen ? <View testID="sheet">{children}</View> : null),
+    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
   }
 })
 
