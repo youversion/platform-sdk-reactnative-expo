@@ -315,7 +315,7 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
-    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#1f1d1d' })
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#121212' })
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
       { backgroundColor: '#ccc' },
       { backgroundColor: '#5a5757' },
@@ -675,6 +675,66 @@ describe('NativeSheet', () => {
 
       expect(getByText('Choose a version').props.style).toMatchObject({ color: 'black' })
       expect(getByText('Cancel').props.style).toMatchObject({ color: 'black' })
+    })
+  })
+
+  describe('bottom inset', () => {
+    beforeEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+      mockBottomInset = 24
+    })
+
+    it('colors the safe-area footer with bottomInsetColor', () => {
+      const { getByTestId } = render(
+        <SheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} bottomInsetColor="#f6f4f4">
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </SheetProvider>,
+      )
+
+      expect(getByTestId('native-sheet-bottom-inset').props.style).toMatchObject({
+        height: 24,
+        backgroundColor: '#f6f4f4',
+      })
+    })
+
+    it('leaves the footer uncolored (matching the surface) when no bottomInsetColor is given', () => {
+      const { getByTestId } = render(
+        <SheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} theme="light">
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </SheetProvider>,
+      )
+
+      const style = getByTestId('native-sheet-bottom-inset').props.style
+      expect(style).toMatchObject({ height: 24 })
+      expect(style.backgroundColor).toBeUndefined()
+    })
+
+    it('omits the footer when there is no safe-area inset', () => {
+      mockBottomInset = 0
+
+      const { queryByTestId } = render(
+        <SheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} bottomInsetColor="#f6f4f4">
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </SheetProvider>,
+      )
+
+      expect(queryByTestId('native-sheet-bottom-inset')).toBeNull()
     })
   })
 })

@@ -30,6 +30,10 @@ A **Native Sheet** requirement: before a sheet-opening user action, an inactive 
 Implementation note: inactive Gorhom hosts may remain mounted for pre-warming, but their native host is pushed below the visible viewport, with sheet chrome, gestures, pointer events, and accessibility exposure disabled until active.
 _Avoid_: Treating a closed sheet host as harmless just because `index={-1}`
 
+**Sheet Surface Parity**:
+A **Native Sheet** requirement: the sheet chrome (handle, rounded corners, header) and its footer must visually match the surfaces the Expo DOM WebView paints beneath them. The two are rendered by different engines but read as one continuous surface, so the chrome matches the WebView background and the footer beneath a search bar matches the WebView's muted search surface. The native color tokens therefore track the Web SDK's themed surfaces rather than being chosen independently.
+_Avoid_: Theming the sheet chrome on its own; treating the footer as the same color as the rest of the sheet
+
 **Native-Owned State**:
 State kept outside the Expo DOM runtime so it can coordinate native wrappers, sheets, and multiple DOM components.
 _Avoid_: Shared DOM state, WebView state
