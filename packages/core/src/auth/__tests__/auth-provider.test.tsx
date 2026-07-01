@@ -156,6 +156,71 @@ describe('AuthProvider — mount', () => {
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
+  it('re-sanitizes a placeholder avatarUrl cached by a pre-fix build', async () => {
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.cachedUserInfo,
+      JSON.stringify({ id: 'u1', name: 'Ada', avatarUrl: 'https://none/' }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(JSON.parse(getText('userInfo')).avatarUrl).toBeUndefined()
+  })
+
+  it('drops wrong-typed fields from a tampered/corrupt cached userInfo instead of trusting them', async () => {
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.cachedUserInfo,
+      JSON.stringify({ id: 42, name: { first: 'Ada' }, email: 'ada@example.com' }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(JSON.parse(getText('userInfo'))).toEqual({
+      id: undefined,
+      name: undefined,
+      email: 'ada@example.com',
+      avatarUrl: undefined,
+    })
+  })
+
+  it('returns null userInfo when cached JSON is a non-object (e.g. "null")', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(null))
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('userInfo')).toBe('null')
+  })
+
   it('triggers a refresh when the stored token is expired and applies the new tokens', async () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stale-access',

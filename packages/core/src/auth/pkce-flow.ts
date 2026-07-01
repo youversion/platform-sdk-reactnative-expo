@@ -55,6 +55,22 @@ export async function signInWithPKCE({
   const returnedState = returnedParams.get('state')
 
   if (error) {
+    // The auth page's Cancel button redirects back with error=access_denied
+    // (RFC 6749 §4.1.2.1). Treat that as a user-initiated cancel, not a failure.
+    // Error/cancel redirects carry no code to exchange, and servers may omit
+    // `state` on them (it's only RECOMMENDED per the RFC), so we don't gate
+    // these on state — a forged cancel is harmless (it just aborts sign-in).
+    // State is still validated below, before any token exchange on success.
+    //
+    // Note: `access_denied` is also the RFC code for a server-side denial (e.g.
+    // revoked app access, suspended account), not just a user tapping Cancel. We
+    // deliberately treat all `access_denied` as cancel — the standard OAuth
+    // client convention — because there's no reliable signal to distinguish the
+    // two and the safe fallback is to abort sign-in cleanly rather than surface
+    // an error for what is almost always a user-initiated cancel.
+    if (error === 'access_denied') {
+      return { kind: 'cancel' }
+    }
     throw new Error(
       `Authorization failed: ${error} ${returnedParams.get('error_description') ?? ''}`.trim(),
     )

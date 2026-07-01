@@ -1,4 +1,4 @@
-import { decodeIdToken, deriveUserInfo } from '../id-token'
+import { decodeIdToken, deriveUserInfo, sanitizeAvatarUrl } from '../id-token'
 
 function makeJwt(payload: unknown): string {
   const json = JSON.stringify(payload)
@@ -88,4 +88,53 @@ describe('deriveUserInfo', () => {
       avatarUrl: undefined,
     })
   })
+
+  it('drops a sentinel profile_picture URL (backend "no photo" placeholder)', () => {
+    const jwt = makeJwt({ sub: 'u1', profile_picture: 'https://none/' })
+    expect(deriveUserInfo(jwt).avatarUrl).toBeUndefined()
+  })
+})
+
+describe('sanitizeAvatarUrl', () => {
+  it('passes a valid https URL through unchanged', () => {
+    expect(sanitizeAvatarUrl('https://cdn.example.com/me.jpg')).toBe(
+      'https://cdn.example.com/me.jpg',
+    )
+  })
+
+  it('drops a non-https (http) URL — RN blocks cleartext image loads', () => {
+    expect(sanitizeAvatarUrl('http://cdn.example.com/me.jpg')).toBeUndefined()
+  })
+
+  it('trims surrounding whitespace', () => {
+    expect(sanitizeAvatarUrl('  https://cdn.example.com/me.jpg  ')).toBe(
+      'https://cdn.example.com/me.jpg',
+    )
+  })
+
+  it('keeps a real URL whose path merely contains a sentinel word', () => {
+    expect(sanitizeAvatarUrl('https://cdn.example.com/none.jpg')).toBe(
+      'https://cdn.example.com/none.jpg',
+    )
+  })
+
+  it.each([
+    ['https://none/', 'sentinel host'],
+    ['https://null/', 'sentinel host null'],
+    ['None', 'bare sentinel word'],
+    ['none', 'lowercase bare sentinel'],
+    ['', 'empty string'],
+    ['   ', 'whitespace only'],
+    ['ftp://cdn.example.com/me.jpg', 'non-http(s) scheme'],
+    ['not a url', 'unparseable'],
+  ])('returns undefined for %s (%s)', (input) => {
+    expect(sanitizeAvatarUrl(input)).toBeUndefined()
+  })
+
+  it.each([[null], [undefined], [false], [42], [{ x: 1 }]])(
+    'returns undefined for non-string value %p',
+    (input) => {
+      expect(sanitizeAvatarUrl(input)).toBeUndefined()
+    },
+  )
 })

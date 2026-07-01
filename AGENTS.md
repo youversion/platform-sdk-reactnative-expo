@@ -46,6 +46,12 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 - Example app requires `EXPO_PUBLIC_YOUVERSION_APP_KEY` in the environment or an `.env` file
 - Source entry (`"main": "src/index.ts"`) — Metro resolves TypeScript directly for local dev; publishing compiles to `build/` via `expo-module-scripts` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
 - **Expo Go is not supported** — requires a dev build
+- **Adding a native module (any new Expo/RN native dep in `packages/ui`, `packages/core`, or the example) requires rebuilding the dev client.** JS-only reload (`expo start --dev-client`) cannot link native code, so the installed binary goes stale. Symptom: a runtime redbox `Cannot find native module 'X'` even though the package is installed and appears in `ios/Podfile.lock`. Fix — regenerate native and relink (`apps/example/ios` is gitignored CNG output, so `--clean` is safe):
+  ```bash
+  cd apps/example
+  npx expo prebuild --clean -p ios && pnpm build:ios   # or -p android
+  ```
+  A plain `pnpm build:ios` (incremental) can miss it; when in doubt, `prebuild --clean`. Don't reach for `expo install --fix` — that only reconciles package versions, not a stale/unlinked pod.
 
 ## Key Architecture Notes
 

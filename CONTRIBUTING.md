@@ -59,6 +59,15 @@ cd apps/example
 pnpm exec expo start --dev-client
 ```
 
+> **Added a native dependency?** Rebuild the dev client. Restarting the dev server only reloads JS — it can't link new native code, so the installed app goes stale. The tell is a runtime redbox `Cannot find native module 'X'` even though the package is installed (and listed in `ios/Podfile.lock`). `apps/example/ios` is generated (gitignored), so a clean regen is safe:
+>
+> ```bash
+> cd apps/example
+> npx expo prebuild --clean -p ios && pnpm build:ios   # or -p android
+> ```
+>
+> This applies whenever a native module is added to `packages/ui`, `packages/core`, or the example app. `expo install --fix` won't help here — it only reconciles versions, not an unlinked pod.
+
 ## Useful Commands
 
 From the repo root:

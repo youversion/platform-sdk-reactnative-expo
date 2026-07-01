@@ -122,14 +122,50 @@ describe('signInWithPKCE — authorization URL', () => {
 })
 
 describe('signInWithPKCE — callback error + state CSRF', () => {
-  it('throws when the callback URL contains an error param', async () => {
+  it('returns { kind: "cancel" } when the callback carries error=access_denied (Cancel button)', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
     mockOpenAuthSession.mockResolvedValue({
       type: 'success',
       url: 'https://app/cb?state=STATE&error=access_denied&error_description=User+denied',
     })
+
+    const result = await signInWithPKCE(defaultProps())
+    expect(result).toEqual({ kind: 'cancel' })
+    expect(mockExpoFetch).not.toHaveBeenCalled()
+    expect(mockExchange).not.toHaveBeenCalled()
+  })
+
+  it('throws for a non-cancel error param', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?state=STATE&error=server_error&error_description=Service+unavailable',
+    })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
-      'Authorization failed: access_denied User denied',
+      'Authorization failed: server_error Service unavailable',
+    )
+  })
+
+  it('treats access_denied as cancel even when the server omits state', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?error=access_denied',
+    })
+
+    const result = await signInWithPKCE(defaultProps())
+    expect(result).toEqual({ kind: 'cancel' })
+    expect(mockExchange).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a non-cancel error even when the server omits state', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?error=server_error&error_description=Service+unavailable',
+    })
+    await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
+      'Authorization failed: server_error Service unavailable',
     )
   })
 
