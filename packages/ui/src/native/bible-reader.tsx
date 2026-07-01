@@ -16,6 +16,7 @@ import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks'
 import { withSheetDomDefaults } from '../lib'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
+import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
@@ -54,9 +55,9 @@ export type BibleReaderProps = Omit<
   | 'onSignOutPress'
   | 'onExternalLinkPress'
   | 'userInfo'
-  // The reader owns its own bottom scroll padding (it reads the safe-area bottom
-  // inset internally), so consumers don't pass it — it lives inside the WebView.
-  | 'bottomSafeArea'
+  // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
+  // so consumers don't pass it — it lives inside the WebView.
+  | 'bottomScrollPadding'
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -234,10 +235,11 @@ export function BibleReader({
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
 
-  // The reader pads its own scroll content by the safe-area bottom inset so the
-  // closing attribution clears a tab bar / home indicator. This inset lives
-  // inside the WebView, so the SDK owns it rather than the consumer.
+  // Pad scroll content inside the WebView so the closing copyright clears the
+  // native tab bar overlay and home indicator. NativeTabs adjusts ScrollViews
+  // automatically, but the reader opts out — clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
+  const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
   const readerDom = useMemo(
     () => ({
@@ -285,7 +287,7 @@ export function BibleReader({
           onExternalLinkPress={Platform.OS !== 'web' ? onExternalLinkPress : undefined}
           backgroundColor={backgroundColor}
           foregroundColor={foregroundColor}
-          bottomSafeArea={bottomSafeArea}
+          bottomScrollPadding={bottomScrollPadding}
           dom={readerDom}
         />
       </View>
