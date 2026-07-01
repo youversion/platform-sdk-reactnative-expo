@@ -61,6 +61,13 @@ export async function signInWithPKCE({
     // `state` on them (it's only RECOMMENDED per the RFC), so we don't gate
     // these on state — a forged cancel is harmless (it just aborts sign-in).
     // State is still validated below, before any token exchange on success.
+    //
+    // Note: `access_denied` is also the RFC code for a server-side denial (e.g.
+    // revoked app access, suspended account), not just a user tapping Cancel. We
+    // deliberately treat all `access_denied` as cancel — the standard OAuth
+    // client convention — because there's no reliable signal to distinguish the
+    // two and the safe fallback is to abort sign-in cleanly rather than surface
+    // an error for what is almost always a user-initiated cancel.
     if (error === 'access_denied') {
       return { kind: 'cancel' }
     }

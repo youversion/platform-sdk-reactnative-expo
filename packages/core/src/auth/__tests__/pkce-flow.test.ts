@@ -139,10 +139,10 @@ describe('signInWithPKCE — callback error + state CSRF', () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
     mockOpenAuthSession.mockResolvedValue({
       type: 'success',
-      url: 'https://app/cb?state=STATE&error=server_error&error_description=Boom',
+      url: 'https://app/cb?state=STATE&error=server_error&error_description=Service+unavailable',
     })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
-      'Authorization failed: server_error Boom',
+      'Authorization failed: server_error Service unavailable',
     )
   })
 
@@ -162,10 +162,10 @@ describe('signInWithPKCE — callback error + state CSRF', () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
     mockOpenAuthSession.mockResolvedValue({
       type: 'success',
-      url: 'https://app/cb?error=server_error&error_description=Boom',
+      url: 'https://app/cb?error=server_error&error_description=Service+unavailable',
     })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
-      'Authorization failed: server_error Boom',
+      'Authorization failed: server_error Service unavailable',
     )
   })
 
