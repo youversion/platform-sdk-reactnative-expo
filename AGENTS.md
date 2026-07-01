@@ -116,7 +116,8 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 ### TypeScript
 
 - Root `tsconfig.json` excludes `apps/example`
-- Each workspace has its own `tsconfig.json` extending root
+- Each workspace's `tsconfig.json` is its **build** config, extending `expo-module-scripts/tsconfig.base` (not the root) with `outDir: build` and tests excluded; a sibling `tsconfig.test.json` extends it to re-include tests for `pnpm typecheck` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
+- The base enables stricter flags (`verbatimModuleSyntax`, `noUncheckedIndexedAccess`) — use type-only imports and guard indexed access
 - `node-linker=hoisted` in `.npmrc` is required for Expo DOM + pnpm compatibility
 
 ## Exports
@@ -171,6 +172,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 ## Code Style
 
 - TypeScript strict mode
+- No non-null assertions (`x!`) in source — ESLint enforces `@typescript-eslint/no-non-null-assertion` as an error (relaxed in tests). Narrow with a guard instead
 - Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
