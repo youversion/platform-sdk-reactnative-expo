@@ -26,3 +26,14 @@ For **Sign in with YouVersion**, also register `yvp-rn-example://callback` as a 
 - **Verse of the Day** — Daily verse card
 - **Bible Card** — Embeddable Bible passage card
 - **Sign in with YouVersion Button** — Authentication with YouVersion
+
+## Troubleshooting
+
+If the dev client won't build or start, or you see peer-dependency version warnings — usually after a fresh install or an Expo SDK bump — your packages are likely out of sync with the SDK. Realign them to the versions Expo expects, then rebuild:
+
+```bash
+pnpm fix:deps          # runs: expo install --fix
+pnpm build:ios         # or: pnpm build:android
+```
+
+`expo install --fix` only realigns versions of packages already in `package.json`; it does not add missing peer dependencies. Run it any time you change the Expo SDK version.

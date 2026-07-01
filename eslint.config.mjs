@@ -6,7 +6,6 @@ export default [
   {
     ignores: [
       '**/node_modules/**',
-      '**/dist/**',
       '**/build/**',
       '**/.expo/**',
       '**/.turbo/**',
@@ -16,6 +15,22 @@ export default [
   },
   ...expoConfig,
   prettierConfig,
+  {
+    // Non-null assertions (`x!`) silently defeat noUncheckedIndexedAccess and
+    // strict null checks the same way `as` does. Narrow with a guard instead.
+    files: ['**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'error',
+    },
+  },
+  {
+    // Tests own their fixtures, so a non-null assertion on known-good data is
+    // an acceptable shortcut here.
+    files: ['**/__tests__/**', '**/*.test.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
   createNativeI18nFlatBlock({
     ignores: [
       'packages/ui/src/native/**/__tests__/**',

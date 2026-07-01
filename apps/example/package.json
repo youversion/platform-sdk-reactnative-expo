@@ -6,6 +6,7 @@
     "start": "expo start --dev-client",
     "start:clear-cache": "npx expo start -c",
     "clean:cache": "pnpm -w clean:cache",
+    "fix:deps": "expo install --fix",
     "web": "expo start --web",
     "prebuild": "expo prebuild --clean",
     "build:ios": "expo run:ios",

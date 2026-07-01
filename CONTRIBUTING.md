@@ -20,7 +20,7 @@ The sections below are for internal development of this repo.
 
 - Node.js >= 20
 - pnpm 9
-- Expo SDK 55
+- Expo SDK 56
 - A YouVersion Platform API key for running the example app
 - A dev build for native development; Expo Go is not supported
 
@@ -113,6 +113,6 @@ apps/example/  Expo Router app consuming both packages via workspace:*
 - **Provider setup**: `GestureHandlerRootView` must wrap `YouVersionProvider` so bottom-sheet gestures have the right native ancestor.
 - **Exports**: keep public exports in each package's `src/index.ts` barrel files. Auth hooks and types live in core; Bible components live in UI.
 - **Metro**: keep `apps/example/metro.config.js` minimal with `getDefaultConfig(__dirname)` only. Expo SDK 52+ handles monorepo support.
-- **Distribution**: packages are source-only. Metro resolves TypeScript directly so Expo can process `'use dom'` directives from package source.
+- **Distribution**: packages publish a compiled `build/` output via `expo-module-scripts` (`expo-module build`). Locally, Metro resolves TypeScript from source (`main` → `src/`); `publishConfig` swaps to `build/` at publish time. `tsc` preserves `'use dom'` and Expo processes it from compiled files. See [ADR 0011](./docs/adr/0011-compiled-distribution.md).
 - **Releases**: this repo uses [Changesets](https://github.com/changesets/changesets) — run `pnpm changeset` on any PR that should ship to npm. See [PUBLISHING.md](./PUBLISHING.md) for the full flow and [RELEASE-RUNBOOK.md](./RELEASE-RUNBOOK.md) for RN-specific failure modes (peer-dep skew, `workspace:*` rewrite).
 - **Native UI localization**: user-visible strings in `packages/ui/src/native/**` must use `useSdkTranslation()` and keys in `en.json` — see [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md).

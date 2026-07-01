@@ -52,7 +52,7 @@ Building AI applications with Bible content? Access YouVersion's LLM-optimized e
 
 ## Requirements
 
-- Expo SDK 55
+- Expo SDK 56
 - A YouVersion Platform API key ([Register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
@@ -80,10 +80,24 @@ npx expo install @gorhom/bottom-sheet @expo/dom-webview \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
-  react-native-safe-area-context react-native-svg react-native-webview
+  react-native-safe-area-context react-native-svg
 ```
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
+
+### Optional peer dependencies
+
+Install these only if your app needs them:
+
+```bash
+# Reanimated 4 splits worklets into a standalone package. Install it if your
+# app uses react-native-reanimated v4 (Expo SDK 56 ships v4 by default).
+npx expo install react-native-worklets
+
+# DOM components render in @expo/dom-webview by default. Install this only if
+# you opt a component out via dom={{ useExpoDOMWebView: false }}.
+npx expo install react-native-webview
+```
 
 See [`packages/ui/package.json`](./packages/ui/package.json) and [`packages/core/package.json`](./packages/core/package.json) `peerDependencies` for the canonical lists.
 

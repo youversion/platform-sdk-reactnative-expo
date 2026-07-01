@@ -17,7 +17,7 @@ pnpm install                          # install all workspace deps
 cd apps/example && pnpm build:ios     # build dev client (first time)
 cd apps/example && pnpm build:android # Android dev client alternative
 cd apps/example && pnpm exec expo start --dev-client  # start dev server (after build)
-pnpm build                            # turbo build task (source-only packages have no compile step)
+pnpm build                            # turbo build (expo-module build compiles each package to build/ for publish)
 pnpm typecheck                        # turbo typecheck (all packages)
 pnpm test                             # turbo test
 pnpm lint                             # eslint
@@ -44,7 +44,7 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
 - First native run: `cd apps/example && pnpm build:ios` (or `pnpm build:android`) — creates and installs a dev client with native modules
 - Subsequent runs: `cd apps/example && pnpm exec expo start --dev-client`
 - Example app requires `EXPO_PUBLIC_YOUVERSION_APP_KEY` in the environment or an `.env` file
-- Source entry (`"main": "src/index.ts"`) — no build step, Metro resolves TypeScript directly
+- Source entry (`"main": "src/index.ts"`) — Metro resolves TypeScript directly for local dev; publishing compiles to `build/` via `expo-module-scripts` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
 - **Expo Go is not supported** — requires a dev build
 
 ## Key Architecture Notes
@@ -116,7 +116,8 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 ### TypeScript
 
 - Root `tsconfig.json` excludes `apps/example`
-- Each workspace has its own `tsconfig.json` extending root
+- Each workspace's `tsconfig.json` is its **build** config, extending `expo-module-scripts/tsconfig.base` (not the root) with `outDir: build` and tests excluded; a sibling `tsconfig.test.json` extends it to re-include tests for `pnpm typecheck` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
+- The base enables stricter flags (`verbatimModuleSyntax`, `noUncheckedIndexedAccess`) — use type-only imports and guard indexed access
 - `node-linker=hoisted` in `.npmrc` is required for Expo DOM + pnpm compatibility
 
 ## Exports
@@ -171,6 +172,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 ## Code Style
 
 - TypeScript strict mode
+- No non-null assertions (`x!`) in source — ESLint enforces `@typescript-eslint/no-non-null-assertion` as an error (relaxed in tests). Narrow with a guard instead
 - Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
 - Use `expo install --fix` to resolve Expo package version conflicts
