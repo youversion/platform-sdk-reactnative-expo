@@ -77,13 +77,8 @@ export function BibleChapterPickerSheet({
       onClose={handleClose}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
-      backgroundColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
-      contentStyle={[
-        styles.content,
-        {
-          backgroundColor: SHEET_MUTED_BACKGROUND[resolvedTheme],
-        },
-      ]}
+      bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
+      contentStyle={styles.content}
       showHeader={true}
       headerTitle={t('booksHeading')}
     >

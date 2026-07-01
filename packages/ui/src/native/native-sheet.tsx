@@ -55,6 +55,10 @@ type NativeSheetProps = {
   loaderMinHeight?: number
   theme?: Theme
   backgroundColor?: string
+  // Colors only the safe-area footer strip (e.g. muted, behind a search bar).
+  // Meant for full-bleed content (paddingHorizontal: 0) so it lines up with the
+  // WebView's edge-to-edge surface. Absent → footer matches the sheet surface.
+  bottomInsetColor?: string
   showHeader?: boolean
   headerTitle?: string
 }
@@ -73,6 +77,7 @@ export function NativeSheet({
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
   theme,
   backgroundColor,
+  bottomInsetColor,
   showHeader = false,
   headerTitle,
 }: NativeSheetProps) {
@@ -117,6 +122,7 @@ export function NativeSheet({
         loaderMinHeight={loaderMinHeight}
         theme={theme}
         backgroundColor={backgroundColor}
+        bottomInsetColor={bottomInsetColor}
         showHeader={showHeader}
         headerTitle={headerTitle}
       >
@@ -138,6 +144,7 @@ function SheetHost({
   loaderMinHeight,
   theme,
   backgroundColor,
+  bottomInsetColor,
   showHeader,
   headerTitle,
 }: {
@@ -152,6 +159,7 @@ function SheetHost({
   loaderMinHeight: number
   theme?: Theme
   backgroundColor?: string
+  bottomInsetColor?: string
   showHeader?: boolean
   headerTitle?: string
 }) {
@@ -161,9 +169,12 @@ function SheetHost({
   const wasActiveRef = useRef(false)
   const lastOpenKeyRef = useRef(openKey)
   const closingRef = useRef(false)
+  // Safe-area spacing is rendered as a dedicated footer inset (below) rather
+  // than paddingBottom here, so it can carry its own color (bottomInsetColor)
+  // independent of the sheet surface.
   const bottomSheetContentStyle = useMemo(
-    () => StyleSheet.flatten([styles.content, { paddingBottom: bottom }, contentStyle]),
-    [bottom, contentStyle],
+    () => StyleSheet.flatten([styles.content, contentStyle]),
+    [contentStyle],
   )
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
@@ -311,6 +322,12 @@ function SheetHost({
               </View>
             )}
           </View>
+          {bottom > 0 && (
+            <View
+              testID="native-sheet-bottom-inset"
+              style={{ height: bottom, backgroundColor: bottomInsetColor }}
+            />
+          )}
         </BottomSheetView>
       </BottomSheet>
     </View>
