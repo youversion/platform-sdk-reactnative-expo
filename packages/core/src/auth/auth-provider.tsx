@@ -4,6 +4,7 @@ import { mmkvStorage } from '../storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { refreshTokens, TokenEndpointError } from './http'
+import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, YVUserInfo } from './types'
@@ -187,7 +188,12 @@ function loadCachedUserInfo(): YVUserInfo | null {
     if (!userJson) {
       return null
     }
-    return JSON.parse(userJson)
+    const cached = JSON.parse(userJson) as YVUserInfo
+    // Re-sanitize on read: userInfo cached by a build predating sanitizeAvatarUrl
+    // (or written directly from a raw claim) can still hold a placeholder like
+    // "https://none/". deriveUserInfo only runs at sign-in, so without this the
+    // stale value survives until the user re-authenticates.
+    return { ...cached, avatarUrl: sanitizeAvatarUrl(cached.avatarUrl) }
   } catch {
     return null
   }

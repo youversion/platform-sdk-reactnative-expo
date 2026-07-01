@@ -156,6 +156,27 @@ describe('AuthProvider — mount', () => {
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
+  it('re-sanitizes a placeholder avatarUrl cached by a pre-fix build', async () => {
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.cachedUserInfo,
+      JSON.stringify({ id: 'u1', name: 'Ada', avatarUrl: 'https://none/' }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(JSON.parse(getText('userInfo')).avatarUrl).toBeUndefined()
+  })
+
   it('triggers a refresh when the stored token is expired and applies the new tokens', async () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stale-access',
