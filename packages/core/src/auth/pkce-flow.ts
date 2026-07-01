@@ -54,14 +54,21 @@ export async function signInWithPKCE({
   const error = returnedParams.get('error')
   const returnedState = returnedParams.get('state')
 
+  // Validate state before acting on anything else so a forged redirect (e.g. a
+  // spoofed access_denied from another tab) can't cancel or fail a real flow.
+  if (returnedState !== state) {
+    throw new Error('State mismatch - possible CSRF attack')
+  }
+
   if (error) {
+    // The auth page's Cancel button redirects back with error=access_denied
+    // (RFC 6749 §4.1.2.1). Treat that as a user-initiated cancel, not a failure.
+    if (error === 'access_denied') {
+      return { kind: 'cancel' }
+    }
     throw new Error(
       `Authorization failed: ${error} ${returnedParams.get('error_description') ?? ''}`.trim(),
     )
-  }
-
-  if (returnedState !== state) {
-    throw new Error('State mismatch - possible CSRF attack')
   }
 
   const code = await obtainCodeFromCallback({ apiHost, callBackParams: returnedParams })

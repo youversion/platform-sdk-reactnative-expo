@@ -122,14 +122,38 @@ describe('signInWithPKCE — authorization URL', () => {
 })
 
 describe('signInWithPKCE — callback error + state CSRF', () => {
-  it('throws when the callback URL contains an error param', async () => {
+  it('returns { kind: "cancel" } when the callback carries error=access_denied (Cancel button)', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
     mockOpenAuthSession.mockResolvedValue({
       type: 'success',
       url: 'https://app/cb?state=STATE&error=access_denied&error_description=User+denied',
     })
+
+    const result = await signInWithPKCE(defaultProps())
+    expect(result).toEqual({ kind: 'cancel' })
+    expect(mockExpoFetch).not.toHaveBeenCalled()
+    expect(mockExchange).not.toHaveBeenCalled()
+  })
+
+  it('throws for a non-cancel error param', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?state=STATE&error=server_error&error_description=Boom',
+    })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
-      'Authorization failed: access_denied User denied',
+      'Authorization failed: server_error Boom',
+    )
+  })
+
+  it('rejects a spoofed access_denied with a mismatched state (state validated first)', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?state=WRONG&error=access_denied',
+    })
+    await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
+      'State mismatch - possible CSRF attack',
     )
   })
 
