@@ -4,7 +4,7 @@ import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { BibleAppLogo } from './bible-app-logo'
 
-type YouVersionAuthButtonProps = {
+export type YouVersionAuthButtonProps = {
   background?: 'light' | 'dark'
   radius?: 'rounded' | 'rectangular'
   outline?: boolean
