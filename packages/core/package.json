@@ -62,6 +62,6 @@
     "jest-expo": "56.0.5"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "4.4.3"
   }
 }
