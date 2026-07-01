@@ -11,7 +11,9 @@ These two issues live in the **auth website / backend**, not in the SDK. The SDK
 ## Bug A — `profile_picture` claim is set to a placeholder URL when the user has no photo
 
 ### Observed
-The id_token returned after sign-in contains a `profile_picture` claim of `https://none/` (and the bare string `None` has also been seen) for users who have no profile photo. This looks like a null/`None` value being serialized into a URL string instead of being omitted.
+The id_token returned after sign-in contains a `profile_picture` claim of `https://none/` (and `https:None` / the bare string `None` have also been seen) for users who have no profile photo. This looks like a null/`None` value being serialized into a URL string instead of being omitted.
+
+This is **reproducible server-side**: the `api.youversion.com` login *confirmation* screen renders the user's avatar directly from the same photo field, so it shows the broken placeholder image right on that page — no client app required. Same upstream root cause feeds both the confirmation-screen `<img>` and the id_token claim.
 
 ### Expected
 When a user has no profile photo, **omit the `profile_picture` claim entirely**. A JSON `null` is also acceptable. Never emit a placeholder host such as `none`, `null`, `undefined`, or `false`.
@@ -27,7 +29,13 @@ Every downstream consumer of the id_token receives a valid-looking but meaningle
 ## Bug B — The Cancel button on the auth page does nothing
 
 ### Observed
-On `https://<apiHost>/auth/authorize`, clicking **Cancel** has no effect. On native/mobile clients the auth page is opened in a system browser session (iOS `ASWebAuthenticationSession` / Android Custom Tab); because Cancel does not navigate anywhere, the user is stranded on the auth page and can only escape by manually dismissing the OS browser chrome.
+On `https://<apiHost>/auth/authorize`, clicking **Cancel** has no effect. The button is a dead anchor:
+
+```html
+<a href="#" class="alternate-link">Cancel</a>
+```
+
+`href="#"` just jumps to the top of the page — there is no navigation and (apparently) no JS click handler wiring it anywhere. On native/mobile clients the auth page is opened in a system browser session (iOS `ASWebAuthenticationSession` / Android Custom Tab); because Cancel does not navigate anywhere, the user is stranded on the auth page and can only escape by manually dismissing the OS browser chrome.
 
 ### Expected
 The Cancel button should redirect the browser to the request's `redirect_uri` with an OAuth cancellation signal, per **RFC 6749 §4.1.2.1**:
