@@ -102,8 +102,8 @@ describe('sanitizeAvatarUrl', () => {
     )
   })
 
-  it('passes a valid http URL through', () => {
-    expect(sanitizeAvatarUrl('http://cdn.example.com/me.jpg')).toBe('http://cdn.example.com/me.jpg')
+  it('drops a non-https (http) URL — RN blocks cleartext image loads', () => {
+    expect(sanitizeAvatarUrl('http://cdn.example.com/me.jpg')).toBeUndefined()
   })
 
   it('trims surrounding whitespace', () => {

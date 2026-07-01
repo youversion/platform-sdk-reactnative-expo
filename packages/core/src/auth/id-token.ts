@@ -38,8 +38,11 @@ export function deriveUserInfo(idToken: string): YVUserInfo {
 const AVATAR_SENTINELS = new Set(['', 'none', 'null', 'undefined', 'false'])
 
 // Return a usable avatar URL, or undefined when the claim is absent, a
-// sentinel, or not an http(s) URL. Defensive: the real fix is upstream (the
-// backend should omit the claim when there is no photo).
+// sentinel, or not an https URL. https-only is deliberate: iOS ATS and Android
+// cleartext-traffic defaults both block http image loads in RN apps, so an http
+// avatar would fail to render anyway — dropping it yields the safe undefined
+// fallback. Defensive: the real fix is upstream (the backend should omit the
+// claim when there is no photo).
 export function sanitizeAvatarUrl(value: unknown): string | undefined {
   if (typeof value !== 'string') {
     return undefined
@@ -55,7 +58,7 @@ export function sanitizeAvatarUrl(value: unknown): string | undefined {
   } catch {
     return undefined
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+  if (parsed.protocol !== 'https:') {
     return undefined
   }
   if (AVATAR_SENTINELS.has(parsed.hostname.toLowerCase())) {
