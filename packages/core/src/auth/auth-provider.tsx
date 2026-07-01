@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
+import { z } from 'zod'
 import { mmkvStorage } from '../storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
@@ -182,18 +183,32 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// Validate untrusted cached JSON instead of blindly casting it to YVUserInfo.
+// The cache can predate the current schema, be hand-tampered, or be corrupt, so
+// each identity field falls back to undefined if it isn't a string rather than
+// trusting `as` — a corrupt `id` won't discard a valid `email`. avatarUrl is
+// left unknown here and run through sanitizeAvatarUrl below: it not only enforces
+// the type but also drops placeholders (e.g. "https://none/") persisted by a
+// build predating sanitizeAvatarUrl, since deriveUserInfo only runs at sign-in.
+const cachedUserInfoSchema = z.object({
+  id: z.string().optional().catch(undefined),
+  name: z.string().optional().catch(undefined),
+  email: z.string().optional().catch(undefined),
+  avatarUrl: z.unknown().optional(),
+})
+
 function loadCachedUserInfo(): YVUserInfo | null {
   try {
     const userJson = mmkvStorage.getString(MMKV_AUTH_KEYS.cachedUserInfo)
     if (!userJson) {
       return null
     }
-    const cached = JSON.parse(userJson) as YVUserInfo
-    // Re-sanitize on read: userInfo cached by a build predating sanitizeAvatarUrl
-    // (or written directly from a raw claim) can still hold a placeholder like
-    // "https://none/". deriveUserInfo only runs at sign-in, so without this the
-    // stale value survives until the user re-authenticates.
-    return { ...cached, avatarUrl: sanitizeAvatarUrl(cached.avatarUrl) }
+    const parsed = cachedUserInfoSchema.safeParse(JSON.parse(userJson))
+    if (!parsed.success) {
+      return null
+    }
+    const { avatarUrl, ...identity } = parsed.data
+    return { ...identity, avatarUrl: sanitizeAvatarUrl(avatarUrl) }
   } catch {
     return null
   }
