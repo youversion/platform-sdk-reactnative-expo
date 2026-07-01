@@ -146,14 +146,26 @@ describe('signInWithPKCE — callback error + state CSRF', () => {
     )
   })
 
-  it('rejects a spoofed access_denied with a mismatched state (state validated first)', async () => {
+  it('treats access_denied as cancel even when the server omits state', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
     mockOpenAuthSession.mockResolvedValue({
       type: 'success',
-      url: 'https://app/cb?state=WRONG&error=access_denied',
+      url: 'https://app/cb?error=access_denied',
+    })
+
+    const result = await signInWithPKCE(defaultProps())
+    expect(result).toEqual({ kind: 'cancel' })
+    expect(mockExchange).not.toHaveBeenCalled()
+  })
+
+  it('surfaces a non-cancel error even when the server omits state', async () => {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({
+      type: 'success',
+      url: 'https://app/cb?error=server_error&error_description=Boom',
     })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
-      'State mismatch - possible CSRF attack',
+      'Authorization failed: server_error Boom',
     )
   })
 

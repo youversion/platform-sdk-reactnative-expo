@@ -37,7 +37,7 @@ The Cancel button should redirect the browser to the request's `redirect_uri` wi
 ```
 
 - `error=access_denied` is the standard signal for user-initiated cancellation.
-- **`state` must be echoed** with the exact value from the authorization request. Native clients validate `state` before acting on the redirect (CSRF protection); a cancel redirect that omits or changes `state` is rejected as a possible attack and the cancel is not honored.
+- **Please echo `state`** with the exact value from the authorization request. The SDK still honors a cancel that omits `state` (a cancel carries no code to exchange, so it's not gated on `state`), but echoing `state` keeps the redirect consistent with the success path, where the SDK validates `state` before exchanging the code for tokens (CSRF protection).
 
 ### Impact
 Native SDK clients cannot detect an in-page cancel. The only current escape is the OS-level browser dismiss, which is not discoverable and reads as the app being stuck.
