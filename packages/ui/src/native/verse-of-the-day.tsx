@@ -5,7 +5,7 @@ import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
 import { useTheme } from '../hooks/use-theme'
-import { withEmbedDomDefaults } from '../lib'
+import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 
 export type VerseOfTheDayProps = Omit<
   VerseOfTheDayDOMProps,

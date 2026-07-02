@@ -4,8 +4,8 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { ThemeContext } from '../hooks'
-import { LocaleProvider } from '../i18n'
+import { ThemeContext } from '../hooks/use-theme'
+import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
 import { NativeSheetProvider } from './native-sheet'
 

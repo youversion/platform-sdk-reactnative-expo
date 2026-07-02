@@ -11,7 +11,7 @@ import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
 
-jest.mock('../../storage', () => ({
+jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
     set: jest.fn((k: string, v: string) => {
       mockMmkv.set(k, v)

@@ -3,7 +3,7 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
 
-import { applySDKConfig } from '../lib'
+import { applySDKConfig } from '../lib/dom-apply'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 

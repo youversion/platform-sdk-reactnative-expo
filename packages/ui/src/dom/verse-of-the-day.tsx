@@ -2,7 +2,8 @@
 
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
-import { applySDKConfig, ContentSizedBody } from '../lib'
+import { applySDKConfig } from '../lib/dom-apply'
+import { ContentSizedBody } from '../lib/content-sized-body'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VerseOfTheDayProps = WebVerseOfTheDayProps & {

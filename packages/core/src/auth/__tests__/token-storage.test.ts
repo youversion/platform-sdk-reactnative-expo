@@ -1,11 +1,12 @@
-import { mmkvStorage, secureStorage } from '../../storage'
 import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from '../constants'
+import { mmkvStorage } from '../../storage/mmkv-storage'
+import { secureStorage } from '../../storage/secure-storage'
 import { loadTokens, saveTokens, type StoredTokens } from '../token-storage'
 
 const mockSecureStore = new Map<string, string>()
 const mockMmkv = new Map<string, string>()
 
-jest.mock('../../storage', () => ({
+jest.mock('../../storage/secure-storage', () => ({
   secureStorage: {
     get: jest.fn((k: string) => Promise.resolve(mockSecureStore.get(k) ?? null)),
     set: jest.fn((k: string, v: string) => {
@@ -17,6 +18,9 @@ jest.mock('../../storage', () => ({
       return Promise.resolve()
     }),
   },
+}))
+
+jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
     set: jest.fn((k: string, v: string) => {
       mockMmkv.set(k, v)

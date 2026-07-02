@@ -7,7 +7,7 @@ import BibleTextViewDOM from '../dom/bible-text-view'
 import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import FootnoteContent from '../dom/footnote-content'
 import { resolveTheme } from '../lib/resolve-theme'
-import { withSheetDomDefaults } from '../lib'
+import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
