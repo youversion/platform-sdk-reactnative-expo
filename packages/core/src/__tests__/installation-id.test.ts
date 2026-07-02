@@ -11,7 +11,7 @@ const mockMmkv = new Map<string, string>()
 // via the imported reference below.
 jest.mock('react-native', () => ({ Platform: { OS: 'ios' } }))
 
-jest.mock('../storage', () => ({
+jest.mock('../storage/mmkv-storage', () => ({
   mmkvStorage: {
     getString: jest.fn((k: string) => mockMmkv.get(k)),
     set: jest.fn((k: string, v: string) => {

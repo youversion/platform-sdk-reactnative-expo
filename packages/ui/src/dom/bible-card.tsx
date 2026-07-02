@@ -4,7 +4,8 @@ import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/plat
 import { BibleCard } from '@youversion/platform-react-ui'
 import type { ComponentType } from 'react'
 
-import { applySDKConfig, ContentSizedBody } from '../lib'
+import { applySDKConfig } from '../lib/dom-apply'
+import { ContentSizedBody } from '../lib/content-sized-body'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps

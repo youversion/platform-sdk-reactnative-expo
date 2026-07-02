@@ -35,15 +35,16 @@ export default function VersionPickerContentDOM({
 
   useDismissKeyboardOnClose(isOpen)
 
-  // Reset language-panel visibility whenever the picker remounts (resetKey
-  // bumps on each sheet open). setState-in-effect is the "reset on prop change"
-  // flow here; the alternative (adjusting state during render) trips
-  // react-hooks/refs instead, and a key-based remount would change the DOM
-  // component contract.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // Reset language-panel visibility whenever the picker reopens (resetKey bumps
+  // on each sheet open). Compare against the previous resetKey during render
+  // rather than in an effect so the panel never paints a stale frame. This keeps
+  // the panel DOM-owned (no key-based remount, which would change the DOM
+  // component contract). See https://react.dev/learn/you-might-not-need-an-effect
+  const [prevResetKey, setPrevResetKey] = useState(resetKey)
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
     setShowLanguagePicker(false)
-  }, [resetKey])
+  }
 
   useEffect(() => {
     const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')

@@ -10,7 +10,7 @@ import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
 import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { applyAuthToken, applySDKConfig } from '../lib'
+import { applyAuthToken, applySDKConfig } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
-import { mmkvStorage } from '../storage'
+import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { refreshTokens, TokenEndpointError } from './http'
@@ -88,6 +88,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     [apiHost, appKey, setAuthState, clearAuthState],
   )
 
+  // The bootstrap effect below runs once on mount but calls setAuthState /
+  // refreshToken / clearAuthState. Listing those as deps would re-run bootstrap
+  // (re-loading tokens from storage) whenever apiHost/appKey change, since that
+  // changes refreshToken's identity. Keep the latest callbacks in a ref so the
+  // mount-only effect can call them without capturing reactive values.
+  const authActionsRef = useRef({ setAuthState, refreshToken, clearAuthState })
+  useEffect(() => {
+    authActionsRef.current = { setAuthState, refreshToken, clearAuthState }
+  }, [setAuthState, refreshToken, clearAuthState])
+
   useEffect(() => {
     let cancelled = false
     async function init() {
@@ -97,6 +107,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           return
         }
 
+        const { setAuthState, refreshToken, clearAuthState } = authActionsRef.current
         if (stored.refreshToken) {
           await setAuthState(stored)
           await refreshToken()
@@ -117,9 +128,6 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     return () => {
       cancelled = true
     }
-    // Mount-only: refreshToken reads from refs, so a stale closure is safe and
-    // re-running this would re-load tokens from storage.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {

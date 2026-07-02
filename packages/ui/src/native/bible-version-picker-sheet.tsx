@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
@@ -32,16 +32,17 @@ export function BibleVersionPickerSheet({
   const { height } = useWindowDimensions()
 
   // Bump resetKey on each open so the DOM component remounts its picker tree,
-  // resetting scroll position, search query, and language filter state. Kept in
-  // state (not a ref) so the new value flows through render into resetKey
-  // without reading a ref during render (react-hooks/refs). The setState here
-  // is the "reset on prop change" flow; suppressing set-state-in-effect because
-  // the alternative (ref + render read) trips react-hooks/refs instead.
+  // resetting scroll position, search query, and language filter state. Detect
+  // the closed->open transition by comparing isOpen against its previous value
+  // during render (not in an effect), so the new resetKey flows straight into
+  // the child on the same commit without a stale intermediate frame.
+  // See https://react.dev/learn/you-might-not-need-an-effect
   const [resetKey, setResetKey] = useState(0)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const [wasOpen, setWasOpen] = useState(false)
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen)
     if (isOpen) setResetKey((k) => k + 1)
-  }, [isOpen])
+  }
 
   if (Platform.OS === 'web') return null
 

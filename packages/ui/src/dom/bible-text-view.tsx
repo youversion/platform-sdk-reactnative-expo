@@ -3,7 +3,7 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { BibleTextView } from '@youversion/platform-react-ui'
 
-import { applySDKConfig } from '../lib'
+import { applySDKConfig } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 

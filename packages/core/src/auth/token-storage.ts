@@ -1,4 +1,5 @@
-import { mmkvStorage, secureStorage } from '../storage'
+import { mmkvStorage } from '../storage/mmkv-storage'
+import { secureStorage } from '../storage/secure-storage'
 import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from './constants'
 
 export type StoredTokens = {
