@@ -1,35 +1,18 @@
 <!-- TODO: Banner image (e.g. ./assets/github-rn-sdk-banner.png) (tracking: [YPE-2833](https://lifechurch.atlassian.net/browse/YPE-2833)). -->
 
-![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
-
 # YouVersion Platform SDK for React Native (Expo)
 
-A React Native SDK for integrating with the YouVersion Platform, to display Bible content in Expo apps on iOS and Android.
+![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE)
 
-Built on top of the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`), wrapping web components as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/) while providing native affordances (bottom sheets, navigation, storage) through React Native.
-
-## For Different Use Cases
-
-### React Native SDK
-
-Building an Expo app for iOS or Android? This SDK provides React Native components including `BibleTextView`, `BibleCard`, `BibleReader`, and `VerseOfTheDay`, with native bottom-sheet presentation for mobile interactions.
-
-### API Integration
-
-Need direct access to YouVersion Platform APIs? See [our API documentation](https://developers.youversion.com/overview) for advanced integration patterns and REST endpoints.
-
-### LLM Integration
-
-Building AI applications with Bible content? Access YouVersion's LLM-optimized endpoints and structured data designed for language models. See [our LLM documentation](https://developers.youversion.com/for-llms) for details.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. It wraps the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/), adding native affordances (bottom sheets, navigation, storage) through React Native.
 
 ## Table of Contents
 
-- [For Different Use Cases](#for-different-use-cases)
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-  - [Expo](#expo)
 - [Getting Started](#getting-started)
+  - [Localization](#localization)
 - [Usage](#usage)
   - [Displaying Scripture](#displaying-scripture)
   - [Bible Reader](#bible-reader)
@@ -43,23 +26,21 @@ Building AI applications with Bible content? Access YouVersion's LLM-optimized e
 
 ## Features
 
-- 📖 **Scripture Display** - Drop-in React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- 📚 **Bible Reader** - A complete Bible reading experience inside your app with `BibleReader`, including built-in chapter and version pickers
-- 🌅 **Verse of the Day** - Built-in `VerseOfTheDay` component
-- 🔐 **Sign in** - Optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
-- 🎨 **Theming** - `light` / `dark` / `system` themes, with per-component overrides
-- 📱 **Native presentation** - Footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- **Scripture display**: React Native components for Bible passages with `BibleTextView` and `BibleCard`
+- **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
+- **Verse of the Day**: built-in `VerseOfTheDay` component
+- **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
+- **Theming**: `light` / `dark` / `system` themes, with per-component overrides
+- **Native presentation**: footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
 - Expo SDK 56
-- A YouVersion Platform API key ([Register here](https://platform.youversion.com/))
+- A YouVersion Platform API key ([register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
 
 ## Installation
-
-### Expo
 
 > [!NOTE]
 > This SDK is not yet published to npm. The install commands below are placeholders for the upcoming release.
@@ -131,13 +112,13 @@ export default function RootLayout() {
 
 ### Localization
 
-The SDK owns a private i18next instance for native UI strings (auth button labels, sheet loader accessibility). **By default**, native SDK copy follows the **device locale** (via bundled `expo-localization`). No extra setup is required:
+Native SDK strings (auth button labels, sheet loader accessibility) follow the **device locale** by default via bundled `expo-localization`. No setup is required:
 
 ```tsx
 <YouVersionProvider appKey={appKey}>{/* your app */}</YouVersionProvider>
 ```
 
-Pass an explicit **`locale`** when your app manages language (for example an in-app language picker) so SDK strings stay in sync with the rest of your UI:
+Pass an explicit **`locale`** when your app manages language (for example, an in-app language picker) so SDK strings stay in sync with the rest of your UI:
 
 ```tsx
 <YouVersionProvider appKey={appKey} locale={appLocale}>
@@ -197,7 +178,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets.
 
-#### Custom picker flows (escape hatch)
+#### Custom picker flows
 
 To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection:
 
@@ -224,7 +205,7 @@ function VotdScreen() {
 
 ### Sign In
 
-Authentication is optional. Pass an `auth` config to `YouVersionProvider`, register the same `redirectUri` in the [YouVersion Platform](https://platform.youversion.com/) console, and handle the OAuth redirect in your app (for example with an Expo Router screen at `app/callback.tsx`).
+Authentication is optional. Pass an `auth` config to `YouVersionProvider`, register the same `redirectUri` in the [YouVersion Platform](https://platform.youversion.com/) console, and handle the OAuth redirect in your app (for example, with an Expo Router screen at `app/callback.tsx`).
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
@@ -292,11 +273,10 @@ See the [Contributing Guide](./CONTRIBUTING.md) for additional local development
 
 ## Documentation
 
-<!-- TODO: Link to RN SDK page on developers.youversion.com once published (tracking: [YPE-2832](https://lifechurch.atlassian.net/browse/YPE-2832)). -->
-
-- [API Documentation](https://developers.youversion.com/overview) — REST API reference
-- [LLM Integration Guide](https://developers.youversion.com/for-llms) — AI/ML integration docs
-- [Sample Code](./apps/example) — Working examples and provider setup
+- [React Native (Expo) SDK Guide](https://developers.youversion.com/sdks/react-native-expo/quick-start): quick start and integration guide for this SDK
+- [API Documentation](https://developers.youversion.com/overview): REST API reference for advanced integration patterns and endpoints
+- [LLM Integration Guide](https://developers.youversion.com/for-llms): LLM-optimized Bible endpoints and structured data
+- [Sample Code](./apps/example): working example app and provider setup
 
 ## Contributing
 
