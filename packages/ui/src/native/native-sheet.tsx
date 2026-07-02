@@ -263,12 +263,9 @@ function SheetHost({
         pressBehavior="close"
         appearsOnIndex={0}
         disappearsOnIndex={-1}
-        onPress={() => {
-          onDismissKeyboardStart?.()
-        }}
       />
     ),
-    [onDismissKeyboardStart],
+    [],
   )
 
   return (

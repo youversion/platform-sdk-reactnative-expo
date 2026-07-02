@@ -766,7 +766,7 @@ describe('NativeSheet', () => {
       })
     })
 
-    it('calls onDismissKeyboardStart when the backdrop is pressed', async () => {
+    it('calls onDismissKeyboardStart once when the backdrop is pressed', async () => {
       const onDismissKeyboardStart = jest.fn()
 
       render(
@@ -782,8 +782,14 @@ describe('NativeSheet', () => {
       const backdrop = renderLatestBackdrop() as ReactElement<{ onPress?: () => void }>
       expect(backdrop).toBeTruthy()
 
+      const onAnimate = latestBottomSheetProps.onAnimate as
+        | ((fromIndex: number, toIndex: number) => void)
+        | undefined
+
+      // Backdrop press closes the sheet: pressBehavior="close" triggers onAnimate(0, -1).
       await act(async () => {
         backdrop.props.onPress?.()
+        onAnimate?.(0, -1)
       })
 
       expect(onDismissKeyboardStart).toHaveBeenCalledTimes(1)
