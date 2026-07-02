@@ -6,7 +6,7 @@ import type {
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -111,45 +111,35 @@ export function BibleReader({
     })),
   )
 
+
   const [book, setBook] = useControllableState({
     prop: controlledBook,
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
-    onChange: onBookChange,
+    onChange: (newBook) => {
+      if (controlledBook === undefined) setLocation({ book: newBook })
+      onBookChange?.(newBook)
+    },
   })
 
   const [chapter, setChapter] = useControllableState({
     prop: controlledChapter,
     defaultProp:
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
-    onChange: onChapterChange,
+    onChange: (newChapter) => {
+      if (controlledChapter === undefined) setLocation({ chapter: newChapter })
+      onChapterChange?.(newChapter)
+    },
   })
 
   const [versionId, setVersionId] = useControllableState({
     prop: controlledVersionId,
     defaultProp:
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
-    onChange: onVersionChange,
+    onChange: (newVersionId) => {
+      if (controlledVersionId === undefined) setLocation({ versionId: newVersionId })
+      onVersionChange?.(newVersionId)
+    },
   })
-
-  useEffect(() => {
-    const readerLocationToPersist: { book?: string; chapter?: string; versionId?: number } = {}
-    if (controlledBook === undefined && book != null) readerLocationToPersist.book = book
-    if (controlledChapter === undefined && chapter != null) {
-      readerLocationToPersist.chapter = chapter
-    }
-    if (controlledVersionId === undefined && versionId != null) {
-      readerLocationToPersist.versionId = versionId
-    }
-    if (Object.keys(readerLocationToPersist).length > 0) setLocation(readerLocationToPersist)
-  }, [
-    book,
-    chapter,
-    versionId,
-    controlledBook,
-    controlledChapter,
-    controlledVersionId,
-    setLocation,
-  ])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
