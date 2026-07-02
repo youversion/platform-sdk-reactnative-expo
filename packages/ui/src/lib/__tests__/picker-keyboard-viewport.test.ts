@@ -174,6 +174,7 @@ describe('attachPickerKeyboardViewportListeners', () => {
     viewport.dispatch('resize')
 
     expect(root.style.getPropertyValue('--yv-visible-height')).toBe('800px')
+    expect(root.style.getPropertyValue('--yv-viewport-offset-top')).toBe('0px')
 
     // Sheet closes again: the hidden-height report must not collapse the shell.
     viewport.setMetrics({ height: 0, offsetTop: 0 })
