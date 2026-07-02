@@ -2,6 +2,7 @@ import {
   attachPickerKeyboardViewportListeners,
   getPickerViewportCssProperties,
   getPickerViewportMetrics,
+  isPickerViewportHidden,
 } from '../picker-keyboard-viewport'
 
 function createMockRoot() {
@@ -11,6 +12,9 @@ function createMockRoot() {
     style: {
       setProperty(name: string, value: string) {
         styles.set(name, value)
+      },
+      removeProperty(name: string) {
+        styles.delete(name)
       },
       getPropertyValue(name: string) {
         return styles.get(name) ?? ''
@@ -102,6 +106,18 @@ describe('getPickerViewportCssProperties', () => {
   })
 })
 
+describe('isPickerViewportHidden', () => {
+  it('treats the Android offscreen-WebView heights as hidden', () => {
+    expect(isPickerViewportHidden({ height: 0 })).toBe(true)
+    expect(isPickerViewportHidden({ height: 4 })).toBe(true)
+  })
+
+  it('treats a keyboard-shrunk viewport as visible', () => {
+    expect(isPickerViewportHidden({ height: 300 })).toBe(false)
+    expect(isPickerViewportHidden({ height: 800 })).toBe(false)
+  })
+})
+
 describe('attachPickerKeyboardViewportListeners', () => {
   const originalVisualViewport = window.visualViewport
   const originalInnerHeight = window.innerHeight
@@ -134,6 +150,37 @@ describe('attachPickerKeyboardViewportListeners', () => {
 
     expect(root.style.getPropertyValue('--yv-visible-height')).toBe('400px')
     expect(root.style.getPropertyValue('--yv-viewport-offset-top')).toBe('50px')
+
+    cleanup()
+  })
+
+  it('clears the CSS properties while the WebView viewport reports a hidden height', () => {
+    const root = createMockRoot()
+    // Android inert sheet host: pre-warmed WebView reports height 0.
+    const viewport = createMockVisualViewport({ height: 0, offsetTop: 0 })
+
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+
+    const cleanup = attachPickerKeyboardViewportListeners(root)
+
+    // Stylesheet defaults (100vh / 0px) must win, so the shell is laid out at
+    // full height before the sheet ever becomes visible.
+    expect(root.style.getPropertyValue('--yv-visible-height')).toBe('')
+    expect(root.style.getPropertyValue('--yv-viewport-offset-top')).toBe('')
+
+    // Sheet opens: the WebView becomes visible and fires resize with real metrics.
+    viewport.setMetrics({ height: 800, offsetTop: 0 })
+    viewport.dispatch('resize')
+
+    expect(root.style.getPropertyValue('--yv-visible-height')).toBe('800px')
+
+    // Sheet closes again: the hidden-height report must not collapse the shell.
+    viewport.setMetrics({ height: 0, offsetTop: 0 })
+    viewport.dispatch('resize')
+
+    expect(root.style.getPropertyValue('--yv-visible-height')).toBe('')
+    expect(root.style.getPropertyValue('--yv-viewport-offset-top')).toBe('')
 
     cleanup()
   })
