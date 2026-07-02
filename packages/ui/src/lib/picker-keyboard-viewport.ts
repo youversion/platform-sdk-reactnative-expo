@@ -54,6 +54,13 @@ export function syncPickerKeyboardViewport(root: HTMLElement, viewport: VisualVi
   }
 }
 
+/** Re-apply viewport CSS from the current visualViewport (e.g. after sheet re-open). */
+export function resyncPickerKeyboardViewport(root: HTMLElement): void {
+  const viewport = window.visualViewport
+  if (!viewport) return
+  syncPickerKeyboardViewport(root, viewport)
+}
+
 export function attachPickerKeyboardViewportListeners(root: HTMLElement): () => void {
   const viewport = window.visualViewport
   if (!viewport) return () => {}

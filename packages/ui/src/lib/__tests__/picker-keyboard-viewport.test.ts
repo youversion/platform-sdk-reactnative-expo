@@ -2,6 +2,7 @@ import {
   attachPickerKeyboardViewportListeners,
   getPickerViewportCssProperties,
   getPickerViewportMetrics,
+  resyncPickerKeyboardViewport,
   isPickerViewportHidden,
 } from '../picker-keyboard-viewport'
 
@@ -209,6 +210,49 @@ describe('attachPickerKeyboardViewportListeners', () => {
 
     viewport.setMetrics({ height: 400, offsetTop: 0 })
     viewport.dispatch('resize')
+
+    expect(root.style.getPropertyValue('--yv-visible-height')).toBe('800px')
+  })
+})
+
+describe('resyncPickerKeyboardViewport', () => {
+  const originalVisualViewport = window.visualViewport
+  const originalInnerHeight = window.innerHeight
+
+  afterEach(() => {
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: originalVisualViewport,
+    })
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: originalInnerHeight,
+    })
+  })
+
+  it('re-applies CSS from the current visualViewport (stale values reset)', () => {
+    const root = createMockRoot()
+    const viewport = createMockVisualViewport({ height: 400, offsetTop: 50 })
+
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport })
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 800 })
+
+    root.style.setProperty('--yv-visible-height', '800px')
+    root.style.setProperty('--yv-viewport-offset-top', '0px')
+
+    resyncPickerKeyboardViewport(root)
+
+    expect(root.style.getPropertyValue('--yv-visible-height')).toBe('400px')
+    expect(root.style.getPropertyValue('--yv-viewport-offset-top')).toBe('50px')
+  })
+
+  it('is a no-op when visualViewport is undefined', () => {
+    const root = createMockRoot()
+    root.style.setProperty('--yv-visible-height', '800px')
+
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: undefined })
+
+    resyncPickerKeyboardViewport(root)
 
     expect(root.style.getPropertyValue('--yv-visible-height')).toBe('800px')
   })

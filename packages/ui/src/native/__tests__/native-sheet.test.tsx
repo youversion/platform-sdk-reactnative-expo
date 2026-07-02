@@ -1,5 +1,5 @@
 import { act, render, userEvent } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 import { Platform, Text, View } from 'react-native'
 
 import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
@@ -33,10 +33,12 @@ jest.mock('@gorhom/bottom-sheet', () => {
       {
         children,
         onChange,
+        onAnimate,
         ...props
       }: {
         children: ReactNode
         onChange?: (index: number) => void
+        onAnimate?: (fromIndex: number, toIndex: number) => void
         [key: string]: unknown
       },
       ref: React.Ref<{ close: () => void; snapToIndex: (index: number) => void }>,
@@ -45,9 +47,12 @@ jest.mock('@gorhom/bottom-sheet', () => {
       // intentional test infra, so the react-hooks/globals rule is scoped off
       // for this assignment.
       // eslint-disable-next-line react-hooks/globals
-      latestBottomSheetProps = props
+      latestBottomSheetProps = { ...props, onChange, onAnimate }
       React.useImperativeHandle(ref, () => ({
-        close: () => onChange?.(-1),
+        close: () => {
+          onAnimate?.(0, -1)
+          onChange?.(-1)
+        },
         snapToIndex: (index: number) => onChange?.(index),
       }))
       return <View testID="bottom-sheet">{children}</View>
@@ -58,7 +63,21 @@ jest.mock('@gorhom/bottom-sheet', () => {
   return {
     __esModule: true,
     default: MockBottomSheet,
-    BottomSheetBackdrop: () => <View testID="bottom-sheet-backdrop" />,
+    BottomSheetBackdrop: ({
+      onPress,
+      ...props
+    }: {
+      onPress?: () => void
+      [key: string]: unknown
+    }) => (
+      <View
+        testID="bottom-sheet-backdrop"
+        {...props}
+        onTouchEnd={() => {
+          onPress?.()
+        }}
+      />
+    ),
     BottomSheetView: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
       <View testID="bottom-sheet-view" {...props}>
         {children}
@@ -115,7 +134,7 @@ describe('NativeSheet', () => {
     const BackdropComponent = latestBottomSheetProps.backdropComponent as
       | ((props: Record<string, unknown>) => ReactNode)
       | undefined
-    return BackdropComponent?.({})
+    return BackdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
   afterEach(() => {
@@ -735,6 +754,69 @@ describe('NativeSheet', () => {
       )
 
       expect(queryByTestId('native-sheet-bottom-inset')).toBeNull()
+    })
+  })
+
+  describe('dismiss keyboard start', () => {
+    beforeEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+    })
+
+    it('calls onDismissKeyboardStart once when the backdrop is pressed', async () => {
+      const onDismissKeyboardStart = jest.fn()
+
+      render(
+        <SheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} onDismissKeyboardStart={onDismissKeyboardStart}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </SheetProvider>,
+      )
+
+      const backdrop = renderLatestBackdrop() as ReactElement<{ onPress?: () => void }>
+      expect(backdrop).toBeTruthy()
+
+      const onAnimate = latestBottomSheetProps.onAnimate as
+        | ((fromIndex: number, toIndex: number) => void)
+        | undefined
+
+      // Backdrop press closes the sheet: pressBehavior="close" triggers onAnimate(0, -1).
+      await act(async () => {
+        backdrop.props.onPress?.()
+        onAnimate?.(0, -1)
+      })
+
+      expect(onDismissKeyboardStart).toHaveBeenCalledTimes(1)
+    })
+
+    it('calls onDismissKeyboardStart when a pan-down close animation begins', async () => {
+      const onDismissKeyboardStart = jest.fn()
+
+      render(
+        <SheetProvider>
+          <View>
+            <NativeSheet isOpen={true} onClose={() => {}} onDismissKeyboardStart={onDismissKeyboardStart}>
+              <Text testID="sheet-content">Sheet content</Text>
+            </NativeSheet>
+          </View>
+        </SheetProvider>,
+      )
+
+      const onAnimate = latestBottomSheetProps.onAnimate as
+        | ((fromIndex: number, toIndex: number) => void)
+        | undefined
+
+      await act(async () => {
+        onAnimate?.(0, -1)
+      })
+
+      expect(onDismissKeyboardStart).toHaveBeenCalledTimes(1)
     })
   })
 })
