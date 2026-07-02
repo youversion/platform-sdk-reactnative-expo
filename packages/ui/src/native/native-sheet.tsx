@@ -49,6 +49,8 @@ type NativeSheetProps = {
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
   onClose: () => void
+  // Fired when a backdrop tap or pan-down close animation starts, before onClose.
+  onDismissKeyboardStart?: () => void
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
@@ -72,6 +74,7 @@ export function NativeSheet({
   contentStyle,
   enableContentPanningGesture,
   onClose,
+  onDismissKeyboardStart,
   children,
   showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
@@ -118,6 +121,7 @@ export function NativeSheet({
         contentStyle={contentStyle}
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
+        onDismissKeyboardStart={onDismissKeyboardStart}
         showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
         theme={theme}
@@ -139,6 +143,7 @@ function SheetHost({
   contentStyle,
   enableContentPanningGesture,
   onClose,
+  onDismissKeyboardStart,
   children,
   showAndroidLoader,
   loaderMinHeight,
@@ -154,6 +159,7 @@ function SheetHost({
   contentStyle?: StyleProp<ViewStyle>
   enableContentPanningGesture?: boolean
   onClose: () => void
+  onDismissKeyboardStart?: () => void
   children: React.ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
@@ -243,6 +249,28 @@ function SheetHost({
     [onClose],
   )
 
+  const handleSheetAnimate = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (toIndex === -1 && fromIndex >= 0) onDismissKeyboardStart?.()
+    },
+    [onDismissKeyboardStart],
+  )
+
+  const renderSheetBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop
+        {...props}
+        pressBehavior="close"
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        onPress={() => {
+          onDismissKeyboardStart?.()
+        }}
+      />
+    ),
+    [onDismissKeyboardStart],
+  )
+
   return (
     <View
       testID="native-sheet-inert-host"
@@ -265,7 +293,7 @@ function SheetHost({
         enableContentPanningGesture={
           suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
         }
-        backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderBackdrop}
+        backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderSheetBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}
@@ -273,6 +301,7 @@ function SheetHost({
         accessibilityElementsHidden={suppressInactiveSheet}
         importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
         onChange={handleSheetChange}
+        onAnimate={handleSheetAnimate}
         style={styles.sheet}
         handleIndicatorStyle={handleIndicatorStyle}
       >
@@ -333,10 +362,6 @@ function SheetHost({
     </View>
   )
 }
-
-const renderBackdrop = (props: BottomSheetBackdropProps) => (
-  <BottomSheetBackdrop {...props} pressBehavior="close" appearsOnIndex={0} disappearsOnIndex={-1} />
-)
 
 const renderNoBackdrop = () => null
 

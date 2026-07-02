@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
@@ -39,6 +39,10 @@ export function BibleVersionPickerSheet({
   // See https://react.dev/learn/you-might-not-need-an-effect
   const [resetKey, setResetKey] = useState(0)
   const [wasOpen, setWasOpen] = useState(false)
+  const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
+  const handleDismissKeyboardStart = useCallback(() => {
+    setDismissKeyboardNonce((n) => n + 1)
+  }, [])
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
     if (isOpen) setResetKey((k) => k + 1)
@@ -68,6 +72,7 @@ export function BibleVersionPickerSheet({
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      onDismissKeyboardStart={handleDismissKeyboardStart}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
       bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
@@ -83,6 +88,7 @@ export function BibleVersionPickerSheet({
           theme={resolvedTheme}
           resetKey={resetKey}
           isOpen={isOpen}
+          dismissKeyboardNonce={dismissKeyboardNonce}
           onVersionChange={handleVersionChange}
         />
       </View>
