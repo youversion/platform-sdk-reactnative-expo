@@ -110,9 +110,11 @@ describe('isPickerViewportHidden', () => {
   it('treats the Android offscreen-WebView heights as hidden', () => {
     expect(isPickerViewportHidden({ height: 0 })).toBe(true)
     expect(isPickerViewportHidden({ height: 4 })).toBe(true)
+    expect(isPickerViewportHidden({ height: 49 })).toBe(true) // one below the floor
   })
 
   it('treats a keyboard-shrunk viewport as visible', () => {
+    expect(isPickerViewportHidden({ height: 50 })).toBe(false) // exactly at the floor
     expect(isPickerViewportHidden({ height: 300 })).toBe(false)
     expect(isPickerViewportHidden({ height: 800 })).toBe(false)
   })
