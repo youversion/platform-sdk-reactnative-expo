@@ -24,7 +24,28 @@ export function getPickerViewportCssProperties(
   }
 }
 
+// Android reports visualViewport.height as 0 (or a few px mid-animation) while
+// the WebView sits in an offscreen inert sheet host (ADR 0006). Writing that
+// value would collapse the picker shell to 0px, and the correcting resize event
+// only fires after the sheet is already visible — a jarring layout jump on
+// open. No real keyboard-shrunk viewport is ever this short, so heights below
+// this floor mean "viewport metrics unavailable".
+export const MIN_PICKER_VIEWPORT_HEIGHT = 50
+
+export function isPickerViewportHidden(viewport: Pick<VisualViewport, 'height'>): boolean {
+  return viewport.height < MIN_PICKER_VIEWPORT_HEIGHT
+}
+
 export function syncPickerKeyboardViewport(root: HTMLElement, viewport: VisualViewport): void {
+  if (isPickerViewportHidden(viewport)) {
+    // Fall back to the stylesheet defaults (100vh / 0px) so the pre-warmed
+    // layout is already correct when the sheet opens; real metrics re-sync via
+    // the resize listener once the WebView is visible.
+    root.style.removeProperty('--yv-visible-height')
+    root.style.removeProperty('--yv-viewport-offset-top')
+    return
+  }
+
   const metrics = getPickerViewportMetrics(window.innerHeight, viewport)
   const properties = getPickerViewportCssProperties(metrics)
 
