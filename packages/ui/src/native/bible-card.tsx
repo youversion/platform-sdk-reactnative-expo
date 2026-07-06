@@ -1,7 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
@@ -71,13 +71,11 @@ export function BibleCard({
     defaultProp: isControlled
       ? defaultVersionId
       : (storedVersionId ?? controlledVersionId ?? defaultVersionId),
-    onChange: onVersionChange,
+    onChange: (newVersionId) => {
+      if (!isControlled) setStoredVersionId(newVersionId)
+      onVersionChange?.(newVersionId)
+    },
   })
-
-  useEffect(() => {
-    if (isControlled || versionId == null) return
-    setStoredVersionId(versionId)
-  }, [versionId, isControlled, setStoredVersionId])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)

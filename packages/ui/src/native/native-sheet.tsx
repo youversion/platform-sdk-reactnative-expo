@@ -196,6 +196,15 @@ function SheetHost({
   // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
   const isAndroidLoaderEnabled = showAndroidLoader && Platform.OS === 'android'
   const [isSheetContentReady, setIsSheetContentReady] = useState(!isAndroidLoaderEnabled)
+  // Re-show the loader when new content arrives (openKey bump). Adjusted during
+  // render (not in the effect below) so the sheet never paints a frame with the
+  // previous content marked ready. See
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevLoaderOpenKey, setPrevLoaderOpenKey] = useState(openKey)
+  if (openKey !== prevLoaderOpenKey) {
+    setPrevLoaderOpenKey(openKey)
+    if (isAndroidLoaderEnabled) setIsSheetContentReady(false)
+  }
   const handleContentLayout = useCallback(
     (event: LayoutChangeEvent) => {
       if (!isAndroidLoaderEnabled) return
@@ -222,8 +231,6 @@ function SheetHost({
     // A second footnote tap may keep isActive=true, so use openKey to snap open
     // again even when the boolean state did not change.
     const openKeyChanged = openKey !== lastOpenKeyRef.current
-    // Re-show the loader when new content arrives (openKey bump).
-    if (isAndroidLoaderEnabled && openKeyChanged) setIsSheetContentReady(false)
     if (isActive && (!wasActiveRef.current || openKeyChanged)) {
       closingRef.current = false
       sheetRef.current?.snapToIndex(0)
@@ -235,7 +242,7 @@ function SheetHost({
     }
     wasActiveRef.current = isActive
     lastOpenKeyRef.current = openKey
-  }, [isActive, isOpen, openKey, onClose, isAndroidLoaderEnabled])
+  }, [isActive, isOpen, openKey, onClose])
 
   const handleSheetChange = useCallback(
     (index: number) => {
