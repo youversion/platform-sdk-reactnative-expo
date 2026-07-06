@@ -1,6 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
@@ -45,6 +45,10 @@ export function BibleChapterPickerSheet({
   // filter state before the next open. Done in the close handler (an event)
   // rather than an effect — see https://react.dev/learn/you-might-not-need-an-effect.
   const [resetKey, setResetKey] = useState(0)
+  const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
+  const handleDismissKeyboardStart = useCallback(() => {
+    setDismissKeyboardNonce((n) => n + 1)
+  }, [])
 
   const handleClose = () => {
     setResetKey((k) => k + 1)
@@ -75,6 +79,7 @@ export function BibleChapterPickerSheet({
     <NativeSheet
       isOpen={isOpen}
       onClose={handleClose}
+      onDismissKeyboardStart={handleDismissKeyboardStart}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
       bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
@@ -91,6 +96,7 @@ export function BibleChapterPickerSheet({
           versionId={versionId}
           theme={resolvedTheme}
           isOpen={isOpen}
+          dismissKeyboardNonce={dismissKeyboardNonce}
           resetKey={resetKey}
           onSelect={handleSelect}
         />

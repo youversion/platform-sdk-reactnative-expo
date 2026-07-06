@@ -7,8 +7,11 @@ import {
 } from '@youversion/platform-react-ui'
 import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
 
-import { useDismissKeyboardOnClose } from '../lib/dom-dismiss-keyboard'
-import { attachPickerKeyboardViewportListeners } from '../lib/picker-keyboard-viewport'
+import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
+import {
+  attachPickerKeyboardViewportListeners,
+  resyncPickerKeyboardViewport,
+} from '../lib/picker-keyboard-viewport'
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -19,6 +22,8 @@ export type VersionPickerContentDOMProps = {
   resetKey?: number
   // Drives WebView keyboard dismissal on close; the native sheet flips this.
   isOpen?: boolean
+  // Incremented when backdrop/pan-down dismiss starts, before isOpen flips false.
+  dismissKeyboardNonce?: number
   onVersionChange?: (versionId: number) => Promise<void>
   dom?: import('expo/dom').DOMProps
 }
@@ -29,11 +34,13 @@ export default function VersionPickerContentDOM({
   theme = 'light',
   resetKey,
   isOpen,
+  dismissKeyboardNonce,
   onVersionChange,
 }: VersionPickerContentDOMProps) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
   useDismissKeyboardOnClose(isOpen)
+  useDismissKeyboardOnSignal(dismissKeyboardNonce)
 
   // Reset language-panel visibility whenever the picker reopens (resetKey bumps
   // on each sheet open). Compare against the previous resetKey during render
@@ -52,6 +59,13 @@ export default function VersionPickerContentDOM({
 
     return attachPickerKeyboardViewportListeners(root)
   }, [])
+
+  useEffect(() => {
+    if (!isOpen) return
+    const root = document.querySelector<HTMLElement>('[data-yv-version-picker-shell]')
+    if (!root) return
+    resyncPickerKeyboardViewport(root)
+  }, [isOpen])
 
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>

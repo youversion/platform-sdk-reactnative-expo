@@ -19,13 +19,32 @@ import { useEffect, useRef } from 'react'
  * Only call this from `'use dom'` components; it relies on the DOM runtime's
  * `document` / `HTMLElement`.
  */
+export function blurActiveDomElement(): void {
+  const active = document.activeElement
+  if (active instanceof HTMLElement) active.blur()
+}
+
 export function useDismissKeyboardOnClose(isOpen: boolean | undefined): void {
   const prevIsOpen = useRef<boolean | undefined>(undefined)
   useEffect(() => {
     const wasOpen = prevIsOpen.current
     prevIsOpen.current = isOpen
     if (wasOpen !== true || isOpen !== false) return
-    const active = document.activeElement
-    if (active instanceof HTMLElement) active.blur()
+    blurActiveDomElement()
   }, [isOpen])
+}
+
+/**
+ * Blur the focused DOM element when a native dismiss gesture starts (backdrop
+ * tap, pan-down) before `isOpen` flips false at animation end.
+ */
+export function useDismissKeyboardOnSignal(signal: number | undefined): void {
+  const prevSignal = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (signal === undefined) return
+    const prev = prevSignal.current
+    prevSignal.current = signal
+    if (prev === undefined || signal === prev) return
+    blurActiveDomElement()
+  }, [signal])
 }
