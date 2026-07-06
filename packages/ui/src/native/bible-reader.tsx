@@ -111,7 +111,6 @@ export function BibleReader({
     })),
   )
 
-
   const [book, setBook] = useControllableState({
     prop: controlledBook,
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
