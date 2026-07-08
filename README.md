@@ -1,4 +1,4 @@
-<!-- TODO: Banner image (e.g. ./assets/github-rn-sdk-banner.png) (tracking: [YPE-2833](https://lifechurch.atlassian.net/browse/YPE-2833)). -->
+![YouVersion Platform React Native Expo SDK](./assets/github-rn-sdk-banner.png)
 
 # YouVersion Platform SDK for React Native (Expo)
 
