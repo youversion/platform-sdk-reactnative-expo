@@ -324,12 +324,20 @@ function SheetHost({
                 paddingHorizontal: 16,
               }}
             >
-              <Pressable onPress={onClose} accessibilityRole="button" style={{ flex: 1 }}>
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel={t('cancel')}
+                testID="native-sheet-cancel-button"
+                style={{ flex: 1 }}
+              >
                 <Text style={{ color: theme === 'dark' ? 'white' : 'black', fontSize: 16 }}>
                   {t('cancel')}
                 </Text>
               </Pressable>
               <Text
+                accessibilityLabel={headerTitle}
+                testID="native-sheet-header-title"
                 style={{
                   color: theme === 'dark' ? 'white' : 'black',
                   fontSize: 16,
