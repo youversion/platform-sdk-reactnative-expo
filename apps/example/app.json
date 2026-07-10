@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "example",
+    "name": "SampleApp",
     "slug": "example",
     "version": "1.0.0",
     "scheme": "yvp-rn-example",
@@ -23,10 +23,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.youversion.platform"
+      "bundleIdentifier": "com.youversion.platform.example"
     },
     "android": {
-      "package": "com.youversion.platform",
+      "package": "com.youversion.platform.example",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
