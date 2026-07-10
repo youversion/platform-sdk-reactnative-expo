@@ -18,7 +18,7 @@ The sections below are for internal development of this repo.
 
 ### Prerequisites
 
-- Node.js >= 20
+- Node.js >= 24
 - pnpm 9
 - Expo SDK 56
 - A YouVersion Platform API key for running the example app

@@ -128,7 +128,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`
+**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, `YouVersionAuthButton`
 
 **Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `mmkvStorage`, and auth types (`AuthConfig`, `AuthScope`, `YVUserInfo`)
 
@@ -138,6 +138,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 - Optional PKCE OAuth when `auth: { redirectUri, scopes? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
 - `useYVAuth()` throws if `auth` was not configured on the provider.
+- `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
 - OAuth browser session via `expo-web-browser`; redirect handling is app-owned (example: `apps/example/app/callback.tsx` + `Linking.createURL('callback')`).
 - Register the same `redirectUri` in the YouVersion Platform console as used in app code.
