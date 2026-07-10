@@ -158,9 +158,13 @@ Display a Bible card with a verse and reader controls:
 import { BibleCard } from '@youversion/platform-react-native-expo-ui'
 
 function CardScreen() {
-  return <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+  return (
+    <BibleCard reference="JHN.3.16" defaultVersionId={3034} dom={{ matchContents: true }} />
+  )
 }
 ```
+
+`BibleCard` is stateful — it owns the current Bible translation and can open a built-in version picker. Use **`defaultVersionId`** for the initial translation in uncontrolled mode (the usual case; the card persists the user's picker choice). Use **`versionId`** together with **`onVersionChange`** when you need a controlled translation. Passing `versionId` alone still seeds uncontrolled state for backwards compatibility, but prefer `defaultVersionId` for new code.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 
