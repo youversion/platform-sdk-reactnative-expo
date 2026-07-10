@@ -108,9 +108,13 @@ describe('BibleCard version picker integration', () => {
     await resetBibleCardVersionStore()
   })
 
-  it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
-    const { getByTestId, queryByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
+  it('opens the built-in version picker sheet on press when showVersionPicker is true and no consumer handler is provided', async () => {
+    const { getByTestId, queryByTestId } = render(
+      <BibleCard reference="JHN.1.1" showVersionPicker />,
+      { wrapper },
+    )
 
+    expect(getByTestId('show-picker').children).toContain('true')
     expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
 
     await act(async () => {
@@ -121,7 +125,7 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('updates versionId when version picker selects a version', async () => {
-    const { getByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
+    const { getByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker />, { wrapper })
 
     await act(async () => {
       fireEvent.press(getByTestId('trigger-version-picker'))
@@ -144,7 +148,7 @@ describe('BibleCard version picker integration', () => {
     const consumerHandler = jest.fn().mockResolvedValue(undefined)
 
     const { getByTestId, queryByTestId } = render(
-      <BibleCard reference="JHN.1.1" onVersionPickerPress={consumerHandler} />,
+      <BibleCard reference="JHN.1.1" showVersionPicker onVersionPickerPress={consumerHandler} />,
       { wrapper },
     )
 
@@ -156,7 +160,22 @@ describe('BibleCard version picker integration', () => {
     expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
   })
 
-  it('does not render version picker sheet when showVersionPicker is false', () => {
+  it('hides the version picker by default (Web SDK parity) and does not mount the built-in sheet', async () => {
+    const { getByTestId, queryByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
+
+    expect(latestDomProps.showVersionPicker).toBe(false)
+    expect(getByTestId('show-picker').children).toContain('false')
+    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+
+    // Even if a press somehow reaches native, the sheet must not open.
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-version-picker'))
+    })
+
+    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+  })
+
+  it('does not render version picker sheet when showVersionPicker is explicitly false', () => {
     const { queryByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker={false} />, {
       wrapper,
     })

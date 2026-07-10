@@ -46,7 +46,8 @@ export function BibleCard({
   onVersionChange,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
-  showVersionPicker = true,
+  // Matches the React Web SDK default (BibleCard hides the version picker unless opted in).
+  showVersionPicker = false,
   dom,
   ...props
 }: BibleCardProps) {
