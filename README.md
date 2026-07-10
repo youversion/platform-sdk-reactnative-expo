@@ -93,7 +93,7 @@ export default function RootLayout() {
 
 `YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
 
-Native SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native/guides/localization) for details and the `locale` override.
+Native SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 
 ## Usage
 
@@ -126,7 +126,7 @@ function CardScreen() {
 }
 ```
 
-`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native/quick-start) for more.
+`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 
@@ -260,7 +260,7 @@ See the [Contributing Guide](./CONTRIBUTING.md) for additional local development
 
 ## Documentation
 
-- [React Native (Expo) SDK Guide](https://developers.youversion.com/sdks/react-native/quick-start): quick start and integration guide for this SDK
+- [React Native (Expo) SDK Guide](https://developers.youversion.com/sdks/react-native-expo/quick-start): quick start and integration guide for this SDK
 - [API Documentation](https://developers.youversion.com/overview): REST API reference for advanced integration patterns and endpoints
 - [Sample Code](./apps/example): working example app and provider setup
 
