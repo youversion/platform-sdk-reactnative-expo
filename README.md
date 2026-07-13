@@ -12,7 +12,6 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Getting Started](#getting-started)
-  - [Localization](#localization)
 - [Usage](#usage)
   - [Displaying Scripture](#displaying-scripture)
   - [Bible Reader](#bible-reader)
@@ -42,11 +41,6 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 
 ## Installation
 
-> [!NOTE]
-> This SDK is not yet published to npm. The install commands below are placeholders for the upcoming release.
-
-<!-- TODO: replace with real install once package is published -->
-
 ```bash
 npx expo install @youversion/platform-react-native-expo-ui @youversion/platform-react-native-expo-core
 ```
@@ -61,24 +55,11 @@ npx expo install @gorhom/bottom-sheet @expo/dom-webview \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
-  react-native-safe-area-context react-native-svg
+  react-native-safe-area-context react-native-svg \
+  react-native-worklets
 ```
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
-
-### Optional peer dependencies
-
-Install these only if your app needs them:
-
-```bash
-# Reanimated 4 splits worklets into a standalone package. Install it if your
-# app uses react-native-reanimated v4 (Expo SDK 56 ships v4 by default).
-npx expo install react-native-worklets
-
-# DOM components render in @expo/dom-webview by default. Install this only if
-# you opt a component out via dom={{ useExpoDOMWebView: false }}.
-npx expo install react-native-webview
-```
 
 See [`packages/ui/package.json`](./packages/ui/package.json) and [`packages/core/package.json`](./packages/core/package.json) `peerDependencies` for the canonical lists.
 
@@ -110,57 +91,41 @@ export default function RootLayout() {
 
 `YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
 
-### Localization
-
-Native SDK strings (auth button labels, sheet loader accessibility) follow the **device locale** by default via bundled `expo-localization`. No setup is required:
-
-```tsx
-<YouVersionProvider appKey={appKey}>{/* your app */}</YouVersionProvider>
-```
-
-Pass an explicit **`locale`** when your app manages language (for example, an in-app language picker) so SDK strings stay in sync with the rest of your UI:
-
-```tsx
-<YouVersionProvider appKey={appKey} locale={appLocale}>
-  {/* your app */}
-</YouVersionProvider>
-```
-
-`locale` controls **native** SDK UI copy only (auth button, sheet chrome, loader accessibility). Bible content and in-WebView UI (reader, pickers, footnotes) remain in the Web SDK default language — see [ADR 0007](./docs/adr/0007-app-locale-vs-bible-language-id.md) and [ADR 0009](./docs/adr/0009-deferred-dom-localization.md). Bible translation selection (`versionId`, version picker) is separate from app locale.
-
-`i18next`, `react-i18next`, and `expo-localization` are bundled with the UI package for SDK localization — consumers do not install them unless they want `expo-localization` for their own app screens.
+Native SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 
 ## Usage
-
-All components below read `appKey` from `YouVersionProvider`. Component-level `theme` props can still override the provider theme.
 
 ### Displaying Scripture
 
 Display a verse range or single verse with `BibleTextView`:
 
 ```tsx
-import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
+import { BibleTextView, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
 function VerseScreen() {
   return (
     <BibleTextView
       reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
-      versionId={3034} // 3034 = NIV (find IDs at platform.youversion.com)
-      showVerseNumbers
+      versionId={DEFAULT_BIBLE_VERSION_ID} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
     />
   )
 }
 ```
 
+`showVerseNumbers` (default `true`) controls whether verse numbers render inline.
+
 Display a Bible card with a verse and reader controls:
 
 ```tsx
-import { BibleCard } from '@youversion/platform-react-native-expo-ui'
+import { BibleCard, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function CardScreen() {
-  return <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />
+  return <BibleCard reference="JHN.3.16" defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
+
+`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 
@@ -169,10 +134,11 @@ function CardScreen() {
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader } from '@youversion/platform-react-native-expo-ui'
+import { BibleReader, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function ReaderScreen() {
-  return <BibleReader defaultVersionId={3034} />
+  return <BibleReader defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
 
@@ -184,7 +150,7 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 
 ```tsx
 <BibleReader
-  defaultVersionId={3034}
+  defaultVersionId={DEFAULT_BIBLE_VERSION_ID}
   onVersionPickerPress={({ versionId, languageId }) => {
     // present your own version picker
   }}
@@ -196,22 +162,25 @@ The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersio
 ### Verse of the Day
 
 ```tsx
-import { VerseOfTheDay } from '@youversion/platform-react-native-expo-ui'
+import { VerseOfTheDay, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function VotdScreen() {
-  return <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />
+  return <VerseOfTheDay versionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
 
 ### Sign In
 
-Authentication is optional. Pass an `auth` config to `YouVersionProvider`, register the same `redirectUri` in the [YouVersion Platform](https://platform.youversion.com/) console, and handle the OAuth redirect in your app (for example, with an Expo Router screen at `app/callback.tsx`).
+Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
+
+The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` is the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+
+Choose a scheme unique to your app: on Android, multiple apps registering the same scheme triggers the system disambiguation dialog (an app chooser), and on iOS there is no defined process for which app gets the scheme — the OS silently picks one.
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
-import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import * as Linking from 'expo-linking'
-import { Button } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
@@ -228,6 +197,25 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   )
 }
+```
+
+For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
+
+```tsx
+import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
+
+function ProfileScreen() {
+  return <YouVersionAuthButton />
+}
+```
+
+It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`), `outline`, `radius` (`'rounded' | 'rectangular'`), `size` (`'default' | 'short' | 'icon'`), and `text` (string, replaces the default localized label).
+
+To build custom UI instead, use the `useYVAuth` hook:
+
+```tsx
+import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import { Button } from 'react-native'
 
 function SignInButton() {
   const { isAuthenticated, isLoading, signIn, signOut } = useYVAuth()
@@ -240,7 +228,7 @@ function SignInButton() {
 }
 ```
 
-`useYVAuth` must be used under `YouVersionProvider` with the `auth` prop set. Tokens are stored in `expo-secure-store`; profile metadata is cached in MMKV. See [`apps/example`](./apps/example) for a working callback route and dev auth debug tab.
+Calling `useYVAuth()` requires that the surrounding `YouVersionProvider` received an `auth` config — without it the hook throws. Tokens are stored in `expo-secure-store`; profile metadata is cached in MMKV. See [`apps/example`](./apps/example) for a working callback route and Profile tab.
 
 ## Sample App
 
@@ -249,8 +237,10 @@ Explore the [`apps/example`](./apps/example) directory for a sample Expo Router 
 - Bible reader integration
 - Bible card and Scripture display
 - Verse of the Day
-- PKCE sign-in, OAuth callback handling, and an auth debug tab
+- PKCE sign-in, OAuth callback handling, and the Profile tab
 - Provider and native dependency setup
+
+Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
 
 To run it:
 
@@ -267,15 +257,12 @@ pnpm build:ios       # or: pnpm build:android
 pnpm exec expo start --dev-client
 ```
 
-Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
-
 See the [Contributing Guide](./CONTRIBUTING.md) for additional local development setup.
 
 ## Documentation
 
 - [React Native (Expo) SDK Guide](https://developers.youversion.com/sdks/react-native-expo/quick-start): quick start and integration guide for this SDK
 - [API Documentation](https://developers.youversion.com/overview): REST API reference for advanced integration patterns and endpoints
-- [LLM Integration Guide](https://developers.youversion.com/for-llms): LLM-optimized Bible endpoints and structured data
 - [Sample Code](./apps/example): working example app and provider setup
 
 ## Contributing

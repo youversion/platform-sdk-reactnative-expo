@@ -5,12 +5,12 @@ import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { useTheme } from '../hooks/use-theme'
+import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
-const DEFAULT_VERSION_ID = 3034
 
 export type BibleChapterPickerSheetProps = {
   isOpen: boolean
@@ -30,7 +30,7 @@ export function BibleChapterPickerSheet({
   onClose,
   book = DEFAULT_BOOK,
   chapter = DEFAULT_CHAPTER,
-  versionId = DEFAULT_VERSION_ID,
+  versionId = DEFAULT_BIBLE_VERSION_ID,
   theme: themeOverride,
   onSelect,
   dom,
