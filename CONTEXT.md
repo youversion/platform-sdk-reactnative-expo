@@ -106,7 +106,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - A **Picker Press** opens picker presentation; a **Picker Selection** commits a Bible location and may update **Reader Location** when the reader is uncontrolled.
 - **Reader Location** is **Native-Owned State** persisted across app launches (MMKV); controlled `book` / `chapter` / `versionId` props remain the source of truth and are not overwritten by stored **Reader Location**.
 - Uncontrolled **BibleCard** persists committed `versionId` across app launches (MMKV, separate from **Reader Location**). Controlled `versionId` + `onVersionChange` remain the source of truth.
-- A **Version Picker Press** opens version picker presentation; the sheet commits a new `versionId` via `onSelect`.
+- A **Version Picker Press** opens version picker presentation; the sheet commits a new `versionId` via `onSelect`. On **BibleCard**, the flow requires `showVersionPicker` (default false, Web SDK parity).
 - **Reader Controls** trigger a **Picker Press** or **Version Picker Press**, which by default opens the built-in **Chapter Picker Sheet** or **Version Picker Sheet** respectively.
 - A **Chapter Picker Sheet** receives a **Picker Selection** via a native action and feeds it back to the **Native Wrapper** that owns reader state.
 - A **Version Picker Sheet** receives a new `versionId` via `onSelect` and feeds it back to the **Native Wrapper** that owns reader or card state.

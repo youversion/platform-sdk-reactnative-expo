@@ -115,7 +115,9 @@ describe('BibleCard version persistence', () => {
   })
 
   it('persists picker selection to MMKV', async () => {
-    const { getByTestId } = render(<BibleCard reference="JHN.1.1" />, { wrapper })
+    const { getByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker />, {
+      wrapper,
+    })
 
     await act(async () => {
       fireEvent.press(getByTestId('trigger-version-picker'))
@@ -136,7 +138,12 @@ describe('BibleCard version persistence', () => {
     const onVersionChange = jest.fn()
 
     const { getByTestId } = render(
-      <BibleCard reference="JHN.1.1" versionId={3034} onVersionChange={onVersionChange} />,
+      <BibleCard
+        reference="JHN.1.1"
+        versionId={3034}
+        onVersionChange={onVersionChange}
+        showVersionPicker
+      />,
       { wrapper },
     )
 

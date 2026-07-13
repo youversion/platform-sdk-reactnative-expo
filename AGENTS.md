@@ -77,7 +77,7 @@ Keep `GestureHandlerRootView` outside `YouVersionProvider`; bottom-sheet gesture
 
 `BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`, then pass serializable `appKey` and theme props into their DOM wrappers. Component-level theme props remain valid overrides.
 
-`BibleCard` and `BibleReader` are stateful — they own `versionId` (via `useControllableState`) and coordinate picker sheets. When `onVersionPickerPress` is omitted, they open a built-in `BibleVersionPickerSheet`; when provided, the consumer handles the press and no sheet renders.
+`BibleCard` and `BibleReader` are stateful — they own `versionId` (via `useControllableState`) and coordinate picker sheets. When `showVersionPicker` is enabled and `onVersionPickerPress` is omitted, they open a built-in `BibleVersionPickerSheet`; when a handler is provided, the consumer handles the press and no sheet renders. On `BibleCard`, `showVersionPicker` defaults to `false` (matching the Web SDK), so consumers must opt in before either path applies.
 
 ### Version Picker Sheet
 

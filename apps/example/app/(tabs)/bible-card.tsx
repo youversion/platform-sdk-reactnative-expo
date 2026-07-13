@@ -14,7 +14,8 @@ export default function BibleCardScreen() {
       ]}
     >
       <View style={styles.card}>
-        <BibleCard reference="JHN.3.16" defaultVersionId={3034} />
+        {/* showVersionPicker defaults to false (Web SDK parity); the sample opts in. */}
+        <BibleCard reference="JHN.3.16" defaultVersionId={3034} showVersionPicker />
       </View>
     </View>
   )
