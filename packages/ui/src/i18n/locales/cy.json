@@ -1,0 +1,10 @@
+{
+  "signIn": "Mewngofnodi",
+  "signInWithYouVersion": "Mewngofnodi gyda <bold>{{brandName}}</bold>",
+  "signOut": "Allgofnodi",
+  "signOutOfYouVersion": "Allgofnodi o <bold>{{brandName}}</bold>",
+  "loading": "Yn llwytho",
+  "cancel": "Canslo",
+  "booksHeading": "Llyfrau",
+  "bibleVersionsHeading": "Fersiynau'r Beibl"
+}
