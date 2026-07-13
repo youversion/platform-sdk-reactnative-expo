@@ -61,8 +61,6 @@ npx expo install @gorhom/bottom-sheet @expo/dom-webview \
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
 
-One optional peer dependency: DOM components render in `@expo/dom-webview` by default, so install `react-native-webview` (`npx expo install react-native-webview`) only if you opt a component out via `dom={{ useExpoDOMWebView: false }}`.
-
 See [`packages/ui/package.json`](./packages/ui/package.json) and [`packages/core/package.json`](./packages/core/package.json) `peerDependencies` for the canonical lists.
 
 ## Getting Started
@@ -102,13 +100,13 @@ Native SDK strings follow the device locale by default; see the [localization gu
 Display a verse range or single verse with `BibleTextView`:
 
 ```tsx
-import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
+import { BibleTextView, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
 function VerseScreen() {
   return (
     <BibleTextView
       reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
-      versionId={3034} // 3034 = Berean Standard Bible (BSB); find IDs at platform.youversion.com
+      versionId={DEFAULT_BIBLE_VERSION_ID} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
     />
   )
 }
@@ -119,10 +117,11 @@ function VerseScreen() {
 Display a Bible card with a verse and reader controls:
 
 ```tsx
-import { BibleCard } from '@youversion/platform-react-native-expo-ui'
+import { BibleCard, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function CardScreen() {
-  return <BibleCard reference="JHN.3.16" defaultVersionId={3034} />
+  return <BibleCard reference="JHN.3.16" defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
 
@@ -135,10 +134,11 @@ function CardScreen() {
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader } from '@youversion/platform-react-native-expo-ui'
+import { BibleReader, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function ReaderScreen() {
-  return <BibleReader defaultVersionId={3034} />
+  return <BibleReader defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
 
@@ -150,7 +150,7 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 
 ```tsx
 <BibleReader
-  defaultVersionId={3034}
+  defaultVersionId={DEFAULT_BIBLE_VERSION_ID}
   onVersionPickerPress={({ versionId, languageId }) => {
     // present your own version picker
   }}
@@ -162,16 +162,17 @@ The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersio
 ### Verse of the Day
 
 ```tsx
-import { VerseOfTheDay } from '@youversion/platform-react-native-expo-ui'
+import { VerseOfTheDay, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
 
+// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
 function VotdScreen() {
-  return <VerseOfTheDay versionId={3034} />
+  return <VerseOfTheDay versionId={DEFAULT_BIBLE_VERSION_ID} />
 }
 ```
 
 ### Sign In
 
-Authentication is optional. Pass an `auth` config to `YouVersionProvider` and handle the OAuth redirect in your app (for example, with an Expo Router screen at `app/callback.tsx`).
+Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
 The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` is the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 

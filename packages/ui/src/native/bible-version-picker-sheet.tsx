@@ -4,10 +4,9 @@ import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { useTheme } from '../hooks/use-theme'
+import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { NativeSheet } from './native-sheet'
-
-const DEFAULT_VERSION_ID = 3034
 
 export type BibleVersionPickerSheetProps = {
   isOpen: boolean
@@ -21,7 +20,7 @@ export type BibleVersionPickerSheetProps = {
 export function BibleVersionPickerSheet({
   isOpen,
   onClose,
-  versionId = DEFAULT_VERSION_ID,
+  versionId = DEFAULT_BIBLE_VERSION_ID,
   theme: themeOverride,
   onSelect,
   dom,

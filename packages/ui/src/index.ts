@@ -9,6 +9,7 @@ export {
   YouVersionAuthButton,
   YouVersionProvider,
 } from './native'
+export { DEFAULT_BIBLE_VERSION_ID } from './lib/constants'
 export type {
   BibleCardProps,
   BibleChapterPickerSheetProps,
