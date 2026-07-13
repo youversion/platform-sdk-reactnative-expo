@@ -47,7 +47,8 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon-monochrome.png",
-        "backgroundImage": "./assets/adaptive-icon-bg.png"
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "backgroundColor": "#c5515a"
       },
       "predictiveBackGestureEnabled": false
     },
