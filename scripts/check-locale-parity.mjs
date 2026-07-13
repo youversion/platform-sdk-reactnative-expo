@@ -9,10 +9,11 @@
  * unless the PR is an automated localization sync. Whitelist (documented here
  * because no sync workflow lives in this repo yet — see native-i18n.md):
  *
- *   1. Actor `github-actions[bot]` — commits from GitHub Actions (e.g. future
- *      "Distribute React Native Localization" workflow in platform-localization).
+ *   1. Actor `platform-localization-pr-bot[bot]` or `github-actions[bot]` — automated
+ *      localization sync commits from platform-localization.
  *   2. PR label `localization-sync` — apply to automated distribution PRs.
- *   3. PR title or HEAD commit message containing "Distribute React Native Localization".
+ *   3. PR title or HEAD commit message containing "sync react native localization" or
+ *      "Distribute React Native Localization".
  *
  * index.ts is hand-editable and not guarded by --guard.
  */
@@ -104,7 +105,7 @@ function parsePrLabelNames(json) {
 
 /** @param {NodeJS.ProcessEnv} env */
 function isSyncPullRequest(env) {
-  const allowedActors = ['github-actions[bot]']
+  const allowedActors = ['platform-localization-pr-bot[bot]', 'github-actions[bot]']
   if (allowedActors.includes(env.GITHUB_ACTOR ?? '')) {
     return true
   }
@@ -115,7 +116,10 @@ function isSyncPullRequest(env) {
     return true
   }
 
-  const allowedMessagePatterns = ['Distribute React Native Localization']
+  const allowedMessagePatterns = [
+    'sync react native localization',
+    'Distribute React Native Localization',
+  ]
   const messages = [env.PR_TITLE, env.HEAD_COMMIT_MESSAGE].filter(Boolean)
   if (
     messages.some((message) => allowedMessagePatterns.some((pattern) => message.includes(pattern)))
@@ -170,7 +174,7 @@ function checkGuard() {
   )
   console.error('See docs/contributing/native-i18n.md')
   console.error(
-    '\nWhitelisted sync PRs: actor github-actions[bot], label localization-sync, or title/commit containing "Distribute React Native Localization".',
+    '\nWhitelisted sync PRs: actor platform-localization-pr-bot[bot] or github-actions[bot], label localization-sync, or title/commit containing "sync react native localization" or "Distribute React Native Localization".',
   )
   process.exit(1)
 }

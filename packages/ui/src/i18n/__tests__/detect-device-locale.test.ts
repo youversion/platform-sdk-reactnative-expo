@@ -30,8 +30,8 @@ describe('resolveSdkLocale', () => {
 })
 
 describe('detectDeviceLocale', () => {
-  it('falls back to en when languageTag locale is not bundled', () => {
-    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('en')
+  it('resolves bundled locales from languageTag', () => {
+    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es')
   })
 
   it('falls back to en when languageCode locale is not bundled', () => {
@@ -42,7 +42,7 @@ describe('detectDeviceLocale', () => {
     expect(detectDeviceLocale(undefined)).toBe('en')
   })
 
-  it('falls back to en for unsupported device locales', () => {
-    expect(detectDeviceLocale({ languageTag: 'de-DE', languageCode: 'de' } as any)).toBe('en')
+  it('resolves bundled locales from regional device tags', () => {
+    expect(detectDeviceLocale({ languageTag: 'de-DE', languageCode: 'de' } as any)).toBe('de')
   })
 })
