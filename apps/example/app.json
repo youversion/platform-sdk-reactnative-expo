@@ -16,6 +16,18 @@
             "deploymentTarget": "16.4"
           }
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/splash-icon.png",
+            "backgroundColor": "#1c1c1e"
+          }
+        }
       ]
     ],
     "experiments": {
@@ -23,13 +35,20 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.youversion.platform.example"
+      "bundleIdentifier": "com.youversion.platform.example",
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
+      }
     },
     "android": {
       "package": "com.youversion.platform.example",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "monochromeImage": "./assets/adaptive-icon-monochrome.png",
+        "backgroundImage": "./assets/adaptive-icon-bg.png",
+        "backgroundColor": "#c5515a"
       },
       "predictiveBackGestureEnabled": false
     },

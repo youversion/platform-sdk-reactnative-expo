@@ -52,6 +52,12 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
   npx expo prebuild --clean -p ios && pnpm build:ios   # or -p android
   ```
   A plain `pnpm build:ios` (incremental) can miss it; when in doubt, `prebuild --clean`. Don't reach for `expo install --fix` — that only reconciles package versions, not a stale/unlinked pod.
+- **Fresh git worktree checklist.** A new worktree carries no untracked state: run `pnpm install` at the **worktree root** first (iOS pods resolve via `:path: "../../../node_modules/<pkg>"` into *that worktree's* `node_modules` — without the install, autolinking silently skips those pods), copy `apps/example/.env` (gitignored) from another checkout, and expect a full dev-client rebuild if the installed binary predates any native dep on the branch.
+- **Metro's transform cache is shared across worktrees and can poison Expo DOM bundling.** The cache lives in `$TMPDIR/metro-cache` (machine-global), and the DOM transformer bakes **absolute source paths** into generated `expo/dom/entry.js` proxies. Sibling worktrees have byte-identical `packages/ui/src/dom/*.tsx` files, so Metro in one worktree can hit cached proxies pointing into another worktree — outside its project root. Symptom: `Unable to resolve "./../../../../../../<other-worktree>/packages/ui/src/dom/<file>.tsx" from "apps/example/node_modules/expo/dom/entry.js"` / `DOM Bundling failed`, even though every file exists. Fix — restart Metro with a cache clear from the worktree you're working in:
+  ```bash
+  cd apps/example && pnpm exec expo start --dev-client -c
+  ```
+  Reach for `-c` whenever a DOM bundling error names a path from a different worktree; nothing short of a cache clear evicts the stale proxies.
 
 ## Key Architecture Notes
 
