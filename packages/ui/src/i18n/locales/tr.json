@@ -1,0 +1,10 @@
+{
+  "signIn": "Giriş yap",
+  "signInWithYouVersion": "<bold>{{brandName}}</bold> ile giriş yap",
+  "signOut": "Çıkış Yap",
+  "signOutOfYouVersion": "<bold>{{brandName}}</bold> oturumunu kapat",
+  "loading": "Yükleniyor",
+  "cancel": "İptal",
+  "booksHeading": "Kitapçıklar",
+  "bibleVersionsHeading": "Kutsal Kitap Çeviri Versiyonları"
+}

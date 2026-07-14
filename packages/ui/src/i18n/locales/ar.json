@@ -1,0 +1,10 @@
+{
+  "signIn": "تسجيل الدخول",
+  "signInWithYouVersion": "سجّل الدخول باستخدام <bold>{{brandName}}</bold>",
+  "signOut": "تسجيل الخروج",
+  "signOutOfYouVersion": "سجل خروج من <bold>{{brandName}}</bold>",
+  "loading": "جارٍ التحميل",
+  "cancel": "إلغاء",
+  "booksHeading": "كتب",
+  "bibleVersionsHeading": "إصدارات الكتاب المقدس"
+}

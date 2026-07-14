@@ -1,0 +1,10 @@
+{
+  "signIn": "로그인",
+  "signInWithYouVersion": "<bold>{{brandName}}</bold> 서비스로 로그인",
+  "signOut": "로그아웃",
+  "signOutOfYouVersion": "<bold>{{brandName}}</bold>에서 로그아웃",
+  "loading": "로딩 중",
+  "cancel": "취소",
+  "booksHeading": "책",
+  "bibleVersionsHeading": "성경 번역본"
+}
