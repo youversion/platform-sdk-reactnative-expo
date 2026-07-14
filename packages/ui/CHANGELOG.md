@@ -9,7 +9,7 @@ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Andro
 **Scripture display**
 
 - `BibleTextView` — render a verse or verse range from a USFM reference
-- `BibleCard` — a verse with built-in reader controls
+- `BibleCard` — a verse with built-in reader controls; opt into the version picker with `showVersionPicker` (off by default, matching the Web SDK)
 - `VerseOfTheDay` — the daily verse, ready to drop in
 
 **Bible reader**
@@ -30,3 +30,9 @@ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Andro
 
 - Footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 - WebView pre-warming so sheets open without a cold-start flash
+- Sheets cap at 640 wide and center on large screens like iPad; full-width below that breakpoint
+
+**Types & constants**
+
+- `DEFAULT_BIBLE_VERSION_ID` (3034, Berean Standard Bible) — the SDK's default Bible version, exported so you don't hardcode the numeric id
+- Component prop types exported for direct import: `BibleCardProps`, `BibleReaderProps`, `BibleReaderSettingsSheetProps`, `BibleTextViewProps`, `VerseOfTheDayProps`, `YouVersionAuthButtonProps`
