@@ -1,6 +1,6 @@
 # @youversion/platform-react-native-expo-core
 
-## 1.0.0
+## 0.9.1
 
 Initial release. Installation id, optional PKCE authentication, and storage adapters for the YouVersion Platform React Native (Expo) SDK.
 

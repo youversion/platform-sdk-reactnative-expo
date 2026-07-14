@@ -1,6 +1,6 @@
 # @youversion/platform-react-native-expo-ui
 
-## 1.0.0
+## 0.9.1
 
 Initial release. Drop YouVersion Bible content into an Expo app on iOS and Android, with native bottom sheets, theming, and optional sign-in. Built on the [React Web SDK](https://github.com/youversion/platform-sdk-react) wrapped as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/), with native affordances layered on top.
 
