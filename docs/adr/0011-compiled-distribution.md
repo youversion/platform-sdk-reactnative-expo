@@ -28,6 +28,32 @@ The build tool is [`expo-module-scripts`](https://www.npmjs.com/package/expo-mod
 - `publishConfig` swaps `main` / `types` to `build/`, and `files: ["build"]` keeps source out of the tarball, so the published package ships compiled JS plus real `.d.ts`.
 - Releases MUST go through `pnpm changeset publish` (the configured pipeline). `pnpm publish` applies the `publishConfig` field overrides; raw `npm publish` does not — `main` would stay `src/index.ts` while `files: ["build"]` excludes `src/`, so the tarball would be broken (entry point missing or unable to resolve its imports), not a clean source ship. See [PUBLISHING.md](../../PUBLISHING.md).
 
+## Sealed import surface
+
+Both packages declare a root-only `exports` map. The only entry points are `"."` (the package root) and `"./package.json"`; there are no subpath entries, so the supported way to consume either package is `import … from '@youversion/platform-react-native-expo-ui'` / `-core`, and a deep import like `@youversion/platform-react-native-expo-ui/build/dom/bible-card` is not part of the public API.
+
+Why seal it:
+
+- **Raw DOM components are not package API.** Only the barrel (`src/index.ts` → `build/index.js`) is public. DOM component files exist purely as the WebView-backed implementation of the native wrappers.
+- **Deep imports would freeze the internal file layout.** Without `exports`, `build/dom/*`, `build/native/*`, and `build/lib/*` are all reachable, so any consumer importing them turns our directory structure into a compatibility contract. The map keeps refactors of internal layout non-breaking.
+
+### Enforcement boundary (important)
+
+The map is enforced strictly by Node's own resolver and by TypeScript, and loosely by Metro:
+
+- **Node resolution** hard-errors on an unmatched subpath: `require.resolve('@youversion/platform-react-native-expo-ui/build/dom/bible-card')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. Same for any strict `exports`-aware bundler (webpack, Vite, esbuild, Rollup with default settings).
+- **TypeScript** (`moduleResolution` `node16`/`nodenext`/`bundler`) refuses to resolve types for a deep path, so a consumer writing a deep import gets a compile error in-editor and in CI typecheck. This is the primary developer-facing guardrail — the import is rejected before it can ship.
+- **Metro does _not_ enforce it.** Even with `resolver.unstable_enablePackageExports: true` (the Expo SDK 56 default), Metro falls back to plain filesystem resolution for a subpath that the `exports` map does not match, instead of hard-erroring the way Node does. Verified: a fresh SDK 56 app installing the packed tarballs bundles a deep import into `build/dom/*` without error. So at the RN bundler level a determined consumer can still reach internal files at runtime; the `exports` map does not make that physically impossible, it makes it unsupported and type-rejected. If we ever need Metro-level enforcement we would have to remove the files from the tarball or split internals into a separate unpublished package — out of scope here.
+
+Net: the seal reliably stops deep imports from being _written_ (TypeScript) and from resolving under Node and standard web bundlers; it documents internal files as non-API; it does not physically block Metro's loose runtime fallback.
+
+Dev vs. publish, same swap as `main`/`types`:
+
+- Top-level `exports["."]` points at `./src/index.ts` (both `types` and `default`), so in-repo Metro and `tsc` resolve TypeScript source directly — no build step for local dev or the example app.
+- `publishConfig.exports` overrides `"."` to `types: ./build/index.d.ts`, `default: ./build/index.js`, applied by `pnpm publish` exactly like the `main`/`types` overrides. `"./package.json"` stays exposed in both.
+
+Timing: loosening an `exports` map later (adding subpaths) is additive and non-breaking, while tightening one later (removing subpaths consumers already import) is breaking. Sealing before the first real release (0.9.1) means the surface starts minimal and can only widen, never narrow, so no consumer ever depends on an internal path we later want to remove.
+
 ## Consequences
 
 - Gains real `.d.ts` and removes 0002's `moduleResolution: bundler`-only constraint for consumers.

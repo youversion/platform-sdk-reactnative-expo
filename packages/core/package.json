@@ -20,6 +20,13 @@
   "license": "Apache-2.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "build",
     "README.md",
@@ -27,7 +34,14 @@
   ],
   "publishConfig": {
     "main": "build/index.js",
-    "types": "build/index.d.ts"
+    "types": "build/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      },
+      "./package.json": "./package.json"
+    }
   },
   "scripts": {
     "build": "expo-module build",

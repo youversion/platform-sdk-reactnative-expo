@@ -36,3 +36,7 @@ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Andro
 
 - `DEFAULT_BIBLE_VERSION_ID` (3034, Berean Standard Bible) — the SDK's default Bible version, exported so you don't hardcode the numeric id
 - Component prop types exported for direct import: `BibleCardProps`, `BibleReaderProps`, `BibleReaderSettingsSheetProps`, `BibleTextViewProps`, `VerseOfTheDayProps`, `YouVersionAuthButtonProps`
+
+### Package surface
+
+- Imports are restricted to the package root via an `exports` map — import everything from `@youversion/platform-react-native-expo-ui`. Deep imports (e.g. into `build/`) are not part of the public API.
