@@ -33,6 +33,7 @@ Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
 Configure `auth` on the provider, then read auth state with `useYVAuth`:
 
 ```tsx
+import { Text } from 'react-native'
 import { YouVersionProvider, useYVAuth } from '@youversion/platform-react-native-expo-core'
 
 function Profile() {
