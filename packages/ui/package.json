@@ -1,6 +1,6 @@
 {
   "name": "@youversion/platform-react-native-expo-ui",
-  "version": "1.0.0",
+  "version": "0.9.0",
   "description": "YouVersion Platform Bible components for React Native (Expo) — reader, verse cards, Verse of the Day, theming, and native sheets.",
   "keywords": [
     "youversion",
