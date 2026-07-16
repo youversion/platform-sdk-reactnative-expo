@@ -9,7 +9,6 @@ Auth and storage primitives for the YouVersion Platform React Native (Expo) SDK:
 Use `@youversion/platform-react-native-expo-core` when you need:
 
 - ✅ Sign-in via optional PKCE OAuth (`useYVAuth`, `auth` config on the provider)
-- ✅ A YouVersion installation id for your app
 - ✅ Token storage handled for you (`expo-secure-store` + MMKV)
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
