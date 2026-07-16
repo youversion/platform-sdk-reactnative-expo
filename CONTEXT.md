@@ -87,8 +87,12 @@ The visible controls around reader content, including chapter navigation, versio
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Compiled Distribution**:
-The published package ships a compiled `build/` output (`expo-module build`, plain `tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `build/` at publish time, applied only by `pnpm publish`. See ADR 0011 (supersedes the earlier source-only model).
+The published package ships a compiled `build/` output (`expo-module build`, plain `tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `build/` at publish time, applied by pnpm (`pnpm publish` and `pnpm pack`) but not by raw `npm publish`. See ADR 0011 (supersedes the earlier source-only model).
 _Avoid_: Source-only, "a compiled build strips the directive"
+
+**SDK Attribution Header**:
+The `x-yvp-sdk` header (`ReactNativeSDK=<version>`) the DOM-side provider stamps onto every API call made from inside an **Expo DOM Component**. Builds that run from source report `{version}-dev`; published builds report `{version}`, so YouVersion's data lake separates internal dev-time traffic from partner traffic with `endsWith('-dev')` — the same rule the Web SDK uses. `package.json` is the single version source; only the channel flag (`IS_PUBLISH_BUILD`) is stamped into the compiled `build/` output at publish (`prepublishOnly`). See ADR 0012.
+_Avoid_: Treating the `-dev` suffix as a bug to remove; a bare `Dev` sentinel (drops the version line); matching `-dev` to detect the channel (it survives in the compiled ternary's dead branch); a CI-only rewrite invisible from source
 
 **Dependency Boundary**:
 `@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies` (auto-installed). `react-dom` is a `peerDependency` to prevent duplicate React instances in apps that also target web. Transitive native module requirements (reanimated, gesture-handler, etc.) are listed as `peerDependencies` to protect consumers from missing runtime deps.
@@ -115,6 +119,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - Disabling **Reader Controls** (`showToolbar: false`) also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
 - **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
+- The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
 
 ## Example Dialogue
 

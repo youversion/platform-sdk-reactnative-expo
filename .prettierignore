@@ -3,6 +3,7 @@ dist
 build
 .expo
 .turbo
+.claude
 coverage
 pnpm-lock.yaml
 **/ios/**

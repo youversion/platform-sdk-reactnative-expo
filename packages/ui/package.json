@@ -36,7 +36,7 @@
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
-    "prepublishOnly": "expo-module prepublishOnly"
+    "prepublishOnly": "expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs"
   },
   "jest": {
     "preset": "jest-expo",
