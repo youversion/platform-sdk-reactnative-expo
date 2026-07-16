@@ -9,8 +9,10 @@
 
 // STAMP anchor: the publish stamp replaces the `'Dev'` value on the next line.
 // Keep it as a lone single-quoted `'Dev'`; the stamp matches the exact
-// assignment text and fails the publish if it is missing or duplicated.
-export const SDK_VERSION = 'Dev'
+// assignment text and fails the publish if it is missing or duplicated. The
+// `: string` annotation is load-bearing: without it tsc infers the literal type
+// `'Dev'`, which the emitted `.d.ts` would then assert for stamped builds too.
+export const SDK_VERSION: string = 'Dev'
 
 const SDK_HEADER_NAME = 'x-yvp-sdk'
 
