@@ -32,7 +32,15 @@ The sibling `@youversion/platform-core` does `import pkg from '../package.json';
 ## Mechanics
 
 - **One `.cjs` file** (`scripts/stamp-sdk-version.cjs`) holds both the pure transform and the file IO. The IO runs only under `require.main === module`. `packages/ui` has no `"type": "module"` yet emits ESM-syntax `build/` output, so a Node script cannot cleanly `import` the compiled file; a self-contained CJS script side-steps the module-system mismatch and runs natively at publish with no build step of its own.
-- **Wired into `prepublishOnly`, not `release.yml`.** Folding it into the build script gives deterministic build-then-stamp ordering (immune to npm/pnpm lifecycle-order quirks) and makes the stamped tarball reproducible locally via `pnpm pack` — so it can be verified off-CI. A CI-only step would recreate the original failure mode: behavior hidden in the workflow, invisible from the source file.
+- **Wired into `prepublishOnly`, not `release.yml`.** Folding it into the build script gives deterministic build-then-stamp ordering (immune to npm/pnpm lifecycle-order quirks) and keeps the mechanism visible from `package.json` rather than buried in a workflow. A CI-only step would recreate the original failure mode: behavior hidden in the workflow, invisible from the source file.
+- **`pnpm pack` does not stamp.** `prepublishOnly` runs on `pnpm publish` only — `pnpm pack` runs neither the build nor the stamp, so a packed tarball reports `'Dev'` (or ships empty, if `build/` is absent). To reproduce a publish-identical tarball off-CI, run the publish steps by hand:
+
+  ```bash
+  pnpm build && node scripts/stamp-sdk-version.cjs && pnpm pack
+  ```
+
+  Do not "fix" this by moving the stamp to `prepack`/`prepare`: those run on `pnpm pack` and local installs, which would stamp dev builds and destroy the `'Dev'`-vs-published split this ADR exists to create.
+
 - **Fail-hard guards.** The transform throws unless it finds exactly one `SDK_VERSION = 'Dev'` anchor, and asserts post-stamp that the version is present and `'Dev'` is gone. A refactor that moves or duplicates the literal breaks the publish rather than silently leaking `Dev`. It also rejects a version containing a quote, backslash, or newline. Covered by `src/lib/__tests__/sdk-version-stamp.test.ts`.
 - `build/` is gitignored, so stamping never dirties the working tree.
 
