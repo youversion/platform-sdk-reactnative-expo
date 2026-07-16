@@ -38,6 +38,10 @@ Every prop and option for these components is documented at [developers.youversi
 
 - Prop types are exported for each component, e.g. `BibleCardProps`, `BibleReaderProps`, `BibleTextViewProps`
 
+**Attribution**
+
+- SDK traffic is identified to YouVersion in the `x-yvp-sdk` header as `ReactNativeSDK={version}`; builds running from source report `{version}-dev`, matching the Web SDK's format
+
 ### Package surface
 
 - Only the package root is importable — import everything from `@youversion/platform-react-native-expo-ui`. If you want to see how it all works, read the source on [GitHub](https://github.com/youversion/platform-sdk-reactnative-expo).
