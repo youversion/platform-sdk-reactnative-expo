@@ -45,3 +45,4 @@ Every prop and option for these components is documented at [developers.youversi
 ### Package surface
 
 - Only the package root is importable — import everything from `@youversion/platform-react-native-expo-ui`. If you want to see how it all works, read the source on [GitHub](https://github.com/youversion/platform-sdk-reactnative-expo).
+- Runtime dependencies ship pinned to exact versions, so an install resolves exactly what was published and tested rather than silently picking up a newer release. Peer dependency ranges are unchanged.
