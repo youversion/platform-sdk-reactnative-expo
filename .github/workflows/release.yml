@@ -8,8 +8,11 @@ on:
 concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 # `id-token: write` is required so NPM Trusted Publishing can mint a short-lived
-# OIDC token at publish time. With trusted publishing configured on npm there's
-# no long-lived NPM_TOKEN to rotate, and every published tarball carries a
+# OIDC token at publish time. The handshake is pnpm's own: `changeset publish`
+# shells out to `pnpm publish`, and pnpm 11 publishes to the registry over HTTP
+# itself rather than delegating to the npm CLI, so the npm version on the runner
+# has no bearing on auth. With trusted publishing configured on npm there's no
+# long-lived NPM_TOKEN to rotate, and every published tarball carries a
 # provenance attestation linking it to this exact workflow run.
 permissions:
   contents: write
@@ -30,11 +33,6 @@ jobs:
 
       - uses: ./.github/actions/setup
 
-      # Trusted publishing requires npm >= 11.5. Pin to latest to avoid the
-      # OIDC handshake silently falling back to NPM_TOKEN on older npm.
-      - name: Update npm to latest version
-        run: npm install -g npm@latest
-
       # No separate build step: `pnpm release` runs `turbo build` before
       # `changeset publish`, so the build only happens on the publish path.
       - name: Create Release Pull Request or Publish to NPM
@@ -50,12 +48,29 @@ jobs:
           title: 'chore: version packages'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A no-op under pnpm 11, kept as belt and braces. pnpm resolves its own
+          # settings from PNPM_CONFIG_* and ignores NPM_CONFIG_PROVENANCE, so
+          # what actually turns provenance on is pnpm's OIDC path auto-enabling
+          # it for public repos on GitHub Actions, which this repo is. That
+          # auto-detection is read from pnpm's source, not observed on a real
+          # run; no OIDC publish has ever executed for these package names.
+          # Until one has, keep this: it costs nothing if the inference is
+          # right, and silently loses attestations if it's wrong.
           NPM_CONFIG_PROVENANCE: true
           # Publishing auth comes solely from OIDC trusted publishing. We do not
           # pass a long-lived NPM_TOKEN. An automation token bypasses 2FA, so a
-          # standing secret widens the attack surface for little gain. If a
-          # bootstrap publish needs it before trusted publishing is live, add
-          # NODE_AUTH_TOKEN here as a temporary fallback and remove it after.
+          # standing secret widens the attack surface for little gain.
+          #
+          # If a bootstrap publish needs one before trusted publishing is live,
+          # NODE_AUTH_TOKEN on its own is not enough: pnpm never reads that
+          # variable. It only reaches pnpm through an .npmrc, which
+          # actions/setup-node writes (and points NPM_CONFIG_USERCONFIG at) only
+          # when it is given a `registry-url`, and .github/actions/setup does not
+          # set one. A working fallback therefore needs both halves:
+          #   1. `registry-url: 'https://registry.npmjs.org'` on the setup-node
+          #      step in .github/actions/setup
+          #   2. `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` here
+          # Remove both once trusted publishing is live.
 
       - name: Publish summary
         if: steps.changesets.outputs.published == 'true'
