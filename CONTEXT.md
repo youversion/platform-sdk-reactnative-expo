@@ -87,7 +87,7 @@ The visible controls around reader content, including chapter navigation, versio
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Compiled Distribution**:
-The published package ships a compiled `build/` output (`expo-module build`, plain `tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `build/` at publish time, applied only by `pnpm publish`. See ADR 0011 (supersedes the earlier source-only model).
+The published package ships a compiled `build/` output (`expo-module build`, plain `tsc` → JS + `.d.ts`), not raw source. `tsc` preserves the `'use dom'` directive and the Expo Metro plugin processes it from compiled files in `node_modules`, so Expo DOM Components work when installed from npm. In-repo dev still resolves TypeScript source directly (`main` → `src/`); `publishConfig` swaps to `build/` at publish time, applied by pnpm (`pnpm publish` and `pnpm pack`) but not by raw `npm publish`. See ADR 0011 (supersedes the earlier source-only model).
 _Avoid_: Source-only, "a compiled build strips the directive"
 
 **SDK Attribution Header**:
