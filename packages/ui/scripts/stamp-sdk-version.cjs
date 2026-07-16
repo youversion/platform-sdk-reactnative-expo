@@ -38,9 +38,10 @@ function stampSdkVersion(source, version) {
   if (typeof version !== 'string' || version.trim() === '') {
     throw new Error('stampSdkVersion: a non-empty version string is required')
   }
-  // A version containing a quote, backslash, or newline would break the string
-  // literal (or worse, inject code). Semver never contains these.
-  if (/['"\n\\]/.test(version)) {
+  // Allowlist rather than denylist: anything outside semver's alphabet could
+  // break the string literal (quote, backslash) or terminate it outright (CR,
+  // LF). Semver only ever uses digits, letters, dot, hyphen, and plus.
+  if (!/^[0-9A-Za-z.+-]+$/.test(version)) {
     throw new Error(`stampSdkVersion: refusing to stamp unsafe version ${JSON.stringify(version)}`)
   }
 

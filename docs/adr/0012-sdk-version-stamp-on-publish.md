@@ -41,7 +41,8 @@ The sibling `@youversion/platform-core` does `import pkg from '../package.json';
 
   Do not "fix" this by moving the stamp to `prepack`/`prepare`: those run on `pnpm pack` and local installs, which would stamp dev builds and destroy the `'Dev'`-vs-published split this ADR exists to create.
 
-- **Fail-hard guards.** The transform throws unless it finds exactly one `SDK_VERSION = 'Dev'` anchor, and asserts post-stamp that the version is present and `'Dev'` is gone. A refactor that moves or duplicates the literal breaks the publish rather than silently leaking `Dev`. It also rejects a version containing a quote, backslash, or newline. Covered by `src/lib/__tests__/sdk-version-stamp.test.ts`.
+- **Fail-hard guards.** The transform throws unless it finds exactly one `SDK_VERSION = 'Dev'` anchor, and asserts post-stamp that the version is present and `'Dev'` is gone. A refactor that moves or duplicates the literal breaks the publish rather than silently leaking `Dev`. It also rejects any version outside semver's alphabet (`[0-9A-Za-z.+-]`) — an allowlist, so a quote, backslash, or line terminator can never reach the emitted string literal.
+- **The anchor is checked against real `tsc` output in CI.** The `SENTINEL` matches _compiled_ text (`SDK_VERSION = 'Dev'`), which the source line (`SDK_VERSION: string = 'Dev'`) does not literally contain — so the two can drift apart with every unit test still green. `src/lib/__tests__/sdk-version-stamp.test.ts` therefore transpiles the real `src/lib/sdk-version.ts` and asserts the anchor survives, moving the failure from mid-publish (where `packages/core` may already be on npm, leaving a partial release) to the PR that causes it.
 - `build/` is gitignored, so stamping never dirties the working tree.
 
 ## Consequences
