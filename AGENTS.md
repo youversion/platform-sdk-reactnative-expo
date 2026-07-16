@@ -4,7 +4,15 @@
 
 YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youversion/platform-react-ui`) as Expo DOM components for use in React Native apps. Two published packages in a pnpm/Turborepo monorepo: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (auth, storage).
 
-**Tech stack**: Expo SDK 56, React 19, TypeScript 6, pnpm 9, Turborepo
+**Tech stack**: Expo SDK 56, React 19, TypeScript 6, pnpm 11, Turborepo
+
+## Supply-Chain Protection
+
+- **Cooldown**: `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml` — `pnpm install` rejects package versions published less than 3 days ago (mitigates hijacked-release supply-chain attacks). Override with `--force` only if genuinely urgent. Workspace packages (`workspace:*`) are inherently exempt.
+- **Exact pins**: `dependencies` and `devDependencies` use exact versions (no `^`/`~`). This matters most in `packages/ui` and `packages/core` — their published manifests are resolved fresh on consumers' machines, where our lockfile offers no protection. `peerDependencies` stay as ranges by design (satisfied by the host app).
+- **Build scripts**: pnpm 11 blocks dependency postinstall scripts unless approved in `allowBuilds` (`pnpm-workspace.yaml`). If an install reports ignored builds, decide explicitly — prefer `false` when the package ships prebuilt binaries (e.g. `unrs-resolver`).
+- **Version bumps**: when updating a pin, pick a version published ≥3 days ago (the cooldown enforces this at resolution time). Update cadence is defined separately.
+- `expo install --fix` writes `~`-ranged versions back into `package.json` — after using it, re-pin the exact versions it chose.
 
 ## Release
 
@@ -52,7 +60,7 @@ apps/example/     ← Expo Router tabs app consuming the SDK via workspace:*
   npx expo prebuild --clean -p ios && pnpm build:ios   # or -p android
   ```
   A plain `pnpm build:ios` (incremental) can miss it; when in doubt, `prebuild --clean`. Don't reach for `expo install --fix` — that only reconciles package versions, not a stale/unlinked pod.
-- **Fresh git worktree checklist.** A new worktree carries no untracked state: run `pnpm install` at the **worktree root** first (iOS pods resolve via `:path: "../../../node_modules/<pkg>"` into *that worktree's* `node_modules` — without the install, autolinking silently skips those pods), copy `apps/example/.env` (gitignored) from another checkout, and expect a full dev-client rebuild if the installed binary predates any native dep on the branch.
+- **Fresh git worktree checklist.** A new worktree carries no untracked state: run `pnpm install` at the **worktree root** first (iOS pods resolve via `:path: "../../../node_modules/<pkg>"` into _that worktree's_ `node_modules` — without the install, autolinking silently skips those pods), copy `apps/example/.env` (gitignored) from another checkout, and expect a full dev-client rebuild if the installed binary predates any native dep on the branch.
 - **Metro's transform cache is shared across worktrees and can poison Expo DOM bundling.** The cache lives in `$TMPDIR/metro-cache` (machine-global), and the DOM transformer bakes **absolute source paths** into generated `expo/dom/entry.js` proxies. Sibling worktrees have byte-identical `packages/ui/src/dom/*.tsx` files, so Metro in one worktree can hit cached proxies pointing into another worktree — outside its project root. Symptom: `Unable to resolve "./../../../../../../<other-worktree>/packages/ui/src/dom/<file>.tsx" from "apps/example/node_modules/expo/dom/entry.js"` / `DOM Bundling failed`, even though every file exists. Fix — restart Metro with a cache clear from the worktree you're working in:
   ```bash
   cd apps/example && pnpm exec expo start --dev-client -c
@@ -130,7 +138,7 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 - Root `tsconfig.json` excludes `apps/example`
 - Each workspace's `tsconfig.json` is its **build** config, extending `expo-module-scripts/tsconfig.base` (not the root) with `outDir: build` and tests excluded; a sibling `tsconfig.test.json` extends it to re-include tests for `pnpm typecheck` (see [ADR 0011](docs/adr/0011-compiled-distribution.md))
 - The base enables stricter flags (`verbatimModuleSyntax`, `noUncheckedIndexedAccess`) — use type-only imports and guard indexed access
-- `node-linker=hoisted` in `.npmrc` is required for Expo DOM + pnpm compatibility
+- `nodeLinker: hoisted` in `pnpm-workspace.yaml` is required for Expo DOM + pnpm compatibility (pnpm 11 only reads auth/registry settings from `.npmrc`)
 
 ## Exports
 
@@ -188,7 +196,7 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 - No non-null assertions (`x!`) in source — ESLint enforces `@typescript-eslint/no-non-null-assertion` as an error (relaxed in tests). Narrow with a guard instead
 - Components live in `packages/ui/src/`; auth and storage live in `packages/core/src/`
 - Re-export from barrel files (`index.ts`) at each directory level
-- Use `expo install --fix` to resolve Expo package version conflicts
+- Use `expo install --fix` to resolve Expo package version conflicts, then re-pin the resulting `~` ranges to exact versions (see Supply-Chain Protection)
 
 ## Native UI localization
 
