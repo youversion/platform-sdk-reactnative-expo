@@ -10,12 +10,10 @@ Use `@youversion/platform-react-native-expo-ui` when you need:
 
 - ✅ Pre-built Bible components for Expo: `BibleCard`, `BibleReader`, `BibleTextView`, `VerseOfTheDay`
 - ✅ Version/chapter picker and reader-settings bottom sheets, plus `YouVersionAuthButton`
-- ✅ Light/dark theming and a single `YouVersionProvider` to wrap your app
+- ✅ Light/dark theming across every component, from one `YouVersionProvider` at your app root
 - ✅ Minimal setup: install, wrap, render
 
-**Use other packages instead if you:**
-
-- ❌ Only need auth or storage APIs (no UI) → use [@youversion/platform-react-native-expo-core](https://www.npmjs.com/package/@youversion/platform-react-native-expo-core) directly
+❌ Only need auth or storage APIs, with no UI? Use [@youversion/platform-react-native-expo-core](https://www.npmjs.com/package/@youversion/platform-react-native-expo-core) directly.
 
 ## Install
 

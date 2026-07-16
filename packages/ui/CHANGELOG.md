@@ -9,13 +9,15 @@ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Andro
 **Scripture display**
 
 - `BibleTextView` — render a verse or verse range from a USFM reference
-- `BibleCard` — a verse with built-in reader controls; opt into the version picker with `showVersionPicker` (off by default, matching the Web SDK)
+- `BibleCard` — a verse with built-in reader controls
 - `VerseOfTheDay` — the daily verse, ready to drop in
 
 **Bible reader**
 
 - `BibleReader` — a full reading experience with built-in chapter and version pickers; bring your own picker UI via `onChapterPickerPress` / `onVersionPickerPress`
 - Standalone sheets for advanced flows: `BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`
+
+Every prop and option for these components is documented at [developers.youversion.com/sdks/react-native](https://developers.youversion.com/sdks/react-native).
 
 **Provider & theming**
 
@@ -32,11 +34,10 @@ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Andro
 - WebView pre-warming so sheets open without a cold-start flash
 - Sheets cap at 640 wide and center on large screens like iPad; full-width below that breakpoint
 
-**Types & constants**
+**Types**
 
-- `DEFAULT_BIBLE_VERSION_ID` (3034, Berean Standard Bible) — the SDK's default Bible version, exported so you don't hardcode the numeric id
-- Component prop types exported for direct import: `BibleCardProps`, `BibleReaderProps`, `BibleReaderSettingsSheetProps`, `BibleTextViewProps`, `VerseOfTheDayProps`, `YouVersionAuthButtonProps`
+- Prop types are exported for each component, e.g. `BibleCardProps`, `BibleReaderProps`, `BibleTextViewProps`
 
 ### Package surface
 
-- Imports are restricted to the package root via an `exports` map — import everything from `@youversion/platform-react-native-expo-ui`. Deep imports (e.g. into `build/`) are not part of the public API.
+- Only the package root is importable — import everything from `@youversion/platform-react-native-expo-ui`. If you want to see how it all works, read the source on [GitHub](https://github.com/youversion/platform-sdk-reactnative-expo).

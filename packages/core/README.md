@@ -12,11 +12,9 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ A YouVersion installation id for your app
 - ✅ Token storage handled for you (`expo-secure-store` + MMKV)
 
-**Use other packages instead if you:**
+❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
-- ❌ Want ready-made Bible UI → use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui)
-
-Most apps get this package as a dependency of the UI package, but install it directly so TypeScript resolves the auth APIs. Import Bible components from the UI package; import `useYVAuth` from core.
+Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package; import `useYVAuth` from core.
 
 ## Install
 
@@ -27,6 +25,10 @@ npx expo install @youversion/platform-react-native-expo-core
 Requires Expo SDK 56+, React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). Peer dependencies are listed in [`package.json`](./package.json).
 
 Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
+
+## Documentation and API Reference
+
+- [React Native (Expo) SDK Quick Start](https://developers.youversion.com/sdks/react-native)
 
 ## Usage
 
@@ -49,10 +51,6 @@ export default function App() {
   )
 }
 ```
-
-## Documentation and API Reference
-
-- [React Native (Expo) SDK Quick Start](https://developers.youversion.com/sdks/react-native)
 
 ## License
 
