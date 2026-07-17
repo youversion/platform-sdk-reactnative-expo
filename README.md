@@ -100,13 +100,13 @@ Native SDK strings follow the device locale by default; see the [localization gu
 Display a verse range or single verse with `BibleTextView`:
 
 ```tsx
-import { BibleTextView, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
+import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
 
 function VerseScreen() {
   return (
     <BibleTextView
       reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
-      versionId={DEFAULT_BIBLE_VERSION_ID} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
+      versionId={3034} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
     />
   )
 }
@@ -117,11 +117,11 @@ function VerseScreen() {
 Display a Bible card with a verse and reader controls:
 
 ```tsx
-import { BibleCard, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
+import { BibleCard } from '@youversion/platform-react-native-expo-ui'
 
-// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
+// 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
 function CardScreen() {
-  return <BibleCard reference="JHN.3.16" defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
+  return <BibleCard reference="JHN.3.16" defaultVersionId={3034} />
 }
 ```
 
@@ -134,11 +134,11 @@ function CardScreen() {
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
+import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 
-// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
+// 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
 function ReaderScreen() {
-  return <BibleReader defaultVersionId={DEFAULT_BIBLE_VERSION_ID} />
+  return <BibleReader defaultVersionId={3034} />
 }
 ```
 
@@ -150,7 +150,7 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 
 ```tsx
 <BibleReader
-  defaultVersionId={DEFAULT_BIBLE_VERSION_ID}
+  defaultVersionId={3034}
   onVersionPickerPress={({ versionId, languageId }) => {
     // present your own version picker
   }}
@@ -162,11 +162,11 @@ The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersio
 ### Verse of the Day
 
 ```tsx
-import { VerseOfTheDay, DEFAULT_BIBLE_VERSION_ID } from '@youversion/platform-react-native-expo-ui'
+import { VerseOfTheDay } from '@youversion/platform-react-native-expo-ui'
 
-// DEFAULT_BIBLE_VERSION_ID is 3034 (Berean Standard Bible); find other IDs at platform.youversion.com
+// 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
 function VotdScreen() {
-  return <VerseOfTheDay versionId={DEFAULT_BIBLE_VERSION_ID} />
+  return <VerseOfTheDay versionId={3034} />
 }
 ```
 
