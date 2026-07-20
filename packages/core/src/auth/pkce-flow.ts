@@ -5,7 +5,7 @@ import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
 import { decodeIdToken, deriveUserInfo } from './id-token'
 import { generatePKCEParameters } from './pkce'
-import type { AuthScope, YVUserInfo } from './types'
+import type { AuthPermission, AuthScope, YVUserInfo } from './types'
 
 export type SignInResult =
   | {
@@ -20,6 +20,7 @@ type SignInWithPKCEProps = {
   appKey: string
   redirectUri: string
   scopes?: readonly AuthScope[]
+  permissions?: readonly AuthPermission[]
 }
 
 export async function signInWithPKCE({
@@ -27,6 +28,7 @@ export async function signInWithPKCE({
   appKey,
   redirectUri,
   scopes,
+  permissions,
 }: SignInWithPKCEProps): Promise<SignInResult> {
   const [{ codeVerifier, codeChallenge, nonce, state }, installationId] = await Promise.all([
     generatePKCEParameters(),
@@ -42,6 +44,7 @@ export async function signInWithPKCE({
     state,
     nonce,
     scopes: scopes ?? DEFAULT_SCOPES,
+    permissions,
     installationId,
   })
 
@@ -136,6 +139,7 @@ function buildAuthorizationUrl(args: {
   state: string
   nonce: string
   scopes: readonly AuthScope[]
+  permissions?: readonly AuthPermission[]
   installationId: string
 }): string {
   const params = new URLSearchParams({
@@ -150,6 +154,15 @@ function buildAuthorizationUrl(args: {
     require_user_interaction: 'true',
     'x-yvp-installation-id': args.installationId,
   })
+
+  // Permissions are NOT OIDC scopes: they ride alongside `scope` as a repeatable
+  // `requested_permissions[]` param. Deduped and sorted (order is wire-irrelevant)
+  // to match how `scope` is built. Omitted entirely when there are none — on the
+  // callback an absent `granted_permissions` means "none requested" while an empty
+  // one means "requested and denied", so we don't blur that signal.
+  for (const permission of [...new Set(args.permissions ?? [])].sort()) {
+    params.append('requested_permissions[]', permission)
+  }
 
   return `https://${args.apiHost}/auth/authorize?${params.toString().replace(/\+/g, '%20')}`
 }
