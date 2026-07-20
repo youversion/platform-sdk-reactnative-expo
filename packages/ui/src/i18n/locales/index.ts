@@ -1,5 +1,6 @@
 import { SDK_I18N_FALLBACK_LNG, SDK_I18N_NAMESPACE } from '../constants'
 import type { SdkTranslationResources } from '../types'
+import af from './af.json'
 import ar from './ar.json'
 import cy from './cy.json'
 import de from './de.json'
@@ -9,12 +10,14 @@ import ig from './ig.json'
 import ko from './ko.json'
 import pt from './pt.json'
 import ru from './ru.json'
+import sv from './sv.json'
 import tr from './tr.json'
 import vi from './vi.json'
 import zh from './zh.json'
 
 /** Locales with bundled translation resources (synced from platform-localization). */
 const localeResources = {
+  af,
   ar,
   cy,
   de,
@@ -24,6 +27,7 @@ const localeResources = {
   ko,
   pt,
   ru,
+  sv,
   tr,
   vi,
   zh,
