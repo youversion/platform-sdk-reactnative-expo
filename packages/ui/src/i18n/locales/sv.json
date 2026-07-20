@@ -1,0 +1,10 @@
+{
+  "signIn": "Logga in",
+  "signInWithYouVersion": "Logga in med <bold>{{brandName}}</bold>",
+  "signOut": "Logga ut",
+  "signOutOfYouVersion": "Logga ut från <bold>{{brandName}}</bold>",
+  "loading": "Laddar",
+  "cancel": "Avbryt",
+  "booksHeading": "Böcker",
+  "bibleVersionsHeading": "Bibelöversättningar"
+}

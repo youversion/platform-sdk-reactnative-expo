@@ -1,0 +1,10 @@
+{
+  "signIn": "Teken aan",
+  "signInWithYouVersion": "Teken aan met <bold>{{brandName}}</bold>",
+  "signOut": "Teken uit",
+  "signOutOfYouVersion": "Teken uit by <bold>{{brandName}}</bold>",
+  "loading": "Laai tans",
+  "cancel": "Kanselleer",
+  "booksHeading": "Boeke",
+  "bibleVersionsHeading": "Bybelweergawes"
+}
