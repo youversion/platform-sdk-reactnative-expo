@@ -16,15 +16,9 @@ export type AuthConfig = {
   redirectUri: string
   scopes?: readonly AuthScope[]
   /**
-   * YouVersion Platform permissions to request at sign-in, sent as repeated
-   * `requested_permissions[]` params on `/auth/authorize`.
-   *
-   * These are **not** OIDC scopes — keep them out of `scopes`, which stays
-   * `'profile' | 'email'`.
-   *
-   * Requesting a permission is not the same as being granted it: the user can
-   * deny it on the consent screen and sign-in still succeeds. Reading back what
-   * was actually granted is not yet supported.
+   * {@link AuthPermission}s to request at sign-in. Requesting one is not the same
+   * as being granted it — the user can deny on the consent screen and sign-in
+   * still succeeds; reading back what was granted is not yet supported.
    */
   permissions?: readonly AuthPermission[]
 }
