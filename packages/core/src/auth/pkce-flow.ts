@@ -155,11 +155,9 @@ function buildAuthorizationUrl(args: {
     'x-yvp-installation-id': args.installationId,
   })
 
-  // Permissions are NOT OIDC scopes: they ride alongside `scope` as a repeatable
-  // `requested_permissions[]` param. Deduped and sorted (order is wire-irrelevant)
-  // to match how `scope` is built. Omitted entirely when there are none — on the
-  // callback an absent `granted_permissions` means "none requested" while an empty
-  // one means "requested and denied", so we don't blur that signal.
+  // Omit the param entirely when there are none — don't emit an empty one. On the
+  // callback, absent `granted_permissions` means "none requested" while an empty
+  // value means "requested and denied"; emitting an empty param blurs the two.
   for (const permission of [...new Set(args.permissions ?? [])].sort()) {
     params.append('requested_permissions[]', permission)
   }
