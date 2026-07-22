@@ -150,7 +150,8 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 ## Auth (core)
 
-- Optional PKCE OAuth when `auth: { redirectUri, scopes? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
+- Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
 - `useYVAuth()` throws if `auth` was not configured on the provider.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).

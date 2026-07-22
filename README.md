@@ -202,7 +202,7 @@ export default function RootLayout() {
 }
 ```
 
-`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission: the SDK does not yet report whether the user granted it, and the highlights APIs and the just-in-time grant flow land in a later release.
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 
