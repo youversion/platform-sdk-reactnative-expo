@@ -177,19 +177,27 @@ describe('createHighlightsApi', () => {
       expect(result.error).toMatchObject({ kind: 'auth', status: 401 })
     })
 
-    it('returns transient failure for network errors', async () => {
-      mockFetch.mockRejectedValue(new TypeError('Network request failed'))
-
-      const result = await api().createHighlight('tok', {
+    it('returns transient failure for 5xx and network errors', async () => {
+      mockFetch.mockResolvedValue(errorResponse(500))
+      const serverError = await api().createHighlight('tok', {
         version_id: 111,
         passage_id: 'JHN.3.16',
         color: 'fffe00',
       })
+      expect(serverError.ok).toBe(false)
+      if (serverError.ok) return
+      expect(serverError.error).toMatchObject({ kind: 'transient', status: 500 })
 
-      expect(result.ok).toBe(false)
-      if (result.ok) return
-      expect(result.error).toMatchObject({ kind: 'transient' })
-      expect(result.error.status).toBeUndefined()
+      mockFetch.mockRejectedValue(new TypeError('Network request failed'))
+      const networkError = await api().createHighlight('tok', {
+        version_id: 111,
+        passage_id: 'JHN.3.16',
+        color: 'fffe00',
+      })
+      expect(networkError.ok).toBe(false)
+      if (networkError.ok) return
+      expect(networkError.error).toMatchObject({ kind: 'transient' })
+      expect(networkError.error.status).toBeUndefined()
     })
   })
 
@@ -224,6 +232,16 @@ describe('createHighlightsApi', () => {
       expect(result.ok).toBe(false)
       if (result.ok) return
       expect(result.error).toMatchObject({ kind: 'auth', status: 403 })
+    })
+
+    it('returns transient failure for 5xx', async () => {
+      mockFetch.mockResolvedValue(errorResponse(500))
+
+      const result = await api().deleteHighlight('tok', 'JHN.3.16', { version_id: 111 })
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error).toMatchObject({ kind: 'transient', status: 500 })
     })
   })
 })
