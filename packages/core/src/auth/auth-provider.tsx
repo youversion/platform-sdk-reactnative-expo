@@ -148,6 +148,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         appKey,
         redirectUri: config.redirectUri,
         scopes: config.scopes,
+        permissions: config.permissions,
       })
 
       if (result.kind === 'cancel') {
@@ -166,7 +167,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       setError(err)
       throw err
     }
-  }, [apiHost, appKey, config.redirectUri, config.scopes, setAuthState])
+  }, [apiHost, appKey, config.redirectUri, config.scopes, config.permissions, setAuthState])
 
   const signOut = useCallback(async () => {
     await clearAuthState()
