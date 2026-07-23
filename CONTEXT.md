@@ -98,6 +98,14 @@ _Avoid_: Treating the `-dev` suffix as a bug to remove; a bare `Dev` sentinel (d
 `@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies` (auto-installed). `react-dom` is a `peerDependency` to prevent duplicate React instances in apps that also target web. Transitive native module requirements (reanimated, gesture-handler, etc.) are listed as `peerDependencies` to protect consumers from missing runtime deps.
 _Avoid_: Bundled deps, vendored web SDK
 
+**Highlight Scope**:
+The chapter a highlights flow is operating on: `versionId` + `book` + `chapter`. Same shape as the web highlights machine (for reuse) and the same Bible-location triple as **Reader Location** — without a user. Per-user isolation for persistent cache is a separate axis at the storage boundary, not part of this type.
+_Avoid_: Folding `userId` into this type; Reader Location (restore snapshot for uncontrolled readers, different purpose); cache key (implementation detail)
+
+**Server Colors**:
+The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. The last reconciled server snapshot for that scope — not optimistic UI overlays. When persisted on native, addressed by `userId` + **Highlight Scope**. A valid empty map is a real snapshot (“none”), not a cache miss. Cached colors are normalized to lowercase.
+_Avoid_: Highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -120,6 +128,7 @@ _Avoid_: Bundled deps, vendored web SDK
 - **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 - The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
+- A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Server Colors** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
 
 ## Example Dialogue
 
