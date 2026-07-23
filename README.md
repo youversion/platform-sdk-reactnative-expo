@@ -191,13 +191,18 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <YouVersionProvider appKey={appKey} auth={{ redirectUri, scopes: ['profile', 'email'] }}>
+      <YouVersionProvider
+        appKey={appKey}
+        auth={{ redirectUri, scopes: ['profile', 'email'], permissions: ['highlights'] }}
+      >
         {/* your app */}
       </YouVersionProvider>
     </GestureHandlerRootView>
   )
 }
 ```
+
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 

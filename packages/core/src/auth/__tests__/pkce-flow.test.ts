@@ -121,6 +121,59 @@ describe('signInWithPKCE — authorization URL', () => {
   })
 })
 
+describe('signInWithPKCE — requested permissions', () => {
+  async function authorizeParams(
+    overrides: Partial<Parameters<typeof signInWithPKCE>[0]> = {},
+  ): Promise<URLSearchParams> {
+    mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
+    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+
+    await signInWithPKCE(defaultProps(overrides))
+
+    const [url] = mockOpenAuthSession.mock.calls[0]
+    return new URL(url).searchParams
+  }
+
+  it('appends a requested_permissions[] param per configured permission', async () => {
+    const params = await authorizeParams({ permissions: ['highlights', 'bibles'] })
+    expect(params.getAll('requested_permissions[]')).toEqual(['bibles', 'highlights'])
+  })
+
+  it('omits requested_permissions[] when permissions are not configured', async () => {
+    const params = await authorizeParams()
+    expect(params.getAll('requested_permissions[]')).toEqual([])
+    expect(params.has('requested_permissions[]')).toBe(false)
+  })
+
+  it('omits requested_permissions[] when permissions is an empty array', async () => {
+    const params = await authorizeParams({ permissions: [] })
+    expect(params.getAll('requested_permissions[]')).toEqual([])
+    expect(params.has('requested_permissions[]')).toBe(false)
+  })
+
+  it('dedupes and sorts requested permissions', async () => {
+    const params = await authorizeParams({
+      permissions: ['votd', 'highlights', 'votd', 'bible_activity'],
+    })
+    expect(params.getAll('requested_permissions[]')).toEqual([
+      'bible_activity',
+      'highlights',
+      'votd',
+    ])
+  })
+
+  it('never leaks a permission value into the scope param', async () => {
+    const params = await authorizeParams({
+      scopes: ['profile', 'email'],
+      permissions: ['highlights', 'bibles', 'votd', 'demographics', 'bible_activity'],
+    })
+    expect(params.get('scope')).toBe('email openid profile')
+    for (const permission of ['highlights', 'bibles', 'votd', 'demographics', 'bible_activity']) {
+      expect(params.get('scope')).not.toContain(permission)
+    }
+  })
+})
+
 describe('signInWithPKCE — callback error + state CSRF', () => {
   it('returns { kind: "cancel" } when the callback carries error=access_denied (Cancel button)', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)

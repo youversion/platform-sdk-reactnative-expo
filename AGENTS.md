@@ -144,13 +144,14 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 **UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`
 
-**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `mmkvStorage`, and auth types (`AuthConfig`, `AuthScope`, `YVUserInfo`)
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `mmkvStorage`, and auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`)
 
 UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
 
 ## Auth (core)
 
-- Optional PKCE OAuth when `auth: { redirectUri, scopes? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
+- Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
 - `useYVAuth()` throws if `auth` was not configured on the provider.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
