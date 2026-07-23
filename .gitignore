@@ -31,6 +31,9 @@ apps/example/web-build/
 # Cursor
 .cursor/
 
+# Claude
+.claude/
+
 # Firecrawl
 .firecrawl/
 
