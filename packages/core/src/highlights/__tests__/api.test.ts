@@ -71,17 +71,26 @@ describe('createHighlightsApi', () => {
       expect(headers['x-yvp-sdk']).toBe('ReactNativeSDK=1.0.0-dev')
     })
 
-    it('returns auth failure for 401/403 without throwing', async () => {
+    it('returns auth failure for 401 and 403 without throwing', async () => {
       mockFetch.mockResolvedValue(errorResponse(401))
 
-      const result = await api().getHighlights('tok', {
+      const unauthorized = await api().getHighlights('tok', {
         version_id: 111,
         passage_id: 'JHN.3',
       })
 
-      expect(result.ok).toBe(false)
-      if (result.ok) return
-      expect(result.error).toMatchObject({ kind: 'auth', status: 401 })
+      expect(unauthorized.ok).toBe(false)
+      if (unauthorized.ok) return
+      expect(unauthorized.error).toMatchObject({ kind: 'auth', status: 401 })
+
+      mockFetch.mockResolvedValue(errorResponse(403))
+      const forbidden = await api().getHighlights('tok', {
+        version_id: 111,
+        passage_id: 'JHN.3',
+      })
+      expect(forbidden.ok).toBe(false)
+      if (forbidden.ok) return
+      expect(forbidden.error).toMatchObject({ kind: 'auth', status: 403 })
     })
 
     it('returns transient failure for 5xx and network errors', async () => {
@@ -152,6 +161,35 @@ describe('createHighlightsApi', () => {
         passage_id: 'JHN.3.16',
         color: 'fffe00',
       })
+    })
+
+    it('returns auth failure for 401 without throwing', async () => {
+      mockFetch.mockResolvedValue(errorResponse(401))
+
+      const result = await api().createHighlight('tok', {
+        version_id: 111,
+        passage_id: 'JHN.3.16',
+        color: 'fffe00',
+      })
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error).toMatchObject({ kind: 'auth', status: 401 })
+    })
+
+    it('returns transient failure for network errors', async () => {
+      mockFetch.mockRejectedValue(new TypeError('Network request failed'))
+
+      const result = await api().createHighlight('tok', {
+        version_id: 111,
+        passage_id: 'JHN.3.16',
+        color: 'fffe00',
+      })
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error).toMatchObject({ kind: 'transient' })
+      expect(result.error.status).toBeUndefined()
     })
   })
 
