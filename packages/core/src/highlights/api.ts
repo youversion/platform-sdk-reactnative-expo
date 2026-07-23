@@ -18,7 +18,7 @@ export type HighlightsApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
   | { kind: 'transient'; status?: number; message: string }
 
-export type HighlightsApiResult<T> = Result<T, HighlightsApiError>
+export type HighlightsApiResult<Value> = Result<Value, HighlightsApiError>
 
 export type CreateHighlightsApiConfig = {
   appKey: string
@@ -68,7 +68,9 @@ export function createHighlightsApi(config: CreateHighlightsApiConfig): Highligh
   }
 }
 
-async function catchAsResult<T>(run: () => Promise<T>): Promise<HighlightsApiResult<T>> {
+async function catchAsResult<Value>(
+  run: () => Promise<Value>,
+): Promise<HighlightsApiResult<Value>> {
   try {
     return ok(await run())
   } catch (caught) {
