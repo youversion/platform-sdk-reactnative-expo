@@ -154,6 +154,7 @@ describe('createHighlightsApi', () => {
       expect(headers['X-YVP-App-Key']).toBe('appkey')
       expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
       const body = JSON.parse(init.body as string) as {
+        request_id: string
         highlight: { bible_id: number; passage_id: string; color: string }
       }
       expect(body.highlight).toEqual({
@@ -161,6 +162,12 @@ describe('createHighlightsApi', () => {
         passage_id: 'JHN.3.16',
         color: 'fffe00',
       })
+      // The API requires request_id to be a valid UUID (non-UUIDs 422). The
+      // ensure-crypto-uuid shim guarantees crypto.randomUUID exists on RN so
+      // platform-core mints a real one rather than its yvp- fallback.
+      expect(body.request_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
     })
 
     it('returns auth failure for 401 without throwing', async () => {

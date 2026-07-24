@@ -10,6 +10,7 @@ import {
 
 import { DEFAULT_API_HOST } from '../constants'
 import { err, ok, type Result } from '../result'
+import { ensureCryptoRandomUUID } from './ensure-crypto-uuid'
 
 export type { Collection, CreateHighlight, DeleteHighlightOptions, GetHighlightsOptions, Highlight }
 
@@ -45,6 +46,12 @@ export type HighlightsApi = {
 }
 
 export function createHighlightsApi(config: CreateHighlightsApiConfig): HighlightsApi {
+  // platform-core's createHighlight generates the required `request_id` via
+  // `crypto.randomUUID`, absent on RN Hermes. Install the expo-crypto-backed
+  // shim before constructing the client so creates send a real UUID (not the
+  // yvp- fallback the API 422s). Idempotent; also runs on module import.
+  ensureCryptoRandomUUID()
+
   const client = new HighlightsClient(
     new ApiClient({
       appKey: config.appKey,
