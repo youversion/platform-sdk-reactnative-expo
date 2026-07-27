@@ -43,6 +43,10 @@ export function ensureCryptoRandomUUID(): void {
       })
     }
 
+    // The null half of this guard is for the type-checker, not for runtime
+    // paranoia: `crypto` is optional on `scope` and TypeScript does not narrow
+    // through `Object.defineProperty`. Dropping it needs a non-null assertion,
+    // which is an ESLint error in source (see AGENTS.md, Code Style).
     const cryptoScope = scope.crypto
     if (cryptoScope != null && typeof cryptoScope.randomUUID !== 'function') {
       cryptoScope.randomUUID = () => Crypto.randomUUID()
