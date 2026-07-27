@@ -1,5 +1,11 @@
+import * as Crypto from 'expo-crypto'
+
+import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
+jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }))
+
+const mockRandomUUID = Crypto.randomUUID as jest.Mock
 const mockFetch = jest.fn()
 
 beforeEach(() => {
@@ -154,12 +160,54 @@ describe('createHighlightsApi', () => {
       expect(headers['X-YVP-App-Key']).toBe('appkey')
       expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
       const body = JSON.parse(init.body as string) as {
+        request_id: string
         highlight: { bible_id: number; passage_id: string; color: string }
       }
       expect(body.highlight).toEqual({
         bible_id: 111,
         passage_id: 'JHN.3.16',
         color: 'fffe00',
+      })
+      // The API requires request_id to be a valid UUID (non-UUIDs 422). The
+      // ensure-crypto-uuid shim guarantees crypto.randomUUID exists on RN so
+      // platform-core mints a real one rather than its yvp- fallback.
+      expect(body.request_id).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+      )
+    })
+
+    // The assertion above passes on any runtime that already has
+    // crypto.randomUUID — which Node ≥ 19 (and therefore CI) does — so on its own
+    // it cannot tell whether createHighlightsApi actually installs the shim.
+    // Dropping the global reproduces RN Hermes and pins the wiring: the id must
+    // come from expo-crypto, via the shim, on the way into platform-core.
+    describe('on a runtime with no crypto global (RN Hermes)', () => {
+      let restoreCrypto: () => void
+
+      beforeEach(() => {
+        restoreCrypto = stubCryptoGlobal(undefined)
+        mockRandomUUID.mockReturnValue(SHIM_UUID)
+      })
+
+      afterEach(() => {
+        restoreCrypto()
+      })
+
+      it('mints request_id from expo-crypto instead of the yvp- fallback', async () => {
+        mockFetch.mockResolvedValue(
+          jsonResponse({ bible_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }),
+        )
+
+        await api().createHighlight('tok', {
+          version_id: 111,
+          passage_id: 'JHN.3.16',
+          color: 'fffe00',
+        })
+
+        const [, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+        const body = JSON.parse(init.body as string) as { request_id: string }
+        expect(body.request_id).toBe(SHIM_UUID)
+        expect(mockRandomUUID).toHaveBeenCalled()
       })
     })
 
