@@ -130,8 +130,13 @@ importers:
   packages/core:
     dependencies:
       '@youversion/platform-core':
+<<<<<<< HEAD
         specifier: 2.4.0
         version: 2.4.0
+=======
+        specifier: 2.3.0
+        version: 2.3.0
+>>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
       expo:
         specifier: '>=56.0.0 <57.0.0'
         version: 56.0.12(@babel/core@7.29.0)(@expo/dom-webview@56.0.6)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
@@ -2991,8 +2996,21 @@ packages:
       linkedom:
         optional: true
 
+<<<<<<< HEAD
   '@youversion/platform-react-hooks@2.4.0':
     resolution: {integrity: sha512-DNFOxTBtNoeOP6BlwPf7RhmruizSa/oNB9NVKexaNSUpXpFML+X0wjM4US2VLYPa28YQ0i2kdy2AOg6w/y8R+Q==}
+=======
+  '@youversion/platform-core@2.3.0':
+    resolution: {integrity: sha512-bsneE3s7jpoetWem+1gr+tZJe3Dryq7ywmdoKCPGpaLffP5GGYl0hS2hj+QAyHo0Jk9LwCGuJVtPVCDkLMPSHg==}
+    peerDependencies:
+      linkedom: ^0.18.12
+    peerDependenciesMeta:
+      linkedom:
+        optional: true
+
+  '@youversion/platform-react-hooks@2.2.0':
+    resolution: {integrity: sha512-QrPe2g6Lg0IM1D2LSh2OFWO4f1DBlhXZtvpSRYTt36lPaaXkV89RxJEJYk3G0eJ1ZyrzkwuxYGvfQYJetSLTfA==}
+>>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
 
@@ -10602,7 +10620,15 @@ snapshots:
     dependencies:
       zod: 4.1.12
 
+<<<<<<< HEAD
   '@youversion/platform-react-hooks@2.4.0(react@19.2.5)':
+=======
+  '@youversion/platform-core@2.3.0':
+    dependencies:
+      zod: 4.1.12
+
+  '@youversion/platform-react-hooks@2.2.0(react@19.2.5)':
+>>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
     dependencies:
       '@youversion/platform-core': 2.4.0
       react: 19.2.5
