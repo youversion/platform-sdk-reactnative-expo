@@ -7,7 +7,7 @@ import {
   createOptimisticState,
   createWriteToken,
   formatPassageId,
-  normalizeVerses,
+  normalizeVerseSelection,
   selectHighlights,
   selectMergedColors,
   selectVersesInColor,
@@ -211,6 +211,48 @@ describe('settle', () => {
 
     expect(settled.reconcile.has(16)).toBe(false)
     expect(settled.writeIntent.get(16)).toBe(second)
+  })
+})
+
+describe('reset (createOptimisticState)', () => {
+  it('clears overlay, reconcile and write intents, and re-seeds identity', () => {
+    const applyToken = createWriteToken('apply')
+    const pending = createWriteToken('apply')
+    let state = settle(claim(stateWith(), [16], applyToken, YELLOW), {
+      token: applyToken,
+      op: 'apply',
+      color: YELLOW,
+      succeededVerses: [16],
+      failedVerses: [],
+    })
+    // A second write is still in flight when the user navigates away.
+    state = claim(state, [20], pending, GREEN)
+    expect(state.reconcile.size).toBe(1)
+    expect(state.writeIntent.size).toBe(1)
+
+    const nextScope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '4' }
+    const reset = createOptimisticState({
+      scope: nextScope,
+      userId: 'user-2',
+      serverColors: { 1: BLUE },
+    })
+
+    expect(reset.scope).toEqual(nextScope)
+    expect(reset.userId).toBe('user-2')
+    expect(reset.overlay).toEqual({})
+    expect(reset.reconcile.size).toBe(0)
+    // Clearing writeIntent is what stops the in-flight write from settling onto
+    // a colliding verse number in the new scope.
+    expect(reset.writeIntent.size).toBe(0)
+    expect(
+      settle(reset, {
+        token: pending,
+        op: 'apply',
+        color: GREEN,
+        succeededVerses: [20],
+        failedVerses: [],
+      }),
+    ).toBe(reset)
   })
 })
 
@@ -466,7 +508,7 @@ describe('USFM range helpers', () => {
   })
 
   it('normalizes a verse list through the same run machinery', () => {
-    expect(normalizeVerses([18, 16, 16, 0, 17, 20])).toEqual([16, 17, 18, 20])
-    expect(normalizeVerses([])).toEqual([])
+    expect(normalizeVerseSelection([18, 16, 16, 0, 17, 20])).toEqual([16, 17, 18, 20])
+    expect(normalizeVerseSelection([])).toEqual([])
   })
 })

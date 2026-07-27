@@ -334,9 +334,15 @@ export function versesInRun(run: VerseRun): number[] {
 }
 
 /**
- * De-duplicated, sorted, positive-only verse numbers. Reuses
- * {@link collapseVerseRuns} so normalization lives in exactly one place.
+ * A raw verse selection reduced to its canonical form: de-duplicated, sorted
+ * ascending, non-positive numbers dropped. Reuses {@link collapseVerseRuns} so
+ * normalization lives in exactly one place.
+ *
+ * Not web's `normalizeVerses` — that one is private to `verse-share.ts` and
+ * serves copy/share reference formatting. This exists because writes need the
+ * canonical *verse list* (to claim the overlay and to report outcomes), while
+ * `collapseVerseRuns` yields runs.
  */
-export function normalizeVerses(verses: readonly number[]): number[] {
+export function normalizeVerseSelection(verses: readonly number[]): number[] {
   return collapseVerseRuns(verses).flatMap(versesInRun)
 }

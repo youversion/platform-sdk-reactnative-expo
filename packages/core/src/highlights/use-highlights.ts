@@ -12,7 +12,7 @@ import {
   createOptimisticState,
   createWriteToken,
   formatPassageId,
-  normalizeVerses,
+  normalizeVerseSelection,
   selectHighlights,
   selectVersesInColor,
   serverUpdated,
@@ -79,7 +79,12 @@ const NOT_SIGNED_IN_MESSAGE = 'Not signed in — highlights require an authentic
 const INVALID_COLOR_MESSAGE =
   'Unsupported highlight color. Use one of the five YouVersion highlight swatches.'
 
-/** `auth` wins (it changes what the user must do); retrying `invalid` is pointless. */
+/**
+ * `auth` wins (it changes what the user must do); retrying `invalid` is
+ * pointless. `not-signed-in` is ranked but unreachable here — it is never
+ * produced by {@link classifyApiError}, only constructed directly, so it can
+ * never be one of several competing failures in a batch.
+ */
 const REASON_RANK: Record<HighlightWriteReason, number> = {
   'not-signed-in': 4,
   auth: 3,
@@ -360,56 +365,53 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       const failedVerses: number[] = []
       const errors: HighlightsApiError[] = []
 
-      if (op === 'apply') {
-        // Contiguous runs collapse to one POST per range — [16,17,18,20] is two
-        // requests, not four.
-        const runs = collapseVerseRuns(verses)
-        const results = await Promise.all(
-          runs.map((run) =>
-            api.createHighlight(accessTokenNow, {
-              version_id: captured.scope.versionId,
-              passage_id: formatPassageId(captured.scope.book, captured.scope.chapter, run),
-              color,
-            }),
-          ),
-        )
-        runs.forEach((run, index) => {
-          const result = results[index]
-          const runVerses = versesInRun(run)
-          if (result === undefined || !result.ok) {
-            failedVerses.push(...runVerses)
-            if (result !== undefined && !result.ok) {
-              errors.push(result.error)
-            }
-          } else {
-            succeededVerses.push(...runVerses)
-          }
-        })
-      } else {
-        // Removes are one DELETE per verse, never a range: range DELETE is not
-        // supported server-side. Both paths route through `collapseVerseRuns`,
-        // so switching this is a single call site if that ever changes.
-        const results = await Promise.all(
-          verses.map((verse) =>
-            api.deleteHighlight(
-              accessTokenNow,
-              `${captured.scope.book}.${captured.scope.chapter}.${verse}`,
-              { version_id: captured.scope.versionId },
-            ),
-          ),
-        )
-        verses.forEach((verse, index) => {
-          const result = results[index]
-          if (result === undefined || !result.ok) {
-            failedVerses.push(verse)
-            if (result !== undefined && !result.ok) {
-              errors.push(result.error)
-            }
-          } else {
-            succeededVerses.push(verse)
-          }
-        })
-      }
+      // One request per unit, each covering the verses it is responsible for.
+      // Apply collapses contiguous verses into a single ranged POST per run —
+      // [16,17,18,20] is two requests, not four. Remove issues one DELETE per
+      // verse, never a range, because range DELETE is unsupported server-side;
+      // if that is ever confirmed to work, this ternary is the only call site
+      // that changes.
+      const units =
+        op === 'apply'
+          ? collapseVerseRuns(verses).map((run) => ({
+              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, run),
+              verses: versesInRun(run),
+            }))
+          : verses.map((verse) => ({
+              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, {
+                start: verse,
+                end: verse,
+              }),
+              verses: [verse],
+            }))
+
+      const results = await Promise.all(
+        units.map((unit) =>
+          op === 'apply'
+            ? api.createHighlight(accessTokenNow, {
+                version_id: captured.scope.versionId,
+                passage_id: unit.passageId,
+                color,
+              })
+            : api.deleteHighlight(accessTokenNow, unit.passageId, {
+                version_id: captured.scope.versionId,
+              }),
+        ),
+      )
+
+      units.forEach((unit, index) => {
+        const result = results[index]
+        // `results` is 1:1 with `units`, so `undefined` is unreachable — treat
+        // it as a failure rather than silently counting it as a success.
+        if (result !== undefined && result.ok) {
+          succeededVerses.push(...unit.verses)
+          return
+        }
+        failedVerses.push(...unit.verses)
+        if (result !== undefined) {
+          errors.push(result.error)
+        }
+      })
 
       setState((prev) => settle(prev, { token, op, color, succeededVerses, failedVerses }))
 
@@ -450,7 +452,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           status: 'error',
           reason: 'not-signed-in',
           message: NOT_SIGNED_IN_MESSAGE,
-          failedVerses: normalizeVerses(rawVerses),
+          failedVerses: normalizeVerseSelection(rawVerses),
           succeededVerses: [],
         })
       }
@@ -460,7 +462,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           status: 'error',
           reason: 'invalid',
           message: INVALID_COLOR_MESSAGE,
-          failedVerses: normalizeVerses(rawVerses),
+          failedVerses: normalizeVerseSelection(rawVerses),
           succeededVerses: [],
         })
       }
@@ -473,8 +475,8 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // `isAuthenticated` is still false.
       const verses =
         op === 'remove'
-          ? selectVersesInColor(stateRef.current, normalizeVerses(rawVerses), color)
-          : normalizeVerses(rawVerses)
+          ? selectVersesInColor(stateRef.current, normalizeVerseSelection(rawVerses), color)
+          : normalizeVerseSelection(rawVerses)
 
       if (verses.length === 0) {
         return Promise.resolve({ status: 'noop' })

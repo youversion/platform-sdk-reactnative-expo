@@ -370,6 +370,44 @@ describe('fetching server truth', () => {
     })
   })
 
+  it('reconciles a refresh that lands mid-write instead of clobbering the overlay', async () => {
+    const pendingWrite = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(pendingWrite.promise)
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    await act(async () => {
+      outcome = result.current.apply(YELLOW, [16])
+      await Promise.resolve()
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    // A refresh lands while the POST is still open. The server has not seen the
+    // write yet, so it reports nothing for verse 16 — the optimistic paint must
+    // survive it.
+    mockGetHighlights.mockResolvedValue(collection([]))
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    // Once the write settles and the server catches up, the overlay retires and
+    // the same colour is now server truth rather than optimism.
+    mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', YELLOW)]))
+    await act(async () => {
+      pendingWrite.resolve({ ok: true, value: highlight('JHN.3.16', YELLOW) })
+      await outcome
+      await Promise.resolve()
+    })
+
+    expect(await outcome).toEqual({ status: 'ok', verses: [16] })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+  })
+
   it('clears isRefreshing when signing out abandons an in-flight fetch', async () => {
     const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
     mockGetHighlights.mockReturnValueOnce(pending.promise)
