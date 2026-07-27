@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto'
 
+import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
 jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }))
@@ -181,27 +182,15 @@ describe('createHighlightsApi', () => {
     // Dropping the global reproduces RN Hermes and pins the wiring: the id must
     // come from expo-crypto, via the shim, on the way into platform-core.
     describe('on a runtime with no crypto global (RN Hermes)', () => {
-      const SHIM_UUID = '11111111-1111-4111-8111-111111111111'
-      let originalCrypto: PropertyDescriptor | undefined
+      let restoreCrypto: () => void
 
       beforeEach(() => {
-        originalCrypto = Object.getOwnPropertyDescriptor(globalThis, 'crypto')
-        // Replaced wholesale rather than mutated, so the shim's assignment lands
-        // on this throwaway object and never touches the real Node crypto.
-        Object.defineProperty(globalThis, 'crypto', {
-          value: undefined,
-          configurable: true,
-          writable: true,
-        })
+        restoreCrypto = stubCryptoGlobal(undefined)
         mockRandomUUID.mockReturnValue(SHIM_UUID)
       })
 
       afterEach(() => {
-        if (originalCrypto) {
-          Object.defineProperty(globalThis, 'crypto', originalCrypto)
-        } else {
-          delete (globalThis as { crypto?: unknown }).crypto
-        }
+        restoreCrypto()
       })
 
       it('mints request_id from expo-crypto instead of the yvp- fallback', async () => {
