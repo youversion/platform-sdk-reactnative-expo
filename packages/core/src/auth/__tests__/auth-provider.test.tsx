@@ -18,6 +18,7 @@ jest.mock('../../storage/mmkv-storage', () => ({
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
     remove: jest.fn((k: string) => mockMmkv.delete(k)),
+    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
   },
 }))
 
@@ -346,8 +347,13 @@ describe('AuthProvider — signIn', () => {
 })
 
 describe('AuthProvider — signOut', () => {
-  it('clears tokens, resets in-memory state, and removes cached userInfo', async () => {
+  it('clears tokens, resets in-memory state, and removes cached userInfo and highlights', async () => {
+    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
@@ -372,6 +378,7 @@ describe('AuthProvider — signOut', () => {
       expiryDate: null,
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+    expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
 })
 
@@ -401,6 +408,11 @@ describe('AuthProvider — refresh failure policy', () => {
   })
 
   it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
+    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
 
@@ -415,6 +427,7 @@ describe('AuthProvider — refresh failure policy', () => {
     expect(getText('accessToken')).toBe('null')
     expect(getText('error')).toMatch(/401/)
     expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
 })
 
