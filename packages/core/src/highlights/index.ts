@@ -10,3 +10,16 @@ export {
   type HighlightsApiError,
   type HighlightsApiResult,
 } from './api'
+
+export {
+  clearHighlightsCache,
+  deriveServerColors,
+  expandPassageId,
+  getCachedHighlights,
+  highlightsCacheKey,
+  MMKV_HIGHLIGHTS_KEY_PREFIX,
+  setCachedHighlights,
+  type ExpandedPassageId,
+  type HighlightScope,
+  type ServerColors,
+} from './cache'
