@@ -68,6 +68,13 @@
       "!src/**/types.ts",
       "!src/**/constants.ts"
     ],
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "text",
+      "clover",
+      "json-summary"
+    ],
     "coverageThreshold": {
       "global": {
         "branches": 85,
