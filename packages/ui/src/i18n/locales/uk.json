@@ -1,0 +1,10 @@
+{
+  "signIn": "Увійти",
+  "signInWithYouVersion": "Увійти через <bold>{{brandName}}</bold>",
+  "signOut": "Вийти",
+  "signOutOfYouVersion": "Вийти з <bold>{{brandName}}</bold>",
+  "loading": "Завантаження",
+  "cancel": "Скасувати",
+  "booksHeading": "Книги",
+  "bibleVersionsHeading": "Переклади Біблії"
+}
