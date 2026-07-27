@@ -7,10 +7,19 @@
  *
  * We back `crypto.randomUUID` with `expo-crypto` (already a core dependency — the
  * same native UUID source used in installation-id.ts) so platform-core takes its
- * intended path and sends a real RFC-4122 v4 UUID. Only `randomUUID` is shimmed;
- * we deliberately do not polyfill the rest of the Web Crypto surface (a partial
- * `getRandomValues`/`subtle` shim is a worse footgun than a missing one). An
- * existing native `randomUUID` is never overridden.
+ * intended path and sends a real RFC-4122 v4 UUID. An existing native
+ * `randomUUID` is never overridden.
+ *
+ * Only `randomUUID` is shimmed — the one thing platform-core needs — keeping the
+ * surface we add to a consumer's runtime as small as it can be. The accepted
+ * trade, recorded here because it cuts the other way: defining `crypto` at all
+ * makes `typeof crypto !== 'undefined'` true while `getRandomValues` and `subtle`
+ * stay undefined, so a library that gates on the object rather than the method
+ * takes its real branch and hits a TypeError where it previously fell back to its
+ * own path. Judged low-probability — maintained libraries feature-detect the
+ * method — and contained while this module is only reachable through the
+ * unexported highlights path. Revisit when `useHighlights` is exported from the
+ * package index and the install becomes app-wide. See YPE-4192.
  *
  * Idempotent and self-installing on import — mirrors ui/lib/dom-local-storage.ts.
  * Import (and/or call) this before any platform-core client runs; api.ts does both.
