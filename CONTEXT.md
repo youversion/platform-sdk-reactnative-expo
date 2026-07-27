@@ -103,8 +103,12 @@ The chapter a highlights flow is operating on: `versionId` + `book` + `chapter`.
 _Avoid_: Folding `userId` into this type; Reader Location (restore snapshot for uncontrolled readers, different purpose); cache key (implementation detail)
 
 **Server Colors**:
-The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. The last reconciled server snapshot for that scope — not optimistic UI overlays. When persisted on native, addressed by `userId` + **Highlight Scope**. A valid empty map is a real snapshot (“none”), not a cache miss. Cached colors are normalized to lowercase.
-_Avoid_: Highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
+The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. A _derived_ projection of **Cached Highlights** onto the displayed scope, used for optimistic overlay math — not something we persist, and not optimistic UI overlays themselves. Range passage ids expand to one entry per verse and colors are normalized to lowercase during projection.
+_Avoid_: Persisting this shape (it destroys passage ids — see **Cached Highlights**); highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
+
+**Cached Highlights**:
+The raw core API shape (`Highlight[]`: `version_id` + `passage_id` + `color`) persisted on native per `userId` + **Highlight Scope**. Passage ids may be verse ranges (`JHN.3.16-18`), so this is the only shape that can feed the web reader's controlled `highlights` prop on a cold start and that supports passage-id-targeted deletes. Reads are synchronous and validated; a valid empty array is a real snapshot (“none”), not a cache miss, and any corrupt or legacy payload reads as a miss.
+_Avoid_: Flattening to **Server Colors** before writing; treating an empty array as a miss
 
 ## Relationships
 
@@ -128,7 +132,8 @@ _Avoid_: Highlight colors (ambiguous with UI state), highlightedVerses (Web SDK 
 - **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 - The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
-- A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Server Colors** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
+- A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Cached Highlights** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
+- **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
 
 ## Example Dialogue
 

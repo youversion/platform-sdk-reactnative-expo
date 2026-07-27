@@ -350,7 +350,10 @@ describe('AuthProvider — signOut', () => {
   it('clears tokens, resets in-memory state, and removes cached userInfo and highlights', async () => {
     const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
-    mockMmkv.set(highlightsKey, JSON.stringify({ 16: 'fffe00' }))
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
@@ -406,7 +409,10 @@ describe('AuthProvider — refresh failure policy', () => {
 
   it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
     const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
-    mockMmkv.set(highlightsKey, JSON.stringify({ 16: 'fffe00' }))
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
 

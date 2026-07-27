@@ -13,10 +13,13 @@ export {
 
 export {
   clearHighlightsCache,
-  getServerColors,
+  deriveServerColors,
+  expandPassageId,
+  getCachedHighlights,
   highlightsCacheKey,
   MMKV_HIGHLIGHTS_KEY_PREFIX,
-  setServerColors,
+  setCachedHighlights,
+  type ExpandedPassageId,
   type HighlightScope,
   type ServerColors,
 } from './cache'
