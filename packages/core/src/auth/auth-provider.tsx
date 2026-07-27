@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
+import { clearHighlightsCache } from '../highlights'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
@@ -41,6 +42,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    clearHighlightsCache()
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
