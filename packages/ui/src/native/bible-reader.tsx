@@ -6,14 +6,15 @@ import type {
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useMemo, useState } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Alert, Platform, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks/use-theme'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -24,6 +25,7 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
+import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import type { HighlightWriteError } from './use-reader-highlights'
 import { useReaderHighlights } from './use-reader-highlights'
 
@@ -158,12 +160,47 @@ export function BibleReader({
 
   // The wrapper already owns the full highlight scope, so the orchestrator reads
   // it straight off the reader's location state.
-  const { highlights, onHighlightApply, onHighlightRemove } = useReaderHighlights({
+  const {
+    highlights,
+    onHighlightApply,
+    onHighlightRemove,
+    prompt,
+    onPromptConfirm,
+    onPromptDismiss,
+  } = useReaderHighlights({
     versionId,
     book,
     chapter,
     onHighlightError,
   })
+
+  // The just-in-time permission prompt is a native `Alert`, not a sheet — Swift
+  // makes the sign-in prompt the only full sheet in this flow. Fired from an
+  // effect keyed on the prompt phase alone: the handlers and `t` change identity
+  // freely, and depending on them would re-present the alert on every render.
+  const { t } = useSdkTranslation()
+  const promptActionsRef = useRef({ onPromptConfirm, onPromptDismiss, t })
+  useEffect(() => {
+    promptActionsRef.current = { onPromptConfirm, onPromptDismiss, t }
+  })
+  useEffect(() => {
+    if (prompt !== 'permission') return
+    const {
+      onPromptConfirm: confirm,
+      onPromptDismiss: dismiss,
+      t: translate,
+    } = promptActionsRef.current
+    Alert.alert(
+      translate('dataExchange.highlights.question'),
+      translate('dataExchange.highlights.explanation'),
+      [
+        { text: translate('generic.cancel'), style: 'cancel', onPress: dismiss },
+        { text: translate('dataExchange.continue'), onPress: confirm },
+      ],
+      // Android's hardware back / outside tap dismisses without a button press.
+      { onDismiss: dismiss },
+    )
+  }, [prompt])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -312,6 +349,14 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {Platform.OS !== 'web' && (
+        <SignInWithYouVersionSheet
+          isOpen={prompt === 'sign-in'}
+          onConfirm={onPromptConfirm}
+          onDismiss={onPromptDismiss}
+          theme={resolvedTheme}
         />
       )}
       {showFootnoteSheet && (

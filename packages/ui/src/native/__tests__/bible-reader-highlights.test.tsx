@@ -318,8 +318,7 @@ describe('BibleReader highlights write path', () => {
     expect(highlightsMock.apply).not.toHaveBeenCalled()
   })
 
-  it('does nothing when signed out, even with auth configured', async () => {
-    // The sign-in prompt's branch. Silent until that sheet exists.
+  it('writes nothing when signed out — the tap routes to the sign-in prompt instead', async () => {
     setMockAuth({ isAuthConfigured: true })
 
     const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
@@ -340,6 +339,7 @@ describe('BibleReader highlights write path', () => {
       isAuthenticated: false,
       accessToken: null,
       userInfo: { id: 'test-user-id' },
+      grantedPermissions: ['highlights'],
       isLoading: true,
     })
 

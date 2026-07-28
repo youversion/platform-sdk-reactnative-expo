@@ -90,28 +90,40 @@ describe('gateHighlightTap', () => {
     expect(gate({ isAuthConfigured: false })).toBe('noop')
   })
 
-  // Both branches become prompts when the sign-in sheet and the just-in-time
-  // alert land. Until then they are silent, which is what the swatches do today.
-  it('no-ops when signed out', () => {
-    expect(gate({ isSignedIn: false, hasHighlightsPermission: false })).toBe('noop')
+  it('prompts to sign in when signed out with auth configured', () => {
+    expect(gate({ isSignedIn: false, hasHighlightsPermission: false })).toBe('prompt-sign-in')
   })
 
-  it('no-ops when signed in without the highlights permission', () => {
-    expect(gate({ hasHighlightsPermission: false })).toBe('noop')
+  it('prompts for the permission when signed in without the grant', () => {
+    expect(gate({ hasHighlightsPermission: false })).toBe('prompt-permission')
   })
 
-  it('covers the full input matrix without ever returning a prompt yet', () => {
+  it('covers the full input matrix', () => {
     const bools = [false, true]
-    const outcomes = new Set<string>()
+    const outcomes = new Map<string, string>()
 
     for (const isAuthConfigured of bools) {
       for (const isSignedIn of bools) {
         for (const hasHighlightsPermission of bools) {
-          outcomes.add(gate({ isAuthConfigured, isSignedIn, hasHighlightsPermission }))
+          outcomes.set(
+            `${isAuthConfigured}|${isSignedIn}|${hasHighlightsPermission}`,
+            gate({ isAuthConfigured, isSignedIn, hasHighlightsPermission }),
+          )
         }
       }
     }
 
-    expect(outcomes).toEqual(new Set(['write', 'noop']))
+    expect(Object.fromEntries(outcomes)).toEqual({
+      // auth not configured — never anything, whatever the rest says.
+      'false|false|false': 'noop',
+      'false|false|true': 'noop',
+      'false|true|false': 'noop',
+      'false|true|true': 'noop',
+      'true|false|false': 'prompt-sign-in',
+      // Signed out but believed-granted (a stale mirror) still has to sign in.
+      'true|false|true': 'prompt-sign-in',
+      'true|true|false': 'prompt-permission',
+      'true|true|true': 'write',
+    })
   })
 })

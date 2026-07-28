@@ -1,4 +1,8 @@
-import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type {
+  AuthPermission,
+  RequestPermissionResult,
+  YVUserInfo,
+} from '@youversion/platform-react-native-expo-core'
 
 /**
  * The controllable stand-in for core's auth hooks, installed once in
@@ -16,6 +20,11 @@ type MockAuthState = {
   isAuthenticated: boolean
   accessToken: string | null
   userInfo: YVUserInfo | null
+  /**
+   * The optimistic grant mirror. `null` means "unknown" — signed out, or signed
+   * in with nothing recorded — and is distinct from `[]`, exactly as in core.
+   */
+  grantedPermissions: AuthPermission[] | null
   isLoading: boolean
 }
 
@@ -24,6 +33,7 @@ const SIGNED_OUT: MockAuthState = {
   isAuthenticated: false,
   accessToken: null,
   userInfo: null,
+  grantedPermissions: null,
   isLoading: false,
 }
 
@@ -33,6 +43,9 @@ export const authMock = {
   signIn: jest.fn<Promise<void>, []>(async () => {}),
   signOut: jest.fn<Promise<void>, []>(async () => {}),
   refreshNow: jest.fn<Promise<void>, []>(async () => {}),
+  requestPermission: jest.fn<Promise<RequestPermissionResult>, [AuthPermission]>(async () => ({
+    kind: 'cancel',
+  })),
 }
 
 /**
@@ -43,12 +56,17 @@ export function setMockAuth(next: Partial<MockAuthState>): void {
   Object.assign(state, next)
 }
 
+/**
+ * The happy path: signed in **with** the `highlights` grant recorded. Tests for
+ * the just-in-time permission prompt pass `grantedPermissions: []` on top.
+ */
 export function setMockSignedIn(userId = 'test-user-id'): void {
   Object.assign(state, {
     isAuthConfigured: true,
     isAuthenticated: true,
     accessToken: 'test-access-token',
     userInfo: { id: userId },
+    grantedPermissions: ['highlights'],
     isLoading: false,
   } satisfies MockAuthState)
 }
@@ -56,9 +74,14 @@ export function setMockSignedIn(userId = 'test-user-id'): void {
 /** Restore the auth-not-configured default. Call from `beforeEach`. */
 export function resetAuthMock(): void {
   Object.assign(state, SIGNED_OUT)
-  authMock.signIn.mockClear()
-  authMock.signOut.mockClear()
-  authMock.refreshNow.mockClear()
+  authMock.signIn.mockReset()
+  authMock.signIn.mockImplementation(async () => {})
+  authMock.signOut.mockReset()
+  authMock.signOut.mockImplementation(async () => {})
+  authMock.refreshNow.mockReset()
+  authMock.refreshNow.mockImplementation(async () => {})
+  authMock.requestPermission.mockReset()
+  authMock.requestPermission.mockImplementation(async () => ({ kind: 'cancel' }))
 }
 
 function currentValue() {
@@ -66,6 +89,10 @@ function currentValue() {
     isAuthenticated: state.isAuthenticated,
     accessToken: state.accessToken,
     userInfo: state.userInfo,
+    grantedPermissions: state.grantedPermissions,
+    hasPermission: (permission: AuthPermission) =>
+      (state.grantedPermissions ?? []).includes(permission),
+    requestPermission: authMock.requestPermission,
     error: null,
     signIn: authMock.signIn,
     signOut: authMock.signOut,
