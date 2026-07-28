@@ -1,0 +1,10 @@
+{
+  "signIn": "Přihlásit se",
+  "signInWithYouVersion": "Přihlásit se pomocí <bold>{{brandName}}</bold>",
+  "signOut": "Odhlásit se",
+  "signOutOfYouVersion": "Odhlásit se z <bold>{{brandName}}</bold>",
+  "loading": "Načítání",
+  "cancel": "Zrušit",
+  "booksHeading": "Knihy",
+  "bibleVersionsHeading": "Verze Bible"
+}

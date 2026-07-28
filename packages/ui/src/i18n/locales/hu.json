@@ -1,0 +1,10 @@
+{
+  "signIn": "Bejelentkezés",
+  "signInWithYouVersion": "Bejelentkezés ezzel: <bold>{{brandName}}</bold>",
+  "signOut": "Kijelentkezés",
+  "signOutOfYouVersion": "Kijelentkezés innen: <bold>{{brandName}}</bold>",
+  "loading": "Betöltés",
+  "cancel": "Mégse",
+  "booksHeading": "Könyvek",
+  "bibleVersionsHeading": "Bibliafordítások"
+}
