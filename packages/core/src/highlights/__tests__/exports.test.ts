@@ -23,6 +23,11 @@ describe('package exports', () => {
     expect(core.HIGHLIGHT_COLORS).toEqual(['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'])
   })
 
+  it('exposes the auth hooks', () => {
+    expect(typeof core.useYVAuth).toBe('function')
+    expect(typeof core.useYVAuthOptional).toBe('function')
+  })
+
   it('keeps the client wrapper, the cache, and the Result seam internal', () => {
     const names = Object.keys(core)
     expect(names).not.toContain('createHighlightsApi')
@@ -31,5 +36,42 @@ describe('package exports', () => {
     expect(names).not.toContain('clearHighlightsCache')
     expect(names).not.toContain('ok')
     expect(names).not.toContain('err')
+  })
+
+  it('keeps the granted-permissions store and the data-exchange session internal', () => {
+    const names = Object.keys(core)
+    // `grantedPermissions` / `hasPermission` / `requestPermission` on the auth
+    // context are the whole surface — the storage and browser plumbing under
+    // them is ours to change.
+    expect(names).not.toContain('getGrantedPermissions')
+    expect(names).not.toContain('saveGrantedPermissions')
+    expect(names).not.toContain('addGrantedPermissions')
+    expect(names).not.toContain('invalidateGrantedPermission')
+    expect(names).not.toContain('clearGrantedPermissions')
+    expect(names).not.toContain('subscribeGrantedPermissions')
+    expect(names).not.toContain('requestPermissionViaDataExchange')
+  })
+})
+
+/**
+ * Types erase at runtime, so the names above cannot pin them. This block fails
+ * the build if a public type stops being exported or changes shape.
+ */
+describe('package types', () => {
+  it('exports the permission types the auth context speaks in', () => {
+    const permission: core.AuthPermission = 'highlights'
+    const known: core.KnownAuthPermission = 'highlights'
+    const future: core.AuthPermission = 'verse_notes'
+    const granted: core.RequestPermissionResult = { kind: 'granted', permissions: [permission] }
+    const cancelled: core.RequestPermissionResult = { kind: 'cancel' }
+    const failed: core.RequestPermissionResult = { kind: 'failure', message: 'nope' }
+
+    expect([known, future, granted.kind, cancelled.kind, failed.kind]).toEqual([
+      'highlights',
+      'verse_notes',
+      'granted',
+      'cancel',
+      'failure',
+    ])
   })
 })

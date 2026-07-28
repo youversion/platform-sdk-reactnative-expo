@@ -4,6 +4,11 @@ import { Text } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
+import {
+  clearGrantedPermissions,
+  getGrantedPermissions,
+  saveGrantedPermissions,
+} from '../../auth/granted-permissions'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
 import type { HighlightsApiError } from '../api'
@@ -112,6 +117,9 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     isAuthenticated: false,
     accessToken: null,
     userInfo: null,
+    grantedPermissions: null,
+    hasPermission: () => false,
+    requestPermission: jest.fn(async () => ({ kind: 'cancel' as const })),
     error: null,
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
@@ -184,6 +192,9 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 
 beforeEach(() => {
   mockMmkv.clear()
+  // Drops the granted-permissions snapshot cache, which is module state and
+  // would otherwise outlive `mockMmkv.clear()`.
+  clearGrantedPermissions()
   jest.clearAllMocks()
   // `clearAllMocks` clears calls but NOT queued `mockResolvedValueOnce` values,
   // so an unconsumed queue would leak into the next test. Reset these three
@@ -538,6 +549,32 @@ describe('apply', () => {
     expect(outcome).toMatchObject({ status: 'error', reason: 'auth' })
     expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
     expect(refreshNow).not.toHaveBeenCalled()
+  })
+
+  // The ADR 0013 seam. The server outranks the optimistic mirror, so the next
+  // tap has to route to the permission prompt instead of failing the same way.
+  it('invalidates the highlights grant when a write comes back 401/403', async () => {
+    saveGrantedPermissions(userId, ['highlights', 'votd'])
+    mockCreateHighlight.mockResolvedValue(authError(403))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+
+    expect(getGrantedPermissions(userId)).toEqual(['votd'])
+  })
+
+  it('leaves the granted-permissions mirror alone when a write fails for other reasons', async () => {
+    saveGrantedPermissions(userId, ['highlights'])
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+
+    expect(getGrantedPermissions(userId)).toEqual(['highlights'])
   })
 
   // Without this, the pre-#99 `uuid_parsing` 422 presents as flaky network.

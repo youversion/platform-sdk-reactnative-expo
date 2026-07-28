@@ -2,6 +2,7 @@ import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useYVAuthOptional } from '../auth'
+import { invalidateGrantedPermission } from '../auth/granted-permissions'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
@@ -450,6 +451,14 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       const message =
         errors.find((candidate) => classifyApiError(candidate) === reason)?.message ??
         'Highlight write failed.'
+
+      // The ADR 0013 seam. The server just told us this token cannot write
+      // highlights, which outranks whatever the optimistic mirror believes — so
+      // drop the grant and let the next tap route to the just-in-time prompt
+      // instead of failing the same way again.
+      if (reason === 'auth' && captured.userId !== null) {
+        invalidateGrantedPermission(captured.userId, 'highlights')
+      }
 
       return { status: 'error', reason, message, failedVerses, succeededVerses }
     },

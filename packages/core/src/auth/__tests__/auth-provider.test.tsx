@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
+import { requestPermissionViaDataExchange } from '../data-exchange'
+import { clearGrantedPermissions, grantedPermissionsKey } from '../granted-permissions'
 import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
@@ -36,10 +38,15 @@ jest.mock('../pkce-flow', () => ({
   signInWithPKCE: jest.fn(),
 }))
 
+jest.mock('../data-exchange', () => ({
+  requestPermissionViaDataExchange: jest.fn(),
+}))
+
 const mockLoadTokens = loadTokens as jest.Mock
 const mockSaveTokens = saveTokens as jest.Mock
 const mockRefreshTokens = refreshTokens as jest.Mock
 const mockSignInWithPKCE = signInWithPKCE as jest.Mock
+const mockRequestPermission = requestPermissionViaDataExchange as jest.Mock
 const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
 
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
@@ -73,6 +80,7 @@ const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefi
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
+  const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
 
   return (
     <View>
@@ -80,8 +88,22 @@ function AuthPeek() {
       <Text testID="isAuthenticated">{String(auth.isAuthenticated)}</Text>
       <Text testID="accessToken">{auth.accessToken ?? 'null'}</Text>
       <Text testID="userInfo">{auth.userInfo ? JSON.stringify(auth.userInfo) : 'null'}</Text>
+      <Text testID="grantedPermissions">
+        {auth.grantedPermissions === null ? 'null' : JSON.stringify(auth.grantedPermissions)}
+      </Text>
+      <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="error">{auth.error?.message ?? 'null'}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Text testID="permissionOutcome">{permissionOutcome}</Text>
+      <Pressable
+        testID="requestPermission"
+        onPress={async () => {
+          const result = await auth.requestPermission('highlights')
+          setPermissionOutcome(JSON.stringify(result))
+        }}
+      >
+        <Text>requestPermission</Text>
+      </Pressable>
       <Pressable
         testID="signIn"
         onPress={async () => {
@@ -114,6 +136,8 @@ function fireAppStateChange(state: string) {
 
 beforeEach(() => {
   mockMmkv.clear()
+  // Module state, so it outlives `mockMmkv.clear()` on its own.
+  clearGrantedPermissions()
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
 })
@@ -379,6 +403,255 @@ describe('AuthProvider — signOut', () => {
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(mockMmkv.has(highlightsKey)).toBe(false)
+  })
+})
+
+describe('AuthProvider — granted permissions', () => {
+  const withHighlights: AuthConfig = { ...defaultConfig, permissions: ['highlights'] }
+  const storedTokens = {
+    accessToken: 'stored-access',
+    refreshToken: 'stored-refresh',
+    expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+  }
+
+  function grants(userId: string, permissions: string[]) {
+    return [grantedPermissionsKey(userId), JSON.stringify({ userId, permissions })] as const
+  }
+
+  it('reports unknown — not empty — when signed out', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('hasHighlights')).toBe('false')
+  })
+
+  it('hydrates the signed-in user’s grants on mount, alongside userInfo', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(...grants('u1', ['highlights', 'votd']))
+    mockLoadTokens.mockResolvedValue(storedTokens)
+
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    // Synchronous, like the cached userInfo it is keyed on — no waiting.
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights', 'votd'])
+    expect(getText('hasHighlights')).toBe('true')
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+  })
+
+  it('does not read another user’s grants', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(...grants('someone-else', ['highlights']))
+    mockLoadTokens.mockResolvedValue(storedTokens)
+
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('seeds the mirror from what sign-in requested', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+    })
+
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    fireEvent.press(screen.getByTestId('signIn'))
+
+    await waitFor(() => expect(getText('hasHighlights')).toBe('true'))
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+  })
+
+  it('replaces a previous session’s grants on a fresh sign-in rather than unioning', async () => {
+    mockMmkv.set(...grants('u1', ['highlights']))
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+    })
+
+    render(
+      <AuthProvider {...defaultProps} config={{ ...defaultConfig, permissions: ['votd'] }}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    fireEvent.press(screen.getByTestId('signIn'))
+
+    await waitFor(() => expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd']))
+    expect(getText('hasHighlights')).toBe('false')
+  })
+
+  it('records an empty set when sign-in requested nothing', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    fireEvent.press(screen.getByTestId('signIn'))
+
+    await waitFor(() => expect(getText('grantedPermissions')).toBe('[]'))
+  })
+
+  it('drops every user’s grants on sign-out', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(...grants('u1', ['highlights']))
+    mockMmkv.set(...grants('u2', ['highlights']))
+    mockLoadTokens.mockResolvedValue(storedTokens)
+
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('hasHighlights')).toBe('true'))
+
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('grantedPermissions')).toBe('null'))
+    expect(mockMmkv.has(grantedPermissionsKey('u1'))).toBe(false)
+    expect(mockMmkv.has(grantedPermissionsKey('u2'))).toBe(false)
+  })
+})
+
+describe('AuthProvider — requestPermission', () => {
+  const withHighlights: AuthConfig = { ...defaultConfig, permissions: [] }
+  const storedTokens = {
+    accessToken: 'stored-access',
+    refreshToken: 'stored-refresh',
+    expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+  }
+
+  async function renderSignedIn() {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockLoadTokens.mockResolvedValue(storedTokens)
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+  }
+
+  it('runs the data exchange with the signed-in user as initiator and records the grant', async () => {
+    mockRequestPermission.mockResolvedValue({ kind: 'granted', permissions: ['highlights'] })
+    await renderSignedIn()
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+
+    await waitFor(() => expect(getText('hasHighlights')).toBe('true'))
+    expect(mockRequestPermission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        apiHost: 'api.example.com',
+        appKey: 'appkey',
+        accessToken: 'stored-access',
+        redirectUri: 'https://app/cb',
+        permissions: ['highlights'],
+        initiatorUserId: 'u1',
+      }),
+    )
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+  })
+
+  it('unions the grant into what sign-in already recorded', async () => {
+    mockMmkv.set(
+      grantedPermissionsKey('u1'),
+      JSON.stringify({ userId: 'u1', permissions: ['votd'] }),
+    )
+    mockRequestPermission.mockResolvedValue({ kind: 'granted', permissions: ['highlights'] })
+    await renderSignedIn()
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+
+    await waitFor(() => expect(getText('hasHighlights')).toBe('true'))
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd', 'highlights'])
+  })
+
+  it('records nothing when the exchange is cancelled', async () => {
+    mockRequestPermission.mockResolvedValue({ kind: 'cancel' })
+    await renderSignedIn()
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+
+    await waitFor(() => expect(getText('permissionOutcome')).toBe('{"kind":"cancel"}'))
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('error')).toBe('null')
+  })
+
+  it('records nothing when the exchange grants something else', async () => {
+    mockRequestPermission.mockResolvedValue({ kind: 'granted', permissions: ['votd'] })
+    await renderSignedIn()
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+
+    await waitFor(() => expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd']))
+    expect(getText('hasHighlights')).toBe('false')
+  })
+
+  it('fails without opening a browser session when nobody is signed in', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    render(
+      <AuthProvider {...defaultProps} config={withHighlights}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+
+    await waitFor(() => expect(getText('permissionOutcome')).toMatch(/"kind":"failure"/))
+    expect(mockRequestPermission).not.toHaveBeenCalled()
+  })
+
+  it('reads the CURRENT user when the session returns, not the one captured at render', async () => {
+    mockRequestPermission.mockResolvedValue({ kind: 'granted', permissions: ['highlights'] })
+    await renderSignedIn()
+
+    fireEvent.press(screen.getByTestId('requestPermission'))
+    await waitFor(() => expect(mockRequestPermission).toHaveBeenCalled())
+
+    const { getCurrentUserId } = mockRequestPermission.mock.calls[0]![0] as {
+      getCurrentUserId: () => string | null
+    }
+    expect(getCurrentUserId()).toBe('u1')
+
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getCurrentUserId()).toBeNull()
   })
 })
 
