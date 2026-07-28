@@ -3,12 +3,13 @@
 import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderHighlightIntent,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib/dom-apply'
 
@@ -36,6 +37,12 @@ type BibleReaderBaseProps = {
    * for "nothing highlighted". Owned natively by `useReaderHighlights`.
    */
   highlights: Highlight[]
+  /**
+   * Swatch taps arrive here as intents — requests, not facts. Nothing paints
+   * until native round-trips an updated `highlights`.
+   */
+  onHighlightApply?: (intent: BibleReaderHighlightIntent) => Promise<void>
+  onHighlightRemove?: (intent: BibleReaderHighlightIntent) => Promise<void>
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -81,6 +88,8 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     installationId,
     accessToken,
     highlights,
+    onHighlightApply,
+    onHighlightRemove,
     theme = 'light',
     book,
     chapter,
@@ -113,6 +122,26 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the
   // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
   const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+
+  // Native Actions are async by convention; the Web SDK's intent callbacks are
+  // synchronous `(intent) => void`. This is the inverse of the cast applied to
+  // `NativeActionBibleReaderRoot` above — there our type is narrower and a cast
+  // suffices, here ours is wider, so it has to be wrapped. The reader does not
+  // await the write: it paints nothing either way, and blocking the tap on a
+  // bridge round-trip would stall the drawer.
+  const handleHighlightApply = useCallback(
+    (intent: BibleReaderHighlightIntent) => {
+      void onHighlightApply?.(intent)
+    },
+    [onHighlightApply],
+  )
+
+  const handleHighlightRemove = useCallback(
+    (intent: BibleReaderHighlightIntent) => {
+      void onHighlightRemove?.(intent)
+    },
+    [onHighlightRemove],
+  )
 
   useEffect(() => {
     if (!onExternalLinkPress) return
@@ -179,6 +208,8 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           // Native owns the data — see `native/use-reader-highlights.ts`, which
           // guarantees an array on every render.
           highlights={highlights}
+          onHighlightApply={handleHighlightApply}
+          onHighlightRemove={handleHighlightRemove}
           book={book}
           chapter={chapter}
           versionId={versionId}

@@ -1,13 +1,23 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { Highlight, HighlightScope } from '@youversion/platform-react-native-expo-core'
+import type {
+  Highlight,
+  HighlightScope,
+  HighlightWriteOutcome,
+} from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import type { BibleReaderHighlightIntent } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
-import { resetHighlightsMock, setMockHighlights } from '../../test-utils/highlights-mock'
+import { resetAuthMock, setMockAuth, setMockSignedIn } from '../../test-utils/auth-mock'
+import {
+  highlightsMock,
+  resetHighlightsMock,
+  setMockHighlights,
+} from '../../test-utils/highlights-mock'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -20,12 +30,30 @@ import { YouVersionProvider } from '../youversion-provider'
  */
 const mockHighlightsHistory: (Highlight[] | undefined)[] = []
 
+const VERSION_ID = 111
+
 let latestDomProps: {
   highlights?: Highlight[]
   book?: string
   chapter?: string
   versionId?: number
 } = {}
+
+/**
+ * The intent the mocked swatch triggers emit. The Web SDK builds this inside the
+ * WebView from its own selection state, so tests set it directly to stand in for
+ * "the user selected these verses and tapped this color".
+ */
+const JHN_1_INTENT: BibleReaderHighlightIntent = {
+  versionId: VERSION_ID,
+  book: 'JHN',
+  chapter: '1',
+  verses: [1, 2],
+  passageIds: ['JHN.1.1', 'JHN.1.2'],
+  color: 'fffe00',
+}
+
+let mockNextIntent: BibleReaderHighlightIntent = JHN_1_INTENT
 
 jest.mock('../../dom/bible-reader', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -38,6 +66,8 @@ jest.mock('../../dom/bible-reader', () => {
       chapter?: string
       versionId?: number
       onChapterChange?: (chapter: string) => Promise<void>
+      onHighlightApply?: (intent: BibleReaderHighlightIntent) => Promise<void>
+      onHighlightRemove?: (intent: BibleReaderHighlightIntent) => Promise<void>
     }) {
       latestDomProps = props
       mockHighlightsHistory.push(props.highlights)
@@ -47,6 +77,18 @@ jest.mock('../../dom/bible-reader', () => {
           <Text testID="chapter">{props.chapter ?? 'none'}</Text>
           <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('3')}>
             <Text>Chapter</Text>
+          </Pressable>
+          <Pressable
+            testID="trigger-highlight-apply"
+            onPress={() => props.onHighlightApply?.(mockNextIntent)}
+          >
+            <Text>Apply</Text>
+          </Pressable>
+          <Pressable
+            testID="trigger-highlight-remove"
+            onPress={() => props.onHighlightRemove?.(mockNextIntent)}
+          >
+            <Text>Remove</Text>
           </Pressable>
         </View>
       )
@@ -116,8 +158,6 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
-const VERSION_ID = 111
-
 const JHN_1_HIGHLIGHTS: Highlight[] = [
   { version_id: VERSION_ID, passage_id: 'JHN.1.1', color: 'fffe00' },
   { version_id: VERSION_ID, passage_id: 'JHN.1.2', color: 'fffe00' },
@@ -134,16 +174,18 @@ function highlightsForScope(scope: HighlightScope): Highlight[] {
   return []
 }
 
-describe('BibleReader highlights read path', () => {
-  beforeEach(async () => {
-    latestDomProps = {}
-    mockHighlightsHistory.length = 0
-    resetHighlightsMock()
-    mmkvStorage.clearAll()
-    useReaderLocationStore.setState(readerLocationStoreInitialState)
-    await useReaderLocationStore.persist.rehydrate()
-  })
+beforeEach(async () => {
+  latestDomProps = {}
+  mockHighlightsHistory.length = 0
+  mockNextIntent = JHN_1_INTENT
+  resetHighlightsMock()
+  resetAuthMock()
+  mmkvStorage.clearAll()
+  useReaderLocationStore.setState(readerLocationStoreInitialState)
+  await useReaderLocationStore.persist.rehydrate()
+})
 
+describe('BibleReader highlights read path', () => {
   it('passes the hook’s highlights straight through to the DOM component', () => {
     setMockHighlights(JHN_1_HIGHLIGHTS)
 
@@ -199,5 +241,216 @@ describe('BibleReader highlights read path', () => {
 
     expect(latestDomProps.chapter).toBe('3')
     expect(latestDomProps.highlights).toBe(JHN_3_HIGHLIGHTS)
+  })
+})
+
+describe('BibleReader highlights write path', () => {
+  async function tap(getByTestId: (id: string) => Parameters<typeof fireEvent.press>[0]) {
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-highlight-apply'))
+    })
+  }
+
+  it('routes an apply intent into the hook with the tapped color and verses', async () => {
+    setMockSignedIn()
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).toHaveBeenCalledTimes(1)
+    expect(highlightsMock.apply).toHaveBeenCalledWith('fffe00', [1, 2])
+    expect(highlightsMock.remove).not.toHaveBeenCalled()
+  })
+
+  it('routes a remove intent into the hook, carrying the color being cleared', async () => {
+    setMockSignedIn()
+    mockNextIntent = { ...JHN_1_INTENT, color: '00d6ff', verses: [2], passageIds: ['JHN.1.2'] }
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-highlight-remove'))
+    })
+
+    expect(highlightsMock.remove).toHaveBeenCalledWith('00d6ff', [2])
+    expect(highlightsMock.apply).not.toHaveBeenCalled()
+  })
+
+  it('drops an intent whose scope no longer matches the chapter on screen', async () => {
+    setMockSignedIn()
+    // The tap was made in JHN 1 but lands after the reader moved to JHN 3.
+    mockNextIntent = { ...JHN_1_INTENT, chapter: '1' }
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="3" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).not.toHaveBeenCalled()
+  })
+
+  it('drops an intent for a different version', async () => {
+    setMockSignedIn()
+    mockNextIntent = { ...JHN_1_INTENT, versionId: 206 }
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when auth is not configured on the provider', async () => {
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when signed out, even with auth configured', async () => {
+    // The sign-in prompt's branch. Silent until that sheet exists.
+    setMockAuth({ isAuthConfigured: true })
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).not.toHaveBeenCalled()
+  })
+
+  it('writes during the token-loading window, when userInfo is seeded but the token is not', async () => {
+    // `AuthProvider` hydrates `userInfo` synchronously and loads the token
+    // asynchronously. The user IS signed in here; gating on the token would send
+    // them to a sign-in prompt they do not need.
+    setMockAuth({
+      isAuthConfigured: true,
+      isAuthenticated: false,
+      accessToken: null,
+      userInfo: { id: 'test-user-id' },
+      isLoading: true,
+    })
+
+    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await tap(getByTestId)
+
+    expect(highlightsMock.apply).toHaveBeenCalledWith('fffe00', [1, 2])
+  })
+
+  it('reports a transient failure through onHighlightError', async () => {
+    setMockSignedIn()
+    const outcome: HighlightWriteOutcome = {
+      status: 'error',
+      reason: 'transient',
+      message: 'Network request failed',
+      failedVerses: [1, 2],
+      succeededVerses: [],
+    }
+    highlightsMock.apply.mockResolvedValueOnce(outcome)
+    const onHighlightError = jest.fn()
+
+    const { getByTestId } = render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        onHighlightError={onHighlightError}
+      />,
+      { wrapper },
+    )
+
+    await tap(getByTestId)
+
+    expect(onHighlightError).toHaveBeenCalledWith(outcome)
+  })
+
+  it('logs an invalid failure instead of reporting it — the user cannot act on it', async () => {
+    setMockSignedIn()
+    highlightsMock.apply.mockResolvedValueOnce({
+      status: 'error',
+      reason: 'invalid',
+      message: 'Unsupported highlight color.',
+      failedVerses: [1, 2],
+      succeededVerses: [],
+    })
+    const onHighlightError = jest.fn()
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { getByTestId } = render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        onHighlightError={onHighlightError}
+      />,
+      { wrapper },
+    )
+
+    await tap(getByTestId)
+
+    expect(onHighlightError).not.toHaveBeenCalled()
+    expect(consoleError).toHaveBeenCalled()
+
+    consoleError.mockRestore()
+  })
+
+  it('stays silent on an auth failure — that branch belongs to the permission prompt', async () => {
+    setMockSignedIn()
+    highlightsMock.apply.mockResolvedValueOnce({
+      status: 'error',
+      reason: 'auth',
+      message: 'Request failed with status 403',
+      failedVerses: [1, 2],
+      succeededVerses: [],
+    })
+    const onHighlightError = jest.fn()
+
+    const { getByTestId } = render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        onHighlightError={onHighlightError}
+      />,
+      { wrapper },
+    )
+
+    await tap(getByTestId)
+
+    expect(onHighlightError).not.toHaveBeenCalled()
+  })
+
+  it('reports nothing on a successful write', async () => {
+    setMockSignedIn()
+    const onHighlightError = jest.fn()
+
+    const { getByTestId } = render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        onHighlightError={onHighlightError}
+      />,
+      { wrapper },
+    )
+
+    await tap(getByTestId)
+
+    expect(onHighlightError).not.toHaveBeenCalled()
   })
 })

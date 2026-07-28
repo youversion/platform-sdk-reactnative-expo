@@ -24,6 +24,7 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
+import type { HighlightWriteError } from './use-reader-highlights'
 import { useReaderHighlights } from './use-reader-highlights'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
@@ -56,10 +57,12 @@ export type BibleReaderProps = Omit<
   | 'onSignOutPress'
   | 'onExternalLinkPress'
   | 'userInfo'
-  // Highlights are SDK-owned: the reader fetches, caches, and paints them
-  // itself via `useReaderHighlights`. Controlled mode is an internal mechanism
-  // for talking to the Web SDK, not a surface consumers pass through.
+  // Highlights are SDK-owned: the reader fetches, caches, paints, and writes
+  // them itself via `useReaderHighlights`. Controlled mode is an internal
+  // mechanism for talking to the Web SDK, not a surface consumers pass through.
   | 'highlights'
+  | 'onHighlightApply'
+  | 'onHighlightRemove'
   // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
   // so consumers don't pass it — it lives inside the WebView.
   | 'bottomScrollPadding'
@@ -70,6 +73,13 @@ export type BibleReaderProps = Omit<
   defaultVersionId?: number
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  /**
+   * A highlight the user asked for didn't save and a retry may work. Render it
+   * however the host renders transient failures — the SDK doesn't own toast
+   * styling. Payload errors are logged, not reported here; the user can't act
+   * on them.
+   */
+  onHighlightError?: (error: HighlightWriteError) => void
 }
 
 export function BibleReader({
@@ -87,6 +97,7 @@ export function BibleReader({
   onChapterPickerPress: consumerOnChapterPickerPress,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
+  onHighlightError,
   backgroundColor,
   foregroundColor,
   dom,
@@ -147,7 +158,12 @@ export function BibleReader({
 
   // The wrapper already owns the full highlight scope, so the orchestrator reads
   // it straight off the reader's location state.
-  const { highlights } = useReaderHighlights({ versionId, book, chapter })
+  const { highlights, onHighlightApply, onHighlightRemove } = useReaderHighlights({
+    versionId,
+    book,
+    chapter,
+    onHighlightError,
+  })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -267,6 +283,8 @@ export function BibleReader({
           chapter={chapter}
           versionId={versionId}
           highlights={highlights}
+          onHighlightApply={onHighlightApply}
+          onHighlightRemove={onHighlightRemove}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}

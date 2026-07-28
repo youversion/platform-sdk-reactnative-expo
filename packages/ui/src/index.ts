@@ -16,6 +16,7 @@ export type {
   BibleReaderSettingsSheetProps,
   BibleTextViewProps,
   BibleVersionPickerSheetProps,
+  HighlightWriteError,
   VerseOfTheDayProps,
   YouVersionAuthButtonProps,
   YouVersionProviderProps,

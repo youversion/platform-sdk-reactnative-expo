@@ -10,6 +10,9 @@ export { BibleTextView } from './bible-text-view'
 export type { BibleTextViewProps } from './bible-text-view'
 export { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 export type { BibleVersionPickerSheetProps } from './bible-version-picker-sheet'
+// The orchestrator hook itself stays internal — only the error shape
+// `BibleReader`'s public `onHighlightError` hands back is exported.
+export type { HighlightWriteError } from './use-reader-highlights'
 export { VerseOfTheDay } from './verse-of-the-day'
 export type { VerseOfTheDayProps } from './verse-of-the-day'
 export { YouVersionAuthButton } from './youversion-auth-button'
