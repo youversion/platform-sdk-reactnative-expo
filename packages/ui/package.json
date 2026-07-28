@@ -52,35 +52,11 @@
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
     "prepublishOnly": "expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs"
   },
-  "jest": {
-    "preset": "jest-expo",
-    "moduleNameMapper": {
-      "^@/(.*)$": "<rootDir>/src/$1",
-      "^react$": "<rootDir>/../../node_modules/react",
-      "^react/(.*)$": "<rootDir>/../../node_modules/react/$1",
-      "^react-dom$": "<rootDir>/../../node_modules/react-dom",
-      "^react-dom/(.*)$": "<rootDir>/../../node_modules/react-dom/$1"
-    },
-    "setupFiles": [
-      "<rootDir>/jest.setup.js"
-    ],
-    "transformIgnorePatterns": [
-      "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|expo-.*|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|jest-expo|@rn-primitives))",
-      "/node_modules/react-native-reanimated/plugin/"
-    ],
-    "coverageReporters": [
-      "json",
-      "lcov",
-      "text",
-      "clover",
-      "json-summary"
-    ]
-  },
   "dependencies": {
     "@radix-ui/react-use-controllable-state": "1.2.2",
     "@rn-primitives/portal": "1.4.0",
     "@youversion/platform-react-native-expo-core": "workspace:*",
-    "@youversion/platform-react-ui": "2.2.0",
+    "@youversion/platform-react-ui": "2.4.0",
     "expo-localization": "56.0.6",
     "i18next": "26.3.1",
     "react-i18next": "17.0.8",
