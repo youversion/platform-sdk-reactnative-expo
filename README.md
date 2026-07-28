@@ -29,6 +29,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
+- **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`)
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides
 - **Native presentation**: footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 

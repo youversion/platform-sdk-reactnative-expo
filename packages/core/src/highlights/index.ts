@@ -23,3 +23,14 @@ export {
   type HighlightScope,
   type ServerColors,
 } from './cache'
+
+export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
+
+export {
+  useHighlights,
+  type HighlightsFetchError,
+  type HighlightWriteOutcome,
+  type HighlightWriteReason,
+  type UseHighlightsOptions,
+  type UseHighlightsResult,
+} from './use-highlights'

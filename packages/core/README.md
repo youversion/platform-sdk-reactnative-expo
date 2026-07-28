@@ -10,6 +10,7 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 
 - ✅ Sign-in via optional PKCE OAuth (`useYVAuth`, `auth` config on the provider)
 - ✅ Token storage handled for you (`expo-secure-store` + MMKV)
+- ✅ Bible highlights with optimistic writes and an instant local cache (`useHighlights`)
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
@@ -50,6 +51,37 @@ export default function App() {
   )
 }
 ```
+
+### Highlights
+
+`useHighlights` gives you a chapter's highlights, cached locally so they paint on the first frame, and write functions that apply optimistically and roll back on failure.
+
+```tsx
+import { useHighlights, HIGHLIGHT_COLORS } from '@youversion/platform-react-native-expo-core'
+
+function Reader() {
+  const { highlights, apply, remove, isRefreshing, refresh } = useHighlights({
+    versionId: 111,
+    book: 'JHN',
+    chapter: '3',
+  })
+
+  async function highlightVerse() {
+    const outcome = await apply(HIGHLIGHT_COLORS[0], [16, 17])
+    if (outcome.status === 'error' && outcome.reason === 'not-signed-in') {
+      // Prompt for sign-in, then retry outcome.failedVerses.
+    }
+  }
+
+  return <BibleReader versionId={111} book="JHN" chapter="3" highlights={highlights} />
+}
+```
+
+`highlights` is one entry per verse, ready for the reader's controlled `highlights` prop, and is always safe to render — `isRefreshing` only means a network refresh is in flight, so pair it with `RefreshControl` rather than gating a spinner on it.
+
+Writes resolve to a typed outcome rather than throwing: `{ status: 'ok', verses }`, `{ status: 'noop' }`, or `{ status: 'error', reason, message, failedVerses, succeededVerses }` where `reason` is `'not-signed-in' | 'auth' | 'invalid' | 'transient'`. Branch on `reason`, not `message` — the message is generic outside development builds. `failedVerses` is what to retry; `succeededVerses` being non-empty alongside it means the batch partly landed.
+
+Requires an `auth` config on the provider plus the `highlights` permission, and only the five colors in `HIGHLIGHT_COLORS` are accepted. Signed out, `highlights` is empty and writes return `reason: 'not-signed-in'` without touching state.
 
 ## License
 
