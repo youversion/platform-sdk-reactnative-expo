@@ -346,9 +346,27 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
       await waitForAuthSettled()
 
+      // The write chain outlives an identity change: `enqueue` serializes behind
+      // whatever is in flight, and there is no AbortController, so one hung
+      // request can hold a queued batch across a sign-out and a sign-in as
+      // somebody else. Below we read the CURRENT token rather than one captured
+      // at claim time — deliberately, so a mid-write refresh does not fail the
+      // write — which without this guard would issue the departed user's
+      // passage under the new user's token, creating or deleting highlights on
+      // an account that never asked for them.
+      //
+      // Compare user ids, not `captured.key`: the key also encodes scope, and a
+      // write issued for JHN.3 that settles after the reader moved on to JHN.4
+      // is still a legitimate write for JHN.3.
+      const isSameUser = identityRef.current.userId === captured.userId
       const accessTokenNow = authRef.current.accessToken
-      if (accessTokenNow === null) {
-        // Auth settled with no token: genuinely signed out. Revert the paint.
+
+      if (!isSameUser || accessTokenNow === null) {
+        // Auth settled with no token, or with a different user: from the caller
+        // that issued this batch, both are "you are not signed in". Reverting
+        // the paint is a no-op in the user-switch case — the identity change
+        // already reset state during render — but stays correct if that reset
+        // ever stops covering it.
         setState((prev) =>
           settle(prev, { token, op, color, succeededVerses: [], failedVerses: verses }),
         )

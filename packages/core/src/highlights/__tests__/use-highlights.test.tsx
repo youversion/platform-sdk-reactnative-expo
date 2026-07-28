@@ -988,6 +988,136 @@ describe('auth states', () => {
     expect(mockDeleteHighlight).toHaveBeenCalledTimes(1)
   })
 
+  // A queued write must not be issued under whoever happens to be signed in when
+  // its turn comes: `runWrite` reads the current token by design (a mid-write
+  // refresh must not fail the write), so nothing but the identity guard stops
+  // one user's intent from mutating another user's highlights server-side.
+  it('abandons a queued write when a different user signs in before it runs', async () => {
+    const heldWrite = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(heldWrite.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let first: Promise<HighlightWriteOutcome> | undefined
+    let queued: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      first = result.current.apply(YELLOW, [16])
+    })
+    // Let the first write reach the network, where it hangs — that is what holds
+    // the chain open across the identity change.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      queued = result.current.apply(GREEN, [17])
+    })
+
+    setAuth(rerender, {
+      isAuthenticated: true,
+      accessToken: 'token-2',
+      userInfo: { id: 'user-2' },
+      isLoading: false,
+    })
+
+    await act(async () => {
+      heldWrite.resolve({ ok: true, value: highlight('JHN.3.16', YELLOW) })
+      await first
+      await queued
+    })
+
+    expect(await queued).toEqual({
+      status: 'error',
+      reason: 'not-signed-in',
+      message: expect.stringContaining('Not signed in'),
+      failedVerses: [17],
+      succeededVerses: [],
+    })
+    // Only the write that was already on the wire under user-1's token ran.
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+    expect(mockCreateHighlight).not.toHaveBeenCalledWith('token-2', expect.anything())
+  })
+
+  it('abandons a queued remove rather than deleting the new user’s highlights', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW), highlight('JHN.3.17', YELLOW)])
+    const heldWrite = deferred<Result<undefined, HighlightsApiError>>()
+    mockDeleteHighlight.mockReturnValueOnce(heldWrite.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let first: Promise<HighlightWriteOutcome> | undefined
+    let queued: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      first = result.current.remove(YELLOW, [16])
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockDeleteHighlight).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      queued = result.current.remove(YELLOW, [17])
+    })
+
+    setAuth(rerender, {
+      isAuthenticated: true,
+      accessToken: 'token-2',
+      userInfo: { id: 'user-2' },
+      isLoading: false,
+    })
+
+    await act(async () => {
+      heldWrite.resolve({ ok: true, value: undefined })
+      await first
+      await queued
+    })
+
+    expect(await queued).toMatchObject({ reason: 'not-signed-in', failedVerses: [17] })
+    expect(mockDeleteHighlight).toHaveBeenCalledTimes(1)
+    expect(mockDeleteHighlight).not.toHaveBeenCalledWith('token-2', expect.anything())
+  })
+
+  // The counterpart: same user, new token. Capturing the token at claim time
+  // instead of reading it here would fail this write for no reason.
+  it('runs a queued write under a refreshed token for the same user', async () => {
+    const heldWrite = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(heldWrite.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let first: Promise<HighlightWriteOutcome> | undefined
+    let queued: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      first = result.current.apply(YELLOW, [16])
+      queued = result.current.apply(GREEN, [17])
+    })
+
+    setAuth(rerender, { ...signedIn, accessToken: 'token-refreshed' })
+
+    await act(async () => {
+      heldWrite.resolve({ ok: true, value: highlight('JHN.3.16', YELLOW) })
+      await first
+      await queued
+    })
+
+    expect(await queued).toEqual({ status: 'ok', verses: [17] })
+    expect(mockCreateHighlight).toHaveBeenLastCalledWith('token-refreshed', {
+      version_id: 111,
+      passage_id: 'JHN.3.17',
+      color: GREEN,
+    })
+  })
+
   it('does not repopulate the cache when sign-out lands between settle and refetch', async () => {
     seedCache([highlight('JHN.3.16', GREEN)])
     const pendingWrite = deferred<Result<Highlight, HighlightsApiError>>()
