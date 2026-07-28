@@ -502,7 +502,18 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
       // Paint synchronously, before the promise is returned.
       const token = createWriteToken(op)
-      setState((prev) => claim(prev, verses, token, op === 'apply' ? color : null))
+      const claimColor = op === 'apply' ? color : null
+      setState((prev) => claim(prev, verses, token, claimColor))
+
+      // Advance the ref with it. The effect that syncs `stateRef` only runs
+      // after a render, so a second write issued in the same tick — a toggle
+      // that applies and removes inside one handler — would otherwise select
+      // against the pre-claim paint, no-op, and strand what the apply painted.
+      // Chaining off `stateRef.current` instead of capturing the updater's
+      // result keeps the updater pure (React may invoke it twice) and computes
+      // the same thing React will: the same claims, in the same order, over the
+      // same committed state.
+      stateRef.current = claim(stateRef.current, verses, token, claimColor)
 
       return enqueue(() => runWrite({ op, color, verses, token, captured }))
     },

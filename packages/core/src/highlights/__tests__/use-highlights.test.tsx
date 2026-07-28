@@ -827,6 +827,33 @@ describe('remove', () => {
 
     expect(outcome).toEqual({ status: 'ok', verses: [16] })
   })
+
+  // A toggle that applies and un-applies within one handler never yields to
+  // React, so nothing has re-rendered and the ref-sync effect has not run. If
+  // the selection were read from the last committed render, this would no-op and
+  // strand the highlight the apply just painted.
+  it('sees a claim made earlier in the same tick, before any re-render', async () => {
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let applied: Promise<HighlightWriteOutcome> | undefined
+    let removed: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      applied = result.current.apply(GREEN, [16])
+      removed = result.current.remove(GREEN, [16])
+    })
+
+    await act(async () => {
+      await applied
+      await removed
+    })
+
+    expect(await removed).toEqual({ status: 'ok', verses: [16] })
+    expect(mockDeleteHighlight).toHaveBeenCalledWith('token-1', 'JHN.3.16', { version_id: 111 })
+    expect(result.current.highlights).toEqual([])
+  })
 })
 
 // ── The palette ──────────────────────────────────────────────────────────────
