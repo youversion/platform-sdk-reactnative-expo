@@ -1,5 +1,5 @@
 ---
-'@youversion/platform-react-native-expo-core': minor
+'@youversion/platform-react-native-expo-core': patch
 ---
 
 Add `useHighlights`, the public hook for reading and writing Bible highlights on native.
