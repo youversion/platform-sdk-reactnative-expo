@@ -162,6 +162,15 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
 
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
+          // Presence of `highlights` latches controlled mode at first mount, so
+          // the highlight slice stays a pure projection: no highlights API
+          // calls, no local store, and no auth surface can originate from the
+          // highlight path. Without it the reader falls back to self-contained
+          // mode, which since Web SDK 2.4.0 writes real highlights with the
+          // token we hand the WebView and can redirect it to hosted consent.
+          // Native owns highlights (locked decision 1); U1 (YPE-3710) replaces
+          // this literal with real data from `useHighlights`.
+          highlights={[]}
           book={book}
           chapter={chapter}
           versionId={versionId}
