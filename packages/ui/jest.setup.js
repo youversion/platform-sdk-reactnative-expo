@@ -103,10 +103,16 @@ jest.mock('expo/fetch', () => ({
  * instead of the wrapped component. UI tests verify the native wrapper, not
  * core's loading semantics — swap in a sync passthrough provider backed by a
  * test context. Other exports (`mmkvStorage`, types) keep their real values.
+ *
+ * `useHighlights` is stubbed for the same reason: the real hook reads MMKV,
+ * fetches, and reconciles against auth context these tests do not stand up.
+ * The default behaves as signed out (`[]`); steer it with `setMockHighlights`
+ * from `src/test-utils/highlights-mock` rather than re-mocking per test file.
  */
 jest.mock('@youversion/platform-react-native-expo-core', () => {
   const React = require('react')
   const actual = jest.requireActual('@youversion/platform-react-native-expo-core')
+  const { createUseHighlightsMock } = require('./src/test-utils/highlights-mock')
 
   const TestContext = React.createContext(null)
 
@@ -150,6 +156,7 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     YouVersionProvider,
     useYouVersion,
     useYVAuth,
+    useHighlights: createUseHighlightsMock(),
   }
 })
 

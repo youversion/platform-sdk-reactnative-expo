@@ -14,7 +14,10 @@ export default function RootLayout() {
         <YouVersionProvider
           appKey={appKey}
           theme="system"
-          auth={{ redirectUri, scopes: ['profile', 'email'] }}
+          // `highlights` is a permission, not a scope — it rides in
+          // `requested_permissions[]`. Without it the token cannot read or write
+          // highlights, so the reader paints nothing no matter what the user has.
+          auth={{ redirectUri, scopes: ['profile', 'email'], permissions: ['highlights'] }}
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>

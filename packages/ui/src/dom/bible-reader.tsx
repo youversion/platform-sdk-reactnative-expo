@@ -1,6 +1,6 @@
 'use dom'
 
-import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -29,6 +29,13 @@ type BibleReaderBaseProps = {
   apiHost: string
   installationId: string
   accessToken: string | null
+  /**
+   * Required, never optional: the Web SDK latches controlled mode on the
+   * presence of this prop at first mount, so one `undefined` frame would drop
+   * the reader into self-contained mode permanently. `[]` is the correct value
+   * for "nothing highlighted". Owned natively by `useReaderHighlights`.
+   */
+  highlights: Highlight[]
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -73,6 +80,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     apiHost,
     installationId,
     accessToken,
+    highlights,
     theme = 'light',
     book,
     chapter,
@@ -168,9 +176,9 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           // highlight path. Without it the reader falls back to self-contained
           // mode, which since Web SDK 2.4.0 writes real highlights with the
           // token we hand the WebView and can redirect it to hosted consent.
-          // Native owns highlights (locked decision 1); U1 (YPE-3710) replaces
-          // this literal with real data from `useHighlights`.
-          highlights={[]}
+          // Native owns the data — see `native/use-reader-highlights.ts`, which
+          // guarantees an array on every render.
+          highlights={highlights}
           book={book}
           chapter={chapter}
           versionId={versionId}

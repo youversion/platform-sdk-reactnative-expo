@@ -24,6 +24,7 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
+import { useReaderHighlights } from './use-reader-highlights'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -55,6 +56,10 @@ export type BibleReaderProps = Omit<
   | 'onSignOutPress'
   | 'onExternalLinkPress'
   | 'userInfo'
+  // Highlights are SDK-owned: the reader fetches, caches, and paints them
+  // itself via `useReaderHighlights`. Controlled mode is an internal mechanism
+  // for talking to the Web SDK, not a surface consumers pass through.
+  | 'highlights'
   // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
   // so consumers don't pass it — it lives inside the WebView.
   | 'bottomScrollPadding'
@@ -139,6 +144,10 @@ export function BibleReader({
       onVersionChange?.(newVersionId)
     },
   })
+
+  // The wrapper already owns the full highlight scope, so the orchestrator reads
+  // it straight off the reader's location state.
+  const { highlights } = useReaderHighlights({ versionId, book, chapter })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -257,6 +266,7 @@ export function BibleReader({
           book={book}
           chapter={chapter}
           versionId={versionId}
+          highlights={highlights}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
