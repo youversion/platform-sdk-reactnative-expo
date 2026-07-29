@@ -76,10 +76,24 @@ export async function requestDataExchange({
     return mintFailure(minted.error)
   }
 
-  const session = await WebBrowser.openAuthSessionAsync(
-    buildDataExchangeUrl(minted.value, appKey, apiHost),
-    DATA_EXCHANGE_RETURN_URL,
-  )
+  // `openAuthSessionAsync` rejects on conditions a caller can actually hit, not
+  // just on programmer error: a session already open (a double-tap — "WebBrowser
+  // is already open, only one can be open at a time"), a missing native module,
+  // or an Android build with no activity able to handle the intent. This
+  // function promises an outcome, so none of them may escape.
+  let session: WebBrowser.WebBrowserAuthSessionResult
+  try {
+    session = await WebBrowser.openAuthSessionAsync(
+      buildDataExchangeUrl(minted.value, appKey, apiHost),
+      DATA_EXCHANGE_RETURN_URL,
+    )
+  } catch (caught) {
+    return {
+      status: 'failure',
+      reason: 'transient',
+      message: caught instanceof Error ? caught.message : String(caught),
+    }
+  }
 
   // Anything that is not a redirect back to us is a cancel: the user dismissed
   // the sheet, or — on an Android build that never registered the

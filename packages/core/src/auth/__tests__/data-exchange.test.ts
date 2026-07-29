@@ -185,6 +185,34 @@ describe('requestDataExchange — failure', () => {
 
     await expect(run()).resolves.toMatchObject({ status: 'failure', reason: 'transient' })
   })
+
+  it('reports a rejecting auth session as a failure instead of throwing', async () => {
+    // `openAuthSessionAsync` rejects on conditions a user can reach: a session
+    // already open (a double-tap), a missing native module, or an Android build
+    // with no activity able to handle the intent. This flow promises an outcome,
+    // and every doc for it tells consumers not to try/catch.
+    saveGrantedPermissions('u1', ['votd'])
+    mockOpenAuthSession.mockRejectedValue(
+      new Error('WebBrowser is already open, only one can be open at a time'),
+    )
+
+    await expect(run()).resolves.toEqual({
+      status: 'failure',
+      reason: 'transient',
+      message: 'WebBrowser is already open, only one can be open at a time',
+    })
+    expect(cachedGrant()).toEqual({ userId: 'u1', permissions: ['votd'] })
+  })
+
+  it('reports a non-Error rejection from the auth session as a failure', async () => {
+    mockOpenAuthSession.mockRejectedValue('exploded')
+
+    await expect(run()).resolves.toEqual({
+      status: 'failure',
+      reason: 'transient',
+      message: 'exploded',
+    })
+  })
 })
 
 describe('requestDataExchange — initiator guard', () => {

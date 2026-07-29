@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
+import { getOrSetInstallationId } from '../../installation-id'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
 import { requestDataExchange } from '../data-exchange'
@@ -69,6 +70,7 @@ const mockRefreshTokens = refreshTokens as jest.Mock
 const mockSignInWithPKCE = signInWithPKCE as jest.Mock
 const mockRequestDataExchange = requestDataExchange as jest.Mock
 const mockCreateDataExchangeApi = createDataExchangeApi as jest.Mock
+const mockGetOrSetInstallationId = getOrSetInstallationId as jest.Mock
 const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
 
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
@@ -733,6 +735,58 @@ describe('AuthProvider — requestPermissions', () => {
     await pressRequestPermissions()
 
     expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('resolves to a transient failure when reading the installation id rejects', async () => {
+    await signInWithGrant(null)
+
+    // Native state read, so it can genuinely fail. `requestPermissions` is
+    // documented to resolve rather than throw, and a consumer following that
+    // contract has no catch to land in.
+    mockGetOrSetInstallationId.mockRejectedValueOnce(new Error('no installation id'))
+
+    expect(await pressRequestPermissions()).toEqual({
+      status: 'failure',
+      reason: 'transient',
+      message: 'no installation id',
+    })
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+  })
+
+  it('shares one in-flight flow across overlapping calls instead of opening a second session', async () => {
+    await signInWithGrant(null)
+
+    // A double-tap. Left unguarded this mints a second token and opens a second
+    // auth session — which on Android rejects outright ("WebBrowser is already
+    // open"), and either way races the first to write the grant cache.
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('requestPermissions'))
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    // Second tap while the first flow is still awaiting the browser.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('requestPermissions'))
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+    expect(mockCreateDataExchangeApi).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights'] })
+    })
+    expect(getText('hasHighlights')).toBe('true')
+
+    // The lock releases with the promise, so the next gesture is a fresh flow.
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -48,6 +48,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     userInfoRef.current = userInfo
   }, [userInfo])
 
+  // The single in-flight data-exchange request, shared by overlapping callers.
+  const inFlightRequestRef = useRef<Promise<DataExchangeOutcome> | null>(null)
+
   const setAuthState = useCallback(async (tokens: StoredTokens, user?: YVUserInfo) => {
     await saveTokens(tokens)
     expiryRef.current = tokens.expiryDate
@@ -238,44 +241,69 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [])
 
   const requestPermissions = useCallback(
-    async (permissions: readonly AuthPermission[]): Promise<DataExchangeOutcome> => {
+    (permissions: readonly AuthPermission[]): Promise<DataExchangeOutcome> => {
       // No token means no mint attempt: the endpoint would 401, and that 401
       // would read as "this app may not run data exchange" rather than the
       // truth, which is that nobody is signed in.
       if (accessToken === null) {
-        return {
+        return Promise.resolve({
           status: 'failure',
           reason: 'not-signed-in',
           message: 'Not signed in — requesting a permission requires an authenticated user.',
+        })
+      }
+
+      // One flow at a time, and an overlapping caller *shares* the in-flight one
+      // rather than being refused: a double-tap must not mint a second token or
+      // open a second auth session (on Android the second `openAuthSessionAsync`
+      // rejects outright), and both callers want the same answer anyway. Cleared
+      // as the promise settles, so the next gesture starts a fresh flow.
+      const inFlight = inFlightRequestRef.current
+      if (inFlight !== null) {
+        return inFlight
+      }
+
+      const run = async (): Promise<DataExchangeOutcome> => {
+        // Built per call rather than memoized: the installation id is async, and
+        // this runs at most once per user gesture. It reads native state and can
+        // reject, which would escape as a throw from a flow documented to
+        // resolve — so it is guarded like the browser call inside the flow.
+        let installationId: string
+        try {
+          installationId = await getOrSetInstallationId()
+        } catch (caught) {
+          return {
+            status: 'failure',
+            reason: 'transient',
+            message: caught instanceof Error ? caught.message : String(caught),
+          }
         }
+
+        const outcome = await requestDataExchange({
+          api: createDataExchangeApi({ appKey, apiHost, installationId }),
+          appKey,
+          apiHost,
+          accessToken,
+          userId: userInfo?.id ?? null,
+          permissions,
+          getCurrentUserId: () => userInfoRef.current?.id ?? null,
+        })
+
+        // The flow already merged the grant into MMKV; mirror that merge into
+        // state with the same helper so hasPermission flips without a remount.
+        if (outcome.status === 'granted' && outcome.grantedPermissions.length > 0) {
+          const granted = outcome.grantedPermissions
+          setGrantedPermissions((prev) => mergeGrantedPermissions(prev ?? [], granted))
+        }
+
+        return outcome
       }
 
-      // Built per call rather than memoized: the installation id is async, and
-      // this runs at most once per user gesture.
-      const api = createDataExchangeApi({
-        appKey,
-        apiHost,
-        installationId: await getOrSetInstallationId(),
+      const pending = run().finally(() => {
+        inFlightRequestRef.current = null
       })
-
-      const outcome = await requestDataExchange({
-        api,
-        appKey,
-        apiHost,
-        accessToken,
-        userId: userInfo?.id ?? null,
-        permissions,
-        getCurrentUserId: () => userInfoRef.current?.id ?? null,
-      })
-
-      // The flow already merged the grant into MMKV; mirror that merge into
-      // state with the same helper so hasPermission flips without a remount.
-      if (outcome.status === 'granted' && outcome.grantedPermissions.length > 0) {
-        const granted = outcome.grantedPermissions
-        setGrantedPermissions((prev) => mergeGrantedPermissions(prev ?? [], granted))
-      }
-
-      return outcome
+      inFlightRequestRef.current = pending
+      return pending
     },
     [accessToken, apiHost, appKey, userInfo?.id],
   )
