@@ -1,20 +1,26 @@
-import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import { useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
 import { useState } from 'react'
 import { Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 export default function ProfileScreen() {
-  const { isAuthenticated, isLoading, userInfo, grantedPermissions, requestPermission } =
-    useYVAuth()
+  // `useYVAuthOptional()` returns null when the provider has no `auth` config,
+  // where `useYVAuth()` would throw. Use the optional form on any screen that can
+  // render in an app build without sign-in — including this one, so the example
+  // still runs when `auth` is dropped from the provider (the configuration where
+  // a highlight tap is a silent no-op).
+  const auth = useYVAuthOptional()
   const [status, setStatus] = useState<string | null>(null)
   const isDark = useColorScheme() === 'dark'
   const c = isDark ? dark : light
 
+  const grantedPermissions = auth?.grantedPermissions ?? null
   const hasHighlights = grantedPermissions?.includes('highlights') ?? false
 
   async function grantHighlights() {
+    if (!auth) return
     setStatus('Opening YouVersion…')
-    const result = await requestPermission('highlights')
+    const result = await auth.requestPermission('highlights')
     // `granted` means the exchange finished, not that we got what we asked for.
     setStatus(
       result.kind === 'granted'
@@ -27,16 +33,22 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.bg }]}>
-      {isLoading ? (
+      {auth === null ? (
+        <Text style={[styles.muted, { color: c.muted }]} testID="auth-not-configured">
+          Sign-in is not configured — pass an `auth` config to YouVersionProvider.
+        </Text>
+      ) : auth.isLoading ? (
         <Text style={[styles.muted, { color: c.muted }]}>Loading…</Text>
-      ) : isAuthenticated ? (
+      ) : auth.isAuthenticated ? (
         <View style={styles.signedIn}>
-          {userInfo?.avatarUrl ? (
-            <Image source={{ uri: userInfo.avatarUrl }} style={styles.avatar} />
+          {auth.userInfo?.avatarUrl ? (
+            <Image source={{ uri: auth.userInfo.avatarUrl }} style={styles.avatar} />
           ) : null}
           <Text style={[styles.muted, { color: c.muted }]}>You are signed in as</Text>
-          <Text style={[styles.name, { color: c.fg }]}>{userInfo?.name ?? '(no name)'}</Text>
-          <Text style={[styles.email, { color: c.email }]}>{userInfo?.email ?? '(no email)'}</Text>
+          <Text style={[styles.name, { color: c.fg }]}>{auth.userInfo?.name ?? '(no name)'}</Text>
+          <Text style={[styles.email, { color: c.email }]}>
+            {auth.userInfo?.email ?? '(no email)'}
+          </Text>
 
           <Text style={[styles.muted, { color: c.muted, marginTop: 16 }]}>Permissions</Text>
           <Text style={[styles.permissions, { color: c.fg }]}>
@@ -48,10 +60,12 @@ export default function ProfileScreen() {
           </Text>
 
           {/*
-            Always tappable, even when the grant is already recorded. A real app
-            would prompt just-in-time instead, but the mirror is optimistic —
-            re-running the exchange is how you check it against the server, and
-            it is the only way to exercise the cancel path by hand.
+            A deliberate demo affordance, not the pattern to copy. It stays
+            tappable even when the grant is already recorded: a real app prompts
+            just-in-time (the reader already does — tap a colour without the
+            permission), but the mirror is optimistic, so re-running the exchange
+            is how you check it against the server and the only way to exercise
+            the cancel path by hand.
           */}
           <Pressable
             accessibilityRole="button"

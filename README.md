@@ -15,6 +15,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - [Usage](#usage)
   - [Displaying Scripture](#displaying-scripture)
   - [Bible Reader](#bible-reader)
+  - [Highlights](#highlights)
   - [Verse of the Day](#verse-of-the-day)
   - [Sign In](#sign-in)
 - [Sample App](#sample-app)
@@ -29,7 +30,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
-- **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`)
+- **Highlights**: `BibleReader` paints and writes the signed-in user's highlights, with sign-in and permission prompts, offline retry, and copy/share built in — or drive your own UI with `useHighlights` (`@youversion/platform-react-native-expo-core`)
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides
 - **Native presentation**: footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
@@ -52,13 +53,15 @@ Install the required peer dependencies (Expo will pick versions compatible with 
 
 ```bash
 npx expo install @gorhom/bottom-sheet @expo/dom-webview \
-  expo-application expo-crypto expo-secure-store expo-web-browser \
+  expo-application expo-clipboard expo-crypto expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
   react-native-safe-area-context react-native-svg \
   react-native-worklets
 ```
+
+> **Rebuild after installing.** These are native modules, so a JS-only reload cannot link them. Run `npx expo prebuild --clean` and rebuild your dev client (`pnpm build:ios` / `pnpm build:android`) — otherwise the app redboxes at runtime with `Cannot find native module 'X'`.
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
 
@@ -160,6 +163,79 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 
 The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows.
 
+#### Reacting to the reader
+
+Four optional props report what the reader is doing. None of them changes its behavior — the reader keeps owning its own selection and highlight state.
+
+```tsx
+<BibleReader
+  defaultVersionId={3034}
+  onVerseSelect={(selection) => {
+    // { versionId, book, chapter, verses, passageIds }; verses is [] on clear
+  }}
+  onCopy={async (data) => {
+    /* your clipboard handling — suppresses the SDK's */
+  }}
+  onShare={async (data) => {
+    /* your share sheet — suppresses the SDK's */
+  }}
+  onHighlightError={(error) => {
+    // A highlight write hasn't reached the server yet — see Highlights below
+  }}
+/>
+```
+
+Copy and Share work out of the box: without a handler the SDK writes the verse text to the system clipboard (`expo-clipboard`) and opens the native share sheet. Pass your own and the SDK's fallback doesn't run.
+
+### Highlights
+
+`BibleReader` renders the signed-in user's highlights and writes new ones — including highlights created in the YouVersion Bible App or on youversion.com. There is nothing to wire up beyond auth:
+
+```tsx
+<YouVersionProvider
+  appKey={appKey}
+  auth={{ redirectUri, scopes: ['profile', 'email'], permissions: ['highlights'] }}
+>
+  <BibleReader defaultVersionId={3034} />
+</YouVersionProvider>
+```
+
+**`highlights` is a permission, not a scope.** It rides in `requested_permissions[]`, and the auth server silently drops unknown values from `scope` — so putting it in `scopes` grants nothing and the reader paints nothing. Changing this requires a fresh sign-in; an existing token does not gain the grant.
+
+What the SDK handles for you:
+
+- **Painting on the first frame.** Highlights are cached on device per chapter and read synchronously, so a revisited chapter paints with no spinner and no flash — and still paints offline.
+- **Consent, just in time.** A signed-out user who taps a color gets the "Sign in with YouVersion" sheet; a signed-in user without the `highlights` permission gets a native alert leading to YouVersion's consent page. Either way the tap is held and applied on success, so the verse never has to be re-selected. Every cancellation exit discards it.
+- **Offline writes.** A write that can't reach the server stays painted, is persisted, and retries with exponential backoff — surviving an app kill. `onHighlightError` fires for exactly this case, so render it as a pending or offline hint rather than a failure. Payload errors are logged instead; the user can't act on them.
+- **Sign-out with unsaved work.** `YouVersionAuthButton` and the reader's own toolbar warn before signing out while highlight writes are still queued. Confirming discards them.
+- **Staying current.** Highlights are re-fetched when the chapter changes and when the app returns from the background, so one made in the YouVersion Bible App or on another device shows up without a restart.
+
+With no `auth` config on the provider, a color tap is a silent no-op.
+
+#### Refreshing on navigation focus
+
+The one moment the SDK can't see is your navigation. Detecting screen focus would mean taking `@react-navigation/native` as a peer dependency and forcing a navigation library on every app, so `BibleReader` exposes an imperative handle and you call it from the focus event you already own:
+
+```tsx
+import type { BibleReaderHandle } from '@youversion/platform-react-native-expo-ui'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useRef } from 'react'
+
+const reader = useRef<BibleReaderHandle>(null)
+
+useFocusEffect(
+  useCallback(() => {
+    void reader.current?.refreshHighlights()
+  }, []),
+)
+
+return <BibleReader ref={reader} defaultVersionId={3034} />
+```
+
+Call it as often as you like: it de-dupes against a fetch already in flight, no-ops when signed out, and never blanks what's already painted — there's no loading state to handle.
+
+The highlights the reader paints are SDK-owned — there is no `highlights` prop to pass in. To build your own highlight UI, use [`useHighlights`](./packages/core/README.md#highlights) from `@youversion/platform-react-native-expo-core`, which is the supported escape hatch.
+
 ### Verse of the Day
 
 ```tsx
@@ -203,7 +279,21 @@ export default function RootLayout() {
 }
 ```
 
-`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`.
+
+Requesting is not the same as being granted: the user can deny one and sign-in still succeeds. `useYVAuth()` reports what this device believes was granted, and can ask again at any time:
+
+```tsx
+const { grantedPermissions, hasPermission, requestPermission } = useYVAuth()
+
+if (!hasPermission('highlights')) {
+  const result = await requestPermission('highlights')
+  // { kind: 'granted', permissions } | { kind: 'cancel' } | { kind: 'failure', message }
+  // `granted` means the consent flow finished, not that your permission was in it.
+}
+```
+
+`grantedPermissions` is `null` when unknown (signed out, or nothing recorded), which is distinct from `[]`. It is an optimistic mirror — seeded from what was requested at sign-in and corrected by the server, so a 401/403 on a write is still the ultimate check. `BibleReader` does all of this for you for highlights; reach for `requestPermission` when you own the UI.
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 
@@ -241,9 +331,10 @@ Calling `useYVAuth()` requires that the surrounding `YouVersionProvider` receive
 Explore the [`apps/example`](./apps/example) directory for a sample Expo Router app demonstrating:
 
 - Bible reader integration
+- Highlights end to end: painting, writing, the sign-in and permission prompts, and an `onHighlightError` pending hint
 - Bible card and Scripture display
 - Verse of the Day
-- PKCE sign-in, OAuth callback handling, and the Profile tab
+- PKCE sign-in, OAuth callback handling, and the Profile tab (granted permissions and `requestPermission`)
 - Provider and native dependency setup
 
 Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.

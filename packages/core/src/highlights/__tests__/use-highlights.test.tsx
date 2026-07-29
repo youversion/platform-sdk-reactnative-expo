@@ -1,6 +1,6 @@
 import type { Collection, Highlight } from '@youversion/platform-core'
 import { act, render, renderHook } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
@@ -393,6 +393,59 @@ describe('fetching server truth', () => {
     })
   })
 
+  /**
+   * The chapter-change half of "revalidate when it matters". Nothing new was
+   * written for it — `identityKey` already carries the scope, so leaving and
+   * returning re-runs the fetch effect — but the cache is the thing that could
+   * plausibly suppress the second GET, and it must not. A highlight created on
+   * another device while the reader was on chapter 4 has to show up on the way
+   * back to chapter 3.
+   */
+  it('re-fetches on every chapter change, including the return trip to a cached chapter', async () => {
+    const chapter4: HighlightScope = { versionId: 111, book: 'JHN', chapter: '4' }
+    seedServer([highlight('JHN.3.16', YELLOW)])
+
+    const { result, rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.3',
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    // Away to chapter 4.
+    mockGetHighlights.mockClear()
+    mockGetHighlights.mockResolvedValue(collection([highlight('JHN.4.1', BLUE)]))
+    rerender({ versionId: chapter4.versionId, book: chapter4.book, chapter: chapter4.chapter })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.4',
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.4.1': BLUE })
+
+    // Back to chapter 3, which now has a cache entry. Somebody added verse 17
+    // elsewhere in the meantime; a cache hit must not stand in for the GET.
+    mockGetHighlights.mockClear()
+    mockGetHighlights.mockResolvedValue(
+      collection([highlight('JHN.3.16', YELLOW), highlight('JHN.3.17', GREEN)]),
+    )
+    rerender({ ...options })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.3',
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW, 'JHN.3.17': GREEN })
+  })
+
   it('reconciles a refresh that lands mid-write instead of clobbering the overlay', async () => {
     const pendingWrite = deferred<Result<Highlight, HighlightsApiError>>()
     mockCreateHighlight.mockReturnValueOnce(pendingWrite.promise)
@@ -466,6 +519,96 @@ describe('fetching server truth', () => {
 
     expect(mockGetHighlights).toHaveBeenCalledTimes(1)
     expect(result.current.isRefreshing).toBe(false)
+  })
+})
+
+// ── Foreground revalidation ──────────────────────────────────────────────────
+
+describe('revalidating when the app returns to the foreground', () => {
+  const appStateMock = AppState.addEventListener as unknown as jest.Mock
+
+  /** The handler from the most recent subscription — the live one. */
+  function latestHandler(): (state: AppStateStatus) => void {
+    const calls = appStateMock.mock.calls
+    const last = calls[calls.length - 1]
+    if (last === undefined) {
+      throw new Error('useHighlights never subscribed to AppState')
+    }
+    return last[1] as (state: AppStateStatus) => void
+  }
+
+  async function emit(...states: AppStateStatus[]): Promise<void> {
+    const handler = latestHandler()
+    await act(async () => {
+      for (const state of states) {
+        handler(state)
+      }
+      await Promise.resolve()
+    })
+  }
+
+  it('re-fetches on background → active, picking up a highlight made elsewhere', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW)])
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    // Meanwhile, on the YouVersion app: verse 17 gets highlighted green.
+    mockGetHighlights.mockClear()
+    mockGetHighlights.mockResolvedValue(
+      collection([highlight('JHN.3.16', YELLOW), highlight('JHN.3.17', GREEN)]),
+    )
+
+    await emit('background', 'active')
+
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW, 'JHN.3.17': GREEN })
+  })
+
+  it('does NOT re-fetch on inactive → active, which is what a consent flow returns as', async () => {
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // `expo-web-browser` (PKCE sign-in, the data-exchange consent page) leaves
+    // the app `inactive`, and the permission flow already calls `refresh()` on
+    // its own — firing here too would double-fetch on every consent return.
+    mockGetHighlights.mockClear()
+    await emit('inactive', 'active')
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+  })
+
+  it('ignores a background → active while signed out', async () => {
+    renderUseHighlights(signedOut)
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    mockGetHighlights.mockClear()
+    await emit('background', 'active')
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+  })
+
+  it('unsubscribes on unmount', async () => {
+    const { unmount } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    const results = appStateMock.mock.results
+    const latest = results[results.length - 1]
+    expect(latest).toBeDefined()
+    const subscription = latest?.value as { remove: jest.Mock }
+    expect(subscription.remove).not.toHaveBeenCalled()
+
+    unmount()
+
+    expect(subscription.remove).toHaveBeenCalled()
   })
 })
 

@@ -142,17 +142,19 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`
+**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, `YouVersionAuthButton`, and the `HighlightWriteError` type (`BibleReader`'s `onHighlightError` payload, derived from core's outcome union)
 
-**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth` / `useYVAuthOptional`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `KnownAuthPermission`, `AuthScope`, `RequestPermissionResult`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
 
 UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
 
 ## Auth (core)
 
 - Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
-- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
-- `useYVAuth()` throws if `auth` was not configured on the provider.
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app requests `['highlights']`; changing that list requires a fresh sign-in, since an existing token does not gain the grant.
+- Grants read back through `grantedPermissions` / `hasPermission(p)`, and `requestPermission(p)` runs the just-in-time data exchange (`auth/data-exchange.ts`) in an `expo-web-browser` session. The mirror (`auth/granted-permissions.ts`, MMKV, user-scoped) is **optimistic** — seeded from the _requested_ list at sign-in because RN sign-in carries no grant echo, and invalidated when a write comes back `auth`. `null` means unknown and is distinct from `[]`.
+- `AuthPermission` is an **open** union (`KnownAuthPermission | (string & {})`) so a permission minted after this release round-trips instead of being filtered out.
+- `useYVAuth()` throws if `auth` was not configured on the provider; `useYVAuthOptional()` returns `null`. Any screen that can render in a build without sign-in must use the optional form — the example's Profile tab does, which is also what keeps the app drivable with `auth` removed.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
 - OAuth browser session via `expo-web-browser`; redirect handling is app-owned (example: `apps/example/app/callback.tsx` + `Linking.createURL('callback')`).
@@ -164,9 +166,22 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 - Requires `auth` on `YouVersionProvider` and the `highlights` **permission** (see the permissions note above — highlights go in `requested_permissions[]`, never in `scope`). With no auth configured it behaves exactly as signed out.
 - Paints from the MMKV cache **synchronously** in a `useState` initializer. That only works because `AuthProvider` seeds `userInfo` from its own initializer, so `userInfo.id` exists on the first render — load-bearing coupling, commented at both ends.
 - `highlights` is always safe to render. `isRefreshing` means "a GET is in flight", never "no data yet"; gating a spinner on it reintroduces the blank first frame the cache exists to prevent.
-- `error` is **fetch-only**. Writes report once, through the `HighlightWriteOutcome` they resolve to — that is also C3's branch point for the sign-in prompt (`reason === 'auth'` / `'not-signed-in'`).
+- `error` is **fetch-only**. Writes report once, through the `HighlightWriteOutcome` they resolve to — that is also the branch point for the sign-in prompt (`reason === 'auth'` / `'not-signed-in'`).
+- A `transient` failure is **not** a revert. Those verses become **Pending Operations**: persisted to MMKV (`highlights/queue.ts`), retried with exponential backoff (2s doubling, capped at 30s), replayed after an app kill, and still painted throughout. Every other reason reverts the paint. `hasPendingOperations` (hook) / `hasPendingHighlightOperations` (auth context) are true while the queue is non-empty **or** a write is in flight; sign-out discards the queue and bumps a generation so a departed user's write can never land on the next account.
 - The five swatches in `HIGHLIGHT_COLORS` are a company standard enforced in core: both `apply` and `remove` reject anything else as `invalid` before painting or issuing a request. Do not relax this on layering grounds — the open improvement is relocating the palette to `@youversion/platform-core`, not deferring it to the UI layer.
 - Overlay math lives in the pure, React-free `packages/core/src/highlights/optimistic.ts`, ported from the web highlights machine. Ownership tokens and the colour-aware overlay retirement rule are documented in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md); the retirement rule reads like a bug in both directions and is defended only by its regression pair, so read the ADR before touching `shouldRetire`.
+
+## Highlights (UI)
+
+`BibleReader` owns the whole flow; consumers pass no highlight data in.
+
+- **Pending Highlight vs Pending Operation.** A **Pending Highlight** is a tap held in memory by `native/use-reader-highlights.ts` while a sign-in sheet or consent page is up — never persisted, cleared on every cancellation exit, and re-gated against the _current_ scope before it replays (the reader may have changed chapters behind the browser). A **Pending Operation** is an already-authorized write in core's durable queue. Different lifetimes, different owners; conflating them is the failure mode this vocabulary exists to prevent.
+- `useReaderHighlights` is the orchestrator (RN's analogue of Swift's `BibleReaderViewModel`): the wrapper forwards taps and presents surfaces, the hook decides. The fork itself is pure and layer-1 tested in `lib/highlight-tap-gate.ts` (`'write' | 'prompt-sign-in' | 'prompt-permission' | 'noop'`); a scope mismatch returns `noop` before any auth branch.
+- Surfaces follow Swift: sign-in is the only sheet (`native/sign-in-with-youversion-sheet.tsx`), while the just-in-time permission prompt and both sign-out warnings are native `Alert`s. See [ADR 0014](docs/adr/0014-native-highlight-permission-flow.md).
+- `isSignedIn` keys on the **cached user id**, not `isAuthenticated` — `AuthProvider` seeds `userInfo` synchronously and loads the token asynchronously, so gating on the token would prompt a user who is already signed in.
+- Controlled mode is **internal**. `highlights` / `onHighlightApply` / `onHighlightRemove` are `Omit`ted from the public `BibleReaderProps`; the reader must pass `highlights` on every render (`[]`, never `undefined`) because the Web SDK latches the mode at first mount. Hosts wanting their own UI use core's `useHighlights`.
+- `onHighlightError` only ever reports `transient` — which means _queued and retrying_, not _failed_. `invalid` is logged; `auth` / `not-signed-in` route to a prompt.
+- The sign-out guard lives in one place (`native/use-sign-out-guard.ts`) for both entry points, so the warning cannot be true on the auth button and missing on the reader's toolbar.
 
 ## Runtime Dependencies
 

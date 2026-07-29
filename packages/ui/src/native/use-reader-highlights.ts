@@ -54,6 +54,16 @@ export type UseReaderHighlightsResult = {
   scope: HighlightScope
   onHighlightApply: (intent: BibleReaderHighlightIntent) => Promise<void>
   onHighlightRemove: (intent: BibleReaderHighlightIntent) => Promise<void>
+  /**
+   * Re-fetch this chapter's highlights from the server, picking up anything
+   * created on another device. Core already revalidates on a
+   * background → foreground transition; this is the half the SDK cannot detect
+   * on its own — navigation focus — and it is what `BibleReader` re-exposes as
+   * the `refreshHighlights` ref handle.
+   *
+   * Never gates rendering: the painted highlights stay on screen throughout.
+   */
+  refresh: () => Promise<void>
   /** Drives the sign-in sheet's visibility and the just-in-time alert. */
   prompt: ReaderHighlightPrompt
   /** "Yes Please" / "Continue" — advances whichever prompt is showing. */
@@ -326,6 +336,7 @@ export function useReaderHighlights(
       scope,
       onHighlightApply,
       onHighlightRemove,
+      refresh,
       prompt,
       onPromptConfirm,
       onPromptDismiss,
@@ -335,6 +346,7 @@ export function useReaderHighlights(
       scope,
       onHighlightApply,
       onHighlightRemove,
+      refresh,
       prompt,
       onPromptConfirm,
       onPromptDismiss,

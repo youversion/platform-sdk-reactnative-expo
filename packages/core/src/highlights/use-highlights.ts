@@ -1,5 +1,6 @@
 import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 
 import { useYVAuthOptional } from '../auth'
 import { invalidateGrantedPermission } from '../auth/granted-permissions'
@@ -530,6 +531,35 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   }, [identityKey, accessToken, runFetch])
 
   const refresh = useCallback((): Promise<void> => runFetch(), [runFetch])
+
+  // ── Revalidate when the app comes back to the foreground ───────────────────
+  // A highlight created somewhere else — the YouVersion app, youversion.com,
+  // another device — is invisible here until something re-fetches. Returning to
+  // the app is the cheapest moment to notice, and the only one the SDK can
+  // detect on its own: navigation focus would cost every consumer a navigation
+  // library as a peer dependency, so that half is the host's to call
+  // (`BibleReader`'s `refreshHighlights` ref handle).
+  //
+  // Deliberately **only** `background` → `active`, tracked here rather than
+  // read off the event, because `expo-web-browser` drops the app to `inactive`
+  // for both the PKCE sign-in and the data-exchange consent flow — and the
+  // permission flow already calls `refresh()` when it returns. Firing on
+  // `inactive` would double-fetch on every consent return.
+  //
+  // `runFetch` already no-ops without a token and collapses concurrent calls
+  // onto one in-flight request, so nothing else is needed here.
+  const previousAppStateRef = useRef<AppStateStatus>(AppState.currentState)
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      const previousAppState = previousAppStateRef.current
+      previousAppStateRef.current = nextAppState
+      if (previousAppState === 'background' && nextAppState === 'active') {
+        void runFetch()
+      }
+    })
+    return () => subscription.remove()
+  }, [runFetch])
 
   // ── Writes ─────────────────────────────────────────────────────────────────
   // A promise chain, not a queue: the web machine needs an explicit queue only

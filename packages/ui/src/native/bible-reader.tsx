@@ -8,7 +8,8 @@ import type {
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { Ref } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { Alert, Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -40,6 +41,33 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
+
+/**
+ * The imperative surface of `BibleReader`, reached through a `ref`.
+ *
+ * ```tsx
+ * const reader = useRef<BibleReaderHandle>(null)
+ * useFocusEffect(useCallback(() => { void reader.current?.refreshHighlights() }, []))
+ * <BibleReader ref={reader} />
+ * ```
+ */
+export type BibleReaderHandle = {
+  /**
+   * Re-fetch the highlights for the chapter on screen, picking up anything
+   * created on another device or in the YouVersion app.
+   *
+   * The SDK already revalidates on its own when the app returns from the
+   * background. **Navigation focus is the half it cannot see**: detecting it
+   * would mean taking `@react-navigation/native` as a peer dependency and
+   * forcing a navigation library on every consumer, so the host — which owns
+   * navigation anyway — calls this instead. Wire it to your router's focus
+   * event (`useFocusEffect` on Expo Router / React Navigation).
+   *
+   * Safe to call at any time: it de-dupes against a fetch already in flight,
+   * no-ops when signed out, and never clears what is already painted.
+   */
+  refreshHighlights: () => Promise<void>
+}
 
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
@@ -85,6 +113,11 @@ export type BibleReaderProps = Omit<
    * Payload errors are logged, not reported here; the user can't act on them.
    */
   onHighlightError?: (error: HighlightWriteError) => void
+  /**
+   * Imperative handle — see {@link BibleReaderHandle}. React 19 passes `ref`
+   * as an ordinary prop, so there is no `forwardRef` here.
+   */
+  ref?: Ref<BibleReaderHandle>
 }
 
 export function BibleReader({
@@ -109,6 +142,7 @@ export function BibleReader({
   backgroundColor,
   foregroundColor,
   dom,
+  ref,
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
@@ -172,6 +206,7 @@ export function BibleReader({
     highlights,
     onHighlightApply,
     onHighlightRemove,
+    refresh: refreshHighlights,
     prompt,
     onPromptConfirm,
     onPromptDismiss,
@@ -181,6 +216,11 @@ export function BibleReader({
     chapter,
     onHighlightError,
   })
+
+  // Navigation focus is invisible to the SDK without taking a navigation
+  // library as a peer dependency, so the host calls this on focus instead. The
+  // app-foreground half is handled inside core's `useHighlights`.
+  useImperativeHandle(ref, () => ({ refreshHighlights }), [refreshHighlights])
 
   // The just-in-time permission prompt is a native `Alert`, not a sheet — Swift
   // makes the sign-in prompt the only full sheet in this flow. Fired from an

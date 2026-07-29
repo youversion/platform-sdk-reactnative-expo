@@ -6,7 +6,7 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderHighlightIntent } from '@youversion/platform-react-ui'
-import type { ReactNode } from 'react'
+import { createRef, type ReactNode } from 'react'
 
 import {
   readerLocationStoreInitialState,
@@ -18,6 +18,7 @@ import {
   resetHighlightsMock,
   setMockHighlights,
 } from '../../test-utils/highlights-mock'
+import type { BibleReaderHandle } from '../bible-reader'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -452,5 +453,50 @@ describe('BibleReader highlights write path', () => {
     await tap(getByTestId)
 
     expect(onHighlightError).not.toHaveBeenCalled()
+  })
+})
+
+describe('BibleReader refreshHighlights handle', () => {
+  it('calls through to core’s refresh so a host can revalidate on navigation focus', async () => {
+    setMockSignedIn()
+    const reader = createRef<BibleReaderHandle>()
+
+    render(<BibleReader ref={reader} book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    expect(reader.current).not.toBeNull()
+    expect(highlightsMock.refresh).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await reader.current?.refreshHighlights()
+    })
+
+    expect(highlightsMock.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps working after a chapter change — the handle is not captured at mount', async () => {
+    setMockSignedIn()
+    setMockHighlights(highlightsForScope)
+    const reader = createRef<BibleReaderHandle>()
+
+    const { getByTestId } = render(<BibleReader ref={reader} versionId={VERSION_ID} />, { wrapper })
+
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-chapter-change'))
+    })
+    expect(latestDomProps.chapter).toBe('3')
+
+    await act(async () => {
+      await reader.current?.refreshHighlights()
+    })
+
+    expect(highlightsMock.refresh).toHaveBeenCalledTimes(1)
+  })
+
+  it('exposes nothing beyond the refresh handle', () => {
+    const reader = createRef<BibleReaderHandle>()
+
+    render(<BibleReader ref={reader} book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    expect(Object.keys(reader.current ?? {})).toEqual(['refreshHighlights'])
   })
 })

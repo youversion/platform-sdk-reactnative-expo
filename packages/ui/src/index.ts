@@ -12,6 +12,7 @@ export {
 export type {
   BibleCardProps,
   BibleChapterPickerSheetProps,
+  BibleReaderHandle,
   BibleReaderProps,
   BibleReaderSettingsSheetProps,
   BibleTextViewProps,
