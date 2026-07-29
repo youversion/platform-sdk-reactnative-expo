@@ -18,7 +18,12 @@ export type AuthConfig = {
   /**
    * {@link AuthPermission}s to request at sign-in. Requesting one is not the same
    * as being granted it — the user can deny on the consent screen and sign-in
-   * still succeeds; reading back what was granted is not yet supported.
+   * still succeeds.
+   *
+   * Read back what was actually granted from `useYVAuth()`: `hasPermission(p)`
+   * for a single check, or `grantedPermissions` for the whole list (`null` when
+   * nothing was requested or no grant has been observed, `[]` when the user
+   * denied). The grant is cached per user and survives a cold start.
    */
   permissions?: readonly AuthPermission[]
 }
