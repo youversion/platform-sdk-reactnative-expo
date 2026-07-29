@@ -3,6 +3,7 @@ import { fetch } from 'expo/fetch'
 import { getOrSetInstallationId } from '../installation-id'
 import { DEFAULT_SCOPES } from './constants'
 import { exchangeCodeForTokens, type TokenResponse } from './http'
+import { readGrantedPermissions } from './granted-permissions'
 import { decodeIdToken, deriveUserInfo } from './id-token'
 import { generatePKCEParameters } from './pkce'
 import type { AuthPermission, AuthScope, YVUserInfo } from './types'
@@ -12,6 +13,12 @@ export type SignInResult =
       kind: 'success'
       tokens: TokenResponse
       userInfo: YVUserInfo
+      /**
+       * What the user granted, read off the app redirect. `null` = the redirect
+       * carried no `granted_permissions` key (nothing requested / unknown), `[]`
+       * = requested and denied. See {@link readGrantedPermissions}.
+       */
+      grantedPermissions: string[] | null
     }
   | { kind: 'cancel' }
 
@@ -83,6 +90,11 @@ export async function signInWithPKCE({
     throw new Error('State mismatch - possible CSRF attack')
   }
 
+  // Read the grant here, off the *app redirect*, before the /auth/callback hop
+  // below: that hop's Location header drops `granted_permissions` (measured on
+  // device, YPE-3707), so parsing anywhere later always reports "unknown".
+  const grantedPermissions = readGrantedPermissions(returnedParams)
+
   const code = await obtainCodeFromCallback({ apiHost, callBackParams: returnedParams })
 
   const tokens = await exchangeCodeForTokens({
@@ -100,7 +112,12 @@ export async function signInWithPKCE({
     throw new Error('Nonce mismatch - possible id_token replay')
   }
 
-  return { kind: 'success', tokens, userInfo: deriveUserInfo(tokens.id_token) }
+  return {
+    kind: 'success',
+    tokens,
+    userInfo: deriveUserInfo(tokens.id_token),
+    grantedPermissions,
+  }
 }
 
 async function obtainCodeFromCallback({

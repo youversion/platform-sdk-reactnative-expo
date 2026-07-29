@@ -117,6 +117,9 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     signOut: jest.fn(async () => undefined),
     refreshNow,
     isLoading: false,
+    grantedPermissions: null,
+    hasPermission: () => false,
+    invalidatePermissions: jest.fn(),
     ...overrides,
   }
 }

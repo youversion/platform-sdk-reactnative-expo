@@ -5,11 +5,16 @@ import { clearHighlightsCache } from '../highlights'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import {
+  clearGrantedPermissions,
+  loadCachedGrantedPermissions,
+  saveGrantedPermissions,
+} from './granted-permissions'
 import { refreshTokens, TokenEndpointError } from './http'
 import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
-import type { AuthConfig, YVUserInfo } from './types'
+import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
 
 type AuthProviderProps = {
   config: AuthConfig
@@ -21,6 +26,9 @@ type AuthProviderProps = {
 export default function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userInfo, setUserInfo] = useState<YVUserInfo | null>(() => loadCachedUserInfo())
+  const [grantedPermissions, setGrantedPermissions] = useState<string[] | null>(() =>
+    loadCachedGrantedPermissions(userInfo?.id ?? null),
+  )
   const [error, setError] = useState<Error | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
@@ -42,11 +50,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    clearGrantedPermissions()
     clearHighlightsCache()
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
     setUserInfo(null)
+    setGrantedPermissions(null)
     setError(null)
     await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
   }, [])
@@ -156,6 +166,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       if (result.kind === 'cancel') {
         return
       }
+
+      // Only a reported grant is persisted. A `null` means the redirect said
+      // nothing about permissions, which must not overwrite a real grant from an
+      // earlier sign-in — `signIn` on an already-signed-in user does not go
+      // through clearAuthState first.
+      if (result.grantedPermissions !== null) {
+        saveGrantedPermissions(result.userInfo.id ?? null, result.grantedPermissions)
+        setGrantedPermissions(result.grantedPermissions)
+      }
+
       await setAuthState(
         {
           accessToken: result.tokens.access_token,
@@ -177,6 +197,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  const hasPermission = useCallback(
+    (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
+    [grantedPermissions],
+  )
+
+  const invalidatePermissions = useCallback(() => {
+    clearGrantedPermissions()
+    setGrantedPermissions(null)
+  }, [])
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
@@ -187,8 +217,22 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       isLoading,
+      grantedPermissions,
+      hasPermission,
+      invalidatePermissions,
     }),
-    [accessToken, userInfo, error, signIn, signOut, refreshNow, isLoading],
+    [
+      accessToken,
+      userInfo,
+      error,
+      signIn,
+      signOut,
+      refreshNow,
+      isLoading,
+      grantedPermissions,
+      hasPermission,
+      invalidatePermissions,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

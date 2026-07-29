@@ -144,14 +144,16 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 **UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`
 
-**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth` (its value carries `grantedPermissions` / `hasPermission` / `invalidatePermissions` alongside the sign-in surface), `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
 
 UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
 
 ## Auth (core)
 
 - Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
-- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until the permission flow lands (C3).
+- **Requesting a permission is not being granted it.** `useYVAuth()` reads the grant back: `hasPermission(permission)` for a single check, `grantedPermissions` for the list, and `invalidatePermissions()` to drop a stale grant after a 401/403 so the next pre-flight re-prompts. Three states, and collapsing them loses "the user said no": `null` = nothing requested / unknown, `[]` = requested and denied, populated = granted.
+- The grant rides only on the **app redirect** — the `/auth/callback` `Location` hop drops it — so `pkce-flow.ts` parses it from `result.url` before that hop, and a test in `__tests__/pkce-flow.test.ts` pins the ordering. It is then cached per user in MMKV (`auth/granted-permissions.ts`), seeded synchronously in a `useState` initializer so it is correct on the first render, and purged in `clearAuthState`. Values outside `AuthPermission` are kept verbatim, not filtered — filtering would turn a server-side addition into a silent denial.
 - `useYVAuth()` throws if `auth` was not configured on the provider.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).

@@ -1,0 +1,5 @@
+---
+'@youversion/platform-react-native-expo-core': patch
+---
+
+The SDK now reads back which permissions a user actually granted, instead of assuming the request at sign-in succeeded. `useYVAuth()` gains `hasPermission(permission)` for a single check, `grantedPermissions` for the whole list, and `invalidatePermissions()` for dropping a grant that a 401/403 has proven stale. The signal is deliberately three-state — `null` when nothing was requested or nothing is known yet, `[]` when the user was asked and declined, and populated when granted — so "the user said no" stays distinguishable from "we never asked". The grant is parsed from the OAuth app redirect (the `/auth/callback` hop drops it), cached per user in MMKV and validated on read so corrupt or legacy entries are a miss rather than a throw, seeded synchronously on mount so a first render already answers correctly, and purged on sign-out. Permission values the SDK does not recognize are kept verbatim rather than filtered, so a server-side addition can never read as a denial.

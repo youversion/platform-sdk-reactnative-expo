@@ -81,7 +81,14 @@ function AuthPeek() {
       <Text testID="accessToken">{auth.accessToken ?? 'null'}</Text>
       <Text testID="userInfo">{auth.userInfo ? JSON.stringify(auth.userInfo) : 'null'}</Text>
       <Text testID="error">{auth.error?.message ?? 'null'}</Text>
+      <Text testID="grantedPermissions">
+        {auth.grantedPermissions ? JSON.stringify(auth.grantedPermissions) : 'null'}
+      </Text>
+      <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Pressable testID="invalidatePermissions" onPress={() => auth.invalidatePermissions()}>
+        <Text>invalidatePermissions</Text>
+      </Pressable>
       <Pressable
         testID="signIn"
         onPress={async () => {
@@ -290,6 +297,7 @@ describe('AuthProvider — signIn', () => {
       kind: 'success',
       tokens: validTokens,
       userInfo: adaUserInfo,
+      grantedPermissions: null,
     })
 
     render(
@@ -343,6 +351,141 @@ describe('AuthProvider — signIn', () => {
     await waitFor(() => expect(getText('signInOutcome')).toBe('rejected: PKCE blew up'))
     expect(getText('error')).toBe('PKCE blew up')
     expect(getText('isAuthenticated')).toBe('false')
+  })
+})
+
+describe('AuthProvider — granted permissions', () => {
+  const grantedKey = MMKV_AUTH_KEYS.grantedPermissions
+
+  function renderProvider() {
+    return render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+  }
+
+  function arrangeSignIn(grantedPermissions: string[] | null) {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+      grantedPermissions,
+    })
+  }
+
+  async function signInAndSettle() {
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+  }
+
+  it('exposes a granted permission on the render after sign-in', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+  })
+
+  it('still reports the grant after a cold start (fresh provider, same storage)', async () => {
+    arrangeSignIn(['highlights'])
+    const { unmount } = renderProvider()
+    await signInAndSettle()
+    unmount()
+
+    // Cold start: userInfo comes back from its own cache, and the grant is
+    // seeded synchronously against it — true on the very first render.
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    renderProvider()
+
+    expect(getText('hasHighlights')).toBe('true')
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+  })
+
+  it('reports a denied grant as [] — false, but distinguishable from never-requested', async () => {
+    arrangeSignIn([])
+    renderProvider()
+    await signInAndSettle()
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).not.toBe('null')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual([])
+  })
+
+  it('leaves a cached grant alone when a re-sign-in reports no granted_permissions', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+
+    // A scopes-only re-auth on an already-signed-in user reports null
+    // ("unknown"). It does not pass through clearAuthState, so writing null
+    // through would silently wipe a real grant.
+    arrangeSignIn(null)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(mockMmkv.get(grantedKey)).toBe(
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+  })
+
+  it('reads a cached grant belonging to another user as a miss', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      grantedKey,
+      JSON.stringify({ userId: 'someone-else', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('purges the stored grant on sign-out', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+    expect(mockMmkv.has(grantedKey)).toBe(true)
+
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('invalidatePermissions drops both the state and the cached entry', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('invalidatePermissions'))
+    })
+
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+    // Still signed in — only the grant was invalidated.
+    expect(getText('isAuthenticated')).toBe('true')
   })
 })
 
