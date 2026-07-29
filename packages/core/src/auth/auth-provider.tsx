@@ -177,12 +177,20 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         result.userInfo,
       )
 
-     
+      // The grant belongs to the session, so it lands only once the session has
+      // committed: setAuthState awaits the keychain write, and if that rejects
+      // no grant is left describing a sign-in that never took hold. The reverse
+      // cannot happen either — the cache writes below never throw, so they can
+      // neither reject a sign-in that did commit nor skip the state update.
       const nextUserId = result.userInfo.id ?? null
       if (result.grantedPermissions !== null) {
         saveGrantedPermissions(nextUserId, result.grantedPermissions)
         setGrantedPermissions(result.grantedPermissions)
       } else if (nextUserId !== previousUserId) {
+        // A `null` grant means the redirect said nothing about permissions. For
+        // the same user that is "unknown" and must not wipe a real grant from an
+        // earlier sign-in (this path skips clearAuthState); for a different user
+        // it would hand the previous account's permissions to this one.
         clearGrantedPermissions()
         setGrantedPermissions(null)
       }

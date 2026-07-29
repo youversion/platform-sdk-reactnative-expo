@@ -81,14 +81,30 @@ export function loadCachedGrantedPermissions(userId: string | null): string[] | 
  * Persists a grant for `userId`. Only ever called with a non-null grant — an
  * absent MMKV entry *is* the unknown state, so a sign-in that reports no
  * `granted_permissions` must not overwrite a real grant with "unknown".
+ *
+ * Never throws, mirroring {@link loadCachedGrantedPermissions}: the cache only
+ * seeds the first render, so a native storage failure must not reject a sign-in
+ * whose session already committed, nor skip the in-memory state update that
+ * `hasPermission` actually reads. An entry stranded by a failed write is safe —
+ * it stays scoped to whatever `userId` it was written for, so it reads as a
+ * miss on the next cold start rather than leaking across users.
  */
 export function saveGrantedPermissions(
   userId: string | null,
   permissions: readonly string[],
 ): void {
-  mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify({ userId, permissions }))
+  try {
+    mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify({ userId, permissions }))
+  } catch {
+    // Cache write failed; the in-memory grant remains authoritative.
+  }
 }
 
+/** Removes the cached grant. Never throws — see {@link saveGrantedPermissions}. */
 export function clearGrantedPermissions(): void {
-  mmkvStorage.remove(MMKV_AUTH_KEYS.grantedPermissions)
+  try {
+    mmkvStorage.remove(MMKV_AUTH_KEYS.grantedPermissions)
+  } catch {
+    // Cache removal failed; callers still drop the in-memory grant.
+  }
 }
