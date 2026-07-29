@@ -119,10 +119,7 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
   const React = require('react')
   const actual = jest.requireActual('@youversion/platform-react-native-expo-core')
   const { createUseHighlightsMock } = require('./src/test-utils/highlights-mock')
-  const {
-    createUseYVAuthMock,
-    createUseYVAuthOptionalMock,
-  } = require('./src/test-utils/auth-mock')
+  const { createUseYVAuthMock, createUseYVAuthOptionalMock } = require('./src/test-utils/auth-mock')
 
   const TestContext = React.createContext(null)
 
