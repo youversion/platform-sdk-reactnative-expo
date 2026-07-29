@@ -4,7 +4,6 @@ import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-ex
 import type {
   BibleChapterPickerPressData,
   BibleReaderHighlightIntent,
-  BibleReaderShareData,
   BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
@@ -47,20 +46,30 @@ type BibleReaderBaseProps = {
   onHighlightApply?: (intent: BibleReaderHighlightIntent) => Promise<void>
   onHighlightRemove?: (intent: BibleReaderHighlightIntent) => Promise<void>
   /**
-   * Fires on every selection change, `verses: []` on clear. An observation of a
-   * committed selection, not a handle on it — nothing native sends back changes
-   * the reader's own selection state.
+   * Fires on every selection change, `verses: []` on clear. Carries the
+   * localized `reference` and a ready-built `shareData` (both added in Web SDK
+   * 2.5.0) so a native verse-action sheet can label itself and run Copy / Share
+   * without a popover press.
+   *
+   * An observation of a committed selection — the reader still owns selection
+   * state; the only thing native sends back is {@link clearSelectionSignal}.
    */
   onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
   /**
-   * Handle Copy / Share yourself. Supplying either one suppresses the Web SDK's
-   * browser default (`navigator.clipboard` / Web Share) — neither works
-   * reliably inside an Expo DOM WebView, so the native wrapper always supplies
-   * its own and falls back to `expo-clipboard` / RN's `Share` when the consumer
-   * doesn't.
+   * `'none'` suppresses the Web SDK's in-WebView verse popover, leaving
+   * selection, painting, and every payload intact. The native wrapper passes it
+   * on every platform but web, where `NativeSheet` renders nothing and the
+   * popover is still the only verse-action UI there is.
    */
-  onCopy?: (data: BibleReaderShareData) => Promise<void>
-  onShare?: (data: BibleReaderShareData) => Promise<void>
+  verseActions?: 'popover' | 'none'
+  /**
+   * One-way native → DOM command: any change clears the reader's verse
+   * selection. A counter rather than a `ref` handle because only serializable
+   * props cross the DOM bridge — the same mechanic as `resetKey` and
+   * `dismissKeyboardNonce`. The value at mount is the baseline, so mounting is
+   * never a clear.
+   */
+  clearSelectionSignal?: number
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -109,8 +118,8 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     onHighlightApply,
     onHighlightRemove,
     onVerseSelect,
-    onCopy,
-    onShare,
+    verseActions,
+    clearSelectionSignal,
     theme = 'light',
     book,
     chapter,
@@ -232,11 +241,16 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           onHighlightApply={handleHighlightApply}
           onHighlightRemove={handleHighlightRemove}
           // `onVerseSelect` is cast wider on `NativeActionBibleReaderRoot`
-          // above; `onCopy` / `onShare` already accept a promise upstream, so
-          // all three forward as-is.
+          // above, so it forwards as-is.
+          //
+          // There is deliberately no `onCopy` / `onShare` here: with
+          // `verseActions="none"` the Web SDK has no button left to fire them —
+          // Copy and Share are native buttons on `BibleVerseActionSheet` now, and
+          // they run against `onVerseSelect`'s `shareData`. Leaving dead Native
+          // Actions on the bridge would cost a round-trip per copy for nothing.
           onVerseSelect={onVerseSelect}
-          onCopy={onCopy}
-          onShare={onShare}
+          verseActions={verseActions}
+          clearSelectionSignal={clearSelectionSignal}
           book={book}
           chapter={chapter}
           versionId={versionId}

@@ -10,6 +10,16 @@ allowBuilds:
 
 minimumReleaseAge: 4320 # 3-day cooldown — supply-chain attack mitigation
 
+# First-party packages we publish ourselves. The cooldown exists to blunt a
+# hijacked *third-party* release; for our own scope we control the publish and
+# want same-day consumption, which this SDK needs whenever the Web SDK ships an
+# enabling change (e.g. `verseActions` / `clearSelectionSignal` in 2.5.0).
+# It does widen the blast radius of a leaked npm token on the `@youversion`
+# scope — a compromised first-party publish is a problem the cooldown only
+# delays, so this is a deliberate trade, not an oversight.
+minimumReleaseAgeExclude:
+  - '@youversion/*'
+
 # Migrated from .npmrc — pnpm 11 only reads auth/registry settings from .npmrc,
 # all other settings must live here (https://pnpm.io/blog/releases/11.0).
 # Required for Expo DOM Components + pnpm compatibility.

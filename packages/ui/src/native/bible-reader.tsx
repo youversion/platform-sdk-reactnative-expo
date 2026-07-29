@@ -1,8 +1,13 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
+import {
+  deriveServerColors,
+  useYouVersion,
+  useYVAuthOptional,
+} from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleReaderShareData,
+  BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
@@ -24,8 +29,10 @@ import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
@@ -96,6 +103,11 @@ export type BibleReaderProps = Omit<
   | 'highlights'
   | 'onHighlightApply'
   | 'onHighlightRemove'
+  // Verse actions are a native sheet the reader owns (ADR 0015). It suppresses
+  // the Web SDK's in-WebView popover and drives the selection clear itself, so
+  // neither knob is a consumer surface.
+  | 'verseActions'
+  | 'clearSelectionSignal'
   // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
   // so consumers don't pass it — it lives inside the WebView.
   | 'bottomScrollPadding'
@@ -113,6 +125,17 @@ export type BibleReaderProps = Omit<
    * Payload errors are logged, not reported here; the user can't act on them.
    */
   onHighlightError?: (error: HighlightWriteError) => void
+  /**
+   * Handle Copy yourself instead of the SDK's `expo-clipboard` fallback. Fired
+   * by the native verse action sheet's Copy button with the payload
+   * `onVerseSelect` already carried, so it costs no extra bridge round-trip.
+   *
+   * Not wired on web, where the Web SDK's own popover and `navigator.clipboard`
+   * remain the right behaviour.
+   */
+  onCopy?: (data: BibleReaderShareData) => Promise<void>
+  /** Share's counterpart to {@link onCopy}; falls back to RN's `Share.share`. */
+  onShare?: (data: BibleReaderShareData) => Promise<void>
   /**
    * Imperative handle — see {@link BibleReaderHandle}. React 19 passes `ref`
    * as an ordinary prop, so there is no `forwardRef` here.
@@ -222,6 +245,64 @@ export function BibleReader({
   // app-foreground half is handled inside core's `useHighlights`.
   useImperativeHandle(ref, () => ({ refreshHighlights }), [refreshHighlights])
 
+  // ── Verse actions ────────────────────────────────────────────────────────
+  // The reader owns the committed selection so it can raise a native sheet over
+  // it (ADR 0015). The Web SDK still owns selection *state*; this is a mirror of
+  // what it committed, and the only thing travelling back is the clear signal.
+  const [selection, setSelection] = useState<BibleReaderVerseSelection | null>(null)
+  // One-way DOM command. Bumped on every exit from the sheet — a write, a
+  // copy/share, or a dismiss — because with `verseActions="none"` there is
+  // nothing left inside the WebView that can clear the selection.
+  const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
+
+  const handleVerseSelect = useCallback(
+    async (next: BibleReaderVerseSelection) => {
+      setSelection(next.verses.length > 0 ? next : null)
+      await onVerseSelect?.(next)
+    },
+    [onVerseSelect],
+  )
+
+  const closeVerseActions = useCallback(() => {
+    setSelection(null)
+    setClearSelectionSignal((signal) => signal + 1)
+  }, [])
+
+  // Optimistic paint included: `highlights` is what the user sees, and the tray
+  // has to agree with the page under it.
+  const swatches = useMemo(() => {
+    if (selection === null) return []
+    return buildVerseActionSwatches({
+      verses: selection.verses,
+      colors: deriveServerColors(highlights, {
+        versionId: selection.versionId,
+        book: selection.book,
+        chapter: selection.chapter,
+      }),
+    })
+  }, [selection, highlights])
+
+  const handleSwatchPress = useCallback(
+    (swatch: VerseActionSwatch) => {
+      if (selection === null) return
+      const intent = {
+        versionId: selection.versionId,
+        book: selection.book,
+        chapter: selection.chapter,
+        verses: selection.verses,
+        passageIds: selection.passageIds,
+        color: swatch.color,
+      }
+      // Fire and forget: everything downstream of the tap — the gate, the
+      // prompts, the optimistic paint, the durable queue — already exists and
+      // reports through its own channels. Awaiting here would only hold the
+      // sheet open over a network round-trip.
+      void (swatch.state === 'remove' ? onHighlightRemove(intent) : onHighlightApply(intent))
+      closeVerseActions()
+    },
+    [selection, onHighlightApply, onHighlightRemove, closeVerseActions],
+  )
+
   // The just-in-time permission prompt is a native `Alert`, not a sheet — Swift
   // makes the sign-in prompt the only full sheet in this flow. Fired from an
   // effect keyed on the prompt phase alone: the handlers and `t` change identity
@@ -316,8 +397,10 @@ export function BibleReader({
   )
 
   // Consumer override wins, else the SDK's native fallback — the same shape
-  // `VerseOfTheDay` already ships for share. Both suppress the Web SDK's
-  // browser defaults, which don't work inside an Expo DOM WebView.
+  // `VerseOfTheDay` already ships for share. Both replace the Web SDK's browser
+  // defaults, which don't work inside an Expo DOM WebView. Since Phase 9 they
+  // are driven by the native verse action sheet rather than by a Native Action
+  // fired from the WebView, but the contract is unchanged.
   const handleCopy = useCallback(
     async (data: BibleReaderShareData) => {
       try {
@@ -349,6 +432,20 @@ export function BibleReader({
     },
     [consumerOnShare],
   )
+
+  // `shareData` rides in on `onVerseSelect` (Web SDK 2.5.0), so the sheet's Copy
+  // and Share buttons need no round-trip back into the WebView to build it.
+  const handleCopyPress = useCallback(() => {
+    const data = selection?.shareData
+    closeVerseActions()
+    if (data) void handleCopy(data)
+  }, [selection, handleCopy, closeVerseActions])
+
+  const handleSharePress = useCallback(() => {
+    const data = selection?.shareData
+    closeVerseActions()
+    if (data) void handleShare(data)
+  }, [selection, handleShare, closeVerseActions])
 
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
@@ -405,9 +502,11 @@ export function BibleReader({
           highlights={highlights}
           onHighlightApply={onHighlightApply}
           onHighlightRemove={onHighlightRemove}
-          onVerseSelect={onVerseSelect}
-          onCopy={Platform.OS !== 'web' ? handleCopy : undefined}
-          onShare={Platform.OS !== 'web' ? handleShare : undefined}
+          onVerseSelect={handleVerseSelect}
+          // Web keeps the Web SDK's own popover: `NativeSheet` renders nothing
+          // there, so suppressing it would leave no verse-action UI at all.
+          verseActions={Platform.OS !== 'web' ? 'none' : 'popover'}
+          clearSelectionSignal={clearSelectionSignal}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
@@ -435,6 +534,23 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {Platform.OS !== 'web' && (
+        <BibleVerseActionSheet
+          // Yields to the sign-in sheet rather than racing it. `NativeSheet`
+          // allows one active sheet at a time and calls `onClose` on whichever
+          // it displaces, so leaving both "open" would clear the selection as a
+          // side effect of losing — and the pending highlight replay would then
+          // land with nothing selected.
+          isOpen={selection !== null && prompt === 'none'}
+          reference={selection?.reference ?? ''}
+          swatches={swatches}
+          onSwatchPress={handleSwatchPress}
+          onCopyPress={handleCopyPress}
+          onSharePress={handleSharePress}
+          onClose={closeVerseActions}
+          theme={resolvedTheme}
         />
       )}
       {Platform.OS !== 'web' && (

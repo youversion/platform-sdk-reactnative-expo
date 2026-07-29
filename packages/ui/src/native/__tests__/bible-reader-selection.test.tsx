@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
@@ -19,20 +19,6 @@ jest.mock('expo-clipboard', () => ({
 
 const VERSION_ID = 111
 
-const SELECTION: BibleReaderVerseSelection = {
-  versionId: VERSION_ID,
-  book: 'JHN',
-  chapter: '1',
-  verses: [1, 2],
-  passageIds: ['JHN.1.1', 'JHN.1.2'],
-}
-
-const CLEARED_SELECTION: BibleReaderVerseSelection = {
-  ...SELECTION,
-  verses: [],
-  passageIds: [],
-}
-
 const SHARE_DATA: BibleReaderShareData = {
   text: '“In the beginning was the Word...”\n\nJohn 1:1-2 NIV',
   reference: 'John 1:1-2 NIV',
@@ -43,13 +29,30 @@ const SHARE_DATA: BibleReaderShareData = {
   versionId: VERSION_ID,
 }
 
+const SELECTION: BibleReaderVerseSelection = {
+  versionId: VERSION_ID,
+  book: 'JHN',
+  chapter: '1',
+  verses: [1, 2],
+  passageIds: ['JHN.1.1', 'JHN.1.2'],
+  reference: 'John 1:1-2',
+  shareData: SHARE_DATA,
+}
+
+const CLEARED_SELECTION: BibleReaderVerseSelection = {
+  ...SELECTION,
+  verses: [],
+  passageIds: [],
+  reference: '',
+  shareData: null,
+}
+
 /** Which selection payload the mocked DOM component emits on the next press. */
 let mockNextSelection: BibleReaderVerseSelection = SELECTION
 
 let latestDomProps: {
   onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
-  onCopy?: (data: BibleReaderShareData) => Promise<void>
-  onShare?: (data: BibleReaderShareData) => Promise<void>
+  verseActions?: 'popover' | 'none'
 } = {}
 
 jest.mock('../../dom/bible-reader', () => {
@@ -59,25 +62,15 @@ jest.mock('../../dom/bible-reader', () => {
     __esModule: true,
     default: function MockDOM(props: {
       onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
-      onCopy?: (data: BibleReaderShareData) => Promise<void>
-      onShare?: (data: BibleReaderShareData) => Promise<void>
     }) {
       latestDomProps = props
       return (
         <View testID="mock-dom">
-          <Text testID="has-copy-handler">{props.onCopy ? 'yes' : 'no'}</Text>
-          <Text testID="has-share-handler">{props.onShare ? 'yes' : 'no'}</Text>
           <Pressable
             testID="trigger-verse-select"
             onPress={() => void props.onVerseSelect?.(mockNextSelection)}
           >
             <Text>Select</Text>
-          </Pressable>
-          <Pressable testID="trigger-copy" onPress={() => void props.onCopy?.(SHARE_DATA)}>
-            <Text>Copy</Text>
-          </Pressable>
-          <Pressable testID="trigger-share" onPress={() => void props.onShare?.(SHARE_DATA)}>
-            <Text>Share</Text>
           </Pressable>
         </View>
       )
@@ -138,6 +131,21 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+/**
+ * Select verses in the WebView, then press Copy or Share **on the native
+ * sheet**. Since Phase 9 that is the only way to reach these handlers: the Web
+ * SDK's popover is suppressed, so no `onCopy` / `onShare` Native Action crosses
+ * the bridge at all. The contract below is unchanged — only the caller moved.
+ */
+async function pressVerseAction(testID: 'bible-verse-action-copy' | 'bible-verse-action-share') {
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('trigger-verse-select'))
+  })
+  await act(async () => {
+    fireEvent.press(screen.getByTestId(testID))
+  })
+}
+
 const originalOs = Platform.OS
 
 beforeEach(() => {
@@ -163,13 +171,13 @@ describe('BibleReader verse selection', () => {
   it('forwards the selection payload to the consumer', async () => {
     const onVerseSelect = jest.fn()
 
-    const { getByTestId } = render(
+    render(
       <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onVerseSelect={onVerseSelect} />,
       { wrapper },
     )
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-verse-select'))
+      fireEvent.press(screen.getByTestId('trigger-verse-select'))
     })
 
     expect(onVerseSelect).toHaveBeenCalledTimes(1)
@@ -180,34 +188,24 @@ describe('BibleReader verse selection', () => {
     const onVerseSelect = jest.fn()
     mockNextSelection = CLEARED_SELECTION
 
-    const { getByTestId } = render(
+    render(
       <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onVerseSelect={onVerseSelect} />,
       { wrapper },
     )
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-verse-select'))
+      fireEvent.press(screen.getByTestId('trigger-verse-select'))
     })
 
     expect(onVerseSelect).toHaveBeenCalledWith(CLEARED_SELECTION)
-  })
-
-  it('leaves onVerseSelect undefined on the bridge when the consumer does not pass one', () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
-
-    expect(latestDomProps.onVerseSelect).toBeUndefined()
   })
 })
 
 describe('BibleReader copy', () => {
   it('writes the selection text to the clipboard when the consumer has no handler', async () => {
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-copy'))
-    })
+    await pressVerseAction('bible-verse-action-copy')
 
     expect(Clipboard.setStringAsync).toHaveBeenCalledTimes(1)
     expect(Clipboard.setStringAsync).toHaveBeenCalledWith(SHARE_DATA.text)
@@ -216,14 +214,11 @@ describe('BibleReader copy', () => {
   it('lets a consumer handler win over the SDK fallback', async () => {
     const onCopy = jest.fn().mockResolvedValue(undefined)
 
-    const { getByTestId } = render(
-      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onCopy={onCopy} />,
-      { wrapper },
-    )
-
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-copy'))
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onCopy={onCopy} />, {
+      wrapper,
     })
+
+    await pressVerseAction('bible-verse-action-copy')
 
     expect(onCopy).toHaveBeenCalledWith(SHARE_DATA)
     expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
@@ -233,14 +228,11 @@ describe('BibleReader copy', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {})
     const onCopy = jest.fn().mockRejectedValue(new Error('nope'))
 
-    const { getByTestId } = render(
-      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onCopy={onCopy} />,
-      { wrapper },
-    )
-
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-copy'))
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onCopy={onCopy} />, {
+      wrapper,
     })
+
+    await pressVerseAction('bible-verse-action-copy')
 
     expect(onCopy).toHaveBeenCalledTimes(1)
     expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
@@ -250,45 +242,19 @@ describe('BibleReader copy', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {})
     ;(Clipboard.setStringAsync as jest.Mock).mockRejectedValueOnce(new Error('no pasteboard'))
 
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-copy'))
-    })
+    await pressVerseAction('bible-verse-action-copy')
 
     expect(Clipboard.setStringAsync).toHaveBeenCalledTimes(1)
-  })
-
-  it('leaves the Web SDK its own clipboard default on web', async () => {
-    Object.defineProperty(Platform, 'OS', {
-      configurable: true,
-      enumerable: true,
-      value: 'web',
-    })
-
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
-
-    expect(getByTestId('has-copy-handler').children).toContain('no')
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-copy'))
-    })
-    expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
   })
 })
 
 describe('BibleReader share', () => {
   it('opens the native share sheet when the consumer has no handler', async () => {
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-share'))
-    })
+    await pressVerseAction('bible-verse-action-share')
 
     expect(Share.share).toHaveBeenCalledWith({ message: SHARE_DATA.text })
   })
@@ -296,14 +262,11 @@ describe('BibleReader share', () => {
   it('lets a consumer handler win over the SDK fallback', async () => {
     const onShare = jest.fn().mockResolvedValue(undefined)
 
-    const { getByTestId } = render(
-      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onShare={onShare} />,
-      { wrapper },
-    )
-
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-share'))
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onShare={onShare} />, {
+      wrapper,
     })
+
+    await pressVerseAction('bible-verse-action-share')
 
     expect(onShare).toHaveBeenCalledWith(SHARE_DATA)
     expect(Share.share).not.toHaveBeenCalled()
@@ -313,32 +276,32 @@ describe('BibleReader share', () => {
     jest.spyOn(console, 'error').mockImplementation(() => {})
     jest.spyOn(Share, 'share').mockRejectedValue(new Error('dismissed'))
 
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-share'))
-    })
+    await pressVerseAction('bible-verse-action-share')
 
     expect(Share.share).toHaveBeenCalledTimes(1)
   })
+})
 
-  it('leaves the Web SDK its own Web Share default on web', async () => {
+describe('BibleReader verse actions on web', () => {
+  it('keeps the Web SDK popover, since NativeSheet renders nothing there', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
       value: 'web',
     })
 
-    const { getByTestId } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    expect(getByTestId('has-share-handler').children).toContain('no')
+    expect(latestDomProps.verseActions).toBe('popover')
+
+    // No native sheet, so no native Copy/Share — the Web SDK's own
+    // `navigator.clipboard` / Web Share defaults stay correct on web.
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-share'))
+      fireEvent.press(screen.getByTestId('trigger-verse-select'))
     })
-    expect(Share.share).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+    expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
   })
 })
