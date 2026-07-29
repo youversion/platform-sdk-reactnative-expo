@@ -6,9 +6,6 @@ import MissingAppKey from './_components/missing-app-key'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  // Scheme named explicitly: `app.json` also registers `youversionauth` for the
-  // data-exchange return, and createURL would otherwise just take the first
-  // array entry — leaving the OAuth redirect at the mercy of that ordering.
   const redirectUri = Linking.createURL('callback', { scheme: 'yvp-rn-example' })
 
   return (
