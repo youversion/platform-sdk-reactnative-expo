@@ -122,6 +122,10 @@ _Avoid_: Branching on `message` (generic outside development builds); routing wr
 What the user actually granted at sign-in, read off the OAuth **app redirect** and cached per user. A three-state signal, not a list: `null` = no `granted_permissions` key at all, so nothing was requested and nothing is known; `[]` = requested and **denied**; populated = granted. Requesting a permission (`AuthConfig.permissions`) is a separate thing from being granted it. Values the SDK does not recognize are kept verbatim rather than narrowed to the known permission union.
 _Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
 
+**Data Exchange**:
+YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The return URL is the hardcoded, SDK-owned `youversionauth://callback` — see [ADR 0014](docs/adr/0014-data-exchange-return-scheme.md).
+_Avoid_: Calling the return URL a redirect URI (the app's OAuth `redirectUri` is a different, app-owned thing); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -150,6 +154,7 @@ _Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scop
 - A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
 - **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
 - A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
+- **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.
 
 ## Example Dialogue
 

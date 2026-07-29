@@ -89,6 +89,23 @@ export function saveGrantedPermissions(
   mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify({ userId, permissions }))
 }
 
+/**
+ * Order-preserving union of an existing grant and a newly reported one.
+ *
+ * A just-in-time data-exchange consent reports only the permissions *that flow*
+ * asked for, so writing it through would erase anything granted earlier at
+ * sign-in: a `highlights`-only consent must not drop a previously granted
+ * `votd`. Existing entries keep their order so the cached list stays stable
+ * across merges (a reordered list is a pointless MMKV write and a confusing
+ * diff when debugging).
+ */
+export function mergeGrantedPermissions(
+  existing: readonly string[],
+  granted: readonly string[],
+): string[] {
+  return [...new Set([...existing, ...granted])]
+}
+
 export function clearGrantedPermissions(): void {
   mmkvStorage.remove(MMKV_AUTH_KEYS.grantedPermissions)
 }

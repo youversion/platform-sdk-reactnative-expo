@@ -3,7 +3,7 @@
     "name": "SampleApp",
     "slug": "example",
     "version": "1.0.0",
-    "scheme": "yvp-rn-example",
+    "scheme": ["yvp-rn-example", "youversionauth"],
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",

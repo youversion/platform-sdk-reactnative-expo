@@ -2,12 +2,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
 import { clearHighlightsCache } from '../highlights'
+import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import { requestDataExchange, type DataExchangeOutcome } from './data-exchange'
+import { createDataExchangeApi } from './data-exchange-api'
 import {
   clearGrantedPermissions,
   loadCachedGrantedPermissions,
+  mergeGrantedPermissions,
   saveGrantedPermissions,
 } from './granted-permissions'
 import { refreshTokens, TokenEndpointError } from './http'
@@ -35,6 +39,14 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
   const isRefreshingRef = useRef<boolean>(false)
+
+  // Latest identity, for a read that has to outlive a render: the data-exchange
+  // initiator guard needs who is signed in *now*, once the browser comes back,
+  // not who was captured in the closure when the flow started.
+  const userInfoRef = useRef<YVUserInfo | null>(userInfo)
+  useEffect(() => {
+    userInfoRef.current = userInfo
+  }, [userInfo])
 
   const setAuthState = useCallback(async (tokens: StoredTokens, user?: YVUserInfo) => {
     await saveTokens(tokens)
@@ -207,6 +219,49 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setGrantedPermissions(null)
   }, [])
 
+  const requestPermissions = useCallback(
+    async (permissions: readonly AuthPermission[]): Promise<DataExchangeOutcome> => {
+      // No token means no mint attempt: the endpoint would 401, and that 401
+      // would read as "this app may not run data exchange" rather than the
+      // truth, which is that nobody is signed in.
+      if (accessToken === null) {
+        return {
+          status: 'failure',
+          reason: 'not-signed-in',
+          message: 'Not signed in — requesting a permission requires an authenticated user.',
+        }
+      }
+
+      // Built per call rather than memoized: the installation id is async, and
+      // this runs at most once per user gesture.
+      const api = createDataExchangeApi({
+        appKey,
+        apiHost,
+        installationId: await getOrSetInstallationId(),
+      })
+
+      const outcome = await requestDataExchange({
+        api,
+        appKey,
+        apiHost,
+        accessToken,
+        userId: userInfo?.id ?? null,
+        permissions,
+        getCurrentUserId: () => userInfoRef.current?.id ?? null,
+      })
+
+      // The flow already merged the grant into MMKV; mirror that merge into
+      // state with the same helper so hasPermission flips without a remount.
+      if (outcome.status === 'granted' && outcome.grantedPermissions.length > 0) {
+        const granted = outcome.grantedPermissions
+        setGrantedPermissions((prev) => mergeGrantedPermissions(prev ?? [], granted))
+      }
+
+      return outcome
+    },
+    [accessToken, apiHost, appKey, userInfo?.id],
+  )
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
@@ -220,6 +275,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       grantedPermissions,
       hasPermission,
       invalidatePermissions,
+      requestPermissions,
     }),
     [
       accessToken,
@@ -232,6 +288,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       grantedPermissions,
       hasPermission,
       invalidatePermissions,
+      requestPermissions,
     ],
   )
 

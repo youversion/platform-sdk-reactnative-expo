@@ -203,7 +203,39 @@ export default function RootLayout() {
 }
 ```
 
-`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`.
+
+Requesting a permission is not the same as being granted it: the user can decline and sign-in still succeeds. Read back what they actually granted from `useYVAuth()` — `hasPermission('highlights')` for one check, or `grantedPermissions` for the whole list (`null` when nothing was requested or nothing is known yet, `[]` when the user declined). The grant is cached per user and survives a cold start.
+
+#### Asking for a permission later
+
+A user who signed in before your app needed a permission — or who declined at the time — does not have to sign out to grant it. `requestPermissions` opens YouVersion's consent page and merges the result into the cached grant:
+
+```tsx
+const { hasPermission, requestPermissions } = useYVAuth()
+
+async function ensureHighlights() {
+  if (hasPermission('highlights')) return true
+
+  const outcome = await requestPermissions(['highlights'])
+  if (outcome.status === 'granted') return outcome.grantedPermissions.includes('highlights')
+  if (outcome.status === 'failure' && outcome.reason === 'not-permitted') {
+    // This app key is not enabled for the permission — a console setting, not a user choice.
+  }
+  return false
+}
+```
+
+It resolves rather than throwing: `{ status: 'granted', grantedPermissions }`, `{ status: 'cancel' }`, or `{ status: 'failure', reason, message }` where `reason` is `'not-signed-in' | 'not-permitted' | 'user-changed' | 'transient'`. A granted permission makes `hasPermission` true on the next render.
+
+> [!IMPORTANT]
+> **Android apps must register the `youversionauth` scheme** for this flow. It returns to `youversionauth://callback` — a fixed URL owned by the SDK, unrelated to your `redirectUri` — and on Android the auth session resolves through a real deep link. Without the scheme the consent page opens, goes nowhere, and reports `cancel`. Add it to your `app.json` alongside your own scheme, then rebuild the dev client (`npx expo prebuild --clean` — this is a native change):
+>
+> ```json
+> { "expo": { "scheme": ["your-app-scheme", "youversionauth"] } }
+> ```
+>
+> iOS needs nothing extra. Because the scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed.
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 

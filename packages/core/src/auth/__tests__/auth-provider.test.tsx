@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
+import { requestDataExchange } from '../data-exchange'
+import { createDataExchangeApi } from '../data-exchange-api'
 import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
@@ -36,10 +38,27 @@ jest.mock('../pkce-flow', () => ({
   signInWithPKCE: jest.fn(),
 }))
 
+jest.mock('../../installation-id', () => ({
+  getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
+}))
+
+// The grant flow itself is covered in data-exchange.test.ts; here we only care
+// about what the provider hands it and what it does with the outcome — so no
+// browser or API client is ever constructed.
+jest.mock('../data-exchange', () => ({
+  requestDataExchange: jest.fn(),
+}))
+
+jest.mock('../data-exchange-api', () => ({
+  createDataExchangeApi: jest.fn(() => ({ mintToken: jest.fn() })),
+}))
+
 const mockLoadTokens = loadTokens as jest.Mock
 const mockSaveTokens = saveTokens as jest.Mock
 const mockRefreshTokens = refreshTokens as jest.Mock
 const mockSignInWithPKCE = signInWithPKCE as jest.Mock
+const mockRequestDataExchange = requestDataExchange as jest.Mock
+const mockCreateDataExchangeApi = createDataExchangeApi as jest.Mock
 const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
 
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
@@ -73,6 +92,7 @@ const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefi
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
+  const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
 
   return (
     <View>
@@ -86,6 +106,15 @@ function AuthPeek() {
       </Text>
       <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Text testID="permissionOutcome">{permissionOutcome}</Text>
+      <Pressable
+        testID="requestPermissions"
+        onPress={async () => {
+          setPermissionOutcome(JSON.stringify(await auth.requestPermissions(['highlights'])))
+        }}
+      >
+        <Text>requestPermissions</Text>
+      </Pressable>
       <Pressable testID="invalidatePermissions" onPress={() => auth.invalidatePermissions()}>
         <Text>invalidatePermissions</Text>
       </Pressable>
@@ -486,6 +515,139 @@ describe('AuthProvider — granted permissions', () => {
     expect(mockMmkv.has(grantedKey)).toBe(false)
     // Still signed in — only the grant was invalidated.
     expect(getText('isAuthenticated')).toBe('true')
+  })
+})
+
+describe('AuthProvider — requestPermissions', () => {
+  function renderProvider() {
+    return render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+  }
+
+  async function signInWithGrant(grantedPermissions: string[] | null) {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+      grantedPermissions,
+    })
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+  }
+
+  async function pressRequestPermissions() {
+    fireEvent.press(screen.getByTestId('requestPermissions'))
+    await waitFor(() => expect(getText('permissionOutcome')).not.toBe('idle'))
+    return JSON.parse(getText('permissionOutcome'))
+  }
+
+  it('fails with not-signed-in without minting a token when there is no access token', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    expect(await pressRequestPermissions()).toMatchObject({
+      status: 'failure',
+      reason: 'not-signed-in',
+    })
+    // A mint on a signed-out user would 401, and that 401 reads as
+    // "not permitted", which is a different and wrong story.
+    expect(mockCreateDataExchangeApi).not.toHaveBeenCalled()
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+  })
+
+  it('flips hasPermission on the next render when the grant lands', async () => {
+    // Signed in having declined highlights: the exact state this flow exists for.
+    await signInWithGrant([])
+    expect(getText('hasHighlights')).toBe('false')
+
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+
+    expect(await pressRequestPermissions()).toEqual({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+    expect(getText('hasHighlights')).toBe('true')
+  })
+
+  it('merges the new grant into the existing one rather than replacing it', async () => {
+    await signInWithGrant(['votd'])
+
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+    await pressRequestPermissions()
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd', 'highlights'])
+  })
+
+  it('hands the flow the current token, the initiator id, and the requested permissions', async () => {
+    await signInWithGrant(null)
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+
+    expect(mockCreateDataExchangeApi).toHaveBeenCalledWith({
+      appKey: 'appkey',
+      apiHost: 'api.example.com',
+      installationId: 'inst-1',
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appKey: 'appkey',
+        apiHost: 'api.example.com',
+        accessToken: 'new-access',
+        userId: 'u1',
+        permissions: ['highlights'],
+      }),
+    )
+  })
+
+  it('gives the flow a getCurrentUserId that sees a sign-out that happened mid-flow', async () => {
+    await signInWithGrant(['highlights'])
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+
+    const { getCurrentUserId } = mockRequestDataExchange.mock.calls[0][0] as {
+      getCurrentUserId: () => string | null
+    }
+    expect(getCurrentUserId()).toBe('u1')
+
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+
+    // Reading a captured closure would still say 'u1' here, and the initiator
+    // guard would wave a grant through for a user who has left.
+    expect(getCurrentUserId()).toBeNull()
+  })
+
+  it('leaves the grant untouched on a cancel', async () => {
+    await signInWithGrant(['votd'])
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    expect(await pressRequestPermissions()).toEqual({ status: 'cancel' })
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd'])
+  })
+
+  it('leaves the grant untouched when the return is granted but empty', async () => {
+    await signInWithGrant(null)
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'granted', grantedPermissions: [] })
+    await pressRequestPermissions()
+
+    expect(getText('grantedPermissions')).toBe('null')
   })
 })
 
