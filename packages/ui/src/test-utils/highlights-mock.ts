@@ -26,12 +26,14 @@ type MockState = {
   resolve: HighlightsResolver
   isRefreshing: boolean
   error: HighlightsFetchError | null
+  hasPendingOperations: boolean
 }
 
 const state: MockState = {
   resolve: () => EMPTY,
   isRefreshing: false,
   error: null,
+  hasPendingOperations: false,
 }
 
 /**
@@ -70,11 +72,17 @@ export function setMockHighlightsError(error: HighlightsFetchError | null): void
   state.error = error
 }
 
+/** Unsaved highlight work is waiting in the durable queue, or is on the wire. */
+export function setMockHighlightsPending(hasPendingOperations: boolean): void {
+  state.hasPendingOperations = hasPendingOperations
+}
+
 /** Restore the signed-out default. Call from `beforeEach`. */
 export function resetHighlightsMock(): void {
   state.resolve = () => EMPTY
   state.isRefreshing = false
   state.error = null
+  state.hasPendingOperations = false
   highlightsMock.apply.mockClear()
   highlightsMock.remove.mockClear()
   highlightsMock.refresh.mockClear()
@@ -106,6 +114,7 @@ export function createUseHighlightsMock(): (options: UseHighlightsOptions) => Us
       scope,
       isRefreshing: state.isRefreshing,
       error: state.error,
+      hasPendingOperations: state.hasPendingOperations,
       refresh: highlightsMock.refresh,
       apply: highlightsMock.apply,
       remove: highlightsMock.remove,

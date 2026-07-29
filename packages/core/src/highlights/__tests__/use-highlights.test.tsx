@@ -14,6 +14,13 @@ import type { Result } from '../../result'
 import type { HighlightsApiError } from '../api'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
+  clearHighlightQueue,
+  getPendingOps,
+  highlightQueueKey,
+  QUEUE_INITIAL_BACKOFF_MS,
+  QUEUE_MAX_BACKOFF_MS,
+} from '../queue'
+import {
   useHighlights,
   type HighlightWriteOutcome,
   type UseHighlightsResult,
@@ -120,6 +127,8 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     grantedPermissions: null,
     hasPermission: () => false,
     requestPermission: jest.fn(async () => ({ kind: 'cancel' as const })),
+    hasPendingHighlightOperations: false,
+    discardPendingHighlights: jest.fn(),
     error: null,
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
@@ -195,6 +204,9 @@ beforeEach(() => {
   // Drops the granted-permissions snapshot cache, which is module state and
   // would otherwise outlive `mockMmkv.clear()`.
   clearGrantedPermissions()
+  // Same for the write queue's snapshot cache; this also bumps the generation,
+  // so nothing a previous test left in flight can settle into this one.
+  clearHighlightQueue()
   jest.clearAllMocks()
   // `clearAllMocks` clears calls but NOT queued `mockResolvedValueOnce` values,
   // so an unconsumed queue would leak into the next test. Reset these three
@@ -511,8 +523,8 @@ describe('apply', () => {
     })
   })
 
-  // AC 3
-  it('reverts the paint and returns a typed error when the write fails', async () => {
+  // AC 3, as amended by the write queue: a transient failure no longer reverts.
+  it('keeps the paint and queues the write when the network fails', async () => {
     seedServer([highlight('JHN.3.16', GREEN)])
     mockCreateHighlight.mockResolvedValue(transient(500))
 
@@ -533,8 +545,45 @@ describe('apply', () => {
       failedVerses: [16],
       succeededVerses: [],
     })
-    // Reverted to what the server last said, not to nothing.
+    // The user's highlight is late, not lost: it stays painted and the retry
+    // carries it. Reverting here is what the queue exists to stop.
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+    expect(getPendingOps(userId)).toEqual([
+      expect.objectContaining({ op: 'apply', color: YELLOW, verses: [16], scope, attempts: 1 }),
+    ])
+    expect(result.current.hasPendingOperations).toBe(true)
+  })
+
+  it('reverts the paint on a permanent rejection instead of queueing it', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    mockCreateHighlight.mockResolvedValue(transient(422, 'uuid_parsing'))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+
+    // Reverted to what the server last said, not to nothing — and nothing is
+    // scheduled, because the identical request would be rejected identically.
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.hasPendingOperations).toBe(false)
+  })
+
+  it('does not queue an auth failure — the permission prompt owns that one', async () => {
+    mockCreateHighlight.mockResolvedValue(authError(403))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.highlights).toEqual([])
   })
 
   it('classifies a write 401 as auth without refreshing or retrying', async () => {
@@ -623,7 +672,7 @@ describe('apply', () => {
 // ── Partial batches ──────────────────────────────────────────────────────────
 
 describe('partial batches', () => {
-  it('retains succeeded verses, reverts failed ones, and reports both', async () => {
+  it('retains succeeded verses, queues the failed one, and reports both', async () => {
     mockCreateHighlight
       .mockResolvedValueOnce({ ok: true, value: highlight('JHN.3.16-17', YELLOW) })
       .mockResolvedValueOnce(transient(500))
@@ -641,7 +690,28 @@ describe('partial batches', () => {
       failedVerses: [20],
       succeededVerses: [16, 17],
     })
-    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW, 'JHN.3.17': YELLOW })
+    // All three stay painted; only verse 20 still owes the server a request.
+    expect(colorsOf(result.current)).toEqual({
+      'JHN.3.16': YELLOW,
+      'JHN.3.17': YELLOW,
+      'JHN.3.20': YELLOW,
+    })
+    expect(getPendingOps(userId)).toEqual([expect.objectContaining({ verses: [20] })])
+  })
+
+  it('queues only the transient half of a mixed failure', async () => {
+    mockCreateHighlight
+      .mockResolvedValueOnce(transient(500, 'five hundred'))
+      .mockResolvedValueOnce(transient(400, 'bad passage'))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await result.current.apply(YELLOW, [1, 3])
+    })
+
+    expect(getPendingOps(userId)).toEqual([expect.objectContaining({ verses: [1] })])
+    // Verse 3 was rejected permanently, so its paint is gone.
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.1': YELLOW })
   })
 
   it('resolves mixed failure reasons as auth > invalid > transient', async () => {
@@ -829,7 +899,7 @@ describe('remove', () => {
     expect(mockDeleteHighlight).not.toHaveBeenCalled()
   })
 
-  it('restores the highlight when the delete fails', async () => {
+  it('keeps the verse cleared and queues the delete when the network fails', async () => {
     seedServer([highlight('JHN.3.16', YELLOW)])
     mockDeleteHighlight.mockResolvedValue(transient(500))
 
@@ -844,7 +914,27 @@ describe('remove', () => {
     })
 
     expect(outcome).toMatchObject({ status: 'error', failedVerses: [16] })
+    expect(result.current.highlights).toEqual([])
+    expect(getPendingOps(userId)).toEqual([
+      expect.objectContaining({ op: 'remove', color: YELLOW, verses: [16] }),
+    ])
+  })
+
+  it('restores the highlight when the delete is rejected permanently', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW)])
+    mockDeleteHighlight.mockResolvedValue(transient(400, 'bad passage'))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await result.current.remove(YELLOW, [16])
+    })
+
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+    expect(getPendingOps(userId)).toEqual([])
   })
 
   it('targets optimistic paint too, not just server truth', async () => {
@@ -1253,6 +1343,248 @@ describe('error surface', () => {
   })
 })
 
+// ── The durable write queue ──────────────────────────────────────────────────
+
+describe('the write queue', () => {
+  /** Puts a due op on disk exactly as a previous session would have left it. */
+  function seedQueue(
+    op: Partial<{
+      id: string
+      op: 'apply' | 'remove'
+      color: string
+      verses: number[]
+      scope: HighlightScope
+    }> = {},
+  ) {
+    const now = Date.now()
+    mockMmkv.set(
+      highlightQueueKey(userId),
+      JSON.stringify({
+        userId,
+        ops: [
+          {
+            id: op.id ?? 'op-1',
+            generation: 0,
+            op: op.op ?? 'apply',
+            scope: op.scope ?? scope,
+            color: op.color ?? YELLOW,
+            verses: op.verses ?? [16],
+            attempts: 1,
+            // Already due, so the mount replay picks it up without a timer.
+            nextAttemptAt: now - 1,
+            createdAt: now - QUEUE_INITIAL_BACKOFF_MS,
+          },
+        ],
+      }),
+    )
+  }
+
+  it('paints a queued write on the first frame after a relaunch', async () => {
+    seedQueue()
+
+    const { result } = renderUseHighlights()
+
+    // Cache holds server truth only, so without the queue's overlay the user
+    // would watch their own highlight vanish and come back.
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+  })
+
+  it('replays a queued write on mount and clears it once it lands', async () => {
+    seedQueue()
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockCreateHighlight).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.3.16',
+      color: YELLOW,
+    })
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.hasPendingOperations).toBe(false)
+  })
+
+  it('backs the op off instead of dropping it when the retry fails again', async () => {
+    seedQueue()
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(getPendingOps(userId)).toEqual([expect.objectContaining({ attempts: 2 })])
+    // Still painted — the whole point of persisting it.
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+  })
+
+  it('drops a queued op the server rejects permanently, and reverts its paint', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    seedQueue()
+    mockCreateHighlight.mockResolvedValue(transient(422, 'uuid_parsing'))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.highlights).toEqual([])
+    // Nobody is awaiting a retry, so the log is the only report it can make.
+    expect(error).toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  it('hands an auth failure back to the permission prompt by invalidating the grant', async () => {
+    saveGrantedPermissions(userId, ['highlights', 'votd'])
+    seedQueue()
+    mockCreateHighlight.mockResolvedValue(authError(403))
+
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(getGrantedPermissions(userId)).toEqual(['votd'])
+    expect(getPendingOps(userId)).toEqual([])
+  })
+
+  it('does not replay another user’s queue', async () => {
+    seedQueue()
+
+    renderUseHighlights({
+      isAuthenticated: true,
+      accessToken: 'token-2',
+      userInfo: { id: 'user-2' },
+      isLoading: false,
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    // user-1's work is untouched, not stolen and not wiped.
+    expect(getPendingOps(userId)).toHaveLength(1)
+  })
+
+  it('holds a queued op while signed out and runs it when a token arrives', async () => {
+    seedQueue()
+
+    const { rerender } = renderUseHighlights(signedOut)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+
+    setAuth(rerender, signedIn)
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops a queued result whose generation the session left behind', async () => {
+    const held = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(held.promise)
+    seedQueue()
+
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+
+    // Sign-out discards the queue and bumps the generation while the request is
+    // still on the wire.
+    act(() => {
+      clearHighlightQueue()
+    })
+
+    await act(async () => {
+      held.resolve(transient(500))
+      await held.promise
+    })
+
+    // The departed session's failure must not re-queue onto the next account.
+    expect(getPendingOps(userId)).toEqual([])
+  })
+
+  it('supersedes a queued op when the user re-taps the same verse', async () => {
+    seedQueue()
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(getPendingOps(userId)).toHaveLength(1)
+
+    mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', GREEN) })
+    await act(async () => {
+      await result.current.apply(GREEN, [16])
+    })
+
+    // The yellow retry is gone: letting it run would land yellow on the server
+    // after green, so the reader and the account would disagree.
+    expect(getPendingOps(userId)).toEqual([])
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+  })
+
+  it('reports pending work while a write is on the wire, before anything is queued', async () => {
+    const held = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(held.promise)
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(result.current.hasPendingOperations).toBe(false)
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    await act(async () => {
+      outcome = result.current.apply(YELLOW, [16])
+      await Promise.resolve()
+    })
+
+    // Swift's #180 window: nothing is queued yet, but signing out here would
+    // still lose the write.
+    expect(result.current.hasPendingOperations).toBe(true)
+
+    await act(async () => {
+      held.resolve({ ok: true, value: highlight('JHN.3.16', YELLOW) })
+      await outcome
+    })
+
+    expect(result.current.hasPendingOperations).toBe(false)
+  })
+
+  it('drops unconfirmed paint when the queue is discarded', async () => {
+    seedQueue()
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    await act(async () => {
+      clearHighlightQueue()
+    })
+
+    // "Sign out anyway" must make the unsaved highlight disappear immediately,
+    // not linger until something else re-renders.
+    expect(result.current.highlights).toEqual([])
+  })
+})
+
 // ── Degraded: no user id ─────────────────────────────────────────────────────
 
 describe('missing user id', () => {
@@ -1302,5 +1634,133 @@ describe('missing user id', () => {
     })
 
     expect(outcome).toMatchObject({ reason: 'not-signed-in' })
+  })
+})
+
+// ── The device sequence ──────────────────────────────────────────────────────
+// Phase 6's queue suite only ever seeded ONE op and only ever drained it in one
+// shot, so the paths a real offline session takes — several ops backing off
+// behind each other, a new write arriving while the queue is already backed up,
+// and the whole backlog draining when the network returns — went untested.
+
+describe('a real offline session', () => {
+  /** Several due ops on disk, exactly as consecutive offline writes leave them. */
+  function seedQueuedVerses(verses: number[]) {
+    const now = Date.now()
+    mockMmkv.set(
+      highlightQueueKey(userId),
+      JSON.stringify({
+        userId,
+        ops: verses.map((verse, index) => ({
+          id: `op-${verse}`,
+          generation: 0,
+          op: 'apply',
+          scope,
+          color: YELLOW,
+          verses: [verse],
+          attempts: 1,
+          nextAttemptAt: now - 1_000 + index,
+          createdAt: now - QUEUE_INITIAL_BACKOFF_MS,
+        })),
+      }),
+    )
+  }
+
+  it('drains a whole backlog on relaunch, not just the head', async () => {
+    seedQueuedVerses([7, 9, 11])
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockCreateHighlight.mock.calls.map((call) => call[1].passage_id)).toEqual([
+      'JHN.3.7',
+      'JHN.3.9',
+      'JHN.3.11',
+    ])
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.hasPendingOperations).toBe(false)
+  })
+
+  it('does not strand the tail when the head is still backing off', async () => {
+    seedQueuedVerses([7, 9])
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    // Strict head-of-line: the tail waits, but it must still be ON the queue and
+    // reported as pending rather than quietly dropped.
+    const pending = getPendingOps(userId)
+    expect(pending.map((op) => op.id)).toEqual(['op-7', 'op-9'])
+    expect(pending[0]?.attempts).toBe(2)
+    expect(pending[1]?.attempts).toBe(1)
+  })
+
+  it('queues a new write that arrives while the queue is already backed up', async () => {
+    seedQueuedVerses([11])
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [10])
+    })
+
+    expect(
+      getPendingOps(userId)
+        .flatMap((op) => op.verses)
+        .sort((a, b) => a - b),
+    ).toEqual([10, 11])
+    expect(result.current.hasPendingOperations).toBe(true)
+    // Painted, and staying painted — that is what the queue is buying.
+    expect(colorsOf(result.current)['JHN.3.10']).toBe(YELLOW)
+  })
+
+  it('lands every queued write once the network comes back', async () => {
+    jest.useFakeTimers()
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+
+    for (const verse of [7, 9, 11]) {
+      await act(async () => {
+        await result.current.apply(YELLOW, [verse])
+      })
+    }
+    expect(getPendingOps(userId).flatMap((op) => op.verses)).toEqual([7, 9, 11])
+
+    mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.7', YELLOW) })
+
+    // Each pass covers one backoff window; the cap is 30s.
+    for (let pass = 0; pass < 6; pass += 1) {
+      await act(async () => {
+        jest.advanceTimersByTime(QUEUE_MAX_BACKOFF_MS + 1_000)
+        await Promise.resolve()
+      })
+    }
+
+    expect(getPendingOps(userId)).toEqual([])
+    expect(result.current.hasPendingOperations).toBe(false)
+    jest.useRealTimers()
+  })
+
+  it('keeps reporting pending work for the whole backlog, so the sign-out guard cannot go blind', async () => {
+    seedQueuedVerses([7, 9, 11])
+    mockCreateHighlight.mockResolvedValue(transient(500))
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(getPendingOps(userId)).toHaveLength(3)
+    expect(result.current.hasPendingOperations).toBe(true)
   })
 })

@@ -10,6 +10,7 @@ import {
   normalizeVerseSelection,
   selectHighlights,
   selectMergedColors,
+  selectOwnedVerses,
   selectVersesInColor,
   serverColorsEqual,
   serverUpdated,
@@ -479,6 +480,32 @@ describe('selectVersesInColor', () => {
   it('ignores verses an optimistic remove has already hidden', () => {
     const state = claim(stateWith({ 16: YELLOW }), [16], createWriteToken('remove'), null)
     expect(selectVersesInColor(state, [16], YELLOW)).toEqual([])
+  })
+})
+
+describe('selectOwnedVerses', () => {
+  it('keeps only the verses this write still owns', () => {
+    const yellow = createWriteToken('apply')
+    const green = createWriteToken('apply')
+    let state = claim(stateWith(), [16, 17], yellow, YELLOW)
+    // The user re-tapped verse 16 in green before yellow's request came back.
+    state = claim(state, [16], green, GREEN)
+
+    expect(selectOwnedVerses(state, [16, 17], yellow)).toEqual([17])
+    expect(selectOwnedVerses(state, [16, 17], green)).toEqual([16])
+  })
+
+  it('owns nothing once the write has settled', () => {
+    const token = createWriteToken('apply')
+    const state = settle(claim(stateWith(), [16], token, YELLOW), {
+      token,
+      op: 'apply',
+      color: YELLOW,
+      succeededVerses: [16],
+      failedVerses: [],
+    })
+
+    expect(selectOwnedVerses(state, [16], token)).toEqual([])
   })
 })
 

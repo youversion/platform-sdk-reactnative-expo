@@ -51,6 +51,24 @@ describe('package exports', () => {
     expect(names).not.toContain('subscribeGrantedPermissions')
     expect(names).not.toContain('requestPermissionViaDataExchange')
   })
+
+  it('keeps the write queue internal', () => {
+    const names = Object.keys(core)
+    // `hasPendingHighlightOperations` / `discardPendingHighlights` on the auth
+    // context and `hasPendingOperations` on `useHighlights` are the whole
+    // surface. Persistence, backoff, and the generation counter are ours.
+    expect(names).not.toContain('enqueuePendingOp')
+    expect(names).not.toContain('peekDuePendingOp')
+    expect(names).not.toContain('reschedulePendingOp')
+    expect(names).not.toContain('completePendingOp')
+    expect(names).not.toContain('retainPendingVerses')
+    expect(names).not.toContain('supersedePendingVerses')
+    expect(names).not.toContain('clearHighlightQueue')
+    expect(names).not.toContain('getHighlightQueueSnapshot')
+    expect(names).not.toContain('subscribeHighlightQueue')
+    expect(names).not.toContain('beginHighlightWrite')
+    expect(names).not.toContain('backoffDelayMs')
+  })
 })
 
 /**

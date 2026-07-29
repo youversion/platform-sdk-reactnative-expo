@@ -27,6 +27,16 @@ export {
 export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
 
 export {
+  clearHighlightQueue,
+  getHighlightQueueSnapshot,
+  hasPendingHighlightOperations,
+  MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX,
+  subscribeHighlightQueue,
+  type HighlightQueueSnapshot,
+  type PendingOp,
+} from './queue'
+
+export {
   useHighlights,
   type HighlightsFetchError,
   type HighlightWriteOutcome,

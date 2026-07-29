@@ -9,7 +9,12 @@ import {
 } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
-import { clearHighlightsCache } from '../highlights'
+import {
+  clearHighlightQueue,
+  clearHighlightsCache,
+  getHighlightQueueSnapshot,
+  subscribeHighlightQueue,
+} from '../highlights'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
@@ -59,6 +64,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     readGrantedPermissions,
   )
 
+  // Same shape, same reason: the highlight queue is module state driven by
+  // `useHighlights`'s retry loop, and the sign-out guard has to re-render the
+  // instant the last queued write lands or a new one is enqueued.
+  const readHighlightQueue = useCallback(() => getHighlightQueueSnapshot(userId), [userId])
+  const highlightQueue = useSyncExternalStore(subscribeHighlightQueue, readHighlightQueue)
+
   // Read live rather than through a closure: the data-exchange session below
   // spans a browser round-trip, and the fail-closed check has to compare against
   // whoever is signed in when it RETURNS.
@@ -82,6 +93,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     clearHighlightsCache()
+    // Bumps the queue generation as well as emptying it, so a write already on
+    // the wire for the departed user cannot re-queue onto whoever signs in next.
+    clearHighlightQueue()
     clearGrantedPermissions()
     expiryRef.current = null
     refreshTokenRef.current = null
@@ -260,6 +274,10 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     [accessToken, apiHost, appKey, config.redirectUri],
   )
 
+  const discardPendingHighlights = useCallback(() => {
+    clearHighlightQueue()
+  }, [])
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
@@ -268,6 +286,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       grantedPermissions,
       hasPermission,
       requestPermission,
+      hasPendingHighlightOperations: highlightQueue.hasPending,
+      discardPendingHighlights,
       error,
       signIn,
       signOut,
@@ -280,6 +300,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       grantedPermissions,
       hasPermission,
       requestPermission,
+      highlightQueue.hasPending,
+      discardPendingHighlights,
       error,
       signIn,
       signOut,

@@ -30,6 +30,7 @@ import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import type { HighlightWriteError } from './use-reader-highlights'
 import { useReaderHighlights } from './use-reader-highlights'
+import { useSignOutGuard } from './use-sign-out-guard'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -78,10 +79,10 @@ export type BibleReaderProps = Omit<
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   /**
-   * A highlight the user asked for didn't save and a retry may work. Render it
-   * however the host renders transient failures — the SDK doesn't own toast
-   * styling. Payload errors are logged, not reported here; the user can't act
-   * on them.
+   * A highlight has not reached the server yet. It is **queued and retrying**,
+   * persisted across an app kill, and still painted — so render it as a pending
+   * or offline hint rather than a failure. The SDK doesn't own toast styling.
+   * Payload errors are logged, not reported here; the user can't act on them.
    */
   onHighlightError?: (error: HighlightWriteError) => void
 }
@@ -114,7 +115,9 @@ export function BibleReader({
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
-  const signOut = auth?.signOut
+  // The in-WebView toolbar's sign-out is the reader's second entry point into
+  // the same guard the auth button uses — the warning has to be true on both.
+  const signOut = useSignOutGuard(auth)
   const resolvedTheme = useTheme(theme)
 
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =

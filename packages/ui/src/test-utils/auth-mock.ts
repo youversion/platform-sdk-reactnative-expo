@@ -25,6 +25,8 @@ type MockAuthState = {
    * in with nothing recorded — and is distinct from `[]`, exactly as in core.
    */
   grantedPermissions: AuthPermission[] | null
+  /** Unsaved highlight work: the durable queue is non-empty, or a write is in flight. */
+  hasPendingHighlightOperations: boolean
   isLoading: boolean
 }
 
@@ -34,6 +36,7 @@ const SIGNED_OUT: MockAuthState = {
   accessToken: null,
   userInfo: null,
   grantedPermissions: null,
+  hasPendingHighlightOperations: false,
   isLoading: false,
 }
 
@@ -46,6 +49,7 @@ export const authMock = {
   requestPermission: jest.fn<Promise<RequestPermissionResult>, [AuthPermission]>(async () => ({
     kind: 'cancel',
   })),
+  discardPendingHighlights: jest.fn<void, []>(() => {}),
 }
 
 /**
@@ -67,6 +71,7 @@ export function setMockSignedIn(userId = 'test-user-id'): void {
     accessToken: 'test-access-token',
     userInfo: { id: userId },
     grantedPermissions: ['highlights'],
+    hasPendingHighlightOperations: false,
     isLoading: false,
   } satisfies MockAuthState)
 }
@@ -82,6 +87,8 @@ export function resetAuthMock(): void {
   authMock.refreshNow.mockImplementation(async () => {})
   authMock.requestPermission.mockReset()
   authMock.requestPermission.mockImplementation(async () => ({ kind: 'cancel' }))
+  authMock.discardPendingHighlights.mockReset()
+  authMock.discardPendingHighlights.mockImplementation(() => {})
 }
 
 function currentValue() {
@@ -93,6 +100,8 @@ function currentValue() {
     hasPermission: (permission: AuthPermission) =>
       (state.grantedPermissions ?? []).includes(permission),
     requestPermission: authMock.requestPermission,
+    hasPendingHighlightOperations: state.hasPendingHighlightOperations,
+    discardPendingHighlights: authMock.discardPendingHighlights,
     error: null,
     signIn: authMock.signIn,
     signOut: authMock.signOut,

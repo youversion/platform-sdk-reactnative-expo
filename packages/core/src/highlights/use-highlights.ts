@@ -1,5 +1,5 @@
 import type { Highlight } from '@youversion/platform-core'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 
 import { useYVAuthOptional } from '../auth'
 import { invalidateGrantedPermission } from '../auth/granted-permissions'
@@ -15,6 +15,7 @@ import {
   formatPassageId,
   normalizeVerseSelection,
   selectHighlights,
+  selectOwnedVerses,
   selectVersesInColor,
   serverUpdated,
   settle,
@@ -23,6 +24,20 @@ import {
   type WriteOp,
   type WriteToken,
 } from './optimistic'
+import {
+  beginHighlightWrite,
+  completePendingOp,
+  enqueuePendingOp,
+  getHighlightQueueSnapshot,
+  isCurrentGeneration,
+  nextPendingAttemptAt,
+  peekDuePendingOp,
+  reschedulePendingOp,
+  retainPendingVerses,
+  subscribeHighlightQueue,
+  supersedePendingVerses,
+  type PendingOp,
+} from './queue'
 
 export type UseHighlightsOptions = {
   versionId: number
@@ -44,7 +59,14 @@ export type HighlightWriteOutcome =
        * branch on `reason` and never on this text.
        */
       message: string
-      /** Did not land, and any optimistic paint for them has been reverted. */
+      /**
+       * Did not land on this attempt.
+       *
+       * What that means depends on `reason`. For `transient` the verses are now
+       * **queued for retry** and their optimistic paint *persists* — the write
+       * is late, not lost. For every other reason the paint has been reverted
+       * and nothing further will be attempted.
+       */
       failedVerses: number[]
       /** Landed server-side. Non-empty alongside `failedVerses` means a partial batch. */
       succeededVerses: number[]
@@ -71,6 +93,13 @@ export type UseHighlightsResult = {
    */
   isRefreshing: boolean
   error: HighlightsFetchError | null
+  /**
+   * There is unsaved highlight work: the durable queue is non-empty, or a write
+   * is on the wire right now. Gate a sign-out warning on this — the in-flight
+   * half is what keeps the window between "popped off the queue" and "server
+   * answered" from silently losing a write.
+   */
+  hasPendingOperations: boolean
   refresh: () => Promise<void>
   apply: (color: string, verses: number[]) => Promise<HighlightWriteOutcome>
   remove: (color: string, verses: number[]) => Promise<HighlightWriteOutcome>
@@ -128,32 +157,196 @@ function warnMissingUserId(): void {
   )
 }
 
-type Identity = { key: string; scope: HighlightScope; userId: string | null }
-
-function identityKeyFor(userId: string | null, scope: HighlightScope): string {
-  return `${userId ?? '<anonymous>'}|${scope.versionId}|${scope.book}|${scope.chapter}`
+type Identity = {
+  key: string
+  scope: HighlightScope
+  userId: string | null
+  generation: number
 }
 
-function initialStateFor(scope: HighlightScope, userId: string | null): OptimisticState {
+/**
+ * The generation is part of the identity so a discard (sign-out, or an explicit
+ * `discardPendingHighlights()`) reseeds state through the render-time reset that
+ * a user or chapter change already uses. That drops unconfirmed paint *and*
+ * clears `writeIntent`, so a result that arrives after the discard settles onto
+ * nothing.
+ */
+function identityKeyFor(userId: string | null, scope: HighlightScope, generation: number): string {
+  return `${userId ?? '<anonymous>'}|${scope.versionId}|${scope.book}|${scope.chapter}|${generation}`
+}
+
+function scopesEqual(a: HighlightScope, b: HighlightScope): boolean {
+  return a.versionId === b.versionId && a.book === b.book && a.chapter === b.chapter
+}
+
+/**
+ * A settling queued op has to find the same ownership token the claim was
+ * stamped with, and after a cold start no such token exists in memory. Deriving
+ * it from the op id keeps it stable across renders (React may invoke a state
+ * initializer twice) and across the reseed a chapter change performs.
+ */
+const queueTokens = new Map<string, WriteToken>()
+
+function tokenForPendingOp(pending: PendingOp): WriteToken {
+  const existing = queueTokens.get(pending.id)
+  if (existing !== undefined) {
+    return existing
+  }
+  const token = createWriteToken(pending.op)
+  queueTokens.set(pending.id, token)
+  return token
+}
+
+function initialStateFor(
+  scope: HighlightScope,
+  userId: string | null,
+  pendingOps: readonly PendingOp[],
+): OptimisticState {
   const cached = userId === null ? null : getCachedHighlights(userId, scope)
-  return createOptimisticState({
+  let state = createOptimisticState({
     scope,
     userId,
     serverColors: cached === null ? {} : deriveServerColors(cached, scope),
   })
+  // Repaint work the server has not accepted yet. The cache stores server truth
+  // only, so without this a relaunch with a queued write shows the verse
+  // unhighlighted until the retry lands — the user watches their own highlight
+  // vanish and come back.
+  for (const pending of pendingOps) {
+    if (!scopesEqual(pending.scope, scope)) {
+      continue
+    }
+    state = claim(
+      state,
+      pending.verses,
+      tokenForPendingOp(pending),
+      pending.op === 'apply' ? pending.color : null,
+    )
+  }
+  return state
 }
 
 function sameIdentity(state: OptimisticState, identity: Identity): boolean {
-  return identityKeyFor(state.userId, state.scope) === identity.key
+  return identityKeyFor(state.userId, state.scope, identity.generation) === identity.key
+}
+
+type WriteAttempt = {
+  succeededVerses: number[]
+  failedVerses: number[]
+  errors: HighlightsApiError[]
+  /**
+   * Failures still paired with the verses they cover. The batch's *worst* reason
+   * is what the caller is told, but what re-queues has to be decided per unit:
+   * one malformed passage id in a batch must not strand the verses that merely
+   * hit a flaky network.
+   */
+  failures: { verses: number[]; error: HighlightsApiError }[]
+}
+
+/**
+ * One round of requests for a batch, shared by the direct write and every queued
+ * retry so both speak the same wire protocol.
+ *
+ * Apply collapses contiguous verses into a single ranged POST per run —
+ * `[16,17,18,20]` is two requests, not four. Remove issues one DELETE per verse,
+ * never a range, because range DELETE is unsupported server-side; if that is
+ * ever confirmed to work, this ternary is the only call site that changes.
+ */
+async function issueWrite(input: {
+  api: HighlightsApi
+  accessToken: string
+  op: WriteOp
+  scope: HighlightScope
+  color: string
+  verses: readonly number[]
+}): Promise<WriteAttempt> {
+  const { api, accessToken, op, scope, color, verses } = input
+
+  const units =
+    op === 'apply'
+      ? collapseVerseRuns(verses).map((run) => ({
+          passageId: formatPassageId(scope.book, scope.chapter, run),
+          verses: versesInRun(run),
+        }))
+      : verses.map((verse) => ({
+          passageId: formatPassageId(scope.book, scope.chapter, { start: verse, end: verse }),
+          verses: [verse],
+        }))
+
+  const results = await Promise.all(
+    units.map((unit) =>
+      op === 'apply'
+        ? api.createHighlight(accessToken, {
+            version_id: scope.versionId,
+            passage_id: unit.passageId,
+            color,
+          })
+        : api.deleteHighlight(accessToken, unit.passageId, { version_id: scope.versionId }),
+    ),
+  )
+
+  const succeededVerses: number[] = []
+  const failedVerses: number[] = []
+  const errors: HighlightsApiError[] = []
+  const failures: { verses: number[]; error: HighlightsApiError }[] = []
+
+  units.forEach((unit, index) => {
+    const result = results[index]
+    // `results` is 1:1 with `units`, so `undefined` is unreachable — treat it as
+    // a failure rather than silently counting it as a success.
+    if (result !== undefined && result.ok) {
+      succeededVerses.push(...unit.verses)
+      return
+    }
+    failedVerses.push(...unit.verses)
+    if (result !== undefined) {
+      errors.push(result.error)
+      failures.push({ verses: unit.verses, error: result.error })
+    }
+  })
+
+  return { succeededVerses, failedVerses, errors, failures }
+}
+
+/** Of a batch's failures, the verses whose own error is worth retrying. */
+function retryableVerses(attempt: WriteAttempt): number[] {
+  return attempt.failures
+    .filter((failure) => classifyApiError(failure.error) === 'transient')
+    .flatMap((failure) => failure.verses)
+}
+
+/** `auth` outranks `invalid` outranks `transient` across a mixed batch. */
+function worstFailureReason(errors: readonly HighlightsApiError[]): HighlightWriteReason {
+  return errors
+    .map(classifyApiError)
+    .reduce<HighlightWriteReason>(
+      (worst, candidate) => (REASON_RANK[candidate] > REASON_RANK[worst] ? candidate : worst),
+      'transient',
+    )
+}
+
+function messageForReason(
+  errors: readonly HighlightsApiError[],
+  reason: HighlightWriteReason,
+): string {
+  return (
+    errors.find((candidate) => classifyApiError(candidate) === reason)?.message ??
+    'Highlight write failed.'
+  )
 }
 
 /**
  * Instant, optimistic, self-healing highlight state for one chapter.
  *
  * Paints from the MMKV cache synchronously on first render, applies and removes
- * optimistically, reconciles against the server, and reverts what fails. This is
- * the only optimistic layer in the stack — the web reader's controlled
- * `highlights` prop is pure projection.
+ * optimistically, and reconciles against the server. This is the only optimistic
+ * layer in the stack — the web reader's controlled `highlights` prop is pure
+ * projection.
+ *
+ * A write that fails on the network is **queued, not reverted**: the paint stays
+ * put and a persisted retry carries it, surviving an app kill (`queue.ts`). Only
+ * a permanent failure — a rejected payload, or an auth answer the prompt flow has
+ * to resolve — takes the paint back.
  *
  * Requires `auth` to be configured on `YouVersionProvider`; with no auth
  * configured it behaves exactly as signed out.
@@ -176,14 +369,22 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     [appKey, apiHost, installationId],
   )
 
-  const currentIdentityKey = identityKeyFor(userId, scope)
+  // Subscribed rather than read once: the queue is module state, mutated by the
+  // retry loop and wiped by `clearAuthState`, and `hasPendingOperations` has to
+  // re-render the sign-out guard the moment the last write lands.
+  const readQueue = useCallback(() => getHighlightQueueSnapshot(userId), [userId])
+  const queueSnapshot = useSyncExternalStore(subscribeHighlightQueue, readQueue)
+
+  const currentIdentityKey = identityKeyFor(userId, scope, queueSnapshot.generation)
 
   // AC 1 — the synchronous cache read. This is only correct on a cold start
   // because AuthProvider seeds `userInfo` from its own useState initializer
   // (`loadCachedUserInfo()`), so `userInfo.id` already exists on first render.
   // Load-bearing coupling: if that seeding ever goes async, instant mount goes
   // with it.
-  const [state, setState] = useState<OptimisticState>(() => initialStateFor(scope, userId))
+  const [state, setState] = useState<OptimisticState>(() =>
+    initialStateFor(scope, userId, queueSnapshot.ops),
+  )
   const [identityKey, setIdentityKey] = useState(currentIdentityKey)
   const [error, setError] = useState<HighlightsFetchError | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -194,7 +395,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // pattern — the re-render happens before anything is committed to the screen.
   let renderedState = state
   if (identityKey !== currentIdentityKey) {
-    renderedState = initialStateFor(scope, userId)
+    renderedState = initialStateFor(scope, userId, queueSnapshot.ops)
     setIdentityKey(currentIdentityKey)
     setState(renderedState)
     setError(null)
@@ -204,7 +405,12 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // below runs on the same commit and must see real values), then re-synced by
   // the effect that follows. Async continuations read these rather than closing
   // over one render's values.
-  const identityRef = useRef<Identity>({ key: currentIdentityKey, scope, userId })
+  const identityRef = useRef<Identity>({
+    key: currentIdentityKey,
+    scope,
+    userId,
+    generation: queueSnapshot.generation,
+  })
   const stateRef = useRef(renderedState)
   const authRef = useRef({ accessToken, isAuthLoading })
 
@@ -224,7 +430,12 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // effects fire in declaration order, so this is what guarantees `runFetch`
   // reads the identity and token of the render that scheduled it.
   useEffect(() => {
-    identityRef.current = { key: currentIdentityKey, scope, userId }
+    identityRef.current = {
+      key: currentIdentityKey,
+      scope,
+      userId,
+      generation: queueSnapshot.generation,
+    }
     stateRef.current = renderedState
     authRef.current = { accessToken, isAuthLoading }
 
@@ -323,10 +534,16 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // ── Writes ─────────────────────────────────────────────────────────────────
   // A promise chain, not a queue: the web machine needs an explicit queue only
   // because xstate cannot await. Claims paint immediately; network writes
-  // serialize behind this (AC 7).
+  // serialize behind this (AC 7). The *durable* queue is a different thing
+  // entirely — it holds writes that already failed and outlives this component.
   const chainRef = useRef<Promise<unknown>>(Promise.resolve())
 
-  const enqueue = useCallback((run: () => Promise<HighlightWriteOutcome>) => {
+  // Written by the effect at the bottom of this hook. Both the direct write and
+  // the retry timer poke the queue through it, which breaks the cycle between
+  // "process the queue" and "schedule the next wake-up".
+  const processQueueRef = useRef<() => Promise<void>>(() => Promise.resolve())
+
+  const enqueue = useCallback(<Value>(run: () => Promise<Value>): Promise<Value> => {
     const next = chainRef.current.then(run, run)
     chainRef.current = next.then(
       () => undefined,
@@ -380,77 +597,76 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         }
       }
 
-      const succeededVerses: number[] = []
-      const failedVerses: number[] = []
-      const errors: HighlightsApiError[] = []
+      const release = beginHighlightWrite()
+      let attempt: WriteAttempt
+      try {
+        attempt = await issueWrite({
+          api,
+          accessToken: accessTokenNow,
+          op,
+          scope: captured.scope,
+          color,
+          verses,
+        })
+      } finally {
+        release()
+      }
 
-      // One request per unit, each covering the verses it is responsible for.
-      // Apply collapses contiguous verses into a single ranged POST per run —
-      // [16,17,18,20] is two requests, not four. Remove issues one DELETE per
-      // verse, never a range, because range DELETE is unsupported server-side;
-      // if that is ever confirmed to work, this ternary is the only call site
-      // that changes.
-      const units =
-        op === 'apply'
-          ? collapseVerseRuns(verses).map((run) => ({
-              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, run),
-              verses: versesInRun(run),
-            }))
-          : verses.map((verse) => ({
-              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, {
-                start: verse,
-                end: verse,
-              }),
-              verses: [verse],
-            }))
+      const { succeededVerses, failedVerses, errors } = attempt
 
-      const results = await Promise.all(
-        units.map((unit) =>
-          op === 'apply'
-            ? api.createHighlight(accessTokenNow, {
-                version_id: captured.scope.versionId,
-                passage_id: unit.passageId,
-                color,
-              })
-            : api.deleteHighlight(accessTokenNow, unit.passageId, {
-                version_id: captured.scope.versionId,
-              }),
-        ),
+      if (failedVerses.length === 0) {
+        setState((prev) => settle(prev, { token, op, color, succeededVerses, failedVerses }))
+        void runFetch()
+        return { status: 'ok', verses: succeededVerses }
+      }
+
+      const reason = worstFailureReason(errors)
+      const message = messageForReason(errors, reason)
+
+      // Only `transient` re-queues. `invalid` is a bug in our payload and a
+      // retry would fail identically; `auth` is answered by the prompt flow, not
+      // by trying again — the grant is invalidated below, so the next tap routes
+      // to the just-in-time consent instead.
+      //
+      // Ownership is re-checked here, not just in `settle`: a verse the user has
+      // since re-tapped in another colour must not get a retry scheduled that
+      // would repaint the colour they moved away from.
+      const queuedVerses = selectOwnedVerses(stateRef.current, retryableVerses(attempt), token)
+
+      // Settle everything the queue is NOT taking: succeeded verses register a
+      // reconcile entry, permanently-failed verses have their paint reverted.
+      // The queued verses stay claimed under this same token so the eventual
+      // retry settles onto the paint it already owns.
+      setState((prev) =>
+        settle(prev, {
+          token,
+          op,
+          color,
+          succeededVerses,
+          failedVerses: failedVerses.filter((verse) => !queuedVerses.includes(verse)),
+        }),
       )
 
-      units.forEach((unit, index) => {
-        const result = results[index]
-        // `results` is 1:1 with `units`, so `undefined` is unreachable — treat
-        // it as a failure rather than silently counting it as a success.
-        if (result !== undefined && result.ok) {
-          succeededVerses.push(...unit.verses)
-          return
+      if (queuedVerses.length > 0) {
+        const pending = enqueuePendingOp(captured.userId, {
+          op,
+          scope: captured.scope,
+          color,
+          verses: queuedVerses,
+        })
+        // Reuse the claim's token rather than minting one: the verses are still
+        // painted and still stamped with it, so this is the only way the retry
+        // can settle them later.
+        if (pending !== null) {
+          queueTokens.set(pending.id, token)
         }
-        failedVerses.push(...unit.verses)
-        if (result !== undefined) {
-          errors.push(result.error)
-        }
-      })
-
-      setState((prev) => settle(prev, { token, op, color, succeededVerses, failedVerses }))
+        void processQueueRef.current()
+      }
 
       // Exactly one GET per settled batch, success or failure — this is what
       // reconciles a partial success back to server truth. Guarded internally
       // against a scope change or sign-out landing mid-write.
       void runFetch()
-
-      if (failedVerses.length === 0) {
-        return { status: 'ok', verses: succeededVerses }
-      }
-
-      const reasons = errors.map(classifyApiError)
-      const reason = reasons.reduce<HighlightWriteReason>(
-        (worst, candidate) => (REASON_RANK[candidate] > REASON_RANK[worst] ? candidate : worst),
-        'transient',
-      )
-      const message =
-        errors.find((candidate) => classifyApiError(candidate) === reason)?.message ??
-        'Highlight write failed.'
 
       // The ADR 0013 seam. The server just told us this token cannot write
       // highlights, which outranks whatever the optimistic mirror believes — so
@@ -463,6 +679,158 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       return { status: 'error', reason, message, failedVerses, succeededVerses }
     },
     [api, runFetch, waitForAuthSettled],
+  )
+
+  // ── The durable retry loop ─────────────────────────────────────────────────
+  const isProcessingQueueRef = useRef(false)
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const runQueuedOp = useCallback(
+    async (pending: PendingOp): Promise<void> => {
+      const currentUserId = identityRef.current.userId
+      const accessTokenNow = authRef.current.accessToken
+      if (currentUserId === null || accessTokenNow === null) {
+        // Signed out, or the token has not arrived yet. Leave the op on disk and
+        // let the next identity/token change restart the loop.
+        return
+      }
+
+      const release = beginHighlightWrite()
+      let attempt: WriteAttempt
+      try {
+        attempt = await issueWrite({
+          api,
+          accessToken: accessTokenNow,
+          op: pending.op,
+          scope: pending.scope,
+          color: pending.color,
+          verses: pending.verses,
+        })
+      } finally {
+        release()
+      }
+
+      // A sign-out (or an explicit discard) between issuing and settling bumps
+      // the generation. Whatever came back belongs to the departed session: do
+      // not settle it, and above all do not re-queue it onto the next account.
+      if (!isCurrentGeneration(pending.generation)) {
+        return
+      }
+
+      const { succeededVerses, failedVerses, errors } = attempt
+      const token = tokenForPendingOp(pending)
+      const reason = failedVerses.length === 0 ? null : worstFailureReason(errors)
+      const retryVerses = retryableVerses(attempt)
+
+      // `settle` is guarded on ownership, so a chapter change or a newer tap on
+      // these verses makes this a no-op rather than a mispaint.
+      setState((prev) =>
+        settle(prev, {
+          token,
+          op: pending.op,
+          color: pending.color,
+          succeededVerses,
+          failedVerses: failedVerses.filter((verse) => !retryVerses.includes(verse)),
+        }),
+      )
+
+      if (retryVerses.length > 0) {
+        retainPendingVerses(currentUserId, pending.id, retryVerses)
+        reschedulePendingOp(currentUserId, pending.id)
+      } else {
+        completePendingOp(currentUserId, pending.id)
+        queueTokens.delete(pending.id)
+      }
+
+      if (reason === 'invalid') {
+        // A bug in our payload, not the network. Nobody is awaiting this retry,
+        // so its return value is the log — the user cannot act on it either way.
+        console.error(
+          '[YouVersion SDK] Queued highlight write rejected and dropped:',
+          messageForReason(errors, reason),
+        )
+      }
+
+      // Same ADR 0013 seam as the direct write. There is no caller to hand the
+      // outcome to here, so invalidating the grant IS the hand-off: the next tap
+      // gates to the just-in-time permission prompt instead of failing again.
+      if (reason === 'auth') {
+        invalidateGrantedPermission(currentUserId, 'highlights')
+      }
+
+      void runFetch()
+    },
+    [api, runFetch],
+  )
+
+  const scheduleQueueRetry = useCallback(() => {
+    if (retryTimerRef.current !== null) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+    const due = nextPendingAttemptAt(identityRef.current.userId)
+    if (due === null) {
+      return
+    }
+    retryTimerRef.current = setTimeout(
+      () => {
+        retryTimerRef.current = null
+        void processQueueRef.current()
+      },
+      Math.max(0, due - Date.now()),
+    )
+  }, [])
+
+  const processQueue = useCallback(async (): Promise<void> => {
+    if (isProcessingQueueRef.current) {
+      return
+    }
+    isProcessingQueueRef.current = true
+    try {
+      for (;;) {
+        const currentUserId = identityRef.current.userId
+        if (currentUserId === null || authRef.current.accessToken === null) {
+          break
+        }
+        const pending = peekDuePendingOp(currentUserId)
+        if (pending === null) {
+          break
+        }
+        // Through the same promise chain as a direct write, so a queued remove
+        // can never overtake the apply the user just issued for the same verse.
+        await enqueue(() => runQueuedOp(pending))
+        // `runQueuedOp` bails without touching the queue when auth vanished
+        // mid-flight or the generation moved. Without this the head would stay
+        // due forever and spin.
+        if (peekDuePendingOp(currentUserId)?.id === pending.id) {
+          break
+        }
+      }
+    } finally {
+      isProcessingQueueRef.current = false
+      scheduleQueueRetry()
+    }
+  }, [enqueue, runQueuedOp, scheduleQueueRetry])
+
+  useEffect(() => {
+    processQueueRef.current = processQueue
+  }, [processQueue])
+
+  // Replay on launch, and whenever a token or a user arrives. Keyed on
+  // `identityKey` so a discard (which bumps the generation) also re-runs and
+  // finds nothing left to do.
+  useEffect(() => {
+    void processQueue()
+  }, [identityKey, accessToken, processQueue])
+
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current !== null) {
+        clearTimeout(retryTimerRef.current)
+        retryTimerRef.current = null
+      }
+    },
+    [],
   )
 
   const startWrite = useCallback(
@@ -524,6 +892,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // same committed state.
       stateRef.current = claim(stateRef.current, verses, token, claimColor)
 
+      // A newer tap on these verses supersedes anything the queue still owes for
+      // them. The overlay's ownership token already protects what the user SEES;
+      // this protects the server from a stale retry landing after this write.
+      supersedePendingVerses(captured.userId, verses)
+
       return enqueue(() => runWrite({ op, color, verses, token, captured }))
     },
     [enqueue, runWrite],
@@ -541,5 +914,14 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   const highlights = useMemo(() => selectHighlights(renderedState), [renderedState])
 
-  return { highlights, scope, isRefreshing, error, refresh, apply, remove }
+  return {
+    highlights,
+    scope,
+    isRefreshing,
+    error,
+    hasPendingOperations: queueSnapshot.hasPending,
+    refresh,
+    apply,
+    remove,
+  }
 }

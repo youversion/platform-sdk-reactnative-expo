@@ -18,6 +18,8 @@ describe('useYVAuth', () => {
       grantedPermissions: ['highlights'],
       hasPermission: jest.fn(() => true),
       requestPermission: jest.fn(async () => ({ kind: 'cancel' as const })),
+      hasPendingHighlightOperations: false,
+      discardPendingHighlights: jest.fn(),
       error: null,
       signIn: jest.fn(),
       signOut: jest.fn(),

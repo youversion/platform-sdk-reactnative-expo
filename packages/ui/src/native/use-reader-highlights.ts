@@ -14,6 +14,12 @@ import { gateHighlightTap, isIntentInScope } from '../lib/highlight-tap-gate'
  * The failing half of core's write outcome. Writes report once, through their
  * return value — never through `useHighlights().error`, which is fetch-only —
  * so this is the whole channel a failed highlight has to speak on.
+ *
+ * `reason: 'transient'` is the only one that reaches a consumer, and since the
+ * persisted retry queue landed it means **"not saved yet, queued and retrying"**
+ * rather than "didn't save". The paint stays on screen and the write survives an
+ * app kill; the right host response is an offline/pending hint, not an error
+ * toast telling the user to try again.
  */
 export type HighlightWriteError = Extract<HighlightWriteOutcome, { status: 'error' }>
 
@@ -30,7 +36,7 @@ export type UseReaderHighlightsOptions = {
   versionId: number
   book: string
   chapter: string
-  /** Consumer-facing signal for a write the user should know didn't save. */
+  /** Consumer-facing signal for a write that has not reached the server yet. */
   onHighlightError?: (error: HighlightWriteError) => void
 }
 
@@ -142,8 +148,10 @@ export function useReaderHighlights(
     }
     switch (outcome.reason) {
       case 'transient':
-        // The user's highlight didn't save and a retry may work. Surfacing it is
-        // the host's call — the SDK doesn't own toast styling.
+        // Not lost — queued. Core has persisted the write and will keep retrying
+        // with backoff, and the paint stays on screen throughout, so this is a
+        // "still saving" signal rather than a failure. Surfacing it at all is the
+        // host's call; the SDK doesn't own toast styling.
         onHighlightErrorRef.current?.(outcome)
         return
       case 'invalid':

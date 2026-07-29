@@ -22,6 +22,27 @@ export type AuthContextValue = {
    * browser session and records what comes back.
    */
   requestPermission: (permission: AuthPermission) => Promise<RequestPermissionResult>
+  /**
+   * There is highlight work this device has not managed to save: the durable
+   * retry queue is non-empty, or a write is on the wire right now.
+   *
+   * Core exposes the **fact**; the UI owns the **prompt**. `YouVersionAuthButton`
+   * and the reader's toolbar both warn before signing out; a host calling
+   * `signOut()` itself reads this and builds its own warning rather than
+   * inheriting a behaviour it cannot opt out of.
+   */
+  hasPendingHighlightOperations: boolean
+  /**
+   * Throws away every queued highlight write and invalidates anything already in
+   * flight, so a result from the departed session can never land on the next
+   * account.
+   *
+   * Discards, never flushes — matching Swift. The warning already told the user
+   * the work would be lost, and flushing on a dead network hangs the sign-out
+   * they just asked for. `signOut()` does this for you; call it directly only
+   * when abandoning the work without signing out.
+   */
+  discardPendingHighlights: () => void
   error: Error | null
   signIn: () => Promise<void>
   signOut: () => Promise<void>

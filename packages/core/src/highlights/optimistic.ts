@@ -288,6 +288,23 @@ export function selectVersesInColor(
   return verses.filter((verse) => merged[verse] === color)
 }
 
+/**
+ * Of `verses`, the ones `token` still owns — compared by object identity, the
+ * same guard {@link settle} applies.
+ *
+ * The queue needs this *before* settling: a transient failure re-queues only the
+ * verses the failing write still owns. Yellow failing on verse 16 after the user
+ * re-tapped it green must not schedule a retry that paints yellow back over the
+ * green the user is looking at.
+ */
+export function selectOwnedVerses(
+  state: OptimisticState,
+  verses: readonly number[],
+  token: WriteToken,
+): number[] {
+  return verses.filter((verse) => state.writeIntent.get(verse) === token)
+}
+
 // ── USFM range helpers (ported from web's `usfm-ranges.ts`) ───────────────────
 
 export type VerseRun = { start: number; end: number }
