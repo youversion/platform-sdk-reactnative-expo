@@ -175,9 +175,11 @@ function VotdScreen() {
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
-The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` is the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` comes from the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 
 Choose a scheme unique to your app: on Android, multiple apps registering the same scheme triggers the system disambiguation dialog (an app chooser), and on iOS there is no defined process for which app gets the scheme — the OS silently picks one.
+
+**Name your scheme in the call** — `Linking.createURL('callback', { scheme: 'your-app-scheme' })` — rather than relying on the default. When `scheme` in `app.json` is an array, `Linking.createURL` picks the **first** entry and logs a warning; passing it explicitly pins your redirect URI to the one you registered in the console, whatever else ends up in that array later. This matters as soon as you add a second scheme — which [asking for a permission later](#asking-for-a-permission-later) requires.
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
@@ -186,7 +188,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback')
+  const redirectUri = Linking.createURL('callback', { scheme: 'your-app-scheme' })
 
   if (!appKey) return null
 
@@ -236,6 +238,8 @@ Only one request runs at a time — calling it again while a consent page is ope
 > ```json
 > { "expo": { "scheme": ["your-app-scheme", "youversionauth"] } }
 > ```
+>
+> Keep your own scheme first, and make sure your `redirectUri` names it explicitly — `Linking.createURL('callback', { scheme: 'your-app-scheme' })`. `Linking.createURL` defaults to the first entry in the array, so an ordering slip here silently turns your OAuth redirect into `youversionauth://callback`, which no longer matches the Callback URI you registered in the console. Sign-in then fails with nothing obvious to point at.
 >
 > iOS needs nothing extra. Because the scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed.
 
