@@ -166,6 +166,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const signIn = useCallback(async () => {
     setError(null)
+    const previousUserId = userInfo?.id ?? null
     try {
       const result = await signInWithPKCE({
         apiHost,
@@ -179,15 +180,6 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         return
       }
 
-      // Only a reported grant is persisted. A `null` means the redirect said
-      // nothing about permissions, which must not overwrite a real grant from an
-      // earlier sign-in — `signIn` on an already-signed-in user does not go
-      // through clearAuthState first.
-      if (result.grantedPermissions !== null) {
-        saveGrantedPermissions(result.userInfo.id ?? null, result.grantedPermissions)
-        setGrantedPermissions(result.grantedPermissions)
-      }
-
       await setAuthState(
         {
           accessToken: result.tokens.access_token,
@@ -196,12 +188,38 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         },
         result.userInfo,
       )
+
+      // The grant belongs to the session, so it lands only once the session has
+      // committed: setAuthState awaits the keychain write, and if that rejects
+      // no grant is left describing a sign-in that never took hold. The reverse
+      // cannot happen either — the cache writes below never throw, so they can
+      // neither reject a sign-in that did commit nor skip the state update.
+      const nextUserId = result.userInfo.id ?? null
+      if (result.grantedPermissions !== null) {
+        saveGrantedPermissions(nextUserId, result.grantedPermissions)
+        setGrantedPermissions(result.grantedPermissions)
+      } else if (nextUserId !== previousUserId) {
+        // A `null` grant means the redirect said nothing about permissions. For
+        // the same user that is "unknown" and must not wipe a real grant from an
+        // earlier sign-in (this path skips clearAuthState); for a different user
+        // it would hand the previous account's permissions to this one.
+        clearGrantedPermissions()
+        setGrantedPermissions(null)
+      }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
       setError(err)
       throw err
     }
-  }, [apiHost, appKey, config.redirectUri, config.scopes, config.permissions, setAuthState])
+  }, [
+    apiHost,
+    appKey,
+    config.redirectUri,
+    config.scopes,
+    config.permissions,
+    setAuthState,
+    userInfo?.id,
+  ])
 
   const signOut = useCallback(async () => {
     await clearAuthState()

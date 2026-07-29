@@ -12,14 +12,24 @@ import type { AuthConfig } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
+/** Keys whose native write/remove should throw, simulating an MMKV failure. */
+const mockMmkvFailingKeys = new Set<string>()
 
 jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
     set: jest.fn((k: string, v: string) => {
+      if (mockMmkvFailingKeys.has(k)) {
+        throw new Error(`mmkv write failed: ${k}`)
+      }
       mockMmkv.set(k, v)
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
+    remove: jest.fn((k: string) => {
+      if (mockMmkvFailingKeys.has(k)) {
+        throw new Error(`mmkv remove failed: ${k}`)
+      }
+      mockMmkv.delete(k)
+    }),
     getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
   },
 }))
@@ -150,6 +160,7 @@ function fireAppStateChange(state: string) {
 
 beforeEach(() => {
   mockMmkv.clear()
+  mockMmkvFailingKeys.clear()
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
 })
@@ -394,12 +405,12 @@ describe('AuthProvider — granted permissions', () => {
     )
   }
 
-  function arrangeSignIn(grantedPermissions: string[] | null) {
+  function arrangeSignIn(grantedPermissions: string[] | null, userInfo = adaUserInfo) {
     mockLoadTokens.mockResolvedValue(noStoredTokens)
     mockSignInWithPKCE.mockResolvedValue({
       kind: 'success',
       tokens: validTokens,
-      userInfo: adaUserInfo,
+      userInfo,
       grantedPermissions,
     })
   }
@@ -466,6 +477,80 @@ describe('AuthProvider — granted permissions', () => {
     expect(mockMmkv.get(grantedKey)).toBe(
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
+  })
+
+  it('drops the previous user’s grant when a different user signs in without one', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+    expect(getText('hasHighlights')).toBe('true')
+
+    // Account switch inside one session: user B's redirect reports no
+    // granted_permissions ("unknown"). Preserving on null is only correct for
+    // the same user — here it would hand Ada's grant to Grace.
+    const graceUserInfo = { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined }
+    arrangeSignIn(null, graceUserInfo)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(JSON.parse(getText('userInfo')).id).toBe('u2')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('does not persist a grant when the session fails to commit', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    // Queue the rejection only after mount: bootstrap's clearAuthState calls
+    // saveTokens too, and would otherwise swallow it.
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    // The keychain write inside setAuthState rejects, so the sign-in never
+    // takes hold — no grant may outlive it, in state or in MMKV.
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('rejected: keychain unavailable'))
+
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('still completes sign-in and publishes the grant when the cache write throws', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    // The grant cache only seeds the first render, so a native storage failure
+    // must not reject a sign-in whose session already committed — nor skip the
+    // in-memory update that hasPermission actually reads.
+    mockMmkvFailingKeys.add(grantedKey)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('hasHighlights')).toBe('true')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('still drops the previous user’s grant when the cache removal throws', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+
+    // Same guarantee on the account-switch path: a failed remove must not strand
+    // Ada's grant in memory for Grace, nor reject Grace's committed sign-in.
+    mockMmkvFailingKeys.add(grantedKey)
+    arrangeSignIn(null, { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined })
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
   })
 
   it('reads a cached grant belonging to another user as a miss', async () => {
