@@ -2,12 +2,14 @@ import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderShareData,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
+import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Platform, StyleSheet, View } from 'react-native'
+import { Alert, Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
@@ -99,6 +101,9 @@ export function BibleReader({
   onChapterPickerPress: consumerOnChapterPickerPress,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
+  onVerseSelect,
+  onCopy: consumerOnCopy,
+  onShare: consumerOnShare,
   onHighlightError,
   backgroundColor,
   foregroundColor,
@@ -267,6 +272,41 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
+  // Consumer override wins, else the SDK's native fallback — the same shape
+  // `VerseOfTheDay` already ships for share. Both suppress the Web SDK's
+  // browser defaults, which don't work inside an Expo DOM WebView.
+  const handleCopy = useCallback(
+    async (data: BibleReaderShareData) => {
+      try {
+        if (consumerOnCopy) {
+          await consumerOnCopy(data)
+          return
+        }
+        await Clipboard.setStringAsync(data.text)
+      } catch (error) {
+        // Swallowed: a failed copy reads to the user like a dismissed sheet,
+        // and there is nothing actionable to say about it.
+        console.error('BibleReader copy failed:', error)
+      }
+    },
+    [consumerOnCopy],
+  )
+
+  const handleShare = useCallback(
+    async (data: BibleReaderShareData) => {
+      try {
+        if (consumerOnShare) {
+          await consumerOnShare(data)
+          return
+        }
+        await Share.share({ message: data.text })
+      } catch (error) {
+        console.error('BibleReader share failed:', error)
+      }
+    },
+    [consumerOnShare],
+  )
+
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
@@ -322,6 +362,9 @@ export function BibleReader({
           highlights={highlights}
           onHighlightApply={onHighlightApply}
           onHighlightRemove={onHighlightRemove}
+          onVerseSelect={onVerseSelect}
+          onCopy={Platform.OS !== 'web' ? handleCopy : undefined}
+          onShare={Platform.OS !== 'web' ? handleShare : undefined}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}

@@ -67,6 +67,7 @@
     "@gorhom/bottom-sheet": ">=5.0.0",
     "expo": ">=56.0.0 <57.0.0",
     "expo-application": ">=56.0.0 <57.0.0",
+    "expo-clipboard": ">=56.0.0 <57.0.0",
     "expo-web-browser": ">=56.0.0 <57.0.0",
     "react": ">=19.0.0 <20.0.0",
     "react-dom": ">=19.0.0 <20.0.0",

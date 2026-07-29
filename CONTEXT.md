@@ -144,6 +144,7 @@ _Avoid_: Branching on `message` (generic outside development builds); routing wr
 - **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
 - A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
 - A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
+- `BibleReader`'s `onVerseSelect` is the one sanctioned exception to "**DOM-Owned Sheet UI State** is never lifted to native": it reports a _committed_ selection as a **Native Action**, and nothing native feeds back into it — the reader keeps owning selection. Read it as an observation, not as licence to bridge UI state generally.
 
 ## Example Dialogue
 

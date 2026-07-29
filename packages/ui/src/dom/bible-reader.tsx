@@ -4,6 +4,8 @@ import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-ex
 import type {
   BibleChapterPickerPressData,
   BibleReaderHighlightIntent,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
@@ -22,6 +24,7 @@ type NativeActionBibleReaderRootProps =
     onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
     onSignInPress?: () => Promise<void>
     onSignOutPress?: () => Promise<void>
+    onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
     children?: ReactNode
   }
 
@@ -43,6 +46,21 @@ type BibleReaderBaseProps = {
    */
   onHighlightApply?: (intent: BibleReaderHighlightIntent) => Promise<void>
   onHighlightRemove?: (intent: BibleReaderHighlightIntent) => Promise<void>
+  /**
+   * Fires on every selection change, `verses: []` on clear. An observation of a
+   * committed selection, not a handle on it — nothing native sends back changes
+   * the reader's own selection state.
+   */
+  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  /**
+   * Handle Copy / Share yourself. Supplying either one suppresses the Web SDK's
+   * browser default (`navigator.clipboard` / Web Share) — neither works
+   * reliably inside an Expo DOM WebView, so the native wrapper always supplies
+   * its own and falls back to `expo-clipboard` / RN's `Share` when the consumer
+   * doesn't.
+   */
+  onCopy?: (data: BibleReaderShareData) => Promise<void>
+  onShare?: (data: BibleReaderShareData) => Promise<void>
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -90,6 +108,9 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     highlights,
     onHighlightApply,
     onHighlightRemove,
+    onVerseSelect,
+    onCopy,
+    onShare,
     theme = 'light',
     book,
     chapter,
@@ -210,6 +231,12 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           highlights={highlights}
           onHighlightApply={handleHighlightApply}
           onHighlightRemove={handleHighlightRemove}
+          // `onVerseSelect` is cast wider on `NativeActionBibleReaderRoot`
+          // above; `onCopy` / `onShare` already accept a promise upstream, so
+          // all three forward as-is.
+          onVerseSelect={onVerseSelect}
+          onCopy={onCopy}
+          onShare={onShare}
           book={book}
           chapter={chapter}
           versionId={versionId}
