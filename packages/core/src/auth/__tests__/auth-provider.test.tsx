@@ -365,12 +365,12 @@ describe('AuthProvider — granted permissions', () => {
     )
   }
 
-  function arrangeSignIn(grantedPermissions: string[] | null) {
+  function arrangeSignIn(grantedPermissions: string[] | null, userInfo = adaUserInfo) {
     mockLoadTokens.mockResolvedValue(noStoredTokens)
     mockSignInWithPKCE.mockResolvedValue({
       kind: 'success',
       tokens: validTokens,
-      userInfo: adaUserInfo,
+      userInfo,
       grantedPermissions,
     })
   }
@@ -437,6 +437,45 @@ describe('AuthProvider — granted permissions', () => {
     expect(mockMmkv.get(grantedKey)).toBe(
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
+  })
+
+  it('drops the previous user’s grant when a different user signs in without one', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+    expect(getText('hasHighlights')).toBe('true')
+
+    // Account switch inside one session: user B's redirect reports no
+    // granted_permissions ("unknown"). Preserving on null is only correct for
+    // the same user — here it would hand Ada's grant to Grace.
+    const graceUserInfo = { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined }
+    arrangeSignIn(null, graceUserInfo)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(JSON.parse(getText('userInfo')).id).toBe('u2')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('does not persist a grant when the session fails to commit', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    // Queue the rejection only after mount: bootstrap's clearAuthState calls
+    // saveTokens too, and would otherwise swallow it.
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    // The keychain write inside setAuthState rejects, so the sign-in never
+    // takes hold — no grant may outlive it, in state or in MMKV.
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('rejected: keychain unavailable'))
+
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('hasHighlights')).toBe('false')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
   })
 
   it('reads a cached grant belonging to another user as a miss', async () => {
