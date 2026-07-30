@@ -12,7 +12,13 @@ export type {
   YVUserInfo,
 } from './auth'
 
-export { deriveServerColors, HIGHLIGHT_COLORS, isHighlightColor, useHighlights } from './highlights'
+export {
+  deriveServerColors,
+  HIGHLIGHT_COLORS,
+  isHighlightColor,
+  useHighlightPermissionFlow,
+  useHighlights,
+} from './highlights'
 export type {
   Highlight,
   HighlightColor,
@@ -20,7 +26,10 @@ export type {
   HighlightsFetchError,
   HighlightWriteOutcome,
   HighlightWriteReason,
+  PermissionFlowError,
+  PermissionFlowErrorReason,
   ServerColors,
+  UseHighlightPermissionFlowResult,
   UseHighlightsOptions,
   UseHighlightsResult,
 } from './highlights'

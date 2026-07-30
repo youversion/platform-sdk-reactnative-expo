@@ -126,6 +126,14 @@ _Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scop
 YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The return URL is the hardcoded, SDK-owned `youversionauth://callback` — see [ADR 0014](docs/adr/0014-data-exchange-return-scheme.md).
 _Avoid_: Calling the return URL a redirect URI (the app's OAuth `redirectUri` is a different, app-owned thing); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
 
+**Permission Flow**:
+The two-branch journey guarding a highlight `apply`: not signed in → sign-in → re-check → apply (or fall through to consent); signed in without the permission → confirmation → **Data Exchange** → apply on grant. The branch point is a pre-flight **Granted Permissions** read after a token refresh, never a write's 401/403 — a `reason: 'auth'` write is the corrective path for a stale cache and re-prompts exactly once. State is a pure hand-rolled reducer (`permission-flow.ts`); events invalid for the current step are no-ops, which is what stops a late browser return from resurrecting a discarded intent. Guards `apply` only; `remove` passes through.
+_Avoid_: Branching on a write failure first (burns a round-trip before every first highlight); re-prompting in a loop; running `remove` through the flow; `xstate` (Swift's equivalent is ~60 lines of view-model state)
+
+**Pending Highlight**:
+The in-memory `{ color, verses, scope }` a **Permission Flow** stashes when the user taps a color before they can write, and applies when sign-in or consent succeeds. Lives only inside reducer state — `openAuthSessionAsync` returns to the same live process, so web's `sessionStorage` stash and TTL solve a problem native does not have. Discarded cleanly on every cancel, decline, failure, or scope change.
+_Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping it across a scope change (the user has left the passage); treating a discard as an error
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -155,6 +163,8 @@ _Avoid_: Calling the return URL a redirect URI (the app's OAuth `redirectUri` is
 - **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
 - A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
 - **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.
+- A **Permission Flow** composes the permission pre-flight, sign-in, and **Data Exchange** around a single guarded `apply`; its consent confirmation is a **Native Sheet** (pending localization), whose every dismissal path routes to decline.
+- A **Pending Highlight** belongs to exactly one **Permission Flow** and one **Highlight Scope**; when the flow ends in an apply, its fate is reported through the ordinary **Highlight Write Outcome**.
 
 ## Example Dialogue
 
