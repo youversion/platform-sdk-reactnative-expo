@@ -6,7 +6,11 @@ import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
-import { requestDataExchange, type DataExchangeOutcome } from './data-exchange'
+import {
+  requestDataExchange,
+  type AuthIdentity,
+  type DataExchangeOutcome,
+} from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
 import {
   clearGrantedPermissions,
@@ -43,10 +47,32 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // Latest identity, for a read that has to outlive a render: the data-exchange
   // initiator guard needs who is signed in *now*, once the browser comes back,
   // not who was captured in the closure when the flow started.
+  //
+  // The epoch counts identity transitions — sign-in and sign-out, never a token
+  // refresh — so the guard can tell "signed out" from "signed in without an id",
+  // which a null `userInfo.id` alone cannot. Both are written together by
+  // `setIdentity` so they can never disagree; an effect would leave a window
+  // where the epoch has moved and the id has not.
   const userInfoRef = useRef<YVUserInfo | null>(userInfo)
-  useEffect(() => {
-    userInfoRef.current = userInfo
-  }, [userInfo])
+  const authEpochRef = useRef<number>(0)
+
+  const setIdentity = useCallback((user: YVUserInfo | null) => {
+    userInfoRef.current = user
+    authEpochRef.current += 1
+    setUserInfo(user)
+
+    if (user) {
+      mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
+    }
+  }, [])
+
+  const getCurrentIdentity = useCallback(
+    (): AuthIdentity => ({
+      epoch: authEpochRef.current,
+      userId: userInfoRef.current?.id ?? null,
+    }),
+    [],
+  )
 
   // The single in-flight data-exchange request, keyed by what it asked for so
   // only an identical request is allowed to share its outcome.
@@ -62,10 +88,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setAccessToken(tokens.accessToken)
 
     if (user) {
-      setUserInfo(user)
-      mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
+      // Identity, not just tokens — bump the epoch. A call without `user` is a
+      // token refresh for the same person and must leave the epoch alone, or a
+      // refresh landing mid-flow would fail the initiator guard.
+      setIdentity(user)
     }
-  }, [])
+  }, [setIdentity])
 
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
@@ -74,11 +102,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
-    setUserInfo(null)
+    setIdentity(null)
     setGrantedPermissions(null)
     setError(null)
     await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
-  }, [])
+  }, [setIdentity])
 
   const refreshToken = useCallback(
     async (options?: { force?: boolean }) => {
@@ -303,9 +331,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           appKey,
           apiHost,
           accessToken,
-          userId: userInfo?.id ?? null,
+          initiator: getCurrentIdentity(),
           permissions,
-          getCurrentUserId: () => userInfoRef.current?.id ?? null,
+          getCurrentIdentity,
         })
 
         // The flow already merged the grant into MMKV; mirror that merge into
@@ -324,7 +352,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       inFlightRequestRef.current = { key, promise: pending }
       return pending
     },
-    [accessToken, apiHost, appKey, userInfo?.id],
+    [accessToken, apiHost, appKey, getCurrentIdentity],
   )
 
   const value: AuthContextValue = useMemo(

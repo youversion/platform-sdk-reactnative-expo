@@ -41,16 +41,34 @@ export type DataExchangeOutcome =
   | { status: 'cancel' }
   | { status: 'failure'; reason: DataExchangeFailureReason; message: string }
 
+/**
+ * Who is signed in, for the initiator guard.
+ *
+ * `userId` alone cannot answer the question: it comes from the id_token's `sub`
+ * and can legitimately be absent, so `null` means both "signed in, no id" and
+ * "signed out" — and treating those as equal lets a grant land after the user
+ * has left, under an identity the next id-less user reads back.
+ *
+ * `epoch` closes that: it changes on every sign-in and sign-out, and *only* on
+ * those, so a session change is detectable even when there is no id to compare.
+ * It deliberately does not change on a token refresh — a new token for the same
+ * person must not fail the flow.
+ */
+export type AuthIdentity = {
+  epoch: number
+  userId: string | null
+}
+
 export type RequestDataExchangeArgs = {
   api: DataExchangeApi
   appKey: string
   apiHost: string
   accessToken: string
-  /** The initiator: the signed-in user id captured by the caller *before* invoking. */
-  userId: string | null
+  /** The initiator: identity captured by the caller *before* invoking. */
+  initiator: AuthIdentity
   permissions: readonly AuthPermission[]
-  /** Re-reads the current user id after the browser round-trip (initiator guard). */
-  getCurrentUserId: () => string | null
+  /** Re-reads the current identity after the browser round-trip (initiator guard). */
+  getCurrentIdentity: () => AuthIdentity
 }
 
 /**
@@ -67,9 +85,9 @@ export async function requestDataExchange({
   appKey,
   apiHost,
   accessToken,
-  userId,
+  initiator,
   permissions,
-  getCurrentUserId,
+  getCurrentIdentity,
 }: RequestDataExchangeArgs): Promise<DataExchangeOutcome> {
   const minted = await api.mintToken(accessToken, permissions)
   if (!minted.ok) {
@@ -125,15 +143,19 @@ export async function requestDataExchange({
   // Initiator guard, fail closed. The signed-in user can change while the
   // browser is up (a sign-out, or a sign-in as somebody else), and a grant
   // written against the wrong account is invisible and wrong; a discarded one
-  // just re-prompts. Compare user ids, not tokens — a mid-flow refresh issues a
+  // just re-prompts. Compare identity, not tokens — a mid-flow refresh issues a
   // new token for the same person and must not fail the flow.
   //
-  // Unlike web, a null id on both sides counts as the same user rather than a
-  // failure: `userInfo.id` comes from the id_token's `sub` and can legitimately
-  // be absent, and failing closed there would make the flow permanently
-  // unusable for that user instead of merely re-prompting.
-  const currentUserId = getCurrentUserId()
-  if (currentUserId !== userId) {
+  // Both halves of {@link AuthIdentity} matter. The id alone would let an
+  // id-less user's grant survive a mid-flow sign-out (`null === null`) and be
+  // read back by the next id-less user; the epoch alone would not catch a
+  // grant landing against a different id within one session.
+  //
+  // A same-epoch id-less user still passes, which is deliberate: `sub` can
+  // legitimately be absent, and failing closed on that would make the flow
+  // permanently unusable for those users rather than merely re-prompting.
+  const current = getCurrentIdentity()
+  if (current.epoch !== initiator.epoch || current.userId !== initiator.userId) {
     return {
       status: 'failure',
       reason: 'user-changed',
@@ -146,9 +168,9 @@ export async function requestDataExchange({
   // "unknown", and storing `[]` would record a denial the server never sent.
   if (callback.grantedPermissions.length > 0) {
     saveGrantedPermissions(
-      currentUserId,
+      current.userId,
       mergeGrantedPermissions(
-        loadCachedGrantedPermissions(currentUserId) ?? [],
+        loadCachedGrantedPermissions(current.userId) ?? [],
         callback.grantedPermissions,
       ),
     )

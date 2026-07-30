@@ -41,9 +41,9 @@ function run(overrides: Partial<RequestDataExchangeArgs> = {}) {
     appKey: 'appkey',
     apiHost: 'api.example.com',
     accessToken: 'tok',
-    userId: 'u1',
+    initiator: { epoch: 1, userId: 'u1' },
     permissions: ['highlights'],
-    getCurrentUserId: () => 'u1',
+    getCurrentIdentity: () => ({ epoch: 1, userId: 'u1' }),
     ...overrides,
   })
 }
@@ -220,7 +220,7 @@ describe('requestDataExchange — initiator guard', () => {
     saveGrantedPermissions('u1', ['votd'])
     arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
 
-    const outcome = await run({ getCurrentUserId: () => 'u2' })
+    const outcome = await run({ getCurrentIdentity: () => ({ epoch: 2, userId: 'u2' }) })
 
     expect(outcome).toMatchObject({ status: 'failure', reason: 'user-changed' })
     // Neither user's cache was written: u1's entry is untouched, and nothing
@@ -231,7 +231,7 @@ describe('requestDataExchange — initiator guard', () => {
   it('fails when the user signed out mid-flow', async () => {
     arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
 
-    const outcome = await run({ getCurrentUserId: () => null })
+    const outcome = await run({ getCurrentIdentity: () => ({ epoch: 2, userId: null }) })
 
     expect(outcome).toMatchObject({ status: 'failure', reason: 'user-changed' })
     expect(cachedGrant()).toBeUndefined()
@@ -242,9 +242,41 @@ describe('requestDataExchange — initiator guard', () => {
     // absent; treating that as a mismatch would make the flow unusable.
     arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
 
-    const outcome = await run({ userId: null, getCurrentUserId: () => null })
+    const outcome = await run({
+      initiator: { epoch: 1, userId: null },
+      getCurrentIdentity: () => ({ epoch: 1, userId: null }),
+    })
 
     expect(outcome).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
     expect(cachedGrant()).toEqual({ userId: null, permissions: ['highlights'] })
+  })
+
+  it('discards an id-less user’s grant when the session changed mid-flow', async () => {
+    // The hole the epoch exists to close: comparing ids alone, `null === null`
+    // waves this through, the grant is written after the user has gone, and the
+    // next id-less user reads it back as their own consent.
+    arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
+
+    const outcome = await run({
+      initiator: { epoch: 1, userId: null },
+      getCurrentIdentity: () => ({ epoch: 3, userId: null }),
+    })
+
+    expect(outcome).toMatchObject({ status: 'failure', reason: 'user-changed' })
+    expect(cachedGrant()).toBeUndefined()
+  })
+
+  it('accepts a grant when only the token changed mid-flow', async () => {
+    // A refresh issues a new token for the same person and leaves the epoch
+    // alone, so it must not fail the guard.
+    arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
+
+    const outcome = await run({
+      initiator: { epoch: 4, userId: 'u1' },
+      getCurrentIdentity: () => ({ epoch: 4, userId: 'u1' }),
+    })
+
+    expect(outcome).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
+    expect(cachedGrant()).toEqual({ userId: 'u1', permissions: ['highlights'] })
   })
 })
