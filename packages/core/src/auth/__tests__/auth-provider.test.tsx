@@ -741,6 +741,40 @@ describe('AuthProvider — requestPermissions', () => {
     expect(getCurrentIdentity().epoch).not.toBe(initiator.epoch)
   })
 
+  it('captures the initiator before awaiting the installation id, not after', async () => {
+    await signInWithGrant(null)
+
+    let releaseInstallationId = () => {}
+    mockGetOrSetInstallationId.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        releaseInstallationId = () => resolve('inst-1')
+      }),
+    )
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    const pending = requestPermissionsFromContext(['highlights'])
+
+    // Sign out while the installation id is still resolving. The mint will
+    // still use this render's token, so the initiator has to be the user that
+    // token belongs to — read it afterwards and the guard compares the
+    // replacement identity against itself, passes, and files the grant under
+    // whoever is signed in now.
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+
+    await act(async () => {
+      releaseInstallationId()
+      await pending
+    })
+
+    const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0] as {
+      initiator: { epoch: number; userId: string | null }
+      accessToken: string
+    }
+    expect(accessToken).toBe('new-access')
+    expect(initiator.userId).toBe('u1')
+  })
+
   it('moves the epoch on sign-out but not on a token refresh', async () => {
     await signInWithGrant(null)
 

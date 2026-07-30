@@ -310,6 +310,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
             })
       }
 
+      // Snapshot the initiator here, in the same synchronous block that read
+      // `accessToken`, not later inside `run`. The two must describe one moment:
+      // the token comes from this render, so reading the identity after an await
+      // would let a sign-out landing in between pair the previous session's
+      // token with the replacement identity — the guard would then compare the
+      // new identity against itself, pass, and file the grant under whoever is
+      // signed in now (or under the shared null identity).
+      const initiator = getCurrentIdentity()
+
       const run = async (): Promise<DataExchangeOutcome> => {
         // Built per call rather than memoized: the installation id is async, and
         // this runs at most once per user gesture. It reads native state and can
@@ -331,7 +340,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           appKey,
           apiHost,
           accessToken,
-          initiator: getCurrentIdentity(),
+          initiator,
           permissions,
           getCurrentIdentity,
         })
