@@ -14,7 +14,8 @@
  *   2. PR label `localization-sync` — apply to automated distribution PRs.
  *   3. PR title or HEAD commit message containing "Distribute React Native Localization".
  *
- * index.ts is hand-editable and not guarded by --guard.
+ * index.ts is auto-generated (pnpm generate:locale-index) and checked separately
+ * via check:locale-index; it is not guarded by --guard.
  */
 
 import { execSync } from 'node:child_process'

@@ -23,6 +23,8 @@
     "format:check": "prettier --check .",
     "check:locale-parity": "node scripts/check-locale-parity.mjs",
     "check:locale-json-guard": "node scripts/check-locale-parity.mjs --guard",
+    "generate:locale-index": "node scripts/generate-locale-index.mjs",
+    "check:locale-index": "node scripts/generate-locale-index.mjs --check",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo build && pnpm exec changeset publish"

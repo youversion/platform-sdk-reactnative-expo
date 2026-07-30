@@ -64,6 +64,8 @@ jobs:
       - uses: actions/checkout@v6
       - name: Check locale key parity
         run: node scripts/check-locale-parity.mjs
+      - name: Check locale index freshness
+        run: pnpm check:locale-index
 
   locale-json-guard:
     name: Locale JSON guard

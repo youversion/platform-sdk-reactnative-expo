@@ -18,7 +18,7 @@
     },
     {
       "path": "packages/ui/src/i18n/locales/index.ts",
-      "description": "Hand-editable locale registration — add new locale codes here when distribution adds them"
+      "description": "Auto-generated locale registration — run pnpm generate:locale-index when distribution adds locale JSON files"
     },
     {
       "path": "docs/adr/0008-sdk-owned-i18next-no-consumer-overrides.md",
