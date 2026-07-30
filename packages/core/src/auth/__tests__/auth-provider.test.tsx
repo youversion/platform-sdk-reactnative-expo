@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import { getOrSetInstallationId } from '../../installation-id'
+import type { AuthContextValue } from '../auth-context'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
 import { requestDataExchange } from '../data-exchange'
@@ -9,7 +10,7 @@ import { createDataExchangeApi } from '../data-exchange-api'
 import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
-import type { AuthConfig } from '../types'
+import type { AuthConfig, AuthPermission } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
@@ -101,10 +102,28 @@ const validTokens = {
 
 const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined }
 
+/**
+ * Latest context value, so a test can drive `requestPermissions` with its own
+ * permission list and hold the promise — the rendered button is fixed to
+ * `['highlights']`, which cannot express two callers asking for different things.
+ */
+let latestAuth: AuthContextValue | null = null
+
+function requestPermissionsFromContext(permissions: readonly AuthPermission[]) {
+  if (latestAuth === null) {
+    throw new Error('AuthPeek has not rendered yet')
+  }
+  return latestAuth.requestPermissions(permissions)
+}
+
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
   const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
+
+  useEffect(() => {
+    latestAuth = auth
+  })
 
   return (
     <View>
@@ -163,6 +182,7 @@ function fireAppStateChange(state: string) {
 beforeEach(() => {
   mockMmkv.clear()
   mockMmkvFailingKeys.clear()
+  latestAuth = null
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
 })
@@ -787,6 +807,58 @@ describe('AuthProvider — requestPermissions', () => {
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
     expect(mockRequestDataExchange).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a concurrent request for different permissions instead of handing it the wrong outcome', async () => {
+    await signInWithGrant(null)
+
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    // First caller asks for highlights and is still in the consent page.
+    const first = requestPermissionsFromContext(['highlights'])
+    await act(async () => {})
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    // A second caller asks for something else. Sharing the first promise would
+    // report `granted` for a consent page that never mentioned votd, and leave
+    // the caller no reason to retry.
+    const second = await act(async () => requestPermissionsFromContext(['votd']))
+    expect(second).toMatchObject({ status: 'failure', reason: 'transient' })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights'] })
+    })
+    expect(await first).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
+  })
+
+  it('shares the flow when a concurrent request asks for the same permissions in a different order', async () => {
+    await signInWithGrant(null)
+
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    const first = requestPermissionsFromContext(['highlights', 'votd'])
+    await act(async () => {})
+    const second = requestPermissionsFromContext(['votd', 'highlights'])
+    await act(async () => {})
+
+    // Same consent, so it is a double-tap rather than a competing request.
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights', 'votd'] })
+    })
+    expect(await second).toEqual(await first)
   })
 })
 

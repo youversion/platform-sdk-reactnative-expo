@@ -48,8 +48,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     userInfoRef.current = userInfo
   }, [userInfo])
 
-  // The single in-flight data-exchange request, shared by overlapping callers.
-  const inFlightRequestRef = useRef<Promise<DataExchangeOutcome> | null>(null)
+  // The single in-flight data-exchange request, keyed by what it asked for so
+  // only an identical request is allowed to share its outcome.
+  const inFlightRequestRef = useRef<{
+    key: string
+    promise: Promise<DataExchangeOutcome>
+  } | null>(null)
 
   const setAuthState = useCallback(async (tokens: StoredTokens, user?: YVUserInfo) => {
     await saveTokens(tokens)
@@ -253,14 +257,29 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         })
       }
 
-      // One flow at a time, and an overlapping caller *shares* the in-flight one
-      // rather than being refused: a double-tap must not mint a second token or
-      // open a second auth session (on Android the second `openAuthSessionAsync`
-      // rejects outright), and both callers want the same answer anyway. Cleared
-      // as the promise settles, so the next gesture starts a fresh flow.
+      // One flow at a time: a second concurrent request must not mint another
+      // token or open another auth session (on Android the second
+      // `openAuthSessionAsync` rejects outright). What happens to it depends on
+      // whether it is asking for the same thing.
+      //
+      // Same permissions — a double-tap — shares the in-flight promise, because
+      // both callers genuinely want that one answer. A *different* set may not:
+      // the open consent page never mentions its permissions, so handing it that
+      // outcome would report `granted` for something the user was never shown,
+      // with nothing telling the caller to try again. It gets a transient
+      // failure instead, which is the truth — a retry once this flow finishes
+      // will work.
+      const key = permissionKey(permissions)
       const inFlight = inFlightRequestRef.current
       if (inFlight !== null) {
-        return inFlight
+        return inFlight.key === key
+          ? inFlight.promise
+          : Promise.resolve({
+              status: 'failure',
+              reason: 'transient',
+              message:
+                'Another permission request is already in progress; retry once it has finished.',
+            })
       }
 
       const run = async (): Promise<DataExchangeOutcome> => {
@@ -302,7 +321,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       const pending = run().finally(() => {
         inFlightRequestRef.current = null
       })
-      inFlightRequestRef.current = pending
+      inFlightRequestRef.current = { key, promise: pending }
       return pending
     },
     [accessToken, apiHost, appKey, userInfo?.id],
@@ -339,6 +358,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+/**
+ * Identity of a permission request, for deciding whether a concurrent caller is
+ * asking for the same thing. Order- and duplicate-insensitive: `['a','b']` and
+ * `['b','a','b']` request the same consent, so they may share one flow.
+ */
+function permissionKey(permissions: readonly AuthPermission[]): string {
+  return [...new Set(permissions)].sort().join(',')
 }
 
 // Validate untrusted cached JSON instead of blindly casting it to YVUserInfo.
