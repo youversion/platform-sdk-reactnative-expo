@@ -137,7 +137,7 @@ Non-English locale JSON (`es.json`, `fr.json`, etc.) is synced from platform-loc
 pnpm generate:locale-index
 ```
 
-CI runs `pnpm check:locale-index` to ensure `packages/ui/src/i18n/locales/index.ts` matches on-disk `*.json` files.
+CI regenerates the index (`pnpm generate:locale-index`) and fails if the committed `packages/ui/src/i18n/locales/index.ts` is stale.
 
 Device and explicit `locale` props are normalized from BCP-47 tags (e.g. `es-MX` → `es`) to supported 2-letter codes before `changeLanguage`.
 

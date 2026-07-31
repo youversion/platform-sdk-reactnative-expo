@@ -119,8 +119,10 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Check locale key parity
         run: node scripts/check-locale-parity.mjs
-      - name: Check locale index freshness
-        run: pnpm check:locale-index
+      - name: Regenerate locale index
+        run: pnpm generate:locale-index
+      - name: Verify locale index is committed
+        run: git diff --exit-code packages/ui/src/i18n/locales/index.ts
 
   locale-json-guard:
     name: Locale JSON guard

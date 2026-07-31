@@ -19,6 +19,27 @@ const LOCALES_DIR = join(REPO_ROOT, 'packages/ui/src/i18n/locales')
 const INDEX_FILE = join(LOCALES_DIR, 'index.ts')
 const FALLBACK_LNG = 'en'
 
+/**
+ * Maps a locale filename stem to a valid TypeScript import binding.
+ * Hyphenated BCP-47 codes (e.g. pt-BR) are not valid identifiers — use pt_BR instead.
+ * @param {string} code
+ */
+export function toImportIdentifier(code) {
+  let id = code.replace(/-/g, '_')
+  if (!/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(id)) {
+    id = `locale_${id.replace(/[^a-zA-Z0-9_$]/g, '_')}`
+  }
+  return id
+}
+
+/** @param {string} code */
+function formatLocaleKey(code) {
+  if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(code)) {
+    return code
+  }
+  return `'${code.replace(/'/g, "\\'")}'`
+}
+
 /** @param {string[]} localeCodes */
 function sortLocaleCodes(localeCodes) {
   const others = localeCodes.filter((code) => code !== FALLBACK_LNG).sort()
@@ -34,15 +55,21 @@ function listLocaleCodes() {
 }
 
 /** @param {string[]} localeCodes */
-function generateIndexContent(localeCodes) {
-  const importLines = localeCodes.map((code) => `import ${code} from './${code}.json'`).join('\n')
+export function generateIndexContent(localeCodes) {
+  const importLines = localeCodes
+    .map((code) => {
+      const binding = toImportIdentifier(code)
+      return `import ${binding} from './${code}.json'`
+    })
+    .join('\n')
 
   const resourceEntries = localeCodes
     .map((code) => {
+      const binding = toImportIdentifier(code)
       if (code === FALLBACK_LNG) {
-        return `  [SDK_I18N_FALLBACK_LNG]: ${code},`
+        return `  [SDK_I18N_FALLBACK_LNG]: ${binding},`
       }
-      return `  ${code}: ${code},`
+      return `  ${formatLocaleKey(code)}: ${binding},`
     })
     .join('\n')
 
@@ -106,4 +133,10 @@ function main() {
   console.log(`Generated ${INDEX_FILE} (${localeCodes.length} locale(s): ${localeCodes.join(', ')}).`)
 }
 
-main()
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  fileURLToPath(import.meta.url) === process.argv[1]
+
+if (isDirectRun) {
+  main()
+}
