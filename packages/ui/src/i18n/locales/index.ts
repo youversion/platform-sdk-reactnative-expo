@@ -1,11 +1,12 @@
+// AUTO-GENERATED — do not edit; run pnpm generate:locale-index
 import { SDK_I18N_FALLBACK_LNG, SDK_I18N_NAMESPACE } from '../constants'
 import type { SdkTranslationResources } from '../types'
+import en from './en.json'
 import af from './af.json'
 import ar from './ar.json'
 import cs from './cs.json'
 import cy from './cy.json'
 import de from './de.json'
-import en from './en.json'
 import es from './es.json'
 import fi from './fi.json'
 import hu from './hu.json'
@@ -25,28 +26,28 @@ import zh from './zh.json'
 
 /** Locales with bundled translation resources (synced from platform-localization). */
 const localeResources = {
-  af,
-  ar,
-  cs,
-  cy,
-  de,
   [SDK_I18N_FALLBACK_LNG]: en,
-  es,
-  fi,
-  hu,
-  ig,
-  it,
-  ko,
-  nl,
-  no,
-  pt,
-  ru,
-  sr,
-  sv,
-  tr,
-  uk,
-  vi,
-  zh,
+  af: af,
+  ar: ar,
+  cs: cs,
+  cy: cy,
+  de: de,
+  es: es,
+  fi: fi,
+  hu: hu,
+  ig: ig,
+  it: it,
+  ko: ko,
+  nl: nl,
+  no: no,
+  pt: pt,
+  ru: ru,
+  sr: sr,
+  sv: sv,
+  tr: tr,
+  uk: uk,
+  vi: vi,
+  zh: zh,
 } satisfies Record<string, SdkTranslationResources>
 
 export const supportedSdkLngs = Object.keys(localeResources)

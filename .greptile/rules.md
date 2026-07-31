@@ -60,7 +60,7 @@ Translation JSON under `packages/ui/src/i18n/locales/` (`en.json`, `es.json`, `f
 1. Add the key under `reactnative.*` in platform-localization `sources/common/en.json`.
 2. Merge the platform-localization PR; CI assembles `dist/reactnative/*.json`.
 3. The **Distribute React Native Localization** workflow syncs assembled files into this repo.
-4. Register new locale codes in `packages/ui/src/i18n/locales/index.ts` when distribution adds them (`index.ts` is hand-editable; locale JSON is not).
+4. After distribution adds locale JSON files, run `pnpm generate:locale-index` to refresh `packages/ui/src/i18n/locales/index.ts` (auto-generated; do not hand-edit).
 
 Flag any PR diff that hand-edits locale JSON string values. Exception: automated localization sync PRs from the distribution workflow.
 
