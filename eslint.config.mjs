@@ -9,6 +9,7 @@ export default [
       '**/build/**',
       '**/.expo/**',
       '**/.turbo/**',
+      '**/.claude/**',
       '**/coverage/**',
       '**/*.config.js',
     ],
@@ -29,6 +30,22 @@ export default [
     files: ['**/__tests__/**', '**/*.test.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
+  {
+    // Publish/tooling scripts run in Node as CommonJS. Declare the module
+    // globals so `no-undef` does not flag `__dirname`/`require`/`module`.
+    files: ['**/scripts/**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        require: 'readonly',
+        module: 'writable',
+        process: 'readonly',
+        console: 'readonly',
+      },
     },
   },
   createNativeI18nFlatBlock({

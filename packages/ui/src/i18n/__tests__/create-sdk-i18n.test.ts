@@ -20,10 +20,18 @@ describe('createSdkI18n', () => {
     )
   })
 
-  it('falls back to English when locale resources are not bundled', async () => {
+  it('uses bundled locale resources when available', async () => {
     const i18n = createSdkI18n()
 
     await i18n.changeLanguage('es')
+
+    expect(i18n.t('loading')).toBe('Cargando')
+  })
+
+  it('falls back to English when locale resources are not bundled', async () => {
+    const i18n = createSdkI18n()
+
+    await i18n.changeLanguage('xx')
 
     expect(i18n.t('loading')).toBe('Loading')
   })

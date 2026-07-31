@@ -18,13 +18,15 @@ The sections below are for internal development of this repo.
 
 ### Prerequisites
 
-- Node.js >= 20
-- pnpm 9
+- Node.js >= 24 (an `.nvmrc` is provided, so `nvm use` picks the right version)
+- pnpm >= 11
 - Expo SDK 56
 - A YouVersion Platform API key for running the example app
 - A dev build for native development; Expo Go is not supported
 
-This repo uses `node-linker=hoisted` in `.npmrc` for Expo DOM and pnpm compatibility.
+This repo uses `nodeLinker: hoisted` in `pnpm-workspace.yaml` for Expo DOM and pnpm compatibility.
+
+For supply-chain protection, `pnpm-workspace.yaml` sets `minimumReleaseAge: 4320` (a 3-day cooldown) — installs reject package versions published less than 3 days ago — and dependencies are pinned to exact versions. See the Supply-Chain Protection section in [AGENTS.md](./AGENTS.md).
 
 ### Install Dependencies
 

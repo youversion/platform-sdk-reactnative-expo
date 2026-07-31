@@ -21,12 +21,14 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
+import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
@@ -170,6 +172,7 @@ function SheetHost({
   headerTitle?: string
 }) {
   const { bottom } = useSafeAreaInsets()
+  const { width: windowWidth } = useWindowDimensions()
   const { t } = useSdkTranslation()
   const sheetRef = useRef<BottomSheet>(null)
   const wasActiveRef = useRef(false)
@@ -182,6 +185,17 @@ function SheetHost({
     () => StyleSheet.flatten([styles.content, contentStyle]),
     [contentStyle],
   )
+
+  // Cap and center the sheet surface on wide screens (iPad, landscape). The
+  // margin lives on Gorhom's `style` prop (the BottomSheetBody, which contains
+  // handle, header, content, and footer) so the whole surface is capped while
+  // the sibling backdrop keeps covering the full screen. It applies to inactive
+  // pre-warmed hosts too, so matchContents WebViews measure at the final width.
+  // See lib/native-sheet-max-width.ts for why a margin instead of maxWidth.
+  const sheetStyle = useMemo(() => {
+    const margin = sheetHorizontalMargin(windowWidth)
+    return margin > 0 ? [styles.sheet, { marginHorizontal: margin }] : styles.sheet
+  }, [windowWidth])
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
   const backgroundStyle = useMemo<StyleProp<ViewStyle>>(
@@ -306,7 +320,7 @@ function SheetHost({
         importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
         onChange={handleSheetChange}
         onAnimate={handleSheetAnimate}
-        style={styles.sheet}
+        style={sheetStyle}
         handleIndicatorStyle={handleIndicatorStyle}
       >
         <BottomSheetView

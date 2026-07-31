@@ -9,8 +9,8 @@ jest.mock('@youversion/platform-react-native-expo-core', () => ({
 }))
 
 jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'de-DE', languageCode: 'de' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'de-DE', languageCode: 'de' }]),
+  getLocales: jest.fn(() => [{ languageTag: 'fr-FR', languageCode: 'fr' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'fr-FR', languageCode: 'fr' }]),
 }))
 
 const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
@@ -27,7 +27,7 @@ function LocaleProbe() {
 
 describe('YouVersionProvider locale', () => {
   it('falls back to en when locale prop is omitted and device locale is unsupported', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'de-DE', languageCode: 'de' }])
+    useLocalesMock.mockReturnValue([{ languageTag: 'fr-FR', languageCode: 'fr' }])
 
     const { getByTestId } = render(
       <YouVersionProvider appKey="test-key">

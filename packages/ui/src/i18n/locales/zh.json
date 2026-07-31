@@ -1,0 +1,10 @@
+{
+  "signIn": "登入",
+  "signInWithYouVersion": "使用 <bold>{{brandName}}</bold> 登入",
+  "signOut": "登出",
+  "signOutOfYouVersion": "登出 <bold>{{brandName}}</bold>",
+  "loading": "載入中",
+  "cancel": "取消",
+  "booksHeading": "書卷",
+  "bibleVersionsHeading": "聖經譯本"
+}

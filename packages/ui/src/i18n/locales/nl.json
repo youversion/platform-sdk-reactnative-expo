@@ -1,0 +1,10 @@
+{
+  "signIn": "Inloggen",
+  "signInWithYouVersion": "Aanmelden met <bold>{{brandName}}</bold>",
+  "signOut": "Afmelden",
+  "signOutOfYouVersion": "Afmelden bij <bold>{{brandName}}</bold>",
+  "loading": "Laden",
+  "cancel": "Annuleren",
+  "booksHeading": "Boeken",
+  "bibleVersionsHeading": "Bijbelvertalingen"
+}

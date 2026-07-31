@@ -20,6 +20,13 @@
   "license": "Apache-2.0",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "build",
     "README.md",
@@ -27,7 +34,14 @@
   ],
   "publishConfig": {
     "main": "build/index.js",
-    "types": "build/index.d.ts"
+    "types": "build/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      },
+      "./package.json": "./package.json"
+    }
   },
   "scripts": {
     "build": "expo-module build",
@@ -36,7 +50,7 @@
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
-    "prepublishOnly": "expo-module prepublishOnly"
+    "prepublishOnly": "expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs"
   },
   "jest": {
     "preset": "jest-expo",
@@ -53,17 +67,24 @@
     "transformIgnorePatterns": [
       "/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|expo-.*|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|jest-expo|@rn-primitives))",
       "/node_modules/react-native-reanimated/plugin/"
+    ],
+    "coverageReporters": [
+      "json",
+      "lcov",
+      "text",
+      "clover",
+      "json-summary"
     ]
   },
   "dependencies": {
     "@radix-ui/react-use-controllable-state": "1.2.2",
     "@rn-primitives/portal": "1.4.0",
     "@youversion/platform-react-native-expo-core": "workspace:*",
-    "@youversion/platform-react-ui": "^2.2.0",
-    "expo-localization": "~56.0.6",
-    "i18next": "^26.3.1",
-    "react-i18next": "^17.0.8",
-    "zustand": "^5.0.13"
+    "@youversion/platform-react-ui": "2.2.0",
+    "expo-localization": "56.0.6",
+    "i18next": "26.3.1",
+    "react-i18next": "17.0.8",
+    "zustand": "5.0.13"
   },
   "peerDependencies": {
     "@expo/dom-webview": ">=56.0.0 <57.0.0",

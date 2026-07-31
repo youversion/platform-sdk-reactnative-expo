@@ -27,11 +27,19 @@ describe('resolveSdkLocale', () => {
   it('uses the first supported language in the preference list', () => {
     expect(resolveSdkLocale(['de-DE', 'fr-FR', 'en-US'], supportedLngs, fallbackLng)).toBe('fr')
   })
+
+  it('maps Norwegian Bokmål and Nynorsk tags to no', () => {
+    const withNorwegian = ['en', 'no'] as const
+    expect(resolveSdkLocale(['nb-NO'], withNorwegian, fallbackLng)).toBe('no')
+    expect(resolveSdkLocale(['nn-NO'], withNorwegian, fallbackLng)).toBe('no')
+    expect(resolveSdkLocale(['nb'], withNorwegian, fallbackLng)).toBe('no')
+    expect(resolveSdkLocale(['nn'], withNorwegian, fallbackLng)).toBe('no')
+  })
 })
 
 describe('detectDeviceLocale', () => {
-  it('falls back to en when languageTag locale is not bundled', () => {
-    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('en')
+  it('resolves bundled locales from languageTag', () => {
+    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es')
   })
 
   it('falls back to en when languageCode locale is not bundled', () => {
@@ -42,7 +50,12 @@ describe('detectDeviceLocale', () => {
     expect(detectDeviceLocale(undefined)).toBe('en')
   })
 
-  it('falls back to en for unsupported device locales', () => {
-    expect(detectDeviceLocale({ languageTag: 'de-DE', languageCode: 'de' } as any)).toBe('en')
+  it('resolves bundled locales from regional device tags', () => {
+    expect(detectDeviceLocale({ languageTag: 'de-DE', languageCode: 'de' } as any)).toBe('de')
+  })
+
+  it('resolves Norwegian device tags to no', () => {
+    expect(detectDeviceLocale({ languageTag: 'nb-NO', languageCode: 'nb' } as any)).toBe('no')
+    expect(detectDeviceLocale({ languageTag: 'nn-NO', languageCode: 'nn' } as any)).toBe('no')
   })
 })

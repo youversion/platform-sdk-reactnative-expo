@@ -1,0 +1,10 @@
+{
+  "signIn": "Đăng nhập",
+  "signInWithYouVersion": "Đăng nhập với <bold>{{brandName}}</bold>",
+  "signOut": "Đăng xuất",
+  "signOutOfYouVersion": "Đăng xuất khỏi <bold>{{brandName}}</bold>",
+  "loading": "Đang tải",
+  "cancel": "Hủy",
+  "booksHeading": "Sách",
+  "bibleVersionsHeading": "Các Bản Kinh Thánh"
+}

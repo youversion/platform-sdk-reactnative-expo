@@ -1,0 +1,10 @@
+{
+  "signIn": "Anmelden",
+  "signInWithYouVersion": "Anmelden mit <bold>{{brandName}}</bold>",
+  "signOut": "Abmelden",
+  "signOutOfYouVersion": "Abmelden von <bold>{{brandName}}</bold>",
+  "loading": "Wird geladen",
+  "cancel": "Abbrechen",
+  "booksHeading": "Bücher",
+  "bibleVersionsHeading": "Bibelversionen"
+}

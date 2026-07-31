@@ -1,7 +1,8 @@
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
-import { Platform, Text, View } from 'react-native'
+import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 
+import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
@@ -12,9 +13,15 @@ jest.mock('@youversion/platform-react-native-expo-core', () => ({
 
 let latestBottomSheetProps: Record<string, unknown> = {}
 let mockBottomInset = 0
+let mockWindowWidth = 390
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ bottom: mockBottomInset }),
+}))
+
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: () => ({ width: mockWindowWidth, height: 844, scale: 2, fontScale: 1 }),
 }))
 
 jest.mock('@rn-primitives/portal', () => ({
@@ -140,6 +147,7 @@ describe('NativeSheet', () => {
   afterEach(() => {
     latestBottomSheetProps = {}
     mockBottomInset = 0
+    mockWindowWidth = 390
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -757,6 +765,43 @@ describe('NativeSheet', () => {
     })
   })
 
+  describe('wide-screen width cap', () => {
+    beforeEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'ios',
+      })
+    })
+
+    const flattenedSheetStyle = () =>
+      StyleSheet.flatten(latestBottomSheetProps.style as StyleProp<ViewStyle>)
+
+    it('does not add horizontal margins on phone-width windows', () => {
+      mockWindowWidth = 390
+
+      render(<SheetHarness isOpen={true} />)
+
+      expect(flattenedSheetStyle().marginHorizontal).toBeUndefined()
+    })
+
+    it('caps and centers the sheet surface on wide windows (iPad)', () => {
+      mockWindowWidth = 1024
+
+      render(<SheetHarness isOpen={true} />)
+
+      expect(flattenedSheetStyle().marginHorizontal).toBe((1024 - SHEET_MAX_WIDTH) / 2)
+    })
+
+    it('caps inactive pre-warmed hosts too, so WebViews measure at the final width', () => {
+      mockWindowWidth = 1024
+
+      render(<SheetHarness isOpen={false} />)
+
+      expect(flattenedSheetStyle().marginHorizontal).toBe((1024 - SHEET_MAX_WIDTH) / 2)
+    })
+  })
+
   describe('dismiss keyboard start', () => {
     beforeEach(() => {
       Object.defineProperty(Platform, 'OS', {
@@ -772,7 +817,11 @@ describe('NativeSheet', () => {
       render(
         <SheetProvider>
           <View>
-            <NativeSheet isOpen={true} onClose={() => {}} onDismissKeyboardStart={onDismissKeyboardStart}>
+            <NativeSheet
+              isOpen={true}
+              onClose={() => {}}
+              onDismissKeyboardStart={onDismissKeyboardStart}
+            >
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>
@@ -801,7 +850,11 @@ describe('NativeSheet', () => {
       render(
         <SheetProvider>
           <View>
-            <NativeSheet isOpen={true} onClose={() => {}} onDismissKeyboardStart={onDismissKeyboardStart}>
+            <NativeSheet
+              isOpen={true}
+              onClose={() => {}}
+              onDismissKeyboardStart={onDismissKeyboardStart}
+            >
               <Text testID="sheet-content">Sheet content</Text>
             </NativeSheet>
           </View>

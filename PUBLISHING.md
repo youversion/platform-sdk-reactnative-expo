@@ -28,7 +28,16 @@ The tarball ships a compiled `build/` output (JS + `.d.ts`), not raw TypeScript 
 
 This swap is applied by **`pnpm publish`** (which `pnpm changeset publish` uses) — _not_ by `npm publish`. Under raw `npm publish`, `main` stays `src/index.ts` while `files: ["build"]` excludes `src/`, so the tarball would be broken (entry point missing or unable to resolve its imports). Always release through the `Release` workflow / `pnpm changeset publish`; never raw `npm publish`.
 
+The UI package's `prepublishOnly` also **stamps the build channel into the tarball**: `scripts/stamp-sdk-version.cjs` flips `IS_PUBLISH_BUILD` from `false` to `true` in the compiled `build/lib/sdk-version.js`, so published builds report `ReactNativeSDK=<version>` in the `x-yvp-sdk` header while source builds report `ReactNativeSDK=<version>-dev`. It runs after `expo-module build` and aborts the publish if the anchor is missing or duplicated. See [ADR 0012](docs/adr/0012-sdk-version-stamp-on-publish.md).
+
 **Before the first publish**, confirm DOM components survive the compiled build end to end: build and `pnpm pack` the UI package, install the tarball into a throwaway Expo dev build, and verify a DOM component (e.g. `BibleReader`) renders on device. ADR 0011 verified the mechanism but not a full install-and-run.
+
+That tarball reports `ReactNativeSDK=<version>-dev` — expected, not a bug: `prepublishOnly` runs on `pnpm publish`, never on `pnpm pack`. To check the header instead of (or alongside) DOM rendering, pack a publish-identical tarball by running the publish steps by hand:
+
+```bash
+cd packages/ui
+pnpm build && node scripts/stamp-sdk-version.cjs && pnpm pack
+```
 
 ## Authentication
 

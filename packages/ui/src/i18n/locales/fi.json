@@ -1,0 +1,10 @@
+{
+  "signIn": "Kirjaudu sisään",
+  "signInWithYouVersion": "Kirjaudu sisään <bold>{{brandName}}</bold>",
+  "signOut": "Kirjaudu ulos",
+  "signOutOfYouVersion": "Kirjaudu ulos <bold>{{brandName}}</bold>",
+  "loading": "Ladataan",
+  "cancel": "Peruuta",
+  "booksHeading": "Kirjat",
+  "bibleVersionsHeading": "Raamatun käännökset"
+}

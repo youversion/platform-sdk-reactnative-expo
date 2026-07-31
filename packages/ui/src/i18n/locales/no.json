@@ -1,0 +1,10 @@
+{
+  "signIn": "Logg inn",
+  "signInWithYouVersion": "Logg inn med <bold>{{brandName}}</bold>",
+  "signOut": "Logg ut",
+  "signOutOfYouVersion": "Logg ut av <bold>{{brandName}}</bold>",
+  "loading": "Laster",
+  "cancel": "Avbryt",
+  "booksHeading": "Bøker",
+  "bibleVersionsHeading": "Bibelutgaver"
+}

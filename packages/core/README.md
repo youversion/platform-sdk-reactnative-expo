@@ -1,6 +1,19 @@
+![License](https://img.shields.io/badge/license-Apache%202.0-blue)
+
 # @youversion/platform-react-native-expo-core
 
-Core for the YouVersion Platform React Native (Expo) SDK: installation id, optional PKCE OAuth (`useYVAuth`), and storage (`expo-secure-store` + MMKV). Bible UI components live in [`@youversion/platform-react-native-expo-ui`](https://github.com/youversion/platform-sdk-reactnative-expo).
+Auth and storage primitives for the YouVersion Platform React Native (Expo) SDK: installation id, optional PKCE OAuth, and token storage.
+
+## When to use this package
+
+Use `@youversion/platform-react-native-expo-core` when you need:
+
+- ✅ Sign-in via optional PKCE OAuth (`useYVAuth`, `auth` config on the provider)
+- ✅ Token storage handled for you (`expo-secure-store` + MMKV)
+
+❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
+
+Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package; import `useYVAuth` from core.
 
 ## Install
 
@@ -8,12 +21,38 @@ Core for the YouVersion Platform React Native (Expo) SDK: installation id, optio
 npx expo install @youversion/platform-react-native-expo-core
 ```
 
-Most apps install this automatically as a dependency of `@youversion/platform-react-native-expo-ui`. Requires Expo SDK 56+, React 19, and a dev build (not Expo Go). Peer dependencies are listed in `package.json`.
+Requires Expo SDK 56+, React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). Peer dependencies are listed in [`package.json`](./package.json).
 
-## Documentation
+Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
 
-Full setup, usage, and examples: **[github.com/youversion/platform-sdk-reactnative-expo](https://github.com/youversion/platform-sdk-reactnative-expo#readme)**
+## Documentation and API Reference
+
+- [React Native (Expo) SDK Quick Start](https://developers.youversion.com/sdks/react-native)
+
+## Usage
+
+Configure `auth` on the provider, then read auth state with `useYVAuth`:
+
+```tsx
+import { Text } from 'react-native'
+import { YouVersionProvider, useYVAuth } from '@youversion/platform-react-native-expo-core'
+
+function Profile() {
+  const { isAuthenticated, userInfo, signIn, signOut } = useYVAuth()
+  return <Text>{isAuthenticated ? userInfo?.name : 'Signed out'}</Text>
+}
+
+export default function App() {
+  return (
+    <YouVersionProvider appKey="YOUR_APP_KEY" auth={{ redirectUri: 'yourapp://callback' }}>
+      <Profile />
+    </YouVersionProvider>
+  )
+}
+```
 
 ## License
 
-[Apache-2.0](./LICENSE)
+This SDK is licensed under [Apache 2.0](./LICENSE).
+
+Licensing information for the Bible versions is available at the [YouVersion Platform](https://platform.youversion.com/) site.

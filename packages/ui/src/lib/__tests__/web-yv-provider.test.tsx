@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react'
 
+import pkg from '../../../package.json'
 import { YouVersionProvider } from '../web-yv-provider'
 
 // `jest.mock` is hoisted above imports by babel-plugin-jest-hoist regardless of
@@ -8,6 +9,11 @@ import { YouVersionProvider } from '../web-yv-provider'
 jest.mock('@youversion/platform-react-ui', () => ({
   YouVersionProvider: 'MockBaseProvider',
 }))
+
+// Tests run from source, so the build-channel flag is unstamped and the value
+// carries the `-dev` suffix. Derived, not hardcoded: a version bump must not
+// break these.
+const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
 type RenderedProps = { additionalHeaders?: Record<string, string> }
 
@@ -23,13 +29,13 @@ function renderShim(props: Record<string, unknown>): RenderedProps {
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {
     expect(renderShim({}).additionalHeaders).toEqual({
-      'x-yvp-sdk': 'ReactNativeSDK=Dev',
+      'x-yvp-sdk': SDK_HEADER_VALUE,
     })
   })
 
   it('preserves consumer additionalHeaders on non-colliding keys', () => {
     expect(renderShim({ additionalHeaders: { 'x-custom': 'ok' } }).additionalHeaders).toEqual({
-      'x-yvp-sdk': 'ReactNativeSDK=Dev',
+      'x-yvp-sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })
@@ -40,7 +46,7 @@ describe('web YouVersionProvider', () => {
         additionalHeaders: { 'x-yvp-sdk': 'hacked', 'x-custom': 'ok' },
       }).additionalHeaders,
     ).toEqual({
-      'x-yvp-sdk': 'ReactNativeSDK=Dev',
+      'x-yvp-sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })

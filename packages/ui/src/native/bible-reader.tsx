@@ -14,6 +14,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reade
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks/use-theme'
+import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
@@ -32,7 +33,6 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
-const DEFAULT_VERSION_ID = 3034
 
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
@@ -76,7 +76,7 @@ export function BibleReader({
   defaultChapter = DEFAULT_CHAPTER,
   onChapterChange,
   versionId: controlledVersionId,
-  defaultVersionId = DEFAULT_VERSION_ID,
+  defaultVersionId = DEFAULT_BIBLE_VERSION_ID,
   onVersionChange,
   showToolbar = true,
   onChapterPickerPress: consumerOnChapterPickerPress,

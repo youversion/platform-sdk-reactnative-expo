@@ -4,8 +4,34 @@ import { SDK_I18N_FALLBACK_LNG } from './constants'
 import { supportedSdkLngs } from './locales'
 
 /**
+ * BCP-47 tags that should resolve to a different bundled locale code.
+ * Norwegian devices report `nb` / `nn`; platform-localization ships `no`.
+ */
+const SDK_LOCALE_ALIASES: Readonly<Record<string, string>> = {
+  nb: 'no',
+  nn: 'no',
+}
+
+function lookupSupportedLocale(
+  tag: string,
+  supportedLower: ReadonlyMap<string, string>,
+): string | undefined {
+  const direct = supportedLower.get(tag)
+  if (direct) {
+    return direct
+  }
+
+  const aliased = SDK_LOCALE_ALIASES[tag]
+  if (!aliased) {
+    return undefined
+  }
+
+  return supportedLower.get(aliased)
+}
+
+/**
  * Maps BCP-47 language tags to a supported SDK locale code.
- * Mirrors the web React SDK's resolveBrowserLanguage behavior.
+ * Mirrors the web React SDK's resolveBrowserLanguage behavior, plus locale aliases.
  */
 export function resolveSdkLocale(
   languageTags: readonly string[],
@@ -20,7 +46,7 @@ export function resolveSdkLocale(
 
   for (const tag of languageTags) {
     const lower = tag.toLowerCase()
-    const exactMatch = supportedLower.get(lower)
+    const exactMatch = lookupSupportedLocale(lower, supportedLower)
     if (exactMatch) {
       return exactMatch
     }
@@ -30,7 +56,7 @@ export function resolveSdkLocale(
       continue
     }
 
-    const baseMatch = supportedLower.get(base)
+    const baseMatch = lookupSupportedLocale(base, supportedLower)
     if (baseMatch) {
       return baseMatch
     }

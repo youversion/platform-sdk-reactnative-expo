@@ -1,3 +1,16 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# unrs-resolver (native resolver behind eslint-config-expo's import plugin) ships
+# prebuilt binaries as platform-specific optional deps; its postinstall is only a
+# build-from-source fallback, so it stays denied.
+allowBuilds:
+  unrs-resolver: false
+
+minimumReleaseAge: 4320 # 3-day cooldown — supply-chain attack mitigation
+
+# Migrated from .npmrc — pnpm 11 only reads auth/registry settings from .npmrc,
+# all other settings must live here (https://pnpm.io/blog/releases/11.0).
+# Required for Expo DOM Components + pnpm compatibility.
+nodeLinker: hoisted

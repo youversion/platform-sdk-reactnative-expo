@@ -1,0 +1,10 @@
+{
+  "signIn": "Iniciar sesión",
+  "signInWithYouVersion": "Iniciar sesión con <bold>{{brandName}}</bold>",
+  "signOut": "Cerrar sesión",
+  "signOutOfYouVersion": "Cerrar sesión de <bold>{{brandName}}</bold>",
+  "loading": "Cargando",
+  "cancel": "Cancelar",
+  "booksHeading": "Libros",
+  "bibleVersionsHeading": "Versiones de la Biblia"
+}

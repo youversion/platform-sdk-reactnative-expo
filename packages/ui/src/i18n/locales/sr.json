@@ -1,0 +1,10 @@
+{
+  "signIn": "Prijavite se",
+  "signInWithYouVersion": "Prijavite se kao <bold>{{brandName}}</bold>",
+  "signOut": "Odjavite se",
+  "signOutOfYouVersion": "Odjavite se kao <bold>{{brandName}}</bold>",
+  "loading": "Učitavanje",
+  "cancel": "Otkažite",
+  "booksHeading": "Knjige",
+  "bibleVersionsHeading": "Prevodi Biblije"
+}

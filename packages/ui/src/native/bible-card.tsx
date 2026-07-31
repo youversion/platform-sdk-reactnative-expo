@@ -7,13 +7,12 @@ import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
+import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
-
-const DEFAULT_VERSION_ID = 3034
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -42,11 +41,12 @@ export type BibleCardProps = Omit<
 export function BibleCard({
   theme: themeOverride,
   versionId: controlledVersionId,
-  defaultVersionId = DEFAULT_VERSION_ID,
+  defaultVersionId = DEFAULT_BIBLE_VERSION_ID,
   onVersionChange,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
-  showVersionPicker = true,
+  // Matches the React Web SDK default (BibleCard hides the version picker unless opted in).
+  showVersionPicker = false,
   dom,
   ...props
 }: BibleCardProps) {
