@@ -2,6 +2,14 @@ import { DEFAULT_SCOPES } from './constants'
 
 export type AuthScope = (typeof DEFAULT_SCOPES)[number]
 
+/** The permissions this SDK version knows about. See {@link AuthPermission}. */
+export type KnownAuthPermission =
+  | 'bibles'
+  | 'highlights'
+  | 'votd'
+  | 'demographics'
+  | 'bible_activity'
+
 /**
  * A YouVersion Platform permission.
  *
@@ -9,8 +17,13 @@ export type AuthScope = (typeof DEFAULT_SCOPES)[number]
  * `requested_permissions[]` query param, separate from `scope` — the auth server
  * silently drops unknown values from `scope`, so passing a permission there grants
  * nothing.
+ *
+ * Deliberately an open union: the server can mint permissions this SDK version
+ * does not know about, and `granted_permissions` echoes them back verbatim.
+ * `(string & {})` keeps {@link KnownAuthPermission} in autocomplete while
+ * accepting any string.
  */
-export type AuthPermission = 'bibles' | 'highlights' | 'votd' | 'demographics' | 'bible_activity'
+export type AuthPermission = KnownAuthPermission | (string & {})
 
 export type AuthConfig = {
   redirectUri: string
@@ -18,7 +31,8 @@ export type AuthConfig = {
   /**
    * {@link AuthPermission}s to request at sign-in. Requesting one is not the same
    * as being granted it — the user can deny on the consent screen and sign-in
-   * still succeeds; reading back what was granted is not yet supported.
+   * still succeeds. Read the actual grant back via `grantedPermissions` /
+   * `hasPermission` on `useYVAuth()`.
    */
   permissions?: readonly AuthPermission[]
 }
