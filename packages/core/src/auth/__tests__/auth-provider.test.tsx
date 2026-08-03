@@ -506,6 +506,27 @@ describe('AuthProvider — granted permissions', () => {
     expect(mockMmkv.has(grantedKey)).toBe(false)
   })
 
+  it('still commits the grant when the userInfo cache write throws', async () => {
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+    expect(getText('hasHighlights')).toBe('true')
+
+    // setAuthState publishes the token and user before caching userInfo, so a
+    // throw there would reject signIn *after* the session went live — skipping
+    // the grant commit and leaving Ada's permissions describing Grace.
+    mockMmkvFailingKeys.add(MMKV_AUTH_KEYS.cachedUserInfo)
+    arrangeSignIn(['bibles'], { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined })
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(JSON.parse(getText('userInfo')).id).toBe('u2')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['bibles'])
+    expect(getText('hasHighlights')).toBe('false')
+  })
+
   it('does not persist a grant when the session fails to commit', async () => {
     arrangeSignIn(['highlights'])
     renderProvider()

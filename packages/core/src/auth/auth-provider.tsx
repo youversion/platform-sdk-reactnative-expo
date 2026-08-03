@@ -44,7 +44,17 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
     if (user) {
       setUserInfo(user)
-      mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
+      // Never throws, for the same reason the grant cache doesn't: the session
+      // is already published two lines up, so letting a native storage failure
+      // reject here would abort the caller mid-commit — signIn would skip the
+      // grant it was about to record and leave the previous user's permissions
+      // describing this one. The cache only seeds the first render; losing it
+      // costs a cold start, not correctness.
+      try {
+        mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(user))
+      } catch {
+        // Cache write failed; the in-memory user remains authoritative.
+      }
     }
   }, [])
 
@@ -187,8 +197,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       // The grant belongs to the session, so it lands only once the session has
       // committed: setAuthState awaits the keychain write, and if that rejects
       // no grant is left describing a sign-in that never took hold. The reverse
-      // cannot happen either — the cache writes below never throw, so they can
-      // neither reject a sign-in that did commit nor skip the state update.
+      // cannot happen either — neither the cache writes below nor the userInfo
+      // write inside setAuthState throw, so nothing between the session going
+      // live and the grant landing can reject and strand us in between.
       const nextUserId = result.userInfo.id ?? null
       // An absent id is not an identity. `YVUserInfo.id` is optional and
       // deriveUserInfo leaves it undefined when the id_token carries no string
