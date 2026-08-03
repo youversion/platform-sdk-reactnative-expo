@@ -9,7 +9,7 @@
     },
     {
       "id": "i18n-no-direct-locale-json-edits",
-      "rule": "Translation JSON under packages/ui/src/i18n/locales/ (en.json, es.json, fr.json, and any future locale) is generated and synced from the platform-localization repo. Do not hand-edit these files or add/change/remove string values directly in a PR. New keys must be added under reactnative.* in platform-localization (sources/common/en.json) and arrive via the 'Distribute React Native Localization' workflow. Flag any diff that adds or edits string values in these files. Exceptions: the automated localization sync PR, and locales/index.ts (locale registration, which is hand-editable).",
+      "rule": "Translation JSON under packages/ui/src/i18n/locales/ (en.json, es.json, fr.json, and any future locale) is generated and synced from the platform-localization repo. Do not hand-edit these files or add/change/remove string values directly in a PR. New keys must be added under reactnative.* in platform-localization (sources/common/en.json) and arrive via the 'Distribute React Native Localization' workflow. Flag any diff that adds or edits string values in these files. Exception: the automated localization sync PR. locales/index.ts is auto-generated via pnpm generate:locale-index — flag hand-edits that do not match the codegen output.",
       "scope": ["packages/ui/src/i18n/locales/**/*.json"],
       "severity": "high",
       "enabled": true
