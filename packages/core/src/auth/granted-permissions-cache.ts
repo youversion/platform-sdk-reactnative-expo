@@ -82,7 +82,22 @@ export function saveGrantedPermissions(
   }
 }
 
-/** Removes the cached grant. Never throws — see {@link saveGrantedPermissions}. */
+/**
+ * Removes the cached grant. Never throws — see {@link saveGrantedPermissions}.
+ *
+ * Removal is deliberately best-effort. If MMKV fails here the entry survives
+ * and the grant returns on the next cold start, undoing an invalidation that
+ * reported success. That is an accepted residual, not an oversight: the cached
+ * grant is a hint and the server is the enforcement point, so its worst outcome
+ * is a skipped prompt and a request the server denies. Making it throw would
+ * break sign-out over a cache that only seeds one render, and making it durable
+ * means moving the grant into the token record and giving up the synchronous
+ * seed this module exists to provide.
+ *
+ * Read `docs/adr/0014-cached-grant-is-a-hint.md` before "fixing" this — two
+ * mitigations were built here and both were reverted as more machinery than the
+ * bounded risk justified.
+ */
 export function clearGrantedPermissions(): void {
   try {
     mmkvStorage.remove(MMKV_AUTH_KEYS.grantedPermissions)

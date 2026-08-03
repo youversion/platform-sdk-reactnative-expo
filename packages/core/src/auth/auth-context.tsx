@@ -27,6 +27,11 @@ export type AuthContextValue = {
   /**
    * Whether `permission` is in {@link grantedPermissions}. False when unknown.
    *
+   * **Advisory, not an authorization decision.** Use it to choose UI or skip a
+   * redundant prompt; the server remains the enforcement point, and a
+   * privileged action must still be gated on a pre-flight rather than on a
+   * cached `true`. See `docs/adr/0014-cached-grant-is-a-hint.md`.
+   *
    * Narrows to the known {@link AuthPermission} union by design, even though
    * {@link grantedPermissions} deliberately keeps unrecognized values verbatim —
    * that way a later union widening finds the cached grant already correct. To
