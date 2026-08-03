@@ -269,6 +269,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  // The leeway-gated refresh, made public under a name that says what a caller
+  // wants from it. No new behavior: a pre-flight before a permission-sensitive
+  // write needs "make sure the token is usable" without paying for a token
+  // round-trip on every tap, which is exactly the non-forced path.
+  const ensureFreshToken = useCallback(() => refreshToken(), [refreshToken])
+
   const hasPermission = useCallback(
     (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
     [grantedPermissions],
@@ -405,6 +411,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
+      ensureFreshToken,
       isLoading,
       grantedPermissions,
       hasPermission,
@@ -418,6 +425,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
+      ensureFreshToken,
       isLoading,
       grantedPermissions,
       hasPermission,

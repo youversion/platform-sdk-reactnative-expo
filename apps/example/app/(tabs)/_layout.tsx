@@ -32,6 +32,12 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Card</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
       </NativeTabs.Trigger>
+      {/* TEMPORARY: dev harness for the highlight permission flow (YPE-3709).
+          Removed together with `highlight-flow.tsx` by U2 / YPE-3711. */}
+      <NativeTabs.Trigger name="highlight-flow">
+        <NativeTabs.Trigger.Label>Flow</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="highlighter" md="brush" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person.fill" md="person" />
