@@ -9,7 +9,7 @@ import {
   clearGrantedPermissions,
   loadCachedGrantedPermissions,
   saveGrantedPermissions,
-} from './granted-permissions'
+} from './granted-permissions-cache'
 import { refreshTokens, TokenEndpointError } from './http'
 import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'

@@ -16,13 +16,6 @@ jest.mock('../../installation-id', () => ({
   getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
 }))
 
-// pkce-flow reads the permission grant via granted-permissions, whose cache half
-// touches MMKV at import time. The flow never reads or writes it — stub the
-// native module out rather than booting it.
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: { set: jest.fn(), getString: jest.fn(), remove: jest.fn(), getAllKeys: jest.fn() },
-}))
-
 jest.mock('../http', () => ({
   exchangeCodeForTokens: jest.fn(),
 }))
