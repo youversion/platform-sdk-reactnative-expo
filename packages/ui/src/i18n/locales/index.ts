@@ -9,6 +9,7 @@ import cy from './cy.json'
 import de from './de.json'
 import es from './es.json'
 import fi from './fi.json'
+import fr from './fr.json'
 import hu from './hu.json'
 import ig from './ig.json'
 import it from './it.json'
@@ -24,7 +25,14 @@ import uk from './uk.json'
 import vi from './vi.json'
 import zh from './zh.json'
 
-/** Locales with bundled translation resources (synced from platform-localization). */
+/**
+ * Locales with bundled translation resources (synced from platform-localization).
+ *
+ * Catalogs are `Partial` because English keys ship as soon as they are added
+ * upstream, while Crowdin translations land later; i18next falls back to
+ * `SDK_I18N_FALLBACK_LNG` per key. `en` is always complete — it defines
+ * `SdkTranslationResources`.
+ */
 const localeResources = {
   [SDK_I18N_FALLBACK_LNG]: en,
   af: af,
@@ -34,6 +42,7 @@ const localeResources = {
   de: de,
   es: es,
   fi: fi,
+  fr: fr,
   hu: hu,
   ig: ig,
   it: it,
@@ -48,7 +57,7 @@ const localeResources = {
   uk: uk,
   vi: vi,
   zh: zh,
-} satisfies Record<string, SdkTranslationResources>
+} satisfies Record<string, Partial<SdkTranslationResources>>
 
 export const supportedSdkLngs = Object.keys(localeResources)
 

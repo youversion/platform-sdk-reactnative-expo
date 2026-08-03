@@ -78,10 +78,17 @@ import { SDK_I18N_FALLBACK_LNG, SDK_I18N_NAMESPACE } from '../constants'
 import type { SdkTranslationResources } from '../types'
 ${importLines}
 
-/** Locales with bundled translation resources (synced from platform-localization). */
+/**
+ * Locales with bundled translation resources (synced from platform-localization).
+ *
+ * Catalogs are \`Partial\` because English keys ship as soon as they are added
+ * upstream, while Crowdin translations land later; i18next falls back to
+ * \`SDK_I18N_FALLBACK_LNG\` per key. \`en\` is always complete — it defines
+ * \`SdkTranslationResources\`.
+ */
 const localeResources = {
 ${resourceEntries}
-} satisfies Record<string, SdkTranslationResources>
+} satisfies Record<string, Partial<SdkTranslationResources>>
 
 export const supportedSdkLngs = Object.keys(localeResources)
 
@@ -130,12 +137,13 @@ function main() {
   }
 
   writeFileSync(INDEX_FILE, generated, 'utf8')
-  console.log(`Generated ${INDEX_FILE} (${localeCodes.length} locale(s): ${localeCodes.join(', ')}).`)
+  console.log(
+    `Generated ${INDEX_FILE} (${localeCodes.length} locale(s): ${localeCodes.join(', ')}).`,
+  )
 }
 
 const isDirectRun =
-  process.argv[1] !== undefined &&
-  fileURLToPath(import.meta.url) === process.argv[1]
+  process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]
 
 if (isDirectRun) {
   main()
