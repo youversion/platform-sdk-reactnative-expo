@@ -527,6 +527,47 @@ describe('AuthProvider — granted permissions', () => {
     expect(getText('hasHighlights')).toBe('false')
   })
 
+  it('discards a superseded sign-in instead of splicing it into the newer one', async () => {
+    const grace = { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined }
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+    expect(getText('hasHighlights')).toBe('true')
+
+    // Ada's re-auth (B) reaches token exchange and stalls there. Grace's
+    // sign-in (A) starts after the browser frees up and completes first.
+    let releaseAda: (value: unknown) => void = () => {}
+    const adaStalled = new Promise((resolve) => {
+      releaseAda = resolve
+    })
+    mockSignInWithPKCE.mockImplementationOnce(async () => {
+      await adaStalled
+      return {
+        kind: 'success',
+        tokens: validTokens,
+        userInfo: adaUserInfo,
+        grantedPermissions: null,
+      }
+    })
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+
+    arrangeSignIn(['bibles'], grace)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(JSON.parse(getText('userInfo')).id).toBe('u2'))
+
+    // Ada's straggler lands last. Before the epoch guard it wrote Ada's identity
+    // while Grace's grant stayed in state, so Ada held ['bibles'].
+    await act(async () => {
+      releaseAda(undefined)
+      await adaStalled
+    })
+
+    expect(JSON.parse(getText('userInfo')).id).toBe('u2')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['bibles'])
+    expect(getText('hasHighlights')).toBe('false')
+  })
+
   it('does not persist a grant when the session fails to commit', async () => {
     arrangeSignIn(['highlights'])
     renderProvider()

@@ -35,6 +35,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
   const isRefreshingRef = useRef<boolean>(false)
+  /** Bumped per signIn call so a superseded attempt can discard its result. */
+  const signInEpochRef = useRef<number>(0)
 
   const setAuthState = useCallback(async (tokens: StoredTokens, user?: YVUserInfo) => {
     await saveTokens(tokens)
@@ -180,6 +182,14 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const signIn = useCallback(async () => {
     setError(null)
+    // Last-to-start wins, not last-to-finish. expo-web-browser serializes the
+    // consent screen itself, but once it closes the token exchange is still in
+    // flight and a second sign-in can begin — and finish first. Without this,
+    // the straggler writes its identity over the newer session while the newer
+    // session's grant stays in state, so hasPermission answers for a user who
+    // never granted it. A superseded attempt applies nothing at all, which also
+    // means its stale previousUserId snapshot can do no damage.
+    const epoch = ++signInEpochRef.current
     const previousUserId = userInfo?.id ?? null
     try {
       const result = await signInWithPKCE({
@@ -191,6 +201,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       })
 
       if (result.kind === 'cancel') {
+        return
+      }
+
+      if (signInEpochRef.current !== epoch) {
+        // Superseded. Resolve quietly — the newer attempt owns the outcome and
+        // the user is not experiencing a failure.
         return
       }
 
