@@ -48,18 +48,25 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     }
   }, [])
 
+  // Dropping a grant is always both halves: the cached entry and the in-memory
+  // state hasPermission actually reads. Kept in one place so the three call
+  // sites below cannot drift into clearing only one of them.
+  const dropGrantedPermissions = useCallback(() => {
+    clearGrantedPermissions()
+    setGrantedPermissions(null)
+  }, [])
+
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
-    clearGrantedPermissions()
+    dropGrantedPermissions()
     clearHighlightsCache()
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
     setUserInfo(null)
-    setGrantedPermissions(null)
     setError(null)
     await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
-  }, [])
+  }, [dropGrantedPermissions])
 
   const refreshToken = useCallback(
     async (options?: { force?: boolean }) => {
@@ -204,8 +211,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         // the same user that is "unknown" and must not wipe a real grant from an
         // earlier sign-in (this path skips clearAuthState); for a different user
         // it would hand the previous account's permissions to this one.
-        clearGrantedPermissions()
-        setGrantedPermissions(null)
+        dropGrantedPermissions()
       }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
@@ -219,6 +225,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     config.scopes,
     config.permissions,
     setAuthState,
+    dropGrantedPermissions,
     userInfo?.id,
   ])
 
@@ -233,10 +240,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     [grantedPermissions],
   )
 
-  const invalidatePermissions = useCallback(() => {
-    clearGrantedPermissions()
-    setGrantedPermissions(null)
-  }, [])
+  const invalidatePermissions = dropGrantedPermissions
 
   const value: AuthContextValue = useMemo(
     () => ({
