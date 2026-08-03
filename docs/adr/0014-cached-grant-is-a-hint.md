@@ -35,7 +35,7 @@ Concretely:
 
 - `hasPermission` and `grantedPermissions` are advisory. They may be used to decide what UI to show and whether to skip a redundant prompt. They are not an authorization decision.
 - The server is the enforcement point. A permission the client believes it holds is still rejected with 401/403 if the grant is not real, and that rejection is what drives `invalidatePermissions`.
-- The pre-flight introduced in YPE-3709's third subtask is the gate for privileged actions. It must not treat a cached `true` as sufficient, and it must gate on `isAuthenticated` / `isLoading` as well, since the seed precedes session validation.
+- The pre-flight introduced in YPE-3709's third subtask is the gate for privileged actions. It may act on a cached `true` — skipping the prompt and attempting the write directly is the point of the cache — but the write's 401/403 stays authoritative: a rejection drives `invalidatePermissions`, so the stale hint is corrected rather than trusted twice. It must also gate on `isAuthenticated` / `isLoading`, since the seed precedes session validation.
 
 Clearing stays best-effort, with no mitigation layered on top:
 
@@ -50,7 +50,7 @@ This is deliberately the simplest thing that can work, because the alternative w
 
 ## Consequences
 
-The blast radius of a stale grant is a redundant request and a re-prompt, never access the user does not have. That is only true while the pre-flight actually re-checks; if a future change makes `hasPermission` sufficient on its own, this ADR is void and the authoritative-cache option has to be revisited.
+The blast radius of a stale grant is a redundant request and a re-prompt, never access the user does not have. That is only true while the write path treats the server's 401/403 as authoritative and corrects the cache through `invalidatePermissions`; if a future change acts on `hasPermission` without that corrective edge, this ADR is void and the authoritative-cache option has to be revisited.
 
 Reviewers — human or automated — will keep rediscovering the residual, because reading `clearGrantedPermissions` in isolation it looks like a bug. It is a decision, recorded here so it can be disagreed with on the merits rather than re-patched.
 

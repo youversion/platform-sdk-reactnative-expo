@@ -746,6 +746,55 @@ describe('AuthProvider — signOut', () => {
     expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
 
+  it('discards a sign-in still in flight when the user signs out', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    // The sign-in stalls at the token exchange — browser already closed, network
+    // slow — and the user gives up and taps sign out before it resolves. No
+    // fault injection: this is ordinary timing on a slow connection.
+    let releaseSignIn: (value: unknown) => void = () => {}
+    const signInStalled = new Promise((resolve) => {
+      releaseSignIn = resolve
+    })
+    mockSignInWithPKCE.mockImplementationOnce(async () => {
+      await signInStalled
+      return {
+        kind: 'success',
+        tokens: validTokens,
+        userInfo: adaUserInfo,
+        grantedPermissions: ['highlights'],
+      }
+    })
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(1))
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('signOut'))
+    })
+    expect(getText('isAuthenticated')).toBe('false')
+
+    // The straggler lands after sign-out completed. Before signOut advanced the
+    // epoch it passed both checks and silently re-authenticated Ada — republishing
+    // her tokens, identity, and grant over a session the user had ended.
+    await act(async () => {
+      releaseSignIn(undefined)
+      await signInStalled
+    })
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
   it('still signs out when removing the cached userInfo throws', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     mockLoadTokens.mockResolvedValue({

@@ -282,6 +282,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   ])
 
   const signOut = useCallback(async () => {
+    // A sign-out is a session decision too, and it outranks any sign-in still
+    // in flight: without this bump a straggler awaiting the browser or token
+    // exchange passes both epoch checks and republishes its tokens and identity
+    // after the user signed out. The bump lives here rather than in
+    // clearAuthState so that only an explicit sign-out supersedes a pending
+    // attempt — a revocation-driven clear (or bootstrap's empty-storage clear)
+    // ends the *old* session and must not silently discard the new sign-in the
+    // user is mid-way through.
+    signInEpochRef.current += 1
     await clearAuthState()
   }, [clearAuthState])
 
