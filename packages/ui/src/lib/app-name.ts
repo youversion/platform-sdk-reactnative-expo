@@ -2,7 +2,7 @@ import * as Application from 'expo-application'
 
 /**
  * The integrating app's display name, interpolated into the sign-in sheet's
- * `signIn.paragraph` ("{appName} wants to connect to your YouVersion Bible App
+ * `signInParagraph` ("{appName} wants to connect to your YouVersion Bible App
  * account…").
  *
  * Derived rather than configured (design Resolved Question 17): `expo-application`

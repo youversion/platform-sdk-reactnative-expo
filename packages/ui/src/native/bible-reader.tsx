@@ -320,11 +320,11 @@ export function BibleReader({
       t: translate,
     } = promptActionsRef.current
     Alert.alert(
-      translate('dataExchange.highlights.question'),
-      translate('dataExchange.highlights.explanation'),
+      translate('dataExchangeHighlightsQuestion'),
+      translate('dataExchangeHighlightsExplanation'),
       [
-        { text: translate('generic.cancel'), style: 'cancel', onPress: dismiss },
-        { text: translate('dataExchange.continue'), onPress: confirm },
+        { text: translate('cancel'), style: 'cancel', onPress: dismiss },
+        { text: translate('dataExchangeContinue'), onPress: confirm },
       ],
       // Android's hardware back / outside tap dismisses without a button press.
       { onDismiss: dismiss },

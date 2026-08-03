@@ -48,12 +48,12 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
     // An alert, not a sheet — Swift makes the sign-in prompt the only full sheet
     // in this flow, and both sign-out dialogs are native alerts.
     Alert.alert(
-      t('signOut.pendinghighlights.question'),
-      t('signOut.pendinghighlights.explanation'),
+      t('signOutPendingHighlightsQuestion'),
+      t('signOutPendingHighlightsExplanation'),
       [
-        { text: t('generic.cancel'), style: 'cancel' },
+        { text: t('cancel'), style: 'cancel' },
         {
-          text: t('signOut.pendinghighlights.confirm'),
+          text: t('signOutPendingHighlightsConfirm'),
           style: 'destructive',
           onPress: () => {
             // `signOut` clears the queue too, but discarding first is what makes

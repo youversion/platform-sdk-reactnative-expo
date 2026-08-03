@@ -362,13 +362,12 @@ describe('signed in without the permission — the two-step path', () => {
     await tapSwatch()
 
     const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
-    // Asserted on keys, not English: the copy lands via the localization sync.
-    expect(title).toBe('dataExchange.highlights.question')
-    expect(message).toBe('dataExchange.highlights.explanation')
-    expect(buttons.map((button) => button.text)).toEqual([
-      'generic.cancel',
-      'dataExchange.continue',
-    ])
+    // The data-exchange keys are asserted as keys, not English — they land via
+    // the localization sync and i18next echoes the key until it does. `cancel`
+    // already shipped, so it resolves; that asymmetry is the point.
+    expect(title).toBe('dataExchangeHighlightsQuestion')
+    expect(message).toBe('dataExchangeHighlightsExplanation')
+    expect(buttons.map((button) => button.text)).toEqual(['Cancel', 'dataExchangeContinue'])
   })
 
   it('“Continue” runs the data exchange for highlights', async () => {

@@ -43,7 +43,7 @@ export type SignInWithYouVersionSheetProps = {
  * A sheet rather than an alert, deliberately: the Swift reference makes the
  * sign-in prompt the only full sheet in the highlight flow (the just-in-time
  * permission prompt and both sign-out dialogs are native alerts). Copy is
- * verbatim from the Swift SDK's `SignInWithYouVersionView` (`signIn.*`).
+ * verbatim from the Swift SDK's `SignInWithYouVersionView` (`signIn*` keys).
  *
  * Presentational only — it performs no OAuth and reads no config beyond the
  * app's own display name.
@@ -62,7 +62,7 @@ export function SignInWithYouVersionSheet({
     <NativeSheet isOpen={isOpen} onClose={onDismiss} theme={theme}>
       <View testID="sign-in-with-youversion-sheet" style={styles.container}>
         <Text style={[styles.eyebrow, { color: MUTED_FOREGROUND[theme] }]}>
-          {t('signIn.introducing')}
+          {t('signInIntroducing')}
         </Text>
 
         {/*
@@ -79,7 +79,7 @@ export function SignInWithYouVersionSheet({
         />
 
         <Text style={[styles.paragraph, { color: MUTED_FOREGROUND[theme] }]}>
-          {t('signIn.paragraph', { appName: appName ?? '' })}
+          {t('signInParagraph', { appName: appName ?? '' })}
         </Text>
 
         <View style={styles.actions}>
@@ -90,7 +90,7 @@ export function SignInWithYouVersionSheet({
             style={[styles.button, { backgroundColor: FOREGROUND[theme] }]}
           >
             <Text style={[styles.buttonLabel, { color: theme === 'dark' ? '#121212' : '#ffffff' }]}>
-              {t('signIn.yesButton')}
+              {t('signInYesButton')}
             </Text>
           </Pressable>
 
@@ -101,7 +101,7 @@ export function SignInWithYouVersionSheet({
             style={[styles.button, { borderColor: STROKE[theme] }]}
           >
             <Text style={[styles.buttonLabel, { color: FOREGROUND[theme] }]}>
-              {t('signIn.noButton')}
+              {t('signInNoButton')}
             </Text>
           </Pressable>
         </View>
