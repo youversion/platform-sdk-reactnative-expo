@@ -664,6 +664,37 @@ describe('AuthProvider — signOut', () => {
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
+
+  it('still signs out when removing the cached userInfo throws', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    // This removal runs first in clearAuthState, so a throw here used to abort
+    // sign-out before the grant, the highlights cache, or the tokens were
+    // cleared — leaving the user signed in behind a rejected signOut().
+    mockMmkvFailingKeys.add(MMKV_AUTH_KEYS.cachedUserInfo)
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith({
+      accessToken: null,
+      refreshToken: null,
+      expiryDate: null,
+    })
+  })
 })
 
 describe('AuthProvider — refresh failure policy', () => {

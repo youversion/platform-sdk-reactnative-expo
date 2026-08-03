@@ -67,7 +67,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [])
 
   const clearAuthState = useCallback(async () => {
-    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    // Never throws, for the same reason the grant cache doesn't. This runs
+    // first, so letting a native storage failure escape would abort sign-out
+    // before the grant, the highlights cache, or the tokens were cleared —
+    // leaving a fully signed-in session behind a rejected signOut().
+    try {
+      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    } catch {
+      // Cache removal failed; the in-memory reset below still runs, and the
+      // entry is re-validated against the schema on the next cold start.
+    }
     dropGrantedPermissions()
     clearHighlightsCache()
     expiryRef.current = null
