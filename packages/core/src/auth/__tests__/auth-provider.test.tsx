@@ -568,6 +568,46 @@ describe('AuthProvider — granted permissions', () => {
     expect(getText('hasHighlights')).toBe('false')
   })
 
+  it('does not inherit a newer sign-in’s grant when superseded mid-commit', async () => {
+    const grace = { id: 'u2', name: 'Grace', email: undefined, avatarUrl: undefined }
+    arrangeSignIn(['highlights'])
+    renderProvider()
+    await signInAndSettle()
+
+    // Ada re-auths with no granted_permissions ("unknown"), and stalls inside
+    // setAuthState's keychain write — past the epoch check, before publishing.
+    let releaseSave: () => void = () => {}
+    const saveStalled = new Promise<void>((resolve) => {
+      releaseSave = resolve
+    })
+    mockSignInWithPKCE.mockResolvedValueOnce({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+      grantedPermissions: null,
+    })
+    const savesBefore = mockSaveTokens.mock.calls.length
+    mockSaveTokens.mockImplementationOnce(() => saveStalled)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSaveTokens.mock.calls.length).toBe(savesBefore + 1))
+
+    // Grace's sign-in overtakes it completely and commits her grant.
+    arrangeSignIn(['bibles'], grace)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(JSON.parse(getText('grantedPermissions'))).toEqual(['bibles']))
+
+    // Ada's stalled commit resumes. Her null grant means "unknown", and her
+    // previousUserId snapshot predates Grace — so the same-user check reads true
+    // and preserves whatever is in state, which is now Grace's grant.
+    await act(async () => {
+      releaseSave()
+      await saveStalled
+    })
+
+    expect(JSON.parse(getText('userInfo')).id).toBe('u1')
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
   it('does not persist a grant when the session fails to commit', async () => {
     arrangeSignIn(['highlights'])
     renderProvider()

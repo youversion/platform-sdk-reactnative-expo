@@ -189,6 +189,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     // session's grant stays in state, so hasPermission answers for a user who
     // never granted it. A superseded attempt applies nothing at all, which also
     // means its stale previousUserId snapshot can do no damage.
+    //
+    // Checked twice, because there are two awaits to be overtaken across. The
+    // second check is the narrower one — a whole interactive sign-in has to
+    // finish inside one keychain write — and it cannot un-publish the identity
+    // setAuthState already wrote, so it settles for dropping the grant.
     const epoch = ++signInEpochRef.current
     const previousUserId = userInfo?.id ?? null
     try {
@@ -218,6 +223,17 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         },
         result.userInfo,
       )
+
+      if (signInEpochRef.current !== epoch) {
+        // Superseded *during* setAuthState's keychain write — past the check
+        // above, so this attempt's identity has already published over a newer
+        // one. Its grant decision cannot be trusted: `previousUserId` was
+        // sampled before the newer attempt existed, so a null ("unknown") grant
+        // would read as same-user and preserve the *other* account's
+        // permissions next to this identity. Fail closed instead of guessing.
+        dropGrantedPermissions()
+        return
+      }
 
       // The grant belongs to the session, so it lands only once the session has
       // committed: setAuthState awaits the keychain write, and if that rejects
