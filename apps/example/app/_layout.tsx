@@ -6,7 +6,7 @@ import MissingAppKey from './_components/missing-app-key'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback')
+  const redirectUri = Linking.createURL('callback', { scheme: 'yvp-rn-example' })
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

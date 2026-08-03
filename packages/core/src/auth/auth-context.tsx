@@ -1,4 +1,5 @@
 import { createContext } from 'react'
+import type { DataExchangeOutcome } from './data-exchange'
 import type { AuthPermission, YVUserInfo } from './types'
 
 export type AuthContextValue = {
@@ -27,6 +28,14 @@ export type AuthContextValue = {
   hasPermission: (permission: AuthPermission) => boolean
   /** Drop a stale cached grant (e.g. after a 401/403 write) so the next pre-flight re-prompts. */
   invalidatePermissions: () => void
+  /**
+   * Asks an already signed-in user to grant `permissions` on the spot, via
+   * YouVersion's hosted consent page — no sign-out required. A `granted`
+   * outcome merges into {@link grantedPermissions}, so `hasPermission` answers
+   * true on the next render. Fails immediately with `not-signed-in` when there
+   * is no token.
+   */
+  requestPermissions: (permissions: readonly AuthPermission[]) => Promise<DataExchangeOutcome>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

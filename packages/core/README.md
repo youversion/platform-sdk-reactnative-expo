@@ -52,6 +52,28 @@ export default function App() {
 }
 ```
 
+### Permissions
+
+`auth.permissions` asks for YouVersion Platform permissions (e.g. `'highlights'`) at sign-in; the user can decline. Read the grant back with `useYVAuth()`: `hasPermission(permission)`, or `grantedPermissions` for the list (`null` = nothing requested or nothing known yet, `[]` = declined).
+
+To ask an already signed-in user — without making them sign out — call `requestPermissions`:
+
+```tsx
+const { hasPermission, requestPermissions } = useYVAuth()
+
+if (!hasPermission('highlights')) {
+  const outcome = await requestPermissions(['highlights'])
+  // { status: 'granted', grantedPermissions } | { status: 'cancel' }
+  // | { status: 'failure', reason: 'not-signed-in' | 'not-permitted' | 'user-changed' | 'transient', message }
+}
+```
+
+A granted permission makes `hasPermission` true on the next render, and merges into the cached grant rather than replacing it.
+
+**Android apps must add `youversionauth` to their `app.json` `scheme` array** (after their own scheme) and rebuild the dev client — the flow returns to the SDK-owned `youversionauth://callback`, and without the scheme registered it reports `cancel`. iOS needs nothing extra.
+
+Once `scheme` is an array, build your OAuth `redirectUri` with the scheme named explicitly — `Linking.createURL('callback', { scheme: 'your-app-scheme' })`. `Linking.createURL` otherwise takes the first array entry, so ordering silently decides your redirect URI.
+
 ### Highlights
 
 `useHighlights` gives you a chapter's highlights, cached locally so they paint on the first frame, and write functions that apply optimistically and roll back on failure.

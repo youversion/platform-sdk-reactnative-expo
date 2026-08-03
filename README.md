@@ -175,9 +175,11 @@ function VotdScreen() {
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
-The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` is the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` comes from the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 
 Choose a scheme unique to your app: on Android, multiple apps registering the same scheme triggers the system disambiguation dialog (an app chooser), and on iOS there is no defined process for which app gets the scheme — the OS silently picks one.
+
+**Name your scheme in the call** — `Linking.createURL('callback', { scheme: 'your-app-scheme' })` — rather than relying on the default. When `scheme` in `app.json` is an array, `Linking.createURL` picks the **first** entry and logs a warning; passing it explicitly pins your redirect URI to the one you registered in the console, whatever else ends up in that array later. This matters as soon as you add a second scheme — which [asking for a permission later](#asking-for-a-permission-later) requires.
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
@@ -186,7 +188,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback')
+  const redirectUri = Linking.createURL('callback', { scheme: 'your-app-scheme' })
 
   if (!appKey) return null
 
@@ -203,7 +205,43 @@ export default function RootLayout() {
 }
 ```
 
-`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`.
+
+Requesting a permission is not the same as being granted it: the user can decline and sign-in still succeeds. Read back what they actually granted from `useYVAuth()` — `hasPermission('highlights')` for one check, or `grantedPermissions` for the whole list (`null` when nothing was requested or nothing is known yet, `[]` when the user declined). The grant is cached per user and survives a cold start.
+
+#### Asking for a permission later
+
+A user who signed in before your app needed a permission — or who declined at the time — does not have to sign out to grant it. `requestPermissions` opens YouVersion's consent page and merges the result into the cached grant:
+
+```tsx
+const { hasPermission, requestPermissions } = useYVAuth()
+
+async function ensureHighlights() {
+  if (hasPermission('highlights')) return true
+
+  const outcome = await requestPermissions(['highlights'])
+  if (outcome.status === 'granted') return outcome.grantedPermissions.includes('highlights')
+  if (outcome.status === 'failure' && outcome.reason === 'not-permitted') {
+    // This app key is not enabled for the permission — a console setting, not a user choice.
+  }
+  return false
+}
+```
+
+It resolves rather than throwing: `{ status: 'granted', grantedPermissions }`, `{ status: 'cancel' }`, or `{ status: 'failure', reason, message }` where `reason` is `'not-signed-in' | 'not-permitted' | 'user-changed' | 'transient'`. A granted permission makes `hasPermission` true on the next render.
+
+Only one request runs at a time — calling it again while a consent page is open returns the in-flight request rather than opening a second one, so you do not need to disable the button yourself.
+
+> [!IMPORTANT]
+> **Android apps must register the `youversionauth` scheme** for this flow. It returns to `youversionauth://callback` — a fixed URL owned by the SDK, unrelated to your `redirectUri` — and on Android the auth session resolves through a real deep link. Without the scheme the consent page opens, goes nowhere, and reports `cancel`. Add it to your `app.json` alongside your own scheme, then rebuild the dev client (`npx expo prebuild --clean` — this is a native change):
+>
+> ```json
+> { "expo": { "scheme": ["your-app-scheme", "youversionauth"] } }
+> ```
+>
+> Keep your own scheme first, and make sure your `redirectUri` names it explicitly — `Linking.createURL('callback', { scheme: 'your-app-scheme' })`. `Linking.createURL` defaults to the first entry in the array, so an ordering slip here silently turns your OAuth redirect into `youversionauth://callback`, which no longer matches the Callback URI you registered in the console. Sign-in then fails with nothing obvious to point at.
+>
+> iOS needs nothing extra. Because the scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed.
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 
