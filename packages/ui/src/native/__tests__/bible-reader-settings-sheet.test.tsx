@@ -6,7 +6,7 @@ import type { ReactNode } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import { FONT_FAMILY_TOKEN, INTER_FONT, SOURCE_SERIF_FONT } from '../../lib/reader-fonts'
+import { FONT_FAMILY_TOKEN, INTER_FONT, UNTITLED_SERIF_FONT } from '../../lib/reader-fonts'
 import { useReaderSettingsStore } from '../../stores/reader-settings-store'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
@@ -102,7 +102,7 @@ describe('BibleReaderSettingsSheet', () => {
     mmkvStorage.clearAll()
     useReaderSettingsStore.setState({
       fontSize: BIBLE_READER_FONT.DEFAULT,
-      fontFamily: SOURCE_SERIF_FONT,
+      fontFamily: UNTITLED_SERIF_FONT,
       lineSpacing: READER_LINE_SPACING.DEFAULT,
     })
     return useReaderSettingsStore.persist.rehydrate()
@@ -124,8 +124,8 @@ describe('BibleReaderSettingsSheet', () => {
     expect(getByTestId('font-size').children).toContain(String(BIBLE_READER_FONT.DEFAULT))
     // fontFamily crosses the bridge as a quote-free token (the canonical stack
     // contains a `"`, which @expo/dom-webview corrupts on iOS); the DOM
-    // component decodes it back to SOURCE_SERIF_FONT for the Web SDK.
-    expect(getByTestId('font-family').children).toContain(FONT_FAMILY_TOKEN.SOURCE_SERIF)
+    // component decodes it back to UNTITLED_SERIF_FONT for the Web SDK.
+    expect(getByTestId('font-family').children).toContain(FONT_FAMILY_TOKEN.UNTITLED_SERIF)
     expect(getByTestId('line-spacing').children).toContain(String(READER_LINE_SPACING.DEFAULT))
   })
 

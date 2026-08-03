@@ -130,8 +130,8 @@ importers:
   packages/core:
     dependencies:
       '@youversion/platform-core':
-        specifier: 2.4.0
-        version: 2.4.0
+        specifier: 2.5.0
+        version: 2.5.0
       expo:
         specifier: '>=56.0.0 <57.0.0'
         version: 56.0.12(@babel/core@7.29.0)(@expo/dom-webview@56.0.6)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
@@ -200,8 +200,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@youversion/platform-react-ui':
-        specifier: 2.4.0
-        version: 2.4.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
+        specifier: 2.5.0
+        version: 2.5.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
       expo:
         specifier: '>=56.0.0 <57.0.0'
         version: 56.0.12(@babel/core@7.29.0)(@expo/dom-webview@56.0.5)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
@@ -2986,21 +2986,21 @@ packages:
       xstate:
         optional: true
 
-  '@youversion/platform-core@2.4.0':
-    resolution: {integrity: sha512-2TV7rFxCKbigbnxt4TMcsOX+iQjWAyG2EClGpCqdmgTHAJbS/m454JVjvAINKd2uYxfVVnTHYX1BYyOPiSjfQg==}
+  '@youversion/platform-core@2.5.0':
+    resolution: {integrity: sha512-hcmM0LQ+r00CkJBDAwh9yRGoxbucl9D4rLCJa6BaCOJ7c7+f9tQ61JaIIUO0/XqO71mZu+TCVDazXVlM9t5WLw==}
     peerDependencies:
       linkedom: ^0.18.12
     peerDependenciesMeta:
       linkedom:
         optional: true
 
-  '@youversion/platform-react-hooks@2.4.0':
-    resolution: {integrity: sha512-DNFOxTBtNoeOP6BlwPf7RhmruizSa/oNB9NVKexaNSUpXpFML+X0wjM4US2VLYPa28YQ0i2kdy2AOg6w/y8R+Q==}
+  '@youversion/platform-react-hooks@2.5.0':
+    resolution: {integrity: sha512-wy/q31uQBHwJLdOYYsLCGBZHEGnWOfZOlXGYRP/Ln+RdfUnm1AcY1d35i+XGuxmnuzb9hFCocyU+21sQpGZstQ==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
 
-  '@youversion/platform-react-ui@2.4.0':
-    resolution: {integrity: sha512-HpRskk6oaHYTfR2txasWxUUa+HheAlzZZO0ceTZK6QLQzt9i3u5oXUT5ao0n7bqGdPb9VUfxZqgb658Ep8zCdg==}
+  '@youversion/platform-react-ui@2.5.0':
+    resolution: {integrity: sha512-KrT92Vs4C8X6lIAjmLj2XyjFdyaQ0jX3DLoYAF5NXCYUW1NX+xo/dHn9dXceyMPuaIiBX1c0tBPHUe/ySUrlPQ==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
       react-dom: '>=19.1.0 <20.0.0'
@@ -10606,18 +10606,18 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@youversion/platform-core@2.4.0':
+  '@youversion/platform-core@2.5.0':
     dependencies:
       zod: 4.1.12
 
-  '@youversion/platform-react-hooks@2.4.0(react@19.2.5)':
+  '@youversion/platform-react-hooks@2.5.0(react@19.2.5)':
     dependencies:
-      '@youversion/platform-core': 2.4.0
+      '@youversion/platform-core': 2.5.0
       react: 19.2.5
     transitivePeerDependencies:
       - linkedom
 
-  '@youversion/platform-react-ui@2.4.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
+  '@youversion/platform-react-ui@2.5.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)':
     dependencies:
       '@radix-ui/react-accordion': 1.2.12(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-dialog': 1.1.15(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -10627,8 +10627,8 @@ snapshots:
       '@radix-ui/react-tabs': 1.1.13(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-use-controllable-state': 1.2.2(@types/react@19.2.14)(react@19.2.5)
       '@xstate/react': 6.1.0(@types/react@19.2.14)(react@19.2.5)(xstate@5.32.4)
-      '@youversion/platform-core': 2.4.0
-      '@youversion/platform-react-hooks': 2.4.0(react@19.2.5)
+      '@youversion/platform-core': 2.5.0
+      '@youversion/platform-react-hooks': 2.5.0(react@19.2.5)
       better-result: 2.9.2
       class-variance-authority: 0.7.1
       clsx: 2.1.1

@@ -8,10 +8,14 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 ## Supply-Chain Protection
 
-- **Cooldown**: `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml` — resolution rejects package versions published less than 3 days ago (mitigates hijacked-release supply-chain attacks), failing with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. It applies at resolution time only, so `--frozen-lockfile` installs (CI) are unaffected; workspace packages (`workspace:*`) are inherently exempt. **`--force` does not override it** — for a genuinely urgent version use `pnpm add <pkg> --config.minimumReleaseAge=0`, which lifts the cooldown for whatever that one command resolves. To exempt a package permanently rather than once, add it to `minimumReleaseAgeExclude`.
+- **Cooldown**: `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml` — package versions published less than 3 days ago are rejected (mitigates hijacked-release supply-chain attacks). Workspace packages (`workspace:*`) are inherently exempt. It is enforced at **two** points:
+  1. **Resolution** — fails with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. **`--force` does not override it**; use `pnpm install --config.minimumReleaseAge=0`, which lifts the cooldown for whatever that one command resolves.
+  2. **Lockfile verification** — every install re-checks the committed `pnpm-lock.yaml` against the policy and fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`. This runs on `--frozen-lockfile` too, so **CI is not exempt**, and neither is `pnpm exec` / turbo (their deps-status check shells out to `pnpm install`). Overriding at resolution is therefore *not* local-only: a lockfile carrying a too-new version reds CI until the package ages past the cutoff, at which point the same lockfile passes with no changes.
+
+  To exempt a package permanently rather than once, add it to `minimumReleaseAgeExclude`.
 - **Exact pins**: `dependencies` and `devDependencies` use exact versions (no `^`/`~`). This matters most in `packages/ui` and `packages/core` — their published manifests are resolved fresh on consumers' machines, where our lockfile offers no protection. `peerDependencies` stay as ranges by design (satisfied by the host app).
 - **Build scripts**: pnpm 11 blocks dependency postinstall scripts unless approved in `allowBuilds` (`pnpm-workspace.yaml`). If an install reports ignored builds, decide explicitly — prefer `false` when the package ships prebuilt binaries (e.g. `unrs-resolver`).
-- **Version bumps**: when updating a pin, pick a version published ≥3 days ago (the cooldown enforces this at resolution time). Update cadence is defined separately.
+- **Version bumps**: when updating a pin, pick a version published ≥3 days ago — otherwise CI stays red until it ages past the cutoff (see the two enforcement points above). Update cadence is defined separately.
 - `expo install --fix` writes `~`-ranged versions back into `package.json` — after using it, re-pin the exact versions it chose.
 
 ## Release
