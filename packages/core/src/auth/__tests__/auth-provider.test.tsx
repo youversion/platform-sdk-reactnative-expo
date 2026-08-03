@@ -6,7 +6,7 @@ import { MMKV_AUTH_KEYS } from '../constants'
 import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
-import type { AuthConfig } from '../types'
+import type { AuthConfig, YVUserInfo } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
@@ -376,7 +376,7 @@ describe('AuthProvider — granted permissions', () => {
     )
   }
 
-  function arrangeSignIn(grantedPermissions: string[] | null, userInfo = adaUserInfo) {
+  function arrangeSignIn(grantedPermissions: string[] | null, userInfo: YVUserInfo = adaUserInfo) {
     mockLoadTokens.mockResolvedValue(noStoredTokens)
     mockSignInWithPKCE.mockResolvedValue({
       kind: 'success',
@@ -468,6 +468,41 @@ describe('AuthProvider — granted permissions', () => {
     expect(JSON.parse(getText('userInfo')).id).toBe('u2')
     expect(getText('hasHighlights')).toBe('false')
     expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(grantedKey)).toBe(false)
+  })
+
+  it('treats two unidentifiable users as different accounts, not the same one', async () => {
+    const anon = { id: undefined, name: 'Anon', email: undefined, avatarUrl: undefined }
+    arrangeSignIn(['highlights'], anon)
+    renderProvider()
+    await signInAndSettle()
+    expect(getText('hasHighlights')).toBe('true')
+
+    // YVUserInfo.id is optional, so both sign-ins collapse to a null id. A plain
+    // equality check would rate them the same user and preserve the first
+    // account's grant across the switch. Unidentifiable is never same-user.
+    arrangeSignIn(null, anon)
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(mockSignInWithPKCE).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('never persists a grant for a user with no id', async () => {
+    arrangeSignIn(['highlights'], {
+      id: undefined,
+      name: 'Anon',
+      email: undefined,
+      avatarUrl: undefined,
+    })
+    renderProvider()
+    await signInAndSettle()
+
+    // The grant is live for this session, but an entry no user can be identified
+    // by is one every unidentifiable user reads back — so it never hits MMKV.
+    expect(getText('hasHighlights')).toBe('true')
     expect(mockMmkv.has(grantedKey)).toBe(false)
   })
 

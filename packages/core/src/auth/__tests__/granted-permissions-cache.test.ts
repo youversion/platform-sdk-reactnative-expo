@@ -39,9 +39,21 @@ describe('granted permissions cache', () => {
     expect(loadCachedGrantedPermissions('u1')).toEqual([])
   })
 
-  it('round-trips a grant stored without a user id', () => {
+  it('refuses to persist a grant for an unidentifiable user', () => {
     saveGrantedPermissions(null, ['highlights'])
-    expect(loadCachedGrantedPermissions(null)).toEqual(['highlights'])
+    expect(mmkvStorage.set).not.toHaveBeenCalled()
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
+  it('reads a miss for a null user id rather than matching another unidentified user', () => {
+    // A legacy entry from a build that did cache under a null id must not read
+    // back as a hit for whichever unidentifiable user signs in next.
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: null, permissions: ['highlights'] }),
+    )
+    expect(loadCachedGrantedPermissions(null)).toBeNull()
+    expect(loadCachedGrantedPermissions('u1')).toBeNull()
   })
 
   it('reads a miss when nothing is cached', () => {

@@ -183,10 +183,23 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       // cannot happen either — the cache writes below never throw, so they can
       // neither reject a sign-in that did commit nor skip the state update.
       const nextUserId = result.userInfo.id ?? null
+      // An absent id is not an identity. `YVUserInfo.id` is optional and
+      // deriveUserInfo leaves it undefined when the id_token carries no string
+      // `sub`, so a plain `nextUserId !== previousUserId` would rate two
+      // *different* sub-less accounts as the same user and hand one's grant to
+      // the other. Unidentifiable therefore never counts as same-user, and a
+      // grant is never persisted under it — better to re-prompt on the next
+      // cold start than to read another account's entry back as a hit.
+      const isSameUser = nextUserId !== null && nextUserId === previousUserId
+
       if (result.grantedPermissions !== null) {
-        saveGrantedPermissions(nextUserId, result.grantedPermissions)
+        if (nextUserId !== null) {
+          saveGrantedPermissions(nextUserId, result.grantedPermissions)
+        } else {
+          clearGrantedPermissions()
+        }
         setGrantedPermissions(result.grantedPermissions)
-      } else if (nextUserId !== previousUserId) {
+      } else if (!isSameUser) {
         // A `null` grant means the redirect said nothing about permissions. For
         // the same user that is "unknown" and must not wipe a real grant from an
         // earlier sign-in (this path skips clearAuthState); for a different user

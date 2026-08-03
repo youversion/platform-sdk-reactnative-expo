@@ -13,7 +13,7 @@ import { MMKV_AUTH_KEYS } from './constants'
  * needs the parser and would otherwise drag the native module into its imports.
  */
 const cachedGrantSchema = z.object({
-  userId: z.string().nullable(),
+  userId: z.string(),
   permissions: z.array(z.string()),
 })
 
@@ -22,8 +22,17 @@ const cachedGrantSchema = z.object({
  * miss, on corrupt/legacy JSON, or when the entry belongs to a different user;
  * never throws. Mirrors `loadCachedUserInfo` so the provider can seed its state
  * in a `useState` initializer and answer `hasPermission` on the first render.
+ *
+ * A `null` `userId` is always a miss. `YVUserInfo.id` is optional, so an
+ * unidentifiable user would otherwise match every other unidentifiable user's
+ * entry — a cross-account grant leak. Nothing is written under a null id
+ * either (see {@link saveGrantedPermissions}), so this can only ever discard a
+ * legacy entry from a build that did.
  */
 export function loadCachedGrantedPermissions(userId: string | null): string[] | null {
+  if (userId === null) {
+    return null
+  }
   try {
     const raw = mmkvStorage.getString(MMKV_AUTH_KEYS.grantedPermissions)
     if (raw == null) {
@@ -53,11 +62,19 @@ export function loadCachedGrantedPermissions(userId: string | null): string[] | 
  * `hasPermission` actually reads. An entry stranded by a failed write is safe —
  * it stays scoped to whatever `userId` it was written for, so it reads as a
  * miss on the next cold start rather than leaking across users.
+ *
+ * A `null` `userId` is refused outright: an entry no user can be identified by
+ * is one every unidentifiable user would read back. The grant still lives in
+ * provider state for the session; it just does not survive a cold start, so the
+ * next pre-flight re-prompts instead of trusting another account's grant.
  */
 export function saveGrantedPermissions(
   userId: string | null,
   permissions: readonly string[],
 ): void {
+  if (userId === null) {
+    return
+  }
   try {
     mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify({ userId, permissions }))
   } catch {
