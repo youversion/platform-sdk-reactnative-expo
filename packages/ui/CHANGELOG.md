@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.1.1
+
+### Patch Changes
+
+- 0726f7a: Sync localization from platform-localization (15b2da1): add French (fr); update 15 keys in en.
+  - @youversion/platform-react-native-expo-core@1.1.1
+
 ## 1.1.0
 
 ### Patch Changes

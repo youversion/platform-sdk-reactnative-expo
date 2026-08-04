@@ -1,5 +1,7 @@
 # @youversion/platform-react-native-expo-core
 
+## 1.1.1
+
 ## 1.1.0
 
 ### Minor Changes
