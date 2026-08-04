@@ -1,3 +1,5 @@
+import { parseGrantedPermissions } from '@youversion/platform-core'
+
 import { readGrantedPermissions } from '../granted-permissions'
 
 describe('readGrantedPermissions — presence detection', () => {
@@ -47,4 +49,67 @@ describe('readGrantedPermissions — three-state semantics', () => {
     )
     expect(readGrantedPermissions(params)).toEqual(['highlights', 'brand_new_permission'])
   })
+})
+
+/**
+ * Why this test exists.
+ *
+ * `readGrantedPermissions` detects key presence with its own
+ * `GRANTED_PERMISSIONS_KEY_PATTERN`, which duplicates a regex living inside
+ * platform-core's `parseGrantedPermissions`. platform-core exports neither the
+ * pattern nor a presence-detecting helper, so the duplication cannot be
+ * deleted. If platform-core later accepts a key spelling our copy does not,
+ * a real grant reads as `null` ("unknown") instead of "granted", and the app
+ * re-prompts for permission the user already gave.
+ *
+ * These cases compare the two sides through the public API — never the regex
+ * literal against itself — so the suite fails on upstream drift in either
+ * direction.
+ */
+describe('readGrantedPermissions — key-spelling parity with platform-core', () => {
+  // The probe value is non-empty, so `parseGrantedPermissions` returns a
+  // non-empty array exactly when upstream recognises the key spelling.
+  const PROBE_VALUE = 'x'
+
+  const ON_MISMATCH =
+    'platform-core changed which granted_permissions key spellings it accepts. ' +
+    'Update GRANTED_PERMISSIONS_KEY_PATTERN in ' +
+    'packages/core/src/auth/granted-permissions.ts to match, and add the new ' +
+    'spelling to KEY_SPELLINGS below.'
+
+  const KEY_SPELLINGS = [
+    // Expected to be recognised by both sides today.
+    'granted_permissions',
+    'granted_permissions[]',
+    'granted_permissions[0]',
+    'granted_permissions[12]',
+    'granted_permissions[00]',
+    // Expected to be recognised by neither side today.
+    'granted_permissionsx',
+    'granted_permissions[a]',
+    'granted_permissions[-1]',
+    'granted_permissions[0][0]',
+    'granted_permissions[]extra',
+    'xgranted_permissions',
+    'granted_permission',
+    'GRANTED_PERMISSIONS',
+    ' granted_permissions',
+    'granted_permissions ',
+  ]
+
+  it.each(KEY_SPELLINGS)(
+    'our presence detection agrees with platform-core on "%s"',
+    (key: string) => {
+      const buildParams = () => new URLSearchParams([[key, PROBE_VALUE]])
+
+      const upstreamRecognises = parseGrantedPermissions(buildParams()).length > 0
+      const weRecognise = readGrantedPermissions(buildParams()) !== null
+
+      expect({ key, weRecognise, onMismatch: ON_MISMATCH }).toEqual({
+        key,
+        weRecognise: upstreamRecognises,
+        onMismatch: ON_MISMATCH,
+      })
+    },
+  )
 })

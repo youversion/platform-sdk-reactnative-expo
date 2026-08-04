@@ -193,6 +193,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         // Re-read the cache scoped to whoever just signed in: the same user
         // keeps a grant from an earlier sign-in, a different user reads null —
         // no explicit user-switch handling needed.
+        //
+        // This branch is only safe because a *denial* is not silent: the
+        // gateway spec says a denial sends `granted_permissions=` (empty), so
+        // it lands in the `if` above as `[]`, not here. See
+        // {@link readGrantedPermissions}. If the server ever omitted the key on
+        // denial instead, a denial would reach this branch and restore the
+        // user's previous grant.
         setGrantedPermissions(loadCachedGrantedPermissions(nextUserId))
       }
     } catch (e) {

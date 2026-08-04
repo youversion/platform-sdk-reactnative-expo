@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import AuthProvider from '../auth-provider'
@@ -526,20 +526,21 @@ describe('AuthProvider — granted permissions', () => {
     })
   }
 
-  async function renderAndSignIn() {
+  async function renderAndSignIn(user: ReturnType<typeof userEvent.setup>) {
     render(
       <AuthProvider {...defaultProps}>
         <AuthPeek />
       </AuthProvider>,
     )
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
-    fireEvent.press(screen.getByTestId('signIn'))
+    await user.press(screen.getByTestId('signIn'))
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
   }
 
   it('sign-in with a grant makes hasPermission true and persists it per user', async () => {
+    const user = userEvent.setup()
     arrangeSignIn(['highlights'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
 
     expect(getText('hasHighlights')).toBe('true')
     expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
@@ -574,8 +575,9 @@ describe('AuthProvider — granted permissions', () => {
   })
 
   it('keeps a denied grant ([]) distinguishable from never-requested (null)', async () => {
+    const user = userEvent.setup()
     arrangeSignIn([])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
 
     expect(getText('hasHighlights')).toBe('false')
     expect(getText('grantedPermissions')).toBe('[]')
@@ -584,12 +586,13 @@ describe('AuthProvider — granted permissions', () => {
   it('a scopes-only re-sign-in (null grant) preserves the same user’s earlier grant', async () => {
     // signIn on an already-signed-in user does not pass through clearAuthState,
     // so a redirect that says nothing about permissions must not wipe the grant.
+    const user = userEvent.setup()
     arrangeSignIn(['highlights'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
     expect(getText('hasHighlights')).toBe('true')
 
     arrangeSignIn(null)
-    fireEvent.press(screen.getByTestId('signIn'))
+    await user.press(screen.getByTestId('signIn'))
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
 
     expect(getText('hasHighlights')).toBe('true')
@@ -597,12 +600,13 @@ describe('AuthProvider — granted permissions', () => {
   })
 
   it('a scopes-only sign-in by a different user reads no grant', async () => {
+    const user = userEvent.setup()
     arrangeSignIn(['highlights'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
     expect(getText('hasHighlights')).toBe('true')
 
     arrangeSignIn(null, { ...adaUserInfo, id: 'u2', name: 'Bea' })
-    fireEvent.press(screen.getByTestId('signIn'))
+    await user.press(screen.getByTestId('signIn'))
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
 
     expect(getText('hasHighlights')).toBe('false')
@@ -610,11 +614,12 @@ describe('AuthProvider — granted permissions', () => {
   })
 
   it('sign-out purges the cached grant and resets state to null', async () => {
+    const user = userEvent.setup()
     arrangeSignIn(['highlights'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
     expect(getText('hasHighlights')).toBe('true')
 
-    fireEvent.press(screen.getByTestId('signOut'))
+    await user.press(screen.getByTestId('signOut'))
 
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(getText('hasHighlights')).toBe('false')
@@ -623,13 +628,12 @@ describe('AuthProvider — granted permissions', () => {
   })
 
   it('invalidatePermissions drops both the cache and the in-memory grant', async () => {
+    const user = userEvent.setup()
     arrangeSignIn(['highlights'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
     expect(getText('hasHighlights')).toBe('true')
 
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('invalidatePermissions'))
-    })
+    await user.press(screen.getByTestId('invalidatePermissions'))
 
     expect(getText('hasHighlights')).toBe('false')
     expect(getText('grantedPermissions')).toBe('null')
@@ -637,8 +641,9 @@ describe('AuthProvider — granted permissions', () => {
   })
 
   it('keeps a granted permission outside the known union verbatim', async () => {
+    const user = userEvent.setup()
     arrangeSignIn(['highlights', 'brand_new_permission'])
-    await renderAndSignIn()
+    await renderAndSignIn(user)
 
     expect(JSON.parse(getText('grantedPermissions'))).toEqual([
       'highlights',
