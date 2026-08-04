@@ -1,9 +1,7 @@
 import { parseGrantedPermissions } from '@youversion/platform-core'
 
-// Every spelling parseGrantedPermissions accepts: bare `granted_permissions`,
-// PHP-style `granted_permissions[]`, and indexed `granted_permissions[0]`.
-// Mirrors the pattern inside `@youversion/platform-core@2.4.0` because the
-// package collapses "absent" and "empty" into `[]`; re-check on version bumps.
+// Matches the key spellings platform-core accepts. We detect presence ourselves
+// because parseGrantedPermissions collapses "absent" and "empty" into [].
 const GRANTED_PERMISSIONS_KEY_PATTERN = /^granted_permissions(?:\[\d*\])?$/
 
 /**

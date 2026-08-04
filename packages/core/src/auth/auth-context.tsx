@@ -22,8 +22,7 @@ export type AuthContextValue = {
   grantedPermissions: readonly string[] | null
   /**
    * Whether `permission` is in {@link grantedPermissions}; false when unknown.
-   * Advisory — the server remains the enforcement point (see
-   * `docs/adr/0014-cached-grant-is-a-hint.md`).
+   * Advisory — the server remains the enforcement point.
    */
   hasPermission: (permission: AuthPermission) => boolean
   /** Drop a stale cached grant (e.g. after a 401/403 write) so the next pre-flight re-prompts. */

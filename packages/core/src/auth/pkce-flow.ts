@@ -91,8 +91,7 @@ export async function signInWithPKCE({
   }
 
   // Read the grant off the *app redirect*, before the /auth/callback hop below:
-  // that hop's Location header drops `granted_permissions` (measured on device,
-  // YPE-3707).
+  // that hop's Location header drops `granted_permissions`.
   const grantedPermissions = readGrantedPermissions(returnedParams)
 
   const code = await obtainCodeFromCallback({ apiHost, callBackParams: returnedParams })
