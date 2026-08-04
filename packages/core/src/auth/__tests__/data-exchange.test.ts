@@ -257,9 +257,10 @@ describe('requestDataExchange — initiator guard', () => {
   })
 
   it('discards an id-less user’s grant when the session changed mid-flow', async () => {
-    // The hole the session id exists to close: comparing ids alone, `null === null`
-    // waves this through, the grant is written after the user has gone, and the
-    // next id-less user reads it back as their own consent.
+    // The case the session id exists to catch: comparing ids alone, `null === null`
+    // waves this through and the caller is told `granted` for a user who has
+    // left. Nothing would be persisted either way — the cache refuses a null
+    // userId — but the outcome itself must not lie.
     arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
 
     const outcome = await run({

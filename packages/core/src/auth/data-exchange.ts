@@ -44,16 +44,12 @@ export type DataExchangeOutcome =
 /**
  * Who is signed in, for the initiator guard.
  *
- * `userId` alone cannot answer the question: it comes from the id_token's `sub`
- * and can legitimately be absent, so `null` means both "signed in, no id" and
- * "signed out" — and treating those as equal lets a grant land after the user
- * has left, under an identity the next id-less user reads back.
- *
- * `sessionId` closes that: a locally issued counter that changes on every
- * sign-in and sign-out, and *only* on those, so a session change is detectable
- * even when there is no id to compare. It deliberately does not change on a
- * token refresh — a new token for the same person must not fail the flow. Only
- * ever compared for equality; the value itself means nothing.
+ * `userId` comes from the id_token's `sub` and can legitimately be absent, so
+ * `null` means both "signed in, no id" and "signed out". `sessionId`
+ * disambiguates them: a local counter, compared only for equality and
+ * meaningless as a value, that changes on every sign-in and sign-out and *only*
+ * on those. It deliberately does not change on a token refresh — a new token
+ * for the same person must not fail the flow.
  */
 export type AuthIdentity = {
   sessionId: number
@@ -141,20 +137,30 @@ export async function requestDataExchange({
     }
   }
 
-  // Initiator guard, fail closed. The signed-in user can change while the
-  // browser is up (a sign-out, or a sign-in as somebody else), and a grant
-  // written against the wrong account is invisible and wrong; a discarded one
-  // just re-prompts. Compare identity, not tokens — a mid-flow refresh issues a
-  // new token for the same person and must not fail the flow.
+  // Initiator guard, fail closed: if the signed-in user is not the one who
+  // started this flow, discard the grant and let them ask again.
   //
-  // Both halves of {@link AuthIdentity} matter. The id alone would let an
-  // id-less user's grant survive a mid-flow sign-out (`null === null`) and be
-  // read back by the next id-less user; the session id alone would not catch a
-  // grant landing against a different id within one session.
+  // Be honest about what this is worth. It is a cheap backstop, not a defence
+  // against anything a user can do — neither platform lets them reach the app
+  // while the consent page is up. iOS presents a modal sheet; on Android the
+  // Custom Tab is a separate task the user *can* leave, but foregrounding the
+  // app resolves the auth session as `dismiss` first, so the flow is already
+  // over. What can still land mid-flow is not user-driven: a revoked refresh
+  // token tripping `clearAuthState`, or app code calling `signOut` from a timer
+  // or push handler. Both end signed out, and a signed-out write is already a
+  // no-op — `saveGrantedPermissions` refuses a null userId.
   //
-  // A same-session id-less user still passes, which is deliberate: `sub` can
-  // legitimately be absent, and failing closed on that would make the flow
-  // permanently unusable for those users rather than merely re-prompting.
+  // So the guard earns its keep on two narrower points. The reported outcome
+  // must never say `granted` for a user who has left, since that is the API
+  // consumers branch on. And this function stays correct on its own terms
+  // rather than by depending on a null check in granted-permissions-cache.ts
+  // that nothing here links to — the coupling that breaks the day someone adds
+  // a device-scoped fallback to the cache.
+  //
+  // Compare identity, not tokens: a mid-flow refresh issues a new token for the
+  // same person and must pass. A same-session id-less user passes too, which is
+  // deliberate — `sub` can legitimately be absent, and failing closed there
+  // would make the flow permanently unusable for those users.
   const current = getCurrentIdentity()
   if (current.sessionId !== initiator.sessionId || current.userId !== initiator.userId) {
     return {
