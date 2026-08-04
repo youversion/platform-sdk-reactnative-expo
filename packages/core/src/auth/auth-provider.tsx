@@ -47,17 +47,17 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // initiator guard needs who is signed in *now*, once the browser comes back,
   // not who was captured in the closure when the flow started.
   //
-  // The epoch counts identity transitions — sign-in and sign-out, never a token
-  // refresh — so the guard can tell "signed out" from "signed in without an id",
-  // which a null `userInfo.id` alone cannot. Both are written together by
-  // `setIdentity` so they can never disagree; an effect would leave a window
-  // where the epoch has moved and the id has not.
+  // The session id counts identity transitions — sign-in and sign-out, never a
+  // token refresh — so the guard can tell "signed out" from "signed in without
+  // an id", which a null `userInfo.id` alone cannot. Both are written together
+  // by `setIdentity` so they can never disagree; an effect would leave a window
+  // where the session id has moved and the id has not.
   const userInfoRef = useRef<YVUserInfo | null>(userInfo)
-  const authEpochRef = useRef<number>(0)
+  const sessionIdRef = useRef<number>(0)
 
   const setIdentity = useCallback((user: YVUserInfo | null) => {
     userInfoRef.current = user
-    authEpochRef.current += 1
+    sessionIdRef.current += 1
     setUserInfo(user)
 
     if (user) {
@@ -67,7 +67,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const getCurrentIdentity = useCallback(
     (): AuthIdentity => ({
-      epoch: authEpochRef.current,
+      sessionId: sessionIdRef.current,
       userId: userInfoRef.current?.id ?? null,
     }),
     [],
@@ -88,9 +88,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       setAccessToken(tokens.accessToken)
 
       if (user) {
-        // Identity, not just tokens — bump the epoch. A call without `user` is a
-        // token refresh for the same person and must leave the epoch alone, or a
-        // refresh landing mid-flow would fail the initiator guard.
+        // Identity, not just tokens — start a new session. A call without `user`
+        // is a token refresh for the same person and must leave the session id
+        // alone, or a refresh landing mid-flow would fail the initiator guard.
         setIdentity(user)
       }
     },

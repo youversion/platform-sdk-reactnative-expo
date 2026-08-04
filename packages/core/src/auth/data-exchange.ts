@@ -49,13 +49,14 @@ export type DataExchangeOutcome =
  * "signed out" — and treating those as equal lets a grant land after the user
  * has left, under an identity the next id-less user reads back.
  *
- * `epoch` closes that: it changes on every sign-in and sign-out, and *only* on
- * those, so a session change is detectable even when there is no id to compare.
- * It deliberately does not change on a token refresh — a new token for the same
- * person must not fail the flow.
+ * `sessionId` closes that: a locally issued counter that changes on every
+ * sign-in and sign-out, and *only* on those, so a session change is detectable
+ * even when there is no id to compare. It deliberately does not change on a
+ * token refresh — a new token for the same person must not fail the flow. Only
+ * ever compared for equality; the value itself means nothing.
  */
 export type AuthIdentity = {
-  epoch: number
+  sessionId: number
   userId: string | null
 }
 
@@ -148,14 +149,14 @@ export async function requestDataExchange({
   //
   // Both halves of {@link AuthIdentity} matter. The id alone would let an
   // id-less user's grant survive a mid-flow sign-out (`null === null`) and be
-  // read back by the next id-less user; the epoch alone would not catch a
+  // read back by the next id-less user; the session id alone would not catch a
   // grant landing against a different id within one session.
   //
-  // A same-epoch id-less user still passes, which is deliberate: `sub` can
+  // A same-session id-less user still passes, which is deliberate: `sub` can
   // legitimately be absent, and failing closed on that would make the flow
   // permanently unusable for those users rather than merely re-prompting.
   const current = getCurrentIdentity()
-  if (current.epoch !== initiator.epoch || current.userId !== initiator.userId) {
+  if (current.sessionId !== initiator.sessionId || current.userId !== initiator.userId) {
     return {
       status: 'failure',
       reason: 'user-changed',

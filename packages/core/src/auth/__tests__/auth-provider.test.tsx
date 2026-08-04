@@ -805,8 +805,8 @@ describe('AuthProvider — requestPermissions', () => {
     await pressRequestPermissions()
 
     const { initiator, getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
-      initiator: { epoch: number; userId: string | null }
-      getCurrentIdentity: () => { epoch: number; userId: string | null }
+      initiator: { sessionId: number; userId: string | null }
+      getCurrentIdentity: () => { sessionId: number; userId: string | null }
     }
     expect(getCurrentIdentity()).toEqual(initiator)
 
@@ -816,7 +816,7 @@ describe('AuthProvider — requestPermissions', () => {
     // Reading a captured closure would still say 'u1' here, and the initiator
     // guard would wave a grant through for a user who has left.
     expect(getCurrentIdentity().userId).toBeNull()
-    expect(getCurrentIdentity().epoch).not.toBe(initiator.epoch)
+    expect(getCurrentIdentity().sessionId).not.toBe(initiator.sessionId)
   })
 
   it('captures the initiator before awaiting the installation id, not after', async () => {
@@ -846,33 +846,33 @@ describe('AuthProvider — requestPermissions', () => {
     })
 
     const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0] as {
-      initiator: { epoch: number; userId: string | null }
+      initiator: { sessionId: number; userId: string | null }
       accessToken: string
     }
     expect(accessToken).toBe('new-access')
     expect(initiator.userId).toBe('u1')
   })
 
-  it('moves the epoch on sign-out but not on a token refresh', async () => {
+  it('moves the session id on sign-out but not on a token refresh', async () => {
     await signInWithGrant(null)
 
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
     const { getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
-      getCurrentIdentity: () => { epoch: number; userId: string | null }
+      getCurrentIdentity: () => { sessionId: number; userId: string | null }
     }
-    const atSignIn = getCurrentIdentity().epoch
+    const atSignIn = getCurrentIdentity().sessionId
 
     // A refresh is the same person with a new token — the guard must not fire.
     mockRefreshTokens.mockResolvedValue(validTokens)
     await act(async () => {
       fireAppStateChange('active')
     })
-    expect(getCurrentIdentity().epoch).toBe(atSignIn)
+    expect(getCurrentIdentity().sessionId).toBe(atSignIn)
 
     fireEvent.press(screen.getByTestId('signOut'))
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
-    expect(getCurrentIdentity().epoch).not.toBe(atSignIn)
+    expect(getCurrentIdentity().sessionId).not.toBe(atSignIn)
   })
 
   it('leaves the grant untouched on a cancel', async () => {
