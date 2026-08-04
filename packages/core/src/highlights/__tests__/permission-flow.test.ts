@@ -366,6 +366,7 @@ describe('toWriteReason', () => {
     ['auth', 'auth'],
     ['not-permitted', 'invalid'],
     ['user-changed', 'transient'],
+    ['in-progress', 'transient'],
     ['transient', 'transient'],
   ] as const)('maps %s to %s', (from, to) => {
     expect(toWriteReason(from)).toBe(to)

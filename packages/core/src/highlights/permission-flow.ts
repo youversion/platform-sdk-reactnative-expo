@@ -204,6 +204,11 @@ export function permissionFlowReducer(
  * `not-permitted` maps to `invalid` rather than `transient` on purpose: the app
  * key is not enabled for data exchange, which is a configuration fact, and
  * telling a caller to retry it would be a lie.
+ *
+ * `in-progress` maps to `transient` because a write refused for holding the
+ * consent flow open is retryable — later, once that flow settles. A write
+ * outcome has no finer bucket for "retry, but not this instant", and the flow
+ * already reports an overlapping tap as `transient` for the same reason.
  */
 export function toWriteReason(reason: PermissionFlowErrorReason): HighlightWriteReason {
   switch (reason) {
@@ -214,6 +219,7 @@ export function toWriteReason(reason: PermissionFlowErrorReason): HighlightWrite
     case 'not-permitted':
       return 'invalid'
     case 'user-changed':
+    case 'in-progress':
     case 'transient':
       return 'transient'
   }
