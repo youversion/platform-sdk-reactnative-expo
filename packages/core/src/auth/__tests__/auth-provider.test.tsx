@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
 import AuthProvider from '../auth-provider'
@@ -81,7 +81,14 @@ function AuthPeek() {
       <Text testID="accessToken">{auth.accessToken ?? 'null'}</Text>
       <Text testID="userInfo">{auth.userInfo ? JSON.stringify(auth.userInfo) : 'null'}</Text>
       <Text testID="error">{auth.error?.message ?? 'null'}</Text>
+      <Text testID="grantedPermissions">
+        {auth.grantedPermissions ? JSON.stringify(auth.grantedPermissions) : 'null'}
+      </Text>
+      <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Pressable testID="invalidatePermissions" onPress={() => auth.invalidatePermissions()}>
+        <Text>invalidatePermissions</Text>
+      </Pressable>
       <Pressable
         testID="signIn"
         onPress={async () => {
@@ -502,5 +509,145 @@ describe('AuthProvider — AppState wiring', () => {
 
     unmount()
     expect(remove).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AuthProvider — granted permissions', () => {
+  beforeEach(() => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+  })
+
+  function arrangeSignIn(grantedPermissions: string[] | null, userInfo = adaUserInfo) {
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo,
+      grantedPermissions,
+    })
+  }
+
+  async function renderAndSignIn(user: ReturnType<typeof userEvent.setup>) {
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+  }
+
+  it('sign-in with a grant makes hasPermission true and persists it per user', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+    expect(JSON.parse(mockMmkv.get(MMKV_AUTH_KEYS.grantedPermissions)!)).toEqual({
+      userId: 'u1',
+      permissions: ['highlights'],
+    })
+  })
+
+  it('seeds the grant synchronously from cache on a cold start', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    // First render, before any effect settles — the whole point of the sync seed.
+    expect(getText('hasHighlights')).toBe('true')
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('hasHighlights')).toBe('true')
+  })
+
+  it('keeps a denied grant ([]) distinguishable from never-requested (null)', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn([])
+    await renderAndSignIn(user)
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('[]')
+  })
+
+  it('a scopes-only re-sign-in (null grant) preserves the same user’s earlier grant', async () => {
+    // signIn on an already-signed-in user does not pass through clearAuthState,
+    // so a redirect that says nothing about permissions must not wipe the grant.
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    arrangeSignIn(null)
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+  })
+
+  it('a scopes-only sign-in by a different user reads no grant', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    arrangeSignIn(null, { ...adaUserInfo, id: 'u2', name: 'Bea' })
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('sign-out purges the cached grant and resets state to null', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    await user.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
+  it('invalidatePermissions drops both the cache and the in-memory grant', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    await user.press(screen.getByTestId('invalidatePermissions'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
+  it('keeps a granted permission outside the known union verbatim', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights', 'brand_new_permission'])
+    await renderAndSignIn(user)
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual([
+      'highlights',
+      'brand_new_permission',
+    ])
   })
 })

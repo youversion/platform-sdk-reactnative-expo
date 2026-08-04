@@ -5,11 +5,16 @@ import { clearHighlightsCache } from '../highlights'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import {
+  clearGrantedPermissions,
+  loadCachedGrantedPermissions,
+  saveGrantedPermissions,
+} from './granted-permissions-cache'
 import { refreshTokens, TokenEndpointError } from './http'
 import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
-import type { AuthConfig, YVUserInfo } from './types'
+import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
 
 type AuthProviderProps = {
   config: AuthConfig
@@ -21,6 +26,12 @@ type AuthProviderProps = {
 export default function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [userInfo, setUserInfo] = useState<YVUserInfo | null>(() => loadCachedUserInfo())
+  // Seeded synchronously so hasPermission answers correctly on the first render
+  // after a cold start — the same pattern (and load-bearing coupling) as the
+  // userInfo initializer above, which useHighlights also depends on.
+  const [grantedPermissions, setGrantedPermissions] = useState<readonly string[] | null>(() =>
+    loadCachedGrantedPermissions(userInfo?.id ?? null),
+  )
   const [error, setError] = useState<Error | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
 
@@ -40,8 +51,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     }
   }, [])
 
+  // Always both halves: the cached entry and the in-memory state hasPermission
+  // actually reads.
+  const invalidatePermissions = useCallback(() => {
+    clearGrantedPermissions()
+    setGrantedPermissions(null)
+  }, [])
+
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    invalidatePermissions()
     clearHighlightsCache()
     expiryRef.current = null
     refreshTokenRef.current = null
@@ -49,7 +68,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setUserInfo(null)
     setError(null)
     await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
-  }, [])
+  }, [invalidatePermissions])
 
   const refreshToken = useCallback(
     async (options?: { force?: boolean }) => {
@@ -164,6 +183,25 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         },
         result.userInfo,
       )
+
+      const nextUserId = result.userInfo.id ?? null
+      if (result.grantedPermissions != null) {
+        saveGrantedPermissions(nextUserId, result.grantedPermissions)
+        setGrantedPermissions(result.grantedPermissions)
+      } else {
+        // The redirect said nothing about permissions (scopes-only sign-in).
+        // Re-read the cache scoped to whoever just signed in: the same user
+        // keeps a grant from an earlier sign-in, a different user reads null —
+        // no explicit user-switch handling needed.
+        //
+        // This branch is only safe because a *denial* is not silent: the
+        // gateway spec says a denial sends `granted_permissions=` (empty), so
+        // it lands in the `if` above as `[]`, not here. See
+        // {@link readGrantedPermissions}. If the server ever omitted the key on
+        // denial instead, a denial would reach this branch and restore the
+        // user's previous grant.
+        setGrantedPermissions(loadCachedGrantedPermissions(nextUserId))
+      }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
       setError(err)
@@ -177,6 +215,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  const hasPermission = useCallback(
+    (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
+    [grantedPermissions],
+  )
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
@@ -187,8 +230,22 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       isLoading,
+      grantedPermissions,
+      hasPermission,
+      invalidatePermissions,
     }),
-    [accessToken, userInfo, error, signIn, signOut, refreshNow, isLoading],
+    [
+      accessToken,
+      userInfo,
+      error,
+      signIn,
+      signOut,
+      refreshNow,
+      isLoading,
+      grantedPermissions,
+      hasPermission,
+      invalidatePermissions,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

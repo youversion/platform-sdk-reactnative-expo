@@ -55,12 +55,15 @@ function defaultProps(overrides: Partial<Parameters<typeof signInWithPKCE>[0]> =
   }
 }
 
-function arrangeHappyPath() {
+function arrangeHappyPath(redirectQuery = 'state=STATE') {
   mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
   mockOpenAuthSession.mockResolvedValue({
     type: 'success',
-    url: 'https://app/cb?state=STATE',
+    url: `https://app/cb?${redirectQuery}`,
   })
+  // The /auth/callback hop deliberately carries no granted_permissions: on device
+  // its Location header drops them, so a test that read the grant from here would
+  // pass while the real flow reported "unknown".
   mockExpoFetch.mockResolvedValue({
     status: 302,
     headers: { get: jest.fn(() => 'https://app/cb?code=AUTHCODE') },
@@ -312,6 +315,7 @@ describe('signInWithPKCE — happy path', () => {
         token_type: 'Bearer',
       }),
       userInfo: { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined },
+      grantedPermissions: null,
     })
     expect(mockExchange).toHaveBeenCalledWith({
       apiHost: 'api.example.com',
@@ -320,5 +324,43 @@ describe('signInWithPKCE — happy path', () => {
       codeVerifier: 'cv',
       redirectUri: 'https://app/cb',
     })
+  })
+})
+
+describe('signInWithPKCE — granted permissions read-back', () => {
+  async function grantFrom(redirectQuery: string) {
+    arrangeHappyPath(redirectQuery)
+    const result = await signInWithPKCE(defaultProps())
+    if (result.kind !== 'success') {
+      throw new Error('expected a successful sign-in')
+    }
+    return result.grantedPermissions
+  }
+
+  it('reads the grant from the app redirect even though the /auth/callback hop drops it', async () => {
+    // arrangeHappyPath's Location header carries only `code` — no
+    // granted_permissions. If parsing moved after obtainCodeFromCallback, this
+    // would read null.
+    const granted = await grantFrom('state=STATE&granted_permissions[]=highlights')
+
+    expect(granted).toEqual(['highlights'])
+    // Guard the premise: the callback hop really did omit the param.
+    const callbackResponse = await mockExpoFetch.mock.results[0]?.value
+    expect(callbackResponse.headers.get('Location')).not.toContain('granted_permissions')
+  })
+
+  it('reads multiple granted permissions', async () => {
+    const granted = await grantFrom(
+      'state=STATE&granted_permissions[]=highlights&granted_permissions[]=bibles',
+    )
+    expect(granted).toEqual(['highlights', 'bibles'])
+  })
+
+  it('reports null when the redirect carries no granted_permissions param', async () => {
+    expect(await grantFrom('state=STATE')).toBeNull()
+  })
+
+  it('reports [] — requested and denied — when the param is present but empty', async () => {
+    expect(await grantFrom('state=STATE&granted_permissions[]=')).toEqual([])
   })
 })
