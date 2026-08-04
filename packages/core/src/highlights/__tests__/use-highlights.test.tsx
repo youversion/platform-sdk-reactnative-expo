@@ -120,6 +120,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     grantedPermissions: null,
     hasPermission: jest.fn(() => false),
     invalidatePermissions: jest.fn(),
+    requestPermissions: jest.fn(),
     ...overrides,
   }
 }

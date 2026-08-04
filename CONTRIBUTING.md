@@ -38,7 +38,9 @@ pnpm install
 
 Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
 
-For auth flows, register the example redirect URI (`Linking.createURL('callback')` for scheme `yvp-rn-example`) in the YouVersion Platform console. The sample app wires this in `apps/example/app/_layout.tsx` and handles the redirect in `apps/example/app/callback.tsx`.
+For auth flows, register `youversionauth://callback` as the callback URI for your app key in the YouVersion Platform console. The sample app declares it in `apps/example/app/_layout.tsx` and handles the redirect in `apps/example/app/callback.tsx`; `app.json` carries the matching `"scheme": "youversionauth"` so Android can route it.
+
+An app key has exactly one callback URI, and both browser round-trips — sign-in and the data-exchange permission grant — come back through it. If the value in `_layout.tsx` and the console entry disagree, sign-in fails with `invalid_request` and permission grants silently report `cancel`.
 
 Build the dev client the first time:
 

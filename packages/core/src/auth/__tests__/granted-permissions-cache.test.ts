@@ -3,6 +3,7 @@ import { MMKV_AUTH_KEYS } from '../constants'
 import {
   clearGrantedPermissions,
   loadCachedGrantedPermissions,
+  mergeGrantedPermissions,
   saveGrantedPermissions,
 } from '../granted-permissions-cache'
 
@@ -22,6 +23,36 @@ jest.mock('../../storage/mmkv-storage', () => ({
 beforeEach(() => {
   mockMmkv.clear()
   jest.clearAllMocks()
+})
+
+describe('mergeGrantedPermissions', () => {
+  it('unions a newly granted permission onto an existing grant', () => {
+    // A just-in-time consent reports only what it asked for; replacing would
+    // erase what the user granted at sign-in.
+    expect(mergeGrantedPermissions(['votd'], ['highlights'])).toEqual(['votd', 'highlights'])
+  })
+
+  it('de-duplicates without reordering the existing grant', () => {
+    expect(mergeGrantedPermissions(['votd', 'highlights'], ['highlights', 'bibles'])).toEqual([
+      'votd',
+      'highlights',
+      'bibles',
+    ])
+  })
+
+  it('handles either side being empty', () => {
+    expect(mergeGrantedPermissions([], ['highlights'])).toEqual(['highlights'])
+    expect(mergeGrantedPermissions(['highlights'], [])).toEqual(['highlights'])
+    expect(mergeGrantedPermissions([], [])).toEqual([])
+  })
+
+  it('does not mutate its inputs', () => {
+    const existing = ['votd']
+    const granted = ['highlights']
+    mergeGrantedPermissions(existing, granted)
+    expect(existing).toEqual(['votd'])
+    expect(granted).toEqual(['highlights'])
+  })
 })
 
 describe('granted permissions cache', () => {
