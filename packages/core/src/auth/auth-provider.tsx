@@ -371,6 +371,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           appKey,
           apiHost,
           accessToken: freshAccessToken,
+          redirectUri: config.redirectUri,
           initiator,
           permissions,
           getCurrentIdentity,
@@ -392,7 +393,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       inFlightRequestRef.current = { key, promise: pending }
       return pending
     },
-    [accessToken, apiHost, appKey, getCurrentIdentity, refreshToken],
+    [accessToken, apiHost, appKey, config.redirectUri, getCurrentIdentity, refreshToken],
   )
 
   const value: AuthContextValue = useMemo(

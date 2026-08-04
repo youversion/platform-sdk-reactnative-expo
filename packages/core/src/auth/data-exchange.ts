@@ -11,18 +11,25 @@ import {
 import type { AuthPermission } from './types'
 
 /**
- * Where the hosted consent page returns to. Hardcoded and SDK-owned, matching
- * the Swift SDK's `callbackURLScheme` — it is **not** the app's OAuth
- * `redirectUri`, and `buildDataExchangeUrl` takes no redirect param because the
- * server already knows this value.
+ * The consent page returns to the app's **registered callback URL** — the same
+ * `redirectUri` sign-in uses — so that is what the auth session must watch for.
  *
- * iOS needs nothing extra (`ASWebAuthenticationSession` intercepts the scheme at
- * call time). Android resolves the auth session through a real deep link, so the
- * consuming app must register `youversionauth` in its `app.json` `scheme` —
- * without it the flow hangs until the user dismisses it and reports `cancel`.
- * See docs/adr/0015-data-exchange-return-scheme.md.
+ * This is not a preference. An app key has exactly one callback URL, and OAuth
+ * already owns it, so a separate SDK-owned return scheme cannot be registered
+ * alongside it. Verified on Android against a real app key: with the app's own
+ * URI registered the server returns
+ * `<redirectUri>?data_exchange_status=granted&granted_permissions=...`; with a
+ * different URI registered instead, sign-in fails with `invalid_request:
+ * redirect_uri does not match registered callback URL`.
+ *
+ * `buildDataExchangeUrl` takes no redirect param because the server reads the
+ * callback URL off the app key rather than off this request.
+ *
+ * The auth session intercepts the return before the app's callback route sees
+ * it, so a data-exchange return does not reach sign-in handling. Outside an open
+ * session the two are still told apart by their query: sign-in carries `code`,
+ * data exchange carries `data_exchange_status`.
  */
-export const DATA_EXCHANGE_RETURN_URL = 'youversionauth://callback'
 
 /**
  * Why a request failed. The distinction that matters to a caller is whether
@@ -76,6 +83,11 @@ export type RequestDataExchangeArgs = {
   appKey: string
   apiHost: string
   accessToken: string
+  /**
+   * The app's registered callback URL — the same `redirectUri` sign-in uses.
+   * The consent page returns here, so the auth session watches for it.
+   */
+  redirectUri: string
   /** The initiator: identity captured by the caller *before* invoking. */
   initiator: AuthIdentity
   permissions: readonly AuthPermission[]
@@ -97,6 +109,7 @@ export async function requestDataExchange({
   appKey,
   apiHost,
   accessToken,
+  redirectUri,
   initiator,
   permissions,
   getCurrentIdentity,
@@ -115,7 +128,7 @@ export async function requestDataExchange({
   try {
     session = await WebBrowser.openAuthSessionAsync(
       buildDataExchangeUrl(minted.value, appKey, apiHost),
-      DATA_EXCHANGE_RETURN_URL,
+      redirectUri,
     )
   } catch (caught) {
     return {
@@ -126,9 +139,11 @@ export async function requestDataExchange({
   }
 
   // Anything that is not a redirect back to us is a cancel: the user dismissed
-  // the sheet, or — on an Android build that never registered the
-  // `youversionauth` scheme — the session hung until dismissal and reported
-  // `dismiss`. Neither is an error we can act on beyond letting the user retry.
+  // the sheet, or the return never matched `redirectUri` and the session hung
+  // until dismissal. Neither is an error we can act on beyond letting the user
+  // retry. A mismatch here is the failure mode to watch — it looks exactly like
+  // a decline, so a `redirectUri` that disagrees with the app key's registered
+  // callback URL silently discards real grants.
   if (session.type !== 'success') {
     return { status: 'cancel' }
   }

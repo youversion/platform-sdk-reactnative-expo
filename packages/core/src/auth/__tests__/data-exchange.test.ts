@@ -1,11 +1,7 @@
 import * as WebBrowser from 'expo-web-browser'
 
 import { MMKV_AUTH_KEYS } from '../constants'
-import {
-  DATA_EXCHANGE_RETURN_URL,
-  requestDataExchange,
-  type RequestDataExchangeArgs,
-} from '../data-exchange'
+import { requestDataExchange, type RequestDataExchangeArgs } from '../data-exchange'
 import type { DataExchangeApi } from '../data-exchange-api'
 import { saveGrantedPermissions } from '../granted-permissions-cache'
 
@@ -35,12 +31,16 @@ beforeEach(() => {
   mintToken.mockResolvedValue({ ok: true, value: 'dx-token' })
 })
 
+/** The app's registered callback URL, which the consent page returns to. */
+const TEST_REDIRECT_URI = 'yvp-rn-example://callback'
+
 function run(overrides: Partial<RequestDataExchangeArgs> = {}) {
   return requestDataExchange({
     api: { mintToken } as DataExchangeApi,
     appKey: 'appkey',
     apiHost: 'api.example.com',
     accessToken: 'tok',
+    redirectUri: TEST_REDIRECT_URI,
     initiator: { sessionId: 1, userId: 'u1' },
     permissions: ['highlights'],
     getCurrentIdentity: () => ({ sessionId: 1, userId: 'u1' }),
@@ -51,7 +51,7 @@ function run(overrides: Partial<RequestDataExchangeArgs> = {}) {
 function arriveWith(search: string) {
   mockOpenAuthSession.mockResolvedValue({
     type: 'success',
-    url: `${DATA_EXCHANGE_RETURN_URL}?${search}`,
+    url: `${TEST_REDIRECT_URI}?${search}`,
   })
 }
 
@@ -61,7 +61,7 @@ function cachedGrant(): unknown {
 }
 
 describe('requestDataExchange — happy path', () => {
-  it('mints, opens the hosted consent page against the SDK-owned return scheme, and reports the grant', async () => {
+  it("mints, opens the hosted consent page against the app's registered callback URL, and reports the grant", async () => {
     arriveWith('data_exchange_status=granted&granted_permissions[]=highlights')
 
     const outcome = await run()
@@ -70,8 +70,10 @@ describe('requestDataExchange — happy path', () => {
     expect(mintToken).toHaveBeenCalledWith('tok', ['highlights'])
 
     const [url, returnUrl] = mockOpenAuthSession.mock.calls[0] as [string, string]
-    // The return scheme is hardcoded and SDK-owned — never the app's redirectUri.
-    expect(returnUrl).toBe('youversionauth://callback')
+    // An app key has one callback URL and OAuth already owns it, so the auth
+    // session must watch the app's `redirectUri`. Watching anything else means
+    // the return never matches and real grants are discarded as `cancel`.
+    expect(returnUrl).toBe(TEST_REDIRECT_URI)
     const parsed = new URL(url)
     expect(parsed.origin + parsed.pathname).toBe('https://api.example.com/data-exchange')
     expect(parsed.searchParams.get('token')).toBe('dx-token')
@@ -115,8 +117,8 @@ describe('requestDataExchange — happy path', () => {
 
 describe('requestDataExchange — cancel', () => {
   it('treats a dismissed session as a cancel and leaves the cache alone', async () => {
-    // This is also what Android reports when the app never registered the
-    // `youversionauth` scheme: the session hangs, then reports `dismiss`.
+    // This is also what Android reports when the return never matches
+    // `redirectUri`: the session hangs, then reports `dismiss`.
     saveGrantedPermissions('u1', ['votd'])
     mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
 

@@ -70,9 +70,9 @@ if (!hasPermission('highlights')) {
 
 A granted permission makes `hasPermission` true on the next render, and merges into the cached grant rather than replacing it.
 
-**Android apps must add `youversionauth` to their `app.json` `scheme` array** (after their own scheme) and rebuild the dev client — the flow returns to the SDK-owned `youversionauth://callback`, and without the scheme registered it reports `cancel`. iOS needs nothing extra.
+The flow returns to your `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one. Nothing extra to register beyond sign-in's own setup.
 
-Once `scheme` is an array, build your OAuth `redirectUri` with the scheme named explicitly — `Linking.createURL('callback', { scheme: 'your-app-scheme' })`. `Linking.createURL` otherwise takes the first array entry, so ordering silently decides your redirect URI.
+If `redirectUri` disagrees with the callback URL registered for your app key, the return never reaches the SDK and the outcome is `cancel`, indistinguishable from a decline.
 
 ### Highlights
 

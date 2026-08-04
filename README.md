@@ -175,20 +175,26 @@ function VotdScreen() {
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
-The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` comes from the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+The `redirectUri` is where the browser sends the user back after sign-in. Use `youversionauth://callback`, the SDK-owned callback URL shared with the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs, and register that exact URI as the Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 
-Choose a scheme unique to your app: on Android, multiple apps registering the same scheme triggers the system disambiguation dialog (an app chooser), and on iOS there is no defined process for which app gets the scheme — the OS silently picks one.
+Two things have to line up, and they are the usual source of trouble:
 
-**Name your scheme in the call** — `Linking.createURL('callback', { scheme: 'your-app-scheme' })` — rather than relying on the default. When `scheme` in `app.json` is an array, `Linking.createURL` picks the **first** entry and logs a warning; passing it explicitly pins your redirect URI to the one you registered in the console, whatever else ends up in that array later. This matters as soon as you add a second scheme — which [asking for a permission later](#asking-for-a-permission-later) requires.
+1. **`redirectUri` must equal the Callback URI registered for your app key.** An app key has exactly one. If they disagree, sign-in fails with `invalid_request: redirect_uri does not match registered callback URL`.
+2. **Android must be able to route it.** Add the scheme to `app.json` and rebuild the dev client (`npx expo prebuild --clean` — this is a native change):
+
+   ```json
+   { "expo": { "scheme": "youversionauth" } }
+   ```
+
+   iOS needs nothing extra. Because this scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed — the same tradeoff the Kotlin SDK's sample app makes.
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
-import * as Linking from 'expo-linking'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback', { scheme: 'your-app-scheme' })
+  const redirectUri = 'youversionauth://callback'
 
   if (!appKey) return null
 
@@ -235,15 +241,9 @@ Only one request runs at a time. Calling it again for the **same** permissions w
 A second call for **different** permissions cannot share that answer — the open consent page never mentioned them. It resolves to `{ status: 'failure', reason: 'in-progress' }`. Wait for the running request to settle before asking again; retrying straight away just hits the same branch.
 
 > [!IMPORTANT]
-> **Android apps must register the `youversionauth` scheme** for this flow. It returns to `youversionauth://callback` — a fixed URL owned by the SDK, unrelated to your `redirectUri` — and on Android the auth session resolves through a real deep link. Without the scheme the consent page opens, goes nowhere, and reports `cancel`. Add it to your `app.json` alongside your own scheme, then rebuild the dev client (`npx expo prebuild --clean` — this is a native change):
+> **This flow returns to your `redirectUri`** — the same callback URL sign-in uses. An app key has exactly one registered callback URL, and both browser round-trips come back through it. Nothing extra to register for data exchange beyond what sign-in already needs.
 >
-> ```json
-> { "expo": { "scheme": ["your-app-scheme", "youversionauth"] } }
-> ```
->
-> Keep your own scheme first, and make sure your `redirectUri` names it explicitly — `Linking.createURL('callback', { scheme: 'your-app-scheme' })`. `Linking.createURL` defaults to the first entry in the array, so an ordering slip here silently turns your OAuth redirect into `youversionauth://callback`, which no longer matches the Callback URI you registered in the console. Sign-in then fails with nothing obvious to point at.
->
-> iOS needs nothing extra. Because the scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed.
+> If your `redirectUri` disagrees with the callback URL registered for your app key, the consent page opens, the user consents, and the return never reaches the SDK — reported as `{ status: 'cancel' }`, indistinguishable from a decline. Verify the two match before assuming users are declining.
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 

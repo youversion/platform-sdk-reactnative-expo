@@ -1,45 +1,52 @@
-# 15. The data-exchange return scheme is registered by the consuming app, not a config plugin
+# 15. Data exchange returns to the app's `redirectUri`, because an app key has one callback URL
 
 Date: 2026-07-29
+Revised: 2026-08-04 — the original decision was disproven on device; see Context.
 
 ## Status
 
-Accepted
+Accepted (supersedes the original "SDK-owned return scheme" decision of the same number)
 
 ## Context
 
 Data exchange (YPE-3709 subtask 2) is YouVersion's just-in-time permission grant: a signed-in user who has not granted a permission is sent to a hosted consent page and returns with the grant, without signing out. On native the flow is `WebBrowser.openAuthSessionAsync(consentUrl, returnUrl)`.
 
-The return URL is **`youversionauth://callback`** — hardcoded and SDK-owned. It matches the Swift SDK's `callbackURLScheme`, and it is why `buildDataExchangeUrl(token, appKey, apiHost)` takes no redirect parameter: the hosted page always returns to that scheme. It is emphatically **not** the app's OAuth `redirectUri`, which is app-owned and app-specific; the two are unrelated and neither can substitute for the other.
+This ADR originally set `returnUrl` to a hardcoded, SDK-owned `youversionauth://callback`, described as "emphatically **not** the app's OAuth `redirectUri`", and required Android consumers to add a second `scheme` entry to `app.json`. That was wrong, and the way it was wrong is worth recording.
 
-The platforms do not treat the scheme the same way:
+**What was measured** (Android emulator, Pixel 6 Pro API 34, real app key, 2026-08-04):
 
-- **iOS** needs nothing. `ASWebAuthenticationSession` is handed the callback scheme at call time and intercepts the redirect itself, without a manifest entry.
-- **Android** needs the scheme registered. `expo-web-browser` resolves an auth session through a real deep link the app must be able to receive. With no `youversionauth` intent filter, the consent page's redirect goes nowhere: the browser sits there until the user dismisses it, and the session reports `{ type: 'dismiss' }` — which the SDK, correctly and indistinguishably, treats as a cancel.
+| App key's registered callback URL | Consent page returned to                                                                | `requestPermissions` outcome |
+| --------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------- |
+| `yvp-rn-example://callback`       | `yvp-rn-example://callback?data_exchange_status=granted&granted_permissions=highlights` | `cancel`                     |
+| both registered                   | `yvp-rn-example://callback?...`                                                         | `cancel`                     |
+| `youversionauth://callback`       | `youversionauth://callback?...`                                                         | `granted`                    |
 
-So on Android the grant is unreachable — silently, and looking exactly like a user declining — unless something adds the intent filter. Two ways to do that:
+The hosted page returns to **whatever callback URL is registered for the app key**, not to a fixed scheme. With the SDK watching a different URL, the return never matched, `openAuthSessionAsync` reported `dismiss`, and a real approved grant was discarded as `cancel` — indistinguishable from the user declining.
 
-1. **Document it.** Expo CNG already turns `app.json`'s `scheme` (a string **or an array**) into Android intent filters and iOS URL types. The consuming app adds one array entry.
-2. **Ship an Expo config plugin** from `packages/core` that injects the intent filter during prebuild.
+**The constraint that settles it:** an app key has exactly one callback URL (confirmed with the API team). Sign-in already owns it. So a separate SDK-owned return URL cannot be registered alongside it, and registering one _instead_ breaks sign-in with `invalid_request: redirect_uri does not match registered callback URL` — also measured.
+
+The original "matches the Swift SDK's `callbackURLScheme`" claim was uncited. Swift does use that string, but for **both** flows off one URL, which is the part that was missed:
+
+```swift
+// Users+SignIn.swift AND DataExchangeSession.swift
+let redirectURL = URL(string: "youversionauth://callback")!
+... callbackURLScheme: redirectURL.scheme!
+```
+
+Kotlin does the same (`DEFAULT_AUTH_CALLBACK = "youversionauth://callback"` in `YouVersionPlatformConfiguration`, used as `redirectUri` for sign-in, with `android:scheme="youversionauth"` in its sample app).
 
 ## Decision
 
-Document it (option 1). The consuming app adds `youversionauth` to its `app.json` `scheme` array:
+`requestDataExchange` takes `redirectUri` and hands it to `openAuthSessionAsync`. The provider passes `config.redirectUri` — the same value sign-in uses. There is no SDK-owned return constant; `DATA_EXCHANGE_RETURN_URL` is deleted.
 
-```json
-{ "expo": { "scheme": ["your-app-scheme", "youversionauth"] } }
-```
+The example app and docs use `youversionauth://callback` as that single `redirectUri`, matching Swift and Kotlin, with `"scheme": "youversionauth"` in `app.json` so Android can route it.
 
-`apps/example/app.json` does exactly this, and the instruction is in the README's sign-in section and AGENTS.md.
-
-The flow stays correct without it — the SDK never assumes the scheme is registered, and an unregistered Android build reports `cancel` rather than hanging forever or throwing.
-
-Revisit the plugin if partner friction shows up. It is a strictly additive change: a plugin can be shipped later and the manual entry becomes redundant rather than wrong.
+`buildDataExchangeUrl(token, appKey, apiHost)` still takes no redirect parameter — the server reads the callback URL off the app key rather than off the request. That part of the original reasoning held.
 
 ## Consequences
 
-- **A one-line manifest change is traded against owning a build-time surface.** A config plugin runs inside every consumer's prebuild, has to be kept working across Expo SDK majors, and is invisible when it misbehaves. One array entry in `app.json` is a diff the partner can read, and it sits next to the `scheme` they already had to set for OAuth.
-- **The Android failure mode is a silent `cancel`, which is the strongest argument for a plugin.** A partner who skips the instruction sees the consent sheet open and close, indistinguishable from the user declining, with nothing in the logs. This is a known and accepted cost — mitigated by documentation now, and by the plugin if it bites.
-- **The scheme is shared across every app that integrates the SDK.** Unlike an app's OAuth scheme (where the README warns to pick something unique), `youversionauth` is deliberately common: two SDK-integrating apps on one device both register it and Android will show the app chooser. That is inherent to a server-known return scheme and is the same trade-off the Swift SDK makes.
-- **Adding the scheme is a native change**, so consumers must rebuild the dev client (`npx expo prebuild --clean` + a native build) — a JS reload will not pick it up.
-- **Turning `scheme` into an array changes what `Linking.createURL` returns**, which is a second-order cost of documenting rather than plugging. `resolveScheme` destructures `manifestSchemes` and uses the **first** entry, warning about the rest (`expo-linking/src/Schemes.ts`), so a partner who puts `youversionauth` first silently repoints their OAuth `redirectUri` at the SDK's return URL and breaks sign-in — a failure with no connection to the change they just made. The docs therefore tell consumers to pass `{ scheme }` to `Linking.createURL` explicitly, which both pins the redirect URI and silences the multi-scheme warning; the example app does the same. A config plugin would not have avoided this, since the array is what CNG consumes either way.
+- **Data exchange needs no consumer setup of its own.** Whatever sign-in already required is sufficient. The `app.json` `scheme` array, the "register `youversionauth` in addition to your own scheme" instruction, and the `Linking.createURL` ordering hazard all disappear with the second scheme.
+- **`redirectUri` disagreeing with the registered callback URL fails silently**, and is now the single point where that can happen. The consent page opens, the user consents, and the outcome is `cancel` with the grant discarded. Consumers cannot distinguish it from a decline, so the docs name it as the first thing to check. This is the same silent-cancel cost the original ADR accepted, relocated to a place where sign-in fails loudly for the same misconfiguration — which makes it far easier to catch.
+- **The scheme is shared across every app that integrates the SDK.** `youversionauth` is deliberately common, so two SDK-integrating apps on one Android device both register it and the OS shows an app chooser. Consumers who prefer their own scheme can use it for `redirectUri` instead — the SDK no longer cares which — at the cost of diverging from Swift and Kotlin.
+- **Consumers who followed the previous instruction must remove the extra scheme entry** and rebuild. Leaving it registered is inert rather than harmful.
+- **A config plugin is still unnecessary**, now for a stronger reason than before: there is no SDK-specific scheme to inject.
