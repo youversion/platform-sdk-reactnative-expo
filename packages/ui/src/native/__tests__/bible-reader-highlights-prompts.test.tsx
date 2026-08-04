@@ -356,18 +356,18 @@ describe('signed in without the permission — the two-step path', () => {
     expect(alertSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('titles the alert with the canonical data-exchange keys', async () => {
+  it('titles the alert with the resolved data-exchange copy', async () => {
     renderReader()
 
     await tapSwatch()
 
     const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
-    // The data-exchange keys are asserted as keys, not English — they land via
-    // the localization sync and i18next echoes the key until it does. `cancel`
-    // already shipped, so it resolves; that asymmetry is the point.
-    expect(title).toBe('dataExchangeHighlightsQuestion')
-    expect(message).toBe('dataExchangeHighlightsExplanation')
-    expect(buttons.map((button) => button.text)).toEqual(['Cancel', 'dataExchangeContinue'])
+    // Asserted on English, deliberately — see the matching note in
+    // `sign-out-guard.test.tsx`. i18next echoes a key it cannot find, so
+    // asserting the key name passes whether or not the key exists.
+    expect(title).toBe('Allow this app to save highlights with YouVersion?')
+    expect(message).toBe('YouVersion will ask you to grant access before highlights can be saved.')
+    expect(buttons.map((button) => button.text)).toEqual(['Cancel', 'Continue'])
   })
 
   it('“Continue” runs the data exchange for highlights', async () => {

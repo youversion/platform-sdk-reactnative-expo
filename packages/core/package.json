@@ -1,6 +1,6 @@
 {
   "name": "@youversion/platform-react-native-expo-core",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "YouVersion Platform core for React Native (Expo) — installation id, optional PKCE auth, and storage.",
   "keywords": [
     "youversion",
@@ -102,7 +102,7 @@
     "jest-expo": "56.0.5"
   },
   "dependencies": {
-    "@youversion/platform-core": "2.4.0",
+    "@youversion/platform-core": "2.5.0",
     "zod": "4.4.3"
   }
 }

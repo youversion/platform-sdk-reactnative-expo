@@ -6,9 +6,24 @@
  * pass these values into the DOM wrapper.
  */
 export const INTER_FONT = '"Inter", sans-serif' as const
+export const UNTITLED_SERIF_FONT = '"Untitled Serif", "Source Serif 4", serif' as const
+
+/**
+ * Superseded by {@link UNTITLED_SERIF_FONT} in Web SDK 2.5.0, which swapped the
+ * serif face to YouVersion's brand serif. Retained only so values persisted by
+ * earlier versions still round-trip as a known token (they contain `"` and so
+ * must not reach the bridge raw) and can be migrated — see
+ * `reader-settings-store`.
+ *
+ * @deprecated
+ */
 export const SOURCE_SERIF_FONT = '"Source Serif 4", serif' as const
 
-export type FontFamily = typeof INTER_FONT | typeof SOURCE_SERIF_FONT | (string & {})
+export type FontFamily =
+  | typeof INTER_FONT
+  | typeof UNTITLED_SERIF_FONT
+  | typeof SOURCE_SERIF_FONT
+  | (string & {})
 
 /**
  * Quote-free identifiers used to carry the font family across the native <->
@@ -29,6 +44,7 @@ export type FontFamily = typeof INTER_FONT | typeof SOURCE_SERIF_FONT | (string 
  */
 export const FONT_FAMILY_TOKEN = {
   INTER: 'inter',
+  UNTITLED_SERIF: 'untitled-serif',
   SOURCE_SERIF: 'source-serif',
 } as const
 
@@ -38,11 +54,13 @@ export type FontFamilyToken =
 
 const FONT_FAMILY_TO_TOKEN: Record<string, FontFamilyToken> = {
   [INTER_FONT]: FONT_FAMILY_TOKEN.INTER,
+  [UNTITLED_SERIF_FONT]: FONT_FAMILY_TOKEN.UNTITLED_SERIF,
   [SOURCE_SERIF_FONT]: FONT_FAMILY_TOKEN.SOURCE_SERIF,
 }
 
 const TOKEN_TO_FONT_FAMILY: Record<string, FontFamily> = {
   [FONT_FAMILY_TOKEN.INTER]: INTER_FONT,
+  [FONT_FAMILY_TOKEN.UNTITLED_SERIF]: UNTITLED_SERIF_FONT,
   [FONT_FAMILY_TOKEN.SOURCE_SERIF]: SOURCE_SERIF_FONT,
 }
 

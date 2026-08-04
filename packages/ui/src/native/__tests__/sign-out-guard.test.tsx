@@ -194,7 +194,7 @@ describe('unsaved highlights pending', () => {
     expect(authMock.signOut).not.toHaveBeenCalled()
   })
 
-  it('titles the warning with the canonical pending-highlights keys', async () => {
+  it('titles the warning with the resolved pending-highlights copy', async () => {
     renderAuthButton()
 
     await act(async () => {
@@ -202,15 +202,17 @@ describe('unsaved highlights pending', () => {
     })
 
     const [title, message, buttons] = alertSpy.mock.calls[0] as [string, string, { text: string }[]]
-    // The pending-highlights keys are asserted as keys, not English — they land
-    // via the localization sync and i18next echoes the key until it does.
-    // `cancel` already shipped, so it resolves; that asymmetry is the point.
-    expect(title).toBe('signOutPendingHighlightsQuestion')
-    expect(message).toBe('signOutPendingHighlightsExplanation')
-    expect(buttons.map((button) => button.text)).toEqual([
-      'Cancel',
-      'signOutPendingHighlightsConfirm',
-    ])
+    // Asserted on English, deliberately. i18next echoes a key it cannot find, so
+    // asserting the key name passes whether or not the key exists — that
+    // tautology is exactly how a rename to spellings absent from en.json shipped
+    // undetected once already. English is the only assertion that can tell the
+    // two apart. If the sync renames these, this test fails loudly, which is the
+    // point; update it to the new copy rather than reverting to key names.
+    expect(title).toBe('Save your highlights?')
+    expect(message).toBe(
+      "Some of your highlights haven't been saved yet, and they will be lost if you sign out. Do you want to sign out anyway?",
+    )
+    expect(buttons.map((button) => button.text)).toEqual(['Cancel', 'Sign out anyway'])
   })
 
   it('discards the queue and signs out on confirm', async () => {
