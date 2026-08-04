@@ -20,7 +20,12 @@ How to add user-visible copy in `packages/ui/src/native/**` without hardcoding E
 2. Call `useSdkTranslation()` in the native component.
 3. Render with `t('key')` or `<Trans i18nKey="key">` for rich text.
 
-Keys are typed automatically: `SdkTranslationKey` is derived from the synced `en.json` in this repo. Do not add parallel string constants.
+Do not add parallel string constants.
+
+> [!WARNING]
+> **Key names are not checked by anything.** `SdkTranslationKey` is derived from the synced `en.json`, but it is exported and never applied — `useSdkTranslation()` returns a plain `useTranslation()`, so `t()` accepts any string. i18next echoes a key it cannot find, so a wrong key renders as its own name rather than throwing. Typecheck, lint, and the locale-parity script all stay green.
+>
+> Check a new key against `packages/ui/src/i18n/locales/en.json` by hand until [#111](https://github.com/youversion/platform-sdk-reactnative-expo/issues/111) lands. If you assert on a string in a test, **assert the English, not the key name** — asserting the key name passes whether or not the key exists.
 
 ### Simple label
 

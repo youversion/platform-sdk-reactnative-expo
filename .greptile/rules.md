@@ -5,7 +5,8 @@ Applies to `packages/ui/src/native/**`. Full guide: [docs/contributing/native-i1
 ## Required pattern
 
 - Call `useSdkTranslation()` and render copy with `t('key')` or `<Trans i18nKey="key">`.
-- Add new keys under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Keys are typed via `SdkTranslationKey` after sync.
+- Add new keys under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`), using flat **camelCase** (`signInIntroducing`, not `signIn.introducing`).
+- Key names are **not** type-checked: `t()` accepts any string and i18next renders a missing key as its own name. Flag a `t('…')` whose key is absent from `packages/ui/src/i18n/locales/en.json`, and flag any test that asserts a translation **key name** instead of the English string — that assertion passes whether or not the key exists.
 
 ## Flag as high severity
 
