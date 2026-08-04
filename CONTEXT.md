@@ -118,6 +118,10 @@ _Avoid_: Optimistic state (too vague — this is one specific layer), **Server C
 What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
 _Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it)
 
+**Granted Permissions**:
+What the user actually granted at sign-in, read off the OAuth **app redirect** and cached per user. A three-state signal, not a list: `null` = no `granted_permissions` key at all, so nothing was requested and nothing is known; `[]` = requested and **denied**; populated = granted. Requesting a permission (`AuthConfig.permissions`) is a separate thing from being granted it. Values the SDK does not recognize are kept verbatim rather than narrowed to the known permission union.
+_Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -144,6 +148,8 @@ _Avoid_: Branching on `message` (generic outside development builds); routing wr
 - **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
 - A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
 - A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
+- **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
+- A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
 
 ## Example Dialogue
 

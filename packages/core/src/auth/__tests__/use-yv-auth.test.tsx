@@ -20,6 +20,9 @@ describe('useYVAuth', () => {
       signOut: jest.fn(),
       refreshNow: jest.fn(),
       isLoading: false,
+      grantedPermissions: null,
+      hasPermission: jest.fn(() => false),
+      invalidatePermissions: jest.fn(),
     }
     const wrapper = ({ children }: { children: ReactNode }) => (
       <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
