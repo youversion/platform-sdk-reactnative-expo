@@ -4,7 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import MissingAppKey from './_components/missing-app-key'
 
 /**
- * The SDK-owned callback URL, matching the Swift and Kotlin SDKs
+ * The app's one callback URL, using the value the Swift and Kotlin SDKs use
  * (`DEFAULT_AUTH_CALLBACK` in Kotlin's `YouVersionPlatformConfiguration`).
  *
  * An app key has exactly one registered callback URL, and both flows that come

@@ -175,7 +175,7 @@ function VotdScreen() {
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
-The `redirectUri` is where the browser sends the user back after sign-in. Use `youversionauth://callback`, the SDK-owned callback URL shared with the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs, and register that exact URI as the Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+The `redirectUri` is where the browser sends the user back after sign-in. Use `youversionauth://callback`, the callback URL the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs use for the same purpose, and register that exact URI as the Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 
 Two things have to line up, and they are the usual source of trouble:
 

@@ -123,8 +123,8 @@ What the user actually granted at sign-in, read off the OAuth **app redirect** a
 _Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
 
 **Data Exchange**:
-YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The return URL is the hardcoded, SDK-owned `youversionauth://callback` — see [ADR 0015](docs/adr/0015-data-exchange-return-scheme.md).
-_Avoid_: Calling the return URL a redirect URI (the app's OAuth `redirectUri` is a different, app-owned thing); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
+YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The consent page returns to the app's `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one — see [ADR 0015](docs/adr/0015-data-exchange-return-scheme.md).
+_Avoid_: Treating the return URL as a separate, SDK-owned thing from the app's OAuth `redirectUri` (one app key, one callback URL, both flows share it); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
 
 ## Relationships
 
