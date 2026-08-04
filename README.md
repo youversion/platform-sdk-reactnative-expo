@@ -228,9 +228,11 @@ async function ensureHighlights() {
 }
 ```
 
-It resolves rather than throwing: `{ status: 'granted', grantedPermissions }`, `{ status: 'cancel' }`, or `{ status: 'failure', reason, message }` where `reason` is `'not-signed-in' | 'not-permitted' | 'user-changed' | 'transient'`. A granted permission makes `hasPermission` true on the next render.
+It resolves rather than throwing: `{ status: 'granted', grantedPermissions }`, `{ status: 'cancel' }`, or `{ status: 'failure', reason, message }` where `reason` is `'not-signed-in' | 'not-permitted' | 'user-changed' | 'in-progress' | 'transient'`. A granted permission makes `hasPermission` true on the next render.
 
-Only one request runs at a time — calling it again while a consent page is open returns the in-flight request rather than opening a second one, so you do not need to disable the button yourself.
+Only one request runs at a time. Calling it again for the **same** permissions while a consent page is open returns the in-flight request rather than opening a second one, so a double-tap on one button needs no guarding from you.
+
+A second call for **different** permissions cannot share that answer — the open consent page never mentioned them. It resolves to `{ status: 'failure', reason: 'in-progress' }`. Wait for the running request to settle before asking again; retrying straight away just hits the same branch.
 
 > [!IMPORTANT]
 > **Android apps must register the `youversionauth` scheme** for this flow. It returns to `youversionauth://callback` — a fixed URL owned by the SDK, unrelated to your `redirectUri` — and on Android the auth session resolves through a real deep link. Without the scheme the consent page opens, goes nowhere, and reports `cancel`. Add it to your `app.json` alongside your own scheme, then rebuild the dev client (`npx expo prebuild --clean` — this is a native change):

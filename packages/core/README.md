@@ -64,7 +64,7 @@ const { hasPermission, requestPermissions } = useYVAuth()
 if (!hasPermission('highlights')) {
   const outcome = await requestPermissions(['highlights'])
   // { status: 'granted', grantedPermissions } | { status: 'cancel' }
-  // | { status: 'failure', reason: 'not-signed-in' | 'not-permitted' | 'user-changed' | 'transient', message }
+  // | { status: 'failure', reason: 'not-signed-in' | 'not-permitted' | 'user-changed' | 'in-progress' | 'transient', message }
 }
 ```
 

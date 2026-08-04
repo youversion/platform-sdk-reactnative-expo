@@ -1,6 +1,7 @@
 import { buildDataExchangeUrl, parseDataExchangeCallback } from '@youversion/platform-core'
 import * as WebBrowser from 'expo-web-browser'
 
+import { toMessage } from '../error-message'
 import type { DataExchangeApi, DataExchangeError } from './data-exchange-api'
 import {
   loadCachedGrantedPermissions,
@@ -23,10 +24,24 @@ import type { AuthPermission } from './types'
  */
 export const DATA_EXCHANGE_RETURN_URL = 'youversionauth://callback'
 
+/**
+ * Why a request failed. The distinction that matters to a caller is whether
+ * retrying can help, and when.
+ *
+ * - `not-signed-in` / `not-permitted` — retrying changes nothing. Sign the user
+ *   in, or fix the app key in the console.
+ * - `user-changed` — the grant was discarded because the signed-in user moved.
+ *   Ask again as the new user.
+ * - `in-progress` — another request holds the flow. Retry once it settles, not
+ *   before: a retry now hits this same branch, because only one consent page can
+ *   be open at a time.
+ * - `transient` — a network blip, a 5xx, a schema failure. Retry immediately.
+ */
 export type DataExchangeFailureReason =
   | 'not-signed-in'
   | 'not-permitted'
   | 'user-changed'
+  | 'in-progress'
   | 'transient'
 
 /**
@@ -74,8 +89,8 @@ export type RequestDataExchangeArgs = {
  * cached grant. Permission-generic — nothing here knows about highlights.
  *
  * Never throws, and never touches the grant cache except on a `granted` return.
- * `api` and `getCurrentUserId` are injected so the flow is unit-testable without
- * React and without constructing an `ApiClient` on every call site.
+ * `api` and `getCurrentIdentity` are injected so the flow is unit-testable
+ * without React and without constructing an `ApiClient` on every call site.
  */
 export async function requestDataExchange({
   api,
@@ -106,7 +121,7 @@ export async function requestDataExchange({
     return {
       status: 'failure',
       reason: 'transient',
-      message: caught instanceof Error ? caught.message : String(caught),
+      message: toMessage(caught),
     }
   }
 

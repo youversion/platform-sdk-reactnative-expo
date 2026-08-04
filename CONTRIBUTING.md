@@ -38,7 +38,9 @@ pnpm install
 
 Set `EXPO_PUBLIC_YOUVERSION_APP_KEY` in your environment or an `.env` file before starting the example app.
 
-For auth flows, register the example redirect URI (`Linking.createURL('callback')` for scheme `yvp-rn-example`) in the YouVersion Platform console. The sample app wires this in `apps/example/app/_layout.tsx` and handles the redirect in `apps/example/app/callback.tsx`.
+For auth flows, register the example redirect URI (`yvp-rn-example://callback`) in the YouVersion Platform console. The sample app builds it in `apps/example/app/_layout.tsx` with `Linking.createURL('callback', { scheme: 'yvp-rn-example' })` and handles the redirect in `apps/example/app/callback.tsx`.
+
+The scheme is named explicitly there for a reason: `app.json` now carries a `scheme` **array** (`yvp-rn-example` plus the SDK-owned `youversionauth` for data exchange), and `Linking.createURL` defaults to the first entry. Naming it pins the redirect URI to the one registered in the console, whatever the array ordering becomes.
 
 Build the dev client the first time:
 

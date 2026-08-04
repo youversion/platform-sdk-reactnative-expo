@@ -1,6 +1,7 @@
 import { ApiClient, DataExchangeClient } from '@youversion/platform-core'
 
 import { DEFAULT_API_HOST } from '../constants'
+import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
 
 /**
@@ -59,7 +60,7 @@ export function createDataExchangeApi(config: CreateDataExchangeApiConfig): Data
 
 function toDataExchangeError(caught: unknown): DataExchangeError {
   const status = extractStatus(caught)
-  const message = caught instanceof Error ? caught.message : String(caught)
+  const message = toMessage(caught)
 
   if (status === 401) {
     return { kind: 'not-permitted', message }

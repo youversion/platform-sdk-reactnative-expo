@@ -963,8 +963,12 @@ describe('AuthProvider — requestPermissions', () => {
     // A second caller asks for something else. Sharing the first promise would
     // report `granted` for a consent page that never mentioned votd, and leave
     // the caller no reason to retry.
+    //
+    // The reason is `in-progress`, not `transient`: `transient` invites an
+    // immediate retry, which would land right back here while the consent page
+    // is still open.
     const second = await act(async () => requestPermissionsFromContext(['votd']))
-    expect(second).toMatchObject({ status: 'failure', reason: 'transient' })
+    expect(second).toMatchObject({ status: 'failure', reason: 'in-progress' })
     expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
 
     await act(async () => {
@@ -995,5 +999,64 @@ describe('AuthProvider — requestPermissions', () => {
       settle({ status: 'granted', grantedPermissions: ['highlights', 'votd'] })
     })
     expect(await second).toEqual(await first)
+  })
+
+  /**
+   * Bootstraps into a signed-in state whose access token is already at its
+   * expiry, so the next `refreshToken()` actually refreshes instead of
+   * short-circuiting on the leeway check.
+   */
+  async function signInWithStaleToken() {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+    mockRefreshTokens.mockResolvedValueOnce({
+      ...validTokens,
+      access_token: 'stale-access',
+      expires_in: '0',
+    })
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+  }
+
+  it('refreshes an expired access token before minting, and mints with the new one', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockResolvedValueOnce({ ...validTokens, access_token: 'fresh-access' })
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+
+    await pressRequestPermissions()
+
+    // Without this refresh the mint carries the expired token, 401s, and
+    // `data-exchange-api.ts` reports every mint 401 as `not-permitted` — telling
+    // the user their app key is misconfigured when the token was merely stale.
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'fresh-access' }),
+    )
+  })
+
+  it('still mints with this render token when the pre-mint refresh clears the session', async () => {
+    await signInWithStaleToken()
+
+    // A revoked refresh trips `clearAuthState`, emptying the token ref. The
+    // flow must not change story here: it mints with the token this render
+    // captured and lets the initiator guard discard the grant as
+    // `user-changed`. Bailing to `not-signed-in` instead would be a different
+    // contract than the one the guard and its docs describe.
+    mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    await pressRequestPermissions()
+
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'stale-access' }),
+    )
   })
 })

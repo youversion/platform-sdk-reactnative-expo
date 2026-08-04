@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
+import { toMessage } from '../error-message'
 import { clearHighlightsCache } from '../highlights'
 import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
@@ -42,6 +43,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
   const isRefreshingRef = useRef<boolean>(false)
+  // The access token as a ref, alongside the state, for the one read that has to
+  // see past the render closure: data exchange refreshes before minting, and the
+  // token it must send is the one that refresh just wrote, not the one this
+  // render captured.
+  const accessTokenRef = useRef<string | null>(null)
 
   // Latest identity, for a read that has to outlive a render: the data-exchange
   // initiator guard needs who is signed in *now*, once the browser comes back,
@@ -85,6 +91,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       await saveTokens(tokens)
       expiryRef.current = tokens.expiryDate
       refreshTokenRef.current = tokens.refreshToken
+      accessTokenRef.current = tokens.accessToken
       setAccessToken(tokens.accessToken)
 
       if (user) {
@@ -110,6 +117,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     clearHighlightsCache()
     expiryRef.current = null
     refreshTokenRef.current = null
+    accessTokenRef.current = null
     setAccessToken(null)
     setIdentity(null)
     setError(null)
@@ -288,9 +296,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       // both callers genuinely want that one answer. A *different* set may not:
       // the open consent page never mentions its permissions, so handing it that
       // outcome would report `granted` for something the user was never shown,
-      // with nothing telling the caller to try again. It gets a transient
-      // failure instead, which is the truth — a retry once this flow finishes
-      // will work.
+      // with nothing telling the caller to try again.
+      //
+      // It gets `in-progress`, not `transient`. `transient` is the reason a
+      // caller retries on immediately, and an immediate retry lands right back
+      // here while the consent page is still open — a spin, not a recovery.
+      // `in-progress` says the one thing that is actually actionable: wait for
+      // the flow that is already running.
       const key = permissionKey(permissions)
       const inFlight = inFlightRequestRef.current
       if (inFlight !== null) {
@@ -298,7 +310,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           ? inFlight.promise
           : Promise.resolve({
               status: 'failure',
-              reason: 'transient',
+              reason: 'in-progress',
               message:
                 'Another permission request is already in progress; retry once it has finished.',
             })
@@ -314,6 +326,31 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       const initiator = getCurrentIdentity()
 
       const run = async (): Promise<DataExchangeOutcome> => {
+        // Mint with a token the server will still take. Refresh is otherwise
+        // driven only by bootstrap and the AppState `active` handler, so a long
+        // foreground session can carry an expired token straight into the mint.
+        // That 401s, and `data-exchange-api.ts` reads every mint 401 as
+        // `not-permitted` — which the docs tell consumers is an app-key setting,
+        // not a user problem. The user would be dead-ended by a stale token and
+        // told to check the console. Refreshing first keeps the 401 honest.
+        //
+        // This is the no-op path in the common case: `refreshToken` returns
+        // immediately unless the expiry is inside the leeway window.
+        await refreshToken()
+
+        // Prefer the ref over the closure: refresh may have just replaced the
+        // token. Fall back to the closure token when the ref is null, which
+        // means the session was cleared while this flow was starting — a
+        // sign-out, or a refresh that found the token revoked.
+        //
+        // Falling back rather than bailing keeps the initiator guard's story
+        // intact: the mint uses the token this render captured, the guard
+        // re-reads identity after the browser returns, and a session that moved
+        // mid-flow reports `user-changed`. Bailing here would report
+        // `not-signed-in` instead, which is a different contract than the one
+        // documented, and one subtask 3 has not been written against.
+        const freshAccessToken = accessTokenRef.current ?? accessToken
+
         // Built per call rather than memoized: the installation id is async, and
         // this runs at most once per user gesture. It reads native state and can
         // reject, which would escape as a throw from a flow documented to
@@ -325,7 +362,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           return {
             status: 'failure',
             reason: 'transient',
-            message: caught instanceof Error ? caught.message : String(caught),
+            message: toMessage(caught),
           }
         }
 
@@ -333,7 +370,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           api: createDataExchangeApi({ appKey, apiHost, installationId }),
           appKey,
           apiHost,
-          accessToken,
+          accessToken: freshAccessToken,
           initiator,
           permissions,
           getCurrentIdentity,
@@ -355,7 +392,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       inFlightRequestRef.current = { key, promise: pending }
       return pending
     },
-    [accessToken, apiHost, appKey, getCurrentIdentity],
+    [accessToken, apiHost, appKey, getCurrentIdentity, refreshToken],
   )
 
   const value: AuthContextValue = useMemo(
