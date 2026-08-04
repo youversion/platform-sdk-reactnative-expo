@@ -2,8 +2,17 @@
 /**
  * Locale JSON checks for packages/ui/src/i18n/locales/.
  *
- * Default mode: parity — every non-en locale JSON must have exactly the same
- * key set as en.json (canonical catalog from platform-localization).
+ * Default mode: parity — every non-en locale JSON must be a subset of en.json
+ * (canonical catalog from platform-localization).
+ *
+ *   - Extra keys (present in a locale, absent from en.json) fail: the catalog
+ *     has drifted from the canonical source and i18next would serve a key the
+ *     SDK cannot type.
+ *   - Missing keys are reported but do not fail. English keys ship as soon as
+ *     they are added upstream, while Crowdin translations land later; i18next
+ *     falls back to `en` per key, so a lagging catalog is expected, not broken.
+ *
+ * See docs/contributing/native-i18n.md ("Translation lag").
  *
  * --guard mode (CI pull_request only): fail when locale *.json files changed
  * unless the PR is an automated localization sync. Whitelist (documented here
@@ -56,34 +65,45 @@ function checkParity() {
 
   /** @type {string[]} */
   const errors = []
+  /** @type {string[]} */
+  const lagging = []
+  /** @type {Map<string, number>} */
+  const untranslatedKeys = new Map()
 
   for (const file of localeFiles) {
     const keys = loadLocaleKeys(file)
     const missing = [...enKeys].filter((key) => !keys.has(key)).sort()
     const extra = [...keys].filter((key) => !enKeys.has(key)).sort()
 
-    if (missing.length > 0 || extra.length > 0) {
-      const parts = [`${file}:`]
-      if (missing.length > 0) {
-        parts.push(`  missing keys (${missing.length}): ${missing.join(', ')}`)
+    if (extra.length > 0) {
+      errors.push(`${file}:\n  extra keys (${extra.length}): ${extra.join(', ')}`)
+    }
+    if (missing.length > 0) {
+      lagging.push(`${file} (${missing.length})`)
+      for (const key of missing) {
+        untranslatedKeys.set(key, (untranslatedKeys.get(key) ?? 0) + 1)
       }
-      if (extra.length > 0) {
-        parts.push(`  extra keys (${extra.length}): ${extra.join(', ')}`)
-      }
-      errors.push(parts.join('\n'))
     }
   }
 
   if (errors.length > 0) {
-    console.error('Locale parity check failed — all locale JSON files must match en.json keys:\n')
+    console.error('Locale parity check failed — locale JSON files must be a subset of en.json:\n')
     console.error(errors.join('\n\n'))
-    console.error('\nAdd keys in platform-localization, not by hand-editing locale JSON.')
+    console.error('\nRemove stale keys in platform-localization, not by hand-editing locale JSON.')
     process.exit(1)
   }
 
   console.log(
-    `Locale parity OK (${localeFiles.length} non-en locale(s) match ${enKeys.size} en.json key(s)).`,
+    `Locale parity OK (${localeFiles.length} non-en locale(s) are subsets of ${enKeys.size} en.json key(s)).`,
   )
+
+  if (lagging.length > 0) {
+    console.log(
+      `\nAwaiting Crowdin translations — these fall back to en at runtime.` +
+        `\n  keys (${untranslatedKeys.size}): ${[...untranslatedKeys.keys()].sort().join(', ')}` +
+        `\n  locales (${lagging.length}): ${lagging.join(', ')}`,
+    )
+  }
 }
 
 /** @param {string | undefined} json */

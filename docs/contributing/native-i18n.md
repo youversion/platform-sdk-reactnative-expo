@@ -141,6 +141,16 @@ CI regenerates the index (`pnpm generate:locale-index`) and fails if the committ
 
 Device and explicit `locale` props are normalized from BCP-47 tags (e.g. `es-MX` → `es`) to supported 2-letter codes before `changeLanguage`.
 
+### Translation lag
+
+An English key ships the moment it merges in platform-localization; its translations arrive later, whenever Crowdin returns them. So non-English catalogs are a **subset** of `en.json`, not a mirror of it, and the tooling is built for that:
+
+- `pnpm check:locale-parity` fails only on **extra** keys — a key present in a locale but not in `en.json` means the catalog drifted from the canonical source. Missing keys are printed as an "Awaiting Crowdin translations" note and do not fail CI.
+- The generated index types catalogs as `Partial<SdkTranslationResources>`. `en.json` stays complete — it is what `SdkTranslationResources` and `SdkTranslationKey` are derived from.
+- At runtime i18next resolves an untranslated key against `fallbackLng: 'en'`, per key. `create-sdk-i18n.test.ts` asserts this for every bundled locale.
+
+Do not hand-fill a missing translation with English to make a catalog look complete — that hides the gap from Crowdin and from the fallback path.
+
 ## Related docs
 
 - [ADR 0007 — App locale vs Bible languageId](../adr/0007-app-locale-vs-bible-language-id.md)
