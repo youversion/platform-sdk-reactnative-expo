@@ -9,7 +9,10 @@ import { refreshTokens, TokenEndpointError } from './http'
 import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
-import type { AuthConfig, YVUserInfo } from './types'
+import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
+
+
+const NO_PERMISSIONS: readonly AuthPermission[] = []
 
 type AuthProviderProps = {
   config: AuthConfig
@@ -177,6 +180,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  const requestedPermissions = config.permissions ?? NO_PERMISSIONS
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
@@ -187,8 +192,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       isLoading,
+      requestedPermissions,
     }),
-    [accessToken, userInfo, error, signIn, signOut, refreshNow, isLoading],
+    [accessToken, userInfo, error, signIn, signOut, refreshNow, isLoading, requestedPermissions],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

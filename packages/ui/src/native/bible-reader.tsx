@@ -1,5 +1,9 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
+import {
+  useHighlights,
+  useYouVersion,
+  useYVAuthOptional,
+} from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -34,9 +38,18 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 
+/**
+ * Re-exported from the Web SDK so consumers can type an `onVerseSelect` handler
+ * without adding `@youversion/platform-react-ui` to their own dependencies.
+ * `BibleReaderShareData` comes with it because it is the payload a host needs to
+ * run its own copy / share.
+ */
+export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
   | 'appKey'
+  | 'highlights'
   | 'fontSize'
   | 'fontFamily'
   | 'lineSpacing'
@@ -58,6 +71,9 @@ export type BibleReaderProps = Omit<
   // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
   // so consumers don't pass it — it lives inside the WebView.
   | 'bottomScrollPadding'
+  // Deliberately NOT omitted: `onVerseSelect` and `clearSelectionSignal`. With
+  // the in-WebView verse action popover switched off, those are the consumer's
+  // only handle on a selection and their only way to dismiss one.
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -82,6 +98,8 @@ export function BibleReader({
   onChapterPickerPress: consumerOnChapterPickerPress,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
+  onVerseSelect,
+  clearSelectionSignal,
   backgroundColor,
   foregroundColor,
   dom,
@@ -139,6 +157,8 @@ export function BibleReader({
       onVersionChange?.(newVersionId)
     },
   })
+
+  const { highlights } = useHighlights({ versionId, book, chapter })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -250,6 +270,9 @@ export function BibleReader({
           apiHost={context.apiHost}
           installationId={context.installationId}
           accessToken={accessToken}
+          highlights={highlights}
+          onVerseSelect={onVerseSelect}
+          clearSelectionSignal={clearSelectionSignal}
           onSignInPress={signIn}
           onSignOutPress={signOut}
           userInfo={userInfo}

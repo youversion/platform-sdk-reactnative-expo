@@ -95,6 +95,8 @@ Keep `GestureHandlerRootView` outside `YouVersionProvider`; bottom-sheet gesture
 
 `BibleCard`, `VerseOfTheDay`, `BibleReader`, and `BibleTextView` read `appKey` from `YouVersionProvider`, then pass serializable `appKey` and theme props into their DOM wrappers. Component-level theme props remain valid overrides.
 
+`BibleReader` also owns highlight data: it subscribes `useHighlights` for its current `versionId` / `book` / `chapter` and feeds the result into its DOM wrapper's **required** `highlights` prop. Presence of that prop latches the Web SDK reader into controlled mode, which is what keeps the highlight path out of the WebView entirely (no network, no store, no auth surface) — so `highlights` must never be `undefined`, not even transiently, and it is omitted from the native props type so consumers cannot supply it. The DOM wrapper also hardcodes `verseActions="none"`: there is no in-WebView verse action popover, and consumers get no say. `onVerseSelect` and `clearSelectionSignal` are the public replacements — the former reports every selection change (including clears), the latter dismisses one from native.
+
 `BibleCard` and `BibleReader` are stateful — they own `versionId` (via `useControllableState`) and coordinate picker sheets. When `showVersionPicker` is enabled and `onVersionPickerPress` is omitted, they open a built-in `BibleVersionPickerSheet`; when a handler is provided, the consumer handles the press and no sheet renders. On `BibleCard`, `showVersionPicker` defaults to `false` (matching the Web SDK), so consumers must opt in before either path applies.
 
 ### Version Picker Sheet
@@ -146,16 +148,17 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`
+**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`, plus the verse-selection payload types re-exported from the Web SDK (`BibleReaderVerseSelection`, `BibleReaderShareData`) so an `onVerseSelect` handler can be typed without depending on `@youversion/platform-react-ui`
 
-**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthContextValue`, `AuthPermission`, `AuthScope`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
 
 UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
 
 ## Auth (core)
 
 - Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
-- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app requests `['highlights']` so the reader demo has data to paint.
+- The configured list is readable from the auth context as `requestedPermissions` (always an array; `[]` when `auth` is unconfigured). It is what was **asked for**, never what was granted — grant reporting lands with C3.
 - `useYVAuth()` throws if `auth` was not configured on the provider.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
@@ -166,6 +169,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 - `useHighlights({ versionId, book, chapter })` is the whole public surface. The `createHighlightsApi` wrapper over `@youversion/platform-core`'s `HighlightsClient`, the MMKV cache, and the local `Result` seam (`packages/core/src/result.ts`) all stay internal.
 - Requires `auth` on `YouVersionProvider` and the `highlights` **permission** (see the permissions note above — highlights go in `requested_permissions[]`, never in `scope`). With no auth configured it behaves exactly as signed out.
+- The GET is gated on `shouldFetchHighlights(requestedPermissions)`: an app that never asked for `highlights` issues no highlights request at all. Gate on the **requested** list, never on a grant — a missing grant is indistinguishable from an unknown one, so `hasPermission('highlights')` (documented "false when unknown") would silently un-paint the highlights of every user who signed in before grant reporting shipped. When C3.1 tightens this, only a *known* denial may skip; the constraint is written out on the predicate.
 - Paints from the MMKV cache **synchronously** in a `useState` initializer. That only works because `AuthProvider` seeds `userInfo` from its own initializer, so `userInfo.id` exists on the first render — load-bearing coupling, commented at both ends.
 - `highlights` is always safe to render. `isRefreshing` means "a GET is in flight", never "no data yet"; gating a spinner on it reintroduces the blank first frame the cache exists to prevent.
 - `error` is **fetch-only**. Writes report once, through the `HighlightWriteOutcome` they resolve to — that is also C3's branch point for the sign-in prompt (`reason === 'auth'` / `'not-signed-in'`).

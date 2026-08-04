@@ -107,6 +107,16 @@ const tokenLoading: AuthShape = {
 
 const refreshNow = jest.fn(async () => undefined)
 
+/**
+ * The app asked for `highlights` but the user denied it — or the SDK never
+ * learned either way. Either way the fetch is still mounted; see
+ * `shouldFetchHighlights`.
+ */
+const signedInWithoutPermission: AuthShape = {
+  ...signedIn,
+  requestedPermissions: [],
+}
+
 function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
   return {
     isAuthenticated: false,
@@ -117,6 +127,9 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     signOut: jest.fn(async () => undefined),
     refreshNow,
     isLoading: false,
+    // The default for every existing case: these tests exercise the fetch, so
+    // the app must have asked for the permission that mounts it.
+    requestedPermissions: ['highlights'],
     ...overrides,
   }
 }
@@ -332,6 +345,34 @@ describe('fetching server truth', () => {
     })
     expect(mockGetHighlights).not.toHaveBeenCalled()
     expect(result.current.highlights).toEqual([])
+  })
+
+  it('does not fetch when the app never requested the highlights permission', async () => {
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(result.current.highlights).toEqual([])
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
+  it('still paints the cache when the permission was not requested', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+  })
+
+  it('does not fetch on an explicit refresh when the permission was not requested', async () => {
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
   })
 
   it('drops a late response for a scope the reader has left', async () => {

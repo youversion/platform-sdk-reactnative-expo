@@ -1,6 +1,7 @@
 import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import type { AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
@@ -108,6 +109,20 @@ function classifyApiError(error: HighlightsApiError): HighlightWriteReason {
   return 'transient'
 }
 
+/**
+ * Should the highlights GET be mounted at all?
+ *
+ * Gated on what the app **requested** (`AuthConfig.permissions`), not on what the
+ * user granted, so an app that never asked for highlights issues no request.
+ *
+ * **Do not tighten this to a grant check that treats unknown as denied.** A user
+ * whose grants aren't known would silently stop seeing their existing highlights;
+ * only a *known* denial may skip the fetch.
+ */
+export function shouldFetchHighlights(requested: readonly AuthPermission[]): boolean {
+  return requested.includes('highlights')
+}
+
 let hasWarnedMissingUserId = false
 
 /**
@@ -122,8 +137,7 @@ function warnMissingUserId(): void {
   }
   hasWarnedMissingUserId = true
   console.warn(
-    '[YouVersion SDK] Signed in but no user id is available, so highlights cannot be cached. ' +
-      'Highlights still load from the network; the instant-mount cache is disabled for this session.',
+    `[YouVersion SDK] Signed in but no user id is available, so highlights cannot be cached. Highlights still load from the network; the instant-mount cache is disabled for this session.`,
   )
 }
 
@@ -155,7 +169,9 @@ function sameIdentity(state: OptimisticState, identity: Identity): boolean {
  * `highlights` prop is pure projection.
  *
  * Requires `auth` to be configured on `YouVersionProvider`; with no auth
- * configured it behaves exactly as signed out.
+ * configured it behaves exactly as signed out. It also requires `highlights` in
+ * that config's `permissions` — without it no GET is ever issued (see
+ * {@link shouldFetchHighlights}), so `highlights` stays whatever the cache holds.
  */
 export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
   const { appKey, apiHost, installationId } = useYouVersion()
@@ -164,6 +180,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const accessToken = auth?.accessToken ?? null
   const isAuthLoading = auth?.isLoading ?? false
   const userId = auth?.userInfo?.id ?? null
+  // Config, not state: effectively constant for the life of the provider. Read
+  // through the closure rather than a ref so a change still re-runs the fetch
+  // effect below (`runFetch` is one of its deps).
+  const canFetchHighlights = shouldFetchHighlights(auth?.requestedPermissions ?? [])
 
   const scope = useMemo<HighlightScope>(
     () => ({ versionId: options.versionId, book: options.book, chapter: options.chapter }),
@@ -255,6 +275,13 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const inFlightRef = useRef<Promise<void> | null>(null)
 
   const runFetch = useCallback((): Promise<void> => {
+    // The app never asked for `highlights`, so a GET could only ever 403. Sits
+    // above the in-flight dedup deliberately: when this is false nothing was
+    // ever started, so there is nothing to join or to clear.
+    if (!canFetchHighlights) {
+      return Promise.resolve()
+    }
+
     const existing = inFlightRef.current
     if (existing !== null) {
       return existing
@@ -307,7 +334,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
     inFlightRef.current = promise
     return promise
-  }, [api])
+  }, [api, canFetchHighlights])
 
   useEffect(() => {
     // Abandon any fetch belonging to the previous identity or token: there is no

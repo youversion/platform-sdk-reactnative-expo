@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { YVUserInfo } from './types'
+import type { AuthPermission, YVUserInfo } from './types'
 
 export type AuthContextValue = {
   isAuthenticated: boolean
@@ -10,6 +10,7 @@ export type AuthContextValue = {
   signOut: () => Promise<void>
   refreshNow: () => Promise<void>
   isLoading: boolean
+  requestedPermissions: readonly AuthPermission[]
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

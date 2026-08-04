@@ -14,7 +14,11 @@ export default function RootLayout() {
         <YouVersionProvider
           appKey={appKey}
           theme="system"
-          auth={{ redirectUri, scopes: ['profile', 'email'] }}
+          auth={{
+            redirectUri,
+            scopes: ['profile', 'email'],
+            permissions: ['highlights'],
+          }}
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
