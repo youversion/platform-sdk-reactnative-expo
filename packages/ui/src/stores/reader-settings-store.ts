@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { READER_SETTINGS_PERSIST_KEY } from '../lib/constants'
-import { SOURCE_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
+import { SOURCE_SERIF_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
 import { READER_LINE_SPACING } from './types/reader-line-spacing'
 
 /** MMKV-backed storage for zustand `persist` (sync; hydrates at store creation). */
@@ -41,6 +41,16 @@ const normalizeLineSpacing = (value: number | undefined): number =>
     : READER_LINE_SPACING.DEFAULT
 
 /**
+ * Web SDK 2.5.0 replaced the Source Serif stack with Untitled Serif and migrates
+ * the old value on load — but only when `fontFamily` is uncontrolled. We always
+ * pass it controlled, so that migration never runs for us and we do it here
+ * instead. Without it the picker matches neither font button and shows no
+ * active state.
+ */
+const normalizeFontFamily = (value: FontFamily): FontFamily =>
+  value === SOURCE_SERIF_FONT ? UNTITLED_SERIF_FONT : value
+
+/**
  * Internal persisted reader settings for the native Bible reader.
  * Not part of the package public API.
  */
@@ -48,7 +58,7 @@ export const useReaderSettingsStore = create<ReaderSettingsState>()(
   persist(
     (set) => ({
       fontSize: BIBLE_READER_FONT.DEFAULT,
-      fontFamily: SOURCE_SERIF_FONT,
+      fontFamily: UNTITLED_SERIF_FONT,
       lineSpacing: READER_LINE_SPACING.DEFAULT,
       setFontSize: (size) => set({ fontSize: clampBibleReaderFontSize(size) }),
       setFontFamily: (fontFamily) => set({ fontFamily }),
@@ -73,7 +83,9 @@ export const useReaderSettingsStore = create<ReaderSettingsState>()(
           fontSize: clampBibleReaderFontSize(
             persistedReaderSlice.fontSize ?? currentState.fontSize,
           ),
-          fontFamily: persistedReaderSlice.fontFamily ?? currentState.fontFamily,
+          fontFamily: normalizeFontFamily(
+            persistedReaderSlice.fontFamily ?? currentState.fontFamily,
+          ),
           lineSpacing: normalizeLineSpacing(
             persistedReaderSlice.lineSpacing ?? currentState.lineSpacing,
           ),
