@@ -4,7 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { READER_SETTINGS_PERSIST_KEY } from '../../lib/constants'
-import { INTER_FONT, SOURCE_SERIF_FONT } from '../../lib/reader-fonts'
+import { INTER_FONT, SOURCE_SERIF_FONT, UNTITLED_SERIF_FONT } from '../../lib/reader-fonts'
 import { useReaderSettingsStore } from '../reader-settings-store'
 import { READER_LINE_SPACING } from '../types/reader-line-spacing'
 
@@ -25,7 +25,7 @@ async function resetReaderSettingsStore() {
   mmkvStorage.clearAll()
   useReaderSettingsStore.setState({
     fontSize: BIBLE_READER_FONT.DEFAULT,
-    fontFamily: SOURCE_SERIF_FONT,
+    fontFamily: UNTITLED_SERIF_FONT,
     lineSpacing: READER_LINE_SPACING.DEFAULT,
   })
   await useReaderSettingsStore.persist.rehydrate()
@@ -40,8 +40,44 @@ describe('useReaderSettingsStore', () => {
     const { result } = renderHook(() => useReaderSettingsSlice())
 
     expect(result.current.fontSize).toBe(BIBLE_READER_FONT.DEFAULT)
-    expect(result.current.fontFamily).toBe(SOURCE_SERIF_FONT)
+    expect(result.current.fontFamily).toBe(UNTITLED_SERIF_FONT)
     expect(result.current.lineSpacing).toBe(READER_LINE_SPACING.DEFAULT)
+  })
+
+  it('migrates a persisted Source Serif stack to Untitled Serif on read', async () => {
+    mmkvStorage.set(
+      READER_SETTINGS_PERSIST_KEY,
+      JSON.stringify({
+        state: {
+          fontSize: BIBLE_READER_FONT.DEFAULT,
+          fontFamily: SOURCE_SERIF_FONT,
+          lineSpacing: READER_LINE_SPACING.DEFAULT,
+        },
+        version: 0,
+      }),
+    )
+    await useReaderSettingsStore.persist.rehydrate()
+
+    const { result } = renderHook(() => useReaderSettingsSlice())
+    expect(result.current.fontFamily).toBe(UNTITLED_SERIF_FONT)
+  })
+
+  it('leaves a non-serif persisted font family untouched', async () => {
+    mmkvStorage.set(
+      READER_SETTINGS_PERSIST_KEY,
+      JSON.stringify({
+        state: {
+          fontSize: BIBLE_READER_FONT.DEFAULT,
+          fontFamily: INTER_FONT,
+          lineSpacing: READER_LINE_SPACING.DEFAULT,
+        },
+        version: 0,
+      }),
+    )
+    await useReaderSettingsStore.persist.rehydrate()
+
+    const { result } = renderHook(() => useReaderSettingsSlice())
+    expect(result.current.fontFamily).toBe(INTER_FONT)
   })
 
   it('persists font size + family across rerenders via MMKV', () => {

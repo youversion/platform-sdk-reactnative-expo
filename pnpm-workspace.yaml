@@ -10,6 +10,15 @@ allowBuilds:
 
 minimumReleaseAge: 4320 # 3-day cooldown — supply-chain attack mitigation
 
+# First-party YouVersion packages are exempt from the cooldown. The cooldown
+# buys time for the ecosystem to spot a hijacked *third-party* release; for the
+# Web SDK we publish ourselves, it only blocks us from consuming our own work on
+# release day. The tradeoff is real and deliberate: a compromised YouVersion npm
+# token would reach our builds with no waiting period, so these packages lean on
+# publish-side controls (2FA/trusted publishing) rather than this cooldown.
+minimumReleaseAgeExclude:
+  - '@youversion/*'
+
 # Migrated from .npmrc — pnpm 11 only reads auth/registry settings from .npmrc,
 # all other settings must live here (https://pnpm.io/blog/releases/11.0).
 # Required for Expo DOM Components + pnpm compatibility.
