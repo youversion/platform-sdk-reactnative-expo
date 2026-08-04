@@ -42,8 +42,9 @@ describe('detectDeviceLocale', () => {
     expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es')
   })
 
+  // `xx` is not a real language code, so it stays unbundled as locales are synced.
   it('falls back to en when languageCode locale is not bundled', () => {
-    expect(detectDeviceLocale({ languageCode: 'fr' } as any)).toBe('en')
+    expect(detectDeviceLocale({ languageCode: 'xx' } as any)).toBe('en')
   })
 
   it('falls back to en when no locales are available', () => {

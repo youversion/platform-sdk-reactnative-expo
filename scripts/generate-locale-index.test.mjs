@@ -18,3 +18,9 @@ test('generateIndexContent emits valid TypeScript for hyphenated locale codes', 
   assert.match(output, /'pt-BR': pt_BR,/)
   assert.doesNotMatch(output, /import pt-BR/)
 })
+
+test('generateIndexContent types catalogs as Partial so untranslated keys can lag en.json', () => {
+  const output = generateIndexContent(['en', 'fr'])
+
+  assert.match(output, /satisfies Record<string, Partial<SdkTranslationResources>>/)
+})
