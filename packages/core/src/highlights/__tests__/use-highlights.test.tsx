@@ -130,6 +130,13 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     // The default for every existing case: these tests exercise the fetch, so
     // the app must have asked for the permission that mounts it.
     requestedPermissions: ['highlights'],
+    // `grantedPermissions: null` is deliberate — the fetch gates on what was
+    // *requested*, so an unknown grant must still fetch. See the gate note in
+    // `shouldFetchHighlights`.
+    grantedPermissions: null,
+    hasPermission: jest.fn(() => false),
+    invalidatePermissions: jest.fn(),
+    requestPermissions: jest.fn(),
     ...overrides,
   }
 }

@@ -52,6 +52,28 @@ export default function App() {
 }
 ```
 
+### Permissions
+
+`auth.permissions` asks for YouVersion Platform permissions (e.g. `'highlights'`) at sign-in; the user can decline. Read the grant back with `useYVAuth()`: `hasPermission(permission)`, or `grantedPermissions` for the list (`null` = nothing requested or nothing known yet, `[]` = declined).
+
+To ask an already signed-in user — without making them sign out — call `requestPermissions`:
+
+```tsx
+const { hasPermission, requestPermissions } = useYVAuth()
+
+if (!hasPermission('highlights')) {
+  const outcome = await requestPermissions(['highlights'])
+  // { status: 'granted', grantedPermissions } | { status: 'cancel' }
+  // | { status: 'failure', reason: 'not-signed-in' | 'not-permitted' | 'user-changed' | 'in-progress' | 'transient', message }
+}
+```
+
+A granted permission makes `hasPermission` true on the next render, and merges into the cached grant rather than replacing it.
+
+The flow returns to your `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one. Nothing extra to register beyond sign-in's own setup.
+
+If `redirectUri` disagrees with the callback URL registered for your app key, the return never reaches the SDK and the outcome is `cancel`, indistinguishable from a decline.
+
 ### Highlights
 
 `useHighlights` gives you a chapter's highlights, cached locally so they paint on the first frame, and write functions that apply optimistically and roll back on failure.

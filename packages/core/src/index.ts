@@ -3,7 +3,16 @@ export type { YouVersionContextValue } from './youversion-context'
 export { default as YouVersionProvider } from './youversion-provider'
 
 export { useYVAuth, useYVAuthOptional } from './auth'
-export type { AuthConfig, AuthContextValue, AuthPermission, AuthScope, YVUserInfo } from './auth'
+export type {
+  AuthConfig,
+  AuthContextValue,
+  AuthPermission,
+  AuthScope,
+  DataExchangeFailureReason,
+  DataExchangeOutcome,
+  KnownAuthPermission,
+  YVUserInfo,
+} from './auth'
 
 export { deriveServerColors, HIGHLIGHT_COLORS, isHighlightColor, useHighlights } from './highlights'
 export type {

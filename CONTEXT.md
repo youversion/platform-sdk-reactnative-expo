@@ -130,6 +130,14 @@ _Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key
 What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
 _Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it)
 
+**Granted Permissions**:
+What the user actually granted at sign-in, read off the OAuth **app redirect** and cached per user. A three-state signal, not a list: `null` = no `granted_permissions` key at all, so nothing was requested and nothing is known; `[]` = requested and **denied**; populated = granted. Requesting a permission (`AuthConfig.permissions`) is a separate thing from being granted it. Values the SDK does not recognize are kept verbatim rather than narrowed to the known permission union.
+_Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
+
+**Data Exchange**:
+YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The consent page returns to the app's `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one — see [ADR 0015](docs/adr/0015-data-exchange-return-scheme.md).
+_Avoid_: Treating the return URL as a separate, SDK-owned thing from the app's OAuth `redirectUri` (one app key, one callback URL, both flows share it); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -159,6 +167,9 @@ _Avoid_: Branching on `message` (generic outside development builds); routing wr
 - The reader's **Native Wrapper** derives **Cached Highlights** for its current **Highlight Scope** and holds the **Controlled Highlights Latch** with them; the **Expo DOM Component** only projects that array and never fetches, stores, or authenticates for highlights.
 - The highlights fetch is mounted only when the app **requested** the `highlights` permission on its auth config — not when a grant is known. A never-requested permission means no request; an unknown grant still fetches, because absence of a grant record is not a denial.
 - With the in-WebView verse action **Presentation Shell** switched off, a **Verse Selection** crosses to native as a **Native Action** and a **Selection Clear Signal** crosses back. Neither is **DOM-Owned Sheet UI State**: the selection is a committed observation, and the clear is a one-way native→DOM command.
+- **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
+- A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
+- **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.
 
 ## Example Dialogue
 
