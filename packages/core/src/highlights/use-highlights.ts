@@ -118,9 +118,6 @@ function classifyApiError(error: HighlightsApiError): HighlightWriteReason {
  * Gated on what the app **requested** (`AuthConfig.permissions`), not on what the
  * user granted, so an app that never asked for highlights issues no request.
  *
- * **Do not tighten this to a grant check that treats unknown as denied.** A user
- * whose grants aren't known would silently stop seeing their existing highlights;
- * only a *known* denial may skip the fetch.
  */
 export function shouldFetchHighlights(requested: readonly AuthPermission[]): boolean {
   return requested.includes('highlights')
@@ -578,8 +575,6 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   const highlights = useMemo(() => selectHighlights(renderedState), [renderedState])
 
-  // `isRefreshing` is derived, not stored: with the gate closed no GET can be
-  // running, so a mid-fetch flip can't leave a RefreshControl spinning forever.
   return {
     highlights,
     scope,
