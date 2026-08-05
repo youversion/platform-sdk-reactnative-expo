@@ -12,7 +12,7 @@ import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
-import { Share } from 'react-native'
+import { Platform, Share } from 'react-native'
 
 import {
   readerLocationStoreInitialState,
@@ -524,6 +524,54 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
       fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     })
     expect(flowApply).toHaveBeenCalledWith(PINK, [1, 2])
+  })
+})
+
+/**
+ * Web keeps the in-WebView popover, so the native sheet must stay out of its
+ * way. `NativeSheet` already returns `null` there, but the reader also declines
+ * to mount the sheet at all — the two have to agree, or a future `NativeSheet`
+ * that renders something on web would put two verse-action UIs on screen.
+ *
+ * The other half of this fork, `verseActions="popover"` reaching the WebView, is
+ * pinned at layer 1 in `lib/__tests__/resolve-verse-actions.test.ts`. It is read
+ * once at module load, so flipping `Platform.OS` inside a test cannot move it.
+ */
+describe('BibleReader verse action sheet — web', () => {
+  const originalOs = Platform.OS
+
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: originalOs,
+    })
+  })
+
+  it('renders no verse action sheet on web, even with a live selection', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, enumerable: true, value: 'web' })
+
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+  })
+
+  it('still forwards the selection to the consumer on web', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, enumerable: true, value: 'web' })
+    const onVerseSelect = jest.fn()
+
+    render(
+      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} onVerseSelect={onVerseSelect} />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
+    // The sheet is the only thing web gives up. `onVerseSelect` is a public prop
+    // on every platform, and the popover fires it exactly as the sheet path does.
+    expect(onVerseSelect).toHaveBeenCalledWith(SELECTION)
   })
 })
 

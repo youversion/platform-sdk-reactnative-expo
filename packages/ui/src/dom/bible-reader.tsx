@@ -37,6 +37,21 @@ type BibleReaderBaseProps = {
    */
   highlights: Highlight[]
   /**
+   * **Required, and supplied by the native wrapper — not a consumer choice.**
+   *
+   * `'none'` on the native platforms, where `BibleVerseActionSheet` replaces the
+   * in-WebView popover. `'popover'` on web, where `NativeSheet` renders nothing:
+   * switching the popover off there would leave no verse action UI at all.
+   *
+   * It arrives as a prop rather than being read from `Platform.OS` here because
+   * this file runs inside the WebView, where `react-native`'s `Platform` is not
+   * the host's. The branch itself lives in `lib/resolve-verse-actions.ts`.
+   *
+   * Required rather than defaulted so a new call site has to answer the question
+   * — the Web SDK's own default is `'popover'`, which is wrong on native.
+   */
+  verseActions: 'popover' | 'none'
+  /**
    * Fires on every selection change, clears included (`verses: []`). Carries the
    * selected verses, their passage ids, a localized `reference`, and `shareData`.
    */
@@ -88,6 +103,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     installationId,
     accessToken,
     highlights,
+    verseActions,
     onVerseSelect,
     clearSelectionSignal,
     theme = 'light',
@@ -208,7 +224,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
           highlights={safeHighlights}
-          verseActions="none"
+          verseActions={verseActions}
           onVerseSelect={handleVerseSelect}
           clearSelectionSignal={clearSelectionSignal}
           book={book}
