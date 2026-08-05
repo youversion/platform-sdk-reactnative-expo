@@ -69,7 +69,10 @@ const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
  * provider, which UI tests replace). Steer it per test rather than re-mocking
  * the whole package and losing that passthrough provider.
  */
-function stubHighlightPermissionFlow({ highlights = [] as Highlight[], isConfirming = false } = {}) {
+function stubHighlightPermissionFlow({
+  highlights = [] as Highlight[],
+  isConfirming = false,
+} = {}) {
   jest
     .spyOn(core, 'useHighlightPermissionFlow')
     .mockImplementation(({ versionId, book, chapter }) => ({
@@ -341,24 +344,52 @@ describe('BibleReader — the sign-in pre-step', () => {
    * location-scoped flow would paint text the user never selected — the same
    * bug ADR 0016 pins inside the Permission Flow.
    */
-  it('discards the intent when the reader leaves the passage it belonged to', async () => {
+  /**
+   * All three scope fields, because the prompt's scope is compared field by
+   * field — a comparison that dropped `versionId` or `book` would still pass a
+   * chapter-only case.
+   */
+  it.each([
+    ['chapter', { book: 'JHN', chapter: '2', versionId: VERSION_ID }],
+    ['book', { book: 'LUK', chapter: '1', versionId: VERSION_ID }],
+    ['versionId', { book: 'JHN', chapter: '1', versionId: 206 }],
+  ])('discards the intent when %s changes while the prompt is up', async (_field, next) => {
     stubAuth(false)
-    const { rerender } = render(
-      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />,
-      { wrapper },
-    )
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
     expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
 
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="2" versionId={VERSION_ID} />)
+      rerender(<BibleReader book={next.book} chapter={next.chapter} versionId={next.versionId} />)
     })
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
     expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawApply).not.toHaveBeenCalled()
+  })
+
+  it('keeps the intent when the reader stays in the same passage', async () => {
+    stubAuth(false)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    // An unrelated re-render must not trip the discard — `NO_PROMPT`'s stable
+    // identity is what keeps this from closing on every frame.
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
+    await press('sign-in-with-youversion-confirm')
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
   })
 
   it('never prompts for a remove', async () => {

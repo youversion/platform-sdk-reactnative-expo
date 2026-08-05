@@ -217,8 +217,11 @@ export function BibleReader({
   })
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
-  const { highlights, scope: highlightScope, remove: removeHighlight } =
-    highlightPermissionFlow.highlights
+  const {
+    highlights,
+    scope: highlightScope,
+    remove: removeHighlight,
+  } = highlightPermissionFlow.highlights
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
