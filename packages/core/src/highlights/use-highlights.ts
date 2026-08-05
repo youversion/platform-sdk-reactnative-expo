@@ -5,7 +5,7 @@ import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
-import { isHighlightColor, type HighlightScope } from './constants'
+import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
 import {
   claim,
   collapseVerseRuns,
@@ -75,7 +75,6 @@ export type UseHighlightsResult = {
   remove: (color: string, verses: number[]) => Promise<HighlightWriteOutcome>
 }
 
-const NOT_SIGNED_IN_MESSAGE = 'Not signed in — highlights require an authenticated YouVersion user.'
 const INVALID_COLOR_MESSAGE =
   'Unsupported highlight color. Use one of the five YouVersion highlight swatches.'
 
@@ -164,6 +163,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const accessToken = auth?.accessToken ?? null
   const isAuthLoading = auth?.isLoading ?? false
   const userId = auth?.userInfo?.id ?? null
+  const ensureFreshToken = auth?.ensureFreshToken ?? null
 
   const scope = useMemo<HighlightScope>(
     () => ({ versionId: options.versionId, book: options.book, chapter: options.chapter }),
@@ -205,7 +205,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // over one render's values.
   const identityRef = useRef<Identity>({ key: currentIdentityKey, scope, userId })
   const stateRef = useRef(renderedState)
-  const authRef = useRef({ accessToken, isAuthLoading })
+  const authRef = useRef({ accessToken, isAuthLoading, ensureFreshToken })
 
   // ── The token-loading hold ─────────────────────────────────────────────────
   // `userInfo` is seeded synchronously but `accessToken` only arrives after
@@ -225,7 +225,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   useEffect(() => {
     identityRef.current = { key: currentIdentityKey, scope, userId }
     stateRef.current = renderedState
-    authRef.current = { accessToken, isAuthLoading }
+    authRef.current = { accessToken, isAuthLoading, ensureFreshToken }
 
     if (accessToken !== null && userId === null) {
       warnMissingUserId()
@@ -345,6 +345,20 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       const { op, color, verses, token, captured } = batch
 
       await waitForAuthSettled()
+
+      // The token has to be current when the request goes out — not when the
+      // user tapped. An expired token 401s, a 401 classifies as `auth`, and
+      // `useHighlightPermissionFlow` reads `auth` as a stale grant, so without
+      // this a user would be asked to grant a permission they already granted
+      // (ADR 0016).
+      //
+      // It belongs here, in the send path, rather than in front of the tap: a
+      // refresh that is actually due costs a token round-trip, and the
+      // optimistic claim in `startWrite` has already painted by the time this
+      // runs. Nothing the user can see waits on it. `refreshToken` handles its
+      // own failures and never rejects, so a dead network leaves the old token
+      // in place and the write below reports through the normal outcome.
+      await authRef.current.ensureFreshToken?.()
 
       // The write chain outlives an identity change: `enqueue` serializes behind
       // whatever is in flight, and there is no AbortController, so one hung

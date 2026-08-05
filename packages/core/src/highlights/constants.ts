@@ -30,6 +30,14 @@ export type HighlightScope = {
 
 export type ServerColors = Record<number, string>
 
+/**
+ * One copy of the message, shared by the write path and the permission flow that
+ * wraps it. Both can report the same refusal, and two drifting copies of a
+ * user-facing string is a bug waiting for a translator.
+ */
+export const NOT_SIGNED_IN_MESSAGE =
+  'Not signed in — highlights require an authenticated YouVersion user.'
+
 export function highlightsCacheKey(userId: string, scope: HighlightScope): string {
   return `${MMKV_HIGHLIGHTS_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
 }
