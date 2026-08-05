@@ -1,6 +1,6 @@
 ---
 '@youversion/platform-react-native-expo-core': patch
-'@youversion/platform-react-native-expo-ui': minor
+'@youversion/platform-react-native-expo-ui': patch
 ---
 
 `BibleReader` now renders natively-owned highlights, and the in-WebView verse action popover is switched off.
