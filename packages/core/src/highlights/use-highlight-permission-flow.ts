@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 import { useYVAuthOptional } from '../auth'
+import { NOT_SIGNED_IN_MESSAGE } from './constants'
 import {
   HIGHLIGHTS_PERMISSION,
   initialPermissionFlowState,
   permissionFlowReducer,
+  scopeKey,
   toWriteReason,
   type PendingHighlight,
   type PermissionFlowError,
@@ -55,7 +57,6 @@ export type UseHighlightPermissionFlowResult = {
   flowError: PermissionFlowError | null
 }
 
-const NOT_SIGNED_IN_MESSAGE = 'Not signed in — highlights require an authenticated YouVersion user.'
 const FLOW_IN_PROGRESS_MESSAGE =
   'A highlight permission flow is already in progress; this highlight was not applied.'
 
@@ -116,13 +117,13 @@ export function useHighlightPermissionFlow(
   // Same "adjust state when props change" pattern useHighlights uses, and for
   // the same reason: an effect would leave one frame where a consent sheet for
   // the chapter the reader just left is still open over the new one.
-  const scopeKey = `${options.versionId}|${options.book}|${options.chapter}`
-  const [seenScopeKey, setSeenScopeKey] = useState(scopeKey)
+  const currentScopeKey = scopeKey(options)
+  const [seenScopeKey, setSeenScopeKey] = useState(currentScopeKey)
 
   let renderedState = state
-  if (seenScopeKey !== scopeKey) {
+  if (seenScopeKey !== currentScopeKey) {
     renderedState = permissionFlowReducer(state, { type: 'RESET' })
-    setSeenScopeKey(scopeKey)
+    setSeenScopeKey(currentScopeKey)
     dispatch({ type: 'RESET' })
   }
 
@@ -422,6 +423,11 @@ export function useHighlightPermissionFlow(
    */
   const applyThroughGrant = useCallback(
     async (color: string, verses: number[]): Promise<HighlightWriteOutcome> => {
+      // Claimed before the write goes out. `useHighlights.apply` binds the
+      // passage at this moment, so anything replayed afterwards has to be
+      // measured against the same one rather than against wherever the reader
+      // has since got to.
+      const claimedScope = highlightsRef.current.scope
       const outcome = await highlightsRef.current.apply(color, verses)
       if (outcome.status !== 'error' || outcome.reason !== 'auth') {
         return outcome
@@ -432,10 +438,17 @@ export function useHighlightPermissionFlow(
         return outcome
       }
       authRef.current?.invalidatePermissions()
+      // The reader changed chapters while the write was out. The grant was still
+      // worth dropping, but the intent belongs to a passage they have left, so
+      // there is nothing left to re-prompt for. No flow exists yet at this
+      // point, so the render-time RESET had nothing to abandon.
+      if (scopeKey(claimedScope) !== scopeKey(highlightsRef.current.scope)) {
+        return outcome
+      }
       const pending: PendingHighlight = {
         color,
         verses: outcome.failedVerses,
-        scope: highlightsRef.current.scope,
+        scope: claimedScope,
       }
       return startFlow({ type: 'AUTH_RETRY', pending }, pending)
     },
@@ -449,11 +462,16 @@ export function useHighlightPermissionFlow(
         return highlightsRef.current.apply(color, verses)
       }
 
+      // Built before the first await, so its `scope` records the passage the
+      // user actually tapped rather than wherever the reader ends up by the time
+      // a decision gets made.
+      const pending: PendingHighlight = { color, verses, scope: highlightsRef.current.scope }
+
       // Pre-flight, in this order. The token refresh comes FIRST: an expired
       // token makes the write 401, a 401 reads as `auth`, and `auth` reads as
       // "the permission cache is stale" — so without this, an expired token
       // presents to the user as a request to grant a permission they already
-      // granted. See .claude/bugs/auth-provider-expired-access-token.md.
+      // granted.
       await authRef.current.ensureFreshToken()
 
       const current = authRef.current
@@ -462,11 +480,17 @@ export function useHighlightPermissionFlow(
         return highlightsRef.current.apply(color, verses)
       }
 
+      // That refresh joins a token round-trip when one is due, which is exactly
+      // the window in which a reader has time to move. Nothing was written and
+      // the passage is gone, so this settles the way every other abandonment does.
+      if (scopeKey(pending.scope) !== scopeKey(highlightsRef.current.scope)) {
+        return { status: 'noop' }
+      }
+
       if (current.hasPermission(HIGHLIGHTS_PERMISSION)) {
         return applyThroughGrant(color, verses)
       }
 
-      const pending: PendingHighlight = { color, verses, scope: highlightsRef.current.scope }
       return startFlow(
         { type: 'TAP', pending, branch: current.isAuthenticated ? 'consent' : 'sign-in' },
         pending,

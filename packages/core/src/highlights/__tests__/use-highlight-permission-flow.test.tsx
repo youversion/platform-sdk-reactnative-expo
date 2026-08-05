@@ -3,7 +3,6 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import type { AuthPermission, DataExchangeOutcome } from '../../auth'
 import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
-import type { HighlightScope } from '../constants'
 import {
   useHighlightPermissionFlow,
   type UseHighlightPermissionFlowResult,
@@ -21,16 +20,18 @@ import type {
 const mockWriteApply = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>()
 const mockRemove = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>()
 const mockRefresh = jest.fn<Promise<void>, []>()
-const mockScope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 
 // Built inside the factory, and every name it closes over is `mock`-prefixed:
 // babel-plugin-jest-hoist lifts `jest.mock` above the module body, so an object
 // assembled at module scope would capture these before they are initialized.
 jest.mock('../use-highlights', () => ({
   useHighlights: jest.fn(
-    (): UseHighlightsResult => ({
+    (options: UseHighlightsOptions): UseHighlightsResult => ({
       highlights: [],
-      scope: mockScope,
+      // Follows the options it was rendered with, exactly as the real hook does.
+      // A fixed scope here would let a pending highlight replay into a chapter
+      // the reader has left without any test noticing.
+      scope: { versionId: options.versionId, book: options.book, chapter: options.chapter },
       isRefreshing: false,
       error: null,
       refresh: mockRefresh,
@@ -670,6 +671,58 @@ describe('when the reader moves on', () => {
 
     expect(mockInvalidatePermissions).not.toHaveBeenCalled()
     expect(result.current.isConfirming).toBe(false)
+  })
+
+  it('does not re-prompt for a write that was refused after the reader moved on', async () => {
+    // The permission is cached, so this takes the straight-through path and no
+    // flow exists yet while the write is out. Nothing has a caller to abandon,
+    // so the render-time RESET cannot help here — only the claimed scope can.
+    currentAuth = signedInWithGrant
+    mockRequestPermissions.mockResolvedValue(grantedOutcome)
+    const write = deferred<HighlightWriteOutcome>()
+    mockWriteApply.mockReturnValue(write.promise)
+
+    const { result, rerender } = renderFlow()
+    const { promise } = await startApply(result, YELLOW, [16, 17, 18])
+
+    await act(async () => {
+      rerender({ ...options, chapter: '4' })
+    })
+    await act(async () => {
+      write.resolve(authWriteError([16, 17, 18]))
+    })
+
+    // The grant is demonstrably wrong either way, so dropping it is still right.
+    expect(mockInvalidatePermissions).toHaveBeenCalledTimes(1)
+
+    // But verses 16-18 belong to JHN.3. Re-prompting here would end in a write
+    // through JHN.4's hook, painting text the user never selected.
+    expect(result.current.isConfirming).toBe(false)
+    expect(mockRequestPermissions).not.toHaveBeenCalled()
+    expect(mockWriteApply).toHaveBeenCalledTimes(1)
+    await expect(promise).resolves.toEqual(authWriteError([16, 17, 18]))
+  })
+
+  it('abandons a tap when the reader moves while the pre-flight refresh is out', async () => {
+    currentAuth = signedInNoGrant
+    const refresh = deferred<void>()
+    mockEnsureFreshToken.mockReturnValue(refresh.promise)
+
+    const { result, rerender } = renderFlow()
+    const { promise } = await startApply(result)
+
+    await act(async () => {
+      rerender({ ...options, chapter: '4' })
+    })
+    await act(async () => {
+      refresh.resolve()
+    })
+
+    // A token round-trip is exactly the window in which a reader has time to
+    // move. Nothing was written, so this is an abandonment, not a failure.
+    await expect(promise).resolves.toEqual({ status: 'noop' })
+    expect(result.current.isConfirming).toBe(false)
+    expect(mockWriteApply).not.toHaveBeenCalled()
   })
 
   it('settles a waiting caller on unmount instead of leaving the promise pending', async () => {

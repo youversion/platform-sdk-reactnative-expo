@@ -5,7 +5,7 @@ import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
-import { isHighlightColor, type HighlightScope } from './constants'
+import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
 import {
   claim,
   collapseVerseRuns,
@@ -75,7 +75,6 @@ export type UseHighlightsResult = {
   remove: (color: string, verses: number[]) => Promise<HighlightWriteOutcome>
 }
 
-const NOT_SIGNED_IN_MESSAGE = 'Not signed in — highlights require an authenticated YouVersion user.'
 const INVALID_COLOR_MESSAGE =
   'Unsupported highlight color. Use one of the five YouVersion highlight swatches.'
 

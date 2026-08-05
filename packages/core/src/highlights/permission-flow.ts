@@ -25,6 +25,19 @@ export type PendingHighlight = {
 }
 
 /**
+ * Identity of the passage an intent belongs to. Two scopes match only when all
+ * three parts do.
+ *
+ * This is what makes {@link PendingHighlight.scope} load-bearing rather than
+ * decorative: verse numbers mean nothing without the chapter they were tapped
+ * in, so anything replayed after an await is checked against the scope it was
+ * claimed under before it is allowed to write.
+ */
+export function scopeKey(scope: HighlightScope): string {
+  return `${scope.versionId}|${scope.book}|${scope.chapter}`
+}
+
+/**
  * Why a flow gave up. `auth` is the flow's own reason (the permission was
  * granted, and the server still refused the write); the rest come straight from
  * {@link DataExchangeOutcome}.
