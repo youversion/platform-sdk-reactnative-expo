@@ -85,6 +85,11 @@ function authValue(state: AuthState): AuthContextValue {
     refreshNow: jest.fn(),
     ensureFreshToken: mockEnsureFreshToken,
     isLoading: false,
+    // An app that reaches this flow has asked for `highlights` — the reader
+    // never mounts the fetch otherwise (`shouldFetchHighlights`). What the user
+    // then granted is `state.permissions` below, which is what this suite
+    // varies.
+    requestedPermissions: ['highlights'],
     grantedPermissions: state.permissions,
     hasPermission: (permission) => {
       calls.push(`hasPermission:${permission}`)
