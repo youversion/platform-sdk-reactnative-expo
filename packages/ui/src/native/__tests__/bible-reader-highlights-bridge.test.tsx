@@ -257,18 +257,9 @@ describe('the verse-action event set', () => {
     expect(props).not.toHaveProperty('onShare')
   })
 
-  it('switches the in-WebView popover off on native', () => {
-    // jest-expo's default platform is native (ios). Web is the exception, and
-    // is covered below.
-    render(<BibleReader />, { wrapper })
-    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
-  })
-
   it('does not let a consumer choose the verse-action UI', () => {
-    // @ts-expect-error — `verseActions` is omitted from BibleReaderProps; native
-    // owns it per platform. This asserts the omission is real, not just documented.
-    render(<BibleReader verseActions="popover" />, { wrapper })
-    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
+    render(<BibleReader />, { wrapper })
+    expect(lastDomProps()).not.toHaveProperty('verseActions')
   })
 })
 
@@ -339,19 +330,8 @@ describe('clearSelectionSignal', () => {
 describe('the DOM component source (unobservable from layer 3)', () => {
   const source = readFileSync(join(__dirname, '../../dom/bible-reader.tsx'), 'utf8')
 
-  it('forwards the host-chosen verseActions to the Web SDK reader root', () => {
-    // Threaded, not hardcoded: web keeps the popover because `NativeSheet`
-    // renders nothing there. Re-hardcoding the literal would silently un-fix
-    // that, and `resolveVerseActions` would go dead without a single test
-    // failing — the web branch is invisible to a layer-3 test that always runs
-    // as one platform.
-    //
-    // Comments are stripped first: the prop's own docstring discusses
-    // `verseActions="none"` in prose, which a naive substring check reads as
-    // the hardcoded attribute.
-    const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '')
-    expect(code).toContain('verseActions={verseActions}')
-    expect(code).not.toContain('verseActions="none"')
+  it('hardcodes verseActions="none" on the Web SDK reader root', () => {
+    expect(source).toContain('verseActions="none"')
   })
 
   it('wires no Web SDK highlight-intent or copy/share handlers', () => {
