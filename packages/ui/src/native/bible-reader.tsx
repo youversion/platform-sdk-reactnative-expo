@@ -14,7 +14,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -33,7 +33,9 @@ import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
+import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
+import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -43,6 +45,13 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
+
+/**
+ * A swatch press the reader is holding while it asks the user something. It
+ * outlives the selection — the action sheet closes before the prompt opens, so
+ * `selection` is already `null` by the time the answer comes back.
+ */
+type PendingSwatchIntent = { color: string; verses: number[] }
 
 /**
  * Re-exported so an `onVerseSelect` handler can be typed without depending on
@@ -210,6 +219,15 @@ export function BibleReader({
   // start at 0, so mounting still forwards 0 and clears nothing.
   const [internalClearCount, setInternalClearCount] = useState(0)
 
+  // Which prompt the reader is showing on its own account. The consent prompt is
+  // not in here — the flow owns that one, and `flow.isConfirming` is its gate.
+  // Both are folded into the action sheet's `isOpen` below, so exactly one sheet
+  // is ever active and displacement never fires a clear as a side effect.
+  const [prompt, setPrompt] = useState<'none' | 'sign-in'>('none')
+  // A ref, not state: nothing renders from it, and the sign-in sheet's confirm
+  // needs the value on the same tick it fires.
+  const pendingIntentRef = useRef<PendingSwatchIntent | null>(null)
+
   const handleVerseSelect = useCallback(
     async (next: BibleReaderVerseSelection) => {
       setSelection(next.verses.length > 0 ? next : null)
@@ -236,28 +254,60 @@ export function BibleReader({
 
   const applyHighlight = flow.apply
 
+  // `useYVAuthOptional()` returns `null` when the consumer configured no `auth`,
+  // and that is not the same as signed out: there is nothing to sign in to. The
+  // sign-in sheet's confirm hands the intent to `flow.apply`, which for a null
+  // auth warns and falls through to the unguarded write — so prompting would
+  // open a sheet whose only outcome is the outcome the user already had. A
+  // no-auth consumer keeps the straight-through write, which reports
+  // `not-signed-in` exactly as before.
+  const needsSignIn = auth !== null && !auth.isAuthenticated
+
   const handleSwatchPress = useCallback(
     (swatch: VerseActionSwatch) => {
       const verses = selection?.verses ?? []
       // Read the selection first: closing drops the mirror this reads from.
       closeVerseActions()
       if (verses.length === 0) return
-      // Fire-and-forget, both branches. The paint is optimistic inside
-      // `useHighlights`, so the verse changes colour on this frame and the sheet
-      // has no reason to wait for the round-trip.
-      //
       // `remove` goes straight to the unguarded write: a user looking at a
       // highlight already has whatever the write needs (ADR 0016). Only `apply`
-      // runs through the flow, which may sign the user in or ask for consent
-      // before it writes.
+      // is gated.
       if (swatch.state === 'remove') {
         void removeHighlight(swatch.color, verses)
-      } else {
-        void applyHighlight(swatch.color, verses)
+        return
       }
+      if (needsSignIn) {
+        // The flow has no sign-in prompt state — `flow.apply` would launch OAuth
+        // with no explanation of why. So the reader owns this pre-step: hold the
+        // intent, ask, and hand it to the flow on confirm.
+        pendingIntentRef.current = { color: swatch.color, verses }
+        setPrompt('sign-in')
+        return
+      }
+      // Fire-and-forget. The paint is optimistic inside `useHighlights`, so the
+      // verse changes colour on this frame and the sheet has no reason to wait
+      // for the round-trip. The flow may still raise its consent prompt first.
+      void applyHighlight(swatch.color, verses)
     },
-    [selection, closeVerseActions, removeHighlight, applyHighlight],
+    [selection, closeVerseActions, removeHighlight, applyHighlight, needsSignIn],
   )
+
+  const handleSignInConfirm = useCallback(() => {
+    const pending = pendingIntentRef.current
+    pendingIntentRef.current = null
+    setPrompt('none')
+    // Straight back into the flow, which runs `signIn()`, falls through to
+    // consent if the grant is still missing, and writes — all without the user
+    // reselecting the verse.
+    if (pending) void applyHighlight(pending.color, pending.verses)
+  }, [applyHighlight])
+
+  // "No Thanks", a swipe-down, a backdrop tap, and displacement all land here.
+  // Every one of them discards the intent; nothing is written.
+  const handleSignInDismiss = useCallback(() => {
+    pendingIntentRef.current = null
+    setPrompt('none')
+  }, [])
 
   const handleOpenBibleThemeSettings = useCallback(() => {
     setIsSettingsSheetOpen(true)
@@ -454,13 +504,33 @@ export function BibleReader({
       )}
       {Platform.OS !== 'web' && (
         <BibleVerseActionSheet
-          isOpen={selection !== null}
+          // Yielded rather than displaced. A prompt takes over the sheet host,
+          // and letting the action sheet stay "open" would have `NativeSheet`
+          // report a displacement `onClose` — which is `closeVerseActions`, and
+          // would bump the clear signal the prompt's own answer still needs.
+          isOpen={selection !== null && prompt === 'none' && !flow.isConfirming}
           reference={selection?.reference ?? ''}
           swatches={swatches}
           onSwatchPress={handleSwatchPress}
           onCopyPress={handleCopyPress}
           onSharePress={handleSharePress}
           onClose={closeVerseActions}
+          theme={resolvedTheme}
+        />
+      )}
+      {Platform.OS !== 'web' && (
+        <SignInWithYouVersionSheet
+          isOpen={prompt === 'sign-in'}
+          onConfirm={handleSignInConfirm}
+          onDismiss={handleSignInDismiss}
+          theme={resolvedTheme}
+        />
+      )}
+      {Platform.OS !== 'web' && (
+        <HighlightConsentSheet
+          isOpen={flow.isConfirming}
+          onConfirm={flow.confirm}
+          onDismiss={flow.decline}
           theme={resolvedTheme}
         />
       )}
