@@ -32,6 +32,12 @@ export type AuthContextValue = {
   ensureFreshToken: () => Promise<void>
   isLoading: boolean
   /**
+   * What the app **asked for** on its `auth` config — never what was granted.
+   * Always an array; `[]` when `auth` is unconfigured. Pairs with
+   * {@link grantedPermissions}, which answers the different question.
+   */
+  requestedPermissions: readonly AuthPermission[]
+  /**
    * Three-state grant: `null` = unknown / never requested, `[]` = requested and
    * denied, populated = granted. Unrecognized values are kept verbatim so a
    * server-side addition never reads as a denial.

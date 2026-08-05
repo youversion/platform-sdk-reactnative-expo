@@ -1,5 +1,9 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion, useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
+import {
+  useHighlights,
+  useYouVersion,
+  useYVAuthOptional,
+} from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -34,9 +38,16 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 
+/**
+ * Re-exported so an `onVerseSelect` handler can be typed without depending on
+ * `@youversion/platform-react-ui` directly.
+ */
+export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
   | 'appKey'
+  | 'highlights'
   | 'fontSize'
   | 'fontFamily'
   | 'lineSpacing'
@@ -55,9 +66,10 @@ export type BibleReaderProps = Omit<
   | 'onSignOutPress'
   | 'onExternalLinkPress'
   | 'userInfo'
-  // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
-  // so consumers don't pass it — it lives inside the WebView.
+  // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
+  // `onVerseSelect` and `clearSelectionSignal` are deliberately kept — they are
+  // the consumer's only handle on a selection.
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -82,6 +94,14 @@ export function BibleReader({
   onChapterPickerPress: consumerOnChapterPickerPress,
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
+  onVerseSelect,
+  // Defaulted to `0` so a number always crosses the bridge from first mount.
+  // The Web SDK treats the value it sees at mount as a baseline and clears the
+  // selection on every change after that. Leaving this `undefined` means a
+  // consumer who starts passing the signal later trips `undefined !== 0` and
+  // fires a spurious clear on their first render with the prop. The prop stays
+  // optional in the public type — this is a default, not a requirement.
+  clearSelectionSignal = 0,
   backgroundColor,
   foregroundColor,
   dom,
@@ -139,6 +159,8 @@ export function BibleReader({
       onVersionChange?.(newVersionId)
     },
   })
+
+  const { highlights } = useHighlights({ versionId, book, chapter })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -250,6 +272,9 @@ export function BibleReader({
           apiHost={context.apiHost}
           installationId={context.installationId}
           accessToken={accessToken}
+          highlights={highlights}
+          onVerseSelect={onVerseSelect}
+          clearSelectionSignal={clearSelectionSignal}
           onSignInPress={signIn}
           onSignOutPress={signOut}
           userInfo={userInfo}
