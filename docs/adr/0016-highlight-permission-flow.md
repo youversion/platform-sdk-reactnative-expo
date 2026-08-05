@@ -22,9 +22,22 @@ Three questions had answers that are not obvious from the code, and each has a c
 
 **Branch on the pre-flight read. Treat a `reason: 'auth'` write as the corrective path, not the primary one.**
 
-`useHighlightPermissionFlow` awaits `ensureFreshToken()`, reads `hasPermission('highlights')`, and chooses sign-in, consent, or a straight-through write from that. Reason-first would issue a request the SDK already knows will fail before every first highlight, so the common case would pay a failed round-trip to learn something the cache could answer.
+`useHighlightPermissionFlow` reads `hasPermission('highlights')` and chooses sign-in, consent, or a straight-through write from that. Reason-first would issue a request the SDK already knows will fail before every first highlight, so the common case would pay a failed round-trip to learn something the cache could answer.
 
-The pre-flight order is load-bearing. An expired token 401s, a 401 classifies as `auth`, and `auth` reads as a stale grant, so skipping the refresh would present an expired token to the user as a request to grant a permission they already granted.
+**The token refresh belongs on the send path, not in front of the tap.**
+
+The refresh is not optional. An expired token 401s, a 401 classifies as `auth`, and `auth` reads as a stale grant, so a write issued on an expired token presents to the user as a request to grant a permission they already granted.
+
+It runs inside `useHighlights.runWrite`, next to the existing `waitForAuthSettled()`, rather than as a pre-flight in `apply`. Both orderings make the token current when the request goes out. Only one of them keeps the optimistic paint immediate:
+
+| Refresh here                        | What the user sees when a refresh is due    |
+| ----------------------------------- | ------------------------------------------- |
+| Pre-flight, before `hasPermission`  | Nothing, until a token round-trip completes |
+| `runWrite`, after the claim painted | The colour, on tap                          |
+
+`hasPermission` reads the local grant cache and needs no token, so nothing about the branch decision required the refresh to come first. `runWrite` already re-reads the current token at send time — deliberately, so a mid-write refresh does not fail the write — which is the same place the fresh one lands.
+
+Two things follow. `apply` is now synchronous up to the branch, so the guard that compared `pending.scope` across the pre-flight await is gone: the window it covered no longer exists. And `remove`, plus any direct `useHighlights` consumer, gets the same protection `apply` used to get alone.
 
 **Re-prompt exactly once, then go terminal.**
 
@@ -39,10 +52,9 @@ The reducer carries a `retried` flag from `confirming` onward. A write refused w
 | Window                                                | Guard                                         |
 | ----------------------------------------------------- | --------------------------------------------- |
 | A live flow spans a scope change                      | Render-time `RESET` plus the generation token |
-| The pre-flight refresh is out                         | `pending.scope` versus the current scope      |
 | A straight-through write is out and comes back `auth` | Claimed scope versus the current scope        |
 
-The last two are the ones a generation token cannot cover: no flow exists yet, so there is no waiting caller to abandon.
+The second is the one a generation token cannot cover: no flow exists yet, so there is no waiting caller to abandon.
 
 **Hand-roll the reducer.** Swift's equivalent is about sixty lines of view-model state, and `useHighlights` already serializes writes through a promise chain. `xstate` would be a dependency in a published package for a five-state machine.
 
@@ -57,3 +69,5 @@ Cancels and declines resolve `{ status: 'noop' }`. A user choice is not an error
 The accepted residual is the one ADR 0014 already named: a grant the server disagrees with costs the user one extra consent prompt. This flow bounds that at one prompt per tap rather than removing it.
 
 `ensureFreshToken` joins an in-flight refresh rather than skipping it, so awaiting it does mean the token is current. A failed refresh still leaves the old token in place, which is why the corrective path exists at all and must not be removed as redundant.
+
+A write now settles no faster than before — the refresh round-trip moved, it did not disappear. What changed is that the user stops waiting on it. Anything added in front of `apply`'s branch, or in front of the claim in `useHighlights.startWrite`, puts the delay back.

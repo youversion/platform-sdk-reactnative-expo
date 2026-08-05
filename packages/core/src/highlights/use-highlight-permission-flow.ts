@@ -455,41 +455,31 @@ export function useHighlightPermissionFlow(
     [startFlow],
   )
 
+  // Deliberately not `async`. Every branch already returns a promise, and the
+  // whole point of this function is that nothing is awaited before the write is
+  // handed off, so an `async` wrapper here would only invite one back.
   const apply = useCallback(
-    async (color: string, verses: number[]): Promise<HighlightWriteOutcome> => {
-      if (authRef.current === null) {
-        warnMissingAuthConfig()
-        return highlightsRef.current.apply(color, verses)
-      }
-
-      // Built before the first await, so its `scope` records the passage the
-      // user actually tapped rather than wherever the reader ends up by the time
-      // a decision gets made.
-      const pending: PendingHighlight = { color, verses, scope: highlightsRef.current.scope }
-
-      // Pre-flight, in this order. The token refresh comes FIRST: an expired
-      // token makes the write 401, a 401 reads as `auth`, and `auth` reads as
-      // "the permission cache is stale" — so without this, an expired token
-      // presents to the user as a request to grant a permission they already
-      // granted.
-      await authRef.current.ensureFreshToken()
-
+    (color: string, verses: number[]): Promise<HighlightWriteOutcome> => {
       const current = authRef.current
       if (current === null) {
         warnMissingAuthConfig()
         return highlightsRef.current.apply(color, verses)
       }
 
-      // That refresh joins a token round-trip when one is due, which is exactly
-      // the window in which a reader has time to move. Nothing was written and
-      // the passage is gone, so this settles the way every other abandonment does.
-      if (scopeKey(pending.scope) !== scopeKey(highlightsRef.current.scope)) {
-        return { status: 'noop' }
-      }
-
+      // Nothing is awaited in front of this branch, so the optimistic paint
+      // inside `applyThroughGrant` lands in the same tick as the tap.
+      // `hasPermission` reads the local grant cache, and the token freshness the
+      // write depends on is guaranteed inside `useHighlights.runWrite` — behind
+      // the claim rather than in front of it (ADR 0016). Putting a refresh here
+      // instead would make the common case wait on a token round-trip before a
+      // single pixel changed.
       if (current.hasPermission(HIGHLIGHTS_PERMISSION)) {
         return applyThroughGrant(color, verses)
       }
+
+      // Records the passage the user actually tapped, so nothing replayed after
+      // sign-in or consent can paint verses onto text they never selected.
+      const pending: PendingHighlight = { color, verses, scope: highlightsRef.current.scope }
 
       return startFlow(
         { type: 'TAP', pending, branch: current.isAuthenticated ? 'consent' : 'sign-in' },

@@ -15,10 +15,14 @@ export type AuthContextValue = {
    * Cheap to await on every user gesture, unlike {@link refreshNow}, which always
    * hits the token endpoint.
    *
-   * Exists so a permission pre-flight cannot misread an expired token as a
-   * missing permission (Swift's `hasValidToken()` parity). It never throws: a
-   * failed refresh surfaces through {@link error}, exactly as the periodic
-   * refresh does.
+   * Exists so an expired token cannot be misread as a missing permission
+   * (Swift's `hasValidToken()` parity). It never throws: a failed refresh
+   * surfaces through {@link error}, exactly as the periodic refresh does.
+   *
+   * Await it on the **send** path, immediately before an auth-sensitive request
+   * — not in front of whatever the user just tapped. When a refresh is due this
+   * costs a full token round-trip, so anything optimistic should have painted
+   * already. `useHighlights` is the worked example.
    *
    * A refresh already in flight is **joined**, not skipped, so once this resolves
    * the token is the current one. A failed refresh still leaves the old token in

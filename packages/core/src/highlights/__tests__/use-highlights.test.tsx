@@ -107,6 +107,10 @@ const tokenLoading: AuthShape = {
 
 const refreshNow = jest.fn(async () => undefined)
 
+// Hoisted rather than built per render, so a test can assert on it and can gate
+// it on a deferred promise.
+const ensureFreshToken = jest.fn(async () => undefined)
+
 function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
   return {
     isAuthenticated: false,
@@ -116,7 +120,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
     refreshNow,
-    ensureFreshToken: jest.fn(async () => undefined),
+    ensureFreshToken,
     isLoading: false,
     grantedPermissions: null,
     hasPermission: jest.fn(() => false),
@@ -196,6 +200,8 @@ beforeEach(() => {
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
+  ensureFreshToken.mockReset()
+  ensureFreshToken.mockResolvedValue(undefined)
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
@@ -484,6 +490,38 @@ describe('apply', () => {
     expect(await outcome).toEqual({ status: 'ok', verses: [16, 17] })
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW, 'JHN.3.17': YELLOW })
     expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW), highlight('JHN.3.17', YELLOW)])
+  })
+
+  it('refreshes the token after the paint and before the POST', async () => {
+    const refresh = deferred<undefined>()
+    ensureFreshToken.mockReturnValueOnce(refresh.promise)
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      outcome = result.current.apply(YELLOW, [16])
+    })
+
+    // Painted while the refresh is still out. A refresh in front of the claim
+    // would leave the verse unpainted for a whole token round-trip every time
+    // one was due, which is the whole reason it lives here (ADR 0016).
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+
+    await act(async () => {
+      refresh.resolve(undefined)
+      await outcome
+    })
+
+    // And the POST did wait for it. An expired token 401s, a 401 classifies as
+    // `auth`, and `useHighlightPermissionFlow` reads `auth` as a stale grant —
+    // so the user would be asked to grant a permission they already granted.
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+    expect(ensureFreshToken).toHaveBeenCalledTimes(1)
   })
 
   it('collapses contiguous verses into one ranged POST per run', async () => {

@@ -25,7 +25,7 @@ import {
   useYVAuth,
   type HighlightWriteOutcome,
 } from '@youversion/platform-react-native-expo-core'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 const VERSION_ID = 111 // NIV
@@ -46,7 +46,8 @@ export default function HighlightFlowScreen() {
 
   const [selected, setSelected] = useState<number[]>([16])
   const [lastOutcome, setLastOutcome] = useState<HighlightWriteOutcome | null>(null)
-  const [busy, setBusy] = useState(false)
+  const [inFlight, setInFlight] = useState(0)
+  const [lastSettleMs, setLastSettleMs] = useState<number | null>(null)
 
   const toggleVerse = (verse: number) => {
     setSelected((prev) =>
@@ -56,15 +57,29 @@ export default function HighlightFlowScreen() {
     )
   }
 
-  const run = async (action: () => Promise<HighlightWriteOutcome>) => {
-    setBusy(true)
-    setLastOutcome(null)
+  // Deliberately does NOT lock the controls until the write settles. The paint
+  // is optimistic and lands on tap; the network round-trip behind it is the
+  // slow part, and gating the swatches on it would hide the one behaviour this
+  // harness exists to demonstrate. `useHighlights` supports concurrent writes,
+  // so overlapping taps are a supported case rather than one to prevent.
+  //
+  // `lastSettleMs` is the round-trip, measured from the tap. Compare it against
+  // how fast the Highlights section below repaints: the gap between the two is
+  // the optimistic window.
+  //
+  // `useCallback` is not here for memoization. `Date.now()` is impure, and the
+  // React Compiler's purity rule rejects it in a function declared bare in the
+  // component body — it cannot see that this one only ever runs from an `onPress`.
+  const run = useCallback(async (action: () => Promise<HighlightWriteOutcome>) => {
+    const startedAt = Date.now()
+    setInFlight((count) => count + 1)
     try {
       setLastOutcome(await action())
     } finally {
-      setBusy(false)
+      setLastSettleMs(Date.now() - startedAt)
+      setInFlight((count) => count - 1)
     }
-  }
+  }, [])
 
   return (
     <ScrollView
@@ -119,10 +134,14 @@ export default function HighlightFlowScreen() {
           {HIGHLIGHT_COLORS.map((color) => (
             <Pressable
               key={color}
-              disabled={busy || selected.length === 0}
+              disabled={selected.length === 0}
               style={[
                 styles.swatch,
-                { backgroundColor: `#${color}`, borderColor: c.border, opacity: busy ? 0.4 : 1 },
+                {
+                  backgroundColor: `#${color}`,
+                  borderColor: c.border,
+                  opacity: selected.length === 0 ? 0.4 : 1,
+                },
               ]}
               onPress={() => void run(() => flow.apply(color, selected))}
             />
@@ -132,8 +151,11 @@ export default function HighlightFlowScreen() {
           {HIGHLIGHT_COLORS.map((color) => (
             <Pressable
               key={color}
-              disabled={busy || selected.length === 0}
-              style={[styles.chip, { borderColor: c.border, opacity: busy ? 0.4 : 1 }]}
+              disabled={selected.length === 0}
+              style={[
+                styles.chip,
+                { borderColor: c.border, opacity: selected.length === 0 ? 0.4 : 1 },
+              ]}
               onPress={() => void run(() => flow.highlights.remove(color, selected))}
             />
           ))}
@@ -168,6 +190,12 @@ export default function HighlightFlowScreen() {
         <Row
           label="flowError"
           value={flow.flowError ? `${flow.flowError.reason}: ${flow.flowError.message}` : '—'}
+          color={c}
+        />
+        <Row label="writes in flight" value={String(inFlight)} color={c} />
+        <Row
+          label="last settle"
+          value={lastSettleMs === null ? '—' : `${lastSettleMs}ms (tap → promise resolved)`}
           color={c}
         />
         <Row

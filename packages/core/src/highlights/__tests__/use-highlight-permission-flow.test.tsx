@@ -211,27 +211,25 @@ describe('pre-flight', () => {
     expect(result.current.flowError).toBeNull()
   })
 
-  it('refreshes an expiring token BEFORE reading the permission', async () => {
-    const gate = deferred<void>()
-    mockEnsureFreshToken.mockImplementation(() => {
-      calls.push('ensureFreshToken')
-      return gate.promise
+  it('reaches the write without awaiting anything first', async () => {
+    const { result } = renderFlow()
+
+    let promise: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      promise = result.current.apply(YELLOW, [16])
     })
 
-    const { result } = renderFlow()
-    const { promise } = await startApply(result)
-
-    // Nothing has been read or written yet — the refresh is genuinely awaited,
-    // not fired alongside. An expired token read as a missing permission is how
-    // a user gets asked to grant something they already granted.
-    expect(calls).toEqual(['ensureFreshToken'])
+    // Asserted with no `await` in between. If `apply` awaited anything before
+    // branching, the write would not have gone out yet — and since the
+    // optimistic paint lives inside it, the user would be looking at unpainted
+    // text until that await resolved. The token refresh the write needs runs
+    // inside `useHighlights.runWrite` instead, behind the claim (ADR 0016).
+    expect(calls).toEqual(['hasPermission:highlights', 'apply'])
+    expect(mockEnsureFreshToken).not.toHaveBeenCalled()
 
     await act(async () => {
-      gate.resolve()
+      await promise
     })
-    await promise
-
-    expect(calls).toEqual(['ensureFreshToken', 'hasPermission:highlights', 'apply'])
   })
 
   it('leaves remove alone — a user with visible highlights already has the grant', () => {
@@ -703,27 +701,11 @@ describe('when the reader moves on', () => {
     await expect(promise).resolves.toEqual(authWriteError([16, 17, 18]))
   })
 
-  it('abandons a tap when the reader moves while the pre-flight refresh is out', async () => {
-    currentAuth = signedInNoGrant
-    const refresh = deferred<void>()
-    mockEnsureFreshToken.mockReturnValue(refresh.promise)
-
-    const { result, rerender } = renderFlow()
-    const { promise } = await startApply(result)
-
-    await act(async () => {
-      rerender({ ...options, chapter: '4' })
-    })
-    await act(async () => {
-      refresh.resolve()
-    })
-
-    // A token round-trip is exactly the window in which a reader has time to
-    // move. Nothing was written, so this is an abandonment, not a failure.
-    await expect(promise).resolves.toEqual({ status: 'noop' })
-    expect(result.current.isConfirming).toBe(false)
-    expect(mockWriteApply).not.toHaveBeenCalled()
-  })
+  // There used to be a third window here: the reader moving while the
+  // pre-flight refresh was out. That refresh moved into
+  // `useHighlights.runWrite` (ADR 0016), so `apply` no longer awaits anything
+  // before it branches and the window it guarded cannot open. The test above,
+  // "reaches the write without awaiting anything first", is what keeps it shut.
 
   it('settles a waiting caller on unmount instead of leaving the promise pending', async () => {
     currentAuth = signedInNoGrant
