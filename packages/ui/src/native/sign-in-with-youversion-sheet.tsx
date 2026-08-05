@@ -8,10 +8,8 @@ import { NativeSheet } from './native-sheet'
 import { YouVersionPlatformLogo, youVersionPlatformLogoSize } from './youversion-platform-logo'
 
 /**
- * Text and stroke colors for the sheet body. The sheet *surface* comes from
- * `NativeSheet`'s Sheet Surface Parity tokens; these are the on-surface colors,
- * and the stroke matches the swatch-circle border the Web SDK draws inside the
- * reader (`rgba(18,18,18,0.2)` / `rgba(255,255,255,0.2)`).
+ * Text and stroke colors for the sheet body, drawn over the sheet surface
+ * `NativeSheet` supplies.
  */
 const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
 const MUTED_FOREGROUND: Record<Theme, string> = { light: '#6b6a6a', dark: '#a8a5a5' }
@@ -28,22 +26,14 @@ export type SignInWithYouVersionSheetProps = {
   isOpen: boolean
   /** "Yes Please" — launch the OAuth sign-in flow. */
   onConfirm: () => void
-  /**
-   * "No Thanks", a swipe-down, or a backdrop tap. Every one of them is a cancel,
-   * and every cancel clears the Pending Highlight.
-   */
+  /** "No Thanks", a swipe-down, or a backdrop tap — every one of them a cancel. */
   onDismiss: () => void
   theme: Theme
 }
 
 /**
  * "Sign in with YouVersion" introduction sheet, shown when a signed-out user
- * taps a highlight color and before OAuth launches.
- *
- * A sheet rather than an alert, deliberately: the Swift reference makes the
- * sign-in prompt the only full sheet in the highlight flow (the just-in-time
- * permission prompt and both sign-out dialogs are native alerts). Copy is
- * verbatim from the Swift SDK's `SignInWithYouVersionView` (`signIn*` keys).
+ * taps a highlight color, before OAuth launches.
  *
  * Presentational only — it performs no OAuth and reads no config beyond the
  * app's own display name.
@@ -65,12 +55,6 @@ export function SignInWithYouVersionSheet({
           {t('signInIntroducing')}
         </Text>
 
-        {/*
-          The wordmark's label has no canonical Swift key — it is an
-          accessibility affordance the Swift asset doesn't carry. Reusing the
-          React Web SDK's existing key for the same asset rather than coining a
-          new one.
-        */}
         <YouVersionPlatformLogo
           theme={theme}
           accessibilityLabel={t('youVersionPlatformLogoAriaLabel')}

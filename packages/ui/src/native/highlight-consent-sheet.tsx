@@ -5,9 +5,9 @@ import type { Theme } from '../lib/resolve-theme'
 import { NativeSheet } from './native-sheet'
 
 /**
- * On-surface colors. The sheet surface itself comes from `NativeSheet`'s Sheet
- * Surface Parity tokens; these match `sign-in-with-youversion-sheet.tsx` so the
- * two prompts in the highlight flow read as one family.
+ * On-surface colors, drawn over the sheet surface `NativeSheet` supplies. They
+ * match `sign-in-with-youversion-sheet.tsx` so the two prompts in the highlight
+ * flow read as one family.
  */
 const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
 const MUTED_FOREGROUND: Record<Theme, string> = { light: '#6b6a6a', dark: '#a8a5a5' }
@@ -23,10 +23,9 @@ export type HighlightConsentSheetProps = {
   /** "Continue" — hand off to the just-in-time Data Exchange grant. */
   onConfirm: () => void
   /**
-   * "Cancel", a swipe-down, a backdrop tap, or displacement by another sheet.
-   * Every one of them is a decline, and every decline discards the Pending
-   * Highlight. Callers must route all of them here — a dismissal path that skips
-   * `decline()` strands the flow with `isConfirming` still true.
+   * "Cancel", a swipe-down, a backdrop tap, or displacement by another sheet —
+   * every one of them a decline. Route all of them here; a dismissal path that
+   * skips `decline()` strands the flow with `isConfirming` still true.
    */
   onDismiss: () => void
   theme: Theme
@@ -35,11 +34,6 @@ export type HighlightConsentSheetProps = {
 /**
  * Just-in-time permission prompt, shown when a signed-in user without the
  * `highlights` permission taps a highlight color.
- *
- * A sheet rather than an alert: Swift uses a native alert here, but on RN the
- * verse actions are already a bottom sheet, and swapping sheet-for-alert
- * mid-flow reads as a context switch. Copy is the Swift SDK's
- * `dataExchange*` keys.
  *
  * Presentational only — it runs no Data Exchange itself. `isOpen` is driven by
  * `useHighlightPermissionFlow`'s `isConfirming`; `onConfirm` is its `confirm()`

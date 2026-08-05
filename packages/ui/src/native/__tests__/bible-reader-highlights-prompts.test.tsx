@@ -286,7 +286,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
     await press('sign-in-with-youversion-confirm')
 
-    // The colour and verses survive the round-trip: the user does not reselect.
+    // The color and verses survive the round-trip: the user does not reselect.
     expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
   })

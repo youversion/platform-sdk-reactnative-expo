@@ -37,18 +37,13 @@ type BibleReaderBaseProps = {
    */
   highlights: Highlight[]
   /**
-   * **Required, and supplied by the native wrapper — not a consumer choice.**
+   * Whether the reader draws its in-WebView verse action popover. Supplied by
+   * the native wrapper from `lib/resolve-verse-actions.ts` — `'none'` on iOS and
+   * Android, where the native sheet takes over, `'popover'` on web.
    *
-   * `'none'` on the native platforms, where `BibleVerseActionSheet` replaces the
-   * in-WebView popover. `'popover'` on web, where `NativeSheet` renders nothing:
-   * switching the popover off there would leave no verse action UI at all.
-   *
-   * It arrives as a prop rather than being read from `Platform.OS` here because
-   * this file runs inside the WebView, where `react-native`'s `Platform` is not
-   * the host's. The branch itself lives in `lib/resolve-verse-actions.ts`.
-   *
-   * Required rather than defaulted so a new call site has to answer the question
-   * — the Web SDK's own default is `'popover'`, which is wrong on native.
+   * A prop rather than a `Platform.OS` read because this file runs inside the
+   * WebView, and required rather than defaulted because the inherited default of
+   * `'popover'` is wrong on native.
    */
   verseActions: 'popover' | 'none'
   /**

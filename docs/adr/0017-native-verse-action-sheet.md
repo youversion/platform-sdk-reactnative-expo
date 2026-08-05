@@ -32,7 +32,7 @@ The branch is a pure function, `lib/resolve-verse-actions.ts`, and the value cro
 
 **This reverses decision 5 of PR #118 (YPE-3710, U1)**, which removed the same fork on the grounds that web is not a supported target — no web job in CI, no ADR, no README mention — and added a source-text guard pinning `verseActions="none"`. The ticket and the design discussion both require the fork, and Cam settled it on 2026-08-05: the fork ships and the guard is retargeted at the resolver call.
 
-Be honest about what that buys. **The web branch has no runtime coverage in this repo.** There is no web CI job, no web build script, and no device or browser pass. Its only coverage is four layer-1 cases in `lib/__tests__/resolve-verse-actions.test.ts` plus two layer-3 cases — the reader mounts no sheet on web, and it still forwards the selection there, so the first cannot pass on a selection that never fired. Nobody here has watched the web popover render from this branch. The web popover's colour swatches are also inert, because the reader is in controlled mode with no `onHighlightApply` wired; Copy and Share still work.
+Be honest about what that buys. **The web branch has no runtime coverage in this repo.** There is no web CI job, no web build script, and no device or browser pass. Its only coverage is four layer-1 cases in `lib/__tests__/resolve-verse-actions.test.ts` plus two layer-3 cases — the reader mounts no sheet on web, and it still forwards the selection there, so the first cannot pass on a selection that never fired. Nobody here has watched the web popover render from this branch. The web popover's color swatches are also inert, because the reader is in controlled mode with no `onHighlightApply` wired; Copy and Share still work.
 
 ### Selection is native-owned; clearing it is a counter, not a ref
 
@@ -60,13 +60,13 @@ It uses **`boxShadow`**, not `shadowColor` / `shadowOffset` or `elevation`. RN's
 
 It goes on Gorhom's `backgroundStyle`, whose default background component is a bare `View` that spreads the style. Nothing between that view and the window clips it: `BottomSheetBody` has no `overflow`, and `BottomSheetContent`'s `overflow: hidden` wraps only the sheet's children as a _sibling_ of the background. The one real clip boundary, `BottomSheetHostingContainer`, spans `topInset` to `bottomInset`. A sheet snapped near the top of the screen would be a different story.
 
-The shadow applies to **every** themed sheet, not just this one, and is keyed off `theme` rather than the resolved surface colour — an explicit `backgroundColor` on an unthemed sheet gets no shadow rather than a guessed one. Behind a modal sheet's dimmed backdrop the shadow is simply invisible, which is cheaper than branching on `modal`.
+The shadow applies to **every** themed sheet, not just this one, and is keyed off `theme` rather than the resolved surface color — an explicit `backgroundColor` on an unthemed sheet gets no shadow rather than a guessed one. Behind a modal sheet's dimmed backdrop the shadow is simply invisible, which is cheaper than branching on `modal`.
 
 **Dark mode carries much higher alpha** (0.5 / 0.7 against light's 0.06 / 0.14) because a black shadow has little luminance to spend against a near-black surface. The reference branch's device pass measured the reader background at `#0f0f0f` and the sheet surface at `#121212` — a 3-level step, effectively invisible — with the shadow driving the pixels immediately above the edge to `#050505`, a 13-level step, against 36 levels in light mode. Those numbers come from that pass, not from a measurement taken on this branch. If dark mode ever needs to be unambiguous rather than merely better, the next lever is a lightened hairline along the top edge, which is a design decision.
 
 ### The tray scrolls; it does not grow
 
-The ANY rule makes overflow routine, not exceptional: two verses of different colours already produce 7 swatches (2 remove + 5 apply), and the palette's worst case is 5 + 5 = 10. The tray keeps a fixed `flex: 1` width and scrolls horizontally under **a gradient fade at each end**, so clipped swatches fade rather than being hard-cut. Copy and Share sit outside the scroll area and never move.
+The ANY rule makes overflow routine, not exceptional: two verses of different colors already produce 7 swatches (2 remove + 5 apply), and the palette's worst case is 5 + 5 = 10. The tray keeps a fixed `flex: 1` width and scrolls horizontally under **a gradient fade at each end**, so clipped swatches fade rather than being hard-cut. Copy and Share sit outside the scroll area and never move.
 
 The two fades are one component mirrored: same `x1 → x2` direction, only the stop opacities swap, so the leading edge cannot drift out of sync with the trailing one. The leading fade is the only cue that swatches exist back the way you came.
 
@@ -74,19 +74,19 @@ The fade is drawn with `react-native-svg`, already a peer dependency and already
 
 It gates on _remaining scroll distance_, not raw overflow, so it retires at the end of the strip. Gating on overflow alone leaves the final swatch permanently dimmed once scrolled to, which reads as disabled.
 
-The shipped YouVersion Bible app does more here: a collapsed tray with a fanned stack that expands, widens, and pushes its action tiles off-screen, plus a pinned "clear all". That was evaluated and deliberately not ported. It exists to manage a seven-colour palette and a six-tile action row; we have five colours and two tiles. The app's _growing_ tray is a consequence of that expand interaction, so porting the growth without the gesture would be half of each design.
+The shipped YouVersion Bible app does more here: a collapsed tray with a fanned stack that expands, widens, and pushes its action tiles off-screen, plus a pinned "clear all". That was evaluated and deliberately not ported. It exists to manage a seven-color palette and a six-tile action row; we have five colors and two tiles. The app's _growing_ tray is a consequence of that expand interaction, so porting the growth without the gesture would be half of each design.
 
 ### The swatch rule is ported from the Web SDK, not re-derived
 
-`lib/verse-action-swatches.ts` ports `activeHighlights` plus the popover's ordering logic. It is an **ANY** rule: every distinct colour present _anywhere_ in the selection earns a remove circle, not only colours on _all_ the selected verses.
+`lib/verse-action-swatches.ts` ports `activeHighlights` plus the popover's ordering logic. It is an **ANY** rule: every distinct color present _anywhere_ in the selection earns a remove circle, not only colors on _all_ the selected verses.
 
-The research settled the question ADR 0015 left open on the reference branch. That ADR said iOS was "believed" to use an ALL rule. It does not. Both public native SDKs filter their remove list with an "is this colour on **any** selected verse" predicate — Kotlin at `BibleReaderViewModel.kt:504-520`, Swift at `BibleReaderViewModel+Navigation.swift:147-160`. Web, Swift, and Kotlin all agree on the remove list, so this port preserves parity rather than creating a divergence.
+The research settled the question ADR 0015 left open on the reference branch. That ADR said iOS was "believed" to use an ALL rule. It does not. Both public native SDKs filter their remove list with an "is this color on **any** selected verse" predicate — Kotlin at `BibleReaderViewModel.kt:504-520`, Swift at `BibleReaderViewModel+Navigation.swift:147-160`. Web, Swift, and Kotlin all agree on the remove list, so this port preserves parity rather than creating a divergence.
 
-One difference survives, in the _add_ list. Swift and Kotlin gate it on NOT-ALL; web (and this port) uses `!allColorsActive && (unHighlightedCount > 0 || activeColors.size > 1)`. The two disagree only when all five palette colours are active in one selection: web shows five remove circles and an empty apply row, the native SDKs would also show five apply circles. Cam decided on 2026-08-05 to ship the web rule; that edge stays with the separately tracked ANY-vs-ALL semantics question.
+One difference survives, in the _add_ list. Swift and Kotlin gate it on NOT-ALL; web (and this port) uses `!allColorsActive && (unHighlightedCount > 0 || activeColors.size > 1)`. The two disagree only when all five palette colors are active in one selection: web shows five remove circles and an empty apply row, the native SDKs would also show five apply circles. Cam decided on 2026-08-05 to ship the web rule; that edge stays with the separately tracked ANY-vs-ALL semantics question.
 
-A colour covering some but not all of the selected verses therefore appears **twice** — a checkmarked remove circle and a plain apply circle that paints the whole selection in one tap. That is web's shipped behaviour, verified against `verse-action-popover.tsx:270-284` at `ui-2.5.0`, not an accident of the port.
+A color covering some but not all of the selected verses therefore appears **twice** — a checkmarked remove circle and a plain apply circle that paints the whole selection in one tap. That is web's shipped behaviour, verified against `verse-action-popover.tsx:270-284` at `ui-2.5.0`, not an accident of the port.
 
-Colours outside the five swatches are ignored, matching the projection the WebView paints from (`deriveHighlightedVerses` drops them). Counting them would size the tray against paint the user cannot see.
+Colors outside the five swatches are ignored, matching the projection the WebView paints from (`deriveHighlightedVerses` drops them). Counting them would size the tray against paint the user cannot see.
 
 ### Copy and Share stop crossing the bridge
 
@@ -120,7 +120,7 @@ The action sheet's `isOpen` is `selection !== null && prompt === 'none' && !flow
 
 ## Consequences
 
-- **Swatch labels do not name their colour.** Web's two labels (`applyHighlightAriaLabel` / `clearHighlightAriaLabel`) do not either, and carrying the colour would mean coining five colour-name keys with no upstream source, which the localization rules forbid from this repo. A screen-reader user hears "Apply highlight" five times. The testIDs already carry the colour. Fix it once the copy table has colour names; the ticket already records accessibility criteria as blocked on the swatch aria-label i18n ticket.
+- **Swatch labels do not name their color.** Web's two labels (`applyHighlightAriaLabel` / `clearHighlightAriaLabel`) do not either, and carrying the color would mean coining five color-name keys with no upstream source, which the localization rules forbid from this repo. A screen-reader user hears "Apply highlight" five times. The testIDs already carry the color. Fix it once the copy table has color names; the ticket already records accessibility criteria as blocked on the swatch aria-label i18n ticket.
 - `reference` falls back to the USFM book code until `useBooks` resolves inside the WebView. Selecting immediately after a chapter load is how that shows up. Fixing it means holding the payload until books load, which is upstream work.
 - `clearSelectionSignal` adds a DOM prop update on every sheet exit. Android has a standing `DomWebView.injectJavaScript` rejection when a prop update is dispatched to an unmounted WebView; this work does not cause it but does make it easier to hit.
 - `expo-clipboard` is a new **peer dependency**, so consumers adding this version must install it and rebuild their dev client. `expo-application` is also now a UI peer (the sign-in sheet reads the app's display name), but core already depended on it, so no new autolinked module reaches an app that already had core.

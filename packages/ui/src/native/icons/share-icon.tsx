@@ -1,12 +1,8 @@
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
- * The Share glyph on the verse action sheet — the iOS box-arrow-up, matching the
- * shipped YouVersion Bible app and the Web SDK's `BoxArrowUpIcon` (which the
- * in-WebView verse popover used before this sheet replaced it).
- *
- * Note: the designer's mock draws a "share nodes" glyph here instead. The
- * shipped app's icon was chosen deliberately over the mock — do not swap it back.
+ * The Share glyph on the verse action sheet: the box-arrow-up matching the
+ * shipped YouVersion Bible app, not the "share nodes" glyph in the mock.
  *
  * Decorative, for the same reason as {@link CopyIcon}: the button around it
  * carries the localized label.

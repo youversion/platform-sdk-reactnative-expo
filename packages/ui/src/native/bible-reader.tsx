@@ -47,9 +47,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 
-// Computed once: `Platform.OS` cannot change at runtime. The branch itself lives
-// in `lib/resolve-verse-actions.ts` so it is testable at layer 1 — a platform
-// fork is not observable from a layer-3 test that always runs as one platform.
+// Computed once: `Platform.OS` cannot change at runtime.
 const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
 
 /**
@@ -69,9 +67,7 @@ export type BibleReaderProps = Omit<
   DomBibleReaderProps,
   | 'appKey'
   | 'highlights'
-  // Native picks the verse-action UI per platform: the bottom sheet on iOS and
-  // Android, the in-WebView popover on web where `NativeSheet` renders nothing.
-  // Not a consumer choice — see `VERSE_ACTIONS` above.
+  // Picked per platform by `VERSE_ACTIONS` above, not a consumer choice.
   | 'verseActions'
   | 'fontSize'
   | 'fontFamily'
@@ -94,9 +90,9 @@ export type BibleReaderProps = Omit<
   // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
   // `onVerseSelect` and `clearSelectionSignal` are deliberately kept — they are
-  // the consumer's only handle on a selection. The reader now taps both on its
-  // way past: it mirrors the payload to raise the native verse action sheet, and
-  // it adds its own clears to the consumer's counter.
+  // the consumer's only handle on a selection. The reader taps both on the way
+  // past: it mirrors the payload to raise the native verse action sheet, and
+  // adds its own clears to the consumer's counter.
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -106,11 +102,10 @@ export type BibleReaderProps = Omit<
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   /**
    * Handle Copy yourself instead of the SDK's `expo-clipboard` fallback. Fired
-   * by the native verse action sheet's Copy button with the payload
-   * `onVerseSelect` already carried, so it costs no extra bridge round-trip.
+   * by the native verse action sheet's Copy button, with the payload
+   * `onVerseSelect` already carried.
    *
-   * Native-only: it never crosses into the WebView, and on web the Web SDK's own
-   * popover and `navigator.clipboard` remain the right behavior.
+   * Native-only — on web the in-WebView popover handles Copy itself.
    */
   onCopy?: (data: BibleReaderShareData) => void | Promise<void>
   /** Share's counterpart to {@link BibleReaderProps.onCopy}; falls back to RN's `Share.share`. */
@@ -219,20 +214,14 @@ export function BibleReader({
   // it. The Web SDK still owns selection *state*; this is a mirror of what it
   // committed, and the only thing travelling back is the clear signal.
   const [selection, setSelection] = useState<BibleReaderVerseSelection | null>(null)
-  // One-way DOM command, bumped on every exit from the sheet. With
-  // `verseActions="none"` there is nothing left inside the WebView that can
-  // clear the selection, so the reader has to say so.
-  //
-  // It is *added* to the consumer's `clearSelectionSignal` rather than replacing
-  // it: the Web SDK only reacts to changes in the number it receives, so a sum
-  // lets both the consumer's public prop and the reader's own exits clear. Both
-  // start at 0, so mounting still forwards 0 and clears nothing.
+  // One-way DOM command, bumped on every exit from the sheet — with the popover
+  // suppressed, nothing inside the WebView clears the selection any more. It is
+  // *added* to the consumer's `clearSelectionSignal` rather than replacing it, so
+  // both the public prop and the reader's own exits can clear.
   const [internalClearCount, setInternalClearCount] = useState(0)
 
   // Which prompt the reader is showing on its own account. The consent prompt is
-  // not in here — the flow owns that one, and `flow.isConfirming` is its gate.
-  // Both are folded into the action sheet's `isOpen` below, so exactly one sheet
-  // is ever active and displacement never fires a clear as a side effect.
+  // not in here — the flow owns that one, gated on `flow.isConfirming`.
   const [prompt, setPrompt] = useState<'none' | 'sign-in'>('none')
   // A ref, not state: nothing renders from it, and the sign-in sheet's confirm
   // needs the value on the same tick it fires.
@@ -264,13 +253,8 @@ export function BibleReader({
 
   const applyHighlight = flow.apply
 
-  // `useYVAuthOptional()` returns `null` when the consumer configured no `auth`,
-  // and that is not the same as signed out: there is nothing to sign in to. The
-  // sign-in sheet's confirm hands the intent to `flow.apply`, which for a null
-  // auth warns and falls through to the unguarded write — so prompting would
-  // open a sheet whose only outcome is the outcome the user already had. A
-  // no-auth consumer keeps the straight-through write, which reports
-  // `not-signed-in` exactly as before.
+  // A `null` auth means the consumer configured none at all, which is not the
+  // same as signed out — there is nothing to sign in to, so no prompt.
   const needsSignIn = auth !== null && !auth.isAuthenticated
 
   const handleSwatchPress = useCallback(
@@ -280,23 +264,20 @@ export function BibleReader({
       closeVerseActions()
       if (verses.length === 0) return
       // `remove` goes straight to the unguarded write: a user looking at a
-      // highlight already has whatever the write needs (ADR 0016). Only `apply`
-      // is gated.
+      // highlight already has the permissions it needs (ADR 0016).
       if (swatch.state === 'remove') {
         void removeHighlight(swatch.color, verses)
         return
       }
       if (needsSignIn) {
-        // The flow has no sign-in prompt state — `flow.apply` would launch OAuth
-        // with no explanation of why. So the reader owns this pre-step: hold the
-        // intent, ask, and hand it to the flow on confirm.
+        // The flow calls `signIn()` with no UI of its own, so the reader owns
+        // this pre-step: hold the intent, ask, hand it over on confirm.
         pendingIntentRef.current = { color: swatch.color, verses }
         setPrompt('sign-in')
         return
       }
-      // Fire-and-forget. The paint is optimistic inside `useHighlights`, so the
-      // verse changes colour on this frame and the sheet has no reason to wait
-      // for the round-trip. The flow may still raise its consent prompt first.
+      // Fire-and-forget: the paint is optimistic inside `useHighlights`, so the
+      // verse changes color on this frame rather than after the round-trip.
       void applyHighlight(swatch.color, verses)
     },
     [selection, closeVerseActions, removeHighlight, applyHighlight, needsSignIn],
@@ -306,9 +287,8 @@ export function BibleReader({
     const pending = pendingIntentRef.current
     pendingIntentRef.current = null
     setPrompt('none')
-    // Straight back into the flow, which runs `signIn()`, falls through to
-    // consent if the grant is still missing, and writes — all without the user
-    // reselecting the verse.
+    // Straight back into the flow, which signs in, asks for consent if the grant
+    // is still missing, and writes — without the user reselecting the verse.
     if (pending) void applyHighlight(pending.color, pending.verses)
   }, [applyHighlight])
 
@@ -377,9 +357,8 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
-  // Consumer override wins, else the SDK's native fallback — the same shape
-  // `VerseOfTheDay` already ships for share. Both replace the Web SDK's browser
-  // defaults, which don't work inside an Expo DOM WebView.
+  // Consumer override wins, else the native fallback — browser defaults do not
+  // work from inside an Expo DOM WebView.
   const handleCopy = useCallback(
     async (data: BibleReaderShareData) => {
       try {
@@ -412,10 +391,8 @@ export function BibleReader({
     [consumerOnShare],
   )
 
-  // `shareData` rides in on `onVerseSelect` (Web SDK 2.5.0), so the sheet's Copy
-  // and Share buttons need no round-trip back into the WebView to build it. The
-  // sheet closes first, so the read has to happen before `closeVerseActions`
-  // drops the mirror.
+  // `shareData` rides in on `onVerseSelect`, so these need no round-trip back
+  // into the WebView. Read it before `closeVerseActions` drops the selection.
   const handleCopyPress = useCallback(() => {
     const data = selection?.shareData
     closeVerseActions()
@@ -515,10 +492,9 @@ export function BibleReader({
       )}
       {Platform.OS !== 'web' && (
         <BibleVerseActionSheet
-          // Yielded rather than displaced. A prompt takes over the sheet host,
-          // and letting the action sheet stay "open" would have `NativeSheet`
-          // report a displacement `onClose` — which is `closeVerseActions`, and
-          // would bump the clear signal the prompt's own answer still needs.
+          // Yielded rather than displaced: a prompt taking over the sheet host
+          // would fire this sheet's `onClose`, clearing the selection its own
+          // answer still needs.
           isOpen={selection !== null && prompt === 'none' && !flow.isConfirming}
           reference={selection?.reference ?? ''}
           swatches={swatches}

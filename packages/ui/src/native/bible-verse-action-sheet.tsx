@@ -10,10 +10,8 @@ import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
 /**
- * On-surface colors. The sheet *surface* comes from `NativeSheet`'s Sheet
- * Surface Parity tokens; these are the colors drawn on top of it, and the swatch
- * stroke matches the circle border the Web SDK's popover drew
- * (`rgba(18,18,18,0.2)` light / `rgba(255,255,255,0.2)` dark).
+ * On-surface colors, drawn over the sheet surface `NativeSheet` supplies from
+ * its Sheet Surface Parity tokens.
  */
 const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
 const SWATCH_STROKE: Record<Theme, string> = {
@@ -24,19 +22,16 @@ const SWATCH_STROKE: Record<Theme, string> = {
 const CHECK_COLOR: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
 
 /**
- * Highlight fill alpha, matching `verse.tsx` in the Web SDK (and the Swift SDK):
- * full strength in light mode, faded in dark. Previewing each swatch at the
- * alpha it will actually paint is why the dark tray looks dimmer than the light
- * one — that is the point, not a bug.
+ * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
+ * previews at the alpha it will actually paint, so the dark tray reads dimmer.
  */
 const FILL_OPACITY: Record<Theme, number> = { light: 1, dark: 0.3 }
 
 /**
- * Row metrics. The mock puts the swatch tray and both action tiles on a single
- * row of one shared height, and that height is set by the tiles (icon over
- * label) — so the row uses `alignItems: 'stretch'` and only the tile is
- * measured. `ROW_HEIGHT` is that measurement written down, purely so the two
- * numbers derived from it stay in sync when the tile's contents change.
+ * Row metrics. The swatch tray and both action tiles share one row height, set
+ * by the tiles (icon over label) — the row is `alignItems: 'stretch'` and only
+ * the tile is measured. `ROW_HEIGHT` records that measurement so the sizes
+ * derived from it stay in sync when the tile's contents change.
  */
 const ACTION_ICON_SIZE = 20
 const ACTION_LABEL_LINE_HEIGHT = 16
@@ -45,20 +40,14 @@ const ACTION_PADDING_VERTICAL = 9
 const ROW_HEIGHT =
   ACTION_PADDING_VERTICAL * 2 + ACTION_ICON_SIZE + ACTION_LABEL_GAP + ACTION_LABEL_LINE_HEIGHT
 
-/** In the mock a swatch is about half the tray's height, and the tray is a rounded rect (~14% radius), not a pill. */
+/** A swatch is about half the tray's height, and the tray is a rounded rect (~14% radius), not a pill. */
 const SWATCH_SIZE = Math.round(ROW_HEIGHT / 2)
 const CORNER_RADIUS = Math.round(ROW_HEIGHT * 0.14)
 const CHECK_ICON_SIZE = 18
 
 /**
- * Edge fades over the swatch tray, one swatch wide — the tray scrolls *under* a
- * gradient mask at each end rather than being hard-cut, which is what the mock
- * and the shipped Bible app both show.
- *
- * Drawn with `react-native-svg` (already a peer dependency, already used by the
- * sheet's icons) instead of `expo-linear-gradient`, which is neither a
- * dependency nor a peer here. Adding a native module would force every consumer
- * to rebuild their dev client, and a fade does not justify that.
+ * Width of the gradient mask at each end of the swatch tray, so clipped swatches
+ * fade instead of being hard-cut. One swatch wide.
  */
 const FADE_WIDTH = SWATCH_SIZE
 
@@ -85,16 +74,12 @@ export type BibleVerseActionSheetProps = {
 }
 
 /**
- * The verse action sheet: reference label, highlight swatch tray, Copy, Share.
+ * The verse action sheet raised over a verse selection: reference label,
+ * highlight swatch tray, Copy, and Share.
  *
- * This replaces the Web SDK's in-WebView `VerseActionPopover`, which the reader
- * suppresses with `verseActions="none"` — matching Swift and Kotlin, where verse
- * actions have always been a native bottom sheet.
- *
- * **Presentational only.** It decides nothing: which swatches to show is
- * `lib/verse-action-swatches.ts`, what a swatch press means is the reader's
- * `handleSwatchPress` (which routes through core's Permission Flow), and
- * clearing the selection afterwards is the reader's job too.
+ * Presentational only. Which swatches to show comes from
+ * `lib/verse-action-swatches.ts`, and acting on a press — writing the highlight,
+ * clearing the selection — is the reader's job.
  */
 export function BibleVerseActionSheet({
   isOpen,
@@ -108,19 +93,10 @@ export function BibleVerseActionSheet({
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
 
-  // Layout measurement, not a decision: each edge shows its fade only while
-  // something is actually hidden under it. Six swatches fit; seven (two verses
-  // of different colors) do not, and ten is the palette's worst case.
-  //
-  // Both are measured against *remaining* scroll distance rather than raw
-  // overflow, so a fade retires when you reach the end it guards. Gating on
-  // overflow alone left the outermost swatch permanently dimmed once you
-  // scrolled to it, which reads as disabled. `scrollX` only moves these
-  // booleans at the two boundaries.
-  //
-  // The leading fade is the answer to "I can't tell there are more colors back
-  // that way" — without it the strip is hard-cut at the left edge and scrolled
-  // swatches simply vanish.
+  // Each edge shows its fade only while swatches are hidden under it. Measured
+  // against *remaining* scroll distance rather than raw overflow, so a fade
+  // retires at the end it guards instead of leaving the outermost swatch
+  // permanently dimmed, which reads as disabled.
   const [trayWidth, setTrayWidth] = useState(0)
   const [contentWidth, setContentWidth] = useState(0)
   const [scrollX, setScrollX] = useState(0)
@@ -128,10 +104,10 @@ export function BibleVerseActionSheet({
   const hasScrolledPast = scrollX > 1
 
   return (
-    // Non-modal: the selection this sheet acts on is still being built, so the
-    // passage behind it stays bright and tappable. A modal backdrop swallowed
-    // that tap and closed the sheet, which made multi-verse selection impossible.
-    // Exits are now swipe-down, deselecting every verse, or acting on the sheet.
+    // Non-modal: the selection is still being built, so the passage behind stays
+    // bright and tappable. A backdrop would swallow the tap that extends the
+    // selection, leaving swipe-down, deselection, and the sheet's own buttons as
+    // the only exits.
     <NativeSheet isOpen={isOpen} onClose={onClose} theme={theme} modal={false}>
       <View testID="bible-verse-action-sheet" style={styles.container}>
         <Text
@@ -213,15 +189,12 @@ export function BibleVerseActionSheet({
 }
 
 /**
- * One end of the swatch tray, fading the scrolling strip into the tray surface.
+ * One end of the swatch tray, fading the scrolling strip into the tray surface:
+ * opaque at the tray's outer edge, transparent where the swatches are legible.
  *
- * The two edges are the same gradient mirrored: opaque at the tray's outer edge,
- * transparent where the swatches are legible. Only the stop opacities swap —
- * keeping one `x1 → x2` direction means the leading fade cannot drift out of
- * sync with the trailing one.
- *
- * `theme` is in the gradient id because both fades can be on screen at once and
- * SVG defs share one id namespace.
+ * Both edges share one `x1 → x2` direction and only swap the stop opacities, so
+ * they cannot drift out of sync. `theme` is in the gradient id because both
+ * fades can be on screen at once and SVG defs share one id namespace.
  */
 function SwatchTrayFade({ edge, theme }: { edge: 'leading' | 'trailing'; theme: Theme }) {
   const isLeading = edge === 'leading'
@@ -274,11 +247,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   /**
-   * The tray is a fixed-width window (`flex: 1`, taking the row's slack) that
-   * clips a horizontally scrolling strip of swatches. It deliberately does *not*
-   * grow or animate: the Bible app's widening tray belongs to an expand
-   * interaction we are not porting, and the growth without the gesture would be
-   * half of each design.
+   * A fixed-width window (`flex: 1`, taking the row's slack) clipping a
+   * horizontally scrolling strip of swatches. It does not grow or animate.
    */
   swatchTray: {
     borderRadius: CORNER_RADIUS,
@@ -290,10 +260,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   /**
-   * `flexGrow: 1` keeps the non-overflowing case identical to the old fixed row:
-   * the content stretches to the tray and `space-evenly` spreads five swatches
-   * across it. Past that the content simply outgrows the tray and scrolls, with
-   * `gap` guaranteeing the spacing `space-evenly` no longer has slack to give.
+   * `flexGrow: 1` stretches the content to the tray so `space-evenly` spreads
+   * the swatches across it; past that the content outgrows the tray and scrolls,
+   * where `gap` supplies the spacing `space-evenly` no longer has slack for.
    */
   swatchTrayContent: {
     alignItems: 'center',

@@ -203,7 +203,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 - `highlights` is always safe to render. `isRefreshing` means "a GET is in flight", never "no data yet"; gating a spinner on it reintroduces the blank first frame the cache exists to prevent.
 - `error` is **fetch-only**. Writes report once, through the `HighlightWriteOutcome` they resolve to — that is also C3's branch point for the sign-in prompt (`reason === 'auth'` / `'not-signed-in'`).
 - The five swatches in `HIGHLIGHT_COLORS` are a company standard enforced in core: both `apply` and `remove` reject anything else as `invalid` before painting or issuing a request. Do not relax this on layering grounds — the open improvement is relocating the palette to `@youversion/platform-core`, not deferring it to the UI layer.
-- Overlay math lives in the pure, React-free `packages/core/src/highlights/optimistic.ts`, ported from the web highlights machine. Ownership tokens and the colour-aware overlay retirement rule are documented in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md); the retirement rule reads like a bug in both directions and is defended only by its regression pair, so read the ADR before touching `shouldRetire`.
+- Overlay math lives in the pure, React-free `packages/core/src/highlights/optimistic.ts`, ported from the web highlights machine. Ownership tokens and the color-aware overlay retirement rule are documented in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md); the retirement rule reads like a bug in both directions and is defended only by its regression pair, so read the ADR before touching `shouldRetire`.
 
 ## Highlight permission flow (core)
 

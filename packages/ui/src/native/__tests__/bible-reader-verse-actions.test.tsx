@@ -432,7 +432,7 @@ describe('BibleReader verse action sheet — swatches', () => {
 
 /**
  * The tray is a fixed-width window over a horizontally scrolling strip: two
- * verses of different colours already produce seven circles (2 remove + 5
+ * verses of different colors already produce seven circles (2 remove + 5
  * apply), and the palette's worst case is ten. `measureTray` stands in for the
  * layout pass, which never runs under jest.
  */

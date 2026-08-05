@@ -1,9 +1,7 @@
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
- * The Copy glyph on the verse action sheet — a `react-native-svg` port of the
- * Web SDK's `BoxStackIcon` (`components/icons/box-stack.tsx`), which is what the
- * in-WebView verse popover drew before this sheet replaced it.
+ * The Copy glyph on the verse action sheet.
  *
  * Decorative: it always sits inside a button that carries its own localized
  * label, so it is hidden from assistive tech rather than labelled twice.

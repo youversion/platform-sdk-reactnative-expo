@@ -1,9 +1,7 @@
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
- * The checkmark overlaid on an already-applied swatch — a `react-native-svg`
- * port of the Web SDK's `CheckIcon` (`components/icons/check.tsx`), which
- * replaced an earlier X to match iOS (platform-sdk-swift #179).
+ * The checkmark overlaid on an already-applied highlight swatch.
  *
  * Decorative: the swatch button around it carries the localized label.
  */

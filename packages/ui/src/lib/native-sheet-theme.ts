@@ -39,31 +39,17 @@ export const SHEET_MUTED_BACKGROUND: Record<Theme, string> = {
 }
 
 /**
- * Upward drop shadow separating the sheet's top edge from the content behind it.
- *
- * **Why `boxShadow` and not `shadow*` / `elevation`.** RN's `shadowColor` family
- * is iOS-only, and Android's `elevation` casts a shadow that cannot be aimed —
- * neither can put a shadow *above* an edge on both platforms. `boxShadow` is the
- * CSS-spec prop RN added in 0.76 for exactly this, it takes a negative `offsetY`,
- * and it is cross-platform. It requires the New Architecture, which Expo SDK 55+
- * makes mandatory (the legacy architecture was removed outright), so every
- * consumer of this SDK has it. The array form is used over the string form
- * because it is typed.
- *
+ * Upward drop shadow separating a sheet's top edge from the content behind it.
  * Two layers, the way Material fakes elevation: a tight contact shadow for the
- * edge itself and a wide ambient one for depth.
+ * edge and a wide ambient one for depth.
  *
- * **This matters most on the verse action sheet**, which is non-modal and so has
- * no backdrop dimming the passage behind it — without a shadow its top edge is
- * genuinely hard to find. Modal sheets keep it too; behind a dimmed backdrop it
- * is simply invisible, which is cheaper than branching on `modal`.
+ * Uses `boxShadow` because `shadowColor` is iOS-only and Android's `elevation`
+ * cannot be aimed above an edge; the typed array form is used over the string
+ * form. Requires the New Architecture (mandatory from Expo SDK 55) and Android
+ * API 28+ for outset shadows — below that the sheet renders unshadowed.
  *
- * Dark mode leans on much higher alpha because a black shadow has very little
- * luminance to spend against a near-black surface. It is a real improvement, not
- * a complete substitute for the light-mode effect.
- *
- * Known limitation: outset `boxShadow` needs Android API 28+. Below that the
- * sheet renders with no shadow — degraded, not broken.
+ * Dark mode carries much higher alpha because a black shadow has little
+ * luminance to spend against a near-black surface.
  */
 export const SHEET_TOP_SHADOW: Record<Theme, readonly BoxShadowValue[]> = {
   light: [

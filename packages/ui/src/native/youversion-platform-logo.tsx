@@ -1,13 +1,8 @@
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
- * The YouVersion Platform wordmark.
- *
- * A different mark from {@link BibleAppLogo}: that one is the Bible App's app
- * icon (used on the auth button); this is the "YouVersion Platform" wordmark that
- * heads the sign-in sheet. Ported verbatim from the React Web SDK's
- * `components/icons/youversion-platform-logo.tsx`, which in turn matches the
- * Swift SDK's `YouVersionPlatformLogo.imageset` (light + dark fills).
+ * The "YouVersion Platform" wordmark that heads the sign-in sheet. Not the same
+ * mark as {@link BibleAppLogo}, which is the Bible App's icon on the auth button.
  */
 
 const FILL = {
@@ -16,8 +11,8 @@ const FILL = {
 } as const
 
 /**
- * 238 ÷ 20. The mark is extremely wide, so callers must size it by **width** and
- * let height follow, or it distorts. {@link youVersionPlatformLogoSize} does that.
+ * 238 ÷ 20. The mark is extremely wide, so callers size it by width and let
+ * height follow — {@link youVersionPlatformLogoSize} does that.
  */
 export const YOUVERSION_PLATFORM_LOGO_ASPECT_RATIO = 238 / 20
 
@@ -33,8 +28,7 @@ export type YouVersionPlatformLogoProps = SvgProps & {
   theme?: 'light' | 'dark'
   /**
    * Required, with no default, so no hardcoded English label can ship. Source it
-   * from `useSdkTranslation()` — the same discipline the web component enforces
-   * on `aria-label`, and what the native i18n rules require anyway.
+   * from `useSdkTranslation()`.
    */
   accessibilityLabel: string
 }

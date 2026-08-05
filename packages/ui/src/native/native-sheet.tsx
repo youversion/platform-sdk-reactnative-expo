@@ -53,24 +53,12 @@ type NativeSheetProps = {
   onClose: () => void
   // Fired when a backdrop tap or pan-down close animation starts, before onClose.
   onDismissKeyboardStart?: () => void
-  // false makes the sheet non-modal: no backdrop at all, so the content behind
-  // stays at full brightness AND stays interactive. The verse action sheet needs
-  // this — it is a companion to a selection the user is still building, so taps
-  // must reach the reader's WebView to add or drop verses. A modal sheet would
-  // eat that tap and close instead.
-  //
-  // This drops the backdrop component rather than setting `opacity: 0` +
-  // `enableTouchThrough`: Gorhom's backdrop only reads `enableTouchThrough` for
-  // its *initial* pointerEvents, then an animated reaction overwrites it to
-  // 'auto' as soon as the sheet opens. An invisible backdrop would still swallow
-  // every tap.
-  //
-  // Trade-off: backdrop-tap-to-dismiss is gone, because there is no backdrop.
-  // The caller owns dismissal. For the verse action sheet that is swipe-down, or
-  // deselecting every verse (which emits `verses: []` and closes it). Verified on
-  // device: a tap on blank space in the reader does NOT clear the selection — the
-  // Web SDK only toggles selection on verse spans — so do not assume an
-  // "anywhere else" tap is an exit.
+  // false drops the backdrop entirely, so content behind the sheet stays at full
+  // brightness and stays interactive. The backdrop is removed rather than made
+  // transparent because Gorhom reads `enableTouchThrough` only for the initial
+  // pointerEvents, then overwrites it to 'auto' on open — an invisible backdrop
+  // would still swallow every tap. Tap-to-dismiss goes with it, so a non-modal
+  // caller owns its own dismissal.
   modal?: boolean
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
@@ -221,12 +209,10 @@ function SheetHost({
   }, [windowWidth])
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
-  // The shadow is keyed off `theme`, not `surfaceColor`: it is a themed color in
-  // its own right, so an explicit `backgroundColor` on an unthemed sheet gets no
-  // shadow rather than a guessed one. Gorhom's default background component is a
-  // bare View that spreads this style, and nothing between it and the window
-  // clips — so the shadow escapes the card's bounds without a custom
-  // `backgroundComponent`. See SHEET_TOP_SHADOW for why boxShadow.
+  // The shadow is keyed off `theme`, not `surfaceColor`: an explicit
+  // `backgroundColor` on an unthemed sheet gets no shadow rather than a guessed
+  // one. It rides on `backgroundStyle` because Gorhom's default background is a
+  // bare View that spreads it, with nothing between it and the window to clip.
   const backgroundStyle = useMemo<StyleProp<ViewStyle>>(() => {
     if (!surfaceColor) return undefined
     if (!theme) return { backgroundColor: surfaceColor }
@@ -268,7 +254,7 @@ function SheetHost({
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
-  // A non-modal active sheet also needs box-none on Android, or this wrapper eats
+  // A non-modal active sheet needs box-none on Android too, or the wrapper eats
   // the taps the dropped backdrop was supposed to let through.
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
     Platform.OS === 'android' ? (isActive ? (modal ? 'auto' : 'box-none') : 'none') : 'box-none'
