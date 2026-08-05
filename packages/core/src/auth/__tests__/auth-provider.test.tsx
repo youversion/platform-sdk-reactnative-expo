@@ -523,6 +523,58 @@ describe('AuthProvider — refresh lock', () => {
     })
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
   })
+
+  it('joins an in-flight refresh instead of resolving on the stale token', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'expired-access',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+
+    let resolveRefresh: (v: TokenResponse) => void = () => {}
+    mockRefreshTokens.mockReturnValue(
+      new Promise<TokenResponse>((r) => {
+        resolveRefresh = r
+      }),
+    )
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    // Bootstrap's refresh is in flight and deliberately left unresolved, which
+    // is the ordinary case this guards: the app foregrounds, a refresh starts,
+    // and the user acts before it lands.
+    await waitFor(() => expect(mockRefreshTokens).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(latestAuth).not.toBeNull())
+
+    let joined = false
+    const joiner = latestAuth!.ensureFreshToken().then(() => {
+      joined = true
+    })
+
+    // Drain the microtask queue. A caller that skipped the in-flight refresh
+    // rather than joining it would have settled by now, and its pre-flight would
+    // have read the expired token.
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(joined).toBe(false)
+    expect(getText('accessToken')).toBe('expired-access')
+
+    await act(async () => {
+      resolveRefresh(validTokens)
+      await joiner
+    })
+
+    expect(joined).toBe(true)
+    expect(getText('accessToken')).toBe('new-access')
+    // Joining, not starting a second one.
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('AuthProvider — AppState wiring', () => {
