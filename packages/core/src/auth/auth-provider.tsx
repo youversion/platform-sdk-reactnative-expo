@@ -46,7 +46,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const expiryRef = useRef<Date | null>(null)
   const refreshTokenRef = useRef<string | null>(null)
-  const isRefreshingRef = useRef<boolean>(false)
+  // The single in-flight refresh, held as a promise rather than a boolean so a
+  // second caller can *join* it. A caller that awaits `refreshToken` needs a
+  // usable token when it resolves; a boolean flag can only tell it to give up
+  // and carry on with the expired one it was trying to replace.
+  const refreshPromiseRef = useRef<Promise<void> | null>(null)
   // The access token as a ref, alongside the state, for the one read that has to
   // see past the render closure: data exchange refreshes before minting, and the
   // token it must send is the one that refresh just wrote, not the one this
@@ -129,8 +133,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [invalidatePermissions, setIdentity])
 
   const refreshToken = useCallback(
-    async (options?: { force?: boolean }) => {
-      if (!refreshTokenRef.current) {
+    async (options?: { force?: boolean }): Promise<void> => {
+      const currentRefreshToken = refreshTokenRef.current
+      if (!currentRefreshToken) {
         return
       }
       const expiresAt = expiryRef.current?.getTime() ?? 0
@@ -139,29 +144,47 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         return
       }
 
-      if (isRefreshingRef.current) {
-        return
+      // Join an in-flight refresh rather than stepping over it. The trigger is
+      // ordinary: the app foregrounds, the `AppState` listener starts a refresh,
+      // and the user taps a moment later. Returning early there would resolve a
+      // pre-flight on the very token this refresh exists to replace, and the
+      // write that followed would 401.
+      //
+      // A `force` caller joins too. It asked for a token minted now, and the run
+      // it joins was minted now.
+      const inFlight = refreshPromiseRef.current
+      if (inFlight !== null) {
+        return inFlight
       }
-      isRefreshingRef.current = true
 
-      try {
-        const response = await refreshTokens({
-          apiHost,
-          appKey,
-          refreshToken: refreshTokenRef.current,
-        })
-        await setAuthState({
-          accessToken: response.access_token,
-          refreshToken: response.refresh_token,
-          expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
-        })
-      } catch (e) {
-        if (e instanceof TokenEndpointError && e.isRevoked) {
-          await clearAuthState()
+      const run = (async () => {
+        try {
+          const response = await refreshTokens({
+            apiHost,
+            appKey,
+            refreshToken: currentRefreshToken,
+          })
+          await setAuthState({
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token,
+            expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
+          })
+        } catch (e) {
+          if (e instanceof TokenEndpointError && e.isRevoked) {
+            await clearAuthState()
+          }
+          setError(e instanceof Error ? e : new Error(String(e)))
         }
-        setError(e instanceof Error ? e : new Error(String(e)))
+      })()
+
+      // Published in the same synchronous block that started `run`, so nothing
+      // can arrive between the two and open a second refresh. Only the caller
+      // that started the run clears it; joiners return the promise untouched.
+      refreshPromiseRef.current = run
+      try {
+        await run
       } finally {
-        isRefreshingRef.current = false
+        refreshPromiseRef.current = null
       }
     },
     [apiHost, appKey, setAuthState, clearAuthState],
@@ -274,6 +297,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
   const requestedPermissions = config.permissions ?? NO_PERMISSIONS
+
+  // The leeway-gated refresh, made public under a name that says what a caller
+  // wants from it. A pre-flight before a permission-sensitive write needs "make
+  // sure the token is usable" without paying for a token round-trip on every
+  // tap, which is exactly the non-forced path — and, since the refresh is
+  // single-flight by promise, awaiting it does mean the token is usable.
+  const ensureFreshToken = useCallback(() => refreshToken(), [refreshToken])
 
   const hasPermission = useCallback(
     (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
@@ -411,6 +441,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
+      ensureFreshToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,
@@ -425,6 +456,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
+      ensureFreshToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,
