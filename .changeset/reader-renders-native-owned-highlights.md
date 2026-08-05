@@ -14,6 +14,6 @@ The reader subscribes to `useHighlights` for its current version / book / chapte
 
 `BibleReaderVerseSelection` and `BibleReaderShareData` are re-exported so a handler can be typed without depending on `@youversion/platform-react-ui` directly.
 
-On the core side, `useHighlights` now gates its GET on the app having **requested** the `highlights` permission (`auth.permissions` on `YouVersionProvider`). Without it the SDK issues no highlights request at all — so an app that renders a reader and never asked for highlights pays nothing. The gate reads the requested list, never a grant: a missing grant is indistinguishable from an unknown one, and treating unknown as denied would silently un-paint the highlights of users who signed in before grant reporting existed. `AuthContextValue` gains `requestedPermissions` to carry it, defaulting to `[]`.
+On the core side, `useHighlights` now gates its GET on the app having **requested** the `highlights` permission (`auth.permissions` on `YouVersionProvider`). Without it the SDK issues no highlights request at all — so an app that renders a reader and never asked for highlights pays nothing. The gate reads the requested list, never a grant: a missing grant is indistinguishable from an unknown one, and treating unknown as denied would silently un-paint the highlights of users who signed in before grant reporting existed. `useYVAuth()` gains `requestedPermissions` to carry it, defaulting to `[]`.
 
 Not in this change: applying or removing highlights from native, the native verse action sheet, and copy / share.

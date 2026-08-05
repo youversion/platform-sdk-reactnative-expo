@@ -5,7 +5,6 @@ export { default as YouVersionProvider } from './youversion-provider'
 export { useYVAuth, useYVAuthOptional } from './auth'
 export type {
   AuthConfig,
-  AuthContextValue,
   AuthPermission,
   AuthScope,
   DataExchangeFailureReason,

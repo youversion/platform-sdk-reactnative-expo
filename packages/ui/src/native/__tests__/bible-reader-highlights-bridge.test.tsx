@@ -314,9 +314,21 @@ describe('clearSelectionSignal', () => {
     expect(lastDomProps().clearSelectionSignal).toBe(1)
   })
 
-  it('stays undefined when the consumer never clears', () => {
+  it('crosses as a number even when the consumer never clears', () => {
     render(<BibleReader />, { wrapper })
-    expect(lastDomProps().clearSelectionSignal).toBeUndefined()
+    expect(lastDomProps().clearSelectionSignal).toBe(0)
+  })
+
+  it('does not change when a consumer starts passing the baseline value late', () => {
+    // The Web SDK clears the selection whenever this value differs from the one
+    // it saw last. `undefined` on the first render followed by `0` on a later
+    // one is a change, so an undefaulted prop would clear a selection the user
+    // is still looking at. The default keeps both renders at `0`.
+    const { rerender } = render(<BibleReader />, { wrapper })
+    expect(lastDomProps().clearSelectionSignal).toBe(0)
+
+    rerender(<BibleReader clearSelectionSignal={0} />)
+    expect(lastDomProps().clearSelectionSignal).toBe(0)
   })
 })
 
@@ -333,7 +345,11 @@ describe('the DOM component source (unobservable from layer 3)', () => {
   const source = readFileSync(join(__dirname, '../../dom/bible-reader.tsx'), 'utf8')
 
   it('hardcodes verseActions="none" on the Web SDK reader root', () => {
-    expect(source).toContain('verseActions="none"')
+    // Anchored to a line that is nothing but the JSX prop. A plain substring
+    // check would also be satisfied by the JSDoc in that file that mentions
+    // `verseActions="none"` in prose, so deleting the real prop would leave
+    // this green.
+    expect(source).toMatch(/^\s*verseActions="none"$/m)
   })
 
   it('wires no Web SDK highlight-intent or copy/share handlers', () => {

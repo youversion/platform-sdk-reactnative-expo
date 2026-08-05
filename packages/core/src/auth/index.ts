@@ -1,4 +1,3 @@
-export type { AuthContextValue } from './auth-context'
 export type { DataExchangeFailureReason, DataExchangeOutcome } from './data-exchange'
 export type {
   AuthConfig,
