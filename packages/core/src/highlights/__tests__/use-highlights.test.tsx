@@ -482,6 +482,27 @@ describe('fetching server truth', () => {
     expect(result.current.isRefreshing).toBe(false)
   })
 
+  it('clears isRefreshing when the permission gate closes on an in-flight fetch', async () => {
+    const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
+    mockGetHighlights.mockReturnValueOnce(pending.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    expect(result.current.isRefreshing).toBe(true)
+
+    // An app computing `auth.permissions` from a flag can revoke the request
+    // mid-fetch. That re-runs the fetch effect, which abandons the in-flight
+    // promise — so its `finally` no longer owns the flag and skips the reset.
+    // Nothing else would ever clear it.
+    setAuth(rerender, signedInWithoutPermission)
+    expect(result.current.isRefreshing).toBe(false)
+
+    await act(async () => {
+      pending.resolve(collection([]))
+      await pending.promise
+    })
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
   it('shares one in-flight request between concurrent refresh calls', async () => {
     const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
     mockGetHighlights.mockReturnValueOnce(pending.promise)

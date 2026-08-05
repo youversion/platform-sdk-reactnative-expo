@@ -10,13 +10,10 @@ export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
   const { top, bottom } = useSafeAreaInsets()
 
-  const [selectedVerses, setSelectedVerses] = useState<BibleReaderVerseSelection | null>(
-    null,
-  )
+  const [selectedVerses, setSelectedVerses] = useState<BibleReaderVerseSelection | null>(null)
   const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
 
   const onVerseSelect = useCallback(async (next: BibleReaderVerseSelection) => {
-    console.log('[example] onVerseSelect', next.reference, next.verses)
     setSelectedVerses(next.verses.length > 0 ? next : null)
   }, [])
 

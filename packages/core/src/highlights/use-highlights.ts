@@ -61,7 +61,14 @@ export type HighlightsFetchError = {
 }
 
 export type UseHighlightsResult = {
-  /** Per-verse passage ids, ascending, lowercase. Feed straight into a controlled reader. */
+  /**
+   * Per-verse passage ids, ascending. Feed straight into a controlled reader.
+   *
+   * Book codes carry the case of the `book` these highlights were requested for
+   * (uppercase USFM in practice, e.g. `JHN.3.16`). Keep it that way: the Web SDK
+   * reader compares them case-sensitively against the `book` prop it was handed,
+   * so normalizing the case here would silently stop every highlight painting.
+   */
   highlights: Highlight[]
   /** The scope these highlights belong to, so callers can gate an incoming intent. */
   scope: HighlightScope
@@ -136,7 +143,8 @@ function warnMissingUserId(): void {
   }
   hasWarnedMissingUserId = true
   console.warn(
-    `[YouVersion SDK] Signed in but no user id is available, so highlights cannot be cached. Highlights still load from the network; the instant-mount cache is disabled for this session.`,
+    '[YouVersion SDK] Signed in but no user id is available, so highlights cannot be cached. ' +
+      'Highlights still load from the network; the instant-mount cache is disabled for this session.',
   )
 }
 
@@ -276,8 +284,17 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   const runFetch = useCallback((): Promise<void> => {
     // The app never asked for `highlights`, so a GET could only ever 403. Sits
-    // above the in-flight dedup deliberately: when this is false nothing was
-    // ever started, so there is nothing to join or to clear.
+    // above the in-flight dedup deliberately: joining or clearing an in-flight
+    // request is the previous gate value's business, not this one's.
+    //
+    // Note this returns WITHOUT clearing `isRefreshing`, unlike the signed-out
+    // branch below. It cannot: the gate can flip true → false mid-fetch, which
+    // changes `runFetch`'s identity and re-runs the effect that nulls
+    // `inFlightRef`, so the abandoned promise's `finally` no longer matches and
+    // skips its own reset — leaving the flag stranded true. Rather than reset it
+    // here (a synchronous setState reachable from an effect), the exposed value
+    // is derived against this same gate at the return site below, which cannot
+    // strand by construction.
     if (!canFetchHighlights) {
       return Promise.resolve()
     }
@@ -573,5 +590,16 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   const highlights = useMemo(() => selectHighlights(renderedState), [renderedState])
 
-  return { highlights, scope, isRefreshing, error, refresh, apply, remove }
+  // Derived, not stored. With the gate closed no GET can be running, so the flag
+  // is false no matter what the state holds — which is what makes a true → false
+  // flip mid-fetch unable to strand a bound RefreshControl spinning forever.
+  return {
+    highlights,
+    scope,
+    isRefreshing: isRefreshing && canFetchHighlights,
+    error,
+    refresh,
+    apply,
+    remove,
+  }
 }
