@@ -7,10 +7,12 @@
 
 The reader subscribes to `useHighlights` for its current version / book / chapter and feeds the result into the Web SDK reader as a controlled prop. Because the MMKV cache read is synchronous, highlights are in the very first props — no blank first frame. Nothing about the highlight path runs inside the WebView any more: no network calls, no local store, no auth surface.
 
-**`verseActions="none"` is now hardcoded.** Until the native verse action sheet lands (YPE-3712), selecting a verse raises **no** action UI inside the reader — the colour swatches, Copy, and Share buttons are gone. Verse selection and selection painting are unchanged. Two new props replace what the popover provided:
+**The in-WebView verse action popover is switched off on iOS and Android.** Until the native verse action sheet lands (YPE-3712), selecting a verse there raises **no** action UI inside the reader — the colour swatches, Copy, and Share buttons are gone. Verse selection and selection painting are unchanged. Two new props replace what the popover provided:
 
 - `onVerseSelect(selection)` fires on every selection change, including clears (`verses: []`). The payload carries `versionId`, `book`, `chapter`, `verses`, `passageIds`, a localized `reference` (`Hebrews 11:4`, not `HEB 11:4`), and the `shareData` the popover's Copy / Share buttons would have used — all bridge-safe primitives.
 - `clearSelectionSignal` dismisses the current selection from native. Increment it; the value at mount is the baseline, so mounting never clears. A counter rather than an imperative ref handle because only serializable props cross the DOM bridge.
+
+**On web the popover stays.** `NativeSheet` renders nothing on web, so no native sheet can replace it there — switching it off would leave the reader with no verse action UI at all. This matches the fallback `BibleCard` already makes for its sheet-backed handlers. `onVerseSelect` and `clearSelectionSignal` still work on every platform.
 
 `BibleReaderVerseSelection` and `BibleReaderShareData` are re-exported so a handler can be typed without depending on `@youversion/platform-react-ui` directly.
 

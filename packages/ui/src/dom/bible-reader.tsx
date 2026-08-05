@@ -42,6 +42,19 @@ type BibleReaderBaseProps = {
    */
   highlights: Highlight[]
   /**
+   * **Required**, and supplied by the native wrapper — not a consumer choice.
+   *
+   * `'none'` on the native platforms, where a native bottom sheet replaces the
+   * in-WebView popover (YPE-3712). **`'popover'` on web**, where `NativeSheet`
+   * renders nothing: switching the popover off there would leave no verse action
+   * UI at all. Same reason `BibleCard` guards its sheet-backed handlers with
+   * `Platform.OS !== 'web'`.
+   *
+   * Required rather than defaulted so a new call site has to answer the question
+   * — the Web SDK's own default is `'popover'`, which is wrong on native.
+   */
+  verseActions: 'popover' | 'none'
+  /**
    * Fires on every verse selection change, including clears (`verses: []`).
    * Under `verseActions="none"` it is the only way a host learns about a
    * selection, and it carries the localized `reference` and `shareData`.
@@ -97,6 +110,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     installationId,
     accessToken,
     highlights,
+    verseActions,
     onVerseSelect,
     clearSelectionSignal,
     theme = 'light',
@@ -214,7 +228,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
           highlights={highlights}
-          verseActions="none"
+          verseActions={verseActions}
           onVerseSelect={handleVerseSelect}
           clearSelectionSignal={clearSelectionSignal}
           book={book}

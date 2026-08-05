@@ -22,6 +22,7 @@ import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
+import { resolveVerseActions } from '../lib/verse-actions'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
@@ -38,6 +39,11 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 
+// Computed once: `Platform.OS` cannot change at runtime. The branch itself lives
+// in `lib/verse-actions.ts` so it is testable at layer 1 — a platform fork is
+// not observable from a layer-3 test that always runs as one platform.
+const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
+
 /**
  * Re-exported from the Web SDK so consumers can type an `onVerseSelect` handler
  * without adding `@youversion/platform-react-ui` to their own dependencies.
@@ -50,6 +56,10 @@ export type BibleReaderProps = Omit<
   DomBibleReaderProps,
   | 'appKey'
   | 'highlights'
+  // Native decides the verse-action UI per platform: the bottom sheet on
+  // iOS/Android, the in-WebView popover on web where `NativeSheet` renders
+  // nothing. Not a consumer choice — see `VERSE_ACTIONS` below.
+  | 'verseActions'
   | 'fontSize'
   | 'fontFamily'
   | 'lineSpacing'
@@ -271,6 +281,7 @@ export function BibleReader({
           installationId={context.installationId}
           accessToken={accessToken}
           highlights={highlights}
+          verseActions={VERSE_ACTIONS}
           onVerseSelect={onVerseSelect}
           clearSelectionSignal={clearSelectionSignal}
           onSignInPress={signIn}
