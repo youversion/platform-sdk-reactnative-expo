@@ -147,7 +147,7 @@ function ReaderScreen() {
 
 #### Verse selection
 
-Selecting a verse raises no action UI inside the reader. Use `onVerseSelect` to build your own, and `clearSelectionSignal` to dismiss the selection from native — increment it, and note that its value at mount is the baseline, so mounting never clears:
+`onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
 
 ```tsx
 const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
@@ -161,7 +161,7 @@ const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
 />
 ```
 
-`onVerseSelect` fires on every selection change, clears included (`verses: []`). Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
+Clears arrive too, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
 #### Custom picker flows
 
