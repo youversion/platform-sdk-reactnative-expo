@@ -2,10 +2,10 @@
  * Layer 3 — the two prompts that stand between a swatch press and a write.
  *
  * The reader owns the sign-in pre-step (the Permission Flow has no sign-in
- * prompt state of its own, so `flow.apply` would launch OAuth unannounced), and
- * the flow owns the consent step via `isConfirming`. The invariant across both:
- * exactly one sheet is active, so a prompt never displaces the action sheet and
- * fires `closeVerseActions` as a side effect.
+ * prompt state of its own, so `highlightPermissionFlow.apply` would launch
+ * OAuth unannounced), and the flow owns the consent step via `isConfirming`.
+ * The invariant across both: exactly one sheet is active, so a prompt never
+ * displaces the action sheet and fires `closeVerseActions` as a side effect.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
@@ -58,9 +58,9 @@ function highlight(verse: number, color: string): Highlight {
   return { version_id: VERSION_ID, passage_id: `JHN.1.${verse}`, color }
 }
 
-const flowApply = jest.fn(async () => ({ status: 'noop' }) as const)
-const flowConfirm = jest.fn()
-const flowDecline = jest.fn()
+const highlightPermissionFlowApply = jest.fn(async () => ({ status: 'noop' }) as const)
+const highlightPermissionFlowConfirm = jest.fn()
+const highlightPermissionFlowDecline = jest.fn()
 const rawApply = jest.fn(async () => ({ status: 'noop' }) as const)
 const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
 
@@ -69,7 +69,7 @@ const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
  * provider, which UI tests replace). Steer it per test rather than re-mocking
  * the whole package and losing that passthrough provider.
  */
-function stubFlow({ highlights = [] as Highlight[], isConfirming = false } = {}) {
+function stubHighlightPermissionFlow({ highlights = [] as Highlight[], isConfirming = false } = {}) {
   jest
     .spyOn(core, 'useHighlightPermissionFlow')
     .mockImplementation(({ versionId, book, chapter }) => ({
@@ -83,9 +83,9 @@ function stubFlow({ highlights = [] as Highlight[], isConfirming = false } = {})
         remove: rawRemove,
       },
       isConfirming,
-      apply: flowApply,
-      confirm: flowConfirm,
-      decline: flowDecline,
+      apply: highlightPermissionFlowApply,
+      confirm: highlightPermissionFlowConfirm,
+      decline: highlightPermissionFlowDecline,
       flowError: null,
     }))
 }
@@ -117,7 +117,7 @@ function stubAuth(isAuthenticated: boolean) {
   jest.spyOn(core, 'useYVAuthOptional').mockReturnValue(value)
 }
 
-let mockNextSelection: BibleReaderVerseSelection = SELECTION
+let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
 jest.mock('../../dom/bible-reader', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -125,13 +125,13 @@ jest.mock('../../dom/bible-reader', () => {
   return {
     __esModule: true,
     default: function MockDOM(props: {
-      onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+      onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
     }) {
       return (
         <View testID="mock-dom">
           <Pressable
             testID="trigger-verse-select"
-            onPress={() => void props.onVerseSelect?.(mockNextSelection)}
+            onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
           >
             <Text>Select</Text>
           </Pressable>
@@ -217,8 +217,8 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
-async function selectVerses(selection: BibleReaderVerseSelection = SELECTION) {
-  mockNextSelection = selection
+async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTION) {
+  mockNextVerseSelection = verseSelection
   await act(async () => {
     fireEvent.press(screen.getByTestId('trigger-verse-select'))
   })
@@ -235,13 +235,13 @@ function openSheetCount() {
 }
 
 beforeEach(() => {
-  mockNextSelection = SELECTION
-  flowApply.mockClear()
-  flowConfirm.mockClear()
-  flowDecline.mockClear()
+  mockNextVerseSelection = SELECTION
+  highlightPermissionFlowApply.mockClear()
+  highlightPermissionFlowConfirm.mockClear()
+  highlightPermissionFlowDecline.mockClear()
   rawApply.mockClear()
   rawRemove.mockClear()
-  stubFlow()
+  stubHighlightPermissionFlow()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
 })
 
@@ -274,7 +274,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawApply).not.toHaveBeenCalled()
   })
 
@@ -287,7 +287,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press('sign-in-with-youversion-confirm')
 
     // The color and verses survive the round-trip: the user does not reselect.
-    expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
   })
 
@@ -300,7 +300,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press('sign-in-with-youversion-decline')
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawApply).not.toHaveBeenCalled()
     expect(openSheetCount()).toBe(0)
   })
@@ -314,7 +314,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press('sheet-dismiss')
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
   })
 
   it('leaves a dismissed intent behind — a later press starts over', async () => {
@@ -330,8 +330,8 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press('sign-in-with-youversion-confirm')
 
     // The green intent is gone, not queued behind the blue one.
-    expect(flowApply).toHaveBeenCalledTimes(1)
-    expect(flowApply).toHaveBeenCalledWith(BLUE, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledTimes(1)
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(BLUE, [1, 2])
   })
 
   /**
@@ -357,13 +357,13 @@ describe('BibleReader — the sign-in pre-step', () => {
     })
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawApply).not.toHaveBeenCalled()
   })
 
   it('never prompts for a remove', async () => {
     stubAuth(false)
-    stubFlow({ highlights: [highlight(1, BLUE), highlight(2, BLUE)] })
+    stubHighlightPermissionFlow({ highlights: [highlight(1, BLUE), highlight(2, BLUE)] })
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -384,7 +384,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
   })
 
   /**
@@ -400,14 +400,14 @@ describe('BibleReader — the sign-in pre-step', () => {
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
   })
 })
 
 describe('BibleReader — the consent step', () => {
   it('opens on isConfirming and closes the action sheet with it', async () => {
     stubAuth(true)
-    stubFlow({ isConfirming: true })
+    stubHighlightPermissionFlow({ isConfirming: true })
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -419,24 +419,24 @@ describe('BibleReader — the consent step', () => {
 
   it('hands Continue to confirm()', async () => {
     stubAuth(true)
-    stubFlow({ isConfirming: true })
+    stubHighlightPermissionFlow({ isConfirming: true })
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await press('highlight-consent-confirm')
 
-    expect(flowConfirm).toHaveBeenCalledTimes(1)
-    expect(flowDecline).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowConfirm).toHaveBeenCalledTimes(1)
+    expect(highlightPermissionFlowDecline).not.toHaveBeenCalled()
   })
 
   it('hands Cancel to decline()', async () => {
     stubAuth(true)
-    stubFlow({ isConfirming: true })
+    stubHighlightPermissionFlow({ isConfirming: true })
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await press('highlight-consent-cancel')
 
-    expect(flowDecline).toHaveBeenCalledTimes(1)
-    expect(flowConfirm).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowDecline).toHaveBeenCalledTimes(1)
+    expect(highlightPermissionFlowConfirm).not.toHaveBeenCalled()
   })
 
   /**
@@ -446,12 +446,12 @@ describe('BibleReader — the consent step', () => {
    */
   it('hands the backdrop, pan-down and displacement paths to decline()', async () => {
     stubAuth(true)
-    stubFlow({ isConfirming: true })
+    stubHighlightPermissionFlow({ isConfirming: true })
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await press('sheet-dismiss')
 
-    expect(flowDecline).toHaveBeenCalledTimes(1)
-    expect(flowConfirm).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowDecline).toHaveBeenCalledTimes(1)
+    expect(highlightPermissionFlowConfirm).not.toHaveBeenCalled()
   })
 })

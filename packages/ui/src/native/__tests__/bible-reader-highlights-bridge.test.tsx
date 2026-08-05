@@ -30,7 +30,7 @@ type CapturedDomProps = {
   book?: string
   chapter?: string
   clearSelectionSignal?: number
-  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
   onChapterChange?: (chapter: string) => Promise<void>
 }
 

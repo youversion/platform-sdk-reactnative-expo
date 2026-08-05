@@ -65,13 +65,13 @@ function highlight(verse: number, color: string): Highlight {
 }
 
 /**
- * The two writes a swatch press can reach. `flowApply` is the guarded one — the
+ * The two writes a swatch press can reach. `highlightPermissionFlowApply` is the guarded one — the
  * Permission Flow's wrapper, which may run sign-in or consent first — and
  * `rawRemove` is `useHighlights.remove`, deliberately ungated (ADR 0016).
  * Keeping them as separate stable mocks is what lets each test say which path a
  * press took.
  */
-const flowApply = jest.fn(async () => ({ status: 'noop' }) as const)
+const highlightPermissionFlowApply = jest.fn(async () => ({ status: 'noop' }) as const)
 const rawApply = jest.fn(async () => ({ status: 'noop' }) as const)
 const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
 
@@ -80,7 +80,7 @@ const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
  * provider, which UI tests replace). Steer it per test rather than re-mocking the
  * whole package and losing that passthrough provider.
  */
-function stubFlow(highlights: Highlight[] = []) {
+function stubHighlightPermissionFlow(highlights: Highlight[] = []) {
   jest
     .spyOn(core, 'useHighlightPermissionFlow')
     .mockImplementation(({ versionId, book, chapter }) => ({
@@ -94,21 +94,21 @@ function stubFlow(highlights: Highlight[] = []) {
         remove: rawRemove,
       },
       isConfirming: false,
-      apply: flowApply,
+      apply: highlightPermissionFlowApply,
       confirm: jest.fn(),
       decline: jest.fn(),
       flowError: null,
     }))
 }
 
-/** Which selection payload the mocked DOM component emits on the next press. */
-let mockNextSelection: BibleReaderVerseSelection = SELECTION
+/** Which verse-selection payload the mocked DOM component emits on the next press. */
+let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
 let latestDomProps: {
   clearSelectionSignal?: number
   onCopy?: unknown
   onShare?: unknown
-  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
 } = {}
 
 jest.mock('../../dom/bible-reader', () => {
@@ -117,14 +117,14 @@ jest.mock('../../dom/bible-reader', () => {
   return {
     __esModule: true,
     default: function MockDOM(props: {
-      onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+      onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
     }) {
       latestDomProps = props
       return (
         <View testID="mock-dom">
           <Pressable
             testID="trigger-verse-select"
-            onPress={() => void props.onVerseSelect?.(mockNextSelection)}
+            onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
           >
             <Text>Select</Text>
           </Pressable>
@@ -216,9 +216,9 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
-/** Emit a selection from the WebView, the way a verse tap would. */
-async function selectVerses(selection: BibleReaderVerseSelection = SELECTION) {
-  mockNextSelection = selection
+/** Emit a verse selection from the WebView, the way a verse tap would. */
+async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTION) {
+  mockNextVerseSelection = verseSelection
   await act(async () => {
     fireEvent.press(screen.getByTestId('trigger-verse-select'))
   })
@@ -226,11 +226,11 @@ async function selectVerses(selection: BibleReaderVerseSelection = SELECTION) {
 
 beforeEach(() => {
   latestDomProps = {}
-  mockNextSelection = SELECTION
-  flowApply.mockClear()
+  mockNextVerseSelection = SELECTION
+  highlightPermissionFlowApply.mockClear()
   rawApply.mockClear()
   rawRemove.mockClear()
-  stubFlow()
+  stubHighlightPermissionFlow()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
 })
@@ -349,7 +349,7 @@ describe('BibleReader verse action sheet — the bridge', () => {
 
 describe('BibleReader verse action sheet — swatches', () => {
   it('projects the swatch tray from the painted highlights', async () => {
-    stubFlow([highlight(1, YELLOW)])
+    stubHighlightPermissionFlow([highlight(1, YELLOW)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -370,13 +370,13 @@ describe('BibleReader verse action sheet — swatches', () => {
 
     // The flow's `apply`, not `useHighlights.apply`: a signed-out or
     // unpermitted user must get the sign-in / consent step, not a failed write.
-    expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
     expect(rawApply).not.toHaveBeenCalled()
     expect(rawRemove).not.toHaveBeenCalled()
   })
 
   it('routes a remove swatch straight to the ungated write', async () => {
-    stubFlow([highlight(1, BLUE), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, BLUE), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -387,7 +387,7 @@ describe('BibleReader verse action sheet — swatches', () => {
     // ADR 0016: a user looking at their own highlight already has whatever the
     // write needs, so removal never runs the flow.
     expect(rawRemove).toHaveBeenCalledWith(BLUE, [1, 2])
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
   })
 
   it('closes the sheet and clears the selection after a write', async () => {
@@ -404,7 +404,7 @@ describe('BibleReader verse action sheet — swatches', () => {
   })
 
   it('closes the sheet and clears the selection after a remove too', async () => {
-    stubFlow([highlight(1, BLUE), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, BLUE), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -425,7 +425,7 @@ describe('BibleReader verse action sheet — swatches', () => {
       fireEvent.press(screen.getByTestId('sheet-dismiss'))
     })
 
-    expect(flowApply).not.toHaveBeenCalled()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawRemove).not.toHaveBeenCalled()
   })
 })
@@ -460,7 +460,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
   })
 
   it('fades the trailing edge once the swatches overflow, without swallowing their taps', async () => {
-    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -472,7 +472,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     })
-    expect(flowApply).toHaveBeenCalledWith(PINK, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
 
   /**
@@ -481,7 +481,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
    * dimmed once the user had scrolled to it, which reads as disabled.
    */
   it('retires the trailing fade once the strip is scrolled to its end', async () => {
-    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -496,7 +496,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
    * the way you came, since the tray hard-cuts its left edge otherwise.
    */
   it('draws no leading fade at the head of the strip, and fades it in once scrolled', async () => {
-    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -510,7 +510,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
   })
 
   it('draws both fades mid-strip, and neither swallows a swatch tap', async () => {
-    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
@@ -523,7 +523,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     })
-    expect(flowApply).toHaveBeenCalledWith(PINK, [1, 2])
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
 })
 

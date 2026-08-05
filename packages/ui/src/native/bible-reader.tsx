@@ -63,6 +63,17 @@ const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
  */
 type PendingSwatchIntent = { color: string; verses: number[]; scope: HighlightScope }
 
+/**
+ * Which prompt the reader is showing on its own account, and — for `'sign-in'` —
+ * the passage it was raised for. The scope is held here rather than read off
+ * {@link PendingSwatchIntent} because the discard below runs during render,
+ * where touching a ref is what `react-hooks/refs` forbids.
+ */
+type PromptState = { kind: 'none' } | { kind: 'sign-in'; scope: HighlightScope }
+
+/** Stable identity, so the render-time discard cannot re-trigger itself. */
+const NO_PROMPT: PromptState = { kind: 'none' }
+
 function sameScope(a: HighlightScope, b: HighlightScope): boolean {
   return a.versionId === b.versionId && a.book === b.book && a.chapter === b.chapter
 }
@@ -227,30 +238,29 @@ export function BibleReader({
   // both the public prop and the reader's own exits can clear.
   const [internalClearCount, setInternalClearCount] = useState(0)
 
-  // Which prompt the reader is showing on its own account. The consent prompt is
-  // not in here — the flow owns that one, gated on
+  // The consent prompt is not in here — the flow owns that one, gated on
   // `highlightPermissionFlow.isConfirming`.
-  const [prompt, setPrompt] = useState<'none' | 'sign-in'>('none')
+  const [prompt, setPrompt] = useState<PromptState>(NO_PROMPT)
   // A ref, not state: nothing renders from it, and the sign-in sheet's confirm
   // needs the value on the same tick it fires.
   const pendingIntentRef = useRef<PendingSwatchIntent | null>(null)
 
-  // Discard a pending sign-in intent when the reader leaves the passage it
+  // Discard a pending sign-in prompt when the reader leaves the passage it
   // belonged to. Same "adjust state when props change" pattern as the
   // Permission Flow's RESET: an effect would leave one frame where the sheet
   // for the old chapter is still open over the new one. A controlled consumer
   // can change book / chapter / versionId while the prompt is up.
   // `renderedPrompt` is what this frame paints — `setPrompt` alone would still
   // leave the sheet open for one render.
+  //
+  // The stale intent on the ref is left alone: this closes the sheet, so nothing
+  // can fire `onConfirm`, the next swatch press overwrites it, and the confirm
+  // handler re-checks the scope regardless.
   const currentScope: HighlightScope = { versionId, book, chapter }
   let renderedPrompt = prompt
-  if (prompt === 'sign-in') {
-    const pending = pendingIntentRef.current
-    if (pending === null || !sameScope(pending.scope, currentScope)) {
-      pendingIntentRef.current = null
-      renderedPrompt = 'none'
-      setPrompt('none')
-    }
+  if (prompt.kind === 'sign-in' && !sameScope(prompt.scope, currentScope)) {
+    renderedPrompt = NO_PROMPT
+    setPrompt(NO_PROMPT)
   }
 
   const handleVerseSelect = useCallback(
@@ -303,7 +313,7 @@ export function BibleReader({
           verses,
           scope: { versionId, book, chapter },
         }
-        setPrompt('sign-in')
+        setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
         return
       }
       // Fire-and-forget: the paint is optimistic inside `useHighlights`, so the
@@ -325,7 +335,7 @@ export function BibleReader({
   const handleSignInConfirm = useCallback(() => {
     const pending = pendingIntentRef.current
     pendingIntentRef.current = null
-    setPrompt('none')
+    setPrompt(NO_PROMPT)
     // Straight back into the flow, which signs in, asks for consent if the grant
     // is still missing, and writes — without the user reselecting the verse.
     if (!pending) return
@@ -340,7 +350,7 @@ export function BibleReader({
   // Every one of them discards the intent; nothing is written.
   const handleSignInDismiss = useCallback(() => {
     pendingIntentRef.current = null
-    setPrompt('none')
+    setPrompt(NO_PROMPT)
   }, [])
 
   const handleOpenBibleThemeSettings = useCallback(() => {
@@ -541,7 +551,7 @@ export function BibleReader({
           // answer still needs.
           isOpen={
             verseSelection !== null &&
-            renderedPrompt === 'none' &&
+            renderedPrompt.kind === 'none' &&
             !highlightPermissionFlow.isConfirming
           }
           reference={verseSelection?.reference ?? ''}
@@ -555,7 +565,7 @@ export function BibleReader({
       )}
       {Platform.OS !== 'web' && (
         <SignInWithYouVersionSheet
-          isOpen={renderedPrompt === 'sign-in'}
+          isOpen={renderedPrompt.kind === 'sign-in'}
           onConfirm={handleSignInConfirm}
           onDismiss={handleSignInDismiss}
           theme={resolvedTheme}
