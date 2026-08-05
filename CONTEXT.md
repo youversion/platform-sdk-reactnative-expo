@@ -114,6 +114,18 @@ _Avoid_: Flattening to **Server Colors** before writing; treating an empty array
 The local layer of pending edits for a **Highlight Scope**, `Record<number, string | null>` — a hex color where the user just applied one, `null` where they just removed one. Sits on top of **Server Colors** so the reader paints before the server answers; entries retire once the server confirms them (see [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) for the color-aware remove rule). Never persisted — see **Cached Highlights**.
 _Avoid_: Optimistic state (too vague — this is one specific layer), **Server Colors** (the layer underneath), persisting it
 
+**Controlled Highlights Latch**:
+The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
+_Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
+
+**Verse Selection**:
+The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. With the in-WebView verse action UI switched off (`verseActions="none"`), this is the only channel a host learns about a selection on — and **Selection Clear Signal** is the only way it dismisses one.
+_Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
+
+**Selection Clear Signal**:
+A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
+_Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key** (that remounts a picker tree; this one clears a selection)
+
 **Highlight Write Outcome**:
 What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
 _Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it)
@@ -160,6 +172,9 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 - **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
 - A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
 - A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
+- The reader's **Native Wrapper** derives **Cached Highlights** for its current **Highlight Scope** and holds the **Controlled Highlights Latch** with them; the **Expo DOM Component** only projects that array and never fetches, stores, or authenticates for highlights.
+- The highlights fetch is mounted only when the app **requested** the `highlights` permission on its auth config — not when a grant is known. A never-requested permission means no request; an unknown grant still fetches, because absence of a grant record is not a denial.
+- With the in-WebView verse action **Presentation Shell** switched off, a **Verse Selection** crosses to native as a **Native Action** and a **Selection Clear Signal** crosses back. Neither is **DOM-Owned Sheet UI State**: the selection is a committed observation, and the clear is a one-way native→DOM command.
 - **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
 - A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
 - **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.

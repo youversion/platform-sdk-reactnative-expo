@@ -143,7 +143,25 @@ function ReaderScreen() {
 }
 ```
 
-`BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets.
+`BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
+
+#### Verse selection
+
+`onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
+
+```tsx
+const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
+
+<BibleReader
+  defaultVersionId={3034}
+  onVerseSelect={async (selection) => {
+    // selection.reference ("John 3:16"), .verses, .passageIds, .shareData
+  }}
+  clearSelectionSignal={clearSelectionSignal}
+/>
+```
+
+Clears arrive too, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
 #### Custom picker flows
 

@@ -140,14 +140,40 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
       signOut: jest.fn(),
       refreshNow: jest.fn(),
       isLoading: false,
+      requestedPermissions: [],
+    }
+  }
+
+  /**
+   * The real hook reads core's own `YouVersionContext`, which the passthrough
+   * provider above deliberately does not populate — so `BibleReader` would throw
+   * the moment it subscribes. Signed-out-shaped by default (`highlights: []`);
+   * suites that care about highlight data re-mock this module themselves.
+   */
+  function useHighlights({ versionId, book, chapter }) {
+    return {
+      highlights: [],
+      scope: { versionId, book, chapter },
+      isRefreshing: false,
+      error: null,
+      refresh: jest.fn(async () => undefined),
+      apply: jest.fn(async () => ({ status: 'noop' })),
+      remove: jest.fn(async () => ({ status: 'noop' })),
     }
   }
 
   return {
+    // Babel defines the real module's `__esModule` non-enumerably, so the spread
+    // above drops it. Without it back, `import * as core` runs through
+    // `_interopRequireWildcard`, which hands the importer a *copy* — and a
+    // `jest.spyOn(core, ...)` in a test file then patches the copy while the
+    // component under test keeps calling the original.
+    __esModule: true,
     ...actual,
     YouVersionProvider,
     useYouVersion,
     useYVAuth,
+    useHighlights,
   }
 })
 
