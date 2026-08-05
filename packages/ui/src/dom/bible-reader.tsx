@@ -128,17 +128,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
 
-  // Belt and braces for the controlled-mode latch. TypeScript makes `highlights`
-  // required, but this is the far side of a serialization boundary — a bad
-  // native-side value arrives here as `undefined` with no compile-time trace,
-  // and the failure mode (a WebView quietly writing highlights with the user's
-  // token) is silent.
-  //
-  // Coerce rather than only warn: the warning compiles out in production, which
-  // is precisely where a silent failure is unrecoverable. `[]` is the correct
-  // value for "controlled, nothing highlighted", so defaulting costs nothing and
-  // keeps the latch closed on the render that matters — the Web SDK decides
-  // controlled vs self-contained from this prop's presence at first mount.
+  // `highlights` is required, but this is the far side of a serialization
+  // boundary, so a bad value arrives as `undefined` with no compile-time trace.
+  // Coerce, don't just warn — the warning compiles out in production, and a
+  // missing prop hands the WebView back the ability to write highlights.
   const safeHighlights = Array.isArray(highlights) ? highlights : []
   if (process.env.NODE_ENV !== 'production' && !Array.isArray(highlights)) {
     console.error(
@@ -146,23 +139,15 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     )
   }
 
-  // The Web SDK calls `onVerseSelect` synchronously and ignores its return
-  // value, but a native action crosses the bridge and can only be async. Adapt
-  // with an explicit fire-and-forget so a selection change never depends on a
-  // bridge round-trip resolving.
-  //
-  // Catch rather than `void`: this is arbitrary consumer code, and expo's
-  // `marshal` rejects the proxy promise when a native handler throws. An
-  // unattached handler would surface as an unhandled rejection inside the DOM
-  // environment — the failure class this package already patches around on
-  // Android. Report and swallow; a bad handler must not take the reader down.
+  // The Web SDK calls this synchronously and ignores the return value, but a
+  // native action can only be async — so fire and forget. Catch rather than
+  // `void`: expo's `marshal` rejects when the consumer's handler throws, and an
+  // unattached rejection surfaces as an unhandled rejection in the DOM.
   const handleVerseSelect = useMemo(
     () =>
       onVerseSelect
         ? (selection: BibleReaderVerseSelection) => {
-            // `Promise.resolve` so a handler that returns a non-promise — the
-            // shape a plain sync function takes when this component is rendered
-            // without the bridge — cannot throw on `.catch`.
+            // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
             Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
               console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
             })

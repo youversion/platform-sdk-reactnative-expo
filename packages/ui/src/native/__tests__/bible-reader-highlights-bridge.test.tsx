@@ -209,9 +209,8 @@ describe('the controlled-mode latch', () => {
     }
   })
 
-  // The hook is stubbed here (see `beforeEach`), so this pins the wrapper's
-  // pass-through of an empty result, not the hook's own no-auth behaviour —
-  // that guarantee is core's, covered in `highlights/__tests__/use-highlights.test.tsx`.
+  // The hook is stubbed, so this pins the wrapper's pass-through, not the hook's
+  // no-auth behaviour — core covers that in `use-highlights.test.tsx`.
   it('passes an empty hook result through as [], never undefined', () => {
     render(<BibleReader />, { wrapper })
     expect(lastDomProps().highlights).toEqual([])

@@ -489,10 +489,8 @@ describe('fetching server truth', () => {
     const { result, rerender } = renderUseHighlights()
     expect(result.current.isRefreshing).toBe(true)
 
-    // An app computing `auth.permissions` from a flag can revoke the request
-    // mid-fetch. That re-runs the fetch effect, which abandons the in-flight
-    // promise — so its `finally` no longer owns the flag and skips the reset.
-    // Nothing else would ever clear it.
+    // Revoking the request mid-fetch abandons the in-flight promise, so its
+    // `finally` no longer owns the flag. Nothing else would clear it.
     setAuth(rerender, signedInWithoutPermission)
     expect(result.current.isRefreshing).toBe(false)
 
