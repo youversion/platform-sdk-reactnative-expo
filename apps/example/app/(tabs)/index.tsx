@@ -1,21 +1,54 @@
 import {
   BibleReader,
+  type BibleReaderShareData,
   type BibleReaderVerseSelection,
 } from '@youversion/platform-react-native-expo-ui'
+import * as Clipboard from 'expo-clipboard'
 import { useCallback, useState } from 'react'
-import { Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native'
+import { Pressable, Share, StyleSheet, Switch, Text, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+/**
+ * Tapping a verse opens the SDK's native verse action sheet: the reference, the
+ * highlight swatches, Copy, and Share. Nothing on this screen opens it — the
+ * reader owns it.
+ *
+ * What this screen demos is the two things a host can do around it:
+ *
+ * 1. Observe the selection (`onVerseSelect`) and clear it (`clearSelectionSignal`).
+ *    The strip under the header is app UI, not SDK UI. It sits at the top
+ *    because the verse action sheet owns the bottom of the screen while a
+ *    selection is live.
+ * 2. Replace Copy and Share (`onCopy` / `onShare`). The toggle leaves the SDK
+ *    fallbacks reachable, so both paths can be exercised on a device.
+ */
 export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
-  const { top, bottom } = useSafeAreaInsets()
+  const { top } = useSafeAreaInsets()
 
   const [selectedVerses, setSelectedVerses] = useState<BibleReaderVerseSelection | null>(null)
   const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
+  const [useCustomActions, setUseCustomActions] = useState(false)
+  const [lastAction, setLastAction] = useState<string | null>(null)
 
   const onVerseSelect = useCallback(async (next: BibleReaderVerseSelection) => {
     setSelectedVerses(next.verses.length > 0 ? next : null)
   }, [])
+
+  // An override wins over the SDK's `expo-clipboard` / `Share.share` fallback.
+  // `data.text` is the verse text plus the reference line; the other fields are
+  // there so a host can build its own string.
+  const onCopy = useCallback(async (data: BibleReaderShareData) => {
+    await Clipboard.setStringAsync(`${data.text}\n\nCopied from the example app`)
+    setLastAction(`Custom copy: ${data.reference}`)
+  }, [])
+
+  const onShare = useCallback(async (data: BibleReaderShareData) => {
+    await Share.share({ message: `${data.text}\n\nShared from the example app` })
+    setLastAction(`Custom share: ${data.reference}`)
+  }, [])
+
+  const statusLabel = selectedVerses ? selectedVerses.reference : lastAction
 
   return (
     <View
@@ -24,25 +57,39 @@ export default function BibleScreen() {
         { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top },
       ]}
     >
-      <BibleReader
-        defaultVersionId={3034}
-        onVerseSelect={onVerseSelect}
-        clearSelectionSignal={clearSelectionSignal}
-      />
-      {selectedVerses ? (
-        <View style={[styles.selectionBar, { bottom: bottom + 12 }]}>
-          <Text style={styles.selectionLabel} numberOfLines={1}>
-            {selectedVerses.reference}
-          </Text>
+      <View style={styles.headerRow}>
+        <Text style={[styles.headerLabel, { color: isDark ? '#ffffff' : '#121212' }]}>
+          Custom Copy / Share
+        </Text>
+        <Switch value={useCustomActions} onValueChange={setUseCustomActions} />
+      </View>
+
+      {/* Always rendered, so selecting a verse does not resize the reader. */}
+      <View style={styles.statusBar}>
+        <Text style={styles.statusLabel} numberOfLines={1}>
+          {statusLabel ?? 'Tap a verse to open the action sheet'}
+        </Text>
+        {statusLabel ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => setClearSelectionSignal((signal) => signal + 1)}
+            onPress={() => {
+              setClearSelectionSignal((signal) => signal + 1)
+              setLastAction(null)
+            }}
             style={styles.clearButton}
           >
             <Text style={styles.clearButtonLabel}>Clear</Text>
           </Pressable>
-        </View>
-      ) : null}
+        ) : null}
+      </View>
+
+      <BibleReader
+        defaultVersionId={3034}
+        onVerseSelect={onVerseSelect}
+        clearSelectionSignal={clearSelectionSignal}
+        onCopy={useCustomActions ? onCopy : undefined}
+        onShare={useCustomActions ? onShare : undefined}
+      />
     </View>
   )
 }
@@ -51,20 +98,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  selectionBar: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  headerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  statusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    // Fixed height so showing the Clear button does not resize the reader.
+    minHeight: 49,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
     backgroundColor: '#1f2933',
   },
-  selectionLabel: {
+  statusLabel: {
     flexShrink: 1,
     color: '#ffffff',
     fontSize: 15,

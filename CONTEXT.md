@@ -119,12 +119,20 @@ The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM C
 _Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
 
 **Verse Selection**:
-The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. With the in-WebView verse action UI switched off (`verseActions="none"`), this is the only channel a host learns about a selection on — and **Selection Clear Signal** is the only way it dismisses one.
+The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. With the in-WebView verse action UI switched off (`verseActions="none"`, which is every platform but web), this is the only channel native learns about a selection on — it is what raises the **Verse Action Sheet** — and **Selection Clear Signal** is the only way it dismisses one.
 _Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
 
 **Selection Clear Signal**:
 A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
 _Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key** (that remounts a picker tree; this one clears a selection)
+
+**Verse Action Sheet**:
+The **Native Sheet** the reader raises over a live **Verse Selection**: the localized reference, the **Verse Action Swatches**, Copy, and Share. It replaces the Web SDK's in-WebView verse action **Presentation Shell** on iOS and Android, matching what Swift and Kotlin present. Alone among our sheets it is **non-modal** — it has no backdrop, because a backdrop intercepts the second verse tap that extends a selection. The cost is that backdrop-tap-to-dismiss does not exist, and the compensation is an upward drop shadow on every themed **Native Sheet**. Internal, not exported: the reader owns it, and a host building its own action UI has **Verse Selection** plus `useHighlights`. See [ADR 0017](docs/adr/0017-native-verse-action-sheet.md).
+_Avoid_: Verse popover, verse menu; "tap outside to dismiss" (there is nothing outside to tap); giving another sheet `modal={false}` for looks
+
+**Verse Action Swatches**:
+The highlight circles in a **Verse Action Sheet**, projected from the current **Verse Selection** and its **Server Colors** by a pure function. Two rows in one scrolling tray: a _remove_ circle for every palette color present on **any** selected verse, then an _apply_ circle for each of the five palette colors. The ANY rule is ported verbatim from the Web SDK popover and matches what Swift and Kotlin filter on. A color covering some but not all of the selection therefore appears in both rows, which is intended: remove clears it, apply extends it across the whole selection. Colors outside the five-swatch palette are ignored, because the reader cannot paint them either.
+_Avoid_: Re-deriving the rule from the sheet's UI; an ALL rule (a color on one verse of three still earns a remove circle); counting colors the palette does not contain
 
 **Highlight Write Outcome**:
 What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
@@ -178,7 +186,10 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 - **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
 - A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
 - **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.
-- A **Permission Flow** composes the permission pre-flight, sign-in, and **Data Exchange** around a single guarded `apply`; its consent confirmation is a **Native Sheet** (pending localization), whose every dismissal path routes to decline.
+- A **Permission Flow** composes the permission pre-flight, sign-in, and **Data Exchange** around a single guarded `apply`; its consent confirmation is a **Native Sheet**, whose every dismissal path routes to decline.
+- A **Verse Action Sheet** is open exactly while a **Verse Selection** is live and no permission prompt is up. Its every exit increments the **Selection Clear Signal**, so the selection and the sheet cannot disagree about whether one exists.
+- The **Verse Action Sheet** yields to the sign-in and consent sheets rather than competing with them: **Native Sheet** displacement would close it, and closing it clears the selection a **Pending Highlight** is waiting on.
+- **Verse Action Swatches** are a projection of **Verse Selection** over **Server Colors** — the same layer the reader paints from, so the tray and the passage can never disagree. A swatch press routes to **Permission Flow**'s guarded `apply` or straight to `remove`.
 - A **Pending Highlight** belongs to exactly one **Permission Flow** and one **Highlight Scope**; when the flow ends in an apply, its fate is reported through the ordinary **Highlight Write Outcome**.
 
 ## Example Dialogue
@@ -197,6 +208,9 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 
 > **Dev:** "Should `showLanguagePicker` live on the native sheet so both panels stay in sync?"
 > **Domain expert:** "No — that's **DOM-Owned Sheet UI State**. Bridging it as a **Native Action** makes the first language open flash instead of cross-fading. Keep panel visibility in **Version Picker Shell Layout**; native only owns open/close, **Sheet Reset Key**, and committed `versionId`."
+
+> **Dev:** "Tapping outside the verse action sheet doesn't close it. Can we add a backdrop?"
+> **Domain expert:** "No — the **Verse Action Sheet** is non-modal on purpose. A backdrop swallows the second verse tap, and adding verses to a selection is the point. Swipe down, deselect, or act on it."
 
 > **Dev:** "I wired `onClick` on `BibleVersionPickerLanguageTrigger` but the popover state still changes."
 > **Domain expert:** "Call `event.preventDefault()` in the DOM wrapper so the Web SDK doesn't also run `setIsLanguagesOpen`. Mobile uses the shell cross-fade, not popover layout."
