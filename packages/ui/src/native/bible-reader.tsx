@@ -95,7 +95,13 @@ export function BibleReader({
   onVersionPickerPress: consumerOnVersionPickerPress,
   onFootnotePress: consumerOnFootnotePress,
   onVerseSelect,
-  clearSelectionSignal,
+  // Defaulted to `0` so a number always crosses the bridge from first mount.
+  // The Web SDK treats the value it sees at mount as a baseline and clears the
+  // selection on every change after that. Leaving this `undefined` means a
+  // consumer who starts passing the signal later trips `undefined !== 0` and
+  // fires a spurious clear on their first render with the prop. The prop stays
+  // optional in the public type — this is a default, not a requirement.
+  clearSelectionSignal = 0,
   backgroundColor,
   foregroundColor,
   dom,
