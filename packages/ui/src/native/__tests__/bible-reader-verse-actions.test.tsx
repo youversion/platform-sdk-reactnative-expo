@@ -7,6 +7,8 @@
  * the one value travelling back: the clear signal.
  */
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import type { Highlight } from '@youversion/platform-react-native-expo-core'
+import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
@@ -51,6 +53,52 @@ const CLEARED_SELECTION: BibleReaderVerseSelection = {
   passageIds: [],
   reference: '',
   shareData: null,
+}
+
+const YELLOW = 'fffe00'
+const GREEN = '5dff79'
+const BLUE = '00d6ff'
+const PINK = 'ff95ef'
+
+function highlight(verse: number, color: string): Highlight {
+  return { version_id: VERSION_ID, passage_id: `JHN.1.${verse}`, color }
+}
+
+/**
+ * The two writes a swatch press can reach. `flowApply` is the guarded one — the
+ * Permission Flow's wrapper, which may run sign-in or consent first — and
+ * `rawRemove` is `useHighlights.remove`, deliberately ungated (ADR 0016).
+ * Keeping them as separate stable mocks is what lets each test say which path a
+ * press took.
+ */
+const flowApply = jest.fn(async () => ({ status: 'noop' }) as const)
+const rawApply = jest.fn(async () => ({ status: 'noop' }) as const)
+const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
+
+/**
+ * `jest.setup.js` already stubs this hook globally (the real one needs core's own
+ * provider, which UI tests replace). Steer it per test rather than re-mocking the
+ * whole package and losing that passthrough provider.
+ */
+function stubFlow(highlights: Highlight[] = []) {
+  jest
+    .spyOn(core, 'useHighlightPermissionFlow')
+    .mockImplementation(({ versionId, book, chapter }) => ({
+      highlights: {
+        highlights,
+        scope: { versionId, book, chapter },
+        isRefreshing: false,
+        error: null,
+        refresh: jest.fn(async () => undefined),
+        apply: rawApply,
+        remove: rawRemove,
+      },
+      isConfirming: false,
+      apply: flowApply,
+      confirm: jest.fn(),
+      decline: jest.fn(),
+      flowError: null,
+    }))
 }
 
 /** Which selection payload the mocked DOM component emits on the next press. */
@@ -179,6 +227,10 @@ async function selectVerses(selection: BibleReaderVerseSelection = SELECTION) {
 beforeEach(() => {
   latestDomProps = {}
   mockNextSelection = SELECTION
+  flowApply.mockClear()
+  rawApply.mockClear()
+  rawRemove.mockClear()
+  stubFlow()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
 })
@@ -292,6 +344,186 @@ describe('BibleReader verse action sheet — the bridge', () => {
 
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
     expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+  })
+})
+
+describe('BibleReader verse action sheet — swatches', () => {
+  it('projects the swatch tray from the painted highlights', async () => {
+    stubFlow([highlight(1, YELLOW)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    // Verse 1 is yellow, verse 2 is bare — so yellow gets a remove circle and
+    // stays in the apply row (it can still extend over verse 2).
+    expect(screen.getByTestId(`bible-verse-action-swatch-remove-${YELLOW}`)).toBeTruthy()
+    expect(screen.getByTestId(`bible-verse-action-swatch-apply-${YELLOW}`)).toBeTruthy()
+  })
+
+  it('routes an apply swatch through the Permission Flow, never the raw write', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${GREEN}`))
+    })
+
+    // The flow's `apply`, not `useHighlights.apply`: a signed-out or
+    // unpermitted user must get the sign-in / consent step, not a failed write.
+    expect(flowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(rawApply).not.toHaveBeenCalled()
+    expect(rawRemove).not.toHaveBeenCalled()
+  })
+
+  it('routes a remove swatch straight to the ungated write', async () => {
+    stubFlow([highlight(1, BLUE), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
+    })
+
+    // ADR 0016: a user looking at their own highlight already has whatever the
+    // write needs, so removal never runs the flow.
+    expect(rawRemove).toHaveBeenCalledWith(BLUE, [1, 2])
+    expect(flowApply).not.toHaveBeenCalled()
+  })
+
+  it('closes the sheet and clears the selection after a write', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    const before = latestDomProps.clearSelectionSignal
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${YELLOW}`))
+    })
+
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+    expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
+  })
+
+  it('closes the sheet and clears the selection after a remove too', async () => {
+    stubFlow([highlight(1, BLUE), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    const before = latestDomProps.clearSelectionSignal
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
+    })
+
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+    expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
+  })
+
+  it('writes nothing when the sheet is dismissed', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('sheet-dismiss'))
+    })
+
+    expect(flowApply).not.toHaveBeenCalled()
+    expect(rawRemove).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The tray is a fixed-width window over a horizontally scrolling strip: two
+ * verses of different colours already produce seven circles (2 remove + 5
+ * apply), and the palette's worst case is ten. `measureTray` stands in for the
+ * layout pass, which never runs under jest.
+ */
+describe('BibleReader verse action sheet — swatch tray overflow', () => {
+  function measureTray(trayWidth: number, contentWidth: number) {
+    const scroll = screen.getByTestId('bible-verse-action-swatch-scroll')
+    fireEvent(scroll, 'layout', { nativeEvent: { layout: { width: trayWidth } } })
+    fireEvent(scroll, 'contentSizeChange', contentWidth, 56)
+  }
+
+  function scrollTray(x: number) {
+    fireEvent.scroll(screen.getByTestId('bible-verse-action-swatch-scroll'), {
+      nativeEvent: { contentOffset: { x, y: 0 } },
+    })
+  }
+
+  it('draws neither fade while every swatch fits the tray', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 200)
+
+    expect(screen.queryByTestId('bible-verse-action-swatch-fade-trailing')).toBeNull()
+    expect(screen.queryByTestId('bible-verse-action-swatch-fade-leading')).toBeNull()
+  })
+
+  it('fades the trailing edge once the swatches overflow, without swallowing their taps', async () => {
+    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 320)
+
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+
+    // The fade is `pointerEvents="none"`: a swatch beneath it is still live.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
+    })
+    expect(flowApply).toHaveBeenCalledWith(PINK, [1, 2])
+  })
+
+  /**
+   * Each fade tracks what is left to scroll *toward its own edge*, not raw
+   * overflow. Gating on overflow alone left the outermost swatch permanently
+   * dimmed once the user had scrolled to it, which reads as disabled.
+   */
+  it('retires the trailing fade once the strip is scrolled to its end', async () => {
+    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 320)
+    scrollTray(120)
+
+    expect(screen.queryByTestId('bible-verse-action-swatch-fade-trailing')).toBeNull()
+  })
+
+  /**
+   * The leading fade is the mirror: it is the only cue that swatches exist back
+   * the way you came, since the tray hard-cuts its left edge otherwise.
+   */
+  it('draws no leading fade at the head of the strip, and fades it in once scrolled', async () => {
+    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 320)
+
+    expect(screen.queryByTestId('bible-verse-action-swatch-fade-leading')).toBeNull()
+
+    scrollTray(60)
+
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
+  })
+
+  it('draws both fades mid-strip, and neither swallows a swatch tap', async () => {
+    stubFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 320)
+    scrollTray(60)
+
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
+    })
+    expect(flowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
 })
 

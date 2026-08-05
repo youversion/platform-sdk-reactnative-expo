@@ -1,6 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import {
-  useHighlights,
+  deriveServerColors,
+  useHighlightPermissionFlow,
   useYouVersion,
   useYVAuthOptional,
 } from '@youversion/platform-react-native-expo-core'
@@ -25,6 +26,7 @@ import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
+import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
@@ -179,7 +181,12 @@ export function BibleReader({
     },
   })
 
-  const { highlights } = useHighlights({ versionId, book, chapter })
+  // The Permission Flow calls `useHighlights` itself and hands the whole result
+  // back on `.highlights`, so this is one subscription, not two. Reads (the
+  // painted array) come off it unchanged; only `apply` is wrapped, and only
+  // because an unauthorized apply has a user flow to run first (ADR 0016).
+  const flow = useHighlightPermissionFlow({ versionId, book, chapter })
+  const { highlights, scope: highlightScope, remove: removeHighlight } = flow.highlights
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -215,6 +222,42 @@ export function BibleReader({
     setSelection(null)
     setInternalClearCount((count) => count + 1)
   }, [])
+
+  // Which circles the tray shows, projected from the same painted array the
+  // WebView renders — so a swatch can never disagree with the passage behind it.
+  const swatches = useMemo(
+    () =>
+      buildVerseActionSwatches({
+        verses: selection?.verses ?? [],
+        colors: deriveServerColors(highlights, highlightScope),
+      }),
+    [selection, highlights, highlightScope],
+  )
+
+  const applyHighlight = flow.apply
+
+  const handleSwatchPress = useCallback(
+    (swatch: VerseActionSwatch) => {
+      const verses = selection?.verses ?? []
+      // Read the selection first: closing drops the mirror this reads from.
+      closeVerseActions()
+      if (verses.length === 0) return
+      // Fire-and-forget, both branches. The paint is optimistic inside
+      // `useHighlights`, so the verse changes colour on this frame and the sheet
+      // has no reason to wait for the round-trip.
+      //
+      // `remove` goes straight to the unguarded write: a user looking at a
+      // highlight already has whatever the write needs (ADR 0016). Only `apply`
+      // runs through the flow, which may sign the user in or ask for consent
+      // before it writes.
+      if (swatch.state === 'remove') {
+        void removeHighlight(swatch.color, verses)
+      } else {
+        void applyHighlight(swatch.color, verses)
+      }
+    },
+    [selection, closeVerseActions, removeHighlight, applyHighlight],
+  )
 
   const handleOpenBibleThemeSettings = useCallback(() => {
     setIsSettingsSheetOpen(true)
@@ -413,6 +456,8 @@ export function BibleReader({
         <BibleVerseActionSheet
           isOpen={selection !== null}
           reference={selection?.reference ?? ''}
+          swatches={swatches}
+          onSwatchPress={handleSwatchPress}
           onCopyPress={handleCopyPress}
           onSharePress={handleSharePress}
           onClose={closeVerseActions}
