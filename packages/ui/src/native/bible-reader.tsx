@@ -4,6 +4,7 @@ import {
   useHighlightPermissionFlow,
   useYouVersion,
   useYVAuthOptional,
+  type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
@@ -54,8 +55,17 @@ const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
  * A swatch press the reader is holding while it asks the user something. It
  * outlives the selection — the action sheet closes before the prompt opens, so
  * `selection` is already `null` by the time the answer comes back.
+ *
+ * `scope` is load-bearing: verse numbers alone are not a passage. Replaying
+ * them through a location the reader has since left would paint text the user
+ * never selected — the same contract core's Pending Highlight carries
+ * (ADR 0016).
  */
-type PendingSwatchIntent = { color: string; verses: number[] }
+type PendingSwatchIntent = { color: string; verses: number[]; scope: HighlightScope }
+
+function sameScope(a: HighlightScope, b: HighlightScope): boolean {
+  return a.versionId === b.versionId && a.book === b.book && a.chapter === b.chapter
+}
 
 /**
  * Re-exported so an `onVerseSelect` handler can be typed without depending on
@@ -227,6 +237,24 @@ export function BibleReader({
   // needs the value on the same tick it fires.
   const pendingIntentRef = useRef<PendingSwatchIntent | null>(null)
 
+  // Discard a pending sign-in intent when the reader leaves the passage it
+  // belonged to. Same "adjust state when props change" pattern as the
+  // Permission Flow's RESET: an effect would leave one frame where the sheet
+  // for the old chapter is still open over the new one. A controlled consumer
+  // can change book / chapter / versionId while the prompt is up.
+  // `renderedPrompt` is what this frame paints — `setPrompt` alone would still
+  // leave the sheet open for one render.
+  const currentScope: HighlightScope = { versionId, book, chapter }
+  let renderedPrompt = prompt
+  if (prompt === 'sign-in') {
+    const pending = pendingIntentRef.current
+    if (pending === null || !sameScope(pending.scope, currentScope)) {
+      pendingIntentRef.current = null
+      renderedPrompt = 'none'
+      setPrompt('none')
+    }
+  }
+
   const handleVerseSelect = useCallback(
     async (next: BibleReaderVerseSelection) => {
       setSelection(next.verses.length > 0 ? next : null)
@@ -272,7 +300,11 @@ export function BibleReader({
       if (needsSignIn) {
         // The flow calls `signIn()` with no UI of its own, so the reader owns
         // this pre-step: hold the intent, ask, hand it over on confirm.
-        pendingIntentRef.current = { color: swatch.color, verses }
+        pendingIntentRef.current = {
+          color: swatch.color,
+          verses,
+          scope: { versionId, book, chapter },
+        }
         setPrompt('sign-in')
         return
       }
@@ -280,7 +312,16 @@ export function BibleReader({
       // verse changes color on this frame rather than after the round-trip.
       void applyHighlight(swatch.color, verses)
     },
-    [selection, closeVerseActions, removeHighlight, applyHighlight, needsSignIn],
+    [
+      selection,
+      closeVerseActions,
+      removeHighlight,
+      applyHighlight,
+      needsSignIn,
+      versionId,
+      book,
+      chapter,
+    ],
   )
 
   const handleSignInConfirm = useCallback(() => {
@@ -289,8 +330,13 @@ export function BibleReader({
     setPrompt('none')
     // Straight back into the flow, which signs in, asks for consent if the grant
     // is still missing, and writes — without the user reselecting the verse.
-    if (pending) void applyHighlight(pending.color, pending.verses)
-  }, [applyHighlight])
+    if (!pending) return
+    // Belt for the during-render discard above: a confirm that races a
+    // controlled location change must not hand verse numbers to the current
+    // location-scoped flow.
+    if (!sameScope(pending.scope, { versionId, book, chapter })) return
+    void applyHighlight(pending.color, pending.verses)
+  }, [applyHighlight, versionId, book, chapter])
 
   // "No Thanks", a swipe-down, a backdrop tap, and displacement all land here.
   // Every one of them discards the intent; nothing is written.
@@ -495,7 +541,7 @@ export function BibleReader({
           // Yielded rather than displaced: a prompt taking over the sheet host
           // would fire this sheet's `onClose`, clearing the selection its own
           // answer still needs.
-          isOpen={selection !== null && prompt === 'none' && !flow.isConfirming}
+          isOpen={selection !== null && renderedPrompt === 'none' && !flow.isConfirming}
           reference={selection?.reference ?? ''}
           swatches={swatches}
           onSwatchPress={handleSwatchPress}
@@ -507,7 +553,7 @@ export function BibleReader({
       )}
       {Platform.OS !== 'web' && (
         <SignInWithYouVersionSheet
-          isOpen={prompt === 'sign-in'}
+          isOpen={renderedPrompt === 'sign-in'}
           onConfirm={handleSignInConfirm}
           onDismiss={handleSignInDismiss}
           theme={resolvedTheme}

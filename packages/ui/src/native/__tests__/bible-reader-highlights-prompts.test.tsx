@@ -334,6 +334,33 @@ describe('BibleReader — the sign-in pre-step', () => {
     expect(flowApply).toHaveBeenCalledWith(BLUE, [1, 2])
   })
 
+  /**
+   * The pending intent outlives the selection, but verse numbers alone are not
+   * a passage. A controlled consumer can change book / chapter / versionId
+   * while the sign-in sheet is open; replaying the old verses through the new
+   * location-scoped flow would paint text the user never selected — the same
+   * bug ADR 0016 pins inside the Permission Flow.
+   */
+  it('discards the intent when the reader leaves the passage it belonged to', async () => {
+    stubAuth(false)
+    const { rerender } = render(
+      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />,
+      { wrapper },
+    )
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+    expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
+
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="2" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
+    expect(flowApply).not.toHaveBeenCalled()
+    expect(rawApply).not.toHaveBeenCalled()
+  })
+
   it('never prompts for a remove', async () => {
     stubAuth(false)
     stubFlow({ highlights: [highlight(1, BLUE), highlight(2, BLUE)] })
