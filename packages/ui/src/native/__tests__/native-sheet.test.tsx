@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
-import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
+import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -342,7 +342,10 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
-    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#121212' })
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({
+      backgroundColor: '#121212',
+      boxShadow: SHEET_TOP_SHADOW.dark,
+    })
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
       { backgroundColor: '#ccc' },
       { backgroundColor: '#5a5757' },
@@ -366,6 +369,29 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({
+      backgroundColor: '#123456',
+      boxShadow: SHEET_TOP_SHADOW.dark,
+    })
+  })
+
+  it('omits the top shadow when a backgroundColor is given with no theme to color it', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <SheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} backgroundColor="#123456">
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </SheetProvider>,
+    )
+
     expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#123456' })
   })
 
@@ -380,6 +406,61 @@ describe('NativeSheet', () => {
 
     expect(latestBottomSheetProps.backgroundStyle).toBeUndefined()
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual({ backgroundColor: '#ccc' })
+  })
+
+  /**
+   * A non-modal sheet drops the backdrop component outright rather than making
+   * it invisible. Gorhom's backdrop reads `enableTouchThrough` only for its
+   * initial `pointerEvents`, then an animated reaction overwrites it to 'auto'
+   * once the sheet opens — so an invisible backdrop would still eat every tap on
+   * the content behind. Rendering nothing is the only version that works.
+   */
+  it('renders no backdrop when modal is false', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <SheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} modal={false}>
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </SheetProvider>,
+    )
+
+    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(renderLatestBackdrop()).toBeNull()
+  })
+
+  /**
+   * Android's active host is normally `auto`, which would put the dropped
+   * backdrop's job back on the absoluteFill wrapper. `box-none` lets the taps
+   * through to the content behind while the sheet itself stays interactive.
+   */
+  it('lets taps through the Android host wrapper when modal is false', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'android',
+    })
+
+    const { getByTestId } = render(
+      <SheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} modal={false}>
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </SheetProvider>,
+    )
+
+    await act(async () => {})
+
+    expect(getByTestId('native-sheet-inert-host').props.pointerEvents).toBe('box-none')
   })
 
   it('notifies a displaced sheet via onClose when another sheet claims activeSheetId', async () => {
@@ -588,6 +669,7 @@ describe('NativeSheet', () => {
 
       expect(latestBottomSheetProps.backgroundStyle).toEqual({
         backgroundColor: SHEET_SURFACE[theme],
+        boxShadow: SHEET_TOP_SHADOW[theme],
       })
       expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
         { backgroundColor: '#ccc' },

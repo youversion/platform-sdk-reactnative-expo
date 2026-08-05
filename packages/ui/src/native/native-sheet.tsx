@@ -29,7 +29,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
-import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
+import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
 
@@ -53,6 +53,25 @@ type NativeSheetProps = {
   onClose: () => void
   // Fired when a backdrop tap or pan-down close animation starts, before onClose.
   onDismissKeyboardStart?: () => void
+  // false makes the sheet non-modal: no backdrop at all, so the content behind
+  // stays at full brightness AND stays interactive. The verse action sheet needs
+  // this — it is a companion to a selection the user is still building, so taps
+  // must reach the reader's WebView to add or drop verses. A modal sheet would
+  // eat that tap and close instead.
+  //
+  // This drops the backdrop component rather than setting `opacity: 0` +
+  // `enableTouchThrough`: Gorhom's backdrop only reads `enableTouchThrough` for
+  // its *initial* pointerEvents, then an animated reaction overwrites it to
+  // 'auto' as soon as the sheet opens. An invisible backdrop would still swallow
+  // every tap.
+  //
+  // Trade-off: backdrop-tap-to-dismiss is gone, because there is no backdrop.
+  // The caller owns dismissal. For the verse action sheet that is swipe-down, or
+  // deselecting every verse (which emits `verses: []` and closes it). Verified on
+  // device: a tap on blank space in the reader does NOT clear the selection — the
+  // Web SDK only toggles selection on verse spans — so do not assume an
+  // "anywhere else" tap is an exit.
+  modal?: boolean
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
@@ -77,6 +96,7 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  modal = true,
   children,
   showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
@@ -124,6 +144,7 @@ export function NativeSheet({
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
         onDismissKeyboardStart={onDismissKeyboardStart}
+        modal={modal}
         showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
         theme={theme}
@@ -146,6 +167,7 @@ function SheetHost({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  modal,
   children,
   showAndroidLoader,
   loaderMinHeight,
@@ -162,6 +184,7 @@ function SheetHost({
   enableContentPanningGesture?: boolean
   onClose: () => void
   onDismissKeyboardStart?: () => void
+  modal: boolean
   children: React.ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
@@ -198,10 +221,17 @@ function SheetHost({
   }, [windowWidth])
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
-  const backgroundStyle = useMemo<StyleProp<ViewStyle>>(
-    () => (surfaceColor ? { backgroundColor: surfaceColor } : undefined),
-    [surfaceColor],
-  )
+  // The shadow is keyed off `theme`, not `surfaceColor`: it is a themed color in
+  // its own right, so an explicit `backgroundColor` on an unthemed sheet gets no
+  // shadow rather than a guessed one. Gorhom's default background component is a
+  // bare View that spreads this style, and nothing between it and the window
+  // clips — so the shadow escapes the card's bounds without a custom
+  // `backgroundComponent`. See SHEET_TOP_SHADOW for why boxShadow.
+  const backgroundStyle = useMemo<StyleProp<ViewStyle>>(() => {
+    if (!surfaceColor) return undefined
+    if (!theme) return { backgroundColor: surfaceColor }
+    return { backgroundColor: surfaceColor, boxShadow: SHEET_TOP_SHADOW[theme] }
+  }, [surfaceColor, theme])
   const handleIndicatorStyle = useMemo<StyleProp<ViewStyle>>(
     () => (theme ? [styles.handle, { backgroundColor: SHEET_HANDLE[theme] }] : styles.handle),
     [theme],
@@ -238,8 +268,10 @@ function SheetHost({
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
+  // A non-modal active sheet also needs box-none on Android, or this wrapper eats
+  // the taps the dropped backdrop was supposed to let through.
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
-    Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
+    Platform.OS === 'android' ? (isActive ? (modal ? 'auto' : 'box-none') : 'none') : 'box-none'
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
@@ -311,7 +343,7 @@ function SheetHost({
         enableContentPanningGesture={
           suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
         }
-        backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderSheetBackdrop}
+        backdropComponent={suppressInactiveSheet || !modal ? renderNoBackdrop : renderSheetBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}

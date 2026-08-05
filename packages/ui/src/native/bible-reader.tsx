@@ -6,12 +6,15 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
+import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useMemo, useState } from 'react'
-import { Platform, StyleSheet, View } from 'react-native'
+import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
@@ -26,6 +29,7 @@ import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { NativeSheet } from './native-sheet'
 
@@ -69,7 +73,9 @@ export type BibleReaderProps = Omit<
   // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
   // `onVerseSelect` and `clearSelectionSignal` are deliberately kept — they are
-  // the consumer's only handle on a selection.
+  // the consumer's only handle on a selection. The reader now taps both on its
+  // way past: it mirrors the payload to raise the native verse action sheet, and
+  // it adds its own clears to the consumer's counter.
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
@@ -77,6 +83,17 @@ export type BibleReaderProps = Omit<
   defaultVersionId?: number
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  /**
+   * Handle Copy yourself instead of the SDK's `expo-clipboard` fallback. Fired
+   * by the native verse action sheet's Copy button with the payload
+   * `onVerseSelect` already carried, so it costs no extra bridge round-trip.
+   *
+   * Native-only: it never crosses into the WebView, and on web the Web SDK's own
+   * popover and `navigator.clipboard` remain the right behavior.
+   */
+  onCopy?: (data: BibleReaderShareData) => void | Promise<void>
+  /** Share's counterpart to {@link BibleReaderProps.onCopy}; falls back to RN's `Share.share`. */
+  onShare?: (data: BibleReaderShareData) => void | Promise<void>
 }
 
 export function BibleReader({
@@ -102,6 +119,8 @@ export function BibleReader({
   // fires a spurious clear on their first render with the prop. The prop stays
   // optional in the public type — this is a default, not a requirement.
   clearSelectionSignal = 0,
+  onCopy: consumerOnCopy,
+  onShare: consumerOnShare,
   backgroundColor,
   foregroundColor,
   dom,
@@ -169,6 +188,34 @@ export function BibleReader({
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
 
+  // ── Verse actions ────────────────────────────────────────────────────────
+  // The reader owns the committed selection so it can raise a native sheet over
+  // it. The Web SDK still owns selection *state*; this is a mirror of what it
+  // committed, and the only thing travelling back is the clear signal.
+  const [selection, setSelection] = useState<BibleReaderVerseSelection | null>(null)
+  // One-way DOM command, bumped on every exit from the sheet. With
+  // `verseActions="none"` there is nothing left inside the WebView that can
+  // clear the selection, so the reader has to say so.
+  //
+  // It is *added* to the consumer's `clearSelectionSignal` rather than replacing
+  // it: the Web SDK only reacts to changes in the number it receives, so a sum
+  // lets both the consumer's public prop and the reader's own exits clear. Both
+  // start at 0, so mounting still forwards 0 and clears nothing.
+  const [internalClearCount, setInternalClearCount] = useState(0)
+
+  const handleVerseSelect = useCallback(
+    async (next: BibleReaderVerseSelection) => {
+      setSelection(next.verses.length > 0 ? next : null)
+      await onVerseSelect?.(next)
+    },
+    [onVerseSelect],
+  )
+
+  const closeVerseActions = useCallback(() => {
+    setSelection(null)
+    setInternalClearCount((count) => count + 1)
+  }, [])
+
   const handleOpenBibleThemeSettings = useCallback(() => {
     setIsSettingsSheetOpen(true)
   }, [])
@@ -227,6 +274,57 @@ export function BibleReader({
     [consumerOnVersionPickerPress, showToolbar],
   )
 
+  // Consumer override wins, else the SDK's native fallback — the same shape
+  // `VerseOfTheDay` already ships for share. Both replace the Web SDK's browser
+  // defaults, which don't work inside an Expo DOM WebView.
+  const handleCopy = useCallback(
+    async (data: BibleReaderShareData) => {
+      try {
+        if (consumerOnCopy) {
+          await consumerOnCopy(data)
+          return
+        }
+        await Clipboard.setStringAsync(data.text)
+      } catch (error) {
+        // Swallowed: a failed copy reads to the user like a dismissed sheet,
+        // and there is nothing actionable to say about it.
+        console.error('BibleReader copy failed:', error)
+      }
+    },
+    [consumerOnCopy],
+  )
+
+  const handleShare = useCallback(
+    async (data: BibleReaderShareData) => {
+      try {
+        if (consumerOnShare) {
+          await consumerOnShare(data)
+          return
+        }
+        await Share.share({ message: data.text })
+      } catch (error) {
+        console.error('BibleReader share failed:', error)
+      }
+    },
+    [consumerOnShare],
+  )
+
+  // `shareData` rides in on `onVerseSelect` (Web SDK 2.5.0), so the sheet's Copy
+  // and Share buttons need no round-trip back into the WebView to build it. The
+  // sheet closes first, so the read has to happen before `closeVerseActions`
+  // drops the mirror.
+  const handleCopyPress = useCallback(() => {
+    const data = selection?.shareData
+    closeVerseActions()
+    if (data) void handleCopy(data)
+  }, [selection, handleCopy, closeVerseActions])
+
+  const handleSharePress = useCallback(() => {
+    const data = selection?.shareData
+    closeVerseActions()
+    if (data) void handleShare(data)
+  }, [selection, handleShare, closeVerseActions])
+
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
@@ -273,8 +371,8 @@ export function BibleReader({
           installationId={context.installationId}
           accessToken={accessToken}
           highlights={highlights}
-          onVerseSelect={onVerseSelect}
-          clearSelectionSignal={clearSelectionSignal}
+          onVerseSelect={handleVerseSelect}
+          clearSelectionSignal={clearSelectionSignal + internalClearCount}
           onSignInPress={signIn}
           onSignOutPress={signOut}
           userInfo={userInfo}
@@ -309,6 +407,16 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {Platform.OS !== 'web' && (
+        <BibleVerseActionSheet
+          isOpen={selection !== null}
+          reference={selection?.reference ?? ''}
+          onCopyPress={handleCopyPress}
+          onSharePress={handleSharePress}
+          onClose={closeVerseActions}
+          theme={resolvedTheme}
         />
       )}
       {showFootnoteSheet && (

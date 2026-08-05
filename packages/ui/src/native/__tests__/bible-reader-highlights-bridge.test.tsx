@@ -294,9 +294,13 @@ describe('onVerseSelect', () => {
     expect(received.reference).toBe('Hebrews 11:4-5')
   })
 
-  it('is absent from the DOM props when the consumer passes no handler', () => {
+  it('is supplied by the reader even when the consumer passes no handler', () => {
+    // This was `undefined` until the native verse action sheet landed. The
+    // reader now mirrors every selection into its own state to raise that sheet,
+    // so it always hands the DOM component a handler and calls the consumer's
+    // through it.
     render(<BibleReader />, { wrapper })
-    expect(lastDomProps().onVerseSelect).toBeUndefined()
+    expect(lastDomProps().onVerseSelect).toBeDefined()
   })
 })
 
