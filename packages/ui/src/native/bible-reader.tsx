@@ -54,7 +54,7 @@ const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
 /**
  * A swatch press the reader is holding while it asks the user something. It
  * outlives the selection — the action sheet closes before the prompt opens, so
- * `selection` is already `null` by the time the answer comes back.
+ * `verseSelection` is already `null` by the time the answer comes back.
  *
  * `scope` is load-bearing: verse numbers alone are not a passage. Replaying
  * them through a location the reader has since left would paint text the user
@@ -205,12 +205,9 @@ export function BibleReader({
     },
   })
 
-  // The Permission Flow calls `useHighlights` itself and hands the whole result
-  // back on `.highlights`, so this is one subscription, not two. Reads (the
-  // painted array) come off it unchanged; only `apply` is wrapped, and only
-  // because an unauthorized apply has a user flow to run first (ADR 0016).
-  const flow = useHighlightPermissionFlow({ versionId, book, chapter })
-  const { highlights, scope: highlightScope, remove: removeHighlight } = flow.highlights
+  const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
+  const { highlights, scope: highlightScope, remove: removeHighlight } =
+    highlightPermissionFlow.highlights
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -223,7 +220,7 @@ export function BibleReader({
   // The reader owns the committed selection so it can raise a native sheet over
   // it. The Web SDK still owns selection *state*; this is a mirror of what it
   // committed, and the only thing travelling back is the clear signal.
-  const [selection, setSelection] = useState<BibleReaderVerseSelection | null>(null)
+  const [verseSelection, setVerseSelection] = useState<BibleReaderVerseSelection | null>(null)
   // One-way DOM command, bumped on every exit from the sheet — with the popover
   // suppressed, nothing inside the WebView clears the selection any more. It is
   // *added* to the consumer's `clearSelectionSignal` rather than replacing it, so
@@ -231,7 +228,8 @@ export function BibleReader({
   const [internalClearCount, setInternalClearCount] = useState(0)
 
   // Which prompt the reader is showing on its own account. The consent prompt is
-  // not in here — the flow owns that one, gated on `flow.isConfirming`.
+  // not in here — the flow owns that one, gated on
+  // `highlightPermissionFlow.isConfirming`.
   const [prompt, setPrompt] = useState<'none' | 'sign-in'>('none')
   // A ref, not state: nothing renders from it, and the sign-in sheet's confirm
   // needs the value on the same tick it fires.
@@ -257,14 +255,14 @@ export function BibleReader({
 
   const handleVerseSelect = useCallback(
     async (next: BibleReaderVerseSelection) => {
-      setSelection(next.verses.length > 0 ? next : null)
+      setVerseSelection(next.verses.length > 0 ? next : null)
       await onVerseSelect?.(next)
     },
     [onVerseSelect],
   )
 
   const closeVerseActions = useCallback(() => {
-    setSelection(null)
+    setVerseSelection(null)
     setInternalClearCount((count) => count + 1)
   }, [])
 
@@ -273,13 +271,13 @@ export function BibleReader({
   const swatches = useMemo(
     () =>
       buildVerseActionSwatches({
-        verses: selection?.verses ?? [],
+        verses: verseSelection?.verses ?? [],
         colors: deriveServerColors(highlights, highlightScope),
       }),
-    [selection, highlights, highlightScope],
+    [verseSelection, highlights, highlightScope],
   )
 
-  const applyHighlight = flow.apply
+  const applyHighlight = highlightPermissionFlow.apply
 
   // A `null` auth means the consumer configured none at all, which is not the
   // same as signed out — there is nothing to sign in to, so no prompt.
@@ -287,7 +285,7 @@ export function BibleReader({
 
   const handleSwatchPress = useCallback(
     (swatch: VerseActionSwatch) => {
-      const verses = selection?.verses ?? []
+      const verses = verseSelection?.verses ?? []
       // Read the selection first: closing drops the mirror this reads from.
       closeVerseActions()
       if (verses.length === 0) return
@@ -313,7 +311,7 @@ export function BibleReader({
       void applyHighlight(swatch.color, verses)
     },
     [
-      selection,
+      verseSelection,
       closeVerseActions,
       removeHighlight,
       applyHighlight,
@@ -440,16 +438,16 @@ export function BibleReader({
   // `shareData` rides in on `onVerseSelect`, so these need no round-trip back
   // into the WebView. Read it before `closeVerseActions` drops the selection.
   const handleCopyPress = useCallback(() => {
-    const data = selection?.shareData
+    const data = verseSelection?.shareData
     closeVerseActions()
     if (data) void handleCopy(data)
-  }, [selection, handleCopy, closeVerseActions])
+  }, [verseSelection, handleCopy, closeVerseActions])
 
   const handleSharePress = useCallback(() => {
-    const data = selection?.shareData
+    const data = verseSelection?.shareData
     closeVerseActions()
     if (data) void handleShare(data)
-  }, [selection, handleShare, closeVerseActions])
+  }, [verseSelection, handleShare, closeVerseActions])
 
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
@@ -541,8 +539,12 @@ export function BibleReader({
           // Yielded rather than displaced: a prompt taking over the sheet host
           // would fire this sheet's `onClose`, clearing the selection its own
           // answer still needs.
-          isOpen={selection !== null && renderedPrompt === 'none' && !flow.isConfirming}
-          reference={selection?.reference ?? ''}
+          isOpen={
+            verseSelection !== null &&
+            renderedPrompt === 'none' &&
+            !highlightPermissionFlow.isConfirming
+          }
+          reference={verseSelection?.reference ?? ''}
           swatches={swatches}
           onSwatchPress={handleSwatchPress}
           onCopyPress={handleCopyPress}
@@ -561,9 +563,9 @@ export function BibleReader({
       )}
       {Platform.OS !== 'web' && (
         <HighlightConsentSheet
-          isOpen={flow.isConfirming}
-          onConfirm={flow.confirm}
-          onDismiss={flow.decline}
+          isOpen={highlightPermissionFlow.isConfirming}
+          onConfirm={highlightPermissionFlow.confirm}
+          onDismiss={highlightPermissionFlow.decline}
           theme={resolvedTheme}
         />
       )}
