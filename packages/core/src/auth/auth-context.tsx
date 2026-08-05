@@ -12,18 +12,18 @@ export type AuthContextValue = {
   refreshNow: () => Promise<void>
   /**
    * Refresh the access token **only if it is at or near expiry**, then resolve.
-   * Cheap to await on every user gesture — unlike {@link refreshNow}, which
-   * always hits the token endpoint.
+   * Cheap to await on every user gesture, unlike {@link refreshNow}, which always
+   * hits the token endpoint.
    *
    * Exists so a permission pre-flight cannot misread an expired token as a
    * missing permission (Swift's `hasValidToken()` parity). It never throws: a
    * failed refresh surfaces through {@link error}, exactly as the periodic
    * refresh does.
    *
-   * Caveat, and it is load-bearing: this resolves immediately when a refresh is
-   * already in flight rather than joining it, so it does not *guarantee* a fresh
-   * token — see `.claude/bugs/auth-provider-expired-access-token.md` (failure
-   * mode 2). Callers still need a corrective path for a 401.
+   * A refresh already in flight is **joined**, not skipped, so once this resolves
+   * the token is the current one. A failed refresh still leaves the old token in
+   * place, so a caller doing something auth-sensitive wants a corrective path for
+   * a 401 regardless.
    */
   ensureFreshToken: () => Promise<void>
   isLoading: boolean
