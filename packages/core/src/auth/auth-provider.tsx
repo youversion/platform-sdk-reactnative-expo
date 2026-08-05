@@ -21,6 +21,10 @@ import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
 
+// Stable empty reference, so an unconfigured `permissions` does not give the
+// context value a new identity on every render.
+const NO_PERMISSIONS: readonly AuthPermission[] = []
+
 type AuthProviderProps = {
   config: AuthConfig
   appKey: string
@@ -292,6 +296,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  const requestedPermissions = config.permissions ?? NO_PERMISSIONS
+
   // The leeway-gated refresh, made public under a name that says what a caller
   // wants from it. A pre-flight before a permission-sensitive write needs "make
   // sure the token is usable" without paying for a token round-trip on every
@@ -437,6 +443,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       refreshNow,
       ensureFreshToken,
       isLoading,
+      requestedPermissions,
       grantedPermissions,
       hasPermission,
       invalidatePermissions,
@@ -451,6 +458,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       refreshNow,
       ensureFreshToken,
       isLoading,
+      requestedPermissions,
       grantedPermissions,
       hasPermission,
       invalidatePermissions,

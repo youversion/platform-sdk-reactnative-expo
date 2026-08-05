@@ -21,6 +21,7 @@ describe('useYVAuth', () => {
       refreshNow: jest.fn(),
       ensureFreshToken: jest.fn(),
       isLoading: false,
+      requestedPermissions: ['highlights'],
       grantedPermissions: null,
       hasPermission: jest.fn(() => false),
       invalidatePermissions: jest.fn(),

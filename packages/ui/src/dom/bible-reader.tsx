@@ -1,14 +1,15 @@
 'use dom'
 
-import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib/dom-apply'
 
@@ -29,6 +30,19 @@ type BibleReaderBaseProps = {
   apiHost: string
   installationId: string
   accessToken: string | null
+  /**
+   * Must be defined on the first render — its presence latches the reader into
+   * controlled mode, and omitting it lets the WebView fetch and write highlights
+   * with the token we hand it. Pass `[]` for "nothing highlighted".
+   */
+  highlights: Highlight[]
+  /**
+   * Fires on every selection change, clears included (`verses: []`). Carries the
+   * selected verses, their passage ids, a localized `reference`, and `shareData`.
+   */
+  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  /** Increment to clear the current selection. Its value at mount never clears. */
+  clearSelectionSignal?: number
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -73,6 +87,9 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     apiHost,
     installationId,
     accessToken,
+    highlights,
+    onVerseSelect,
+    clearSelectionSignal,
     theme = 'light',
     book,
     chapter,
@@ -101,6 +118,34 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
   applyAuthToken(accessToken)
+
+  // `highlights` is required, but this is the far side of a serialization
+  // boundary, so a bad value arrives as `undefined` with no compile-time trace.
+  // Coerce, don't just warn — the warning compiles out in production, and a
+  // missing prop hands the WebView back the ability to write highlights.
+  const safeHighlights = Array.isArray(highlights) ? highlights : []
+  if (process.env.NODE_ENV !== 'production' && !Array.isArray(highlights)) {
+    console.error(
+      `[YouVersion SDK] BibleReader received a non-array \`highlights\` prop. The reader falls back to self-contained mode when this prop is missing, which lets the WebView write highlights itself. Pass \`[]\` for "nothing highlighted".`,
+    )
+  }
+
+  // The Web SDK calls this synchronously and ignores the return value, but a
+  // native action can only be async — so fire and forget. Catch rather than
+  // `void`: expo's `marshal` rejects when the consumer's handler throws, and an
+  // unattached rejection surfaces as an unhandled rejection in the DOM.
+  const handleVerseSelect = useMemo(
+    () =>
+      onVerseSelect
+        ? (selection: BibleReaderVerseSelection) => {
+            // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
+            Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
+              console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
+            })
+          }
+        : undefined,
+    [onVerseSelect],
+  )
 
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the
   // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
@@ -162,15 +207,10 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
 
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
-          // Presence of `highlights` latches controlled mode at first mount, so
-          // the highlight slice stays a pure projection: no highlights API
-          // calls, no local store, and no auth surface can originate from the
-          // highlight path. Without it the reader falls back to self-contained
-          // mode, which since Web SDK 2.4.0 writes real highlights with the
-          // token we hand the WebView and can redirect it to hosted consent.
-          // Native owns highlights (locked decision 1); U1 (YPE-3710) replaces
-          // this literal with real data from `useHighlights`.
-          highlights={[]}
+          highlights={safeHighlights}
+          verseActions="none"
+          onVerseSelect={handleVerseSelect}
+          clearSelectionSignal={clearSelectionSignal}
           book={book}
           chapter={chapter}
           versionId={versionId}

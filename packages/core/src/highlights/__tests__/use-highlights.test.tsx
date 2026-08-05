@@ -107,6 +107,16 @@ const tokenLoading: AuthShape = {
 
 const refreshNow = jest.fn(async () => undefined)
 
+/**
+ * The app asked for `highlights` but the user denied it — or the SDK never
+ * learned either way. Either way the fetch is still mounted; see
+ * `shouldFetchHighlights`.
+ */
+const signedInWithoutPermission: AuthShape = {
+  ...signedIn,
+  requestedPermissions: [],
+}
+
 // Hoisted rather than built per render, so a test can assert on it and can gate
 // it on a deferred promise.
 const ensureFreshToken = jest.fn(async () => undefined)
@@ -122,6 +132,12 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     refreshNow,
     ensureFreshToken,
     isLoading: false,
+    // The default for every existing case: these tests exercise the fetch, so
+    // the app must have asked for the permission that mounts it.
+    requestedPermissions: ['highlights'],
+    // `grantedPermissions: null` is deliberate — the fetch gates on what was
+    // *requested*, so an unknown grant must still fetch. See the gate note in
+    // `shouldFetchHighlights`.
     grantedPermissions: null,
     hasPermission: jest.fn(() => false),
     invalidatePermissions: jest.fn(),
@@ -345,6 +361,34 @@ describe('fetching server truth', () => {
     expect(result.current.highlights).toEqual([])
   })
 
+  it('does not fetch when the app never requested the highlights permission', async () => {
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(result.current.highlights).toEqual([])
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
+  it('still paints the cache when the permission was not requested', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+  })
+
+  it('does not fetch on an explicit refresh when the permission was not requested', async () => {
+    const { result } = renderUseHighlights(signedInWithoutPermission)
+    await act(async () => {
+      await result.current.refresh()
+    })
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+  })
+
   it('drops a late response for a scope the reader has left', async () => {
     const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
     mockGetHighlights.mockReturnValueOnce(pending.promise)
@@ -429,6 +473,25 @@ describe('fetching server truth', () => {
     // Signing out abandons the fetch, and no replacement starts — nothing else
     // would ever clear the flag.
     setAuth(rerender, signedOut)
+    expect(result.current.isRefreshing).toBe(false)
+
+    await act(async () => {
+      pending.resolve(collection([]))
+      await pending.promise
+    })
+    expect(result.current.isRefreshing).toBe(false)
+  })
+
+  it('clears isRefreshing when the permission gate closes on an in-flight fetch', async () => {
+    const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
+    mockGetHighlights.mockReturnValueOnce(pending.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    expect(result.current.isRefreshing).toBe(true)
+
+    // Revoking the request mid-fetch abandons the in-flight promise, so its
+    // `finally` no longer owns the flag. Nothing else would clear it.
+    setAuth(rerender, signedInWithoutPermission)
     expect(result.current.isRefreshing).toBe(false)
 
     await act(async () => {
