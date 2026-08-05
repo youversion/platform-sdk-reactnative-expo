@@ -31,26 +31,17 @@ type BibleReaderBaseProps = {
   installationId: string
   accessToken: string | null
   /**
-   * **Required, never `undefined`** — not even transiently. Presence of this
-   * prop latches the Web SDK reader into controlled mode at first mount; omit it
-   * and the reader fetches and writes highlights itself, inside the WebView,
-   * with the token we hand it.
-   *
-   * `[]` is the correct value for "controlled, nothing highlighted". Native owns
-   * the data; see `useHighlights` in
-   * `@youversion/platform-react-native-expo-core`.
+   * Must be defined on the first render — its presence latches the reader into
+   * controlled mode, and omitting it lets the WebView fetch and write highlights
+   * with the token we hand it. Pass `[]` for "nothing highlighted".
    */
   highlights: Highlight[]
   /**
-   * Fires on every verse selection change, including clears (`verses: []`).
-   * Under `verseActions="none"` it is the only way a host learns about a
-   * selection, and it carries the localized `reference` and `shareData`.
+   * Fires on every selection change, clears included (`verses: []`). Carries the
+   * selected verses, their passage ids, a localized `reference`, and `shareData`.
    */
   onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
-  /**
-   * Increment to clear the current selection from native. The value at mount is
-   * the baseline, so mounting never clears.
-   */
+  /** Increment to clear the current selection. Its value at mount never clears. */
   clearSelectionSignal?: number
   theme?: 'light' | 'dark'
   book?: string

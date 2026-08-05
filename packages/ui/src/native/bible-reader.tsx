@@ -39,10 +39,8 @@ const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
 
 /**
- * Re-exported from the Web SDK so consumers can type an `onVerseSelect` handler
- * without adding `@youversion/platform-react-ui` to their own dependencies.
- * `BibleReaderShareData` comes with it because it is the payload a host needs to
- * run its own copy / share.
+ * Re-exported so an `onVerseSelect` handler can be typed without depending on
+ * `@youversion/platform-react-ui` directly.
  */
 export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 
@@ -68,12 +66,10 @@ export type BibleReaderProps = Omit<
   | 'onSignOutPress'
   | 'onExternalLinkPress'
   | 'userInfo'
-  // The reader owns its own bottom scroll padding (tab bar + home indicator on iOS),
-  // so consumers don't pass it — it lives inside the WebView.
+  // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
-  // Deliberately NOT omitted: `onVerseSelect` and `clearSelectionSignal`. With
-  // the in-WebView verse action popover switched off, those are the consumer's
-  // only handle on a selection and their only way to dismiss one.
+  // `onVerseSelect` and `clearSelectionSignal` are deliberately kept — they are
+  // the consumer's only handle on a selection.
 > & {
   theme?: 'light' | 'dark' | 'system'
   defaultBook?: string
