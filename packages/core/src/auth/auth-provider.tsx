@@ -5,7 +5,7 @@ import { toMessage } from '../error-message'
 import { clearHighlightsCache } from '../highlights'
 import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
-import { AuthContext, type AuthContextValue } from './auth-context'
+import { AuthContext, type AccessTokenResult, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { requestDataExchange, type AuthIdentity, type DataExchangeOutcome } from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
@@ -305,6 +305,36 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // single-flight by promise, awaiting it does mean the token is usable.
   const ensureFreshToken = useCallback(() => refreshToken(), [refreshToken])
 
+  // The refresh with its outcome attached. `refreshToken` swallows failure by
+  // design, so a caller reading the token afterwards cannot tell "refreshed"
+  // from "still expired" — this re-reads the refs it left behind and says which.
+  // Non-forced on purpose: the leeway gate already refreshes exactly when the
+  // token needs it, and joining an in-flight refresh comes free.
+  const getAccessToken = useCallback(async (): Promise<AccessTokenResult> => {
+    if (refreshTokenRef.current === null) {
+      return { status: 'unavailable', reason: 'signed-out' }
+    }
+
+    await refreshToken()
+
+    // Re-read the refs, never closure state: the refresh may have replaced the
+    // token, or found it revoked and cleared the session via clearAuthState.
+    const token = accessTokenRef.current
+    if (refreshTokenRef.current === null || token === null) {
+      return { status: 'unavailable', reason: 'signed-out' }
+    }
+
+    // Same comparison the leeway gate uses. Still at or inside the window after
+    // an awaited refresh means the refresh failed; the tokens stay in storage
+    // (retention is refreshToken's policy, already applied).
+    const expiresAt = expiryRef.current?.getTime() ?? 0
+    if (expiresAt <= Date.now() + REFRESH_LEEWAY_SECONDS * 1000) {
+      return { status: 'unavailable', reason: 'refresh-failed' }
+    }
+
+    return { status: 'ok', token }
+  }, [refreshToken])
+
   const hasPermission = useCallback(
     (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
     [grantedPermissions],
@@ -442,6 +472,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       ensureFreshToken,
+      getAccessToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,
@@ -457,6 +488,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       ensureFreshToken,
+      getAccessToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,
