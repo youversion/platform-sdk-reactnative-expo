@@ -1,17 +1,17 @@
-import { fireEvent, render } from "@testing-library/react-native";
-import type { FootnoteData } from "@youversion/platform-react-ui";
-import { mmkvStorage } from "@youversion/platform-react-native-expo-core";
-import * as ReactNative from "react-native";
-import { Platform } from "react-native";
-import type { ReactNode } from "react";
+import { fireEvent, render } from '@testing-library/react-native'
+import type { FootnoteData } from '@youversion/platform-react-ui'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import * as ReactNative from 'react-native'
+import { Platform } from 'react-native'
+import type { ReactNode } from 'react'
 
-import { BibleCard } from "../bible-card";
+import { BibleCard } from '../bible-card'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
-} from "../../stores/bible-card-version-store";
-import { BIBLE_CARD_VERSION_PERSIST_KEY } from "../../lib/constants";
-import { youVersionProviderWrapper as wrapper } from "../../test-utils/youversion-provider-wrapper";
+} from '../../stores/bible-card-version-store'
+import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
+import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -120,11 +120,11 @@ describe('BibleCard', () => {
   const originalOs = Platform.OS
 
   beforeEach(async () => {
-    latestDomProps = {};
-    mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY);
-    useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState);
-    await useBibleCardVersionStore.persist.rehydrate();
-  });
+    latestDomProps = {}
+    mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
+    useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
+    await useBibleCardVersionStore.persist.rehydrate()
+  })
 
   afterEach(() => {
     Object.defineProperty(Platform, 'OS', {
@@ -156,11 +156,11 @@ describe('BibleCard', () => {
       containerStyle: { flex: 0, width: '100%' },
       scrollEnabled: false,
       bounces: false,
-      overScrollMode: "never",
+      overScrollMode: 'never',
       showsVerticalScrollIndicator: false,
       showsHorizontalScrollIndicator: false,
-    });
-  });
+    })
+  })
 
   it('merges a consumer containerStyle after the embed defaults', () => {
     render(

@@ -451,7 +451,7 @@ describe('fetching server truth', () => {
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
 
     // Once the write settles and the server catches up, the overlay retires and
-    // the same colour is now server truth rather than optimism.
+    // the same color is now server truth rather than optimism.
     mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', YELLOW)]))
     await act(async () => {
       pendingWrite.resolve({ ok: true, value: highlight('JHN.3.16', YELLOW) })

@@ -30,8 +30,9 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`)
+- **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides
-- **Native presentation**: footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
@@ -52,7 +53,7 @@ Install the required peer dependencies (Expo will pick versions compatible with 
 
 ```bash
 npx expo install @gorhom/bottom-sheet @expo/dom-webview \
-  expo-crypto expo-secure-store expo-web-browser \
+  expo-application expo-clipboard expo-crypto expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
@@ -145,9 +146,33 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
+#### Verse actions
+
+Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
+
+The sheet has no backdrop, so a second verse tap reaches the passage and extends the selection. To dismiss the sheet, swipe down, deselect the verses, or act on the sheet.
+
+The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). The sheet asks a signed-out user, or one without the permission, for exactly what is missing. It then applies their color choice, with no reselecting of the verse.
+
+Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To handle either one yourself, pass `onCopy` or `onShare`:
+
+```tsx
+<BibleReader
+  defaultVersionId={3034}
+  onCopy={async ({ text, reference }) => {
+    // text: verse text plus the reference line
+  }}
+  onShare={async ({ text }) => {
+    // your own share sheet
+  }}
+/>
+```
+
+On web, `BibleReader` keeps the React Web SDK's verse action popover, because native bottom sheets do not exist there. Its Copy and Share work. Its color swatches do not write.
+
 #### Verse selection
 
-`onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
+`onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. It fires alongside the verse action sheet, not instead of it. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
 
 ```tsx
 const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
@@ -161,7 +186,7 @@ const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
 />
 ```
 
-Clears arrive too, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
+Clearing the selection also closes the verse action sheet. Clears arrive on `onVerseSelect` as well, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
 #### Custom picker flows
 
@@ -299,6 +324,7 @@ Calling `useYVAuth()` requires that the surrounding `YouVersionProvider` receive
 Explore the [`apps/example`](./apps/example) directory for a sample Expo Router app demonstrating:
 
 - Bible reader integration
+- Verse actions, including `onCopy` / `onShare` overrides
 - Bible card and Scripture display
 - Verse of the Day
 - PKCE sign-in, OAuth callback handling, and the Profile tab
