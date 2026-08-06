@@ -2,7 +2,10 @@ import { render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { Platform } from 'react-native'
 
-import { IOS_TAB_BAR_CLEARANCE, READER_SCROLL_END_GAP } from '../../lib/reader-bottom-scroll-padding'
+import {
+  IOS_TAB_BAR_CLEARANCE,
+  READER_SCROLL_END_GAP,
+} from '../../lib/reader-bottom-scroll-padding'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 

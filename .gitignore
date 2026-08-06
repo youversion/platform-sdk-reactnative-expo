@@ -43,3 +43,6 @@ apps/example/web-build/
 
 #omc
 .omc
+
+# Riptide artifacts (cloud-synced) and workspace config
+.humanlayer/

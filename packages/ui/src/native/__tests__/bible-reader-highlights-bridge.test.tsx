@@ -30,7 +30,7 @@ type CapturedDomProps = {
   book?: string
   chapter?: string
   clearSelectionSignal?: number
-  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
   onChapterChange?: (chapter: string) => Promise<void>
 }
 
@@ -259,9 +259,19 @@ describe('the verse-action event set', () => {
     expect(props).not.toHaveProperty('onShare')
   })
 
-  it('does not let a consumer choose the verse-action UI', () => {
+  it('switches the in-WebView popover off on native', () => {
+    // jest-expo runs as a native platform (ios). Web is the exception, and is
+    // covered at layer 1 in `lib/__tests__/resolve-verse-actions.test.ts` — a
+    // platform fork is invisible to a suite that only ever runs as one platform.
     render(<BibleReader />, { wrapper })
-    expect(lastDomProps()).not.toHaveProperty('verseActions')
+    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
+  })
+
+  it('does not let a consumer choose the verse-action UI', () => {
+    // @ts-expect-error — `verseActions` is omitted from BibleReaderProps; native
+    // owns it per platform. This asserts the omission is real, not just documented.
+    render(<BibleReader verseActions="popover" />, { wrapper })
+    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
   })
 })
 
@@ -294,9 +304,13 @@ describe('onVerseSelect', () => {
     expect(received.reference).toBe('Hebrews 11:4-5')
   })
 
-  it('is absent from the DOM props when the consumer passes no handler', () => {
+  it('is supplied by the reader even when the consumer passes no handler', () => {
+    // This was `undefined` until the native verse action sheet landed. The
+    // reader now mirrors every selection into its own state to raise that sheet,
+    // so it always hands the DOM component a handler and calls the consumer's
+    // through it.
     render(<BibleReader />, { wrapper })
-    expect(lastDomProps().onVerseSelect).toBeUndefined()
+    expect(lastDomProps().onVerseSelect).toBeDefined()
   })
 })
 
@@ -333,23 +347,28 @@ describe('clearSelectionSignal', () => {
 })
 
 /**
- * `verseActions="none"` is set inside the `'use dom'` file, on the Web SDK root
- * — it never crosses the bridge, so no test that mocks the DOM component (i.e.
- * every layer-3 test) can observe it, and this repo has no jsdom project to
- * render the real thing in. This reads the source instead. Crude, but the line
- * it guards is the one that keeps a second verse-action popover from stacking
- * over the native sheet and keeps the Web SDK's own highlight writes switched
- * off; leaving it with no regression guard at all was the worse trade.
+ * `verseActions` is applied inside the `'use dom'` file, on the Web SDK root —
+ * it is consumed there rather than re-emitted, so no test that mocks the DOM
+ * component (i.e. every layer-3 test) can observe what the reader root receives,
+ * and this repo has no jsdom project to render the real thing in. This reads the
+ * source instead. Crude, but the line it guards is the one that keeps a second
+ * verse-action popover from stacking over the native sheet on iOS and Android,
+ * keeps the Web SDK's own highlight writes switched off, and leaves web with
+ * verse actions at all; leaving it with no regression guard was the worse trade.
  */
 describe('the DOM component source (unobservable from layer 3)', () => {
   const source = readFileSync(join(__dirname, '../../dom/bible-reader.tsx'), 'utf8')
 
-  it('hardcodes verseActions="none" on the Web SDK reader root', () => {
-    // Anchored to a line that is nothing but the JSX prop. A plain substring
-    // check would also be satisfied by the JSDoc in that file that mentions
-    // `verseActions="none"` in prose, so deleting the real prop would leave
-    // this green.
-    expect(source).toMatch(/^\s*verseActions="none"$/m)
+  it('forwards the host-chosen verseActions to the Web SDK reader root', () => {
+    // Both assertions are anchored to a line that is nothing but the JSX prop.
+    // A plain substring check would also be satisfied by that file's JSDoc,
+    // which discusses `verseActions` and both of its values in prose — so
+    // deleting the real prop, or re-hardcoding it, would leave this green.
+    expect(source).toMatch(/^\s*verseActions=\{verseActions\}$/m)
+    // Re-hardcoding the literal is the specific regression: it un-fixes web,
+    // where `NativeSheet` renders nothing and the popover is the only verse
+    // action UI, and `resolveVerseActions` goes dead with no test failing.
+    expect(source).not.toMatch(/^\s*verseActions="none"$/m)
   })
 
   it('wires no Web SDK highlight-intent or copy/share handlers', () => {
