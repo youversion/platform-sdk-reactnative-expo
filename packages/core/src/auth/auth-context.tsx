@@ -7,9 +7,15 @@ import type { AuthPermission, YVUserInfo } from './types'
  * means the token is expired and the refresh did not land (endpoint down,
  * network out) — the session itself is still intact, so treat it as transient,
  * not as signed out.
+ *
+ * `userId` is whose token this is, read in the same synchronous block as the
+ * token itself. A caller that captured an identity earlier must compare against
+ * this, not against a `userInfo` it read from a render: the provider writes both
+ * refs together on sign-in, so anything reading identity through React state
+ * lags the token by a render and can pass an owner check it should have failed.
  */
 export type AccessTokenResult =
-  | { status: 'ok'; token: string }
+  | { status: 'ok'; token: string; userId: string | null }
   | { status: 'unavailable'; reason: 'signed-out' | 'refresh-failed' }
 
 export type AuthContextValue = {

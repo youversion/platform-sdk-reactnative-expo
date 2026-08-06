@@ -319,7 +319,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
     // Re-read the refs, never closure state: the refresh may have replaced the
     // token, or found it revoked and cleared the session via clearAuthState.
+    // Token and owner in one synchronous block — `setAuthState`/`clearAuthState`
+    // write both, so a caller checking the owner it captured cannot be handed a
+    // token from the other side of a sign-in.
     const token = accessTokenRef.current
+    const userId = userInfoRef.current?.id ?? null
     if (refreshTokenRef.current === null || token === null) {
       return { status: 'unavailable', reason: 'signed-out' }
     }
@@ -332,7 +336,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       return { status: 'unavailable', reason: 'refresh-failed' }
     }
 
-    return { status: 'ok', token }
+    return { status: 'ok', token, userId }
   }, [refreshToken])
 
   const hasPermission = useCallback(

@@ -86,7 +86,7 @@ function authValue(state: AuthState): AuthContextValue {
     ensureFreshToken: mockEnsureFreshToken,
     getAccessToken: jest.fn(async () =>
       state.signedIn
-        ? ({ status: 'ok', token: 'token-1' } as const)
+        ? ({ status: 'ok', token: 'token-1', userId: 'user-1' } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
     ),
     isLoading: false,
