@@ -8,7 +8,12 @@ YouVersion Platform React Native Expo SDK — wraps the React Web SDK (`@youvers
 
 ## Supply-Chain Protection
 
-- **Cooldown**: `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml` — resolution rejects package versions published less than 3 days ago (mitigates hijacked-release supply-chain attacks), failing with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. It applies at resolution time only, so `--frozen-lockfile` installs (CI) are unaffected; workspace packages (`workspace:*`) are inherently exempt. **`--force` does not override it** — for a genuinely urgent version use `pnpm add <pkg> --config.minimumReleaseAge=0`, which lifts the cooldown for whatever that one command resolves. To exempt a package permanently rather than once, add it to `minimumReleaseAgeExclude`.
+- **Cooldown**: `minimumReleaseAge: 4320` (3 days) in `pnpm-workspace.yaml` — package versions published less than 3 days ago are rejected (mitigates hijacked-release supply-chain attacks). Workspace packages (`workspace:*`) are inherently exempt. It is enforced at **two** points:
+  1. **Resolution** — fails with `ERR_PNPM_NO_MATURE_MATCHING_VERSION`. **`--force` does not override it**; use `pnpm install --config.minimumReleaseAge=0`, which lifts the cooldown for whatever that one command resolves.
+  2. **Lockfile verification** — every install re-checks the committed `pnpm-lock.yaml` against the policy and fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`. This runs on `--frozen-lockfile` too, so **CI is not exempt**, and neither is `pnpm exec` / turbo (their deps-status check shells out to `pnpm install`). Overriding at resolution is therefore _not_ local-only: a lockfile carrying a too-new version reds CI until the package ages past the cutoff, at which point the same lockfile passes with no changes.
+
+  `minimumReleaseAgeExclude` exempts packages permanently, and accepts scope globs. **`@youversion/*` is excluded** — the cooldown buys time for the ecosystem to spot a hijacked _third-party_ release, but for the Web SDK we publish ourselves it only blocks us from consuming our own work on release day. Those packages lean on publish-side controls (2FA/trusted publishing) instead. Everything else keeps the full 3 days.
+
 - **Exact pins**: `dependencies` and `devDependencies` use exact versions (no `^`/`~`). This matters most in `packages/ui` and `packages/core` — their published manifests are resolved fresh on consumers' machines, where our lockfile offers no protection. `peerDependencies` stay as ranges by design (satisfied by the host app).
 - **Build scripts**: pnpm 11 blocks dependency postinstall scripts unless approved in `allowBuilds` (`pnpm-workspace.yaml`). If an install reports ignored builds, decide explicitly — prefer `false` when the package ships prebuilt binaries (e.g. `unrs-resolver`).
 - **Version bumps**: when updating a pin, pick a version published ≥3 days ago (the cooldown enforces this at resolution time). Update cadence is defined separately.
@@ -142,21 +147,59 @@ Keep `apps/example/metro.config.js` minimal — just `getDefaultConfig(__dirname
 
 ## Exports
 
-**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, and `YouVersionAuthButton`
+**UI** (`@youversion/platform-react-native-expo-ui`): `YouVersionProvider`, `BibleCard`, `BibleChapterPickerSheet`, `BibleReader`, `BibleReaderSettingsSheet`, `BibleTextView`, `BibleVersionPickerSheet`, `VerseOfTheDay`, `YouVersionAuthButton`, and the `HighlightWriteError` type (`BibleReader`'s `onHighlightError` payload, derived from core's outcome union)
 
-**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth`, `mmkvStorage`, and auth types (`AuthConfig`, `AuthPermission`, `AuthScope`, `YVUserInfo`)
+**Core** (`@youversion/platform-react-native-expo-core`): `YouVersionProvider` (installation id + optional auth), `useYouVersion`, `useYVAuth` / `useYVAuthOptional`, `useHighlights`, `deriveServerColors`, `HIGHLIGHT_COLORS` / `isHighlightColor`, `mmkvStorage`, auth types (`AuthConfig`, `AuthPermission`, `KnownAuthPermission`, `AuthScope`, `RequestPermissionResult`, `YVUserInfo`), and highlights types (`Highlight`, `HighlightScope`, `ServerColors`, `HighlightWriteOutcome`, `HighlightsFetchError`, `UseHighlightsOptions`, `UseHighlightsResult`)
 
 UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider`. Import Bible components from UI; import `useYVAuth` from core.
 
 ## Auth (core)
 
 - Optional PKCE OAuth when `auth: { redirectUri, scopes?, permissions? }` is passed to core `YouVersionProvider` (forwarded by UI provider).
-- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app stays scopes-only until grant reporting lands (C3).
-- `useYVAuth()` throws if `auth` was not configured on the provider.
+- On RN, `permissions` is configured on `YouVersionProvider`'s `auth` config (not on `YouVersionAuthButton` / `signIn()`), unlike web. The example app requests `['highlights']`; changing that list requires a fresh sign-in, since an existing token does not gain the grant.
+- Grants read back through `grantedPermissions` / `hasPermission(p)`, and `requestPermission(p)` runs the just-in-time data exchange (`auth/data-exchange.ts`) in an `expo-web-browser` session. The mirror (`auth/granted-permissions.ts`, MMKV, user-scoped) is **optimistic** — seeded from the _requested_ list at sign-in because RN sign-in carries no grant echo, and invalidated when a write comes back `auth`. `null` means unknown and is distinct from `[]`.
+- `AuthPermission` is an **open** union (`KnownAuthPermission | (string & {})`) so a permission minted after this release round-trips instead of being filtered out.
+- `useYVAuth()` throws if `auth` was not configured on the provider; `useYVAuthOptional()` returns `null`. Any screen that can render in a build without sign-in must use the optional form — the example's Profile tab does, which is also what keeps the app drivable with `auth` removed.
 - `YouVersionAuthButton` (UI package) is the drop-in sign-in/sign-out button built on `useYVAuth`; use it for standard sign-in UI instead of hand-rolling a button.
 - Tokens in `expo-secure-store`; expiry and cached user info in MMKV (`packages/core/src/storage/`).
 - OAuth browser session via `expo-web-browser`; redirect handling is app-owned (example: `apps/example/app/callback.tsx` + `Linking.createURL('callback')`).
 - Register the same `redirectUri` in the YouVersion Platform console as used in app code.
+
+## Highlights (core)
+
+- `useHighlights({ versionId, book, chapter })` is the whole public surface. The `createHighlightsApi` wrapper over `@youversion/platform-core`'s `HighlightsClient`, the MMKV cache, and the local `Result` seam (`packages/core/src/result.ts`) all stay internal.
+- Requires `auth` on `YouVersionProvider` and the `highlights` **permission** (see the permissions note above — highlights go in `requested_permissions[]`, never in `scope`). With no auth configured it behaves exactly as signed out.
+- Paints from the MMKV cache **synchronously** in a `useState` initializer. That only works because `AuthProvider` seeds `userInfo` from its own initializer, so `userInfo.id` exists on the first render — load-bearing coupling, commented at both ends.
+- `highlights` is always safe to render. `isRefreshing` means "a GET is in flight", never "no data yet"; gating a spinner on it reintroduces the blank first frame the cache exists to prevent.
+- `error` is **fetch-only**. Writes report once, through the `HighlightWriteOutcome` they resolve to — that is also the branch point for the sign-in prompt (`reason === 'auth'` / `'not-signed-in'`).
+- A `transient` failure is **not** a revert. Those verses become **Pending Operations**: persisted to MMKV (`highlights/queue.ts`), retried with exponential backoff (2s doubling, capped at 30s), replayed after an app kill, and still painted throughout. Every other reason reverts the paint. `hasPendingOperations` (hook) / `hasPendingHighlightOperations` (auth context) are true while the queue is non-empty **or** a write is in flight; sign-out discards the queue and bumps a generation so a departed user's write can never land on the next account.
+- The five swatches in `HIGHLIGHT_COLORS` are a company standard enforced in core: both `apply` and `remove` reject anything else as `invalid` before painting or issuing a request. Do not relax this on layering grounds — the open improvement is relocating the palette to `@youversion/platform-core`, not deferring it to the UI layer.
+- Overlay math lives in the pure, React-free `packages/core/src/highlights/optimistic.ts`, ported from the web highlights machine. Ownership tokens and the colour-aware overlay retirement rule are documented in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md); the retirement rule reads like a bug in both directions and is defended only by its regression pair, so read the ADR before touching `shouldRetire`.
+
+## Highlights (UI)
+
+`BibleReader` owns the whole flow; consumers pass no highlight data in.
+
+- **Pending Highlight vs Pending Operation.** A **Pending Highlight** is a tap held in memory by `native/use-reader-highlights.ts` while a sign-in sheet or consent page is up — never persisted, cleared on every cancellation exit, and re-gated against the _current_ scope before it replays (the reader may have changed chapters behind the browser). A **Pending Operation** is an already-authorized write in core's durable queue. Different lifetimes, different owners; conflating them is the failure mode this vocabulary exists to prevent.
+- `useReaderHighlights` is the orchestrator (RN's analogue of Swift's `BibleReaderViewModel`): the wrapper forwards taps and presents surfaces, the hook decides. The fork itself is pure and layer-1 tested in `lib/highlight-tap-gate.ts` (`'write' | 'prompt-sign-in' | 'prompt-permission' | 'noop'`); a scope mismatch returns `noop` before any auth branch.
+- Surfaces follow Swift: sign-in is the only sheet (`native/sign-in-with-youversion-sheet.tsx`), while the just-in-time permission prompt and both sign-out warnings are native `Alert`s. See [ADR 0014](docs/adr/0014-native-highlight-permission-flow.md).
+- `isSignedIn` keys on the **cached user id**, not `isAuthenticated` — `AuthProvider` seeds `userInfo` synchronously and loads the token asynchronously, so gating on the token would prompt a user who is already signed in.
+- Controlled mode is **internal**. `highlights` / `onHighlightApply` / `onHighlightRemove` are `Omit`ted from the public `BibleReaderProps`; the reader must pass `highlights` on every render (`[]`, never `undefined`) because the Web SDK latches the mode at first mount. Hosts wanting their own UI use core's `useHighlights`.
+- `onHighlightError` only ever reports `transient` — which means _queued and retrying_, not _failed_. `invalid` is logged; `auth` / `not-signed-in` route to a prompt.
+- The sign-out guard lives in one place (`native/use-sign-out-guard.ts`) for both entry points, so the warning cannot be true on the auth button and missing on the reader's toolbar.
+
+## Verse actions (UI)
+
+Verse actions are a **native bottom sheet**, not the Web SDK's in-WebView popover — matching Swift and Kotlin. See [ADR 0015](docs/adr/0015-native-verse-action-sheet.md). This is the one place where the reader's own DOM state is bridged both ways, so read the ADR before editing it.
+
+- `native/bible-reader.tsx` holds the committed selection (fed by `onVerseSelect`, dropped on a `verses: []` payload) and renders `native/bible-verse-action-sheet.tsx`, which is presentational and **not exported**. The DOM component gets `verseActions="none"` on every platform but web, where `NativeSheet` renders nothing and the popover is still the only verse-action UI there is.
+- Clearing the WebView's selection is `clearSelectionSignal`, a counter. It cannot be a `ref` handle — only serializable props cross the Expo DOM bridge. Same family as `resetKey` / `openKey` / `dismissKeyboardNonce`; mount value is the baseline, so mounting never clears. Every exit from the sheet bumps it: a write, a copy, a share, a dismiss.
+- `onCopy` / `onShare` **no longer cross the bridge at all**. `shareData` rides in on `onVerseSelect` (Web SDK 2.5.0), so the sheet's buttons build nothing. The consumer-override-then-SDK-fallback contract is unchanged; because the props were previously inherited through `Omit<DomBibleReaderProps, …>`, they are now declared explicitly on `BibleReaderProps`.
+- The swatch projection (`lib/verse-action-swatches.ts`) is a **port of the Web SDK's shipped rule**, layer-1 tested: an **ANY** rule (every distinct colour present anywhere in the selection gets a remove circle), remove circles before apply circles, both in canonical palette order, and non-palette colours ignored. iOS is believed to use an ALL rule; nobody here has read that code. Switching is one predicate — do it deliberately, not by assumption.
+- The sheet is **non-modal** (`modal={false}` on `NativeSheet`, which drops the backdrop). A selection is built incrementally, so the passage behind must stay tappable — a modal backdrop eats the second verse tap and closes the sheet. `opacity: 0` does not substitute; Gorhom overwrites `enableTouchThrough` on open. Backdrop-tap-to-dismiss therefore does not exist: exits are swipe-down, deselecting every verse, or acting on the sheet. A blank-space tap does **not** clear the selection.
+- The swatch tray **scrolls horizontally under a gradient fade at each end** and keeps a fixed `flex: 1` width — overflow is routine (7 swatches for two differently-coloured verses, 10 worst case). Each fade is gated on the scroll distance remaining toward _its own_ edge, so it retires there instead of leaving the outermost swatch permanently dimmed. The fades use `react-native-svg`, not `expo-linear-gradient`; do not add a native module for them. Copy and Share are pinned outside the scroll area.
+- Because the sheet is non-modal there is no backdrop, so `NativeSheet` draws an upward **`boxShadow`** (`SHEET_TOP_SHADOW`) to separate its top edge from the content behind. `boxShadow` is the only cross-platform option — RN's `shadow*` props are iOS-only and Android's `elevation` cannot be aimed upward. It needs the New Architecture, which Expo SDK 55+ mandates. The shadow applies to every sheet and is keyed off `theme`; dark mode carries far higher alpha because a black shadow barely registers on a near-black surface. See [ADR 0015](docs/adr/0015-native-verse-action-sheet.md).
+- The action sheet's `isOpen` is gated on `prompt === 'none'`. `NativeSheet` allows one active sheet and calls `onClose` on whichever it displaces, so two "open" sheets would clear the selection as a side effect of losing.
 
 ## Runtime Dependencies
 
@@ -204,7 +247,8 @@ Four layers map to Expo DOM Components' architecture. We own layers 1 and 3.
 User-visible strings in `packages/ui/src/native/**` must be localized. Follow this **before** opening a PR — Greptile enforces it at **high** severity:
 
 - **Use the hook.** Render copy with `useSdkTranslation()` → `t('key')`, or `<Trans i18nKey="key">` for rich text. This covers `Text` children, `accessibilityLabel`/`accessibilityHint`, `placeholder`, SDK-set `Alert` strings, and SDK-owned `headerTitle` values — never hardcode them.
-- **Add keys upstream, not here.** New keys go under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Do **not** hand-edit `packages/ui/src/i18n/locales/*.json` — those files are generated and synced, and `SdkTranslationKey` types update automatically after sync.
+- **Add keys upstream, not here.** New keys go under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Do **not** hand-edit `packages/ui/src/i18n/locales/*.json` — those files are generated and synced. Note the flat **camelCase** convention (`signInIntroducing`, not `signIn.introducing`); the `reactnative` namespace matches the `react` surface, not Swift's dotted keys.
+- **Nothing checks the key you type.** `SdkTranslationKey` is derived from the synced `en.json` but never applied — `useSdkTranslation()` returns a plain `useTranslation()`, so `t()` takes any string, and i18next renders a missing key as its own name instead of throwing. Typecheck, lint, and locale parity all stay green through a wrong key. Verify new keys against `packages/ui/src/i18n/locales/en.json` by hand, and **assert English in tests, never key names** — asserting the key name passes whether or not the key exists. Tracked in [#111](https://github.com/youversion/platform-sdk-reactnative-expo/issues/111).
 - **Exempt.** `packages/ui/src/dom/**` (WebView Bible UI stays English — [ADR 0009](./docs/adr/0009-deferred-dom-localization.md)), consumer-provided prop overrides, test files, and non-user-facing literals (test IDs, logs, style tokens).
 
 Full guide: [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.md); enforcement rules: `.greptile/rules.md`.

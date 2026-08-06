@@ -3,7 +3,7 @@ import type { ReactElement, ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
-import { SHEET_HANDLE, SHEET_SURFACE } from '../../lib/native-sheet-theme'
+import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -342,7 +342,10 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
-    expect(latestBottomSheetProps.backgroundStyle).toEqual({ backgroundColor: '#121212' })
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({
+      backgroundColor: '#121212',
+      boxShadow: SHEET_TOP_SHADOW.dark,
+    })
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
       { backgroundColor: '#ccc' },
       { backgroundColor: '#5a5757' },
@@ -360,6 +363,29 @@ describe('NativeSheet', () => {
       <SheetProvider>
         <View>
           <NativeSheet isOpen={true} onClose={() => {}} theme="dark" backgroundColor="#123456">
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </SheetProvider>,
+    )
+
+    expect(latestBottomSheetProps.backgroundStyle).toEqual({
+      backgroundColor: '#123456',
+      boxShadow: SHEET_TOP_SHADOW.dark,
+    })
+  })
+
+  it('omits the top shadow when a backgroundColor is given with no theme to color it', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <SheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} backgroundColor="#123456">
             <Text testID="sheet-content">Sheet content</Text>
           </NativeSheet>
         </View>
@@ -588,6 +614,7 @@ describe('NativeSheet', () => {
 
       expect(latestBottomSheetProps.backgroundStyle).toEqual({
         backgroundColor: SHEET_SURFACE[theme],
+        boxShadow: SHEET_TOP_SHADOW[theme],
       })
       expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
         { backgroundColor: '#ccc' },

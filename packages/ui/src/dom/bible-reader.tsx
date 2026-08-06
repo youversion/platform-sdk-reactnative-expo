@@ -1,14 +1,16 @@
 'use dom'
 
-import type { YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderHighlightIntent,
+  BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyAuthToken, applySDKConfig } from '../lib/dom-apply'
 
@@ -21,6 +23,7 @@ type NativeActionBibleReaderRootProps =
     onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
     onSignInPress?: () => Promise<void>
     onSignOutPress?: () => Promise<void>
+    onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
     children?: ReactNode
   }
 
@@ -29,6 +32,44 @@ type BibleReaderBaseProps = {
   apiHost: string
   installationId: string
   accessToken: string | null
+  /**
+   * Required, never optional: the Web SDK latches controlled mode on the
+   * presence of this prop at first mount, so one `undefined` frame would drop
+   * the reader into self-contained mode permanently. `[]` is the correct value
+   * for "nothing highlighted". Owned natively by `useReaderHighlights`.
+   */
+  highlights: Highlight[]
+  /**
+   * Swatch taps arrive here as intents — requests, not facts. Nothing paints
+   * until native round-trips an updated `highlights`.
+   */
+  onHighlightApply?: (intent: BibleReaderHighlightIntent) => Promise<void>
+  onHighlightRemove?: (intent: BibleReaderHighlightIntent) => Promise<void>
+  /**
+   * Fires on every selection change, `verses: []` on clear. Carries the
+   * localized `reference` and a ready-built `shareData` (both added in Web SDK
+   * 2.5.0) so a native verse-action sheet can label itself and run Copy / Share
+   * without a popover press.
+   *
+   * An observation of a committed selection — the reader still owns selection
+   * state; the only thing native sends back is {@link clearSelectionSignal}.
+   */
+  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  /**
+   * `'none'` suppresses the Web SDK's in-WebView verse popover, leaving
+   * selection, painting, and every payload intact. The native wrapper passes it
+   * on every platform but web, where `NativeSheet` renders nothing and the
+   * popover is still the only verse-action UI there is.
+   */
+  verseActions?: 'popover' | 'none'
+  /**
+   * One-way native → DOM command: any change clears the reader's verse
+   * selection. A counter rather than a `ref` handle because only serializable
+   * props cross the DOM bridge — the same mechanic as `resetKey` and
+   * `dismissKeyboardNonce`. The value at mount is the baseline, so mounting is
+   * never a clear.
+   */
+  clearSelectionSignal?: number
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -73,6 +114,12 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     apiHost,
     installationId,
     accessToken,
+    highlights,
+    onHighlightApply,
+    onHighlightRemove,
+    onVerseSelect,
+    verseActions,
+    clearSelectionSignal,
     theme = 'light',
     book,
     chapter,
@@ -105,6 +152,26 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the
   // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
   const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+
+  // Native Actions are async by convention; the Web SDK's intent callbacks are
+  // synchronous `(intent) => void`. This is the inverse of the cast applied to
+  // `NativeActionBibleReaderRoot` above — there our type is narrower and a cast
+  // suffices, here ours is wider, so it has to be wrapped. The reader does not
+  // await the write: it paints nothing either way, and blocking the tap on a
+  // bridge round-trip would stall the drawer.
+  const handleHighlightApply = useCallback(
+    (intent: BibleReaderHighlightIntent) => {
+      void onHighlightApply?.(intent)
+    },
+    [onHighlightApply],
+  )
+
+  const handleHighlightRemove = useCallback(
+    (intent: BibleReaderHighlightIntent) => {
+      void onHighlightRemove?.(intent)
+    },
+    [onHighlightRemove],
+  )
 
   useEffect(() => {
     if (!onExternalLinkPress) return
@@ -162,6 +229,28 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
 
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
+          // Presence of `highlights` latches controlled mode at first mount, so
+          // the highlight slice stays a pure projection: no highlights API
+          // calls, no local store, and no auth surface can originate from the
+          // highlight path. Without it the reader falls back to self-contained
+          // mode, which since Web SDK 2.4.0 writes real highlights with the
+          // token we hand the WebView and can redirect it to hosted consent.
+          // Native owns the data — see `native/use-reader-highlights.ts`, which
+          // guarantees an array on every render.
+          highlights={highlights}
+          onHighlightApply={handleHighlightApply}
+          onHighlightRemove={handleHighlightRemove}
+          // `onVerseSelect` is cast wider on `NativeActionBibleReaderRoot`
+          // above, so it forwards as-is.
+          //
+          // There is deliberately no `onCopy` / `onShare` here: with
+          // `verseActions="none"` the Web SDK has no button left to fire them —
+          // Copy and Share are native buttons on `BibleVerseActionSheet` now, and
+          // they run against `onVerseSelect`'s `shareData`. Leaving dead Native
+          // Actions on the bridge would cost a round-trip per copy for nothing.
+          onVerseSelect={onVerseSelect}
+          verseActions={verseActions}
+          clearSelectionSignal={clearSelectionSignal}
           book={book}
           chapter={chapter}
           versionId={versionId}

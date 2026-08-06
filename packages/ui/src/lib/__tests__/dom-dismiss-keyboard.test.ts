@@ -34,9 +34,12 @@ describe('useDismissKeyboardOnClose', () => {
     input.focus()
     const blurSpy = jest.spyOn(input, 'blur')
 
-    const { rerender } = renderHook(({ isOpen }: { isOpen: boolean }) => useDismissKeyboardOnClose(isOpen), {
-      initialProps: { isOpen: true },
-    })
+    const { rerender } = renderHook(
+      ({ isOpen }: { isOpen: boolean }) => useDismissKeyboardOnClose(isOpen),
+      {
+        initialProps: { isOpen: true },
+      },
+    )
 
     expect(blurSpy).not.toHaveBeenCalled()
 

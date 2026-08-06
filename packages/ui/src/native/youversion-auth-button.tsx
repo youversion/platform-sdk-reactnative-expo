@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native'
 import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { BibleAppLogo } from './bible-app-logo'
+import { useSignOutGuard } from './use-sign-out-guard'
 
 export type YouVersionAuthButtonProps = {
   background?: 'light' | 'dark'
@@ -22,8 +23,13 @@ export function YouVersionAuthButton({
   size = 'default',
   text,
 }: YouVersionAuthButtonProps) {
-  const { isAuthenticated, signOut, signIn } = useYVAuth()
+  const auth = useYVAuth()
+  const { isAuthenticated, signIn } = auth
   const { t, i18n } = useSdkTranslation()
+
+  // Warns first when highlights are still waiting to save, then discards them on
+  // confirm. Falls back to a plain `signOut()` when nothing is pending.
+  const signOut = useSignOutGuard(auth) ?? auth.signOut
 
   const authFunction = async () => {
     try {

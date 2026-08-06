@@ -98,6 +98,34 @@ _Avoid_: Treating the `-dev` suffix as a bug to remove; a bare `Dev` sentinel (d
 `@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies` (auto-installed). `react-dom` is a `peerDependency` to prevent duplicate React instances in apps that also target web. Transitive native module requirements (reanimated, gesture-handler, etc.) are listed as `peerDependencies` to protect consumers from missing runtime deps.
 _Avoid_: Bundled deps, vendored web SDK
 
+**Highlight Scope**:
+The chapter a highlights flow is operating on: `versionId` + `book` + `chapter`. Same shape as the web highlights machine (for reuse) and the same Bible-location triple as **Reader Location** — without a user. Per-user isolation for persistent cache is a separate axis at the storage boundary, not part of this type.
+_Avoid_: Folding `userId` into this type; Reader Location (restore snapshot for uncontrolled readers, different purpose); cache key (implementation detail)
+
+**Server Colors**:
+The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. A _derived_ projection of **Cached Highlights** onto the displayed scope, used for optimistic overlay math — not something we persist, and not optimistic UI overlays themselves. Range passage ids expand to one entry per verse and colors are normalized to lowercase during projection.
+_Avoid_: Persisting this shape (it destroys passage ids — see **Cached Highlights**); highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
+
+**Cached Highlights**:
+The raw core API shape (`Highlight[]`: `version_id` + `passage_id` + `color`) persisted on native per `userId` + **Highlight Scope**. Passage ids may be verse ranges (`JHN.3.16-18`), so this is the only shape that can feed the web reader's controlled `highlights` prop on a cold start and that supports passage-id-targeted deletes. Reads are synchronous and validated; a valid empty array is a real snapshot (“none”), not a cache miss, and any corrupt or legacy payload reads as a miss.
+_Avoid_: Flattening to **Server Colors** before writing; treating an empty array as a miss
+
+**Highlight Overlay**:
+The local layer of pending edits for a **Highlight Scope**, `Record<number, string | null>` — a hex color where the user just applied one, `null` where they just removed one. Sits on top of **Server Colors** so the reader paints before the server answers; entries retire once the server confirms them (see [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) for the color-aware remove rule). Never persisted — see **Cached Highlights**.
+_Avoid_: Optimistic state (too vague — this is one specific layer), **Server Colors** (the layer underneath), persisting it
+
+**Highlight Write Outcome**:
+What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true. `failedVerses` reads differently by reason: on `transient` those verses are **Pending Operations** and stay painted; on every other reason their paint has been reverted.
+_Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it); "failed" as "reverted" without checking the reason
+
+**Pending Highlight**:
+A tap the user made before they were allowed to make it — held in memory by the reader's highlights orchestrator while a sign-in sheet or consent page is up, and written only once consent is in hand and the intent still matches the chapter on screen. Every cancellation exit clears it; it is never persisted, because an intent that outlived the browser session it was waiting on would paint a highlight minutes later with no user action.
+_Avoid_: **Pending Operation** (already authorized, and persisted); pending write; stashed highlight; persisting it to MMKV
+
+**Pending Operation**:
+An authorized highlight write that has not reached the server yet: persisted to MMKV, retried with exponential backoff, and replayed after an app kill. Carries a generation stamped at enqueue, so signing out invalidates everything outstanding and a result from the departed user can never land on the next account. `hasPendingOperations` (core) / `hasPendingHighlightOperations` (auth context) are true while the queue is non-empty **or** a write is on the wire — the in-flight half is what keeps a sign-out warning honest.
+_Avoid_: **Pending Highlight** (pre-consent, in memory); calling the queue "optimistic state" (the **Highlight Overlay** is the optimistic layer); flushing the queue on sign-out (it discards)
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -120,6 +148,15 @@ _Avoid_: Bundled deps, vendored web SDK
 - **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 - The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
+- A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Cached Highlights** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
+- **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
+- A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
+- A **Highlight Write Outcome** is the sole report of a write's fate, and is where the sign-in branch reads from.
+- A **Pending Highlight** and a **Pending Operation** are different objects at different stages of one tap: the first is an intent waiting on consent (in memory, UI-owned, cleared on every cancellation), the second is an authorized write waiting on the network (persisted in core, retried, generation-stamped). A tap becomes the second only after the gate says `write`. Conflating them is the failure mode this vocabulary exists to prevent.
+- Only a **Pending Operation** keeps its **Highlight Overlay** entry after a failure: a `transient` write stays painted because the queue still owns it, while every other failure reverts.
+- `BibleReader`'s `onVerseSelect` is the one sanctioned exception to "**DOM-Owned Sheet UI State** is never lifted to native": it reports a _committed_ selection as a **Native Action**, and nothing native feeds back into it except a clear. Read it as an observation, not as licence to bridge UI state generally.
+- A **Verse Action Sheet** is the native presentation of that observed selection — reference label, highlight swatches, Copy, Share — replacing the web reader's in-WebView popover, which `BibleReader` suppresses. It extends the `onVerseSelect` exception rather than widening it: the reader still owns selection state, and the only thing travelling back is `clearSelectionSignal`, a one-way native→DOM command in the same family as **Sheet Reset Key** and the keyboard-dismiss nonce. A `ref` handle is not an option across the DOM bridge.
+  _Avoid_: Treating this as licence to mirror DOM UI state generally; reaching for a ref instead of a counter; letting the **Verse Action Sheet** stay "open" alongside a sign-in prompt (the losing sheet's `onClose` would clear the selection as a side effect of being displaced)
 
 ## Example Dialogue
 

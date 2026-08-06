@@ -1,14 +1,38 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
+import {
+  clearHighlightQueue,
+  clearHighlightsCache,
+  getHighlightQueueSnapshot,
+  subscribeHighlightQueue,
+} from '../highlights'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import { requestPermissionViaDataExchange, type RequestPermissionResult } from './data-exchange'
+import {
+  addGrantedPermissions,
+  clearGrantedPermissions,
+  getGrantedPermissions,
+  saveGrantedPermissions,
+  subscribeGrantedPermissions,
+} from './granted-permissions'
 import { refreshTokens, TokenEndpointError } from './http'
 import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
-import type { AuthConfig, YVUserInfo } from './types'
+import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
+
+const NOT_SIGNED_IN_MESSAGE = 'Sign in before requesting a YouVersion Platform permission.'
 
 type AuthProviderProps = {
   config: AuthConfig
@@ -27,6 +51,33 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const refreshTokenRef = useRef<string | null>(null)
   const isRefreshingRef = useRef<boolean>(false)
 
+  const userId = userInfo?.id ?? null
+
+  // The granted-permissions mirror is module state, not React state: a write
+  // that comes back 401/403 invalidates the `highlights` grant from inside
+  // `useHighlights`, which has no way to reach into this provider. Subscribing
+  // means that invalidation re-renders every consumer of this context, so the
+  // next tap routes to the prompt instead of failing again.
+  const readGrantedPermissions = useCallback(() => getGrantedPermissions(userId), [userId])
+  const grantedPermissions = useSyncExternalStore(
+    subscribeGrantedPermissions,
+    readGrantedPermissions,
+  )
+
+  // Same shape, same reason: the highlight queue is module state driven by
+  // `useHighlights`'s retry loop, and the sign-out guard has to re-render the
+  // instant the last queued write lands or a new one is enqueued.
+  const readHighlightQueue = useCallback(() => getHighlightQueueSnapshot(userId), [userId])
+  const highlightQueue = useSyncExternalStore(subscribeHighlightQueue, readHighlightQueue)
+
+  // Read live rather than through a closure: the data-exchange session below
+  // spans a browser round-trip, and the fail-closed check has to compare against
+  // whoever is signed in when it RETURNS.
+  const userIdRef = useRef<string | null>(userId)
+  useEffect(() => {
+    userIdRef.current = userId
+  }, [userId])
+
   const setAuthState = useCallback(async (tokens: StoredTokens, user?: YVUserInfo) => {
     await saveTokens(tokens)
     expiryRef.current = tokens.expiryDate
@@ -41,6 +92,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const clearAuthState = useCallback(async () => {
     mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    clearHighlightsCache()
+    // Bumps the queue generation as well as emptying it, so a write already on
+    // the wire for the departed user cannot re-queue onto whoever signs in next.
+    clearHighlightQueue()
+    clearGrantedPermissions()
     expiryRef.current = null
     refreshTokenRef.current = null
     setAccessToken(null)
@@ -162,6 +218,17 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         },
         result.userInfo,
       )
+
+      // Optimistic seeding: the RN sign-in carries no grant echo we can read
+      // (YPE-3706), so assume requested == granted and let the first 401/403
+      // correct it — see `invalidateGrantedPermission`. A fresh sign-in REPLACES
+      // the recorded set rather than unioning, so a user who denies at consent
+      // does not inherit a grant from a previous session. If the callback ever
+      // starts returning `granted_permissions`, this one line is where it lands.
+      const signedInUserId = result.userInfo.id
+      if (signedInUserId) {
+        saveGrantedPermissions(signedInUserId, config.permissions ?? [])
+      }
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
       setError(err)
@@ -175,18 +242,72 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
 
+  const hasPermission = useCallback(
+    (permission: AuthPermission) => (getGrantedPermissions(userId) ?? []).includes(permission),
+    [userId],
+  )
+
+  const requestPermission = useCallback(
+    async (permission: AuthPermission): Promise<RequestPermissionResult> => {
+      if (accessToken === null) {
+        return { kind: 'failure', message: NOT_SIGNED_IN_MESSAGE }
+      }
+
+      const initiatorUserId = userIdRef.current
+      const result = await requestPermissionViaDataExchange({
+        apiHost,
+        appKey,
+        accessToken,
+        redirectUri: config.redirectUri,
+        permissions: [permission],
+        initiatorUserId,
+        getCurrentUserId: () => userIdRef.current,
+      })
+
+      // Union rather than replace: this exchange answers only for the permission
+      // it asked about, so it must not erase what the user granted at sign-in.
+      if (result.kind === 'granted' && initiatorUserId !== null) {
+        addGrantedPermissions(initiatorUserId, result.permissions)
+      }
+      return result
+    },
+    [accessToken, apiHost, appKey, config.redirectUri],
+  )
+
+  const discardPendingHighlights = useCallback(() => {
+    clearHighlightQueue()
+  }, [])
+
   const value: AuthContextValue = useMemo(
     () => ({
       isAuthenticated: accessToken !== null,
       accessToken,
       userInfo,
+      grantedPermissions,
+      hasPermission,
+      requestPermission,
+      hasPendingHighlightOperations: highlightQueue.hasPending,
+      discardPendingHighlights,
       error,
       signIn,
       signOut,
       refreshNow,
       isLoading,
     }),
-    [accessToken, userInfo, error, signIn, signOut, refreshNow, isLoading],
+    [
+      accessToken,
+      userInfo,
+      grantedPermissions,
+      hasPermission,
+      requestPermission,
+      highlightQueue.hasPending,
+      discardPendingHighlights,
+      error,
+      signIn,
+      signOut,
+      refreshNow,
+      isLoading,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
