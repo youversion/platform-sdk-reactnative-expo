@@ -29,7 +29,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
-import { SHEET_HANDLE, SHEET_SURFACE } from '../lib/native-sheet-theme'
+import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
 
@@ -53,6 +53,32 @@ type NativeSheetProps = {
   onClose: () => void
   // Fired when a backdrop tap or pan-down close animation starts, before onClose.
   onDismissKeyboardStart?: () => void
+  // false drops the backdrop entirely, so content behind the sheet stays bright
+  // and interactive. The backdrop is removed instead of made transparent because
+  // Gorhom reads `enableTouchThrough` only for the initial pointerEvents, then
+  // overwrites it to 'auto' on open. An invisible backdrop would still swallow
+  // every tap. Tap-to-dismiss goes with the backdrop, so a non-modal caller owns
+  // its own dismissal.
+  modal?: boolean
+  // Vertical travel, in points, before the sheet's pan gesture may activate.
+  // Unset by default, and that default is what breaks a horizontally scrolling
+  // child on Android: RNGH's PanGestureHandler falls back to `minDist`, the
+  // platform touch slop, which is direction-agnostic — so a sideways drag over a
+  // nested ScrollView activates the *sheet's* pan. Activation cancels the touch
+  // stream in every native view underneath (RNGestureHandlerRootHelper's
+  // RootViewGestureHandler.onCancel → onChildStartedNativeGesture), so the
+  // ScrollView never scrolls at all.
+  //
+  // Supplying any custom activation criterion makes RNGH drop `minDist`
+  // entirely (PanGestureHandler.kt), so a vertical-only threshold means a
+  // horizontal drag can no longer reach the sheet. The child keeps its touches,
+  // and once it starts scrolling it calls requestDisallowInterceptTouchEvent,
+  // which RNGH turns into a cancel of the sheet's pan — a clean handoff.
+  //
+  // Reach for this instead of `enableContentPanningGesture={false}`, which cures
+  // the same symptom by removing swipe-down. Gorhom applies the value to the
+  // handle pan as well as the content pan; both still open on a deliberate drag.
+  panActiveOffsetY?: [number, number]
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
@@ -77,6 +103,8 @@ export function NativeSheet({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  modal = true,
+  panActiveOffsetY,
   children,
   showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
@@ -124,6 +152,8 @@ export function NativeSheet({
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
         onDismissKeyboardStart={onDismissKeyboardStart}
+        modal={modal}
+        panActiveOffsetY={panActiveOffsetY}
         showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
         theme={theme}
@@ -146,6 +176,8 @@ function SheetHost({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  modal,
+  panActiveOffsetY,
   children,
   showAndroidLoader,
   loaderMinHeight,
@@ -162,6 +194,8 @@ function SheetHost({
   enableContentPanningGesture?: boolean
   onClose: () => void
   onDismissKeyboardStart?: () => void
+  modal: boolean
+  panActiveOffsetY?: [number, number]
   children: React.ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
@@ -198,10 +232,16 @@ function SheetHost({
   }, [windowWidth])
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
-  const backgroundStyle = useMemo<StyleProp<ViewStyle>>(
-    () => (surfaceColor ? { backgroundColor: surfaceColor } : undefined),
-    [surfaceColor],
-  )
+  // The shadow is keyed off `theme`, not `surfaceColor`. An explicit
+  // `backgroundColor` on an unthemed sheet gets no shadow instead of a guessed
+  // one. The shadow rides on `backgroundStyle` because Gorhom's default
+  // background is a bare View that spreads it, with nothing between that View
+  // and the window to clip it.
+  const backgroundStyle = useMemo<StyleProp<ViewStyle>>(() => {
+    if (!surfaceColor) return undefined
+    if (!theme) return { backgroundColor: surfaceColor }
+    return { backgroundColor: surfaceColor, boxShadow: SHEET_TOP_SHADOW[theme] }
+  }, [surfaceColor, theme])
   const handleIndicatorStyle = useMemo<StyleProp<ViewStyle>>(
     () => (theme ? [styles.handle, { backgroundColor: SHEET_HANDLE[theme] }] : styles.handle),
     [theme],
@@ -238,8 +278,10 @@ function SheetHost({
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
+  // A non-modal active sheet needs box-none on Android too. Without it the
+  // wrapper eats the taps the dropped backdrop was supposed to let through.
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
-    Platform.OS === 'android' ? (isActive ? 'auto' : 'none') : 'box-none'
+    Platform.OS === 'android' ? (isActive ? (modal ? 'auto' : 'box-none') : 'none') : 'box-none'
 
   useEffect(() => {
     // A second footnote tap may keep isActive=true, so use openKey to snap open
@@ -311,7 +353,8 @@ function SheetHost({
         enableContentPanningGesture={
           suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
         }
-        backdropComponent={suppressInactiveSheet ? renderNoBackdrop : renderSheetBackdrop}
+        activeOffsetY={panActiveOffsetY}
+        backdropComponent={suppressInactiveSheet || !modal ? renderNoBackdrop : renderSheetBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}
