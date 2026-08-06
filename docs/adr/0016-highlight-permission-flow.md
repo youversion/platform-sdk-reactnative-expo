@@ -33,7 +33,7 @@ It runs inside `useHighlights.runWrite`, next to the existing `waitForAuthSettle
 | Refresh here                        | What the user sees when a refresh is due    |
 | ----------------------------------- | ------------------------------------------- |
 | Pre-flight, before `hasPermission`  | Nothing, until a token round-trip completes |
-| `runWrite`, after the claim painted | The colour, on tap                          |
+| `runWrite`, after the claim painted | The color, on tap                           |
 
 `hasPermission` reads the local grant cache and needs no token, so nothing about the branch decision required the refresh to come first. `runWrite` already re-reads the current token at send time — deliberately, so a mid-write refresh does not fail the write — which is the same place the fresh one lands.
 

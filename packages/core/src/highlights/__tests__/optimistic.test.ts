@@ -312,7 +312,7 @@ describe('serverUpdated', () => {
     expect(reconciled.reconcile.has(16)).toBe(true)
   })
 
-  // The other half of the colour-aware retirement pair: our deliberate
+  // The other half of the color-aware retirement pair: our deliberate
   // divergence from web, which would suppress this repaint indefinitely.
   it('retires a remove overlay when the server reports a DIFFERENT color', () => {
     const token = createWriteToken('remove')

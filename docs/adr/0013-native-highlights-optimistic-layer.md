@@ -1,4 +1,4 @@
-# 13. Native highlights are the optimistic layer, with colour-aware overlay retirement
+# 13. Native highlights are the optimistic layer, with color-aware overlay retirement
 
 Date: 2026-07-27
 
@@ -35,7 +35,7 @@ The web machine maintains an explicit queue because xstate cannot `await`. A pro
 
 Applies collapse contiguous verses into one ranged POST per run (`[16,17,18,20]` → `JHN.3.16-18` + `JHN.3.20`); removes issue one DELETE per verse, never a range, because range DELETE is not supported server-side. Both paths route through `collapseVerseRuns`, so switching removes to one-per-run is a single call site if that changes.
 
-### Diverged: colour-aware retirement of remove overlays
+### Diverged: color-aware retirement of remove overlays
 
 Web's `reconcileOverlay` never retires a remove entry:
 
@@ -43,15 +43,15 @@ Web's `reconcileOverlay` never retires a remove entry:
 if (entry.op !== 'apply') continue // remove entries never retire (vapor fix)
 ```
 
-That fixes a real bug — a stale read replica echoing back the colour just deleted repaints the verse for a beat ("vapor") — but the suppression is opaque and unbounded. It holds until a reset path runs, so a _new_ colour set on another device stays invisible until the user navigates away and back. Web's own header states this as an accepted cost.
+That fixes a real bug — a stale read replica echoing back the color just deleted repaints the verse for a beat ("vapor") — but the suppression is opaque and unbounded. It holds until a reset path runs, so a _new_ color set on another device stays invisible until the user navigates away and back. Web's own header states this as an accepted cost.
 
-`ReconcileEntry` already carries the colour, and web simply ignores it for removes. So we keep the fix and drop most of the cost:
+`ReconcileEntry` already carries the color, and web simply ignores it for removes. So we keep the fix and drop most of the cost:
 
 ```ts
 function shouldRetire(entry: ReconcileEntry, serverColor: string | undefined): boolean {
   if (entry.op === 'apply') return serverColor === entry.color
-  // Remove: the vapor case is the server echoing back the colour we deleted.
-  // A DIFFERENT colour cannot be an echo of that deletion — it is newer data.
+  // Remove: the vapor case is the server echoing back the color we deleted.
+  // A DIFFERENT color cannot be an echo of that deletion — it is newer data.
   return serverColor !== undefined && serverColor !== entry.color
 }
 ```
@@ -67,7 +67,7 @@ Web's settle routes a 401/403 into invalidate → re-stash pending highlight →
 ## Consequences
 
 - Native and web agree on what the user sees mid-write, and the shared vocabulary (`claim` / `settle` / reconcile / ownership token) survives in both codebases. Anyone diffing the two files finds the divergence documented rather than having to reverse-engineer whether it was deliberate.
-- The colour-aware rule needs both directions pinned by tests, because it reads like a bug in each direction: a stale GET echoing the deleted colour must **not** resurrect the verse, and a GET reporting a different colour **must** retire the overlay.
+- The color-aware rule needs both directions pinned by tests, because it reads like a bug in each direction: a stale GET echoing the deleted color must **not** resurrect the verse, and a GET reporting a different color **must** retire the overlay.
 - Two smaller decisions follow from the same "one optimistic layer" premise and are recorded here because reviewers ask about both:
   - **`error` is fetch-only.** Writes report once, through their return value. With one error slot, a transient write failure would evict a fetch error that is still true (the reader is showing stale cached data _because_ the GET failed), and a consumer with both a call-site handler and an error banner would render two UIs for one event.
   - **Writes hold through the token-loading window** on `accessToken !== null || !isLoading`, never on `isLoading` alone — `postTokenEndpoint` has no `AbortController`, so a hung network can leave `isLoading` true indefinitely. Without the hold, a cold-start write returns `not-signed-in` for a genuinely signed-in user, which is the exact value C3 branches on to launch a sign-in prompt.
