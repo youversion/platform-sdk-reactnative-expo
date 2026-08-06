@@ -1,22 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import { SHEET_FOREGROUND } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
 import { NativeSheet } from './native-sheet'
-
-/**
- * On-surface colors, drawn over the sheet surface `NativeSheet` supplies. They
- * match `sign-in-with-youversion-sheet.tsx` so the two prompts in the highlight
- * flow read as one family.
- */
-const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
-const MUTED_FOREGROUND: Record<Theme, string> = { light: '#6b6a6a', dark: '#a8a5a5' }
-const STROKE: Record<Theme, string> = {
-  light: 'rgba(18, 18, 18, 0.2)',
-  dark: 'rgba(255, 255, 255, 0.2)',
-}
-
-const BUTTON_WIDTH = 260
+import { PromptSheetButton, PromptSheetParagraph } from './prompt-sheet'
 
 export type HighlightConsentSheetProps = {
   isOpen: boolean
@@ -37,7 +25,9 @@ export type HighlightConsentSheetProps = {
  *
  * Presentational only — it runs no Data Exchange itself. `isOpen` is driven by
  * `useHighlightPermissionFlow`'s `isConfirming`; `onConfirm` is its `confirm()`
- * and `onDismiss` its `decline()`.
+ * and `onDismiss` its `decline()`. Its buttons and paragraph come from
+ * `prompt-sheet.tsx`, shared with `SignInWithYouVersionSheet` so the two prompts
+ * in the highlight flow read as one family.
  */
 export function HighlightConsentSheet({
   isOpen,
@@ -50,34 +40,33 @@ export function HighlightConsentSheet({
   return (
     <NativeSheet isOpen={isOpen} onClose={onDismiss} theme={theme}>
       <View testID="highlight-consent-sheet" style={styles.container}>
-        <Text accessibilityRole="header" style={[styles.heading, { color: FOREGROUND[theme] }]}>
+        <Text
+          accessibilityRole="header"
+          style={[styles.heading, { color: SHEET_FOREGROUND[theme] }]}
+        >
           {t('dataExchangeHighlightsQuestion')}
         </Text>
 
-        <Text style={[styles.paragraph, { color: MUTED_FOREGROUND[theme] }]}>
+        <PromptSheetParagraph theme={theme}>
           {t('dataExchangeHighlightsExplanation')}
-        </Text>
+        </PromptSheetParagraph>
 
         <View style={styles.actions}>
-          <Pressable
+          <PromptSheetButton
             testID="highlight-consent-confirm"
-            accessibilityRole="button"
+            label={t('dataExchangeContinue')}
             onPress={onConfirm}
-            style={[styles.button, { backgroundColor: FOREGROUND[theme] }]}
-          >
-            <Text style={[styles.buttonLabel, { color: theme === 'dark' ? '#121212' : '#ffffff' }]}>
-              {t('dataExchangeContinue')}
-            </Text>
-          </Pressable>
+            variant="primary"
+            theme={theme}
+          />
 
-          <Pressable
+          <PromptSheetButton
             testID="highlight-consent-cancel"
-            accessibilityRole="button"
+            label={t('cancel')}
             onPress={onDismiss}
-            style={[styles.button, { borderColor: STROKE[theme] }]}
-          >
-            <Text style={[styles.buttonLabel, { color: FOREGROUND[theme] }]}>{t('cancel')}</Text>
-          </Pressable>
+            variant="secondary"
+            theme={theme}
+          />
         </View>
       </View>
     </NativeSheet>
@@ -98,27 +87,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     textAlign: 'center',
   },
-  paragraph: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
   actions: {
     alignItems: 'center',
     gap: 12,
     paddingTop: 12,
-  },
-  button: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    width: BUTTON_WIDTH,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 })

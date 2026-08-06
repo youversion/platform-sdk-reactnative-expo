@@ -4,6 +4,7 @@ import {
   useHighlightPermissionFlow,
   useYouVersion,
   useYVAuthOptional,
+  type HighlightColor,
   type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
 import type {
@@ -61,7 +62,7 @@ const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
  * never selected — the same contract core's Pending Highlight carries
  * (ADR 0016).
  */
-type PendingSwatchIntent = { color: string; verses: number[]; scope: HighlightScope }
+type PendingSwatchIntent = { color: HighlightColor; verses: number[]; scope: HighlightScope }
 
 /**
  * Which prompt the reader is showing on its own account, and — for `'sign-in'` —

@@ -23,6 +23,6 @@ What the sheet does:
 
 `onVerseSelect` and `clearSelectionSignal` are unchanged and still public: the first fires alongside the sheet rather than instead of it, and the second closes the sheet along with the selection.
 
-On web, `BibleReader` keeps the React Web SDK's verse action popover, because the native sheet does not exist there and suppressing the popover would leave no verse action UI at all. Its Copy and Share work; its color swatches do not write.
+**Web keeps the React Web SDK's verse action popover.** Native verse actions are not available on web in this release. `NativeSheet` renders nothing there, so suppressing the popover would leave the reader with no verse action UI at all. The popover is what web gets until the native surface reaches it.
 
 Nothing changes in the core package's public API. It versions alongside UI.

@@ -1,26 +1,16 @@
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { resolveAppName } from '../lib/app-name'
+import { SHEET_MUTED_FOREGROUND } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
 import { NativeSheet } from './native-sheet'
+import { PromptSheetButton, PromptSheetParagraph } from './prompt-sheet'
 import { YouVersionPlatformLogo, youVersionPlatformLogoSize } from './youversion-platform-logo'
-
-/**
- * Text and stroke colors for the sheet body, drawn over the sheet surface
- * `NativeSheet` supplies.
- */
-const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
-const MUTED_FOREGROUND: Record<Theme, string> = { light: '#6b6a6a', dark: '#a8a5a5' }
-const STROKE: Record<Theme, string> = {
-  light: 'rgba(18, 18, 18, 0.2)',
-  dark: 'rgba(255, 255, 255, 0.2)',
-}
 
 /** Wide enough to read at the sheet's width, narrow enough to leave margin. */
 const WORDMARK_WIDTH = 190
-const BUTTON_WIDTH = 260
 
 export type SignInWithYouVersionSheetProps = {
   isOpen: boolean
@@ -36,7 +26,9 @@ export type SignInWithYouVersionSheetProps = {
  * taps a highlight color, before OAuth launches.
  *
  * Presentational only — it performs no OAuth and reads no config beyond the
- * app's own display name.
+ * app's own display name. Its buttons and paragraph come from
+ * `prompt-sheet.tsx`, shared with `HighlightConsentSheet` so the two prompts in
+ * the highlight flow read as one family.
  */
 export function SignInWithYouVersionSheet({
   isOpen,
@@ -51,7 +43,7 @@ export function SignInWithYouVersionSheet({
   return (
     <NativeSheet isOpen={isOpen} onClose={onDismiss} theme={theme}>
       <View testID="sign-in-with-youversion-sheet" style={styles.container}>
-        <Text style={[styles.eyebrow, { color: MUTED_FOREGROUND[theme] }]}>
+        <Text style={[styles.eyebrow, { color: SHEET_MUTED_FOREGROUND[theme] }]}>
           {t('signInIntroducing')}
         </Text>
 
@@ -62,32 +54,26 @@ export function SignInWithYouVersionSheet({
           height={logoSize.height}
         />
 
-        <Text style={[styles.paragraph, { color: MUTED_FOREGROUND[theme] }]}>
+        <PromptSheetParagraph theme={theme}>
           {t('signInParagraph', { appName: appName ?? '' })}
-        </Text>
+        </PromptSheetParagraph>
 
         <View style={styles.actions}>
-          <Pressable
+          <PromptSheetButton
             testID="sign-in-with-youversion-confirm"
-            accessibilityRole="button"
+            label={t('signInYesButton')}
             onPress={onConfirm}
-            style={[styles.button, { backgroundColor: FOREGROUND[theme] }]}
-          >
-            <Text style={[styles.buttonLabel, { color: theme === 'dark' ? '#121212' : '#ffffff' }]}>
-              {t('signInYesButton')}
-            </Text>
-          </Pressable>
+            variant="primary"
+            theme={theme}
+          />
 
-          <Pressable
+          <PromptSheetButton
             testID="sign-in-with-youversion-decline"
-            accessibilityRole="button"
+            label={t('signInNoButton')}
             onPress={onDismiss}
-            style={[styles.button, { borderColor: STROKE[theme] }]}
-          >
-            <Text style={[styles.buttonLabel, { color: FOREGROUND[theme] }]}>
-              {t('signInNoButton')}
-            </Text>
-          </Pressable>
+            variant="secondary"
+            theme={theme}
+          />
         </View>
       </View>
     </NativeSheet>
@@ -108,27 +94,9 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
-  paragraph: {
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
   actions: {
     alignItems: 'center',
     gap: 12,
     paddingTop: 8,
-  },
-  button: {
-    alignItems: 'center',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    width: BUTTON_WIDTH,
-  },
-  buttonLabel: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 })

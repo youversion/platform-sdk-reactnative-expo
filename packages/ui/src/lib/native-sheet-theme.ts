@@ -39,6 +39,36 @@ export const SHEET_MUTED_BACKGROUND: Record<Theme, string> = {
 }
 
 /**
+ * Primary on-surface color: body text, icons, and the fill of a solid button.
+ * Mirrors the Web SDK --yv-foreground.
+ */
+export const SHEET_FOREGROUND: Record<Theme, string> = {
+  light: '#121212',
+  dark: '#ffffff',
+}
+
+/**
+ * Label color for a button filled with {@link SHEET_FOREGROUND}, which inverts
+ * the surface and so needs the surface's own color back for its text.
+ */
+export const SHEET_INVERSE_FOREGROUND: Record<Theme, string> = {
+  light: '#ffffff',
+  dark: '#121212',
+}
+
+/** Secondary on-surface color: supporting paragraphs and eyebrow labels. Mirrors --yv-muted-foreground. */
+export const SHEET_MUTED_FOREGROUND: Record<Theme, string> = {
+  light: '#6b6a6a',
+  dark: '#a8a5a5',
+}
+
+/** Hairline border on an outlined control drawn over the sheet surface. {@link SHEET_FOREGROUND} at 20%. */
+export const SHEET_STROKE: Record<Theme, string> = {
+  light: 'rgba(18, 18, 18, 0.2)',
+  dark: 'rgba(255, 255, 255, 0.2)',
+}
+
+/**
  * Upward drop shadow separating a sheet's top edge from the content behind it.
  * Two layers, the way Material fakes elevation: a tight contact shadow for the
  * edge and a wide ambient one for depth.

@@ -1,3 +1,5 @@
+import type { PlatformOSType } from 'react-native'
+
 /**
  * Which verse-action UI the WebView reader should run, given the host platform.
  *
@@ -10,6 +12,6 @@
  * branch is testable at layer 1 — a platform fork is invisible to a layer-3 test
  * that always runs as one platform.
  */
-export function resolveVerseActions(platformOS: string): 'popover' | 'none' {
+export function resolveVerseActions(platformOS: PlatformOSType): 'popover' | 'none' {
   return platformOS === 'web' ? 'popover' : 'none'
 }

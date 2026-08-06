@@ -7,7 +7,7 @@
  * The invariant across both: exactly one sheet is active, so a prompt never
  * displaces the action sheet and fires `closeVerseActions` as a side effect.
  */
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { act, render, screen, userEvent } from '@testing-library/react-native'
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
 import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
@@ -220,17 +220,15 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+const user = userEvent.setup()
+
 async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTION) {
   mockNextVerseSelection = verseSelection
-  await act(async () => {
-    fireEvent.press(screen.getByTestId('trigger-verse-select'))
-  })
+  await user.press(screen.getByTestId('trigger-verse-select'))
 }
 
 async function press(testID: string) {
-  await act(async () => {
-    fireEvent.press(screen.getByTestId(testID))
-  })
+  await user.press(screen.getByTestId(testID))
 }
 
 function openSheetCount() {

@@ -2,7 +2,8 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
  * The "YouVersion Platform" wordmark that heads the sign-in sheet. Not the same
- * mark as {@link BibleAppLogo}, which is the Bible App's icon on the auth button.
+ * mark as `BibleAppLogo` (`native/bible-app-logo.tsx`), which is the Bible App's
+ * icon on the auth button.
  */
 
 const FILL = {

@@ -6,7 +6,7 @@
  * the WebView, so every assertion here is on the native side of the bridge plus
  * the one value travelling back: the clear signal.
  */
-import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
 import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
@@ -216,12 +216,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+const user = userEvent.setup()
+
 /** Emit a verse selection from the WebView, the way a verse tap would. */
 async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTION) {
   mockNextVerseSelection = verseSelection
-  await act(async () => {
-    fireEvent.press(screen.getByTestId('trigger-verse-select'))
-  })
+  await user.press(screen.getByTestId('trigger-verse-select'))
 }
 
 beforeEach(() => {
@@ -326,9 +326,7 @@ describe('BibleReader verse action sheet — the bridge', () => {
     expect(latestDomProps.clearSelectionSignal).toBe(7)
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('sheet-dismiss'))
-    })
+    await user.press(screen.getByTestId('sheet-dismiss'))
 
     expect(latestDomProps.clearSelectionSignal).toBe(8)
   })
@@ -338,9 +336,7 @@ describe('BibleReader verse action sheet — the bridge', () => {
 
     await selectVerses()
     const before = latestDomProps.clearSelectionSignal
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('sheet-dismiss'))
-    })
+    await user.press(screen.getByTestId('sheet-dismiss'))
 
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
     expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
@@ -364,9 +360,7 @@ describe('BibleReader verse action sheet — swatches', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${GREEN}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${GREEN}`))
 
     // The flow's `apply`, not `useHighlights.apply`: a signed-out or
     // unpermitted user must get the sign-in / consent step, not a failed write.
@@ -380,9 +374,7 @@ describe('BibleReader verse action sheet — swatches', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
 
     // ADR 0016: a user looking at their own highlight already has whatever the
     // write needs, so removal never runs the flow.
@@ -395,9 +387,7 @@ describe('BibleReader verse action sheet — swatches', () => {
 
     await selectVerses()
     const before = latestDomProps.clearSelectionSignal
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${YELLOW}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${YELLOW}`))
 
     expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
@@ -409,9 +399,7 @@ describe('BibleReader verse action sheet — swatches', () => {
 
     await selectVerses()
     const before = latestDomProps.clearSelectionSignal
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-remove-${BLUE}`))
 
     expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
@@ -421,9 +409,7 @@ describe('BibleReader verse action sheet — swatches', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('sheet-dismiss'))
-    })
+    await user.press(screen.getByTestId('sheet-dismiss'))
 
     expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
     expect(rawRemove).not.toHaveBeenCalled()
@@ -437,6 +423,9 @@ describe('BibleReader verse action sheet — swatches', () => {
  * layout pass, which never runs under jest.
  */
 describe('BibleReader verse action sheet — swatch tray overflow', () => {
+  // `fireEvent`, not `userEvent`, on purpose: `layout`, `contentSizeChange`, and
+  // the scroll offset they feed are the layout pass standing in for itself, not
+  // a gesture. `userEvent.scroll` would need the measurements this is supplying.
   function measureTray(trayWidth: number, contentWidth: number) {
     const scroll = screen.getByTestId('bible-verse-action-swatch-scroll')
     fireEvent(scroll, 'layout', { nativeEvent: { layout: { width: trayWidth } } })
@@ -469,9 +458,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
 
     // The fade is `pointerEvents="none"`: a swatch beneath it is still live.
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
 
@@ -520,9 +507,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
     expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
 
-    await act(async () => {
-      fireEvent.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
-    })
+    await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
 })
@@ -581,17 +566,13 @@ describe('BibleReader verse action sheet — copy and share', () => {
 
     await selectVerses()
     const before = latestDomProps.clearSelectionSignal
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-verse-action-copy'))
-    })
+    await user.press(screen.getByTestId('bible-verse-action-copy'))
     expect(Clipboard.setStringAsync).toHaveBeenCalledWith(SHARE_DATA.text)
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 1)
     expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-verse-action-share'))
-    })
+    await user.press(screen.getByTestId('bible-verse-action-share'))
     expect(Share.share).toHaveBeenCalledWith({ message: SHARE_DATA.text })
     expect(latestDomProps.clearSelectionSignal).toBe((before ?? 0) + 2)
   })
@@ -611,14 +592,10 @@ describe('BibleReader verse action sheet — copy and share', () => {
     )
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-verse-action-copy'))
-    })
+    await user.press(screen.getByTestId('bible-verse-action-copy'))
 
     await selectVerses()
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-verse-action-share'))
-    })
+    await user.press(screen.getByTestId('bible-verse-action-share'))
 
     expect(onCopy).toHaveBeenCalledWith(SHARE_DATA)
     expect(onShare).toHaveBeenCalledWith(SHARE_DATA)

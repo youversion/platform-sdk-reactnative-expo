@@ -3,23 +3,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
+import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
-
-/**
- * On-surface colors, drawn over the sheet surface `NativeSheet` supplies from
- * its Sheet Surface Parity tokens.
- */
-const FOREGROUND: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
-const SWATCH_STROKE: Record<Theme, string> = {
-  light: 'rgba(18, 18, 18, 0.2)',
-  dark: 'rgba(255, 255, 255, 0.2)',
-}
-/** Light mode paints the check in Text/Everdark; dark mode dims the fill, so it goes white. */
-const CHECK_COLOR: Record<Theme, string> = { light: '#121212', dark: '#ffffff' }
 
 /**
  * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
@@ -112,7 +100,7 @@ export function BibleVerseActionSheet({
       <View testID="bible-verse-action-sheet" style={styles.container}>
         <Text
           testID="bible-verse-action-reference"
-          style={[styles.reference, { color: FOREGROUND[theme] }]}
+          style={[styles.reference, { color: SHEET_FOREGROUND[theme] }]}
         >
           {reference}
         </Text>
@@ -148,12 +136,18 @@ export function BibleVerseActionSheet({
                     styles.swatch,
                     {
                       backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
-                      borderColor: SWATCH_STROKE[theme],
+                      borderColor: SHEET_STROKE[theme],
                     },
                   ]}
                 >
+                  {/*
+                   * The check takes the on-surface foreground, not a contrast
+                   * pick against the fill: light mode paints a full-strength
+                   * swatch in Text/Everdark, and dark mode fades the fill to
+                   * 30%, so white reads on both.
+                   */}
                   {swatch.state === 'remove' && (
-                    <CheckIcon color={CHECK_COLOR[theme]} size={CHECK_ICON_SIZE} />
+                    <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
                   )}
                 </Pressable>
               ))}
@@ -169,8 +163,10 @@ export function BibleVerseActionSheet({
             onPress={onCopyPress}
             style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
           >
-            <CopyIcon color={FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
-            <Text style={[styles.actionLabel, { color: FOREGROUND[theme] }]}>{t('copy')}</Text>
+            <CopyIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
+            <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
+              {t('copy')}
+            </Text>
           </Pressable>
 
           <Pressable
@@ -179,8 +175,10 @@ export function BibleVerseActionSheet({
             onPress={onSharePress}
             style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
           >
-            <ShareIcon color={FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
-            <Text style={[styles.actionLabel, { color: FOREGROUND[theme] }]}>{t('share')}</Text>
+            <ShareIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
+            <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
+              {t('share')}
+            </Text>
           </Pressable>
         </View>
       </View>
