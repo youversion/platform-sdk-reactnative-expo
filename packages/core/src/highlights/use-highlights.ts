@@ -1,5 +1,6 @@
 import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, type AppStateStatus } from 'react-native'
 
 import type { AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
@@ -121,6 +122,21 @@ function classifyApiError(error: HighlightsApiError): HighlightWriteReason {
  */
 export function shouldFetchHighlights(requested: readonly AuthPermission[]): boolean {
   return requested.includes('highlights')
+}
+
+/**
+ * Should returning to the foreground re-fetch? Only for `background → active`.
+ *
+ * Never `inactive → active`: `expo-web-browser` parks the app in `inactive`
+ * during PKCE sign-in and the data-exchange consent page on iOS, and both of
+ * those already re-fetch on the identity or token change they cause.
+ *
+ * Deliberately stricter than the auth provider's unfiltered `active` listener,
+ * which guards a leeway-gated token refresh that is nearly free; this one guards
+ * a network GET. Do not align them in either direction.
+ */
+export function shouldRefetchOnForeground(previous: AppStateStatus, next: AppStateStatus): boolean {
+  return previous === 'background' && next === 'active'
 }
 
 let hasWarnedMissingUserId = false
@@ -345,6 +361,25 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     inFlightRef.current = null
     void runFetch()
   }, [identityKey, accessToken, runFetch])
+
+  // Highlights created on another device (or on youversion.com) land while the
+  // app is backgrounded, so a return to the foreground is a refetch trigger.
+  // `runFetch` already early-returns for a permission that was never requested
+  // and for a signed-out user, and joins any fetch in flight, so this needs no
+  // conditions of its own. The event carries only the next state; the previous
+  // one is tracked here, seeded from whatever the app is in at mount.
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState)
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      const previous = appStateRef.current
+      appStateRef.current = next
+      if (shouldRefetchOnForeground(previous, next)) {
+        void runFetch()
+      }
+    })
+    return () => subscription.remove()
+  }, [runFetch])
 
   const refresh = useCallback((): Promise<void> => runFetch(), [runFetch])
 

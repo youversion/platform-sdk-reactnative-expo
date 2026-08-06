@@ -16,7 +16,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -85,6 +85,31 @@ function sameScope(a: HighlightScope, b: HighlightScope): boolean {
  */
 export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 
+/**
+ * The reader's imperative surface, passed as `ref`.
+ *
+ * The SDK refreshes highlights on its own when the app returns to the
+ * foreground. Navigation focus is the gap this fills — detecting it would force
+ * `@react-navigation/native` on every consumer as a peer, so the host triggers
+ * it instead:
+ *
+ * ```tsx
+ * const reader = useRef<BibleReaderHandle>(null)
+ * useFocusEffect(useCallback(() => {
+ *   void reader.current?.refreshHighlights()
+ * }, []))
+ * return <BibleReader ref={reader} />
+ * ```
+ */
+export type BibleReaderHandle = {
+  /**
+   * Re-fetch the current chapter's highlights. Never rejects — a failed fetch
+   * leaves the painted highlights alone — and concurrent calls join the one
+   * request in flight, so it is safe to await for a pull-to-refresh spinner.
+   */
+  refreshHighlights: () => Promise<void>
+}
+
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
   | 'appKey'
@@ -132,6 +157,8 @@ export type BibleReaderProps = Omit<
   onCopy?: (data: BibleReaderShareData) => void | Promise<void>
   /** Share's counterpart to {@link BibleReaderProps.onCopy}. Falls back to RN's `Share.share`. */
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
+  /** See {@link BibleReaderHandle}. React 19 ref-as-prop; no `forwardRef` involved. */
+  ref?: Ref<BibleReaderHandle>
 }
 
 export function BibleReader({
@@ -162,6 +189,7 @@ export function BibleReader({
   backgroundColor,
   foregroundColor,
   dom,
+  ref,
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
@@ -222,7 +250,12 @@ export function BibleReader({
     highlights,
     scope: highlightScope,
     remove: removeHighlight,
+    // Core's own promise, not a wrapper: it never rejects and joins whatever
+    // fetch is in flight, which is what makes it safe for a host to await.
+    refresh: refreshHighlights,
   } = highlightPermissionFlow.highlights
+
+  useImperativeHandle(ref, () => ({ refreshHighlights }), [refreshHighlights])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.

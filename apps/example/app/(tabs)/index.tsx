@@ -1,10 +1,12 @@
 import {
   BibleReader,
+  type BibleReaderHandle,
   type BibleReaderShareData,
   type BibleReaderVerseSelection,
 } from '@youversion/platform-react-native-expo-ui'
 import * as Clipboard from 'expo-clipboard'
-import { useCallback, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useRef, useState } from 'react'
 import { Pressable, Share, StyleSheet, Switch, Text, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -30,6 +32,16 @@ export default function BibleScreen() {
   const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
   const [useCustomActions, setUseCustomActions] = useState(false)
   const [lastAction, setLastAction] = useState<string | null>(null)
+
+  // The SDK refreshes highlights when the app returns to the foreground; tab
+  // focus is the host's to trigger, so it does not force a navigation library
+  // on every consumer.
+  const reader = useRef<BibleReaderHandle>(null)
+  useFocusEffect(
+    useCallback(() => {
+      void reader.current?.refreshHighlights()
+    }, []),
+  )
 
   const onVerseSelect = useCallback(async (next: BibleReaderVerseSelection) => {
     setSelectedVerses(next.verses.length > 0 ? next : null)
@@ -84,6 +96,7 @@ export default function BibleScreen() {
       </View>
 
       <BibleReader
+        ref={reader}
         defaultVersionId={3034}
         onVerseSelect={onVerseSelect}
         clearSelectionSignal={clearSelectionSignal}

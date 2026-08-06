@@ -4,6 +4,7 @@ export { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 export type { BibleChapterPickerSheetProps } from './bible-chapter-picker-sheet'
 export { BibleReader } from './bible-reader'
 export type {
+  BibleReaderHandle,
   BibleReaderProps,
   BibleReaderShareData,
   BibleReaderVerseSelection,

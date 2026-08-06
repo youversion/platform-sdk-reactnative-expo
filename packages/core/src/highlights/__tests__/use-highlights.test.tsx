@@ -1,6 +1,6 @@
 import type { Collection, Highlight } from '@youversion/platform-core'
 import { act, render, renderHook } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
@@ -198,6 +198,20 @@ function seedServer(highlights: Highlight[]) {
   mockGetHighlights.mockResolvedValue(collection(highlights))
 }
 
+const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
+const mockAppStateRemove = jest.fn()
+
+/** Drive the hook's own listener, as the OS would. */
+function fireAppStateChange(next: AppStateStatus): void {
+  const handler = mockAppStateAddEventListener.mock.calls.at(-1)?.[1] as
+    | ((state: AppStateStatus) => void)
+    | undefined
+  if (handler === undefined) {
+    throw new Error('The hook never subscribed to AppState.')
+  }
+  handler(next)
+}
+
 function readCache(forUser = userId, forScope = scope): Highlight[] | null {
   const raw = mockMmkv.get(highlightsCacheKey(forUser, forScope))
   return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
@@ -210,6 +224,7 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 beforeEach(() => {
   mockMmkv.clear()
   jest.clearAllMocks()
+  mockAppStateAddEventListener.mockImplementation(() => ({ remove: mockAppStateRemove }) as never)
   // `clearAllMocks` clears calls but NOT queued `mockResolvedValueOnce` values,
   // so an unconsumed queue would leak into the next test. Reset these three
   // explicitly rather than `resetAllMocks`, which would also wipe the MMKV fake.
@@ -517,6 +532,108 @@ describe('fetching server truth', () => {
 
     expect(mockGetHighlights).toHaveBeenCalledTimes(1)
     expect(result.current.isRefreshing).toBe(false)
+  })
+})
+
+// ── Refetch triggers ─────────────────────────────────────────────────────────
+
+describe('refetching when the app returns to the foreground', () => {
+  it('subscribes on mount and removes the listener on unmount', async () => {
+    const { unmount } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockAppStateAddEventListener).toHaveBeenCalledWith('change', expect.any(Function))
+
+    unmount()
+    expect(mockAppStateRemove).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetches server truth on background → active', async () => {
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+
+    // A highlight the user made elsewhere while this app was backgrounded.
+    mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', GREEN)]))
+    await act(async () => {
+      fireAppStateChange('background')
+      fireAppStateChange('active')
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).toHaveBeenCalledTimes(2)
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+  })
+
+  it('ignores inactive → active, where an iOS auth session parks the app', async () => {
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      fireAppStateChange('inactive')
+      fireAppStateChange('active')
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+  })
+
+  it('joins an in-flight fetch rather than issuing a second GET', async () => {
+    const pending = deferred<Result<Collection<Highlight>, HighlightsApiError>>()
+    mockGetHighlights.mockReturnValueOnce(pending.promise)
+
+    renderUseHighlights()
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      fireAppStateChange('background')
+      fireAppStateChange('active')
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      pending.resolve(collection([]))
+      await pending.promise
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('refetching on a chapter change', () => {
+  // Worked from the start, but was never pinned — and it is one of this
+  // ticket's acceptance criteria, alongside the foreground trigger above.
+  it('fetches again each time the reader leaves a chapter and comes back', async () => {
+    const other = { versionId: 111, book: 'JHN', chapter: '4' }
+    const { rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      rerender(other)
+    })
+    expect(mockGetHighlights).toHaveBeenLastCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.4',
+    })
+
+    await act(async () => {
+      rerender(options)
+    })
+    expect(mockGetHighlights).toHaveBeenCalledTimes(3)
+    expect(mockGetHighlights).toHaveBeenLastCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.3',
+    })
   })
 })
 
