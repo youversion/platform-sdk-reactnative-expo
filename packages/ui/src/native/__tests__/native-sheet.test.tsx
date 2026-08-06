@@ -437,6 +437,50 @@ describe('NativeSheet', () => {
   })
 
   /**
+   * `panActiveOffsetY` is how a sheet keeps a horizontally scrolling child
+   * usable on Android. Gorhom leaves `activeOffsetY` unset, which drops RNGH's
+   * pan back to a direction-agnostic touch slop — the sheet then claims sideways
+   * drags and cancels the nested scrollable's touches. Supplying a vertical-only
+   * threshold is what keeps swipe-down *and* the scroll, so both the default
+   * (absent) and the forwarded value are pinned here.
+   */
+  it('leaves the sheet pan unconstrained by default', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(<SheetHarness isOpen={true} />)
+
+    expect(latestBottomSheetProps.activeOffsetY).toBeUndefined()
+    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
+  })
+
+  it('forwards panActiveOffsetY to the Gorhom pan as activeOffsetY', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <SheetProvider>
+        <View>
+          <NativeSheet isOpen={true} onClose={() => {}} panActiveOffsetY={[-10, 10]}>
+            <Text testID="sheet-content">Sheet content</Text>
+          </NativeSheet>
+        </View>
+      </SheetProvider>,
+    )
+
+    expect(latestBottomSheetProps.activeOffsetY).toEqual([-10, 10])
+    // Constraining activation must not be confused with disabling the gesture:
+    // `enableContentPanningGesture={false}` would take swipe-down with it.
+    expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
+  })
+
+  /**
    * Android's active host is normally `auto`, which would put the dropped
    * backdrop's job back on the absoluteFill wrapper. `box-none` lets the taps
    * through to the content behind while the sheet itself stays interactive.

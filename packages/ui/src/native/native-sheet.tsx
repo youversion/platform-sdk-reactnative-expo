@@ -60,6 +60,25 @@ type NativeSheetProps = {
   // every tap. Tap-to-dismiss goes with the backdrop, so a non-modal caller owns
   // its own dismissal.
   modal?: boolean
+  // Vertical travel, in points, before the sheet's pan gesture may activate.
+  // Unset by default, and that default is what breaks a horizontally scrolling
+  // child on Android: RNGH's PanGestureHandler falls back to `minDist`, the
+  // platform touch slop, which is direction-agnostic — so a sideways drag over a
+  // nested ScrollView activates the *sheet's* pan. Activation cancels the touch
+  // stream in every native view underneath (RNGestureHandlerRootHelper's
+  // RootViewGestureHandler.onCancel → onChildStartedNativeGesture), so the
+  // ScrollView never scrolls at all.
+  //
+  // Supplying any custom activation criterion makes RNGH drop `minDist`
+  // entirely (PanGestureHandler.kt), so a vertical-only threshold means a
+  // horizontal drag can no longer reach the sheet. The child keeps its touches,
+  // and once it starts scrolling it calls requestDisallowInterceptTouchEvent,
+  // which RNGH turns into a cancel of the sheet's pan — a clean handoff.
+  //
+  // Reach for this instead of `enableContentPanningGesture={false}`, which cures
+  // the same symptom by removing swipe-down. Gorhom applies the value to the
+  // handle pan as well as the content pan; both still open on a deliberate drag.
+  panActiveOffsetY?: [number, number]
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
@@ -85,6 +104,7 @@ export function NativeSheet({
   onClose,
   onDismissKeyboardStart,
   modal = true,
+  panActiveOffsetY,
   children,
   showAndroidLoader = false,
   loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
@@ -133,6 +153,7 @@ export function NativeSheet({
         onClose={onClose}
         onDismissKeyboardStart={onDismissKeyboardStart}
         modal={modal}
+        panActiveOffsetY={panActiveOffsetY}
         showAndroidLoader={showAndroidLoader}
         loaderMinHeight={loaderMinHeight}
         theme={theme}
@@ -156,6 +177,7 @@ function SheetHost({
   onClose,
   onDismissKeyboardStart,
   modal,
+  panActiveOffsetY,
   children,
   showAndroidLoader,
   loaderMinHeight,
@@ -173,6 +195,7 @@ function SheetHost({
   onClose: () => void
   onDismissKeyboardStart?: () => void
   modal: boolean
+  panActiveOffsetY?: [number, number]
   children: React.ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
@@ -330,6 +353,7 @@ function SheetHost({
         enableContentPanningGesture={
           suppressInactiveSheet ? false : (enableContentPanningGesture ?? true)
         }
+        activeOffsetY={panActiveOffsetY}
         backdropComponent={suppressInactiveSheet || !modal ? renderNoBackdrop : renderSheetBackdrop}
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}

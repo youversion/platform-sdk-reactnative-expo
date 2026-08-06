@@ -42,6 +42,28 @@ const FADE_WIDTH = SWATCH_SIZE
 /** Minimum spacing between swatches once the tray overflows and `space-evenly` has no slack left. */
 const SWATCH_GAP = 8
 
+/**
+ * Vertical travel, in points, before the sheet's pan gesture may take over.
+ *
+ * Without it the tray does not scroll on Android at all. Gorhom's pan has no
+ * activation criteria by default, so RNGH falls back to a direction-agnostic
+ * touch slop and the sheet claims a sideways drag — which cancels the touch
+ * stream in the `ScrollView` underneath it. The trailing fade still rendered, so
+ * the tray knew swatches were hidden; they were simply unreachable. Overflow is
+ * routine here (seven swatches the moment a selection spans two colors), which
+ * made that a common case, not an edge one.
+ *
+ * A vertical-only threshold is the fix that keeps both halves. Turning the
+ * content pan off also scrolls the tray, but takes swipe-down with it — and this
+ * is the one sheet with no backdrop, so swipe-down is its only exit that does
+ * not require acting on the sheet. Verified on device: with content panning off,
+ * neither a pan nor a fling on the grabber closed it.
+ *
+ * 10 sits just above Android's ~8dp touch slop, so a horizontal drag reliably
+ * reaches the tray first, while a swipe-down clears it in its opening points.
+ */
+const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
+
 /** `fffe00` → `rgba(255, 254, 0, 0.3)`. Input is always 6-char hex, no `#`. */
 function hexToRgba(hex: string, alpha: number): string {
   const value = Number.parseInt(hex, 16)
@@ -96,7 +118,17 @@ export function BibleVerseActionSheet({
     // stays bright and tappable. A backdrop would take the tap that extends the
     // selection. The exits are swipe-down, deselection, and the sheet's own
     // buttons.
-    <NativeSheet isOpen={isOpen} onClose={onClose} theme={theme} modal={false}>
+    //
+    // `panActiveOffsetY` keeps the swatch tray scrollable without giving any of
+    // that up: the sheet's pan needs vertical intent, so a sideways drag belongs
+    // to the tray. See PAN_ACTIVE_OFFSET_Y.
+    <NativeSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      theme={theme}
+      modal={false}
+      panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
+    >
       <View testID="bible-verse-action-sheet" style={styles.container}>
         <Text
           testID="bible-verse-action-reference"

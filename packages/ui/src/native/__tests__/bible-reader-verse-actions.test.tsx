@@ -180,7 +180,16 @@ jest.mock('../bible-reader-settings-sheet', () => {
  * non-modal contract is pinned. That is not cosmetic: a modal sheet renders a
  * backdrop that swallows taps on the passage, which makes it impossible to add a
  * second verse to the selection.
+ *
+ * `latestSheetProps` captures the gesture props for the same reason: the swatch
+ * tray's horizontal scroll and the sheet's swipe-down both depend on how the
+ * sheet's pan is configured, and only one configuration keeps both.
  */
+let latestSheetProps: {
+  enableContentPanningGesture?: boolean
+  panActiveOffsetY?: [number, number]
+} = {}
+
 jest.mock('../native-sheet', () => {
   const actual = jest.requireActual('../native-sheet')
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -191,14 +200,23 @@ jest.mock('../native-sheet', () => {
       isOpen,
       onClose,
       modal,
+      enableContentPanningGesture,
+      panActiveOffsetY,
       children,
     }: {
       isOpen: boolean
       onClose: () => void
       modal?: boolean
+      enableContentPanningGesture?: boolean
+      panActiveOffsetY?: [number, number]
       children: ReactNode
-    }) =>
-      isOpen ? (
+    }) => {
+      if (isOpen) {
+        // Module-level capture cell for the open sheet's gesture props —
+        // intentional test infra, the same pattern as `latestDomProps` above.
+        latestSheetProps = { enableContentPanningGesture, panActiveOffsetY }
+      }
+      return isOpen ? (
         <View testID="sheet">
           <View testID={`sheet-modal-${modal !== false}`} />
           <Pressable testID="sheet-dismiss" onPress={onClose}>
@@ -206,7 +224,8 @@ jest.mock('../native-sheet', () => {
           </Pressable>
           {children}
         </View>
-      ) : null,
+      ) : null
+    },
   }
 })
 
@@ -226,6 +245,7 @@ async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTIO
 
 beforeEach(() => {
   latestDomProps = {}
+  latestSheetProps = {}
   mockNextVerseSelection = SELECTION
   highlightPermissionFlowApply.mockClear()
   rawApply.mockClear()
@@ -269,6 +289,28 @@ describe('BibleReader verse action sheet — visibility', () => {
     await selectVerses()
 
     expect(screen.getByTestId('sheet-modal-false')).toBeTruthy()
+  })
+
+  /**
+   * Regression guard, from a Pixel 6 Pro pass where the swatch tray would not
+   * scroll at all. Gorhom's pan has no activation criteria by default, so RNGH
+   * falls back to a direction-agnostic touch slop, the sheet claims the sideways
+   * drag, and the tray's ScrollView has its touches cancelled. Every swatch past
+   * the sixth was unreachable — routine, since a selection spanning two colors
+   * already produces seven.
+   *
+   * Both halves of this assertion matter. Constraining the pan to vertical
+   * intent is the fix; disabling content panning cures the same symptom but
+   * removes swipe-down, and this backdrop-less sheet has no tap-outside exit to
+   * fall back on.
+   */
+  it('constrains the sheet pan to vertical intent so the swatch tray can scroll', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(latestSheetProps.panActiveOffsetY).toEqual([-10, 10])
+    expect(latestSheetProps.enableContentPanningGesture).toBeUndefined()
   })
 
   it('closes when the selection clears', async () => {
