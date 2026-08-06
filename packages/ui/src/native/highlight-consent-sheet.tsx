@@ -8,11 +8,11 @@ import { PromptSheetButton, PromptSheetParagraph } from './prompt-sheet'
 
 export type HighlightConsentSheetProps = {
   isOpen: boolean
-  /** "Continue" — hand off to the just-in-time Data Exchange grant. */
+  /** "Continue". Hands off to the just-in-time Data Exchange grant. */
   onConfirm: () => void
   /**
-   * "Cancel", a swipe-down, a backdrop tap, or displacement by another sheet —
-   * every one of them a decline. Route all of them here; a dismissal path that
+   * "Cancel", a swipe-down, a backdrop tap, or displacement by another sheet.
+   * Every one is a decline, so route all of them here. A dismissal path that
    * skips `decline()` strands the flow with `isConfirming` still true.
    */
   onDismiss: () => void
@@ -23,9 +23,9 @@ export type HighlightConsentSheetProps = {
  * Just-in-time permission prompt, shown when a signed-in user without the
  * `highlights` permission taps a highlight color.
  *
- * Presentational only — it runs no Data Exchange itself. `isOpen` is driven by
- * `useHighlightPermissionFlow`'s `isConfirming`; `onConfirm` is its `confirm()`
- * and `onDismiss` its `decline()`. Its buttons and paragraph come from
+ * Presentational only. It runs no Data Exchange itself. `useHighlightPermissionFlow`
+ * drives every prop: `isConfirming` is `isOpen`, `confirm()` is `onConfirm`, and
+ * `decline()` is `onDismiss`. Its buttons and paragraph come from
  * `prompt-sheet.tsx`, shared with `SignInWithYouVersionSheet` so the two prompts
  * in the highlight flow read as one family.
  */

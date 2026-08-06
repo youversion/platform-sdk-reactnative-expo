@@ -3,11 +3,12 @@ import * as Application from 'expo-application'
 /**
  * The integrating app's display name, interpolated into the sign-in sheet's
  * `signInParagraph` ("{appName} wants to connect to your YouVersion Bible App
- * account…"). Reads the iOS display name / Android app label via
- * `expo-application`, so consumers configure nothing.
+ * account…"). `expo-application` reads the iOS display name or the Android app
+ * label, so consumers configure nothing.
  *
- * `null` when the platform reports no name (in practice, only web). Callers
- * interpolate an empty string rather than an untranslatable English default.
+ * Returns `null` when the platform reports no name, which in practice is only
+ * web. Callers interpolate an empty string instead of an untranslatable English
+ * default.
  */
 export function resolveAppName(): string | null {
   const name = Application.applicationName

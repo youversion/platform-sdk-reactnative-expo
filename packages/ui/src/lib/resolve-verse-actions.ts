@@ -1,16 +1,16 @@
 import type { PlatformOSType } from 'react-native'
 
 /**
- * Which verse-action UI the WebView reader should run, given the host platform.
+ * Which verse-action UI the WebView reader runs on a given platform.
  *
- * `'none'` on iOS and Android, where `BibleVerseActionSheet` renders the
- * reference, swatch tray, Copy, and Share natively over the passage.
- * `'popover'` on web, where `NativeSheet` renders nothing and suppressing the
+ * iOS and Android get `'none'`, because `BibleVerseActionSheet` renders the
+ * reference, swatch tray, Copy, and Share natively over the passage. Web gets
+ * `'popover'`, because `NativeSheet` renders nothing there, and suppressing the
  * in-WebView popover would leave no verse action UI at all.
  *
- * Takes the platform as an argument, rather than reading `Platform.OS`, so the
- * branch is testable at layer 1 — a platform fork is invisible to a layer-3 test
- * that always runs as one platform.
+ * The platform is an argument instead of a `Platform.OS` read, which makes the
+ * branch testable at layer 1. A layer-3 test always runs as one platform, so it
+ * cannot see the fork.
  */
 export function resolveVerseActions(platformOS: PlatformOSType): 'popover' | 'none' {
   return platformOS === 'web' ? 'popover' : 'none'

@@ -12,8 +12,8 @@ const FILL = {
 } as const
 
 /**
- * 238 ÷ 20. The mark is extremely wide, so callers size it by width and let
- * height follow — {@link youVersionPlatformLogoSize} does that.
+ * 238 ÷ 20. The mark is very wide, so callers size it by width and let the
+ * height follow. {@link youVersionPlatformLogoSize} does that.
  */
 export const YOUVERSION_PLATFORM_LOGO_ASPECT_RATIO = 238 / 20
 

@@ -9,18 +9,18 @@ import { Pressable, Share, StyleSheet, Switch, Text, useColorScheme, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 /**
- * Tapping a verse opens the SDK's native verse action sheet: the reference, the
- * highlight swatches, Copy, and Share. Nothing on this screen opens it — the
- * reader owns it.
+ * A verse tap opens the SDK's native verse action sheet: the reference, the
+ * highlight swatches, Copy, and Share. Nothing on this screen opens the sheet.
+ * The reader owns it.
  *
- * What this screen demos is the two things a host can do around it:
+ * This screen shows the two things a host app can do around the sheet:
  *
  * 1. Observe the selection (`onVerseSelect`) and clear it (`clearSelectionSignal`).
  *    The strip under the header is app UI, not SDK UI. It sits at the top
  *    because the verse action sheet owns the bottom of the screen while a
  *    selection is live.
- * 2. Replace Copy and Share (`onCopy` / `onShare`). The toggle leaves the SDK
- *    fallbacks reachable, so both paths can be exercised on a device.
+ * 2. Replace Copy and Share (`onCopy` / `onShare`). The toggle keeps the SDK
+ *    fallbacks reachable, so a device can test both paths.
  */
 export default function BibleScreen() {
   const isDark = useColorScheme() === 'dark'
@@ -35,9 +35,9 @@ export default function BibleScreen() {
     setSelectedVerses(next.verses.length > 0 ? next : null)
   }, [])
 
-  // An override wins over the SDK's `expo-clipboard` / `Share.share` fallback.
-  // `data.text` is the verse text plus the reference line; the other fields are
-  // there so a host can build its own string.
+  // An override wins over the SDK's `expo-clipboard` and `Share.share`
+  // fallbacks. `data.text` is the verse text plus the reference line. The other
+  // fields are there so a host app can build its own string.
   const onCopy = useCallback(async (data: BibleReaderShareData) => {
     await Clipboard.setStringAsync(`${data.text}\n\nCopied from the example app`)
     setLastAction(`Custom copy: ${data.reference}`)

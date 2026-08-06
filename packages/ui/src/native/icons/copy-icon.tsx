@@ -4,7 +4,7 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
  * The Copy glyph on the verse action sheet.
  *
  * Decorative: it always sits inside a button that carries its own localized
- * label, so it is hidden from assistive tech rather than labelled twice.
+ * label, so it is hidden from assistive tech instead of labeled twice.
  */
 export function CopyIcon({ color, size = 20, ...props }: SvgProps & { size?: number }) {
   return (

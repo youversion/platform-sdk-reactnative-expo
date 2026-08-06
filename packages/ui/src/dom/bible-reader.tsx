@@ -37,13 +37,13 @@ type BibleReaderBaseProps = {
    */
   highlights: Highlight[]
   /**
-   * Whether the reader draws its in-WebView verse action popover. Supplied by
-   * the native wrapper from `lib/resolve-verse-actions.ts` — `'none'` on iOS and
-   * Android, where the native sheet takes over, `'popover'` on web.
+   * Whether the reader draws its in-WebView verse action popover. The native
+   * wrapper supplies it from `lib/resolve-verse-actions.ts`: `'none'` on iOS and
+   * Android, where the native sheet takes over, and `'popover'` on web.
    *
-   * A prop rather than a `Platform.OS` read because this file runs inside the
-   * WebView, and required rather than defaulted because the inherited default of
-   * `'popover'` is wrong on native.
+   * It is a prop instead of a `Platform.OS` read, because this file runs inside
+   * the WebView. It is required instead of defaulted, because the inherited
+   * default of `'popover'` is wrong on native.
    */
   verseActions: 'popover' | 'none'
   /**

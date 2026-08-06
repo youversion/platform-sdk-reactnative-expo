@@ -148,13 +148,13 @@ function ReaderScreen() {
 
 #### Verse actions
 
-Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share — the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
+Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
 
-The sheet has no backdrop, so a second verse tap reaches the passage and extends the selection. Dismiss it by swiping down, by deselecting the verses, or by acting on it.
+The sheet has no backdrop, so a second verse tap reaches the passage and extends the selection. To dismiss the sheet, swipe down, deselect the verses, or act on the sheet.
 
-The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). A user who is signed out, or who has not granted the permission, is prompted for exactly what is missing and their color choice is applied afterwards, without reselecting the verse.
+The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). The sheet asks a signed-out user, or one without the permission, for exactly what is missing. It then applies their color choice, with no reselecting of the verse.
 
-Copy and Share fall back to `expo-clipboard` and React Native's `Share`. Pass `onCopy` or `onShare` to handle either yourself:
+Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To handle either one yourself, pass `onCopy` or `onShare`:
 
 ```tsx
 <BibleReader
@@ -168,7 +168,7 @@ Copy and Share fall back to `expo-clipboard` and React Native's `Share`. Pass `o
 />
 ```
 
-On web, `BibleReader` keeps the React Web SDK's verse action popover instead, because native bottom sheets do not exist there. Its Copy and Share work; its color swatches do not write.
+On web, `BibleReader` keeps the React Web SDK's verse action popover, because native bottom sheets do not exist there. Its Copy and Share work. Its color swatches do not write.
 
 #### Verse selection
 
@@ -186,7 +186,7 @@ const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
 />
 ```
 
-Clearing the selection also closes the verse action sheet. Clears arrive on `onVerseSelect` too, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
+Clearing the selection also closes the verse action sheet. Clears arrive on `onVerseSelect` as well, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
 #### Custom picker flows
 

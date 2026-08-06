@@ -4,8 +4,8 @@ import { HIGHLIGHT_COLORS, isHighlightColor } from '@youversion/platform-react-n
 /**
  * One circle in the verse action sheet's swatch tray.
  *
- * `state` is what a press does, not what the swatch looks like: `'remove'`
- * renders the checkmark and clears that color, `'apply'` renders the bare circle
+ * `state` is what a press does, not what the swatch looks like. `'remove'`
+ * renders the checkmark and clears that color. `'apply'` renders the bare circle
  * and paints it.
  */
 export type VerseActionSwatch = { color: HighlightColor; state: 'apply' | 'remove' }
@@ -14,7 +14,7 @@ export type BuildVerseActionSwatchesInput = {
   /** The verses currently selected in the reader. */
   verses: readonly number[]
   /**
-   * Verse → color for the chapter on screen, optimistic paint included —
+   * Verse to color for the chapter on screen, optimistic paint included. It is
    * `deriveServerColors(highlights, scope)` over what `useHighlights` returns.
    */
   colors: ServerColors
@@ -26,9 +26,9 @@ export type BuildVerseActionSwatchesInput = {
  * palette order.
  *
  * The apply row offers the whole palette when part of the selection is
- * unhighlighted or it already carries more than one color, and otherwise only
- * the colors not already present. Colors outside `HIGHLIGHT_COLORS` are ignored,
- * since the reader does not paint them either.
+ * unhighlighted, or when the selection already carries more than one color.
+ * Otherwise it offers only the colors not already present. Colors outside
+ * `HIGHLIGHT_COLORS` are ignored, because the reader does not paint them either.
  */
 export function buildVerseActionSwatches(
   input: BuildVerseActionSwatchesInput,
@@ -48,8 +48,8 @@ export function buildVerseActionSwatches(
 
   const unHighlightedCount = verses.length - highlightedVerseCount
   const allColorsActive = activeColors.size === HIGHLIGHT_COLORS.length
-  // The whole palette is offered when part of the selection is bare or it
-  // already carries more than one color — the cases where "apply this
+  // The whole palette is offered when part of the selection is bare, or when the
+  // selection already carries more than one color. In both cases "apply this
   // everywhere" still means something for a color already present somewhere.
   const showAllApplyColors = !allColorsActive && (unHighlightedCount > 0 || activeColors.size > 1)
   const colorsToApply = showAllApplyColors

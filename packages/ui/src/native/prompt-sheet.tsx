@@ -10,15 +10,15 @@ import {
 import type { Theme } from '../lib/resolve-theme'
 
 /**
- * The shared body parts of a **prompt sheet** — a `NativeSheet` that asks one
+ * The shared body parts of a **prompt sheet**: a `NativeSheet` that asks one
  * question and offers a confirm and a decline.
  *
- * `SignInWithYouVersionSheet` and `HighlightConsentSheet` are the two of them,
- * and they are back to back in the highlight flow: a signed-out swatch tap can
- * raise the first and then the second. They have to read as one family, so the
- * button shape and the supporting paragraph live here rather than being
- * maintained twice. Each sheet still owns its own `NativeSheet`, container, and
- * headline, which is where they legitimately differ.
+ * `SignInWithYouVersionSheet` and `HighlightConsentSheet` are the two prompt
+ * sheets, and they run back to back in the highlight flow. A signed-out swatch
+ * tap can raise the first and then the second, so they have to read as one
+ * family. The button shape and the supporting paragraph therefore live here
+ * instead of in both files. Each sheet still owns its own `NativeSheet`,
+ * container, and headline, which is where they differ.
  */
 
 /** Wide enough for the longest localized label, narrow enough to leave margin at the sheet's edge. */
@@ -27,7 +27,7 @@ const BUTTON_WIDTH = 260
 export type PromptSheetButtonProps = {
   label: string
   onPress: () => void
-  /** `'primary'` fills with the foreground and inverts its label; `'secondary'` is outlined. */
+  /** `'primary'` fills with the foreground and inverts its label. `'secondary'` is outlined. */
   variant: 'primary' | 'secondary'
   theme: Theme
   testID: string

@@ -14,9 +14,9 @@ const WORDMARK_WIDTH = 190
 
 export type SignInWithYouVersionSheetProps = {
   isOpen: boolean
-  /** "Yes Please" — launch the OAuth sign-in flow. */
+  /** "Yes Please". Launches the OAuth sign-in flow. */
   onConfirm: () => void
-  /** "No Thanks", a swipe-down, or a backdrop tap — every one of them a cancel. */
+  /** "No Thanks", a swipe-down, or a backdrop tap. Every one is a cancel. */
   onDismiss: () => void
   theme: Theme
 }
@@ -25,10 +25,10 @@ export type SignInWithYouVersionSheetProps = {
  * "Sign in with YouVersion" introduction sheet, shown when a signed-out user
  * taps a highlight color, before OAuth launches.
  *
- * Presentational only — it performs no OAuth and reads no config beyond the
- * app's own display name. Its buttons and paragraph come from
- * `prompt-sheet.tsx`, shared with `HighlightConsentSheet` so the two prompts in
- * the highlight flow read as one family.
+ * Presentational only. It runs no OAuth and reads no config beyond the app's own
+ * display name. Its buttons and paragraph come from `prompt-sheet.tsx`, shared
+ * with `HighlightConsentSheet` so the two prompts in the highlight flow read as
+ * one family.
  */
 export function SignInWithYouVersionSheet({
   isOpen,

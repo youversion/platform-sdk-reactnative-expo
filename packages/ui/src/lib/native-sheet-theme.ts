@@ -73,12 +73,12 @@ export const SHEET_STROKE: Record<Theme, string> = {
  * Two layers, the way Material fakes elevation: a tight contact shadow for the
  * edge and a wide ambient one for depth.
  *
- * Uses `boxShadow` because `shadowColor` is iOS-only and Android's `elevation`
- * cannot be aimed above an edge; the typed array form is used over the string
- * form. Requires the New Architecture (mandatory from Expo SDK 55) and Android
- * API 28+ for outset shadows — below that the sheet renders unshadowed.
+ * The shadow uses `boxShadow` in its typed array form, not the string form.
+ * `shadowColor` is iOS-only, and Android's `elevation` cannot be aimed above an
+ * edge. Outset shadows need the New Architecture (mandatory from Expo SDK 55)
+ * and Android API 28 or later. Below that the sheet renders unshadowed.
  *
- * Dark mode carries much higher alpha because a black shadow has little
+ * Dark mode carries much higher alpha, because a black shadow has little
  * luminance to spend against a near-black surface.
  */
 export const SHEET_TOP_SHADOW: Record<Theme, readonly BoxShadowValue[]> = {

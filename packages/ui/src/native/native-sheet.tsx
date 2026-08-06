@@ -53,12 +53,12 @@ type NativeSheetProps = {
   onClose: () => void
   // Fired when a backdrop tap or pan-down close animation starts, before onClose.
   onDismissKeyboardStart?: () => void
-  // false drops the backdrop entirely, so content behind the sheet stays at full
-  // brightness and stays interactive. The backdrop is removed rather than made
-  // transparent because Gorhom reads `enableTouchThrough` only for the initial
-  // pointerEvents, then overwrites it to 'auto' on open — an invisible backdrop
-  // would still swallow every tap. Tap-to-dismiss goes with it, so a non-modal
-  // caller owns its own dismissal.
+  // false drops the backdrop entirely, so content behind the sheet stays bright
+  // and interactive. The backdrop is removed instead of made transparent because
+  // Gorhom reads `enableTouchThrough` only for the initial pointerEvents, then
+  // overwrites it to 'auto' on open. An invisible backdrop would still swallow
+  // every tap. Tap-to-dismiss goes with the backdrop, so a non-modal caller owns
+  // its own dismissal.
   modal?: boolean
   children: React.ReactNode
   // iOS pre-warms matchContents and ignores this flag.
@@ -209,10 +209,11 @@ function SheetHost({
   }, [windowWidth])
 
   const surfaceColor = backgroundColor ?? (theme ? SHEET_SURFACE[theme] : undefined)
-  // The shadow is keyed off `theme`, not `surfaceColor`: an explicit
-  // `backgroundColor` on an unthemed sheet gets no shadow rather than a guessed
-  // one. It rides on `backgroundStyle` because Gorhom's default background is a
-  // bare View that spreads it, with nothing between it and the window to clip.
+  // The shadow is keyed off `theme`, not `surfaceColor`. An explicit
+  // `backgroundColor` on an unthemed sheet gets no shadow instead of a guessed
+  // one. The shadow rides on `backgroundStyle` because Gorhom's default
+  // background is a bare View that spreads it, with nothing between that View
+  // and the window to clip it.
   const backgroundStyle = useMemo<StyleProp<ViewStyle>>(() => {
     if (!surfaceColor) return undefined
     if (!theme) return { backgroundColor: surfaceColor }
@@ -254,8 +255,8 @@ function SheetHost({
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
-  // A non-modal active sheet needs box-none on Android too, or the wrapper eats
-  // the taps the dropped backdrop was supposed to let through.
+  // A non-modal active sheet needs box-none on Android too. Without it the
+  // wrapper eats the taps the dropped backdrop was supposed to let through.
   const outerPointerEvents: 'none' | 'box-none' | 'auto' =
     Platform.OS === 'android' ? (isActive ? (modal ? 'auto' : 'box-none') : 'none') : 'box-none'
 
