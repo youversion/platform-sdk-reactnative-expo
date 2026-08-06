@@ -388,7 +388,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         getToken !== null
           ? await getToken()
           : rawToken !== null
-            ? { status: 'ok', token: rawToken }
+            ? { status: 'ok', token: rawToken, userId: identityRef.current.userId }
             : { status: 'unavailable', reason: 'signed-out' }
 
       // The write chain outlives an identity change: `enqueue` serializes behind
@@ -403,7 +403,17 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // Compare user ids, not `captured.key`: the key also encodes scope, and a
       // write issued for JHN.3 that settles after the reader moved on to JHN.4
       // is still a legitimate write for JHN.3.
-      const isSameUser = identityRef.current.userId === captured.userId
+      //
+      // The token's own `userId` is the authority, not `identityRef`: the
+      // provider writes token and identity together, while `identityRef` is
+      // synced from a passive effect a render later. A sign-in as somebody else
+      // landing while this awaited above moves the token first, so an
+      // identityRef-only check would pass and send under the new user's
+      // credentials. Keeping the lagging check too costs nothing and still
+      // catches a sign-out on the no-accessor path.
+      const isSameUser =
+        identityRef.current.userId === captured.userId &&
+        (tokenResult.status !== 'ok' || tokenResult.userId === captured.userId)
 
       if (!isSameUser || tokenResult.status === 'unavailable') {
         // Revert the paint either way — a no-op in the user-switch case, where

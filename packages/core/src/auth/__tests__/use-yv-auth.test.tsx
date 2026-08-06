@@ -20,7 +20,7 @@ describe('useYVAuth', () => {
       signOut: jest.fn(),
       refreshNow: jest.fn(),
       ensureFreshToken: jest.fn(),
-      getAccessToken: jest.fn(async () => ({ status: 'ok', token: 'a' }) as const),
+      getAccessToken: jest.fn(async () => ({ status: 'ok', token: 'a', userId: 'u1' }) as const),
       isLoading: false,
       requestedPermissions: ['highlights'],
       grantedPermissions: null,

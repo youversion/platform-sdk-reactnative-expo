@@ -600,7 +600,7 @@ describe('AuthProvider — getAccessToken', () => {
 
     const result = await act(async () => latestAuth!.getAccessToken())
 
-    expect(result).toEqual({ status: 'ok', token: 'stored-access' })
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
@@ -624,7 +624,7 @@ describe('AuthProvider — getAccessToken', () => {
     mockRefreshTokens.mockResolvedValueOnce({ ...validTokens, access_token: 'fresh-access' })
     const result = await act(async () => latestAuth!.getAccessToken())
 
-    expect(result).toEqual({ status: 'ok', token: 'fresh-access' })
+    expect(result).toEqual({ status: 'ok', token: 'fresh-access', userId: null })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
   })
 
@@ -682,6 +682,42 @@ describe('AuthProvider — getAccessToken', () => {
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
+  // The pairing a caller with a captured identity relies on: the token and the
+  // id of whoever owns it come from the same read, so a sign-in that lands while
+  // the caller is awaiting cannot hand it a token attributed to the old user.
+  it('reports the signed-in user alongside the token, updated by a sign-in as somebody else', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'ada-access',
+      refreshToken: 'ada-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    expect(await act(async () => latestAuth!.getAccessToken())).toEqual({
+      status: 'ok',
+      token: 'ada-access',
+      userId: 'u1',
+    })
+
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: { ...validTokens, access_token: 'grace-access' },
+      userInfo: { id: 'u2', name: 'Grace' },
+      grantedPermissions: null,
+    })
+    await userEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(await act(async () => latestAuth!.getAccessToken())).toEqual({
+      status: 'ok',
+      token: 'grace-access',
+      userId: 'u2',
+    })
+  })
+
   it('joins an in-flight refresh: concurrent callers share one HTTP call and get the new token', async () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'expired-access',
@@ -711,8 +747,8 @@ describe('AuthProvider — getAccessToken', () => {
       await Promise.all([first, second])
     })
 
-    expect(await first).toEqual({ status: 'ok', token: 'new-access' })
-    expect(await second).toEqual({ status: 'ok', token: 'new-access' })
+    expect(await first).toEqual({ status: 'ok', token: 'new-access', userId: null })
+    expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: null })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
   })
 })

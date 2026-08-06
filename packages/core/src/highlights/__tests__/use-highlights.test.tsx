@@ -131,7 +131,9 @@ const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
 function defaultGetAccessToken(): Promise<AccessTokenResult> {
   const token = currentAuth?.accessToken ?? null
   return Promise.resolve(
-    token === null ? { status: 'unavailable', reason: 'signed-out' } : { status: 'ok', token },
+    token === null
+      ? { status: 'unavailable', reason: 'signed-out' }
+      : { status: 'ok', token, userId: currentAuth?.userInfo?.id ?? null },
   )
 }
 
@@ -593,7 +595,7 @@ describe('apply', () => {
     expect(mockCreateHighlight).not.toHaveBeenCalled()
 
     await act(async () => {
-      tokenGate.resolve({ status: 'ok', token: 'token-1' })
+      tokenGate.resolve({ status: 'ok', token: 'token-1', userId })
       await outcome
     })
 
@@ -1242,6 +1244,41 @@ describe('auth states', () => {
     // Only the write that was already on the wire under user-1's token ran.
     expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
     expect(mockCreateHighlight).not.toHaveBeenCalledWith('token-2', expect.anything())
+  })
+
+  // The narrow window the previous test cannot reach: the provider writes its
+  // token and identity refs synchronously on sign-in, while the identity this
+  // hook compares against is synced from a passive effect a render later. A
+  // sign-in landing while the write awaits the accessor therefore hands back the
+  // new user's token under the old user's rendered identity — so the guard has
+  // to believe the identity that came back WITH the token.
+  it('abandons a write when the accessor returns a token owned by a different user', async () => {
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    getAccessToken.mockResolvedValueOnce({
+      status: 'ok',
+      token: 'token-2',
+      userId: 'user-2',
+    })
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    await act(async () => {
+      outcome = result.current.apply(YELLOW, [16])
+      await outcome
+    })
+
+    expect(await outcome).toMatchObject({
+      status: 'error',
+      reason: 'not-signed-in',
+      failedVerses: [16],
+    })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    // The optimistic paint is reverted, not left stranded on the departed user's
+    // chapter.
+    expect(colorsOf(result.current)).toEqual({})
   })
 
   it('abandons a queued remove rather than deleting the new user’s highlights', async () => {

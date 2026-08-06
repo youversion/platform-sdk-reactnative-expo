@@ -112,7 +112,7 @@ function stubAuth(isAuthenticated: boolean) {
     ensureFreshToken: jest.fn(async () => undefined),
     getAccessToken: jest.fn(async () =>
       isAuthenticated
-        ? ({ status: 'ok', token: 'test-token' } as const)
+        ? ({ status: 'ok', token: 'test-token', userId: null } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
     ),
     isLoading: false,
