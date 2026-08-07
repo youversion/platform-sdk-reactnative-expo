@@ -1,12 +1,16 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import { useState } from 'react'
+import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
+import { useEffect, useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
+import { getOrSetInstallationId } from '../../installation-id'
+import type { AuthContextValue } from '../auth-context'
 import AuthProvider from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
+import { requestDataExchange } from '../data-exchange'
+import { createDataExchangeApi } from '../data-exchange-api'
 import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
 import { signInWithPKCE } from '../pkce-flow'
 import { loadTokens, saveTokens } from '../token-storage'
-import type { AuthConfig } from '../types'
+import type { AuthConfig, AuthPermission } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
@@ -18,6 +22,7 @@ jest.mock('../../storage/mmkv-storage', () => ({
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
     remove: jest.fn((k: string) => mockMmkv.delete(k)),
+    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
   },
 }))
 
@@ -35,10 +40,28 @@ jest.mock('../pkce-flow', () => ({
   signInWithPKCE: jest.fn(),
 }))
 
+jest.mock('../../installation-id', () => ({
+  getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
+}))
+
+// The grant flow itself is covered in data-exchange.test.ts; here we only care
+// about what the provider hands it and what it does with the outcome — so no
+// browser or API client is ever constructed.
+jest.mock('../data-exchange', () => ({
+  requestDataExchange: jest.fn(),
+}))
+
+jest.mock('../data-exchange-api', () => ({
+  createDataExchangeApi: jest.fn(() => ({ mintToken: jest.fn() })),
+}))
+
 const mockLoadTokens = loadTokens as jest.Mock
 const mockSaveTokens = saveTokens as jest.Mock
 const mockRefreshTokens = refreshTokens as jest.Mock
 const mockSignInWithPKCE = signInWithPKCE as jest.Mock
+const mockRequestDataExchange = requestDataExchange as jest.Mock
+const mockCreateDataExchangeApi = createDataExchangeApi as jest.Mock
+const mockGetOrSetInstallationId = getOrSetInstallationId as jest.Mock
 const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
 
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
@@ -69,9 +92,28 @@ const validTokens = {
 
 const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined }
 
+/**
+ * Latest context value, so a test can drive `requestPermissions` with its own
+ * permission list and hold the promise — the rendered button is fixed to
+ * `['highlights']`, which cannot express two callers asking for different things.
+ */
+let latestAuth: AuthContextValue | null = null
+
+function requestPermissionsFromContext(permissions: readonly AuthPermission[]) {
+  if (latestAuth === null) {
+    throw new Error('AuthPeek has not rendered yet')
+  }
+  return latestAuth.requestPermissions(permissions)
+}
+
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
+  const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
+
+  useEffect(() => {
+    latestAuth = auth
+  })
 
   return (
     <View>
@@ -80,7 +122,23 @@ function AuthPeek() {
       <Text testID="accessToken">{auth.accessToken ?? 'null'}</Text>
       <Text testID="userInfo">{auth.userInfo ? JSON.stringify(auth.userInfo) : 'null'}</Text>
       <Text testID="error">{auth.error?.message ?? 'null'}</Text>
+      <Text testID="grantedPermissions">
+        {auth.grantedPermissions ? JSON.stringify(auth.grantedPermissions) : 'null'}
+      </Text>
+      <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Text testID="permissionOutcome">{permissionOutcome}</Text>
+      <Pressable
+        testID="requestPermissions"
+        onPress={async () => {
+          setPermissionOutcome(JSON.stringify(await auth.requestPermissions(['highlights'])))
+        }}
+      >
+        <Text>requestPermissions</Text>
+      </Pressable>
+      <Pressable testID="invalidatePermissions" onPress={() => auth.invalidatePermissions()}>
+        <Text>invalidatePermissions</Text>
+      </Pressable>
       <Pressable
         testID="signIn"
         onPress={async () => {
@@ -113,6 +171,7 @@ function fireAppStateChange(state: string) {
 
 beforeEach(() => {
   mockMmkv.clear()
+  latestAuth = null
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
 })
@@ -346,8 +405,13 @@ describe('AuthProvider — signIn', () => {
 })
 
 describe('AuthProvider — signOut', () => {
-  it('clears tokens, resets in-memory state, and removes cached userInfo', async () => {
+  it('clears tokens, resets in-memory state, and removes cached userInfo and highlights', async () => {
+    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
@@ -372,6 +436,7 @@ describe('AuthProvider — signOut', () => {
       expiryDate: null,
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+    expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
 })
 
@@ -401,6 +466,11 @@ describe('AuthProvider — refresh failure policy', () => {
   })
 
   it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
+    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
+    mockMmkv.set(
+      highlightsKey,
+      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
+    )
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
 
@@ -415,6 +485,7 @@ describe('AuthProvider — refresh failure policy', () => {
     expect(getText('accessToken')).toBe('null')
     expect(getText('error')).toMatch(/401/)
     expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(mockMmkv.has(highlightsKey)).toBe(false)
   })
 })
 
@@ -451,6 +522,58 @@ describe('AuthProvider — refresh lock', () => {
       resolveRefresh(validTokens)
     })
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
+  })
+
+  it('joins an in-flight refresh instead of resolving on the stale token', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'expired-access',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+
+    let resolveRefresh: (v: TokenResponse) => void = () => {}
+    mockRefreshTokens.mockReturnValue(
+      new Promise<TokenResponse>((r) => {
+        resolveRefresh = r
+      }),
+    )
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    // Bootstrap's refresh is in flight and deliberately left unresolved, which
+    // is the ordinary case this guards: the app foregrounds, a refresh starts,
+    // and the user acts before it lands.
+    await waitFor(() => expect(mockRefreshTokens).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(latestAuth).not.toBeNull())
+
+    let joined = false
+    const joiner = latestAuth!.ensureFreshToken().then(() => {
+      joined = true
+    })
+
+    // Drain the microtask queue. A caller that skipped the in-flight refresh
+    // rather than joining it would have settled by now, and its pre-flight would
+    // have read the expired token.
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(joined).toBe(false)
+    expect(getText('accessToken')).toBe('expired-access')
+
+    await act(async () => {
+      resolveRefresh(validTokens)
+      await joiner
+    })
+
+    expect(joined).toBe(true)
+    expect(getText('accessToken')).toBe('new-access')
+    // Joining, not starting a second one.
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -489,5 +612,503 @@ describe('AuthProvider — AppState wiring', () => {
 
     unmount()
     expect(remove).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('AuthProvider — granted permissions', () => {
+  beforeEach(() => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+  })
+
+  function arrangeSignIn(grantedPermissions: string[] | null, userInfo = adaUserInfo) {
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo,
+      grantedPermissions,
+    })
+  }
+
+  async function renderAndSignIn(user: ReturnType<typeof userEvent.setup>) {
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+  }
+
+  it('sign-in with a grant makes hasPermission true and persists it per user', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
+    expect(JSON.parse(mockMmkv.get(MMKV_AUTH_KEYS.grantedPermissions)!)).toEqual({
+      userId: 'u1',
+      permissions: ['highlights'],
+    })
+  })
+
+  it('seeds the grant synchronously from cache on a cold start', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    // First render, before any effect settles — the whole point of the sync seed.
+    expect(getText('hasHighlights')).toBe('true')
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('hasHighlights')).toBe('true')
+  })
+
+  it('keeps a denied grant ([]) distinguishable from never-requested (null)', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn([])
+    await renderAndSignIn(user)
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('[]')
+  })
+
+  it('a scopes-only re-sign-in (null grant) preserves the same user’s earlier grant', async () => {
+    // signIn on an already-signed-in user does not pass through clearAuthState,
+    // so a redirect that says nothing about permissions must not wipe the grant.
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    arrangeSignIn(null)
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('true')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+  })
+
+  it('a scopes-only sign-in by a different user reads no grant', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    arrangeSignIn(null, { ...adaUserInfo, id: 'u2', name: 'Bea' })
+    await user.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('sign-out purges the cached grant and resets state to null', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    await user.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
+  it('invalidatePermissions drops both the cache and the in-memory grant', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights'])
+    await renderAndSignIn(user)
+    expect(getText('hasHighlights')).toBe('true')
+
+    await user.press(screen.getByTestId('invalidatePermissions'))
+
+    expect(getText('hasHighlights')).toBe('false')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+  })
+
+  it('keeps a granted permission outside the known union verbatim', async () => {
+    const user = userEvent.setup()
+    arrangeSignIn(['highlights', 'brand_new_permission'])
+    await renderAndSignIn(user)
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual([
+      'highlights',
+      'brand_new_permission',
+    ])
+  })
+})
+
+describe('AuthProvider — requestPermissions', () => {
+  function renderProvider() {
+    return render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+  }
+
+  async function signInWithGrant(grantedPermissions: string[] | null) {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+      grantedPermissions,
+    })
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+  }
+
+  async function pressRequestPermissions() {
+    fireEvent.press(screen.getByTestId('requestPermissions'))
+    await waitFor(() => expect(getText('permissionOutcome')).not.toBe('idle'))
+    return JSON.parse(getText('permissionOutcome'))
+  }
+
+  it('fails with not-signed-in without minting a token when there is no access token', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    expect(await pressRequestPermissions()).toMatchObject({
+      status: 'failure',
+      reason: 'not-signed-in',
+    })
+    // A mint on a signed-out user would 401, and that 401 reads as
+    // "not permitted", which is a different and wrong story.
+    expect(mockCreateDataExchangeApi).not.toHaveBeenCalled()
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+  })
+
+  it('flips hasPermission on the next render when the grant lands', async () => {
+    // Signed in having declined highlights: the exact state this flow exists for.
+    await signInWithGrant([])
+    expect(getText('hasHighlights')).toBe('false')
+
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+
+    expect(await pressRequestPermissions()).toEqual({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+    expect(getText('hasHighlights')).toBe('true')
+  })
+
+  it('merges the new grant into the existing one rather than replacing it', async () => {
+    await signInWithGrant(['votd'])
+
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+    await pressRequestPermissions()
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd', 'highlights'])
+  })
+
+  it('hands the flow the current token, the initiator id, and the requested permissions', async () => {
+    await signInWithGrant(null)
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+
+    expect(mockCreateDataExchangeApi).toHaveBeenCalledWith({
+      appKey: 'appkey',
+      apiHost: 'api.example.com',
+      installationId: 'inst-1',
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appKey: 'appkey',
+        apiHost: 'api.example.com',
+        accessToken: 'new-access',
+        initiator: expect.objectContaining({ userId: 'u1' }),
+        permissions: ['highlights'],
+      }),
+    )
+  })
+
+  it('gives the flow a getCurrentIdentity that sees a sign-out that happened mid-flow', async () => {
+    await signInWithGrant(['highlights'])
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+
+    const { initiator, getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
+      initiator: { sessionId: number; userId: string | null }
+      getCurrentIdentity: () => { sessionId: number; userId: string | null }
+    }
+    expect(getCurrentIdentity()).toEqual(initiator)
+
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+
+    // Reading a captured closure would still say 'u1' here, and the initiator
+    // guard would wave a grant through for a user who has left.
+    expect(getCurrentIdentity().userId).toBeNull()
+    expect(getCurrentIdentity().sessionId).not.toBe(initiator.sessionId)
+  })
+
+  it('captures the initiator before awaiting the installation id, not after', async () => {
+    await signInWithGrant(null)
+
+    let releaseInstallationId = () => {}
+    mockGetOrSetInstallationId.mockReturnValueOnce(
+      new Promise<string>((resolve) => {
+        releaseInstallationId = () => resolve('inst-1')
+      }),
+    )
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    const pending = requestPermissionsFromContext(['highlights'])
+
+    // Sign out while the installation id is still resolving. The mint will
+    // still use this render's token, so the initiator has to be the user that
+    // token belongs to — read it afterwards and the guard compares the
+    // replacement identity against itself, passes, and files the grant under
+    // whoever is signed in now.
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+
+    await act(async () => {
+      releaseInstallationId()
+      await pending
+    })
+
+    const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0] as {
+      initiator: { sessionId: number; userId: string | null }
+      accessToken: string
+    }
+    expect(accessToken).toBe('new-access')
+    expect(initiator.userId).toBe('u1')
+  })
+
+  it('moves the session id on sign-out but not on a token refresh', async () => {
+    await signInWithGrant(null)
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+    const { getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
+      getCurrentIdentity: () => { sessionId: number; userId: string | null }
+    }
+    const atSignIn = getCurrentIdentity().sessionId
+
+    // A refresh is the same person with a new token — the guard must not fire.
+    mockRefreshTokens.mockResolvedValue(validTokens)
+    await act(async () => {
+      fireAppStateChange('active')
+    })
+    expect(getCurrentIdentity().sessionId).toBe(atSignIn)
+
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getCurrentIdentity().sessionId).not.toBe(atSignIn)
+  })
+
+  it('leaves the grant untouched on a cancel', async () => {
+    await signInWithGrant(['votd'])
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    expect(await pressRequestPermissions()).toEqual({ status: 'cancel' })
+
+    expect(JSON.parse(getText('grantedPermissions'))).toEqual(['votd'])
+  })
+
+  it('leaves the grant untouched when the return is granted but empty', async () => {
+    await signInWithGrant(null)
+
+    mockRequestDataExchange.mockResolvedValue({ status: 'granted', grantedPermissions: [] })
+    await pressRequestPermissions()
+
+    expect(getText('grantedPermissions')).toBe('null')
+  })
+
+  it('resolves to a transient failure when reading the installation id rejects', async () => {
+    await signInWithGrant(null)
+
+    // Native state read, so it can genuinely fail. `requestPermissions` is
+    // documented to resolve rather than throw, and a consumer following that
+    // contract has no catch to land in.
+    mockGetOrSetInstallationId.mockRejectedValueOnce(new Error('no installation id'))
+
+    expect(await pressRequestPermissions()).toEqual({
+      status: 'failure',
+      reason: 'transient',
+      message: 'no installation id',
+    })
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+  })
+
+  it('shares one in-flight flow across overlapping calls instead of opening a second session', async () => {
+    await signInWithGrant(null)
+
+    // A double-tap. Left unguarded this mints a second token and opens a second
+    // auth session — which on Android rejects outright ("WebBrowser is already
+    // open"), and either way races the first to write the grant cache.
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('requestPermissions'))
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    // Second tap while the first flow is still awaiting the browser.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('requestPermissions'))
+    })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+    expect(mockCreateDataExchangeApi).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights'] })
+    })
+    expect(getText('hasHighlights')).toBe('true')
+
+    // The lock releases with the promise, so the next gesture is a fresh flow.
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+    await pressRequestPermissions()
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a concurrent request for different permissions instead of handing it the wrong outcome', async () => {
+    await signInWithGrant(null)
+
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    // First caller asks for highlights and is still in the consent page.
+    const first = requestPermissionsFromContext(['highlights'])
+    await act(async () => {})
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    // A second caller asks for something else. Sharing the first promise would
+    // report `granted` for a consent page that never mentioned votd, and leave
+    // the caller no reason to retry.
+    //
+    // The reason is `in-progress`, not `transient`: `transient` invites an
+    // immediate retry, which would land right back here while the consent page
+    // is still open.
+    const second = await act(async () => requestPermissionsFromContext(['votd']))
+    expect(second).toMatchObject({ status: 'failure', reason: 'in-progress' })
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights'] })
+    })
+    expect(await first).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
+  })
+
+  it('shares the flow when a concurrent request asks for the same permissions in a different order', async () => {
+    await signInWithGrant(null)
+
+    let settle = (_outcome: unknown) => {}
+    mockRequestDataExchange.mockReturnValue(
+      new Promise((resolve) => {
+        settle = resolve
+      }),
+    )
+
+    const first = requestPermissionsFromContext(['highlights', 'votd'])
+    await act(async () => {})
+    const second = requestPermissionsFromContext(['votd', 'highlights'])
+    await act(async () => {})
+
+    // Same consent, so it is a double-tap rather than a competing request.
+    expect(mockRequestDataExchange).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      settle({ status: 'granted', grantedPermissions: ['highlights', 'votd'] })
+    })
+    expect(await second).toEqual(await first)
+  })
+
+  /**
+   * Bootstraps into a signed-in state whose access token is already at its
+   * expiry, so the next `refreshToken()` actually refreshes instead of
+   * short-circuiting on the leeway check.
+   */
+  async function signInWithStaleToken() {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+    mockRefreshTokens.mockResolvedValueOnce({
+      ...validTokens,
+      access_token: 'stale-access',
+      expires_in: '0',
+    })
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+  }
+
+  it('refreshes an expired access token before minting, and mints with the new one', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockResolvedValueOnce({ ...validTokens, access_token: 'fresh-access' })
+    mockRequestDataExchange.mockResolvedValue({
+      status: 'granted',
+      grantedPermissions: ['highlights'],
+    })
+
+    await pressRequestPermissions()
+
+    // Without this refresh the mint carries the expired token, 401s, and
+    // `data-exchange-api.ts` reports every mint 401 as `not-permitted` — telling
+    // the user their app key is misconfigured when the token was merely stale.
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'fresh-access' }),
+    )
+  })
+
+  it('still mints with this render token when the pre-mint refresh clears the session', async () => {
+    await signInWithStaleToken()
+
+    // A revoked refresh trips `clearAuthState`, emptying the token ref. The
+    // flow must not change story here: it mints with the token this render
+    // captured and lets the initiator guard discard the grant as
+    // `user-changed`. Bailing to `not-signed-in` instead would be a different
+    // contract than the one the guard and its docs describe.
+    mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    await pressRequestPermissions()
+
+    expect(mockRequestDataExchange).toHaveBeenCalledWith(
+      expect.objectContaining({ accessToken: 'stale-access' }),
+    )
   })
 })

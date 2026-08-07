@@ -6,8 +6,7 @@ import { NativeTabs } from 'expo-router/unstable-native-tabs'
 // bar's scrollEdgeAppearance transparent, so the tabs float over an invisible
 // background. Gate on the major OS version: opt into an opaque material bar on
 // pre-26, and leave the defaults untouched on 26+ so Liquid Glass can render.
-const iosMajorVersion =
-  Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0
+const iosMajorVersion = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0
 const needsLegacyTabBarBackground = Platform.OS === 'ios' && iosMajorVersion < 26
 
 // `disableTransparentOnScrollEdge` keeps the standard appearance at the scroll

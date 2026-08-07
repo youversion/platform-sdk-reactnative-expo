@@ -6,6 +6,7 @@ export const SECURE_STORAGE_KEYS = {
 export const MMKV_AUTH_KEYS = {
   expiryDateISO: 'yvp.expiryDate',
   cachedUserInfo: 'yvp.userInfo',
+  grantedPermissions: 'yvp.grantedPermissions',
 } as const
 
 export const DEFAULT_SCOPES = ['profile', 'email'] as const

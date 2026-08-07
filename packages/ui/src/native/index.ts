@@ -3,7 +3,11 @@ export type { BibleCardProps } from './bible-card'
 export { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 export type { BibleChapterPickerSheetProps } from './bible-chapter-picker-sheet'
 export { BibleReader } from './bible-reader'
-export type { BibleReaderProps } from './bible-reader'
+export type {
+  BibleReaderProps,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
+} from './bible-reader'
 export { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 export type { BibleReaderSettingsSheetProps } from './bible-reader-settings-sheet'
 export { BibleTextView } from './bible-text-view'

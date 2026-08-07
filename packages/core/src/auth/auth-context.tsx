@@ -1,5 +1,6 @@
 import { createContext } from 'react'
-import type { YVUserInfo } from './types'
+import type { DataExchangeOutcome } from './data-exchange'
+import type { AuthPermission, YVUserInfo } from './types'
 
 export type AuthContextValue = {
   isAuthenticated: boolean
@@ -9,7 +10,58 @@ export type AuthContextValue = {
   signIn: () => Promise<void>
   signOut: () => Promise<void>
   refreshNow: () => Promise<void>
+  /**
+   * Refresh the access token **only if it is at or near expiry**, then resolve.
+   * Cheap to await on every user gesture, unlike {@link refreshNow}, which always
+   * hits the token endpoint.
+   *
+   * Exists so an expired token cannot be misread as a missing permission
+   * (Swift's `hasValidToken()` parity). It never throws: a failed refresh
+   * surfaces through {@link error}, exactly as the periodic refresh does.
+   *
+   * Await it on the **send** path, immediately before an auth-sensitive request
+   * — not in front of whatever the user just tapped. When a refresh is due this
+   * costs a full token round-trip, so anything optimistic should have painted
+   * already. `useHighlights` is the worked example.
+   *
+   * A refresh already in flight is **joined**, not skipped, so once this resolves
+   * the token is the current one. A failed refresh still leaves the old token in
+   * place, so a caller doing something auth-sensitive wants a corrective path for
+   * a 401 regardless.
+   */
+  ensureFreshToken: () => Promise<void>
   isLoading: boolean
+  /**
+   * What the app **asked for** on its `auth` config — never what was granted.
+   * Always an array; `[]` when `auth` is unconfigured. Pairs with
+   * {@link grantedPermissions}, which answers the different question.
+   */
+  requestedPermissions: readonly AuthPermission[]
+  /**
+   * Three-state grant: `null` = unknown / never requested, `[]` = requested and
+   * denied, populated = granted. Unrecognized values are kept verbatim so a
+   * server-side addition never reads as a denial.
+   *
+   * Seeded synchronously from a per-user cache, so it is populated on the first
+   * render while `isLoading` is still `true` — gate real work on
+   * `isAuthenticated` / `isLoading` too.
+   */
+  grantedPermissions: readonly string[] | null
+  /**
+   * Whether `permission` is in {@link grantedPermissions}; false when unknown.
+   * Advisory — the server remains the enforcement point.
+   */
+  hasPermission: (permission: AuthPermission) => boolean
+  /** Drop a stale cached grant (e.g. after a 401/403 write) so the next pre-flight re-prompts. */
+  invalidatePermissions: () => void
+  /**
+   * Asks an already signed-in user to grant `permissions` on the spot, via
+   * YouVersion's hosted consent page — no sign-out required. A `granted`
+   * outcome merges into {@link grantedPermissions}, so `hasPermission` answers
+   * true on the next render. Fails immediately with `not-signed-in` when there
+   * is no token.
+   */
+  requestPermissions: (permissions: readonly AuthPermission[]) => Promise<DataExchangeOutcome>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)

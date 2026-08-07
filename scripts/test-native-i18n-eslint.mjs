@@ -65,7 +65,10 @@ test('native i18n ESLint uses jsx-only mode so included JSX attributes are check
   ])
 
   const i18nMessages = i18nLiteralMessages(messages)
-  assert.ok(i18nMessages.length > 0, 'expected violations.tsx to report i18next/no-literal-string errors')
+  assert.ok(
+    i18nMessages.length > 0,
+    'expected violations.tsx to report i18next/no-literal-string errors',
+  )
 
   const reportedAttributes = new Set(
     i18nMessages
@@ -90,8 +93,7 @@ test('native i18n ESLint ignores __tests__ and *.test.tsx under native scope', a
     ],
   })
 
-  const testsDirFile =
-    'scripts/eslint-fixtures/native-i18n/simulated-native/__tests__/excluded.tsx'
+  const testsDirFile = 'scripts/eslint-fixtures/native-i18n/simulated-native/__tests__/excluded.tsx'
   const testFile = 'scripts/eslint-fixtures/native-i18n/simulated-native/excluded.test.tsx'
 
   const testsDirMessages = i18nLiteralMessages(await lintWithConfig(testsDirFile, [config]))
@@ -127,9 +129,7 @@ test('native i18n ESLint does not apply outside packages/ui/src/native', async (
 })
 
 test('native i18n JSX attribute include list matches eslint.config.mjs', () => {
-  const productionBlock = eslintConfig.find(
-    (block) => block.rules?.['i18next/no-literal-string'],
-  )
+  const productionBlock = eslintConfig.find((block) => block.rules?.['i18next/no-literal-string'])
   const ruleOptions = productionBlock?.rules?.['i18next/no-literal-string']?.[1]
 
   assert.equal(ruleOptions?.mode, 'jsx-only', 'production config must use jsx-only mode')

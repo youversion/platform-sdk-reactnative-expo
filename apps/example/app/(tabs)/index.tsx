@@ -3,8 +3,8 @@ import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function BibleScreen() {
-  const isDark = useColorScheme() === 'dark'
   const { top } = useSafeAreaInsets()
+  const isDark = useColorScheme() === 'dark'
 
   return (
     <View

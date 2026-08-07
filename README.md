@@ -29,8 +29,10 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
+- **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`)
+- **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides
-- **Native presentation**: footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
@@ -51,7 +53,7 @@ Install the required peer dependencies (Expo will pick versions compatible with 
 
 ```bash
 npx expo install @gorhom/bottom-sheet @expo/dom-webview \
-  expo-application expo-crypto expo-secure-store expo-web-browser \
+  expo-application expo-clipboard expo-crypto expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
@@ -142,7 +144,49 @@ function ReaderScreen() {
 }
 ```
 
-`BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets.
+`BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
+
+#### Verse actions
+
+Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
+
+The sheet has no backdrop, so a second verse tap reaches the passage and extends the selection. To dismiss the sheet, swipe down, deselect the verses, or act on the sheet.
+
+The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). The sheet asks a signed-out user, or one without the permission, for exactly what is missing. It then applies their color choice, with no reselecting of the verse.
+
+Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To handle either one yourself, pass `onCopy` or `onShare`:
+
+```tsx
+<BibleReader
+  defaultVersionId={3034}
+  onCopy={async ({ text, reference }) => {
+    // text: verse text plus the reference line
+  }}
+  onShare={async ({ text }) => {
+    // your own share sheet
+  }}
+/>
+```
+
+On web, `BibleReader` keeps the React Web SDK's verse action popover, because native bottom sheets do not exist there. Its Copy and Share work. Its color swatches do not write.
+
+#### Verse selection
+
+`onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. It fires alongside the verse action sheet, not instead of it. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
+
+```tsx
+const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
+
+<BibleReader
+  defaultVersionId={3034}
+  onVerseSelect={async (selection) => {
+    // selection.reference ("John 3:16"), .verses, .passageIds, .shareData
+  }}
+  clearSelectionSignal={clearSelectionSignal}
+/>
+```
+
+Clearing the selection also closes the verse action sheet. Clears arrive on `onVerseSelect` as well, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
 #### Custom picker flows
 
@@ -174,18 +218,26 @@ function VotdScreen() {
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).
 
-The `redirectUri` is where the browser sends the user back after sign-in. `Linking.createURL('callback')` (from `expo-linking` — install it with `npx expo install expo-linking`) builds it from your app's URL scheme: in a dev build it produces `<your-scheme>://callback`, where `<your-scheme>` is the `scheme` in your `app.json`. The example app's scheme is `yvp-rn-example`, so its redirect URI is `yvp-rn-example://callback`. Register that exact URI as a Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
+The `redirectUri` is where the browser sends the user back after sign-in. Use `youversionauth://callback`, the callback URL the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs use for the same purpose, and register that exact URI as the Callback URI for your app key in the [YouVersion Platform](https://platform.youversion.com/) console.
 
-Choose a scheme unique to your app: on Android, multiple apps registering the same scheme triggers the system disambiguation dialog (an app chooser), and on iOS there is no defined process for which app gets the scheme — the OS silently picks one.
+Two things have to line up, and they are the usual source of trouble:
+
+1. **`redirectUri` must equal the Callback URI registered for your app key.** An app key has exactly one. If they disagree, sign-in fails with `invalid_request: redirect_uri does not match registered callback URL`.
+2. **Android must be able to route it.** Add the scheme to `app.json` and rebuild the dev client (`npx expo prebuild --clean` — this is a native change):
+
+   ```json
+   { "expo": { "scheme": "youversionauth" } }
+   ```
+
+   iOS needs nothing extra. Because this scheme is shared by every app integrating the SDK, Android may show an app chooser if more than one is installed — the same tradeoff the Kotlin SDK's sample app makes.
 
 ```tsx
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
-import * as Linking from 'expo-linking'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback')
+  const redirectUri = 'youversionauth://callback'
 
   if (!appKey) return null
 
@@ -202,7 +254,39 @@ export default function RootLayout() {
 }
 ```
 
-`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`. Today this only _requests_ the permission; whether it was granted is not exposed yet (coming in a follow-up).
+`permissions` lists YouVersion Platform permissions (`'bibles'`, `'highlights'`, `'votd'`, `'demographics'`, `'bible_activity'`) to ask for on the consent screen — these are not OIDC scopes, so keep them out of `scopes`.
+
+Requesting a permission is not the same as being granted it: the user can decline and sign-in still succeeds. Read back what they actually granted from `useYVAuth()` — `hasPermission('highlights')` for one check, or `grantedPermissions` for the whole list (`null` when nothing was requested or nothing is known yet, `[]` when the user declined). The grant is cached per user and survives a cold start.
+
+#### Asking for a permission later
+
+A user who signed in before your app needed a permission — or who declined at the time — does not have to sign out to grant it. `requestPermissions` opens YouVersion's consent page and merges the result into the cached grant:
+
+```tsx
+const { hasPermission, requestPermissions } = useYVAuth()
+
+async function ensureHighlights() {
+  if (hasPermission('highlights')) return true
+
+  const outcome = await requestPermissions(['highlights'])
+  if (outcome.status === 'granted') return outcome.grantedPermissions.includes('highlights')
+  if (outcome.status === 'failure' && outcome.reason === 'not-permitted') {
+    // This app key is not enabled for the permission — a console setting, not a user choice.
+  }
+  return false
+}
+```
+
+It resolves rather than throwing: `{ status: 'granted', grantedPermissions }`, `{ status: 'cancel' }`, or `{ status: 'failure', reason, message }` where `reason` is `'not-signed-in' | 'not-permitted' | 'user-changed' | 'in-progress' | 'transient'`. A granted permission makes `hasPermission` true on the next render.
+
+Only one request runs at a time. Calling it again for the **same** permissions while a consent page is open returns the in-flight request rather than opening a second one, so a double-tap on one button needs no guarding from you.
+
+A second call for **different** permissions cannot share that answer — the open consent page never mentioned them. It resolves to `{ status: 'failure', reason: 'in-progress' }`. Wait for the running request to settle before asking again; retrying straight away just hits the same branch.
+
+> [!IMPORTANT]
+> **This flow returns to your `redirectUri`** — the same callback URL sign-in uses. An app key has exactly one registered callback URL, and both browser round-trips come back through it. Nothing extra to register for data exchange beyond what sign-in already needs.
+>
+> If your `redirectUri` disagrees with the callback URL registered for your app key, the consent page opens, the user consents, and the return never reaches the SDK — reported as `{ status: 'cancel' }`, indistinguishable from a decline. Verify the two match before assuming users are declining.
 
 For sign-in UI, drop in `YouVersionAuthButton` — it renders the branded Sign in with YouVersion button and handles sign-in/sign-out for you:
 
@@ -240,6 +324,7 @@ Calling `useYVAuth()` requires that the surrounding `YouVersionProvider` receive
 Explore the [`apps/example`](./apps/example) directory for a sample Expo Router app demonstrating:
 
 - Bible reader integration
+- Verse actions, including `onCopy` / `onShare` overrides
 - Bible card and Scripture display
 - Verse of the Day
 - PKCE sign-in, OAuth callback handling, and the Profile tab

@@ -14,6 +14,8 @@ export type {
   BibleChapterPickerSheetProps,
   BibleReaderProps,
   BibleReaderSettingsSheetProps,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
   BibleTextViewProps,
   BibleVersionPickerSheetProps,
   VerseOfTheDayProps,

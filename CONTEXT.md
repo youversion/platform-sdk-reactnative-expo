@@ -98,6 +98,62 @@ _Avoid_: Treating the `-dev` suffix as a bug to remove; a bare `Dev` sentinel (d
 `@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies` (auto-installed). `react-dom` is a `peerDependency` to prevent duplicate React instances in apps that also target web. Transitive native module requirements (reanimated, gesture-handler, etc.) are listed as `peerDependencies` to protect consumers from missing runtime deps.
 _Avoid_: Bundled deps, vendored web SDK
 
+**Highlight Scope**:
+The chapter a highlights flow is operating on: `versionId` + `book` + `chapter`. Same shape as the web highlights machine (for reuse) and the same Bible-location triple as **Reader Location** — without a user. Per-user isolation for persistent cache is a separate axis at the storage boundary, not part of this type.
+_Avoid_: Folding `userId` into this type; Reader Location (restore snapshot for uncontrolled readers, different purpose); cache key (implementation detail)
+
+**Server Colors**:
+The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. A _derived_ projection of **Cached Highlights** onto the displayed scope, used for optimistic overlay math — not something we persist, and not optimistic UI overlays themselves. Range passage ids expand to one entry per verse and colors are normalized to lowercase during projection.
+_Avoid_: Persisting this shape (it destroys passage ids — see **Cached Highlights**); highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
+
+**Cached Highlights**:
+The raw core API shape (`Highlight[]`: `version_id` + `passage_id` + `color`) persisted on native per `userId` + **Highlight Scope**. Passage ids may be verse ranges (`JHN.3.16-18`), so this is the only shape that can feed the web reader's controlled `highlights` prop on a cold start and that supports passage-id-targeted deletes. Reads are synchronous and validated; a valid empty array is a real snapshot (“none”), not a cache miss, and any corrupt or legacy payload reads as a miss.
+_Avoid_: Flattening to **Server Colors** before writing; treating an empty array as a miss
+
+**Highlight Overlay**:
+The local layer of pending edits for a **Highlight Scope**, `Record<number, string | null>` — a hex color where the user just applied one, `null` where they just removed one. Sits on top of **Server Colors** so the reader paints before the server answers; entries retire once the server confirms them (see [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) for the color-aware remove rule). Never persisted — see **Cached Highlights**.
+_Avoid_: Optimistic state (too vague — this is one specific layer), **Server Colors** (the layer underneath), persisting it
+
+**Controlled Highlights Latch**:
+The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
+_Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
+
+**Verse Selection**:
+The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. On every platform but web the in-WebView verse action UI is off (`verseActions="none"`). This payload is then the only channel native learns about a selection on, and it is what raises the **Verse Action Sheet**. **Selection Clear Signal** is the only way native dismisses one.
+_Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
+
+**Selection Clear Signal**:
+A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
+_Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key** (that remounts a picker tree; this one clears a selection)
+
+**Verse Action Sheet**:
+The **Native Sheet** the reader raises over a live **Verse Selection**: the localized reference, the **Verse Action Swatches**, Copy, and Share. It replaces the Web SDK's in-WebView verse action **Presentation Shell** on iOS and Android, matching what Swift and Kotlin present. Alone among our sheets it is **non-modal**. It has no backdrop, because a backdrop intercepts the second verse tap that extends a selection. The cost is that backdrop-tap-to-dismiss does not exist. The compensation is an upward drop shadow on every themed **Native Sheet**. It is internal, not exported: the reader owns it, and a host building its own action UI has **Verse Selection** plus `useHighlights`. See [ADR 0017](docs/adr/0017-native-verse-action-sheet.md).
+_Avoid_: Verse popover, verse menu; "tap outside to dismiss" (there is nothing outside to tap); giving another sheet `modal={false}` for looks
+
+**Verse Action Swatches**:
+The highlight circles in a **Verse Action Sheet**. A pure function projects them from the current **Verse Selection** and its **Server Colors**. One scrolling tray holds two rows: a _remove_ circle for every palette color present on **any** selected verse, then an _apply_ circle for each of the five palette colors. The ANY rule is ported verbatim from the Web SDK popover, and it matches what Swift and Kotlin filter on. A color covering some but not all of the selection therefore appears in both rows, which is intended: remove clears it, and apply extends it across the whole selection. Colors outside the five-swatch palette are ignored, because the reader cannot paint them either.
+_Avoid_: Re-deriving the rule from the sheet's UI; an ALL rule (a color on one verse of three still earns a remove circle); counting colors the palette does not contain
+
+**Highlight Write Outcome**:
+What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
+_Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it)
+
+**Granted Permissions**:
+What the user actually granted at sign-in, read off the OAuth **app redirect** and cached per user. A three-state signal, not a list: `null` = no `granted_permissions` key at all, so nothing was requested and nothing is known; `[]` = requested and **denied**; populated = granted. Requesting a permission (`AuthConfig.permissions`) is a separate thing from being granted it. Values the SDK does not recognize are kept verbatim rather than narrowed to the known permission union.
+_Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
+
+**Data Exchange**:
+YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The consent page returns to the app's `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one — see [ADR 0015](docs/adr/0015-data-exchange-return-scheme.md).
+_Avoid_: Treating the return URL as a separate, SDK-owned thing from the app's OAuth `redirectUri` (one app key, one callback URL, both flows share it); replacing the cached grant with what one consent reported; "re-authenticating" (the user never signs out)
+
+**Permission Flow**:
+The two-branch journey guarding a highlight `apply`: not signed in → sign-in → re-check → apply (or fall through to consent); signed in without the permission → confirmation → **Data Exchange** → apply on grant. The branch point is a pre-flight **Granted Permissions** read after a token refresh, never a write's 401/403 — a `reason: 'auth'` write is the corrective path for a stale cache and re-prompts exactly once. State is a pure hand-rolled reducer (`permission-flow.ts`); events invalid for the current step are no-ops, which is what stops a late browser return from resurrecting a discarded intent. Guards `apply` only; `remove` passes through.
+_Avoid_: Branching on a write failure first (burns a round-trip before every first highlight); re-prompting in a loop; running `remove` through the flow; `xstate` (Swift's equivalent is ~60 lines of view-model state)
+
+**Pending Highlight**:
+The in-memory `{ color, verses, scope }` a **Permission Flow** stashes when the user taps a color before they can write, and applies when sign-in or consent succeeds. Lives only inside reducer state — `openAuthSessionAsync` returns to the same live process, so web's `sessionStorage` stash and TTL solve a problem native does not have. Discarded cleanly on every cancel, decline, failure, or scope change. Its `scope` is the passage the intent was formed in and governs it: verse numbers replayed into another chapter would paint text the user never selected, so anything resumed after an await is checked against the scope it was claimed under.
+_Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping it across a scope change (the user has left the passage); reading the current **Highlight Scope** at replay time instead of the claimed one; treating a discard as an error
+
 ## Relationships
 
 - A **React Web SDK Component** may expose reusable content that can be rendered by an **Expo DOM Component**.
@@ -120,6 +176,21 @@ _Avoid_: Bundled deps, vendored web SDK
 - **Compiled Distribution** ships `build/` to npm (via `expo-module-scripts`); `tsc` preserves `'use dom'` and the Expo Metro plugin processes it from compiled files in `node_modules`, so DOM Components work without shipping raw source.
 - The **Dependency Boundary** auto-installs web SDK packages but requires `react-dom` as a peer dep to avoid duplicate React instances when consumers also build for web.
 - The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
+- A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Cached Highlights** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
+- **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
+- A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
+- A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
+- The reader's **Native Wrapper** derives **Cached Highlights** for its current **Highlight Scope** and holds the **Controlled Highlights Latch** with them; the **Expo DOM Component** only projects that array and never fetches, stores, or authenticates for highlights.
+- The highlights fetch is mounted only when the app **requested** the `highlights` permission on its auth config — not when a grant is known. A never-requested permission means no request; an unknown grant still fetches, because absence of a grant record is not a denial.
+- With the in-WebView verse action **Presentation Shell** switched off, a **Verse Selection** crosses to native as a **Native Action** and a **Selection Clear Signal** crosses back. Neither is **DOM-Owned Sheet UI State**: the selection is a committed observation, and the clear is a one-way native→DOM command.
+- **Granted Permissions** are read only from the app redirect, never from the `/auth/callback` hop, which drops them. They are **Native-Owned State** cached per user in MMKV and purged with the rest of auth state on sign-out; a stale grant can be invalidated so the next pre-flight re-prompts.
+- A permission pre-flight reads **Granted Permissions**; a **Highlight Write Outcome** of `reason: 'auth'` is the corrective path when that cache is wrong, not the primary signal.
+- **Data Exchange** is the other way to obtain **Granted Permissions** — the one that does not require a new sign-in. It writes into the same per-user cache, merging rather than replacing, and only ever on a granted return.
+- A **Permission Flow** composes the permission pre-flight, sign-in, and **Data Exchange** around a single guarded `apply`; its consent confirmation is a **Native Sheet**, whose every dismissal path routes to decline.
+- A **Verse Action Sheet** is open exactly while a **Verse Selection** is live and no permission prompt is up. Every exit from it increments the **Selection Clear Signal**, so the selection and the sheet cannot disagree about whether one exists.
+- The **Verse Action Sheet** yields to the sign-in and consent sheets rather than competing with them. **Native Sheet** displacement would close it, and closing it clears the selection a **Pending Highlight** is waiting on.
+- **Verse Action Swatches** are a projection of **Verse Selection** over **Server Colors**, the same layer the reader paints from, so the tray and the passage can never disagree. A swatch press routes to **Permission Flow**'s guarded `apply`, or straight to `remove`.
+- A **Pending Highlight** belongs to exactly one **Permission Flow** and one **Highlight Scope**; when the flow ends in an apply, its fate is reported through the ordinary **Highlight Write Outcome**.
 
 ## Example Dialogue
 
@@ -137,6 +208,9 @@ _Avoid_: Bundled deps, vendored web SDK
 
 > **Dev:** "Should `showLanguagePicker` live on the native sheet so both panels stay in sync?"
 > **Domain expert:** "No — that's **DOM-Owned Sheet UI State**. Bridging it as a **Native Action** makes the first language open flash instead of cross-fading. Keep panel visibility in **Version Picker Shell Layout**; native only owns open/close, **Sheet Reset Key**, and committed `versionId`."
+
+> **Dev:** "Tapping outside the verse action sheet doesn't close it. Can we add a backdrop?"
+> **Domain expert:** "No. The **Verse Action Sheet** is non-modal on purpose. A backdrop takes the second verse tap, and adding verses to a selection is the point. Swipe down, deselect, or act on the sheet."
 
 > **Dev:** "I wired `onClick` on `BibleVersionPickerLanguageTrigger` but the popover state still changes."
 > **Domain expert:** "Call `event.preventDefault()` in the DOM wrapper so the Web SDK doesn't also run `setIsLanguagesOpen`. Mobile uses the shell cross-fade, not popover layout."
