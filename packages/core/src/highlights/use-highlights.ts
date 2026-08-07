@@ -381,15 +381,12 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // Fresh token resolved in the send path, not at tap time — `startWrite`
       // has already painted. A failed refresh must stop the write here: an
       // expired token 401s, classifies as `auth`, and has the permission flow
-      // drop a valid grant (ADR 0016). No accessor means no auth is configured.
+      // drop a valid grant (ADR 0016). No accessor means no auth is configured,
+      // which this hook treats exactly as signed out.
       const getToken = authRef.current.getAccessToken
-      const rawToken = authRef.current.accessToken
-      const tokenResult: AccessTokenResult =
-        getToken !== null
-          ? await getToken()
-          : rawToken !== null
-            ? { status: 'ok', token: rawToken, userId: identityRef.current.userId }
-            : { status: 'unavailable', reason: 'signed-out' }
+      const tokenResult: AccessTokenResult = getToken
+        ? await getToken()
+        : { status: 'unavailable', reason: 'signed-out' }
 
       // The write chain outlives an identity change: `enqueue` serializes behind
       // whatever is in flight, and there is no AbortController, so one hung
@@ -409,8 +406,9 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // synced from a passive effect a render later. A sign-in as somebody else
       // landing while this awaited above moves the token first, so an
       // identityRef-only check would pass and send under the new user's
-      // credentials. Keeping the lagging check too costs nothing and still
-      // catches a sign-out on the no-accessor path.
+      // credentials. The lagging check stays because the branch below reuses
+      // `isSameUser` to tell a user switch from a plain failed refresh, and
+      // only that one reports `transient`.
       const isSameUser =
         identityRef.current.userId === captured.userId &&
         (tokenResult.status !== 'ok' || tokenResult.userId === captured.userId)
