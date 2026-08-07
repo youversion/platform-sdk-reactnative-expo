@@ -70,6 +70,35 @@ pnpm exec expo start --dev-client
 >
 > This applies whenever a native module is added to `packages/ui`, `packages/core`, or the example app. `expo install --fix` won't help here — it only reconciles versions, not an unlinked pod.
 
+### Device builds on BrowserStack
+
+When an approved collaborator on `platform-sdk-reactnative-expo_automation`
+opens a PR from a branch in this repository, **BrowserStack App Live PR
+Build** dispatches the existing automation build for the PR's exact head
+commit — Android **and** iOS. New commits do not rebuild automatically. To
+upload the current PR head again, an approved collaborator comments exactly
+`/app-live` on the open PR. On this explicit rebuild path, the commenter
+authorizes the current same-repository PR head; the PR author does not also
+need access to the automation repository. The automation repository builds
+the example app's `.apk` and `.ipa`, uploads both to BrowserStack App Live,
+and returns both `bs://...` app ids in the SDK workflow summary.
+After a successful upload, `github-actions[bot]` creates or updates one PR
+comment with the latest build details and the `/app-live` instruction.
+
+Builds are numbered per PR: the key is the branch's ticket key plus the PR
+number, incrementing for each upload, for example `rn-YPE-3011-pr14-1`
+and `rn-YPE-3011-pr14-2`. A sanitized 10-character branch label plus the
+PR number is used when the branch has no ticket key, for example
+`feature/rework-reader` becomes `rn-rework-rea-pr14-1`. The exact source
+SHA is recorded separately in the workflow summary.
+
+This initial bridge produces App Live builds only. It does not run the Hinqa
+corpus or upload to App Automate. Ported from the same bridge in
+`platform-sdk-swift` (YPE-3011); when one changes, check the other. Unlike
+the Swift/Kotlin bridges, this one always builds **both** platforms per
+trigger — the automation workflow requires a `platform` input and runs two
+jobs (android, ios) per dispatch.
+
 ## Useful Commands
 
 From the repo root:
