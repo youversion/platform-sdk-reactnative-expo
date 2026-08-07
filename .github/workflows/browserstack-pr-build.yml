@@ -5,16 +5,20 @@ name: BrowserStack App Live PR Build
 # automation-repository collaborator opens a same-repository PR, dispatch the
 # existing SDK build for the PR's exact head SHA and upload the resulting
 # Android .apk AND iOS .ipa to BrowserStack App Live. Later builds are
-# requested deliberately by an approved collaborator commenting /app-live on
-# the open PR. For that issue_comment path, the approved commenter explicitly
+# requested deliberately by an approved collaborator commenting one of
+# /app-live (both platforms), /app-live-ios, or /app-live-android on the open
+# PR. For that issue_comment path, the approved commenter explicitly
 # authorizes the current same-repository PR head; the PR author does not also
 # need automation-repository access. Test automation and App Automate
 # execution are deliberately out of scope.
 #
 # Unlike the Swift/Kotlin bridges, the automation workflow here
 # (build-rn-app.yml) requires a `platform` input and runs two jobs (android,
-# ios) per dispatch. This bridge always requests platform: both, so every
-# trigger produces two App Live ids from the one dispatched run.
+# ios) per dispatch. The initial PR-open build always requests platform: both
+# so every PR gets both artifacts tested; the /app-live-ios and
+# /app-live-android comments narrow a rebuild to one platform (cheaper,
+# faster — matching build-rn-app.yml's own guidance to pick a single target
+# when iterating), while bare /app-live still means both.
 #
 # pull_request_target, NOT pull_request: this workflow consumes
 # AUTOMATION_DISPATCH_TOKEN. A plain `pull_request` trigger runs the workflow
@@ -59,7 +63,8 @@ jobs:
     timeout-minutes: 75
     if: >-
       github.event_name == 'pull_request_target' ||
-      (github.event.issue.pull_request && github.event.comment.body == '/app-live')
+      (github.event.issue.pull_request &&
+       contains(fromJSON('["/app-live", "/app-live-ios", "/app-live-android"]'), github.event.comment.body))
 
     steps:
       - name: Read current PR context
@@ -75,9 +80,15 @@ jobs:
           # the Swift bridge this was ported from (platform-sdk-swift#228).
           if [ "$EVENT_NAME" = "pull_request_target" ]; then
             PR_JSON=$(jq '.pull_request' "$GITHUB_EVENT_PATH")
+            PLATFORM="both"
           else
             PR_NUMBER=$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")
             PR_JSON=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
+            case "$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")" in
+              /app-live-ios) PLATFORM="ios" ;;
+              /app-live-android) PLATFORM="android" ;;
+              *) PLATFORM="both" ;;
+            esac
           fi
 
           PR_NUMBER=$(jq -r '.number' <<< "$PR_JSON")
@@ -90,6 +101,7 @@ jobs:
             echo "number=$PR_NUMBER"
             echo "head_ref=$HEAD_REF"
             echo "head_sha=$HEAD_SHA"
+            echo "platform=$PLATFORM"
             echo "same_repo=$([ "$HEAD_REPO" = "$REPOSITORY" ] && echo true || echo false)"
             echo "open=$([ "$PR_STATE" = "open" ] && echo true || echo false)"
           } >> "$GITHUB_OUTPUT"
@@ -181,22 +193,24 @@ jobs:
             echo "sha7=$SHA7"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Dispatch exact PR head to App Live (Android + iOS)
+      - name: Dispatch exact PR head to App Live
         if: steps.authorization.outputs.allowed == 'true'
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
           BUILD_NAME: ${{ steps.build.outputs.name }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PLATFORM: ${{ steps.pr.outputs.platform }}
         run: |
           set -euo pipefail
           jq -n \
             --arg sdk_ref "$HEAD_SHA" \
+            --arg platform "$PLATFORM" \
             --arg build_name "$BUILD_NAME" \
             '{
               ref: "main",
               inputs: {
                 sdk_ref: $sdk_ref,
-                platform: "both",
+                platform: $platform,
                 target: "app-live",
                 build_name: $build_name
               }
@@ -205,7 +219,7 @@ jobs:
               --method POST \
               "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" \
               --input -
-          echo "Dispatched '$BUILD_NAME' (platform: both) for exact SDK SHA $HEAD_SHA."
+          echo "Dispatched '$BUILD_NAME' (platform: $PLATFORM) for exact SDK SHA $HEAD_SHA."
 
       - name: Locate remote build
         if: steps.authorization.outputs.allowed == 'true'
@@ -250,7 +264,7 @@ jobs:
           CONCLUSION=$(gh api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID" --jq '.conclusion')
           echo "Remote build $RUN_ID concluded: $CONCLUSION"
           if [ "$CONCLUSION" != "success" ]; then
-            echo "::error::example app build or App Live upload failed ($CONCLUSION). With platform: both, either job failing fails the whole run."
+            echo "::error::example app build or App Live upload failed ($CONCLUSION). With a two-platform dispatch, either job failing fails the whole run."
             exit 1
           fi
 
@@ -260,32 +274,41 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
           RUN_ID: ${{ steps.remote.outputs.id }}
+          PLATFORM: ${{ steps.pr.outputs.platform }}
         run: |
           set -euo pipefail
           gh api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID/logs" > /tmp/remote-logs.zip
           unzip -oq /tmp/remote-logs.zip -d /tmp/remote-logs
           # build-rn-app.yml's Android/iOS jobs each notice their own App Live
           # id with a platform-tagged prefix (unlike Swift/Kotlin's single
-          # "Uploaded to App Live: ..." line) — read both from the one run.
-          ANDROID_ID=$(grep -rhoE 'Android → App Live: bs://[A-Za-z0-9]+' /tmp/remote-logs |
-            head -1 | grep -oE 'bs://[A-Za-z0-9]+' || true)
-          IOS_ID=$(grep -rhoE 'iOS → App Live: bs://[A-Za-z0-9]+' /tmp/remote-logs |
-            head -1 | grep -oE 'bs://[A-Za-z0-9]+' || true)
-          test -n "$ANDROID_ID" || {
-            echo "::error::Remote build succeeded but its Android App Live bs:// id was not found."
-            exit 1
-          }
-          test -n "$IOS_ID" || {
-            echo "::error::Remote build succeeded but its iOS App Live bs:// id was not found."
-            exit 1
-          }
+          # "Uploaded to App Live: ..." line). Only read/require the id(s) for
+          # the platform(s) actually dispatched — a /app-live-ios rebuild
+          # never ran the Android job, so there's no Android id to find.
+          ANDROID_ID=""
+          IOS_ID=""
+          if [ "$PLATFORM" = "android" ] || [ "$PLATFORM" = "both" ]; then
+            ANDROID_ID=$(grep -rhoE 'Android → App Live: bs://[A-Za-z0-9]+' /tmp/remote-logs |
+              head -1 | grep -oE 'bs://[A-Za-z0-9]+' || true)
+            test -n "$ANDROID_ID" || {
+              echo "::error::Remote build succeeded but its Android App Live bs:// id was not found."
+              exit 1
+            }
+          fi
+          if [ "$PLATFORM" = "ios" ] || [ "$PLATFORM" = "both" ]; then
+            IOS_ID=$(grep -rhoE 'iOS → App Live: bs://[A-Za-z0-9]+' /tmp/remote-logs |
+              head -1 | grep -oE 'bs://[A-Za-z0-9]+' || true)
+            test -n "$IOS_ID" || {
+              echo "::error::Remote build succeeded but its iOS App Live bs:// id was not found."
+              exit 1
+            }
+          fi
           {
             echo "android_id=$ANDROID_ID"
             echo "ios_id=$IOS_ID"
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish App Live status on PR
-        if: steps.authorization.outputs.allowed == 'true' && steps.app_live.outputs.android_id != '' && steps.app_live.outputs.ios_id != ''
+        if: steps.authorization.outputs.allowed == 'true' && (steps.app_live.outputs.android_id != '' || steps.app_live.outputs.ios_id != '')
         env:
           ANDROID_APP_LIVE_ID: ${{ steps.app_live.outputs.android_id }}
           IOS_APP_LIVE_ID: ${{ steps.app_live.outputs.ios_id }}
@@ -314,13 +337,15 @@ jobs:
               "|---|---|",
               ("| Build | `" + $build + "` |"),
               ("| Uploaded commit | `" + $sha + "` |"),
-              ("| Automation run | [Open run](" + $run + ") |"),
-              ("| Android App Live id | `" + $android + "` |"),
-              ("| iOS App Live id | `" + $ios + "` |"),
+              ("| Automation run | [Open run](" + $run + ") |")
+            ]
+            + (if $android != "" then [("| Android App Live id | `" + $android + "` |")] else [] end)
+            + (if $ios != "" then [("| iOS App Live id | `" + $ios + "` |")] else [] end)
+            + [
               "",
-              "Review-fix commits are not uploaded automatically. To upload the current PR head again, comment exactly:",
+              "Review-fix commits are not uploaded automatically. To upload the current PR head again, comment one of:",
               "",
-              "`/app-live`",
+              "`/app-live` (both platforms), `/app-live-ios`, `/app-live-android`",
               "",
               "Only approved collaborators on `platform-sdk-reactnative-expo_automation` can trigger a build."
             ] | join("\n")')
@@ -375,6 +400,7 @@ jobs:
             echo "| PR / SHA | #$PR_NUMBER @ $HEAD_SHA |"
             echo "| Build name | $BUILD_NAME |"
             echo "| Automation run | $RUN_URL |"
-            echo "| Android App Live id | $ANDROID_APP_LIVE_ID |"
-            echo "| iOS App Live id | $IOS_APP_LIVE_ID |"
+            [ -n "$ANDROID_APP_LIVE_ID" ] && echo "| Android App Live id | $ANDROID_APP_LIVE_ID |"
+            [ -n "$IOS_APP_LIVE_ID" ] && echo "| iOS App Live id | $IOS_APP_LIVE_ID |"
+            true
           } >> "$GITHUB_STEP_SUMMARY"
