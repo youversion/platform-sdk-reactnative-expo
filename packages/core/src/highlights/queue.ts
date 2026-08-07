@@ -1,0 +1,147 @@
+/**
+ * Writes that have not reached the server, persisted until they do. See ADR 0017.
+ *
+ * Storage only: eligibility belongs to the write path, and the drain belongs to
+ * the provider.
+ */
+
+import { z } from 'zod'
+
+import { mmkvStorage } from '../storage/mmkv-storage'
+import {
+  highlightQueueKey,
+  type HighlightScope,
+  type QueuedWrites,
+  type ServerColors,
+} from './constants'
+
+/** Never mutate a returned map — a miss returns this shared instance. */
+const EMPTY: QueuedWrites = Object.freeze({})
+
+/** `null` is a removed highlight, on either side of an entry. */
+const colorSchema = z.union([z.string().regex(/^[0-9a-f]{6}$/i), z.null()])
+
+const queuedWritesSchema = z.record(
+  z.string().regex(/^\d+$/),
+  z.object({ local: colorSchema, server: colorSchema }),
+)
+
+function normalizeColor(color: string | null): string | null {
+  return color === null ? null : color.toLowerCase()
+}
+
+/** Reads a scope's unsent writes. A corrupt payload reads as empty; never throws. */
+export function getQueuedWrites(userId: string | null, scope: HighlightScope): QueuedWrites {
+  if (!userId) {
+    return EMPTY
+  }
+
+  try {
+    const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
+    if (raw == null) {
+      return EMPTY
+    }
+    const parsed = queuedWritesSchema.safeParse(JSON.parse(raw))
+    if (!parsed.success) {
+      return EMPTY
+    }
+
+    const queued: QueuedWrites = {}
+    for (const [verse, entry] of Object.entries(parsed.data)) {
+      const verseNumber = Number(verse)
+      if (!Number.isInteger(verseNumber) || verseNumber < 1) {
+        continue
+      }
+      queued[verseNumber] = {
+        local: normalizeColor(entry.local),
+        server: normalizeColor(entry.server),
+      }
+    }
+    return queued
+  } catch {
+    return EMPTY
+  }
+}
+
+function persist(userId: string, scope: HighlightScope, queued: QueuedWrites): void {
+  const key = highlightQueueKey(userId, scope)
+  if (Object.keys(queued).length === 0) {
+    mmkvStorage.remove(key)
+    return
+  }
+  mmkvStorage.set(key, JSON.stringify(queued))
+}
+
+/**
+ * Records the end state `verses` should reach — a color, or `null` to remove.
+ *
+ * `currentColors` seeds `server` for a verse with no entry yet. Pass what is on
+ * screen: with no entry, nothing about that verse is unconfirmed, so the painted
+ * color *is* what the server last gave us.
+ */
+export function enqueueWrites(input: {
+  userId: string
+  scope: HighlightScope
+  verses: readonly number[]
+  color: string | null
+  currentColors: ServerColors
+}): QueuedWrites {
+  const { userId, scope, verses, color, currentColors } = input
+  const local = normalizeColor(color)
+  const queued: QueuedWrites = { ...getQueuedWrites(userId, scope) }
+
+  for (const verse of verses) {
+    const existing = queued[verse]
+    const server = existing === undefined ? (currentColors[verse] ?? null) : existing.server
+    if (local === server) {
+      delete queued[verse]
+    } else {
+      queued[verse] = { local, server }
+    }
+  }
+
+  persist(userId, scope, queued)
+  return queued
+}
+
+/**
+ * Drops the entries a settled write is responsible for, reporting each one's
+ * `server` state so a rejected write can be reverted.
+ *
+ * Only entries still asking for `color` are dropped. A verse the user has since
+ * re-tapped holds a different intent, and the settling write — which knows
+ * nothing about it — must not retire or revert it. Two taps of the same color
+ * need no such guard: they ask for the same thing, so either may retire it.
+ */
+export function dropWrites(input: {
+  userId: string
+  scope: HighlightScope
+  verses: readonly number[]
+  color: string | null
+}): { restored: ServerColors; cleared: number[] } {
+  const { userId, scope, verses, color } = input
+  const local = normalizeColor(color)
+  const queued: QueuedWrites = { ...getQueuedWrites(userId, scope) }
+  const restored: ServerColors = {}
+  const cleared: number[] = []
+  let changed = false
+
+  for (const verse of verses) {
+    const entry = queued[verse]
+    if (entry === undefined || entry.local !== local) {
+      continue
+    }
+    if (entry.server === null) {
+      cleared.push(verse)
+    } else {
+      restored[verse] = entry.server
+    }
+    delete queued[verse]
+    changed = true
+  }
+
+  if (changed) {
+    persist(userId, scope, queued)
+  }
+  return { restored, cleared }
+}

@@ -678,9 +678,9 @@ describe('apply', () => {
   })
 
   // AC 3
-  it('reverts the paint and returns a typed error when the write fails', async () => {
+  it('reverts the paint and returns a typed error when the server rejects the write', async () => {
     seedServer([highlight('JHN.3.16', GREEN)])
-    mockCreateHighlight.mockResolvedValue(transient(500))
+    mockCreateHighlight.mockResolvedValue(transient(422, 'boom'))
 
     const { result } = renderUseHighlights()
     await act(async () => {
@@ -694,7 +694,7 @@ describe('apply', () => {
 
     expect(outcome).toEqual({
       status: 'error',
-      reason: 'transient',
+      reason: 'invalid',
       message: 'boom',
       failedVerses: [16],
       succeededVerses: [],
@@ -730,7 +730,9 @@ describe('apply', () => {
     expect(outcome).toMatchObject({ status: 'error', reason: 'invalid' })
   })
 
-  it('classifies a 5xx and a network failure as transient', async () => {
+  // A 5xx and an unreachable network are the same thing to the caller: the write
+  // did not land, and retrying it later may.
+  it('parks a 5xx and a network failure alike', async () => {
     mockCreateHighlight.mockResolvedValueOnce(transient(503))
     const { result } = renderUseHighlights()
 
@@ -738,14 +740,14 @@ describe('apply', () => {
     await act(async () => {
       first = await result.current.apply(YELLOW, [16])
     })
-    expect(first).toMatchObject({ reason: 'transient' })
+    expect(first).toEqual({ status: 'queued', verses: [16] })
 
     mockCreateHighlight.mockResolvedValueOnce(transient(undefined, 'Network request failed'))
     let second: HighlightWriteOutcome | undefined
     await act(async () => {
-      second = await result.current.apply(YELLOW, [16])
+      second = await result.current.apply(YELLOW, [17])
     })
-    expect(second).toMatchObject({ reason: 'transient' })
+    expect(second).toEqual({ status: 'queued', verses: [17] })
   })
 
   it('is a noop for an empty verse list, with no request', async () => {
@@ -763,10 +765,10 @@ describe('apply', () => {
 // ── Partial batches ──────────────────────────────────────────────────────────
 
 describe('partial batches', () => {
-  it('retains succeeded verses, reverts failed ones, and reports both', async () => {
+  it('retains succeeded verses, reverts rejected ones, and reports both', async () => {
     mockCreateHighlight
       .mockResolvedValueOnce({ ok: true, value: highlight('JHN.3.16-17', YELLOW) })
-      .mockResolvedValueOnce(transient(500))
+      .mockResolvedValueOnce(transient(422, 'boom'))
 
     const { result } = renderUseHighlights()
     let outcome: HighlightWriteOutcome | undefined
@@ -776,7 +778,7 @@ describe('partial batches', () => {
 
     expect(outcome).toEqual({
       status: 'error',
-      reason: 'transient',
+      reason: 'invalid',
       message: 'boom',
       failedVerses: [20],
       succeededVerses: [16, 17],
@@ -848,8 +850,9 @@ describe('overlapping writes', () => {
     expect(mockCreateHighlight).toHaveBeenCalledTimes(2)
   })
 
-  // AC 4 — the ownership token, end to end.
-  it('a failed older write does not wipe the color a newer write painted', async () => {
+  // AC 4 — ownership, end to end. A settling write only touches entries still
+  // asking for what it sent, so a rejection cannot revert a newer intent.
+  it('a rejected older write does not wipe the color a newer write painted', async () => {
     const slowYellow = deferred<Result<Highlight, HighlightsApiError>>()
     mockCreateHighlight.mockReturnValueOnce(slowYellow.promise)
 
@@ -863,6 +866,13 @@ describe('overlapping writes', () => {
       yellowOutcome = result.current.apply(YELLOW, [16])
     })
 
+    // Let yellow's POST actually go out. Without this it would be superseded
+    // before it sends, and the ownership guard below would never be exercised.
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+
     // The user re-taps verse 16 in green before yellow's POST comes back.
     let greenOutcome: Promise<HighlightWriteOutcome> | undefined
     act(() => {
@@ -871,12 +881,12 @@ describe('overlapping writes', () => {
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
 
     await act(async () => {
-      slowYellow.resolve(transient(500))
+      slowYellow.resolve(transient(422))
       await yellowOutcome
       await greenOutcome
     })
 
-    // Yellow failed, but it no longer owned verse 16 — green survives.
+    // Yellow was rejected, but it no longer owned verse 16 — green survives.
     expect(await yellowOutcome).toMatchObject({ status: 'error', failedVerses: [16] })
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
   })
@@ -969,9 +979,9 @@ describe('remove', () => {
     expect(mockDeleteHighlight).not.toHaveBeenCalled()
   })
 
-  it('restores the highlight when the delete fails', async () => {
+  it('restores the highlight when the server rejects the delete', async () => {
     seedServer([highlight('JHN.3.16', YELLOW)])
-    mockDeleteHighlight.mockResolvedValue(transient(500))
+    mockDeleteHighlight.mockResolvedValue(transient(422))
 
     const { result } = renderUseHighlights()
     await act(async () => {
@@ -1009,7 +1019,11 @@ describe('remove', () => {
   // React, so nothing has re-rendered and the ref-sync effect has not run. If
   // the selection were read from the last committed render, this would no-op and
   // strand the highlight the apply just painted.
-  it('sees a claim made earlier in the same tick, before any re-render', async () => {
+  //
+  // Neither request goes out: the two writes cancel each other in the queue
+  // before either reaches the send path, so the server is never given a
+  // highlight only to be asked to delete it again.
+  it('sees a write made earlier in the same tick, before any re-render', async () => {
     const { result } = renderUseHighlights()
     await act(async () => {
       await Promise.resolve()
@@ -1027,9 +1041,12 @@ describe('remove', () => {
       await removed
     })
 
-    expect(await removed).toEqual({ status: 'ok', verses: [16] })
-    expect(mockDeleteHighlight).toHaveBeenCalledWith('token-1', 'JHN.3.16', { version_id: 111 })
+    // Both discriminate: had the remove read the last committed render it would
+    // target no verses, leaving the apply's paint on 16 and its entry alive to
+    // send.
     expect(result.current.highlights).toEqual([])
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(mockDeleteHighlight).not.toHaveBeenCalled()
   })
 })
 
@@ -1393,7 +1410,7 @@ describe('error surface', () => {
   it('never lets a failed write evict a fetch error that is still true', async () => {
     seedCache([highlight('JHN.3.16', GREEN)])
     mockGetHighlights.mockResolvedValue(transient(500, 'fetch died'))
-    mockCreateHighlight.mockResolvedValue(transient(503, 'write died'))
+    mockCreateHighlight.mockResolvedValue(transient(422, 'write died'))
 
     const { result } = renderUseHighlights()
     await act(async () => {

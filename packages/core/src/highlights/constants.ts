@@ -1,5 +1,8 @@
 export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 
+/** Distinct from the cache prefix so sign-out's purge cannot take the queue by accident. */
+export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
+
 /**
  * The five highlight swatches, a company-wide standard across every YouVersion
  * SDK. Custom colors are not supported by the product, so both write paths
@@ -30,6 +33,18 @@ export type HighlightScope = {
 
 export type ServerColors = Record<number, string>
 
+export type QueuedWrite = {
+  local: string | null
+  /**
+   * What the server had before the user started editing this verse, restored if
+   * the write is rejected. Survives a later write to the same verse.
+   */
+  server: string | null
+}
+
+/** Verse number -> its unsent write. An entry where the two states agree is dropped. */
+export type QueuedWrites = Record<number, QueuedWrite>
+
 /**
  * One copy of the message, shared by the write path and the permission flow that
  * wraps it. Both can report the same refusal, and two drifting copies of a
@@ -40,4 +55,9 @@ export const NOT_SIGNED_IN_MESSAGE =
 
 export function highlightsCacheKey(userId: string, scope: HighlightScope): string {
   return `${MMKV_HIGHLIGHTS_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
+}
+
+/** Keyed like the cache, so a tap rewrites one chapter's slice, not a global blob. */
+export function highlightQueueKey(userId: string, scope: HighlightScope): string {
+  return `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
 }

@@ -8,21 +8,22 @@ import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from
 import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
 import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
 import {
-  claim,
+  applyQueuedWrites,
   collapseVerseRuns,
+  confirm,
   createOptimisticState,
-  createWriteToken,
   formatPassageId,
   normalizeVerseSelection,
+  paint,
+  restore,
   selectHighlights,
   selectVersesInColor,
   serverUpdated,
-  settle,
   versesInRun,
   type OptimisticState,
   type WriteOp,
-  type WriteToken,
 } from './optimistic'
+import { dropWrites, enqueueWrites, getQueuedWrites } from './queue'
 
 export type UseHighlightsOptions = {
   versionId: number
@@ -34,6 +35,11 @@ export type HighlightWriteReason = 'not-signed-in' | 'auth' | 'transient' | 'inv
 
 export type HighlightWriteOutcome =
   | { status: 'ok'; verses: number[] }
+  /**
+   * Could not reach the server. The paint stands and the write is persisted as a
+   * Queued Write; a point-in-time signal at the tap, not a standing state.
+   */
+  | { status: 'queued'; verses: number[] }
   | { status: 'noop' }
   | {
       status: 'error'
@@ -151,13 +157,20 @@ function identityKeyFor(userId: string | null, scope: HighlightScope): string {
   return `${userId ?? '<anonymous>'}|${scope.versionId}|${scope.book}|${scope.chapter}`
 }
 
+/**
+ * The cache already holds unsent writes, so re-applying the queue is a repair:
+ * a process that died between the two MMKV writes would otherwise come back
+ * owing a write it does not show.
+ */
 function initialStateFor(scope: HighlightScope, userId: string | null): OptimisticState {
   const cached = userId === null ? null : getCachedHighlights(userId, scope)
-  return createOptimisticState({
-    scope,
-    userId,
-    serverColors: cached === null ? {} : deriveServerColors(cached, scope),
-  })
+  const colors = cached === null ? {} : deriveServerColors(cached, scope)
+
+  if (userId !== null) {
+    applyQueuedWrites(colors, getQueuedWrites(userId, scope))
+  }
+
+  return createOptimisticState({ scope, userId, colors })
 }
 
 function sameIdentity(state: OptimisticState, identity: Identity): boolean {
@@ -321,12 +334,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           setError({ reason: classifyApiError(result.error), message: result.error.message })
           return
         }
-        if (captured.userId !== null) {
-          setCachedHighlights(captured.userId, captured.scope, result.value.data)
-        }
         const serverColors = deriveServerColors(result.value.data, captured.scope)
+        const queued =
+          captured.userId === null ? {} : getQueuedWrites(captured.userId, captured.scope)
         setState((prev) =>
-          sameIdentity(prev, captured) ? serverUpdated(prev, serverColors) : prev,
+          sameIdentity(prev, captured) ? serverUpdated(prev, serverColors, queued) : prev,
         )
         setError(null)
       })
@@ -371,10 +383,26 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       op: WriteOp
       color: string
       verses: number[]
-      token: WriteToken
       captured: Identity
     }): Promise<HighlightWriteOutcome> => {
-      const { op, color, verses, token, captured } = batch
+      const { op, color, verses, captured } = batch
+      const paintedColor = op === 'apply' ? color : null
+
+      /** Undoes verses the server refused, skipping any the user has re-tapped. */
+      const revert = (rejected: number[]): void => {
+        if (captured.userId === null || rejected.length === 0) {
+          return
+        }
+        const { restored, cleared } = dropWrites({
+          userId: captured.userId,
+          scope: captured.scope,
+          verses: rejected,
+          color: paintedColor,
+        })
+        setState((prev) =>
+          sameIdentity(prev, captured) ? restore(prev, { restored, cleared }) : prev,
+        )
+      }
 
       await waitForAuthSettled()
 
@@ -444,8 +472,18 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       }
 
       const accessTokenNow = tokenResult.token
+      // Re-read at send time, not tap time: a write is already on the chain by
+      // the time a later tap can cancel or supersede its entry. A verse the queue
+      // no longer wants in this color needs no request — the end state it asked
+      // for is one the server already has, or one a newer write will set.
+      const owed = getQueuedWrites(captured.userId, captured.scope)
+      const sendable = verses.filter((verse) => owed[verse]?.local === paintedColor)
+      if (sendable.length === 0) {
+        return { status: 'noop' }
+      }
 
       const succeededVerses: number[] = []
+      const queuedVerses: number[] = []
       const failedVerses: number[] = []
       const errors: HighlightsApiError[] = []
 
@@ -457,11 +495,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // that changes.
       const units =
         op === 'apply'
-          ? collapseVerseRuns(verses).map((run) => ({
+          ? collapseVerseRuns(sendable).map((run) => ({
               passageId: formatPassageId(captured.scope.book, captured.scope.chapter, run),
               verses: versesInRun(run),
             }))
-          : verses.map((verse) => ({
+          : sendable.map((verse) => ({
               passageId: formatPassageId(captured.scope.book, captured.scope.chapter, {
                 start: verse,
                 end: verse,
@@ -491,33 +529,59 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           succeededVerses.push(...unit.verses)
           return
         }
+        // A write the server never saw is owed, not lost: its entry and its paint
+        // both stand, and there is nothing to settle. Only a refusal — 401, 403,
+        // any other 4xx — takes the paint back.
+        if (result !== undefined && classifyApiError(result.error) === 'transient') {
+          queuedVerses.push(...unit.verses)
+          return
+        }
         failedVerses.push(...unit.verses)
         if (result !== undefined) {
           errors.push(result.error)
         }
       })
 
-      setState((prev) => settle(prev, { token, op, color, succeededVerses, failedVerses }))
+      if (succeededVerses.length > 0 && captured.userId !== null) {
+        dropWrites({
+          userId: captured.userId,
+          scope: captured.scope,
+          verses: succeededVerses,
+          color: paintedColor,
+        })
+        setState((prev) =>
+          sameIdentity(prev, captured)
+            ? confirm(prev, { op, color, verses: succeededVerses })
+            : prev,
+        )
+      }
+      revert(failedVerses)
 
-      // Exactly one GET per settled batch, success or failure — this is what
-      // reconciles a partial success back to server truth. Guarded internally
-      // against a scope change or sign-out landing mid-write.
-      void runFetch()
-
-      if (failedVerses.length === 0) {
-        return { status: 'ok', verses: succeededVerses }
+      // One GET per write that reached the server; a queued one changed nothing
+      // there and has nothing to reconcile.
+      if (succeededVerses.length > 0 || failedVerses.length > 0) {
+        void runFetch()
       }
 
-      const reasons = errors.map(classifyApiError)
-      const reason = reasons.reduce<HighlightWriteReason>(
-        (worst, candidate) => (REASON_RANK[candidate] > REASON_RANK[worst] ? candidate : worst),
-        'transient',
-      )
-      const message =
-        errors.find((candidate) => classifyApiError(candidate) === reason)?.message ??
-        'Highlight write failed.'
+      // A refusal outranks a park: `useHighlightPermissionFlow` branches on `reason`.
+      if (failedVerses.length > 0) {
+        const reasons = errors.map(classifyApiError)
+        const reason = reasons.reduce<HighlightWriteReason>(
+          (worst, candidate) => (REASON_RANK[candidate] > REASON_RANK[worst] ? candidate : worst),
+          'transient',
+        )
+        const message =
+          errors.find((candidate) => classifyApiError(candidate) === reason)?.message ??
+          'Highlight write failed.'
 
-      return { status: 'error', reason, message, failedVerses, succeededVerses }
+        return { status: 'error', reason, message, failedVerses, succeededVerses }
+      }
+
+      if (queuedVerses.length > 0) {
+        return { status: 'queued', verses: queuedVerses }
+      }
+
+      return { status: 'ok', verses: succeededVerses }
     },
     [api, runFetch, waitForAuthSettled],
   )
@@ -566,22 +630,30 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         return Promise.resolve({ status: 'noop' })
       }
 
-      // Paint synchronously, before the promise is returned.
-      const token = createWriteToken(op)
-      const claimColor = op === 'apply' ? color : null
-      setState((prev) => claim(prev, verses, token, claimColor))
+      // Queue before paint: dying between the two leaves a write that is owed
+      // but unpainted, which the next mount repairs. The other order leaves one
+      // painted that nothing will ever send.
+      const paintedColor = op === 'apply' ? color : null
+      enqueueWrites({
+        userId: captured.userId,
+        scope: captured.scope,
+        verses,
+        color: paintedColor,
+        currentColors: stateRef.current.colors,
+      })
+      setState((prev) => paint(prev, verses, paintedColor))
 
       // Advance the ref with it. The effect that syncs `stateRef` only runs
       // after a render, so a second write issued in the same tick — a toggle
       // that applies and removes inside one handler — would otherwise select
-      // against the pre-claim paint, no-op, and strand what the apply painted.
+      // against the pre-paint colors, no-op, and strand what the apply painted.
       // Chaining off `stateRef.current` instead of capturing the updater's
       // result keeps the updater pure (React may invoke it twice) and computes
-      // the same thing React will: the same claims, in the same order, over the
+      // the same thing React will: the same writes, in the same order, over the
       // same committed state.
-      stateRef.current = claim(stateRef.current, verses, token, claimColor)
+      stateRef.current = paint(stateRef.current, verses, paintedColor)
 
-      return enqueue(() => runWrite({ op, color, verses, token, captured }))
+      return enqueue(() => runWrite({ op, color, verses, captured }))
     },
     [enqueue, runWrite],
   )
@@ -597,6 +669,14 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   )
 
   const highlights = useMemo(() => selectHighlights(renderedState), [renderedState])
+
+  // One place, so no write path can paint without persisting.
+  useEffect(() => {
+    if (userId === null) {
+      return
+    }
+    setCachedHighlights(userId, scope, highlights)
+  }, [userId, scope, highlights])
 
   return {
     highlights,

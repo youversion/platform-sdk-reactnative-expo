@@ -1,161 +1,112 @@
 /**
- * Pure optimistic-overlay math for the native highlights layer.
+ * Pure paint math for the native highlights layer. React-free and
+ * side-effect-free: no storage, no network, no hooks.
  *
- * Ported from the web SDK's `bible-reader-highlights-machine.ts` (`claimVerses`,
- * `settleWrite`, `reconcileOverlay`) so the two SDKs agree on what the user sees
- * while a write is in flight. Two semantics are load-bearing and are adopted
- * rather than re-derived:
+ * `colors` is what the reader shows — server truth with the user's unconfirmed
+ * edits already folded in, not a base plus an overlay. The record of which edits
+ * are unconfirmed lives in the Highlight Write Queue, which is persisted; this
+ * module takes it as an argument at {@link serverUpdated} and never reads it
+ * otherwise. See ADR 0013 and ADR 0017.
  *
- * 1. **Ownership tokens.** Every write allocates a fresh token object and stamps
- *    the verses it claims. A settling write only touches verses it *still* owns,
- *    so a slow failure cannot wipe paint a newer write has since put down.
- * 2. **Remove overlays survive reconciliation.** A stale read replica can echo
- *    back the color that was just deleted; retiring the overlay on that echo
- *    repaints the verse for a beat ("vapor"). See {@link shouldRetire} — our
- *    rule diverges from web's, deliberately.
- *
- * This module is React-free and side-effect-free: no storage, no network, no
- * hooks. Every state transition returns the *same* object when nothing changed,
- * because the projected output crosses the native/DOM bridge as a serialized
- * prop.
+ * Every transition returns the *same* object when nothing changed, because the
+ * projected output crosses the native/DOM bridge as a serialized prop.
  */
 
 import type { Highlight } from '@youversion/platform-core'
-import type { HighlightScope, ServerColors } from './constants'
-
-/**
- * Pending local edits for a scope: a hex color where the user just applied one,
- * `null` where they just removed one. Sits on top of Server Colors. Never
- * persisted.
- */
-export type HighlightOverlay = Record<number, string | null>
+import type { HighlightScope, QueuedWrites, ServerColors } from './constants'
 
 export type WriteOp = 'apply' | 'remove'
 
 /**
- * Per-write ownership marker. Compared by **object identity**, never by value —
- * the `op` field is for debugging only. Allocate a fresh one per write.
+ * A write the server accepted, held until a fetch agrees. Without it a read
+ * replica one step behind repaints what was just deleted ("vapor").
  */
-export type WriteToken = { readonly op: WriteOp }
-
-/** What a settled write is waiting for the server to confirm. */
 export type ReconcileEntry = { op: WriteOp; color: string }
 
 export type OptimisticState = {
   scope: HighlightScope
   userId: string | null
-  serverColors: ServerColors
-  overlay: HighlightOverlay
+  /** What the reader paints. */
+  colors: ServerColors
   reconcile: ReadonlyMap<number, ReconcileEntry>
-  writeIntent: ReadonlyMap<number, WriteToken>
 }
 
-export function createWriteToken(op: WriteOp): WriteToken {
-  return { op }
-}
-
-/**
- * A fresh state for an identity (scope + user), seeded with whatever server
- * truth is already known. Also the `reset` transition: clearing `writeIntent` is
- * what stops an in-flight write from settling onto a colliding verse number in
- * the scope the user has since navigated to.
- */
 export function createOptimisticState(input: {
   scope: HighlightScope
   userId: string | null
-  serverColors: ServerColors
+  colors: ServerColors
 }): OptimisticState {
   return {
     scope: input.scope,
     userId: input.userId,
-    serverColors: input.serverColors,
-    overlay: {},
+    colors: input.colors,
     reconcile: new Map(),
-    writeIntent: new Map(),
   }
 }
 
 /**
- * Claims verses for a write: stamps each with the op's ownership `token`, drops
- * any pending reconciliation (a newer write supersedes it), and paints the
- * optimistic overlay (`color` for an apply, `null` for a remove).
- *
- * Dropping the reconcile entry is also the third retirement path for a remove
- * overlay — the other two are a scope/identity change and a confirming fetch.
+ * Paints `verses` — a color for an apply, `null` for a remove — and drops any
+ * reconciliation pending on them, which a newer write supersedes.
  */
-export function claim(
+export function paint(
   state: OptimisticState,
   verses: readonly number[],
-  token: WriteToken,
   color: string | null,
 ): OptimisticState {
   if (verses.length === 0) {
     return state
   }
-  const writeIntent = new Map(state.writeIntent)
+  const colors = { ...state.colors }
   const reconcile = new Map(state.reconcile)
-  const overlay = { ...state.overlay }
   for (const verse of verses) {
-    writeIntent.set(verse, token)
+    if (color === null) {
+      delete colors[verse]
+    } else {
+      colors[verse] = color
+    }
     reconcile.delete(verse)
-    overlay[verse] = color
   }
-  return { ...state, writeIntent, reconcile, overlay }
+  return { ...state, colors, reconcile }
 }
 
 /**
- * Cleanup for a finished batch, deciding what happens to paint already on
- * screen. Succeeded verses keep their paint and register a reconcile entry so a
- * later fetch knows when to retire it; failed verses have their overlay entry
- * **deleted** — for a failed remove that restores the highlight, same mechanism,
- * correct result.
- *
- * Both loops are guarded on `writeIntent.get(verse) === token` by object
- * identity. The scenario: tap yellow on verse 16; before that POST returns, tap
- * green on 16 (which re-stamps the intent); then yellow's POST fails. Unguarded,
- * yellow's settle deletes the overlay and wipes the green the user is looking at
- * over a failure that has nothing to do with it. Guarded, yellow sees green's
- * token instead of its own and leaves it alone.
- *
- * Releasing the claim (`writeIntent.delete`) is what stops intents accumulating
- * until sign-out.
+ * Registers verses the server has accepted, so the next fetch knows when it is
+ * safe to stop trusting the local value. Leaves the paint alone — it is already
+ * what was written.
  */
-export function settle(
+export function confirm(
   state: OptimisticState,
-  batch: {
-    token: WriteToken
-    op: WriteOp
-    color: string
-    succeededVerses: readonly number[]
-    failedVerses: readonly number[]
-  },
+  batch: { op: WriteOp; color: string; verses: readonly number[] },
 ): OptimisticState {
-  const overlay = { ...state.overlay }
+  if (batch.verses.length === 0) {
+    return state
+  }
   const reconcile = new Map(state.reconcile)
-  const writeIntent = new Map(state.writeIntent)
-  let changed = false
-
-  for (const verse of batch.succeededVerses) {
-    if (state.writeIntent.get(verse) !== batch.token) {
-      continue
-    }
+  for (const verse of batch.verses) {
     reconcile.set(verse, { op: batch.op, color: batch.color })
-    writeIntent.delete(verse)
-    changed = true
   }
+  return { ...state, reconcile }
+}
 
-  for (const verse of batch.failedVerses) {
-    if (state.writeIntent.get(verse) !== batch.token) {
-      continue
-    }
-    if (verse in overlay) {
-      delete overlay[verse]
-    }
-    writeIntent.delete(verse)
-    changed = true
+/**
+ * Puts verses back to what the server had, for a write the server rejected. Two
+ * halves because a verse the server had nothing for is an absence, not a color.
+ */
+export function restore(
+  state: OptimisticState,
+  batch: { restored: ServerColors; cleared: readonly number[] },
+): OptimisticState {
+  if (Object.keys(batch.restored).length === 0 && batch.cleared.length === 0) {
+    return state
   }
-
-  return changed ? { ...state, overlay, reconcile, writeIntent } : state
+  const colors = { ...state.colors }
+  for (const [verse, color] of Object.entries(batch.restored)) {
+    colors[Number(verse)] = color
+  }
+  for (const verse of batch.cleared) {
+    delete colors[verse]
+  }
+  return serverColorsEqual(state.colors, colors) ? state : { ...state, colors }
 }
 
 /**
@@ -171,8 +122,8 @@ export function settle(
  *
  * Narrower failure mode this introduces: verse was green, user set yellow, user
  * removed it, and a replica stale enough to still report *green* retires the
- * overlay and briefly paints green. That needs the server two steps behind
- * rather than one.
+ * entry and briefly paints green. That needs the server two steps behind rather
+ * than one.
  *
  * Reverting to web's behavior is `return false` in the remove branch.
  */
@@ -184,42 +135,57 @@ export function shouldRetire(entry: ReconcileEntry, serverColor: string | undefi
 }
 
 /**
- * Stores fresh server truth and retires any reconcile entries it confirms.
+ * Rebuilds the paint from fresh server truth, re-applying everything not yet
+ * confirmed: writes the server has accepted but may not be serving back yet
+ * (`reconcile`), then writes it has not received at all (`queued`), which are
+ * newer and win.
+ *
  * Returns the same state object when the fetch changed nothing, so the projected
  * highlights prop stays referentially stable across the bridge.
  */
-export function serverUpdated(state: OptimisticState, serverColors: ServerColors): OptimisticState {
-  const colorsChanged = !serverColorsEqual(state.serverColors, serverColors)
-
-  if (state.reconcile.size === 0) {
-    return colorsChanged ? { ...state, serverColors } : state
-  }
-
-  const overlay = { ...state.overlay }
+export function serverUpdated(
+  state: OptimisticState,
+  serverColors: ServerColors,
+  queued: QueuedWrites,
+): OptimisticState {
   const reconcile = new Map(state.reconcile)
   let retired = false
-  let overlayChanged = false
-
   for (const [verse, entry] of state.reconcile) {
-    if (!shouldRetire(entry, serverColors[verse])) {
-      continue
-    }
-    reconcile.delete(verse)
-    retired = true
-    if (verse in overlay) {
-      delete overlay[verse]
-      overlayChanged = true
+    if (shouldRetire(entry, serverColors[verse])) {
+      reconcile.delete(verse)
+      retired = true
     }
   }
 
+  const colors: ServerColors = { ...serverColors }
+  for (const [verse, entry] of reconcile) {
+    if (entry.op === 'apply') {
+      colors[verse] = entry.color
+    } else {
+      delete colors[verse]
+    }
+  }
+  applyQueuedWrites(colors, queued)
+
+  const colorsChanged = !serverColorsEqual(state.colors, colors)
   if (!colorsChanged && !retired) {
     return state
   }
   return {
     ...state,
-    serverColors,
+    colors: colorsChanged ? colors : state.colors,
     reconcile: retired ? reconcile : state.reconcile,
-    overlay: overlayChanged ? overlay : state.overlay,
+  }
+}
+
+/** Folds unsent writes onto `colors` in place. */
+export function applyQueuedWrites(colors: ServerColors, queued: QueuedWrites): void {
+  for (const [verse, entry] of Object.entries(queued)) {
+    if (entry.local === null) {
+      delete colors[Number(verse)]
+    } else {
+      colors[Number(verse)] = entry.local
+    }
   }
 }
 
@@ -241,32 +207,18 @@ export function serverColorsEqual(a: ServerColors, b: ServerColors): boolean {
 
 // ── Selectors ────────────────────────────────────────────────────────────────
 
-/** Server truth with the optimistic overlay applied — what the user sees. */
-export function selectMergedColors(state: OptimisticState): Record<number, string> {
-  const merged: Record<number, string> = { ...state.serverColors }
-  for (const [verse, color] of Object.entries(state.overlay)) {
-    if (color === null) {
-      delete merged[Number(verse)]
-    } else {
-      merged[Number(verse)] = color
-    }
-  }
-  return merged
-}
-
 /**
  * The rendered state as one `Highlight` per verse, ascending. Per-verse (never
  * ranges) so that `deriveServerColors(selectHighlights(state), scope)` is an
  * exact round trip.
  */
 export function selectHighlights(state: OptimisticState): Highlight[] {
-  const merged = selectMergedColors(state)
   const { versionId, book, chapter } = state.scope
-  return Object.keys(merged)
+  return Object.keys(state.colors)
     .map(Number)
     .sort((a, b) => a - b)
     .flatMap((verse) => {
-      const color = merged[verse]
+      const color = state.colors[verse]
       return color === undefined
         ? []
         : [{ version_id: versionId, passage_id: `${book}.${chapter}.${verse}`, color }]
@@ -274,18 +226,17 @@ export function selectHighlights(state: OptimisticState): Highlight[] {
 }
 
 /**
- * Of `verses`, the ones the user currently *sees* in `color` — optimistic paint
- * included. The remove path targets what is on screen, not what the server last
- * said, because a DELETE carries a passage id and no color: removing yellow
- * across a selection that also holds a blue verse must not destroy the blue one.
+ * Of `verses`, the ones the user currently *sees* in `color`. The remove path
+ * targets what is on screen, not what the server last said, because a DELETE
+ * carries a passage id and no color: removing yellow across a selection that
+ * also holds a blue verse must not destroy the blue one.
  */
 export function selectVersesInColor(
   state: OptimisticState,
   verses: readonly number[],
   color: string,
 ): number[] {
-  const merged = selectMergedColors(state)
-  return verses.filter((verse) => merged[verse] === color)
+  return verses.filter((verse) => state.colors[verse] === color)
 }
 
 // ── USFM range helpers (ported from web's `usfm-ranges.ts`) ───────────────────
@@ -340,7 +291,7 @@ export function versesInRun(run: VerseRun): number[] {
  *
  * Not web's `normalizeVerses` — that one is private to `verse-share.ts` and
  * serves copy/share reference formatting. This exists because writes need the
- * canonical *verse list* (to claim the overlay and to report outcomes), while
+ * canonical *verse list* (to paint and to report outcomes), while
  * `collapseVerseRuns` yields runs.
  */
 export function normalizeVerseSelection(verses: readonly number[]): number[] {
