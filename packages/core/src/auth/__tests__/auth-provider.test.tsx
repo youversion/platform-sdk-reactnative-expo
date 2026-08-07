@@ -649,6 +649,26 @@ describe('AuthProvider — getAccessToken', () => {
     expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
   })
 
+  // The leeway triggers the refresh; it does not decide usable. A token 30s from
+  // expiry still works, so a failed refresh must hand it over, not refuse it.
+  it('resolves ok with a token inside the leeway window that the refresh could not replace', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 30 * 1000),
+    })
+    mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
+    // Pins the failed-refresh path, not the fresh-token shortcut.
+    expect(mockRefreshTokens).toHaveBeenCalled()
+  })
+
   it('reports signed-out when the refresh finds the token revoked and clears the session', async () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stored-access',
@@ -1270,12 +1290,33 @@ describe('AuthProvider — requestPermissions', () => {
     )
   })
 
+  // The third state, and the one this flow used to have no name for: the token
+  // is expired and the refresh did not land, but the session is intact. Minting
+  // anyway earns a 401, and every mint 401 reads as `not-permitted` — dead-ending
+  // a user with a stale token on "check your app key".
+  it('fails transient without minting when the token is expired and the refresh fails', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockRejectedValueOnce(new Error('Network request failed'))
+
+    expect(await pressRequestPermissions()).toMatchObject({
+      status: 'failure',
+      reason: 'transient',
+    })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+    expect(mockCreateDataExchangeApi).not.toHaveBeenCalled()
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+    // Retryable, not a sign-out: the tokens stay and the user stays signed in.
+    expect(getText('isAuthenticated')).toBe('true')
+  })
+
   it('still mints with this render token when the pre-mint refresh clears the session', async () => {
     await signInWithStaleToken()
 
-    // A revoked refresh trips `clearAuthState`, emptying the token ref. The
-    // flow must not change story here: it mints with the token this render
-    // captured and lets the initiator guard discard the grant as
+    // A revoked refresh trips `clearAuthState`, emptying the token ref — the
+    // accessor's `signed-out`, which is a different case from `refresh-failed`
+    // above. The flow must not change story here: it mints with the token this
+    // render captured and lets the initiator guard discard the grant as
     // `user-changed`. Bailing to `not-signed-in` instead would be a different
     // contract than the one the guard and its docs describe.
     mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
@@ -1286,5 +1327,19 @@ describe('AuthProvider — requestPermissions', () => {
     expect(mockRequestDataExchange).toHaveBeenCalledWith(
       expect.objectContaining({ accessToken: 'stale-access' }),
     )
+  })
+
+  // Clearing a revoked session ends in a Keychain write. It can reject, and this
+  // flow is documented to resolve — a consumer following that has no catch.
+  it('resolves rather than rejecting when clearing a revoked session fails', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    const outcome = await act(async () => requestPermissionsFromContext(['highlights']))
+
+    expect(outcome).toEqual({ status: 'cancel' })
   })
 })
