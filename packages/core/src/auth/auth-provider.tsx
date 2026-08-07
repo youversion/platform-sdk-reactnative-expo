@@ -5,7 +5,7 @@ import { toMessage } from '../error-message'
 import { clearHighlightsCache } from '../highlights'
 import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
-import { AuthContext, type AuthContextValue } from './auth-context'
+import { AuthContext, type AccessTokenResult, type AuthContextValue } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { requestDataExchange, type AuthIdentity, type DataExchangeOutcome } from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
@@ -171,7 +171,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           })
         } catch (e) {
           if (e instanceof TokenEndpointError && e.isRevoked) {
-            await clearAuthState()
+            // Clearing is best-effort: it ends in a Keychain write, which can
+            // reject. Everything downstream of this refresh — ensureFreshToken,
+            // getAccessToken, requestPermissions — is documented never to
+            // throw, so a storage failure must not escape as one.
+            try {
+              await clearAuthState()
+            } catch {
+              // In-memory state is already cleared; only the persisted copy lost.
+            }
           }
           setError(e instanceof Error ? e : new Error(String(e)))
         }
@@ -305,6 +313,41 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // single-flight by promise, awaiting it does mean the token is usable.
   const ensureFreshToken = useCallback(() => refreshToken(), [refreshToken])
 
+  // The refresh with its outcome attached. `refreshToken` swallows failure by
+  // design, so a caller reading the token afterwards cannot tell "refreshed"
+  // from "still expired" — this re-reads the refs it left behind and says which.
+  // Non-forced on purpose: the leeway gate already refreshes exactly when the
+  // token needs it, and joining an in-flight refresh comes free.
+  const getAccessToken = useCallback(async (): Promise<AccessTokenResult> => {
+    if (refreshTokenRef.current === null) {
+      return { status: 'unavailable', reason: 'signed-out' }
+    }
+
+    await refreshToken()
+
+    // Re-read the refs, never closure state: the refresh may have replaced the
+    // token, or found it revoked and cleared the session via clearAuthState.
+    // Token and owner in one synchronous block — `setAuthState`/`clearAuthState`
+    // write both, so a caller checking the owner it captured cannot be handed a
+    // token from the other side of a sign-in.
+    const token = accessTokenRef.current
+    const userId = userInfoRef.current?.id ?? null
+    if (refreshTokenRef.current === null || token === null) {
+      return { status: 'unavailable', reason: 'signed-out' }
+    }
+
+    // Actual expiry, not the leeway window the refresh triggers on: a token
+    // inside the window is still one the server takes, and refusing it here
+    // would fail writes that would have succeeded. A corrupt stored expiry is
+    // NaN, which fails every comparison — hence the finite check.
+    const expiresAt = expiryRef.current?.getTime() ?? 0
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+      return { status: 'unavailable', reason: 'refresh-failed' }
+    }
+
+    return { status: 'ok', token, userId }
+  }, [refreshToken])
+
   const hasPermission = useCallback(
     (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
     [grantedPermissions],
@@ -368,24 +411,35 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         // That 401s, and `data-exchange-api.ts` reads every mint 401 as
         // `not-permitted` — which the docs tell consumers is an app-key setting,
         // not a user problem. The user would be dead-ended by a stale token and
-        // told to check the console. Refreshing first keeps the 401 honest.
+        // told to check the console.
         //
-        // This is the no-op path in the common case: `refreshToken` returns
-        // immediately unless the expiry is inside the leeway window.
-        await refreshToken()
+        // The accessor, not a bare `refreshToken()`, because the refresh
+        // swallows failure: it is the only thing that can tell a refresh that
+        // worked from one that did not. No-op in the common case — it returns
+        // the current token unless the expiry is inside the leeway window.
+        const tokenResult = await getAccessToken()
 
-        // Prefer the ref over the closure: refresh may have just replaced the
-        // token. Fall back to the closure token when the ref is null, which
-        // means the session was cleared while this flow was starting — a
-        // sign-out, or a refresh that found the token revoked.
-        //
-        // Falling back rather than bailing keeps the initiator guard's story
-        // intact: the mint uses the token this render captured, the guard
-        // re-reads identity after the browser returns, and a session that moved
-        // mid-flow reports `user-changed`. Bailing here would report
-        // `not-signed-in` instead, which is a different contract than the one
-        // documented, and one subtask 3 has not been written against.
-        const freshAccessToken = accessTokenRef.current ?? accessToken
+        // Expired and the refresh did not land (endpoint 5xx, timeout, captive
+        // portal). Minting anyway earns the 401 that reads as `not-permitted`,
+        // so stop here and say the one true thing: retry when the network
+        // recovers. The session is intact, so this is `transient`.
+        if (tokenResult.status === 'unavailable' && tokenResult.reason === 'refresh-failed') {
+          return {
+            status: 'failure',
+            reason: 'transient',
+            message:
+              'Could not refresh the session token; the permission request was not sent. Retry when the network recovers.',
+          }
+        }
+
+        // `signed-out` deliberately does NOT bail: the session was cleared while
+        // this flow was starting (a sign-out, or a refresh that found the token
+        // revoked), and the initiator guard already owns that story — the mint
+        // uses the token this render captured, the guard re-reads identity after
+        // the browser returns, and reports `user-changed`. Bailing here would
+        // report `not-signed-in`, a different contract than the documented one.
+        const freshAccessToken =
+          tokenResult.status === 'ok' ? tokenResult.token : (accessTokenRef.current ?? accessToken)
 
         // Built per call rather than memoized: the installation id is async, and
         // this runs at most once per user gesture. It reads native state and can
@@ -429,7 +483,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       inFlightRequestRef.current = { key, promise: pending }
       return pending
     },
-    [accessToken, apiHost, appKey, config.redirectUri, getCurrentIdentity, refreshToken],
+    [accessToken, apiHost, appKey, config.redirectUri, getAccessToken, getCurrentIdentity],
   )
 
   const value: AuthContextValue = useMemo(
@@ -442,6 +496,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       ensureFreshToken,
+      getAccessToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,
@@ -457,6 +512,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signOut,
       refreshNow,
       ensureFreshToken,
+      getAccessToken,
       isLoading,
       requestedPermissions,
       grantedPermissions,

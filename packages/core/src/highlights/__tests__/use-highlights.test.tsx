@@ -3,7 +3,7 @@ import { act, render, renderHook } from '@testing-library/react-native'
 import { Text } from 'react-native'
 import type { ReactNode } from 'react'
 
-import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
+import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
 import type { HighlightsApiError } from '../api'
@@ -121,6 +121,22 @@ const signedInWithoutPermission: AuthShape = {
 // it on a deferred promise.
 const ensureFreshToken = jest.fn(async () => undefined)
 
+/**
+ * Hoisted for the same reason. The default implementation mirrors the real
+ * accessor against the *current* auth value, so identity/token transitions via
+ * `setAuth` flow through; tests override it to exercise `refresh-failed`.
+ */
+const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
+
+function defaultGetAccessToken(): Promise<AccessTokenResult> {
+  const token = currentAuth?.accessToken ?? null
+  return Promise.resolve(
+    token === null
+      ? { status: 'unavailable', reason: 'signed-out' }
+      : { status: 'ok', token, userId: currentAuth?.userInfo?.id ?? null },
+  )
+}
+
 function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
   return {
     isAuthenticated: false,
@@ -131,6 +147,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     signOut: jest.fn(async () => undefined),
     refreshNow,
     ensureFreshToken,
+    getAccessToken,
     isLoading: false,
     // The default for every existing case: these tests exercise the fetch, so
     // the app must have asked for the permission that mounts it.
@@ -218,6 +235,8 @@ beforeEach(() => {
   mockDeleteHighlight.mockReset()
   ensureFreshToken.mockReset()
   ensureFreshToken.mockResolvedValue(undefined)
+  getAccessToken.mockReset()
+  getAccessToken.mockImplementation(defaultGetAccessToken)
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
@@ -555,9 +574,9 @@ describe('apply', () => {
     expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW), highlight('JHN.3.17', YELLOW)])
   })
 
-  it('refreshes the token after the paint and before the POST', async () => {
-    const refresh = deferred<undefined>()
-    ensureFreshToken.mockReturnValueOnce(refresh.promise)
+  it('resolves the token after the paint and before the POST', async () => {
+    const tokenGate = deferred<AccessTokenResult>()
+    getAccessToken.mockReturnValueOnce(tokenGate.promise)
 
     const { result } = renderUseHighlights()
     await act(async () => {
@@ -569,14 +588,14 @@ describe('apply', () => {
       outcome = result.current.apply(YELLOW, [16])
     })
 
-    // Painted while the refresh is still out. A refresh in front of the claim
-    // would leave the verse unpainted for a whole token round-trip every time
-    // one was due, which is the whole reason it lives here (ADR 0016).
+    // Painted while the accessor is still out. A token round-trip in front of
+    // the claim would leave the verse unpainted every time a refresh was due,
+    // which is the whole reason it lives here (ADR 0016).
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
     expect(mockCreateHighlight).not.toHaveBeenCalled()
 
     await act(async () => {
-      refresh.resolve(undefined)
+      tokenGate.resolve({ status: 'ok', token: 'token-1', userId })
       await outcome
     })
 
@@ -584,7 +603,59 @@ describe('apply', () => {
     // `auth`, and `useHighlightPermissionFlow` reads `auth` as a stale grant —
     // so the user would be asked to grant a permission they already granted.
     expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
-    expect(ensureFreshToken).toHaveBeenCalledTimes(1)
+    expect(getAccessToken).toHaveBeenCalledTimes(1)
+  })
+
+  // The reason `getAccessToken` exists: an expired token plus a failing token
+  // endpoint used to send the write out anyway, 401, classify as `auth`, and
+  // `useHighlightPermissionFlow` would invalidate a perfectly valid grant.
+  it('fails as transient with no request when the token refresh fails', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    getAccessToken.mockResolvedValue({ status: 'unavailable', reason: 'refresh-failed' })
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.apply(YELLOW, [16])
+    })
+
+    // `transient` — never `auth` (which invalidates the grant) and never
+    // `not-signed-in` (which prompts sign-in): the session is intact.
+    expect(outcome).toEqual({
+      status: 'error',
+      reason: 'transient',
+      message: expect.stringContaining('refresh'),
+      failedVerses: [16],
+      succeededVerses: [],
+    })
+    // The doomed request never went out, and the paint reverted to server truth.
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+  })
+
+  it('maps an accessor signed-out (session cleared mid-write) to not-signed-in', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    // Signed in per context, but the refresh found the token revoked and
+    // cleared the session before the write was sent.
+    getAccessToken.mockResolvedValue({ status: 'unavailable', reason: 'signed-out' })
+
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.apply(YELLOW, [16])
+    })
+
+    expect(outcome).toMatchObject({ status: 'error', reason: 'not-signed-in', failedVerses: [16] })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
   })
 
   it('collapses contiguous verses into one ranged POST per run', async () => {
@@ -1173,6 +1244,41 @@ describe('auth states', () => {
     // Only the write that was already on the wire under user-1's token ran.
     expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
     expect(mockCreateHighlight).not.toHaveBeenCalledWith('token-2', expect.anything())
+  })
+
+  // The narrow window the previous test cannot reach: the provider writes its
+  // token and identity refs synchronously on sign-in, while the identity this
+  // hook compares against is synced from a passive effect a render later. A
+  // sign-in landing while the write awaits the accessor therefore hands back the
+  // new user's token under the old user's rendered identity — so the guard has
+  // to believe the identity that came back WITH the token.
+  it('abandons a write when the accessor returns a token owned by a different user', async () => {
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    getAccessToken.mockResolvedValueOnce({
+      status: 'ok',
+      token: 'token-2',
+      userId: 'user-2',
+    })
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    await act(async () => {
+      outcome = result.current.apply(YELLOW, [16])
+      await outcome
+    })
+
+    expect(await outcome).toMatchObject({
+      status: 'error',
+      reason: 'not-signed-in',
+      failedVerses: [16],
+    })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    // The optimistic paint is reverted, not left stranded on the departed user's
+    // chapter.
+    expect(colorsOf(result.current)).toEqual({})
   })
 
   it('abandons a queued remove rather than deleting the new user’s highlights', async () => {
