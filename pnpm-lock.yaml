@@ -133,23 +133,8 @@ importers:
   packages/core:
     dependencies:
       '@youversion/platform-core':
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        specifier: 2.4.0
-        version: 2.4.0
-=======
-        specifier: 2.3.0
-        version: 2.3.0
->>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
-=======
-        specifier: 2.4.0
-        version: 2.4.0
->>>>>>> e36cf62 (chore(deps): update Web SDK packages to 2.4.0 (#103))
-=======
         specifier: 2.5.0
         version: 2.5.0
->>>>>>> 6ec4534 (chore(deps): update Web SDK packages to 2.5.0 (#116))
       expo:
         specifier: '>=56.0.0 <57.0.0'
         version: 56.0.12(@babel/core@7.29.0)(@expo/dom-webview@56.0.6)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
@@ -3018,31 +3003,8 @@ packages:
       linkedom:
         optional: true
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  '@youversion/platform-react-hooks@2.4.0':
-    resolution: {integrity: sha512-DNFOxTBtNoeOP6BlwPf7RhmruizSa/oNB9NVKexaNSUpXpFML+X0wjM4US2VLYPa28YQ0i2kdy2AOg6w/y8R+Q==}
-=======
-  '@youversion/platform-core@2.3.0':
-    resolution: {integrity: sha512-bsneE3s7jpoetWem+1gr+tZJe3Dryq7ywmdoKCPGpaLffP5GGYl0hS2hj+QAyHo0Jk9LwCGuJVtPVCDkLMPSHg==}
-    peerDependencies:
-      linkedom: ^0.18.12
-    peerDependenciesMeta:
-      linkedom:
-        optional: true
-
-  '@youversion/platform-react-hooks@2.2.0':
-    resolution: {integrity: sha512-QrPe2g6Lg0IM1D2LSh2OFWO4f1DBlhXZtvpSRYTt36lPaaXkV89RxJEJYk3G0eJ1ZyrzkwuxYGvfQYJetSLTfA==}
->>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
-=======
-  '@youversion/platform-react-hooks@2.4.0':
-    resolution: {integrity: sha512-DNFOxTBtNoeOP6BlwPf7RhmruizSa/oNB9NVKexaNSUpXpFML+X0wjM4US2VLYPa28YQ0i2kdy2AOg6w/y8R+Q==}
->>>>>>> e36cf62 (chore(deps): update Web SDK packages to 2.4.0 (#103))
-=======
   '@youversion/platform-react-hooks@2.5.0':
     resolution: {integrity: sha512-wy/q31uQBHwJLdOYYsLCGBZHEGnWOfZOlXGYRP/Ln+RdfUnm1AcY1d35i+XGuxmnuzb9hFCocyU+21sQpGZstQ==}
->>>>>>> 6ec4534 (chore(deps): update Web SDK packages to 2.5.0 (#116))
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
 
@@ -10664,28 +10626,9 @@ snapshots:
     dependencies:
       zod: 4.1.12
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-  '@youversion/platform-react-hooks@2.4.0(react@19.2.5)':
-=======
-  '@youversion/platform-core@2.3.0':
-    dependencies:
-      zod: 4.1.12
-
-  '@youversion/platform-react-hooks@2.2.0(react@19.2.5)':
->>>>>>> 7b27845 (feat(core): wrap platform-core HighlightsClient with RN token auth (YPE-4169) (1/3) (#97))
-    dependencies:
-=======
-  '@youversion/platform-react-hooks@2.4.0(react@19.2.5)':
-    dependencies:
->>>>>>> e36cf62 (chore(deps): update Web SDK packages to 2.4.0 (#103))
-      '@youversion/platform-core': 2.4.0
-=======
   '@youversion/platform-react-hooks@2.5.0(react@19.2.5)':
     dependencies:
       '@youversion/platform-core': 2.5.0
->>>>>>> 6ec4534 (chore(deps): update Web SDK packages to 2.5.0 (#116))
       react: 19.2.5
     transitivePeerDependencies:
       - linkedom
