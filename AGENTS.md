@@ -220,7 +220,6 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 - Ordinary highlights deliberately **do not** go through the reducer — modelling every tap as an exclusive flow step would serialize concurrent writes that `useHighlights` supports. Only a flow is exclusive; an overlapping tap during one gets a `transient` outcome rather than being queued behind a browser session.
 - `flowError` is for terminal _flow_ failures only (a failed grant, a still-refused write). Cancels and declines resolve `{ status: 'noop' }` — a user choice is not an error and must not surface as one.
 - **The flow's two prompts are `HighlightConsentSheet` and `SignInWithYouVersionSheet`** (`packages/ui/src/native/`). Both are presentational, and both are internal. `BibleReader` wires them. Consent's `isOpen` is the hook's `isConfirming`, and `onConfirm` is `confirm()`. Route **every** dismissal path (button, backdrop, pan-down, displacement) to `decline()`. A path that skips it strands the flow with `isConfirming` still true. The sign-in prompt is the reader's own, in front of the flow, because the hook calls `signIn()` with no UI of its own. Neither sheet runs any auth itself.
-- `apps/example/app/(tabs)/highlight-flow.tsx` is a temporary harness from the hook's own subtask. The reader now drives the whole flow, so the harness only exercises the hook in isolation. Deleting it is YPE-3711's call, not something to do in passing.
 
 ## Runtime Dependencies
 
