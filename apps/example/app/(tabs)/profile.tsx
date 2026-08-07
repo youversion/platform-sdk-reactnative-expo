@@ -4,34 +4,46 @@ import { Image, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 export default function ProfileScreen() {
   const { isAuthenticated, isLoading, userInfo } = useYVAuth()
-  const isDark = useColorScheme() === 'dark'
-  const c = isDark ? dark : light
+  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light'
+  const theme = colorTheme[colorScheme]
 
-  return (
-    <View style={[styles.container, { backgroundColor: c.bg }]}>
-      {isLoading ? (
-        <Text style={[styles.muted, { color: c.muted }]}>Loading…</Text>
-      ) : isAuthenticated ? (
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        <Text style={[styles.muted, { color: theme.muted }]}>Loading…</Text>
+      </View>
+    )
+  }
+
+  if (isAuthenticated) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
         <View style={styles.signedIn}>
           {userInfo?.avatarUrl ? (
             <Image source={{ uri: userInfo.avatarUrl }} style={styles.avatar} />
           ) : null}
-          <Text style={[styles.muted, { color: c.muted }]}>You are signed in as</Text>
-          <Text style={[styles.name, { color: c.fg }]}>{userInfo?.name ?? '(no name)'}</Text>
-          <Text style={[styles.email, { color: c.email }]}>{userInfo?.email ?? '(no email)'}</Text>
+          <Text style={[styles.muted, { color: theme.muted }]}>You are signed in as</Text>
+          <Text style={[styles.name, { color: theme.fg }]}>{userInfo?.name ?? '(no name)'}</Text>
+          <Text style={[styles.email, { color: theme.email }]}>{userInfo?.email ?? '(no email)'}</Text>
           <View style={styles.button}>
-            <YouVersionAuthButton mode="signOut" background={isDark ? 'dark' : 'light'} outline />
+            <YouVersionAuthButton mode="signOut" background={colorScheme} outline />
           </View>
         </View>
-      ) : (
-        <YouVersionAuthButton mode="signIn" background={isDark ? 'dark' : 'light'} outline />
-      )}
+      </View>
+    )
+  }
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.bg }]}>
+      <YouVersionAuthButton mode="signIn" background={colorScheme} outline />
     </View>
   )
 }
 
-const light = { bg: '#ffffff', fg: '#000000', muted: '#6b6b6b', email: '#3c3c3c' }
-const dark = { bg: '#000000', fg: '#ffffff', muted: '#9b9b9b', email: '#c8c8c8' }
+const colorTheme = {
+  light: { bg: '#ffffff', fg: '#000000', muted: '#6b6b6b', email: '#3c3c3c' },
+  dark: { bg: '#000000', fg: '#ffffff', muted: '#9b9b9b', email: '#c8c8c8' },
+} as const
 
 const styles = StyleSheet.create({
   container: {
