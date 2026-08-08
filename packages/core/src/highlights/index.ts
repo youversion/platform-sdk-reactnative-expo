@@ -26,7 +26,10 @@ export {
 
 export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
 
-export { clearHighlightQueue } from './queue'
+// `clearHighlightQueue` is sign-out's, and stays internal.
+// `hasQueuedHighlightWrites` is public: the reader has to know whether signing
+// out costs the user work before it can ask them about it.
+export { clearHighlightQueue, hasQueuedHighlightWrites } from './queue'
 
 // The reducer, its events, and `PendingHighlight` stay internal — the flow's
 // public surface is the hook plus what a caller has to render or report.

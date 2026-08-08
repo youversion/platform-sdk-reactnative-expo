@@ -87,6 +87,30 @@ export function listQueuedScopes(userId: string | null): HighlightScope[] {
   }
 }
 
+/**
+ * Does this user have writes the server has not taken yet?
+ *
+ * Read at the moment sign-out is offered, not subscribed to. The answer is only
+ * ever needed on that one gesture, and it is a plain key scan — a store and a
+ * subscription would buy nothing but a value nobody watches.
+ *
+ * Any key under the user's prefix counts, including one whose scope suffix
+ * {@link listQueuedScopes} would reject. The drain cannot send that entry, which
+ * makes it more certain to be lost on sign-out, not less.
+ */
+export function hasQueuedHighlightWrites(userId: string | null): boolean {
+  if (!userId) {
+    return false
+  }
+
+  const prefix = `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+  try {
+    return mmkvStorage.getAllKeys().some((key) => key.startsWith(prefix))
+  } catch {
+    return false
+  }
+}
+
 /** `111.JHN.3` — the tail of a queue key. Book codes and chapters carry no dots. */
 function parseScopeSuffix(suffix: string): HighlightScope | null {
   const parts = suffix.split('.')
