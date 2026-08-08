@@ -213,12 +213,17 @@ export function serverColorsEqual(a: ServerColors, b: ServerColors): boolean {
  * exact round trip.
  */
 export function selectHighlights(state: OptimisticState): Highlight[] {
-  const { versionId, book, chapter } = state.scope
-  return Object.keys(state.colors)
+  return highlightsFromColors(state.scope, state.colors)
+}
+
+/** The same projection for callers holding colors without a state (the cache). */
+export function highlightsFromColors(scope: HighlightScope, colors: ServerColors): Highlight[] {
+  const { versionId, book, chapter } = scope
+  return Object.keys(colors)
     .map(Number)
     .sort((a, b) => a - b)
     .flatMap((verse) => {
-      const color = state.colors[verse]
+      const color = colors[verse]
       return color === undefined
         ? []
         : [{ version_id: versionId, passage_id: `${book}.${chapter}.${verse}`, color }]
@@ -282,6 +287,35 @@ export function versesInRun(run: VerseRun): number[] {
     verses.push(verse)
   }
   return verses
+}
+
+/** One request's worth of a write: the passage it addresses, the verses it answers for. */
+export type WriteUnit = { passageId: string; verses: number[] }
+
+/**
+ * Splits a write into the requests that carry it. Applies collapse contiguous
+ * verses into a single ranged POST per run — [16,17,18,20] is two requests, not
+ * four. Removals (`color === null`) go one verse at a time, never a range,
+ * because range DELETE is unsupported server-side and a DELETE carries no color,
+ * so a wholesale run would take any other color caught inside it.
+ *
+ * Shared by the tap-time write path and the drain: the two must put identical
+ * requests on the wire, and this is the rule that decides what they look like.
+ */
+export function toWriteUnits(
+  scope: HighlightScope,
+  verses: readonly number[],
+  color: string | null,
+): WriteUnit[] {
+  return color === null
+    ? verses.map((verse) => ({
+        passageId: formatPassageId(scope.book, scope.chapter, { start: verse, end: verse }),
+        verses: [verse],
+      }))
+    : collapseVerseRuns(verses).map((run) => ({
+        passageId: formatPassageId(scope.book, scope.chapter, run),
+        verses: versesInRun(run),
+      }))
 }
 
 /**

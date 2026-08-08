@@ -6,20 +6,20 @@ import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
+import { claimWrites } from './claims'
 import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
+import { notifyDrain } from './drain-signals'
 import {
   applyQueuedWrites,
-  collapseVerseRuns,
   confirm,
   createOptimisticState,
-  formatPassageId,
   normalizeVerseSelection,
   paint,
   restore,
   selectHighlights,
   selectVersesInColor,
   serverUpdated,
-  versesInRun,
+  toWriteUnits,
   type OptimisticState,
   type WriteOp,
 } from './optimistic'
@@ -324,6 +324,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         passage_id: `${captured.scope.book}.${captured.scope.chapter}`,
       })
       .then((result) => {
+        // Ahead of the identity guard: the network is up regardless of which
+        // scope this answer belongs to.
+        if (result.ok) {
+          notifyDrain('service-reached')
+        }
         // Late responses for a scope or user the reader has left are dropped —
         // including the sign-out case, where writing the cache would repopulate
         // what `clearHighlightsCache()` just emptied.
@@ -487,25 +492,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       const failedVerses: number[] = []
       const errors: HighlightsApiError[] = []
 
-      // One request per unit, each covering the verses it is responsible for.
-      // Apply collapses contiguous verses into a single ranged POST per run —
-      // [16,17,18,20] is two requests, not four. Remove issues one DELETE per
-      // verse, never a range, because range DELETE is unsupported server-side;
-      // if that is ever confirmed to work, this ternary is the only call site
-      // that changes.
-      const units =
-        op === 'apply'
-          ? collapseVerseRuns(sendable).map((run) => ({
-              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, run),
-              verses: versesInRun(run),
-            }))
-          : sendable.map((verse) => ({
-              passageId: formatPassageId(captured.scope.book, captured.scope.chapter, {
-                start: verse,
-                end: verse,
-              }),
-              verses: [verse],
-            }))
+      const units = toWriteUnits(captured.scope, sendable, paintedColor)
 
       const results = await Promise.all(
         units.map((unit) =>
@@ -556,6 +543,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         )
       }
       revert(failedVerses)
+
+      // The drain owns it from here; this hook will not retry it.
+      if (queuedVerses.length > 0) {
+        notifyDrain('write-parked')
+      }
 
       // One GET per write that reached the server; a queued one changed nothing
       // there and has nothing to reconcile.
@@ -653,7 +645,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // same committed state.
       stateRef.current = paint(stateRef.current, verses, paintedColor)
 
-      return enqueue(() => runWrite({ op, color, verses, captured }))
+      // Claimed for the life of the write. The entry stays in MMKV until it
+      // settles, so without this the drain would read it as owed and send it
+      // twice.
+      const release = claimWrites(captured.userId, captured.scope, verses)
+      return enqueue(() => runWrite({ op, color, verses, captured })).finally(release)
     },
     [enqueue, runWrite],
   )

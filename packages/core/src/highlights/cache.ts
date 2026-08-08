@@ -7,6 +7,7 @@ import {
   type HighlightScope,
   type ServerColors,
 } from './constants'
+import { highlightsFromColors } from './optimistic'
 
 export {
   highlightsCacheKey,
@@ -153,6 +154,34 @@ export function setCachedHighlights(
     return
   }
   mmkvStorage.set(highlightsCacheKey(userId, scope), JSON.stringify(highlights))
+}
+
+/**
+ * Folds a landed write into the cached paint for one scope — a color for an
+ * apply, `null` for a remove.
+ *
+ * The drain has no `useHighlights` state to update: it may be landing a scope no
+ * hook is mounted on. Since the cache *is* the paint (ADR 0017), writing it here
+ * is what makes the landing survive to the next mount.
+ */
+export function mergeCachedHighlights(
+  userId: string,
+  scope: HighlightScope,
+  verses: readonly number[],
+  color: string | null,
+): void {
+  if (!userId || verses.length === 0) {
+    return
+  }
+  const colors = deriveServerColors(getCachedHighlights(userId, scope) ?? [], scope)
+  for (const verse of verses) {
+    if (color === null) {
+      delete colors[verse]
+    } else {
+      colors[verse] = color
+    }
+  }
+  setCachedHighlights(userId, scope, highlightsFromColors(scope, colors))
 }
 
 export function clearHighlightsCache(): void {

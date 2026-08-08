@@ -163,8 +163,8 @@ One verse's unsent write, persisted per `userId` + **Highlight Scope**, written 
 _Avoid_: **Pending Highlight** (an in-memory permission-flow intent, discarded rather than persisted); a write log or op journal; "offline write" (a 5xx from a reachable server parks here too)
 
 **Highlight Write Queue**:
-The durable store of **Queued Writes** and the drain over them, owned by core's `YouVersionProvider` rather than any one `useHighlights` — a write must land after the user has navigated away, and draining needs a token. A drain attempt is its own connectivity probe, so there is no connectivity subscription: it runs on provider mount, on `AppState` returning to active, on any successful highlights GET, and otherwise on a capped backoff. Unbounded by design — no size cap, no TTL, no attempt budget — with a single drop path, a 401/403 that survives a forced token refresh and one retry. Purged on sign-out with the rest of the user's data. See [ADR 0017](docs/adr/0017-highlight-write-queue.md).
-_Avoid_: Offline queue (5xx entries park here too); a per-scope or per-hook queue; adding a connectivity library to decide when to drain; treating a stuck entry as something the SDK will eventually clean up
+The durable store of **Queued Writes** and the drain over them, owned by core's `YouVersionProvider` rather than any one `useHighlights` — a write must land after the user has navigated away, and draining needs a token. It runs on provider mount, on a token change, on `AppState` returning to active, on the rising edge of connectivity (`expo-network`), on any successful highlights GET, and otherwise on a per-entry backoff that widens on each consecutive failure and resets on success. Connectivity is a trigger, never a gate — the drain never asks whether the network is up before attempting. Unbounded by design — no size cap, no TTL, no attempt budget — with a single drop path, a 401/403 that survives a forced token refresh and one retry. Purged on sign-out with the rest of the user's data. See [ADR 0017](docs/adr/0017-highlight-write-queue.md).
+_Avoid_: Offline queue (5xx entries park here too); a per-scope or per-hook queue; gating a drain attempt on the connectivity answer; treating a stuck entry as something the SDK will eventually clean up
 
 ## Relationships
 
@@ -237,8 +237,8 @@ _Avoid_: Offline queue (5xx entries park here too); a per-scope or per-hook queu
 > **Dev:** "The user tapped a color offline — can I just persist the pending highlight until they reconnect?"
 > **Domain expert:** "Those are two different things. A **Pending Highlight** is an intent waiting on a _permission_, and it stays in memory (ADR 0016). A **Queued Write** is a write waiting on the _network_, and it is persisted. Offline with no grant, the flow fails and nothing is queued — there is no reason to believe that write is permitted."
 
-> **Dev:** "Should we add NetInfo so the queue drains the moment service comes back?"
-> **Domain expert:** "A drain attempt is already the probe — if it succeeds, service is back. NetInfo would only make it instant instead of up to one backoff interval late, and it costs every consumer a native module and a dev-client rebuild."
+> **Dev:** "Should we add a connectivity library so the queue drains the moment service comes back?"
+> **Domain expert:** "We did — `expo-network`, on the rising edge only. Without it the wait is a foreground away, because the successful-GET signal can't fire on a network that's down, and the backoff that makes a stuck entry cheap is what makes that wait long. But it's a trigger, not a gate: we never ask whether the network is up before attempting, so a wrong answer costs a late attempt, never a skipped one."
 
 ## Flagged Ambiguities
 

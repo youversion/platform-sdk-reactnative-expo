@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import {
   highlightQueueKey,
+  MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX,
   type HighlightScope,
   type QueuedWrites,
   type ServerColors,
@@ -61,6 +62,42 @@ export function getQueuedWrites(userId: string | null, scope: HighlightScope): Q
   } catch {
     return EMPTY
   }
+}
+
+/**
+ * Every scope this user has unsent writes for. The drain's only way to find a
+ * chapter after a relaunch, where nothing in memory remembers one.
+ */
+export function listQueuedScopes(userId: string | null): HighlightScope[] {
+  if (!userId) {
+    return []
+  }
+
+  const prefix = `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+  try {
+    return mmkvStorage
+      .getAllKeys()
+      .filter((key) => key.startsWith(prefix))
+      .flatMap((key) => {
+        const scope = parseScopeSuffix(key.slice(prefix.length))
+        return scope === null ? [] : [scope]
+      })
+  } catch {
+    return []
+  }
+}
+
+/** `111.JHN.3` — the tail of a queue key. Book codes and chapters carry no dots. */
+function parseScopeSuffix(suffix: string): HighlightScope | null {
+  const parts = suffix.split('.')
+  if (parts.length !== 3) {
+    return null
+  }
+  const [versionIdRaw, book, chapter] = parts
+  if (!versionIdRaw || !book || !chapter || !/^\d+$/.test(versionIdRaw)) {
+    return null
+  }
+  return { versionId: Number(versionIdRaw), book, chapter }
 }
 
 function persist(userId: string, scope: HighlightScope, queued: QueuedWrites): void {

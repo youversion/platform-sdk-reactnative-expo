@@ -1,4 +1,4 @@
-# 17. The highlight write queue is unbounded desired state, drained without a connectivity library
+# 17. The highlight write queue is unbounded desired state, drained on connectivity and a per-entry backoff
 
 Date: 2026-08-05
 
@@ -17,6 +17,8 @@ This is that queue. Five questions had answers a future reader will find surpris
 **What a queue entry is.** The obvious model is a log of the operations the user performed, replayed in order. It is what the existing promise chain does and it is the most faithful record of what happened.
 
 **Whether a connectivity library is required.** "Retry when service returns" reads as a subscription problem, and `@react-native-community/netinfo` is the standard answer.
+
+**Update (drain implementation, 2026-08-08): it is, and the library is `expo-network`.** See the amended decision below.
 
 **How the queue is bounded.** Every durable queue is expected to have a size cap, a TTL and an attempt budget.
 
@@ -46,11 +48,19 @@ Deleting the overlay also retires [ADR 0013](0013-native-highlights-optimistic-l
 
 Two entry fields were considered for this and rejected. A per-write sequence number is what the ownership token becomes once it has to survive `JSON.stringify` — unnecessary, because a stale settle cannot reach an entry whose `local` no longer matches what it sent, and two writes carrying the same color express the same intent, so either may retire it. A `sent` flag ("the server accepted this, keep painting until a GET confirms") would persist across a relaunch and make the drain re-send an already-accepted write; reconciliation stays in memory instead.
 
-**No connectivity library. A drain attempt is its own probe.**
+**~~No connectivity library. A drain attempt is its own probe.~~ Reversed — see the update below.**
 
 There is no separate "is the network up" question to answer: you attempt the write, and success is the answer. What remains is cadence, and three signals cover it — provider mount, `AppState` returning to active, and any successful highlights GET, which is free live proof that the network is up while a reader is on screen. A capped backoff covers the rest.
 
 NetInfo would close one narrow window: the user is in the app, no reader is mounted, and service returns, so the drain fires up to one backoff interval late instead of instantly. Nothing is lost, only delayed. That is not worth a required native peer dependency and a dev-client rebuild for every consumer, on an SDK that today needs no networking native module at all. A failed attempt while offline is also cheap — with no route to the host the request fails locally and fast, so probing is close to free.
+
+**Update (drain implementation, 2026-08-08): `expo-network` is added, and it is a `peerDependency` of core.**
+
+The window above was mis-sized. It is not "no reader is mounted" — it is _every_ moment between two foregrounds, because the successful-GET signal cannot fire on a network that is down, and the drain is where it is precisely so a write outlives the chapter that made it. A user who highlights on a plane and lands still holding the phone gets nothing until the backoff walks up to them, and the same backoff that makes a permanently-stuck entry cheap (one request an hour, per the unbounded decision below) is what makes that wait long. Probing more often to shorten it undoes the reason the backoff is there. The rising edge is the one signal that resolves both at once: back off hard on failure _and_ land instantly when the network returns.
+
+`expo-network` over NetInfo because it is an Expo-first-party module already in the SDK's dependency universe, so it does not add a second linking story; the SDK is Expo-only by construction. It is a peer, matching every other native module the package needs — consumers install it and rebuild the dev client, the same upgrade step `expo-clipboard` imposed.
+
+The listener is a **trigger, not a gate**: the drain never asks whether the network is up before attempting, so a wrong or absent connectivity answer costs a delayed attempt, never a skipped one. Only the rising edge fires, `wasConnected` is seeded connected so a redundant event on subscribe cannot duplicate the mount drain, and an `isConnected` of `undefined` is unknown and changes nothing. A refresh-token success was considered as a fourth software-only signal and rejected: it proves the same thing the connectivity edge does, later and less often, and having both means two paths to the same drain with no additional coverage.
 
 **The queue is unbounded: no size cap, no TTL, no attempt budget.**
 
@@ -79,6 +89,11 @@ The two writes are not atomic. Dying between them leaves a write that is owed bu
 - **`HighlightWriteOutcome` gains `{ status: 'queued'; verses }`** — painted, persisted, not yet landed. `ok` keeps meaning "landed server-side", which is what existing consumers already read it as. Shipped as a minor: no existing status changes meaning and every existing branch behaves identically, so only an exhaustive `switch` with no default is affected. The changeset should say so loudly.
 - **A batch that reached nobody skips its reconciling GET.** Every settled write is followed by one GET; a write that could not reach the server changed nothing server-side and has nothing to reconcile, so spending a request on a network that just refused one only produces a fetch error for what was a successful park.
 - **A refusal outranks a park in a mixed batch.** If part of a batch was refused and part was queued, the outcome is the `error`, because `useHighlightPermissionFlow` branches on `reason` and that branch must still fire. The queued verses stay queued regardless — the outcome reports the actionable failure, not everything that happened.
-- **The queue is provider-owned, not hook-owned.** A write for JHN 3 must land after the user has navigated to ROM 8, and draining needs a token, which lives in `AuthProvider`. The drain therefore needs a way to tell mounted readers an entry was dropped; the subscribable-store shape that provides it lands with the drain rather than ahead of it.
+- **The queue is provider-owned, not hook-owned.** A write for JHN 3 must land after the user has navigated to ROM 8, and draining needs a token, which lives in `AuthProvider`. The drain therefore needs a way to tell mounted readers an entry was dropped; the subscribable-store shape that provides it lands with the drop path, since a successful drain changes nothing a reader can see — the cache already holds that color.
+- **`expo-network` is a new required peer dependency of core.** Consumers upgrading into this version install it and rebuild the dev client; it is autolinked, so a JS-only reload leaves the module missing.
+- **The drain defers to verses a mounted `useHighlights` is currently sending.** Queue-first writes mean the queue is non-empty during every in-flight write, so an entry alone no longer means "nothing else is handling this". An in-memory refcounted claim set (`claims.ts`) closes the gap. The hook never defers to the drain — the user's newest intent goes out immediately.
+- **The write path signals the drain directly** (`drain-signals.ts`), at the two moments only it knows: a request reached the server, and a write parked. This is not a queue subscription, which would wake the drain on every tap.
+- **Backoff is in memory, per user + scope + verse.** A relaunch is itself a drain trigger, so persisting the wait would only deny a fresh start the attempt it is entitled to. It resets on success and the record is dropped with the entry.
+- **A trigger retires the pending wait; the timer does not.** The wait is a guess about a network nobody had asked, and a trigger — connectivity's rising edge above all — is the answer arriving. Filtering triggers through the same wait would leave a backed-off write sitting out up to an hour of restored service, which is the whole reason the connectivity peer was taken on. Failure counts survive the trigger, so the decay widens from where it was rather than starting over on every foreground.
 - **Offline with a missing `highlights` grant fails cleanly rather than queueing.** The data-exchange mint fails before any browser opens, the **Pending Highlight** is discarded, nothing paints and nothing queues. Queueing a write the SDK has no reason to believe is permitted only defers the un-paint to the drain, where it would be unexplained.
 - **The ordinary offline path works because of [ADR 0014](0014-cached-grant-is-a-hint.md).** The pre-flight reads the _cached_ grant, which is a hint, so a granted user offline sails through the permission flow to a write that fails at the network and queues. If that read ever became authoritative, offline highlighting would stop working for everyone.
