@@ -182,3 +182,16 @@ export function dropWrites(input: {
   }
   return { restored, cleared }
 }
+
+/**
+ * Drops every unsent write on the device — sign-out's job, alongside the
+ * highlights cache. Every user's entries, not just the current one's: only a
+ * departure can leave an entry under somebody else's id.
+ */
+export function clearHighlightQueue(): void {
+  for (const key of mmkvStorage.getAllKeys()) {
+    if (key.startsWith(MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX)) {
+      mmkvStorage.remove(key)
+    }
+  }
+}

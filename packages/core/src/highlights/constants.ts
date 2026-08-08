@@ -1,6 +1,6 @@
 export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 
-/** Distinct from the cache prefix so sign-out's purge cannot take the queue by accident. */
+/** Distinct from the cache prefix, so sign-out purges the queue by its own call, not by a prefix match. */
 export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
 
 /**

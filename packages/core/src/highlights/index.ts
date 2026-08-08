@@ -26,6 +26,8 @@ export {
 
 export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
 
+export { clearHighlightQueue } from './queue'
+
 // The reducer, its events, and `PendingHighlight` stay internal — the flow's
 // public surface is the hook plus what a caller has to render or report.
 export type { PermissionFlowError, PermissionFlowErrorReason } from './permission-flow'

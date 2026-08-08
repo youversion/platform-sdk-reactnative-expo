@@ -365,6 +365,32 @@ describe('startHighlightQueueDrain', () => {
     expect(calls).toEqual([])
   })
 
+  it('abandons the remaining scopes when the user changes after the first one is sent', async () => {
+    queueApply(JHN3, [16], YELLOW)
+    queueApply(JHN4, [1], YELLOW)
+
+    let auth: DrainAuth = { userId: USER, accessToken: 'token-1', ensureFreshToken: null }
+    const { api, calls } = createApi({
+      onCreate: () => {
+        auth = { userId: 'user-2', accessToken: 'token-2', ensureFreshToken: null }
+        return ok({} as never) as CreateResult
+      },
+    })
+
+    const drain = startHighlightQueueDrain({ api, getAuth: () => auth })
+    drain.drainNow()
+    await settle()
+    drain.stop()
+
+    expect(calls).toEqual([{ kind: 'create', passageId: 'JHN.3.16', color: YELLOW }])
+    expect((api.createHighlight as jest.Mock).mock.calls.map(([token]) => token)).toEqual([
+      'token-1',
+    ])
+    expect(getQueuedWrites(USER, JHN4)).toEqual({ 1: { local: YELLOW, server: null } })
+    expect(getCachedHighlights('user-2', JHN3)).toBeNull()
+    expect(getCachedHighlights('user-2', JHN4)).toBeNull()
+  })
+
   it('survives a throwing token refresh', async () => {
     queueApply(JHN3, [16], YELLOW)
     const { api, calls } = createApi()

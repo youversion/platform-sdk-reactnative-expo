@@ -78,7 +78,7 @@ With no timestamps, any rule is a policy rather than a comparison. Local-wins pr
 
 A 401/403 that survives a forced token refresh and one retry is the server stating this write will never be accepted. Keeping it would leave the verse painted on this device forever, showing a highlight that exists nowhere else — and with no pending-state surface on the public API, the user could never learn it is not real. A permanent local-only phantom is worse than a silent un-paint, so the entry is dropped. This keeps auth entirely out of the queue's business, matching the tap-time rule that a 401/403 reverts and reports rather than parking.
 
-Note that a dead session does not reach this path: `refreshToken` clears auth state on a revoked refresh token. Sign-out should purge the queue alongside the highlights cache and the grant cache; the queue's distinct MMKV prefix means it does not today, which is a decision to make deliberately rather than inherit from a prefix match.
+Note that a dead session does not reach this path: `refreshToken` clears auth state on a revoked refresh token. Both it and `signOut` route through `clearAuthState`, which purges the queue alongside the highlights cache and the grant cache. The purge takes **every** user's entries, not just the departing one's — only a departure can leave an entry under an id that is not current, and one signed-in user at a time means anything else is already abandoned. The queue's distinct MMKV prefix means this is an explicit call rather than something inherited from a prefix match.
 
 **MMKV is written queue first, cache second.**
 

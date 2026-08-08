@@ -14,4 +14,4 @@ The drain is owned by core's `YouVersionProvider` and is inert with no auth conf
 
 No public API changes: no new exports, and no existing type or outcome changes meaning. A write that reports `{ status: 'queued' }` simply stops being permanent.
 
-Not yet included: a definitive 401/403 is retried rather than dropped, and the queue is not purged on sign-out.
+Not yet included: a definitive 401/403 is retried rather than dropped.
