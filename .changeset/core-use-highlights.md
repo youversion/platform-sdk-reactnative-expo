@@ -4,7 +4,7 @@
 
 Add `useHighlights`, the public hook for reading and writing Bible highlights on native.
 
-It paints from the MMKV cache synchronously on first render (no blank frame on a cold start), applies and removes optimistically, reconciles against the server, and reverts writes that fail. `apply(color, verses)` and `remove(color, verses)` return a typed `HighlightWriteOutcome` — `ok`, `noop`, or `error` with a `reason` of `not-signed-in` / `auth` / `invalid` / `transient`, plus `failedVerses` and `succeededVerses` so a partially-applied batch is legible. Highlights come back as per-verse `Highlight[]`, ready for a controlled reader.
+It paints from the MMKV cache synchronously on first render (no blank frame on a cold start), applies and removes optimistically, reconciles against the server, and reverts writes the server refuses. `apply(color, verses)` and `remove(color, verses)` return a typed `HighlightWriteOutcome` — `ok`, `noop`, `queued` (see the write-queue entry in these notes), or `error` with a `reason` of `not-signed-in` / `auth` / `invalid` / `transient`, plus `failedVerses` and `succeededVerses` so a partially-applied batch is legible. Highlights come back as per-verse `Highlight[]`, ready for a controlled reader.
 
 Also exported: `deriveServerColors` (projects the returned highlights to a verse→color map), `HIGHLIGHT_COLORS` and `isHighlightColor` (the five company-standard swatches — both write paths reject anything else), and the `HighlightScope` / `ServerColors` / `Highlight` types.
 
