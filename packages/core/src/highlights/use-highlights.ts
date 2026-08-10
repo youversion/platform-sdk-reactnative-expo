@@ -38,6 +38,15 @@ export type HighlightWriteOutcome =
   /**
    * Could not reach the server. The paint stands and the write is persisted as a
    * Queued Write; a point-in-time signal at the tap, not a standing state.
+   *
+   * It therefore repeats. Every tap on a verse that is still parked resolves
+   * `queued` again — this reports the write the caller just made, not the
+   * verse's queue state, and nothing here separates a first park from a later
+   * one. Two reasons it does not: a batch can mix a parked verse with fresh
+   * ones, so an honest answer would have to be a per-verse split of `verses`;
+   * and a verse parked yellow then tapped green is a new write on a parked
+   * verse, which "repeat" would describe wrongly. A caller that wants to say
+   * "saved offline" once holds that in its own state.
    */
   | { status: 'queued'; verses: number[] }
   | { status: 'noop' }
