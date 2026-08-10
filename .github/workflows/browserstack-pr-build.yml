@@ -61,10 +61,19 @@ jobs:
     name: Build example app for App Live
     runs-on: ubuntu-latest
     timeout-minutes: 75
+    # The comment condition is a deliberately loose PREFIX match. Actions
+    # expressions have no trim(), so an exact list membership test here
+    # silently ignores the overwhelmingly common `/app-live ` (trailing space
+    # or newline) — the user sees no response at all and no log to explain it.
+    # The exact match therefore moves into the first step, where the body can
+    # be normalized in the shell; anything that starts with /app-live but is
+    # not one of the three commands is refused there with a notice. Prefix,
+    # not `contains`: this workflow's own status comment quotes the commands,
+    # and a contains() trigger would re-fire the job on every one of those.
     if: >-
       github.event_name == 'pull_request_target' ||
       (github.event.issue.pull_request &&
-       contains(fromJSON('["/app-live", "/app-live-ios", "/app-live-android"]'), github.event.comment.body))
+       startsWith(github.event.comment.body, '/app-live'))
 
     steps:
       - name: Read current PR context
@@ -81,13 +90,46 @@ jobs:
           if [ "$EVENT_NAME" = "pull_request_target" ]; then
             PR_JSON=$(jq '.pull_request' "$GITHUB_EVENT_PATH")
             PLATFORM="both"
+            # No command to validate on the open event.
+            COMMAND_OK=true
           else
             PR_NUMBER=$(jq -r '.issue.number' "$GITHUB_EVENT_PATH")
             PR_JSON=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
-            case "$(jq -r '.comment.body' "$GITHUB_EVENT_PATH")" in
-              /app-live-ios) PLATFORM="ios" ;;
+
+            # The job-level `if` only proved the body STARTS WITH /app-live, so
+            # this is where a command becomes exact. Normalize (strip CRs, then
+            # leading/trailing whitespace) so `/app-live ` works, then match.
+            #
+            # The unrecognized branch MUST refuse. While the job-level `if` was
+            # an exact three-string membership test, defaulting an unmatched
+            # body to "both" was unreachable. Under a prefix trigger it is very
+            # reachable: `/app-live-widnows` now arrives here, and defaulting
+            # would silently build both platforms off a typo — the fix making
+            # things worse than the bug it fixes.
+            CMD=$(jq -r '.comment.body' "$GITHUB_EVENT_PATH" | tr -d '\r')
+            CMD=$(printf '%s' "$CMD" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')
+            # Echo a sanitized single-line excerpt, never the raw body: a
+            # comment is untrusted input, and echoing it verbatim would let
+            # it emit its own ::workflow commands:: into this step's log.
+            SAFE_CMD=$(printf '%s' "$CMD" |
+              sed -n '1p' | cut -c1-60 | sed 's/::/;;/g')
+            # A command is one line. wc -l counts newlines, and printf '%s'
+            # adds none, so >0 means the body carries trailing prose.
+            if [ "$(printf '%s' "$CMD" | wc -l)" -gt 0 ]; then
+              CMD="$SAFE_CMD …"
+            fi
+
+            COMMAND_OK=true
+            case "$CMD" in
+              /app-live)         PLATFORM="both" ;;
+              /app-live-ios)     PLATFORM="ios" ;;
               /app-live-android) PLATFORM="android" ;;
-              *) PLATFORM="both" ;;
+              *)
+                # Never "both" here — see the note above.
+                PLATFORM="none"
+                COMMAND_OK=false
+                echo "::notice::Ignoring unrecognized command '$SAFE_CMD'."
+                ;;
             esac
           fi
 
@@ -104,10 +146,14 @@ jobs:
             echo "platform=$PLATFORM"
             echo "same_repo=$([ "$HEAD_REPO" = "$REPOSITORY" ] && echo true || echo false)"
             echo "open=$([ "$PR_STATE" = "open" ] && echo true || echo false)"
+            echo "command_ok=$COMMAND_OK"
           } >> "$GITHUB_OUTPUT"
 
       - name: Verify trigger actor is an approved automation collaborator
-        if: steps.pr.outputs.same_repo == 'true' && steps.pr.outputs.open == 'true'
+        if: >-
+          steps.pr.outputs.same_repo == 'true' &&
+          steps.pr.outputs.open == 'true' &&
+          steps.pr.outputs.command_ok == 'true'
         id: authorization
         env:
           GH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
@@ -373,6 +419,7 @@ jobs:
           ANDROID_APP_LIVE_ID: ${{ steps.app_live.outputs.android_id }}
           IOS_APP_LIVE_ID: ${{ steps.app_live.outputs.ios_id }}
           BUILD_NAME: ${{ steps.build.outputs.name }}
+          COMMAND_OK: ${{ steps.pr.outputs.command_ok }}
           HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
           IS_OPEN: ${{ steps.pr.outputs.open }}
           IS_SAME_REPO: ${{ steps.pr.outputs.same_repo }}
@@ -389,6 +436,10 @@ jobs:
             fi
             if [ "$IS_OPEN" != "true" ]; then
               echo "No build was dispatched because PR #$PR_NUMBER is not open."
+              exit 0
+            fi
+            if [ "$COMMAND_OK" != "true" ]; then
+              echo "No build was dispatched because the comment was not a recognized \`/app-live\` command. See the job log for the command that was read."
               exit 0
             fi
             if [ "$ALLOWED" != "true" ]; then

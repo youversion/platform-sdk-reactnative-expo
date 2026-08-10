@@ -98,6 +98,11 @@ After a successful upload, `github-actions[bot]` creates or updates one PR
 comment with the latest build details (only the platform(s) actually
 built) and the rebuild instructions.
 
+The comment must be the command and nothing else. Surrounding whitespace is
+ignored, but anything else starting with `/app-live` — a typo like
+`/app-live-widnows`, or a command with trailing prose — is refused with a
+notice in the workflow log. It never falls back to building both platforms.
+
 Builds are numbered per PR: the key is the branch's ticket key plus the PR
 number, incrementing for each upload, for example `rn-YPE-3011-pr14-1`
 and `rn-YPE-3011-pr14-2`. A sanitized 10-character branch label plus the
