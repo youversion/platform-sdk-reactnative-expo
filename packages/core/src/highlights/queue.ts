@@ -1,8 +1,9 @@
 /**
  * Writes that have not reached the server, persisted until they do. See ADR 0017.
  *
- * Storage only: eligibility belongs to the write path, and the drain belongs to
- * the provider.
+ * Storage, plus a notification for the one change no one else can see (see
+ * {@link onWritesDropped}). Eligibility belongs to the write path, and the drain
+ * belongs to the provider.
  */
 
 import { z } from 'zod'
@@ -205,6 +206,46 @@ export function dropWrites(input: {
     persist(userId, scope, queued)
   }
   return { restored, cleared }
+}
+
+export type DroppedWrites = {
+  userId: string
+  scope: HighlightScope
+  restored: ServerColors
+  cleared: number[]
+}
+
+const dropListeners = new Set<(dropped: DroppedWrites) => void>()
+
+/** Subscribes to {@link dropRejectedWrites}. Returns an unsubscribe. */
+export function onWritesDropped(listener: (dropped: DroppedWrites) => void): () => void {
+  dropListeners.add(listener)
+  return () => {
+    dropListeners.delete(listener)
+  }
+}
+
+/**
+ * {@link dropWrites}, plus an announcement of what to un-paint. Only the drain
+ * needs it: a settling write already owns its own paint, while a drop takes back
+ * paint a mounted reader is still showing (ADR 0017).
+ */
+export function dropRejectedWrites(input: {
+  userId: string
+  scope: HighlightScope
+  verses: readonly number[]
+  color: string | null
+}): { restored: ServerColors; cleared: number[] } {
+  const dropped = dropWrites(input)
+  if (Object.keys(dropped.restored).length === 0 && dropped.cleared.length === 0) {
+    return dropped
+  }
+
+  const event: DroppedWrites = { userId: input.userId, scope: input.scope, ...dropped }
+  for (const listener of [...dropListeners]) {
+    listener(event)
+  }
+  return dropped
 }
 
 /**

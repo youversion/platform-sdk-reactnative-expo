@@ -23,12 +23,13 @@ export default function HighlightQueueDrainHost() {
   const userId = auth?.userInfo?.id ?? null
   const accessToken = auth?.accessToken ?? null
   const ensureFreshToken = auth?.ensureFreshToken ?? null
+  const refreshNow = auth?.refreshNow ?? null
 
-  const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken })
+  const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken, refreshNow })
   // Declared before the effects that read it: effects run in order, so the drain
   // starts against real values rather than the mount-time snapshot.
   useEffect(() => {
-    authRef.current = { userId, accessToken, ensureFreshToken }
+    authRef.current = { userId, accessToken, ensureFreshToken, refreshNow }
   })
 
   const api = useMemo(

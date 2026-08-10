@@ -39,26 +39,32 @@ const GREEN = '51cf66'
 
 /** Never reached the server. */
 const UNREACHABLE: HighlightsApiError = { kind: 'transient', message: 'offline' }
-/** Reached it and was refused. */
+/** Reached it and was refused on auth grounds — the one droppable failure. */
 const REFUSED: HighlightsApiError = { kind: 'auth', status: 401, message: 'no' }
+const FORBIDDEN: HighlightsApiError = { kind: 'auth', status: 403, message: 'nope' }
+/** Reached it and failed for any other reason. Retried forever, never dropped. */
+const SERVER_ERROR: HighlightsApiError = { kind: 'transient', status: 500, message: 'boom' }
+const UNPROCESSABLE: HighlightsApiError = { kind: 'transient', status: 422, message: 'bad' }
 
 type Call = { kind: 'create' | 'delete'; passageId: string; color?: string }
 
 type CreateResult = Awaited<ReturnType<HighlightsApi['createHighlight']>>
+
+type CreateData = Parameters<HighlightsApi['createHighlight']>[1]
 
 /** `onCreate` chooses the POST's answer per call; the attempt is recorded either way. */
 function createApi({
   onCreate,
   ...overrides
 }: Partial<HighlightsApi> & {
-  onCreate?: () => CreateResult | Promise<CreateResult>
+  onCreate?: (data: CreateData) => CreateResult | Promise<CreateResult>
 } = {}) {
   const calls: Call[] = []
   const api: HighlightsApi = {
     getHighlights: jest.fn(async () => ok({ data: [] }) as never),
     createHighlight: jest.fn(async (_token, data) => {
       calls.push({ kind: 'create', passageId: data.passage_id, color: data.color })
-      return onCreate ? await onCreate() : (ok({} as never) as CreateResult)
+      return onCreate ? await onCreate(data) : (ok({} as never) as CreateResult)
     }),
     deleteHighlight: jest.fn(async (_token, passageId) => {
       calls.push({ kind: 'delete', passageId })
@@ -74,6 +80,7 @@ function signedIn(overrides: Partial<DrainAuth> = {}): () => DrainAuth {
     userId: USER,
     accessToken: 'token-1',
     ensureFreshToken: null,
+    refreshNow: null,
     ...overrides,
   }
   return () => auth
@@ -261,29 +268,262 @@ describe('startHighlightQueueDrain', () => {
     expect(getQueuedWrites(USER, JHN3)).toEqual({})
   })
 
-  it('keeps the entry, and so the paint, when the write is refused', async () => {
+  it.each([
+    ['the server cannot be reached', UNREACHABLE],
+    ['the server answers 5xx', SERVER_ERROR],
+    ['the server answers a non-auth 4xx', UNPROCESSABLE],
+  ])('keeps the entry, and so the paint, when %s', async (_case, error) => {
     queueApply(JHN3, [16], YELLOW)
-    const { api } = createApi({ onCreate: () => err(REFUSED) })
+    const refreshNow = jest.fn(async () => undefined)
+    const { api, calls } = createApi({ onCreate: () => err(error) })
 
-    const drain = startHighlightQueueDrain({ api, getAuth: signedIn() })
+    const drain = startHighlightQueueDrain({ api, getAuth: signedIn({ refreshNow }) })
     drain.drainNow()
     await settle()
     drain.stop()
 
-    expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
-  })
-
-  it('keeps the entry when the server is unreachable', async () => {
-    queueApply(JHN3, [16], YELLOW)
-    const { api } = createApi({ onCreate: () => err(UNREACHABLE) })
-
-    const drain = startHighlightQueueDrain({ api, getAuth: signedIn() })
-    drain.drainNow()
-    await settle()
-    drain.stop()
-
+    // One attempt, no forced refresh: only an auth refusal earns a second look.
+    expect(calls).toHaveLength(1)
+    expect(refreshNow).not.toHaveBeenCalled()
     expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
     expect(getCachedHighlights(USER, JHN3)).toBeNull()
+  })
+
+  describe('a write the server refuses', () => {
+    /** Refuses the first attempt, then answers `then`. */
+    function refusingOnce(then: () => CreateResult) {
+      let attempts = 0
+      return () => (++attempts === 1 ? err(REFUSED) : then())
+    }
+
+    it('mints a fresh token and states the write once more', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      const refreshNow = jest.fn(async () => undefined)
+      const { api, calls } = createApi({
+        onCreate: refusingOnce(() => ok({}) as CreateResult),
+      })
+
+      const drain = startHighlightQueueDrain({ api, getAuth: signedIn({ refreshNow }) })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(refreshNow).toHaveBeenCalledTimes(1)
+      expect(calls).toEqual([
+        { kind: 'create', passageId: 'JHN.3.16', color: YELLOW },
+        { kind: 'create', passageId: 'JHN.3.16', color: YELLOW },
+      ])
+      expect(getQueuedWrites(USER, JHN3)).toEqual({})
+      expect(getCachedHighlights(USER, JHN3)).toEqual([
+        { version_id: 111, passage_id: 'JHN.3.16', color: YELLOW },
+      ])
+    })
+
+    it('sends the retry under the token the refresh minted', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      let auth: DrainAuth = {
+        userId: USER,
+        accessToken: 'stale',
+        ensureFreshToken: null,
+        refreshNow: async () => {
+          auth = { ...auth, accessToken: 'fresh' }
+        },
+      }
+      const { api } = createApi({ onCreate: refusingOnce(() => ok({}) as CreateResult) })
+
+      const drain = startHighlightQueueDrain({ api, getAuth: () => auth })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      const tokens = (api.createHighlight as jest.Mock).mock.calls.map(([token]) => token)
+      expect(tokens).toEqual(['stale', 'fresh'])
+    })
+
+    it.each([
+      ['401', REFUSED],
+      ['403', FORBIDDEN],
+    ])('drops the entry when a %s survives the forced refresh', async (_status, error) => {
+      queueApply(JHN3, [16], YELLOW)
+      const refreshNow = jest.fn(async () => undefined)
+      const { api, calls } = createApi({ onCreate: () => err(error) })
+
+      const drain = startHighlightQueueDrain({ api, getAuth: signedIn({ refreshNow }) })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(refreshNow).toHaveBeenCalledTimes(1)
+      expect(calls).toHaveLength(2)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({})
+    })
+
+    it('un-paints the verse back to the color the server had', async () => {
+      // The cache is the paint, so it already holds the optimistic yellow.
+      setCachedHighlights(USER, JHN3, [
+        { version_id: 111, passage_id: 'JHN.3.16', color: YELLOW },
+        { version_id: 111, passage_id: 'JHN.3.17', color: GREEN },
+      ])
+      enqueueWrites({
+        userId: USER,
+        scope: JHN3,
+        verses: [16],
+        color: YELLOW,
+        currentColors: { 16: GREEN },
+      })
+      const { api } = createApi({ onCreate: () => err(REFUSED) })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({ refreshNow: jest.fn(async () => undefined) }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(getCachedHighlights(USER, JHN3)).toEqual([
+        { version_id: 111, passage_id: 'JHN.3.16', color: GREEN },
+        { version_id: 111, passage_id: 'JHN.3.17', color: GREEN },
+      ])
+    })
+
+    it('un-paints the verse entirely when the server had nothing', async () => {
+      setCachedHighlights(USER, JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: YELLOW }])
+      queueApply(JHN3, [16], YELLOW)
+      const { api } = createApi({ onCreate: () => err(REFUSED) })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({ refreshNow: jest.fn(async () => undefined) }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(getCachedHighlights(USER, JHN3)).toEqual([])
+    })
+
+    it('leaves every other entry alone, in its scope and in others', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      queueApply(JHN3, [20], GREEN)
+      queueApply(JHN4, [1], GREEN)
+      const { api } = createApi({
+        onCreate: (data) => (data.color === YELLOW ? err(REFUSED) : err(UNREACHABLE)),
+      })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({ refreshNow: jest.fn(async () => undefined) }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(getQueuedWrites(USER, JHN3)).toEqual({ 20: { local: GREEN, server: null } })
+      expect(getQueuedWrites(USER, JHN4)).toEqual({ 1: { local: GREEN, server: null } })
+    })
+
+    it('keeps the entry when the retry fails for a different reason', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      const { api, calls } = createApi({ onCreate: refusingOnce(() => err(UNREACHABLE)) })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({ refreshNow: jest.fn(async () => undefined) }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(calls).toHaveLength(2)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
+    })
+
+    it('keeps the entry when the forced refresh throws', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      const { api, calls } = createApi({ onCreate: () => err(REFUSED) })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({
+          refreshNow: jest.fn(async () => {
+            throw new Error('network down')
+          }),
+        }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(calls).toHaveLength(1)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
+    })
+
+    it('keeps the entry when there is no refresh to force', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      const { api, calls } = createApi({ onCreate: () => err(REFUSED) })
+
+      const drain = startHighlightQueueDrain({ api, getAuth: signedIn({ refreshNow: null }) })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      // No mint means no second statement under a fresh token, so nothing the
+      // server said qualifies as definitive.
+      expect(calls).toHaveLength(1)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
+    })
+
+    it('does not drop when the refresh ends the session it was retrying for', async () => {
+      queueApply(JHN3, [16], YELLOW)
+      let auth: DrainAuth = {
+        userId: USER,
+        accessToken: 'token-1',
+        ensureFreshToken: null,
+        refreshNow: async () => {
+          auth = { userId: null, accessToken: null, ensureFreshToken: null, refreshNow: null }
+        },
+      }
+      const { api, calls } = createApi({ onCreate: () => err(REFUSED) })
+
+      const drain = startHighlightQueueDrain({ api, getAuth: () => auth })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      // Sign-out purges the queue itself; the drain must not be what decides the
+      // departed user's write was refused for good.
+      expect(calls).toHaveLength(1)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({ 16: { local: YELLOW, server: null } })
+    })
+
+    it('drops a refused removal, restoring the color it was removing', async () => {
+      setCachedHighlights(USER, JHN3, [])
+      enqueueWrites({
+        userId: USER,
+        scope: JHN3,
+        verses: [16],
+        color: null,
+        currentColors: { 16: GREEN },
+      })
+      const { api } = createApi({
+        deleteHighlight: jest.fn(async () => err(FORBIDDEN)),
+      })
+
+      const drain = startHighlightQueueDrain({
+        api,
+        getAuth: signedIn({ refreshNow: jest.fn(async () => undefined) }),
+      })
+      drain.drainNow()
+      await settle()
+      drain.stop()
+
+      expect(api.deleteHighlight).toHaveBeenCalledTimes(2)
+      expect(getQueuedWrites(USER, JHN3)).toEqual({})
+      expect(getCachedHighlights(USER, JHN3)).toEqual([
+        { version_id: 111, passage_id: 'JHN.3.16', color: GREEN },
+      ])
+    })
   })
 
   it('sends the newest intent when a verse was re-tapped while parked', async () => {
@@ -348,15 +588,26 @@ describe('startHighlightQueueDrain', () => {
     queueApply(JHN4, [1], YELLOW)
     const { api, calls } = createApi()
 
-    let auth: DrainAuth = { userId: USER, accessToken: 'token-1', ensureFreshToken: null }
+    let auth: DrainAuth = {
+      userId: USER,
+      accessToken: 'token-1',
+      ensureFreshToken: null,
+      refreshNow: null,
+    }
     const drain = startHighlightQueueDrain({ api, getAuth: () => auth })
     // Signs out during the refresh that precedes the first scope.
     auth = {
       userId: USER,
       accessToken: 'token-1',
       ensureFreshToken: async () => {
-        auth = { userId: 'user-2', accessToken: 'token-2', ensureFreshToken: null }
+        auth = {
+          userId: 'user-2',
+          accessToken: 'token-2',
+          ensureFreshToken: null,
+          refreshNow: null,
+        }
       },
+      refreshNow: null,
     }
     drain.drainNow()
     await settle()
@@ -369,10 +620,20 @@ describe('startHighlightQueueDrain', () => {
     queueApply(JHN3, [16], YELLOW)
     queueApply(JHN4, [1], YELLOW)
 
-    let auth: DrainAuth = { userId: USER, accessToken: 'token-1', ensureFreshToken: null }
+    let auth: DrainAuth = {
+      userId: USER,
+      accessToken: 'token-1',
+      ensureFreshToken: null,
+      refreshNow: null,
+    }
     const { api, calls } = createApi({
       onCreate: () => {
-        auth = { userId: 'user-2', accessToken: 'token-2', ensureFreshToken: null }
+        auth = {
+          userId: 'user-2',
+          accessToken: 'token-2',
+          ensureFreshToken: null,
+          refreshNow: null,
+        }
         return ok({} as never) as CreateResult
       },
     })

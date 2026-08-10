@@ -13,5 +13,3 @@ npx expo install expo-network
 The drain is owned by core's `YouVersionProvider` and is inert with no auth configured, no signed-in user, or no access token. A write made in John 3 lands while the reader is in Romans 8, and lands even if the user never returns to John 3. It wakes on provider mount, on a token change, on the app returning to the foreground, on the rising edge of connectivity, and on a successful highlights fetch; otherwise each parked verse retries on its own widening, capped backoff that resets when it lands. Any of those wake-ups retires the pending wait, so a write deep into its backoff goes out the moment service returns rather than sitting out the rest of it. Connectivity is a trigger, never a gate — a wrong or missing connectivity answer costs a delayed attempt, never a skipped one.
 
 No public API changes: no new exports, and no existing type or outcome changes meaning. A write that reports `{ status: 'queued' }` simply stops being permanent.
-
-Not yet included: a definitive 401/403 is retried rather than dropped.

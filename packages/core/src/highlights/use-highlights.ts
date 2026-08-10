@@ -23,7 +23,7 @@ import {
   type OptimisticState,
   type WriteOp,
 } from './optimistic'
-import { dropWrites, enqueueWrites, getQueuedWrites } from './queue'
+import { dropWrites, enqueueWrites, getQueuedWrites, onWritesDropped } from './queue'
 
 export type UseHighlightsOptions = {
   versionId: number
@@ -367,6 +367,24 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   }, [identityKey, accessToken, runFetch])
 
   const refresh = useCallback((): Promise<void> => runFetch(), [runFetch])
+
+  // The drain gave up on a write this reader is still painting. Nothing remounts,
+  // so the un-paint arrives here (ADR 0017).
+  useEffect(
+    () =>
+      onWritesDropped((dropped) => {
+        const captured = identityRef.current
+        if (identityKeyFor(dropped.userId, dropped.scope) !== captured.key) {
+          return
+        }
+        setState((prev) =>
+          sameIdentity(prev, captured)
+            ? restore(prev, { restored: dropped.restored, cleared: dropped.cleared })
+            : prev,
+        )
+      }),
+    [],
+  )
 
   // ── Writes ─────────────────────────────────────────────────────────────────
   // A promise chain, not a queue: the web machine needs an explicit queue only

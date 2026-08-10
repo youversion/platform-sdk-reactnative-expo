@@ -10,7 +10,7 @@ import { nextBackoffDelay } from './backoff'
 import { mergeCachedHighlights } from './cache'
 import { isWriteClaimed } from './claims'
 import { toWriteUnits } from './optimistic'
-import { dropWrites, getQueuedWrites, listQueuedScopes } from './queue'
+import { dropRejectedWrites, dropWrites, getQueuedWrites, listQueuedScopes } from './queue'
 import type { HighlightsApi } from './api'
 import type { HighlightScope } from './constants'
 
@@ -19,6 +19,8 @@ export type DrainAuth = {
   userId: string | null
   accessToken: string | null
   ensureFreshToken: (() => Promise<void>) | null
+  /** Unconditional mint, for the one retry a refusal earns. */
+  refreshNow: (() => Promise<void>) | null
 }
 
 export type HighlightQueueDrain = {
@@ -80,27 +82,96 @@ export function startHighlightQueueDrain(deps: {
     }
   }
 
+  /**
+   * Reverts a write the server refused twice and tells mounted readers, so the
+   * verse un-paints without a remount. See ADR 0017.
+   */
+  function drop(
+    userId: string,
+    scope: HighlightScope,
+    verses: readonly number[],
+    color: string | null,
+  ): void {
+    const owed = getQueuedWrites(userId, scope)
+    const byServer = new Map<string | null, number[]>()
+    for (const verse of verses) {
+      const entry = owed[verse]
+      if (entry?.local === color) {
+        push(byServer, entry.server, verse)
+      }
+    }
+
+    // Cache before queue, as `land` does — here the cache write is the un-paint.
+    for (const [server, group] of byServer) {
+      mergeCachedHighlights(userId, scope, group, server)
+    }
+    dropRejectedWrites({ userId, scope, verses, color })
+
+    for (const verse of verses) {
+      backoff.delete(backoffKey(scope, verse))
+    }
+  }
+
+  /**
+   * A fresh token for the retry, or `null` if there is no route to one — no
+   * refresh to call, one that threw, or one that ended the session this write
+   * belongs to. Only a refusal of a genuinely minted token may drop.
+   */
+  async function forcedToken(userId: string): Promise<string | null> {
+    const refreshNow = getAuth().refreshNow
+    if (refreshNow === null) {
+      return null
+    }
+    try {
+      await refreshNow()
+    } catch {
+      return null
+    }
+    const next = getAuth()
+    return stopped || next.userId !== userId ? null : next.accessToken
+  }
+
   async function sendColor(
     auth: { userId: string; accessToken: string },
     scope: HighlightScope,
     color: string | null,
     verses: readonly number[],
   ): Promise<void> {
+    const send = (token: string, passageId: string) =>
+      color === null
+        ? api.deleteHighlight(token, passageId, { version_id: scope.versionId })
+        : api.createHighlight(token, {
+            version_id: scope.versionId,
+            passage_id: passageId,
+            color,
+          })
+
     await Promise.all(
       toWriteUnits(scope, verses, color).map(async (unit) => {
-        const result =
-          color === null
-            ? await api.deleteHighlight(auth.accessToken, unit.passageId, {
-                version_id: scope.versionId,
-              })
-            : await api.createHighlight(auth.accessToken, {
-                version_id: scope.versionId,
-                passage_id: unit.passageId,
-                color,
-              })
-
+        const result = await send(auth.accessToken, unit.passageId)
         if (result.ok) {
           land(auth.userId, scope, unit.verses, color)
+          return
+        }
+        if (result.error.kind !== 'auth') {
+          noteFailure(scope, unit.verses)
+          return
+        }
+
+        // The pass already refreshed on leeway, so a refusal means that read was
+        // wrong. Mint unconditionally and state the write once more; only a
+        // second refusal is the server saying it will never take it.
+        const token = await forcedToken(auth.userId)
+        if (token === null) {
+          noteFailure(scope, unit.verses)
+          return
+        }
+
+        const retry = await send(token, unit.passageId)
+        if (retry.ok) {
+          land(auth.userId, scope, unit.verses, color)
+        } else if (retry.error.kind === 'auth') {
+          drop(auth.userId, scope, unit.verses, color)
         } else {
           noteFailure(scope, unit.verses)
         }

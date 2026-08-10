@@ -6,6 +6,7 @@ import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
 import type { Result } from '../../result'
 import { YouVersionContext } from '../../youversion-context'
 import type { HighlightsApiError } from '../api'
+import { startHighlightQueueDrain } from '../drain'
 import {
   highlightQueueKey,
   highlightsCacheKey,
@@ -365,5 +366,104 @@ describe('the queue holds desired state, not a log of operations', () => {
 
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
     expect(queuedWrites()).toBeNull()
+  })
+})
+
+describe('a parked write the drain drops', () => {
+  const JHN4: HighlightScope = { versionId: 111, book: 'JHN', chapter: '4' }
+
+  const refused = () => apiError({ kind: 'auth', status: 401, message: 'no' })
+
+  function queuedWritesFor(target: HighlightScope): QueuedWrites | null {
+    const raw = mockMmkv.get(highlightQueueKey(userId, target))
+    return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
+  }
+
+  /** One full drain pass against the same fake MMKV the mounted hooks read. */
+  async function drainOnce() {
+    const drain = startHighlightQueueDrain({
+      api: {
+        getHighlights: mockGetHighlights,
+        createHighlight: mockCreateHighlight,
+        deleteHighlight: mockDeleteHighlight,
+      },
+      getAuth: () => ({
+        userId,
+        accessToken: 'token-1',
+        ensureFreshToken: null,
+        refreshNow: async () => undefined,
+      }),
+    })
+    await act(async () => {
+      drain.drainNow()
+      for (let tick = 0; tick < 12; tick++) {
+        await Promise.resolve()
+      }
+    })
+    drain.stop()
+  }
+
+  it('un-paints on the reader still mounted, with no remount', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    mockCreateHighlight.mockResolvedValue(unreachable())
+
+    const { result } = renderUseHighlights()
+    await flush()
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+
+    // The service returns and states twice that it will not take this write.
+    mockCreateHighlight.mockResolvedValue(refused())
+    await drainOnce()
+
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+    expect(queuedWrites()).toBeNull()
+  })
+
+  it('leaves the paint alone when the refusal heals on the forced refresh', async () => {
+    mockCreateHighlight.mockResolvedValue(unreachable())
+
+    const { result } = renderUseHighlights()
+    await flush()
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+    })
+
+    mockCreateHighlight
+      .mockResolvedValueOnce(refused())
+      .mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
+    await drainOnce()
+
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+    expect(queuedWrites()).toBeNull()
+  })
+
+  it('leaves a reader on another chapter painted and still owed its write', async () => {
+    mockCreateHighlight.mockResolvedValue(unreachable())
+
+    const { result } = renderUseHighlights()
+    const other = renderHook(() => useHighlights(JHN4), { wrapper: Wrapper })
+    await flush()
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [16])
+      await other.result.current.apply(GREEN, [1])
+    })
+    expect(colorsOf(other.result.current)).toEqual({ 'JHN.4.1': GREEN })
+
+    // Only JHN 3's write is refused; JHN 4's still cannot reach the server.
+    mockCreateHighlight.mockImplementation(async (_token, data) =>
+      data.color === YELLOW ? refused() : unreachable(),
+    )
+    await drainOnce()
+
+    expect(colorsOf(result.current)).toEqual({})
+    expect(queuedWrites()).toBeNull()
+    expect(colorsOf(other.result.current)).toEqual({ 'JHN.4.1': GREEN })
+    expect(queuedWritesFor(JHN4)).toEqual({ 1: { local: GREEN, server: null } })
   })
 })

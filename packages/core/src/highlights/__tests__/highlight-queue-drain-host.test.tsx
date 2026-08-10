@@ -52,6 +52,7 @@ beforeEach(() => {
     userInfo: { id: 'user-1' },
     accessToken: 'token-1',
     ensureFreshToken: jest.fn(),
+    refreshNow: jest.fn(),
   })
   mockStartDrain.mockReturnValue(drain)
   mockAddNetworkStateListener.mockImplementation((listener) => {
@@ -80,6 +81,7 @@ describe('HighlightQueueDrainHost', () => {
       userId: 'user-1',
       accessToken: 'token-1',
       ensureFreshToken: expect.any(Function),
+      refreshNow: expect.any(Function),
     })
   })
 
@@ -88,7 +90,12 @@ describe('HighlightQueueDrainHost', () => {
     render(<HighlightQueueDrainHost />)
 
     const [{ getAuth }] = mockStartDrain.mock.calls[0]
-    expect(getAuth()).toEqual({ userId: null, accessToken: null, ensureFreshToken: null })
+    expect(getAuth()).toEqual({
+      userId: null,
+      accessToken: null,
+      ensureFreshToken: null,
+      refreshNow: null,
+    })
   })
 
   it('drains again when the token changes — sign-in and refresh both land here', () => {
