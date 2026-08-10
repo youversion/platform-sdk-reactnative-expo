@@ -184,10 +184,20 @@ export function mergeCachedHighlights(
   setCachedHighlights(userId, scope, highlightsFromColors(scope, colors))
 }
 
+/**
+ * Empties the cached paint for every user — sign-out's job.
+ *
+ * Never throws: sign-out purges before it clears the tokens, so an unreadable
+ * store costs stale paint, not a user who is still signed in.
+ */
 export function clearHighlightsCache(): void {
-  for (const key of mmkvStorage.getAllKeys()) {
-    if (key.startsWith(MMKV_HIGHLIGHTS_KEY_PREFIX)) {
-      mmkvStorage.remove(key)
+  try {
+    for (const key of mmkvStorage.getAllKeys()) {
+      if (key.startsWith(MMKV_HIGHLIGHTS_KEY_PREFIX)) {
+        mmkvStorage.remove(key)
+      }
     }
+  } catch {
+    // Purge failed; sign-out continues.
   }
 }

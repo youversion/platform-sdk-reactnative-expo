@@ -120,7 +120,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [])
 
   const clearAuthState = useCallback(async () => {
-    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    // The cache purges are best-effort; none may abort the token clearing below.
+    // The three helpers swallow their own failures, this removal cannot.
+    try {
+      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    } catch {
+      // Cached user info survived; the tokens still go.
+    }
     invalidatePermissions()
     clearHighlightsCache()
     clearHighlightQueue()

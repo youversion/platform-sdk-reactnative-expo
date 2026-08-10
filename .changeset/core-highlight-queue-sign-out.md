@@ -8,4 +8,6 @@ The purge takes every user's parked writes, not only the departing user's. One u
 
 Entries stay keyed per user for as long as a user is signed in, and a user change part-way through a drain stops the pass rather than sending the departed user's writes under the new token.
 
+Every cache the routine clears is best-effort, and none of them can block the sign-out itself. A device storage failure part-way through now costs a surviving cache entry — belonging to a user who has already left, and readable by no one else — rather than a user who asked to sign out and stayed signed in.
+
 No public API changes.

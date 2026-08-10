@@ -17,6 +17,7 @@ import type { AuthConfig, AuthPermission } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
+let mockMmkvThrows = false
 
 jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
@@ -24,8 +25,14 @@ jest.mock('../../storage/mmkv-storage', () => ({
       mockMmkv.set(k, v)
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
+    remove: jest.fn((k: string) => {
+      if (mockMmkvThrows) throw new Error('mmkv unavailable')
+      return mockMmkv.delete(k)
+    }),
+    getAllKeys: jest.fn(() => {
+      if (mockMmkvThrows) throw new Error('mmkv unavailable')
+      return Array.from(mockMmkv.keys())
+    }),
   },
 }))
 
@@ -182,6 +189,7 @@ function fireAppStateChange(state: string) {
 
 beforeEach(() => {
   mockMmkv.clear()
+  mockMmkvThrows = false
   latestAuth = null
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
@@ -472,6 +480,37 @@ describe('AuthProvider — signOut', () => {
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(listQueuedScopes('u1')).toEqual([])
     expect(listQueuedScopes('u2')).toEqual([])
+  })
+
+  // The purges run before the tokens are cleared. A store that throws must cost a
+  // surviving cache entry, never a user who asked to sign out and stayed in.
+  it('still signs out when the cache purges cannot reach the store', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    parkWrite('u1', JHN3)
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    mockMmkvThrows = true
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('userInfo')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith({
+      accessToken: null,
+      refreshToken: null,
+      expiryDate: null,
+    })
   })
 })
 
