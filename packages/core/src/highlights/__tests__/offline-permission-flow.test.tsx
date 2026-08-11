@@ -143,6 +143,11 @@ function authValue(): AuthContextValue {
     signOut: jest.fn(),
     refreshNow: jest.fn(),
     ensureFreshToken: jest.fn(async () => undefined),
+    getAccessToken: jest.fn(async () =>
+      signedIn
+        ? ({ status: 'ok', token: 'token-1', userId } as const)
+        : ({ status: 'unavailable', reason: 'signed-out' } as const),
+    ),
     isLoading: false,
     requestedPermissions: ['highlights'],
     grantedPermissions: cachedGrant(),

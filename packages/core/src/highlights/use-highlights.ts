@@ -476,9 +476,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       if (!isSameUser || tokenResult.status === 'unavailable') {
         // Revert the paint either way — a no-op in the user-switch case, where
         // the render-time identity reset already covered it.
-        setState((prev) =>
-          settle(prev, { token, op, color, succeededVerses: [], failedVerses: verses }),
-        )
+        revert(verses)
         // The session is intact and no request went out, so `transient` — never
         // `auth` (drops the grant) or `not-signed-in` (prompts sign-in).
         if (

@@ -37,6 +37,9 @@ function stubAuth() {
     signOut,
     refreshNow: jest.fn(async () => undefined),
     ensureFreshToken: jest.fn(async () => undefined),
+    getAccessToken: jest.fn(
+      async () => ({ status: 'ok', token: 'test-token', userId: USER_ID }) as const,
+    ),
     isLoading: false,
     requestedPermissions: ['highlights'],
     grantedPermissions: ['highlights'],

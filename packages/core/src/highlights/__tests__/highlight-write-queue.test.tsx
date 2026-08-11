@@ -2,7 +2,11 @@ import type { Collection, Highlight } from '@youversion/platform-core'
 import { act, renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
-import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
+import {
+  AuthContext,
+  type AccessTokenResult,
+  type AuthContextValue,
+} from '../../auth/auth-context'
 import type { Result } from '../../result'
 import { YouVersionContext } from '../../youversion-context'
 import type { HighlightsApiError } from '../api'
@@ -89,6 +93,9 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 
 const ensureFreshToken = jest.fn(async () => undefined)
 
+/** Hoisted rather than built per render, so a test can drive a failed refresh. */
+const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
+
 function authValue(): AuthContextValue {
   return {
     isAuthenticated: true,
@@ -99,6 +106,7 @@ function authValue(): AuthContextValue {
     signOut: jest.fn(async () => undefined),
     refreshNow: jest.fn(async () => undefined),
     ensureFreshToken,
+    getAccessToken,
     isLoading: false,
     requestedPermissions: ['highlights'],
     grantedPermissions: null,
@@ -154,6 +162,8 @@ beforeEach(() => {
   mockDeleteHighlight.mockReset()
   ensureFreshToken.mockReset()
   ensureFreshToken.mockResolvedValue(undefined)
+  getAccessToken.mockReset()
+  getAccessToken.mockResolvedValue({ status: 'ok', token: 'token-1', userId })
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
@@ -217,6 +227,65 @@ describe('a write that cannot reach the server', () => {
     })
 
     expect(outcome).toEqual({ status: 'ok', verses: [16] })
+    expect(queuedWrites()).toBeNull()
+  })
+})
+
+describe('a write stopped by a failed token refresh', () => {
+  beforeEach(() => {
+    getAccessToken.mockResolvedValue({ status: 'unavailable', reason: 'refresh-failed' })
+  })
+
+  it('takes the paint back and parks nothing', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+
+    const { result } = renderUseHighlights()
+    await flush()
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.apply(YELLOW, [16])
+    })
+
+    // `transient`, not `queued`: the paint is gone, so the caller must not be
+    // told the highlight is saved offline.
+    expect(outcome).toMatchObject({ status: 'error', reason: 'transient', failedVerses: [16] })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+    expect(queuedWrites()).toBeNull()
+  })
+
+  it('puts a removal back on screen and parks nothing', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW)])
+
+    const { result } = renderUseHighlights()
+    await flush()
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.remove(YELLOW, [16])
+    })
+
+    expect(outcome).toMatchObject({ status: 'error', reason: 'transient', failedVerses: [16] })
+    expect(mockDeleteHighlight).not.toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
+    expect(queuedWrites()).toBeNull()
+  })
+
+  it('leaves the next launch nothing owed', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+
+    const first = renderUseHighlights()
+    await flush()
+    await act(async () => {
+      await first.result.current.apply(YELLOW, [16])
+    })
+    first.unmount()
+
+    mockGetHighlights.mockResolvedValue(unreachable())
+    const second = renderUseHighlights()
+
+    expect(colorsOf(second.result.current)).toEqual({ 'JHN.3.16': GREEN })
     expect(queuedWrites()).toBeNull()
   })
 })
