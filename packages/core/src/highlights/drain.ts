@@ -63,6 +63,11 @@ export function startHighlightQueueDrain(deps: {
     }
   }
 
+  /**
+   * Settles a write the server took: the paint is now server truth, so the entry
+   * is no longer owed. The counterpart is {@link revert}; between them they are
+   * the only two ways an entry leaves this drain.
+   */
   function land(
     userId: string,
     scope: HighlightScope,
@@ -83,10 +88,11 @@ export function startHighlightQueueDrain(deps: {
   }
 
   /**
-   * Reverts a write the server refused twice and tells mounted readers, so the
-   * verse un-paints without a remount. See ADR 0017.
+   * Settles a write the server refused twice by taking its paint back to the
+   * entry's `server` side, and tells mounted readers so the verse un-paints
+   * without a remount. The counterpart to {@link land}. See ADR 0017.
    */
-  function drop(
+  function revert(
     userId: string,
     scope: HighlightScope,
     verses: readonly number[],
@@ -115,7 +121,7 @@ export function startHighlightQueueDrain(deps: {
   /**
    * A fresh token for the retry, or `null` if there is no route to one — no
    * refresh to call, one that threw, or one that ended the session this write
-   * belongs to. Only a refusal of a genuinely minted token may drop.
+   * belongs to. Only a refusal of a genuinely minted token may revert.
    */
   async function forcedToken(userId: string): Promise<string | null> {
     const refreshNow = getAuth().refreshNow
@@ -171,7 +177,7 @@ export function startHighlightQueueDrain(deps: {
         if (retry.ok) {
           land(auth.userId, scope, unit.verses, color)
         } else if (retry.error.kind === 'auth') {
-          drop(auth.userId, scope, unit.verses, color)
+          revert(auth.userId, scope, unit.verses, color)
         } else {
           noteFailure(scope, unit.verses)
         }
