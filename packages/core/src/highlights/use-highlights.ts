@@ -5,7 +5,12 @@ import type { AccessTokenResult, AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
-import { deriveServerColors, getCachedHighlights, setCachedHighlights } from './cache'
+import {
+  deriveServerColors,
+  getCachedHighlights,
+  mergeCachedHighlights,
+  setCachedHighlights,
+} from './cache'
 import { claimWrites } from './claims'
 import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
 import { notifyDrain } from './drain-signals'
@@ -101,6 +106,11 @@ const INVALID_COLOR_MESSAGE =
 const TOKEN_REFRESH_FAILED_MESSAGE =
   'Could not refresh the session token. Retry when the network recovers.'
 
+const QUEUE_PERSIST_FAILED_MESSAGE =
+  'Could not record the highlight for sending. Retry in a moment.'
+
+const UNEXPECTED_WRITE_FAILURE_MESSAGE = 'The highlight write could not be completed.'
+
 /**
  * `auth` wins (it changes what the user must do); retrying `invalid` is
  * pointless. `not-signed-in` is ranked but unreachable here — it is never
@@ -187,6 +197,70 @@ function sameIdentity(state: OptimisticState, identity: Identity): boolean {
 }
 
 /**
+ * A settling write must write the cache for the scope it was MADE in, which is
+ * not always the scope on screen.
+ *
+ * The render-path cache write covers only the current scope, so a write that
+ * settles after the reader has moved on leaves its own chapter holding whatever
+ * the cache last recorded. For a refusal that is paint the server said no to:
+ * the entry is dropped, nothing repairs the cache, and the next mount of that
+ * chapter paints the refused color until a successful GET happens to correct it.
+ * {@link landInCache} and {@link revertInCache} close that, mirroring `land` and
+ * `revert` in `drain.ts` — which already had to solve it for scopes with no
+ * mounted hook at all.
+ *
+ * Both filter on `local === color`, the same guard `dropWrites` applies, so a
+ * verse the user has since re-tapped keeps its newer intent. Both are called
+ * BEFORE the entry is dropped, as the drain does: a crash between the two must
+ * leave the write still owed rather than leave a refused paint in the cache with
+ * nothing left to correct it.
+ */
+function landInCache(
+  userId: string,
+  scope: HighlightScope,
+  verses: readonly number[],
+  color: string | null,
+): void {
+  const owed = getQueuedWrites(userId, scope)
+  const landed = verses.filter((verse) => owed[verse]?.local === color)
+  if (landed.length > 0) {
+    mergeCachedHighlights(userId, scope, landed, color)
+  }
+}
+
+/** {@link landInCache}'s counterpart: back to each entry's `server` side. */
+function revertInCache(
+  userId: string,
+  scope: HighlightScope,
+  verses: readonly number[],
+  color: string | null,
+): void {
+  const owed = getQueuedWrites(userId, scope)
+  const byServer = new Map<string | null, number[]>()
+  for (const verse of verses) {
+    const entry = owed[verse]
+    if (entry === undefined || entry.local !== color) {
+      continue
+    }
+    const group = byServer.get(entry.server)
+    if (group === undefined) {
+      byServer.set(entry.server, [verse])
+    } else {
+      group.push(verse)
+    }
+  }
+  for (const [server, group] of byServer) {
+    mergeCachedHighlights(userId, scope, group, server)
+  }
+}
+
+/**
+ * How the token-loading hold ended — auth answered, or the hook unmounted while
+ * a write was still waiting on it. See `authWaitersRef`.
+ */
+type AuthSettleOutcome = 'settled' | 'aborted'
+
+/**
  * Instant, optimistic, self-healing highlight state for one chapter.
  *
  * Paints from the MMKV cache synchronously on first render, applies and removes
@@ -264,7 +338,19 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // Resolve on EITHER a token arriving OR auth settling with none — never on
   // `isLoading` alone, because `postTokenEndpoint` has no AbortController and a
   // hung network can leave `isLoading` true indefinitely.
-  const authWaitersRef = useRef<(() => void)[]>([])
+  //
+  // Unmounting is a third exit, and it carries its own marker. A plain flush on
+  // unmount would resume `runWrite` against a token that is STILL null, which
+  // classifies as `not-signed-in` and reverts — deleting the queue entry for a
+  // write the user made and the server never saw. That is data loss. Not
+  // flushing at all is the other trap: `runWrite` never resumes, the
+  // `.finally(release)` in `startWrite` never runs, and the verse's claim in
+  // `claims.ts` survives until relaunch — which makes the drain skip those
+  // verses for the whole session while re-arming its timer against them. The
+  // `'aborted'` marker is the only exit that keeps both the entry and the claim
+  // honest.
+  const authWaitersRef = useRef<((outcome: AuthSettleOutcome) => void)[]>([])
+  const isUnmountedRef = useRef(false)
 
   // Runs after EVERY render, and must stay declared above the fetch effect:
   // effects fire in declaration order, so this is what guarantees `runFetch`
@@ -284,16 +370,41 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     const waiters = authWaitersRef.current
     authWaitersRef.current = []
     for (const resolve of waiters) {
-      resolve()
+      resolve('settled')
     }
   })
 
-  const waitForAuthSettled = useCallback((): Promise<void> => {
+  // Mount-only, for its cleanup alone: a write parked in the hold has no other
+  // way out once this hook is gone, and leaving it there strands its claim.
+  // The body's reset matters under StrictMode's mount/cleanup/mount cycle:
+  // without it the simulated unmount latches the flag and every later write
+  // that needs the hold aborts to the queue while the hook is still mounted.
+  useEffect(() => {
+    isUnmountedRef.current = false
+    return () => {
+      isUnmountedRef.current = true
+      const waiters = authWaitersRef.current
+      authWaitersRef.current = []
+      for (const resolve of waiters) {
+        resolve('aborted')
+      }
+    }
+  }, [])
+
+  const waitForAuthSettled = useCallback((): Promise<AuthSettleOutcome> => {
     const current = authRef.current
     if (current.accessToken !== null || !current.isAuthLoading) {
-      return Promise.resolve()
+      return Promise.resolve('settled')
     }
-    return new Promise<void>((resolve) => {
+    // The flush above only reaches a write that was already waiting. A write
+    // still queued behind another one reaches this point AFTER the unmount, with
+    // nothing left to render, so it would wait on a resolve that can never come.
+    // Checked here rather than at the top: a write that does not need the hold at
+    // all is unaffected by the unmount and still goes out.
+    if (isUnmountedRef.current) {
+      return Promise.resolve('aborted')
+    }
+    return new Promise<AuthSettleOutcome>((resolve) => {
       authWaitersRef.current.push(resolve)
     })
   }, [])
@@ -378,7 +489,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const refresh = useCallback((): Promise<void> => runFetch(), [runFetch])
 
   // The drain gave up on a write this reader is still painting. Nothing remounts,
-  // so the un-paint arrives here (ADR 0017).
+  // so the un-paint arrives here (ADR 0018).
   useEffect(
     () =>
       onWritesDropped((dropped) => {
@@ -425,6 +536,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         if (captured.userId === null || rejected.length === 0) {
           return
         }
+        // The cache first, for the write's OWN scope — the setState below is
+        // guarded on the current identity, so on its own it repairs nothing once
+        // the reader has moved on. See {@link revertInCache}.
+        revertInCache(captured.userId, captured.scope, rejected, paintedColor)
         const { restored, cleared } = dropWrites({
           userId: captured.userId,
           scope: captured.scope,
@@ -436,7 +551,17 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         )
       }
 
-      await waitForAuthSettled()
+      if ((await waitForAuthSettled()) === 'aborted') {
+        // Unmounted with the token still missing. The paint went with the
+        // component, the entry stands, and the drain owes the server this write
+        // — so it is a park, not a failure. Deliberately does NOT run the
+        // not-signed-in classification below, which would revert and delete the
+        // entry (see `authWaitersRef`). Returning frees the claim through
+        // `startWrite`'s `.finally(release)`, which is what lets the drain pick
+        // these verses up in this same session.
+        notifyDrain('write-parked')
+        return { status: 'queued', verses }
+      }
 
       // Fresh token resolved in the send path, not at tap time — `startWrite`
       // has already painted. A failed refresh must stop the write here: an
@@ -555,6 +680,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       })
 
       if (succeededVerses.length > 0 && captured.userId !== null) {
+        // Same reason as the revert path, same order: the paint this write asked
+        // for belongs in ITS scope's cache, which the render-path write covers
+        // only while the reader is still on that chapter.
+        landInCache(captured.userId, captured.scope, succeededVerses, paintedColor)
         dropWrites({
           userId: captured.userId,
           scope: captured.scope,
@@ -651,13 +780,28 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // but unpainted, which the next mount repairs. The other order leaves one
       // painted that nothing will ever send.
       const paintedColor = op === 'apply' ? color : null
-      enqueueWrites({
-        userId: captured.userId,
-        scope: captured.scope,
-        verses,
-        color: paintedColor,
-        currentColors: stateRef.current.colors,
-      })
+      try {
+        enqueueWrites({
+          userId: captured.userId,
+          scope: captured.scope,
+          verses,
+          color: paintedColor,
+          currentColors: stateRef.current.colors,
+        })
+      } catch {
+        // MMKV refused the entry. Reported here, before any paint and before any
+        // claim, because this is the last point where nothing has happened yet.
+        // `enqueueWrites` must NOT swallow it instead: that would let the paint
+        // go down with no entry behind it — the one state queue-first ordering
+        // exists to prevent.
+        return Promise.resolve({
+          status: 'error',
+          reason: 'transient',
+          message: QUEUE_PERSIST_FAILED_MESSAGE,
+          failedVerses: verses,
+          succeededVerses: [],
+        })
+      }
       setState((prev) => paint(prev, verses, paintedColor))
 
       // Advance the ref with it. The effect that syncs `stateRef` only runs
@@ -674,7 +818,24 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // settles, so without this the drain would read it as owed and send it
       // twice.
       const release = claimWrites(captured.userId, captured.scope, verses)
-      return enqueue(() => runWrite({ op, color, verses, captured })).finally(release)
+      return (
+        enqueue(() => runWrite({ op, color, verses, captured }))
+          .finally(release)
+          // `apply` and `remove` resolve an outcome; they never reject, and every
+          // consumer doc says so loudly enough that nothing wraps them in a
+          // `try`/`catch`. The realistic throw is MMKV refusing a write from the
+          // queue or the cache repair deep inside `runWrite`, so this is what
+          // keeps that promise true — including for whatever throws next.
+          .catch(
+            (): HighlightWriteOutcome => ({
+              status: 'error',
+              reason: 'transient',
+              message: UNEXPECTED_WRITE_FAILURE_MESSAGE,
+              failedVerses: verses,
+              succeededVerses: [],
+            }),
+          )
+      )
     },
     [enqueue, runWrite],
   )
@@ -696,7 +857,13 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     if (userId === null) {
       return
     }
-    setCachedHighlights(userId, scope, highlights)
+    try {
+      setCachedHighlights(userId, scope, highlights)
+    } catch {
+      // The cache is the paint, but it is still only a hint about it: a store
+      // that refuses this write costs a slower next mount, and must not take the
+      // component rendering the chapter down with it.
+    }
   }, [userId, scope, highlights])
 
   return {

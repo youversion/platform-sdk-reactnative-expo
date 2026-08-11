@@ -2,18 +2,17 @@ import type { Collection, Highlight } from '@youversion/platform-core'
 import { act, renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
-import {
-  AuthContext,
-  type AccessTokenResult,
-  type AuthContextValue,
-} from '../../auth/auth-context'
+import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
 import type { Result } from '../../result'
 import { YouVersionContext } from '../../youversion-context'
 import type { HighlightsApiError } from '../api'
+import { isWriteClaimed } from '../claims'
 import { startHighlightQueueDrain } from '../drain'
+import { onDrainSignal, type DrainSignal } from '../drain-signals'
 import {
   highlightQueueKey,
   highlightsCacheKey,
+  MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX,
   type HighlightScope,
   type QueuedWrites,
 } from '../constants'
@@ -29,9 +28,15 @@ import {
 
 const mockMmkv = new Map<string, string>()
 
+/** Set to a key prefix to make `mmkvStorage.set` throw for it, as a full store does. */
+let mockFailingSetPrefix: string | null = null
+
 jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
     set: jest.fn((k: string, v: string) => {
+      if (mockFailingSetPrefix !== null && k.startsWith(mockFailingSetPrefix)) {
+        throw new Error('MMKV is out of space')
+      }
       mockMmkv.set(k, v)
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
@@ -96,6 +101,20 @@ const ensureFreshToken = jest.fn(async () => undefined)
 /** Hoisted rather than built per render, so a test can drive a failed refresh. */
 const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
 
+/**
+ * Swapped per test so a case can render against a different auth state without
+ * remounting. `userInfo` stays seeded in every shape: it comes from its own
+ * synchronous initializer in `AuthProvider`, so the id is there before the token.
+ */
+let authOverrides: Partial<AuthContextValue> = {}
+
+/** Signed in, `userInfo` already read from cache, `loadTokens()` not yet resolved. */
+const tokenLoading: Partial<AuthContextValue> = {
+  isAuthenticated: false,
+  accessToken: null,
+  isLoading: true,
+}
+
 function authValue(): AuthContextValue {
   return {
     isAuthenticated: true,
@@ -113,6 +132,7 @@ function authValue(): AuthContextValue {
     hasPermission: jest.fn(() => false),
     invalidatePermissions: jest.fn(),
     requestPermissions: jest.fn(),
+    ...authOverrides,
   }
 }
 
@@ -147,6 +167,11 @@ function queuedWrites(): QueuedWrites | null {
   return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
 }
 
+function readCache(forScope = scope): Highlight[] | null {
+  const raw = mockMmkv.get(highlightsCacheKey(userId, forScope))
+  return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
+}
+
 /** Let the mount fetch (and anything else already queued) settle. */
 async function flush() {
   await act(async () => {
@@ -156,6 +181,8 @@ async function flush() {
 
 beforeEach(() => {
   mockMmkv.clear()
+  mockFailingSetPrefix = null
+  authOverrides = {}
   jest.clearAllMocks()
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
@@ -434,6 +461,145 @@ describe('the queue holds desired state, not a log of operations', () => {
     })
 
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+    expect(queuedWrites()).toBeNull()
+  })
+})
+
+describe('a write still held in the token-loading window when the reader unmounts', () => {
+  it('parks it, keeps the entry, and releases the claim', async () => {
+    authOverrides = tokenLoading
+    const signals: DrainSignal[] = []
+    const unsubscribe = onDrainSignal((signal) => signals.push(signal))
+
+    const { result, unmount } = renderUseHighlights()
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      outcome = result.current.apply(YELLOW, [16])
+    })
+
+    // Painted and persisted, but held: no request has gone out.
+    expect(queuedWrites()).toEqual({ 16: { local: YELLOW, server: null } })
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+
+    unmount()
+    await act(async () => {
+      await outcome
+    })
+
+    expect(await outcome).toEqual({ status: 'queued', verses: [16] })
+    // The entry stands. Resuming against the still-null token would classify
+    // `not-signed-in` and revert, deleting a write the server never saw.
+    expect(queuedWrites()).toEqual({ 16: { local: YELLOW, server: null } })
+    // And the claim is released, so the drain can send it in this same session
+    // rather than skipping the verse until relaunch.
+    expect(isWriteClaimed(userId, scope, 16)).toBe(false)
+    expect(signals).toContain('write-parked')
+
+    unsubscribe()
+  })
+
+  it('parks a held removal the same way', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW)])
+    authOverrides = tokenLoading
+
+    const { result, unmount } = renderUseHighlights()
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      outcome = result.current.remove(YELLOW, [16])
+    })
+
+    unmount()
+    await act(async () => {
+      await outcome
+    })
+
+    expect(await outcome).toEqual({ status: 'queued', verses: [16] })
+    expect(queuedWrites()).toEqual({ 16: { local: null, server: YELLOW } })
+    expect(isWriteClaimed(userId, scope, 16)).toBe(false)
+    expect(mockDeleteHighlight).not.toHaveBeenCalled()
+  })
+})
+
+describe('a store that refuses the queue entry', () => {
+  it('reports transient before anything paints, claims, or is sent', async () => {
+    const { result } = renderUseHighlights()
+    await flush()
+    mockFailingSetPrefix = MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.apply(YELLOW, [16])
+    })
+
+    // Resolves an outcome — `apply` never rejects, whatever storage does.
+    expect(outcome).toMatchObject({
+      status: 'error',
+      reason: 'transient',
+      failedVerses: [16],
+      succeededVerses: [],
+    })
+    expect(colorsOf(result.current)).toEqual({})
+    expect(queuedWrites()).toBeNull()
+    expect(isWriteClaimed(userId, scope, 16)).toBe(false)
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+  })
+})
+
+describe('a refusal that settles after the reader has changed chapter', () => {
+  const JHN4 = { versionId: 111, book: 'JHN', chapter: '4' }
+  const refused = () => apiError({ kind: 'auth', status: 403, message: 'no' })
+
+  it('reverts the cache of the chapter the write was made in', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    const held = deferred<Result<Highlight, HighlightsApiError>>()
+    mockCreateHighlight.mockReturnValueOnce(held.promise)
+
+    const { result, rerender } = renderUseHighlights()
+    await flush()
+
+    let outcome: Promise<HighlightWriteOutcome> | undefined
+    act(() => {
+      outcome = result.current.apply(YELLOW, [16])
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(mockCreateHighlight).toHaveBeenCalledTimes(1)
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
+
+    // The reader moves on while the write is on the wire, so the un-paint has no
+    // mounted state to land in — only the cache can carry it.
+    act(() => {
+      rerender(JHN4)
+    })
+
+    await act(async () => {
+      held.resolve(refused())
+      await outcome
+    })
+
+    expect(await outcome).toMatchObject({ status: 'error', reason: 'auth', failedVerses: [16] })
+    expect(readCache()).toEqual([highlight('JHN.3.16', GREEN)])
+    expect(queuedWrites()).toBeNull()
+  })
+
+  it('still un-paints and matches the cache when the refusal lands in scope', async () => {
+    seedServer([highlight('JHN.3.16', GREEN)])
+    mockCreateHighlight.mockResolvedValue(refused())
+
+    const { result } = renderUseHighlights()
+    await flush()
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.apply(YELLOW, [16])
+    })
+
+    expect(outcome).toMatchObject({ status: 'error', reason: 'auth', failedVerses: [16] })
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': GREEN })
+    expect(readCache()).toEqual([highlight('JHN.3.16', GREEN)])
     expect(queuedWrites()).toBeNull()
   })
 })
