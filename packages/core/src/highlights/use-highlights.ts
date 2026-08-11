@@ -1,5 +1,6 @@
 import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState } from 'react-native'
 
 import type { AccessTokenResult, AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
@@ -487,6 +488,18 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   }, [identityKey, accessToken, runFetch])
 
   const refresh = useCallback((): Promise<void> => runFetch(), [runFetch])
+
+  // Highlights Refresh when the app returns to active — same rule as auth
+  // refresh and the Highlight Write Queue drain. Do not clear inFlightRef:
+  // foreground should join an in-flight GET, not abandon it.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        void runFetch()
+      }
+    })
+    return () => subscription.remove()
+  }, [runFetch])
 
   // The drain gave up on a write this reader is still painting. Nothing remounts,
   // so the un-paint arrives here (ADR 0018).

@@ -291,3 +291,13 @@ Full guide: [docs/contributing/native-i18n.md](./docs/contributing/native-i18n.m
 ## Recommended Agent Skill
 
 This repo uses `CONTEXT.md` and `docs/adr/` for domain language and architectural decisions. Before planning changes, use the [grill-with-docs](https://www.skills.sh/mattpocock/skills/grill-with-docs) skill to stress-test your plan against the documented domain model — it challenges terminology and updates docs inline as decisions crystallize.
+
+## Learned User Preferences
+
+- During grilling or option tradeoffs, when impartial: pick the best reasonable option for robustness and best practices, and avoid spending time optimizing cases that do not need it.
+- Ticket *how* is flexible when the *what* is right — rewrite the ticket/Jira to match locked decisions when still solving the same main idea.
+
+## Learned Workspace Facts
+
+- **Highlights Refresh** is the domain name for a GET that updates **Cached Highlights** for the current **Highlight Scope** (mount, scope change, and AppState → `active`; host screen-focus / `BibleReader` convenience deferred).
+- AppState-driven Highlights Refresh should fire on return to `active` with the same rule as auth refresh and the Highlight Write Queue drain — not a `background → active`-only filter.

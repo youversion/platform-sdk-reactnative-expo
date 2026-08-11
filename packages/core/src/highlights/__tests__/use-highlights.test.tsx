@@ -1,6 +1,6 @@
 import type { Collection, Highlight } from '@youversion/platform-core'
 import { act, render, renderHook } from '@testing-library/react-native'
-import { Text } from 'react-native'
+import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
@@ -224,6 +224,8 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
   return Object.fromEntries(result.highlights.map((h) => [h.passage_id, h.color]))
 }
 
+let appStateListener: ((state: AppStateStatus) => void) | null = null
+
 beforeEach(() => {
   mockMmkv.clear()
   jest.clearAllMocks()
@@ -240,6 +242,11 @@ beforeEach(() => {
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
+  appStateListener = null
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
+    appStateListener = listener as (state: AppStateStatus) => void
+    return { remove: jest.fn() }
+  })
 })
 
 // ── AC 1: instant mount ──────────────────────────────────────────────────────
@@ -444,6 +451,24 @@ describe('fetching server truth', () => {
     })
   })
 
+  it('issues a Highlights Refresh GET when the chapter changes', async () => {
+    const { rerender } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    mockGetHighlights.mockClear()
+
+    rerender({ versionId: 111, book: 'JHN', chapter: '4' })
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.4',
+    })
+  })
+
   it('reconciles a refresh that lands mid-write instead of clobbering the overlay', async () => {
     const pendingWrite = deferred<Result<Highlight, HighlightsApiError>>()
     mockCreateHighlight.mockReturnValueOnce(pendingWrite.promise)
@@ -536,6 +561,30 @@ describe('fetching server truth', () => {
 
     expect(mockGetHighlights).toHaveBeenCalledTimes(1)
     expect(result.current.isRefreshing).toBe(false)
+  })
+})
+
+describe('Highlights Refresh on AppState', () => {
+  it('runs a Highlights Refresh when the app returns to active, and not on the way out', async () => {
+    renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    mockGetHighlights.mockClear()
+
+    act(() => appStateListener?.('background'))
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+
+    await act(async () => {
+      appStateListener?.('active')
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).toHaveBeenCalledTimes(1)
+    expect(mockGetHighlights).toHaveBeenCalledWith('token-1', {
+      version_id: 111,
+      passage_id: 'JHN.3',
+    })
   })
 })
 
