@@ -103,7 +103,7 @@ function HighlightSummary() {
 }
 ```
 
-`highlights` is one entry per verse and is always safe to render — `isRefreshing` only means a network refresh is in flight, so pair it with `RefreshControl` rather than gating a spinner on it.
+`highlights` is one entry per verse and is always safe to render — `isRefreshing` only means a network refresh is in flight, so pair it with `RefreshControl` rather than gating a spinner on it. Mounted subscriptions also refresh automatically when the app returns to the foreground (`AppState` → `active`), using the same path as `refresh()`.
 
 Writes resolve to a typed outcome rather than throwing: `{ status: 'ok', verses }`, `{ status: 'noop' }`, or `{ status: 'error', reason, message, failedVerses, succeededVerses }` where `reason` is `'not-signed-in' | 'auth' | 'invalid' | 'transient'`. Branch on `reason`, not `message` — the message is generic outside development builds. `failedVerses` is what to retry; `succeededVerses` being non-empty alongside it means the batch partly landed.
 
