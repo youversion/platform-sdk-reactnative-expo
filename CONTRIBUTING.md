@@ -70,6 +70,74 @@ pnpm exec expo start --dev-client
 >
 > This applies whenever a native module is added to `packages/ui`, `packages/core`, or the example app. `expo install --fix` won't help here — it only reconciles versions, not an unlinked pod.
 
+### Device builds on BrowserStack
+
+When an approved collaborator on `platform-sdk-reactnative-expo_automation`
+opens a PR from a branch in this repository, **BrowserStack App Live PR
+Build** dispatches the existing automation build for the PR's exact head
+commit — Android **and** iOS. New commits do not rebuild automatically. To
+upload the current PR head again, an approved collaborator comments one of
+the following on the open PR:
+
+| Comment | Platforms rebuilt |
+|---|---|
+| `/app-live <sha>` | Android **and** iOS |
+| `/app-live-ios <sha>` | iOS only |
+| `/app-live-android <sha>` | Android only |
+
+`<sha>` is the full 40-character sha of the head commit being approved, and
+the comment must contain nothing else. The single-platform commands are
+cheaper/faster for iterating on a platform-specific change — matching
+`build-rn-app.yml`'s own guidance to pick a single target rather than always
+paying for both. On any of these explicit rebuild paths, the commenter
+authorizes that one same-repository revision; the PR author does not also
+need access to the automation repository. The automation repository builds
+the example app's `.apk` and/or `.ipa` for whichever platform(s) were
+requested, uploads them to BrowserStack App Live, and returns the `bs://...`
+app id(s) in the SDK workflow summary.
+After a successful upload, `github-actions[bot]` creates or updates one PR
+comment with the latest build details (only the platform(s) actually
+built) and the rebuild instructions.
+
+Naming the commit is what binds the approval to a revision. Because a comment
+event carries no head commit, the workflow has to read the head when it runs,
+which is not when the comment was posted — so without the sha, a push landing
+in between would inherit the approval and send an unreviewed revision into a
+build that holds the automation repository's credentials. With the sha, a
+moved head refuses the build and the workflow log names the sha to re-issue.
+Three notes on the exact wording accepted:
+
+- The sha has to be all 40 characters. An abbreviation could only be compared
+  as a prefix, and a 7-character prefix is 28 bits — grinding a second commit
+  that shares it is ordinary vanity-hash work, and the author can pre-compute
+  it against their own commit's prefix before the approval is even posted. So
+  abbreviations are refused rather than resolved.
+- The bare form of each command (no sha) is accepted when the PR author is
+  themselves an approved collaborator on
+  `platform-sdk-reactnative-expo_automation`, since winning that race would
+  grant them nothing they cannot already do directly.
+- Surrounding whitespace is ignored, and anything else starting with
+  `/app-live` — a typo like `/app-live-widnows`, or a command with trailing
+  prose — is refused with a notice in the workflow log. It never falls back to
+  building both platforms.
+
+Builds are numbered per PR: the key is the branch's ticket key plus the PR
+number, incrementing for each upload, for example `rn-YPE-3011-pr14-1`
+and `rn-YPE-3011-pr14-2`. A sanitized 10-character branch label plus the
+PR number is used when the branch has no ticket key, for example
+`feature/rework-reader` becomes `rn-rework-rea-pr14-1`. The exact source
+SHA is recorded separately in the workflow summary. The numbering is
+shared across `/app-live`, `/app-live-ios`, and `/app-live-android` — it
+isn't tracked per platform.
+
+This initial bridge produces App Live builds only. It does not run the Hinqa
+corpus or upload to App Automate. Ported from the same bridge in
+`platform-sdk-swift` (YPE-3011); when one changes, check the other. Unlike
+the Swift/Kotlin bridges, the initial PR-open build always builds **both**
+platforms — the automation workflow requires a `platform` input and runs
+two jobs (android, ios) per dispatch — and only the explicit rebuild
+comments can narrow that to one.
+
 ## Useful Commands
 
 From the repo root:
