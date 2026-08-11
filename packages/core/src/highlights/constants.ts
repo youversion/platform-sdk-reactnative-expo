@@ -57,7 +57,18 @@ export function highlightsCacheKey(userId: string, scope: HighlightScope): strin
   return `${MMKV_HIGHLIGHTS_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
 }
 
+/**
+ * Every queue key belonging to one user, and the only thing the prefix scans in
+ * `queue.ts` may match on. Built here rather than at each scan so it cannot
+ * disagree with {@link highlightQueueKey}: a scan that stops matching fails
+ * silently in both directions — the drain finds no scope to send, and sign-out
+ * reports nothing to lose.
+ */
+export function highlightQueueUserPrefix(userId: string): string {
+  return `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+}
+
 /** Keyed like the cache, so a tap rewrites one chapter's slice, not a global blob. */
 export function highlightQueueKey(userId: string, scope: HighlightScope): string {
-  return `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
+  return `${highlightQueueUserPrefix(userId)}${scope.versionId}.${scope.book}.${scope.chapter}`
 }

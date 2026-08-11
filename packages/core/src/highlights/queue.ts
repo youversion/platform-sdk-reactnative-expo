@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import {
   highlightQueueKey,
+  highlightQueueUserPrefix,
   MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX,
   type HighlightScope,
   type QueuedWrites,
@@ -74,7 +75,7 @@ export function listQueuedScopes(userId: string | null): HighlightScope[] {
     return []
   }
 
-  const prefix = `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+  const prefix = highlightQueueUserPrefix(userId)
   try {
     return mmkvStorage
       .getAllKeys()
@@ -104,7 +105,7 @@ export function hasQueuedHighlightWrites(userId: string | null): boolean {
     return false
   }
 
-  const prefix = `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+  const prefix = highlightQueueUserPrefix(userId)
   try {
     return mmkvStorage.getAllKeys().some((key) => key.startsWith(prefix))
   } catch {
