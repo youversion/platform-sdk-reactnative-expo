@@ -42,7 +42,8 @@ import type { AuthPermission } from './types'
  * - `in-progress` — another request holds the flow. Retry once it settles, not
  *   before: a retry now hits this same branch, because only one consent page can
  *   be open at a time.
- * - `transient` — a network blip, a 5xx, a schema failure. Retry immediately.
+ * - `transient` — a network blip, a 5xx, a schema failure, or an expired token
+ *   the pre-mint refresh could not replace. Retry immediately.
  */
 export type DataExchangeFailureReason =
   | 'not-signed-in'
