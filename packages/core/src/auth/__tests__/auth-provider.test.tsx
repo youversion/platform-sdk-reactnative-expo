@@ -577,6 +577,202 @@ describe('AuthProvider — refresh lock', () => {
   })
 })
 
+describe('AuthProvider — getAccessToken', () => {
+  const clearedTokens = { accessToken: null, refreshToken: null, expiryDate: null }
+
+  function renderProvider() {
+    return render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+  }
+
+  it('resolves ok with the current token, with no refresh call, when it is beyond the leeway', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
+    expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
+  it('refreshes an expired token and resolves ok with the new one', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+    // Bootstrap's refresh lands a token that is *still* at expiry, so the
+    // accessor's own leeway check genuinely triggers the second refresh.
+    mockRefreshTokens.mockResolvedValueOnce({
+      ...validTokens,
+      access_token: 'still-stale',
+      expires_in: '0',
+    })
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+
+    mockRefreshTokens.mockResolvedValueOnce({ ...validTokens, access_token: 'fresh-access' })
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'ok', token: 'fresh-access', userId: null })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports refresh-failed on a transient refresh error, keeping tokens and the session', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+    mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    // The line the highlights write path branches on: still signed in, token
+    // just not fresh — a retryable condition, not a sign-out.
+    expect(result).toEqual({ status: 'unavailable', reason: 'refresh-failed' })
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('accessToken')).toBe('stored-access')
+    expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
+  })
+
+  // The leeway triggers the refresh; it does not decide usable. A token 30s from
+  // expiry still works, so a failed refresh must hand it over, not refuse it.
+  it('resolves ok with a token inside the leeway window that the refresh could not replace', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 30 * 1000),
+    })
+    mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
+    // Pins the failed-refresh path, not the fresh-token shortcut.
+    expect(mockRefreshTokens).toHaveBeenCalled()
+  })
+
+  it('reports signed-out when the refresh finds the token revoked and clears the session', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+    // Bootstrap keeps the token stale; the accessor's refresh hits the revocation.
+    mockRefreshTokens
+      .mockResolvedValueOnce({ ...validTokens, access_token: 'still-stale', expires_in: '0' })
+      .mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'unavailable', reason: 'signed-out' })
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+  })
+
+  it('reports signed-out without a network call when no refresh token is stored', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken())
+
+    expect(result).toEqual({ status: 'unavailable', reason: 'signed-out' })
+    expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
+  // The pairing a caller with a captured identity relies on: the token and the
+  // id of whoever owns it come from the same read, so a sign-in that lands while
+  // the caller is awaiting cannot hand it a token attributed to the old user.
+  it('reports the signed-in user alongside the token, updated by a sign-in as somebody else', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'ada-access',
+      refreshToken: 'ada-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    expect(await act(async () => latestAuth!.getAccessToken())).toEqual({
+      status: 'ok',
+      token: 'ada-access',
+      userId: 'u1',
+    })
+
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: { ...validTokens, access_token: 'grace-access' },
+      userInfo: { id: 'u2', name: 'Grace' },
+      grantedPermissions: null,
+    })
+    await userEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
+
+    expect(await act(async () => latestAuth!.getAccessToken())).toEqual({
+      status: 'ok',
+      token: 'grace-access',
+      userId: 'u2',
+    })
+  })
+
+  it('joins an in-flight refresh: concurrent callers share one HTTP call and get the new token', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'expired-access',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+
+    let resolveRefresh: (v: TokenResponse) => void = () => {}
+    mockRefreshTokens.mockReturnValue(
+      new Promise<TokenResponse>((r) => {
+        resolveRefresh = r
+      }),
+    )
+
+    renderProvider()
+
+    // Bootstrap's refresh is in flight and held open; both accessor calls must
+    // join it rather than resolve on the expired token or start a second call.
+    await waitFor(() => expect(mockRefreshTokens).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(latestAuth).not.toBeNull())
+
+    const first = latestAuth!.getAccessToken()
+    const second = latestAuth!.getAccessToken()
+
+    await act(async () => {
+      resolveRefresh(validTokens)
+      await Promise.all([first, second])
+    })
+
+    expect(await first).toEqual({ status: 'ok', token: 'new-access', userId: null })
+    expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: null })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('AuthProvider — AppState wiring', () => {
   it('does not trigger a refresh on "active" when no refresh token is available', async () => {
     mockLoadTokens.mockResolvedValue(noStoredTokens)
@@ -1094,12 +1290,33 @@ describe('AuthProvider — requestPermissions', () => {
     )
   })
 
+  // The third state, and the one this flow used to have no name for: the token
+  // is expired and the refresh did not land, but the session is intact. Minting
+  // anyway earns a 401, and every mint 401 reads as `not-permitted` — dead-ending
+  // a user with a stale token on "check your app key".
+  it('fails transient without minting when the token is expired and the refresh fails', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockRejectedValueOnce(new Error('Network request failed'))
+
+    expect(await pressRequestPermissions()).toMatchObject({
+      status: 'failure',
+      reason: 'transient',
+    })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+    expect(mockCreateDataExchangeApi).not.toHaveBeenCalled()
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
+    // Retryable, not a sign-out: the tokens stay and the user stays signed in.
+    expect(getText('isAuthenticated')).toBe('true')
+  })
+
   it('still mints with this render token when the pre-mint refresh clears the session', async () => {
     await signInWithStaleToken()
 
-    // A revoked refresh trips `clearAuthState`, emptying the token ref. The
-    // flow must not change story here: it mints with the token this render
-    // captured and lets the initiator guard discard the grant as
+    // A revoked refresh trips `clearAuthState`, emptying the token ref — the
+    // accessor's `signed-out`, which is a different case from `refresh-failed`
+    // above. The flow must not change story here: it mints with the token this
+    // render captured and lets the initiator guard discard the grant as
     // `user-changed`. Bailing to `not-signed-in` instead would be a different
     // contract than the one the guard and its docs describe.
     mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
@@ -1110,5 +1327,19 @@ describe('AuthProvider — requestPermissions', () => {
     expect(mockRequestDataExchange).toHaveBeenCalledWith(
       expect.objectContaining({ accessToken: 'stale-access' }),
     )
+  })
+
+  // Clearing a revoked session ends in a Keychain write. It can reject, and this
+  // flow is documented to resolve — a consumer following that has no catch.
+  it('resolves rather than rejecting when clearing a revoked session fails', async () => {
+    await signInWithStaleToken()
+
+    mockRefreshTokens.mockRejectedValueOnce(new TokenEndpointError(401, 'invalid_grant'))
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
+
+    const outcome = await act(async () => requestPermissionsFromContext(['highlights']))
+
+    expect(outcome).toEqual({ status: 'cancel' })
   })
 })

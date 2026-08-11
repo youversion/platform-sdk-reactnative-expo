@@ -1,7 +1,7 @@
 import type { Highlight } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { AuthPermission } from '../auth'
+import type { AccessTokenResult, AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
@@ -82,6 +82,9 @@ export type UseHighlightsResult = {
 
 const INVALID_COLOR_MESSAGE =
   'Unsupported highlight color. Use one of the five YouVersion highlight swatches.'
+
+const TOKEN_REFRESH_FAILED_MESSAGE =
+  'Could not refresh the session token. Retry when the network recovers.'
 
 /**
  * `auth` wins (it changes what the user must do); retrying `invalid` is
@@ -185,7 +188,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // through the closure rather than a ref so a change still re-runs the fetch
   // effect below (`runFetch` is one of its deps).
   const canFetchHighlights = shouldFetchHighlights(auth?.requestedPermissions ?? [])
-  const ensureFreshToken = auth?.ensureFreshToken ?? null
+  const getAccessToken = auth?.getAccessToken ?? null
 
   const scope = useMemo<HighlightScope>(
     () => ({ versionId: options.versionId, book: options.book, chapter: options.chapter }),
@@ -227,7 +230,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // over one render's values.
   const identityRef = useRef<Identity>({ key: currentIdentityKey, scope, userId })
   const stateRef = useRef(renderedState)
-  const authRef = useRef({ accessToken, isAuthLoading, ensureFreshToken })
+  const authRef = useRef({ accessToken, isAuthLoading, getAccessToken })
 
   // ── The token-loading hold ─────────────────────────────────────────────────
   // `userInfo` is seeded synchronously but `accessToken` only arrives after
@@ -247,7 +250,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   useEffect(() => {
     identityRef.current = { key: currentIdentityKey, scope, userId }
     stateRef.current = renderedState
-    authRef.current = { accessToken, isAuthLoading, ensureFreshToken }
+    authRef.current = { accessToken, isAuthLoading, getAccessToken }
 
     if (accessToken !== null && userId === null) {
       warnMissingUserId()
@@ -375,24 +378,20 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
       await waitForAuthSettled()
 
-      // The token has to be current when the request goes out — not when the
-      // user tapped. An expired token 401s, a 401 classifies as `auth`, and
-      // `useHighlightPermissionFlow` reads `auth` as a stale grant, so without
-      // this a user would be asked to grant a permission they already granted
-      // (ADR 0016).
-      //
-      // It belongs here, in the send path, rather than in front of the tap: a
-      // refresh that is actually due costs a token round-trip, and the
-      // optimistic claim in `startWrite` has already painted by the time this
-      // runs. Nothing the user can see waits on it. `refreshToken` handles its
-      // own failures and never rejects, so a dead network leaves the old token
-      // in place and the write below reports through the normal outcome.
-      await authRef.current.ensureFreshToken?.()
+      // Fresh token resolved in the send path, not at tap time — `startWrite`
+      // has already painted. A failed refresh must stop the write here: an
+      // expired token 401s, classifies as `auth`, and has the permission flow
+      // drop a valid grant (ADR 0016). No accessor means no auth is configured,
+      // which this hook treats exactly as signed out.
+      const getToken = authRef.current.getAccessToken
+      const tokenResult: AccessTokenResult = getToken
+        ? await getToken()
+        : { status: 'unavailable', reason: 'signed-out' }
 
       // The write chain outlives an identity change: `enqueue` serializes behind
       // whatever is in flight, and there is no AbortController, so one hung
       // request can hold a queued batch across a sign-out and a sign-in as
-      // somebody else. Below we read the CURRENT token rather than one captured
+      // somebody else. Below we use the CURRENT token rather than one captured
       // at claim time — deliberately, so a mid-write refresh does not fail the
       // write — which without this guard would issue the departed user's
       // passage under the new user's token, creating or deleting highlights on
@@ -401,18 +400,40 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // Compare user ids, not `captured.key`: the key also encodes scope, and a
       // write issued for JHN.3 that settles after the reader moved on to JHN.4
       // is still a legitimate write for JHN.3.
-      const isSameUser = identityRef.current.userId === captured.userId
-      const accessTokenNow = authRef.current.accessToken
+      //
+      // The token's own `userId` is the authority, not `identityRef`: the
+      // provider writes token and identity together, while `identityRef` is
+      // synced from a passive effect a render later. A sign-in as somebody else
+      // landing while this awaited above moves the token first, so an
+      // identityRef-only check would pass and send under the new user's
+      // credentials. The lagging check stays because the branch below reuses
+      // `isSameUser` to tell a user switch from a plain failed refresh, and
+      // only that one reports `transient`.
+      const isSameUser =
+        identityRef.current.userId === captured.userId &&
+        (tokenResult.status !== 'ok' || tokenResult.userId === captured.userId)
 
-      if (!isSameUser || accessTokenNow === null) {
-        // Auth settled with no token, or with a different user: from the caller
-        // that issued this batch, both are "you are not signed in". Reverting
-        // the paint is a no-op in the user-switch case — the identity change
-        // already reset state during render — but stays correct if that reset
-        // ever stops covering it.
+      if (!isSameUser || tokenResult.status === 'unavailable') {
+        // Revert the paint either way — a no-op in the user-switch case, where
+        // the render-time identity reset already covered it.
         setState((prev) =>
           settle(prev, { token, op, color, succeededVerses: [], failedVerses: verses }),
         )
+        // The session is intact and no request went out, so `transient` — never
+        // `auth` (drops the grant) or `not-signed-in` (prompts sign-in).
+        if (
+          isSameUser &&
+          tokenResult.status === 'unavailable' &&
+          tokenResult.reason === 'refresh-failed'
+        ) {
+          return {
+            status: 'error',
+            reason: 'transient',
+            message: TOKEN_REFRESH_FAILED_MESSAGE,
+            failedVerses: verses,
+            succeededVerses: [],
+          }
+        }
         return {
           status: 'error',
           reason: 'not-signed-in',
@@ -421,6 +442,8 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           succeededVerses: [],
         }
       }
+
+      const accessTokenNow = tokenResult.token
 
       const succeededVerses: number[] = []
       const failedVerses: number[] = []

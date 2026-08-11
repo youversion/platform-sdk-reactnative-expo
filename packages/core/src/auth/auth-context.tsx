@@ -2,6 +2,22 @@ import { createContext } from 'react'
 import type { DataExchangeOutcome } from './data-exchange'
 import type { AuthPermission, YVUserInfo } from './types'
 
+/**
+ * What {@link AuthContextValue.getAccessToken} resolves to. `refresh-failed`
+ * means the token is expired and the refresh did not land (endpoint down,
+ * network out) — the session itself is still intact, so treat it as transient,
+ * not as signed out.
+ *
+ * `userId` is whose token this is, read in the same synchronous block as the
+ * token itself. A caller that captured an identity earlier must compare against
+ * this, not against a `userInfo` it read from a render: the provider writes both
+ * refs together on sign-in, so anything reading identity through React state
+ * lags the token by a render and can pass an owner check it should have failed.
+ */
+export type AccessTokenResult =
+  | { status: 'ok'; token: string; userId: string | null }
+  | { status: 'unavailable'; reason: 'signed-out' | 'refresh-failed' }
+
 export type AuthContextValue = {
   isAuthenticated: boolean
   accessToken: string | null
@@ -30,6 +46,17 @@ export type AuthContextValue = {
    * a 401 regardless.
    */
   ensureFreshToken: () => Promise<void>
+  /**
+   * Resolve a token that is verifiably fresh, or say why one is unavailable.
+   * Unlike {@link ensureFreshToken}, which only performs the refresh side
+   * effect, this reports whether it worked — so a caller can tell "refreshed"
+   * from "still expired" and stop a doomed request before it 401s and gets
+   * misread as a revoked grant.
+   *
+   * Leeway-gated and single-flight like {@link ensureFreshToken}: cheap when
+   * the token is fresh, joins an in-flight refresh otherwise. Never rejects.
+   */
+  getAccessToken: () => Promise<AccessTokenResult>
   isLoading: boolean
   /**
    * What the app **asked for** on its `auth` config — never what was granted.
