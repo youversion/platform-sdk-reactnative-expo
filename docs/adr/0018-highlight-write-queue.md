@@ -1,4 +1,4 @@
-# 17. The highlight write queue is unbounded desired state, drained on connectivity and a per-entry backoff
+# 18. The highlight write queue is unbounded desired state, drained on connectivity and a per-entry backoff
 
 Date: 2026-08-05
 

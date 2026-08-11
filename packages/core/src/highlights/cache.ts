@@ -161,7 +161,7 @@ export function setCachedHighlights(
  * apply, `null` for a remove.
  *
  * The drain has no `useHighlights` state to update: it may be landing a scope no
- * hook is mounted on. Since the cache *is* the paint (ADR 0017), writing it here
+ * hook is mounted on. Since the cache *is* the paint (ADR 0018), writing it here
  * is what makes the landing survive to the next mount.
  */
 export function mergeCachedHighlights(

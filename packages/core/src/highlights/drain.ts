@@ -1,5 +1,5 @@
 /**
- * Sends Queued Writes the write path could not. See ADR 0017.
+ * Sends Queued Writes the write path could not. See ADR 0018.
  *
  * Lives at the provider, not in `useHighlights`, because a parked write outlives
  * the chapter it was made in: the queue is the only record of it, and after a
@@ -90,7 +90,7 @@ export function startHighlightQueueDrain(deps: {
   /**
    * Settles a write the server refused twice by taking its paint back to the
    * entry's `server` side, and tells mounted readers so the verse un-paints
-   * without a remount. The counterpart to {@link land}. See ADR 0017.
+   * without a remount. The counterpart to {@link land}. See ADR 0018.
    */
   function revert(
     userId: string,

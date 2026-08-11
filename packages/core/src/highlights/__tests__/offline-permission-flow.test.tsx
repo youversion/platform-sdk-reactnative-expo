@@ -256,7 +256,7 @@ describe('offline, signed in, without the highlights grant', () => {
     expect(mockMintToken).toHaveBeenCalledWith('token-1', ['highlights'])
     expect(mockOpenAuthSession).not.toHaveBeenCalled()
 
-    // The rejected alternative (ADR 0017): queue it optimistically and let the
+    // The rejected alternative (ADR 0018): queue it optimistically and let the
     // drain un-paint it later, with no explanation.
     expect(paintedColors(result)).toEqual({})
     expect(queuedWrites()).toBeNull()

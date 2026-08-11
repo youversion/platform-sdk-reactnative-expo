@@ -1,5 +1,5 @@
 /**
- * Writes that have not reached the server, persisted until they do. See ADR 0017.
+ * Writes that have not reached the server, persisted until they do. See ADR 0018.
  *
  * Storage, plus a notification for the one change no one else can see (see
  * {@link onWritesDropped}). Eligibility belongs to the write path, and the drain
@@ -229,7 +229,7 @@ export function onWritesDropped(listener: (dropped: DroppedWrites) => void): () 
 /**
  * {@link dropWrites}, plus an announcement of what to un-paint. Only the drain
  * needs it: a settling write already owns its own paint, while a drop takes back
- * paint a mounted reader is still showing (ADR 0017).
+ * paint a mounted reader is still showing (ADR 0018).
  */
 export function dropRejectedWrites(input: {
   userId: string

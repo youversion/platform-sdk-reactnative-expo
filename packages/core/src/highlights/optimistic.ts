@@ -6,7 +6,7 @@
  * edits already folded in, not a base plus an overlay. The record of which edits
  * are unconfirmed lives in the Highlight Write Queue, which is persisted; this
  * module takes it as an argument at {@link serverUpdated} and never reads it
- * otherwise. See ADR 0013 and ADR 0017.
+ * otherwise. See ADR 0013 and ADR 0018.
  *
  * Every transition returns the *same* object when nothing changed, because the
  * projected output crosses the native/DOM bridge as a serialized prop.
