@@ -7,6 +7,7 @@ import {
   type HighlightScope,
   type ServerColors,
 } from './constants'
+import { highlightsFromColors } from './optimistic'
 
 export {
   highlightsCacheKey,
@@ -155,10 +156,48 @@ export function setCachedHighlights(
   mmkvStorage.set(highlightsCacheKey(userId, scope), JSON.stringify(highlights))
 }
 
-export function clearHighlightsCache(): void {
-  for (const key of mmkvStorage.getAllKeys()) {
-    if (key.startsWith(MMKV_HIGHLIGHTS_KEY_PREFIX)) {
-      mmkvStorage.remove(key)
+/**
+ * Folds a landed write into the cached paint for one scope — a color for an
+ * apply, `null` for a remove.
+ *
+ * The drain has no `useHighlights` state to update: it may be landing a scope no
+ * hook is mounted on. Since the cache *is* the paint (ADR 0018), writing it here
+ * is what makes the landing survive to the next mount.
+ */
+export function mergeCachedHighlights(
+  userId: string,
+  scope: HighlightScope,
+  verses: readonly number[],
+  color: string | null,
+): void {
+  if (!userId || verses.length === 0) {
+    return
+  }
+  const colors = deriveServerColors(getCachedHighlights(userId, scope) ?? [], scope)
+  for (const verse of verses) {
+    if (color === null) {
+      delete colors[verse]
+    } else {
+      colors[verse] = color
     }
+  }
+  setCachedHighlights(userId, scope, highlightsFromColors(scope, colors))
+}
+
+/**
+ * Empties the cached paint for every user — sign-out's job.
+ *
+ * Never throws: sign-out purges before it clears the tokens, so an unreadable
+ * store costs stale paint, not a user who is still signed in.
+ */
+export function clearHighlightsCache(): void {
+  try {
+    for (const key of mmkvStorage.getAllKeys()) {
+      if (key.startsWith(MMKV_HIGHLIGHTS_KEY_PREFIX)) {
+        mmkvStorage.remove(key)
+      }
+    }
+  } catch {
+    // Purge failed; sign-out continues.
   }
 }

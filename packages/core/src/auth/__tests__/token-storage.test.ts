@@ -70,6 +70,30 @@ describe('saveTokens', () => {
     expect(mmkvStorage.set).not.toHaveBeenCalled()
   })
 
+  // Sign-out clears the session before it awaits this, so a rejection here would
+  // land after the fact — on a store that refuses writes, with nothing to undo.
+  it('resolves when the store refuses to remove the expiry', async () => {
+    jest.mocked(mmkvStorage.remove).mockImplementationOnce(() => {
+      throw new Error('mmkv is read-only')
+    })
+
+    await expect(
+      saveTokens({ accessToken: null, refreshToken: null, expiryDate: null }),
+    ).resolves.toBeUndefined()
+    expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken)
+    expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken)
+  })
+
+  it('resolves when the store refuses to write the expiry', async () => {
+    jest.mocked(mmkvStorage.set).mockImplementationOnce(() => {
+      throw new Error('mmkv is read-only')
+    })
+
+    await expect(saveTokens(fullTokens)).resolves.toBeUndefined()
+    expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken, 'access')
+    expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken, 'refresh')
+  })
+
   it('mixes set and remove when some tokens are null and others are not', async () => {
     await saveTokens({
       accessToken: 'a',

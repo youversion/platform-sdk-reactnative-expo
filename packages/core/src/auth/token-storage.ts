@@ -15,10 +15,22 @@ export async function saveTokens(tokens: StoredTokens): Promise<void> {
     writeSecureValue(SECURE_STORAGE_KEYS.accessToken, tokens.accessToken),
     writeSecureValue(SECURE_STORAGE_KEYS.refreshToken, tokens.refreshToken),
   ])
-  if (tokens.expiryDate) {
-    mmkvStorage.set(MMKV_AUTH_KEYS.expiryDateISO, tokens.expiryDate.toISOString())
-  } else {
-    mmkvStorage.remove(MMKV_AUTH_KEYS.expiryDateISO)
+  writeExpiry(tokens.expiryDate)
+}
+
+// The expiry is a cache over the tokens, which are the record, so a store that
+// refuses it cannot fail the save — sign-out awaits this after it has already
+// cleared the session. A lost expiry costs one refresh: `refreshToken` reads a
+// missing one as already stale.
+function writeExpiry(expiryDate: Date | null): void {
+  try {
+    if (expiryDate) {
+      mmkvStorage.set(MMKV_AUTH_KEYS.expiryDateISO, expiryDate.toISOString())
+    } else {
+      mmkvStorage.remove(MMKV_AUTH_KEYS.expiryDateISO)
+    }
+  } catch {
+    // Cached expiry lost; the tokens are what the session runs on.
   }
 }
 

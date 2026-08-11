@@ -1,6 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import {
   deriveServerColors,
+  hasQueuedHighlightWrites,
   useHighlightPermissionFlow,
   useYouVersion,
   useYVAuthOptional,
@@ -17,13 +18,14 @@ import type {
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Platform, Share, StyleSheet, View } from 'react-native'
+import { Alert, Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks/use-theme'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -170,6 +172,7 @@ export function BibleReader({
   const signIn = auth?.signIn
   const signOut = auth?.signOut
   const resolvedTheme = useTheme(theme)
+  const { t } = useSdkTranslation()
 
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
@@ -464,6 +467,29 @@ export function BibleReader({
     if (data) void handleShare(data)
   }, [verseSelection, handleShare, closeVerseActions])
 
+  // `async` with no `await` on purpose: the DOM wrapper types `onSignOutPress`
+  // as `() => Promise<void>`, so a plain `() => void` handler fails typecheck.
+  const handleSignOutPress = useCallback(async () => {
+    if (!signOut) return
+
+    const hasUnsentHighlights = hasQueuedHighlightWrites(userInfo?.id ?? null)
+
+    Alert.alert(
+      hasUnsentHighlights ? t('signOutPendingHighlightsQuestion') : t('signOutQuestion'),
+      hasUnsentHighlights ? t('signOutPendingHighlightsExplanation') : t('signOutExplanation'),
+      [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: hasUnsentHighlights ? t('signOutPendingHighlightsConfirm') : t('signOut'),
+          style: 'destructive',
+          onPress: () => {
+            void signOut()
+          },
+        },
+      ],
+    )
+  }, [signOut, userInfo?.id, t])
+
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
@@ -514,7 +540,8 @@ export function BibleReader({
           onVerseSelect={handleVerseSelect}
           clearSelectionSignal={clearSelectionSignal + internalClearCount}
           onSignInPress={signIn}
-          onSignOutPress={signOut}
+          // `Alert.alert` is a no-op on react-native-web, so web signs out unprompted.
+          onSignOutPress={Platform.OS === 'web' || !signOut ? signOut : handleSignOutPress}
           userInfo={userInfo}
           theme={resolvedTheme}
           book={book}

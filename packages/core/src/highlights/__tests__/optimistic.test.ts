@@ -1,19 +1,23 @@
 import { deriveServerColors } from '../cache'
-import { HIGHLIGHT_COLORS, isHighlightColor, type HighlightScope } from '../constants'
+import {
+  HIGHLIGHT_COLORS,
+  isHighlightColor,
+  type HighlightScope,
+  type QueuedWrites,
+} from '../constants'
 
 import {
-  claim,
   collapseVerseRuns,
+  confirm,
   createOptimisticState,
-  createWriteToken,
   formatPassageId,
   normalizeVerseSelection,
+  paint,
+  restore,
   selectHighlights,
-  selectMergedColors,
   selectVersesInColor,
   serverColorsEqual,
   serverUpdated,
-  settle,
   shouldRetire,
   versesInRun,
   type OptimisticState,
@@ -36,8 +40,10 @@ const YELLOW = 'fffe00'
 const GREEN = '5dff79'
 const BLUE = '00d6ff'
 
-function stateWith(serverColors: Record<number, string> = {}): OptimisticState {
-  return createOptimisticState({ scope, userId: 'user-1', serverColors })
+const NO_QUEUE: QueuedWrites = {}
+
+function stateWith(colors: Record<number, string> = {}): OptimisticState {
+  return createOptimisticState({ scope, userId: 'user-1', colors })
 }
 
 describe('the highlight palette', () => {
@@ -57,335 +63,213 @@ describe('the highlight palette', () => {
   })
 })
 
-describe('claim', () => {
-  it('paints an apply, stamps ownership, and drops a pending reconcile', () => {
-    const token = createWriteToken('apply')
-    const claimed = claim(stateWith({ 16: GREEN }), [16, 17], token, YELLOW)
-
-    expect(claimed.overlay).toEqual({ 16: YELLOW, 17: YELLOW })
-    expect(claimed.writeIntent.get(16)).toBe(token)
-    expect(claimed.writeIntent.get(17)).toBe(token)
-    expect(selectMergedColors(claimed)).toEqual({ 16: YELLOW, 17: YELLOW })
+describe('paint', () => {
+  it('paints an apply over whatever was there', () => {
+    expect(paint(stateWith({ 16: GREEN }), [16, 17], YELLOW).colors).toEqual({
+      16: YELLOW,
+      17: YELLOW,
+    })
   })
 
-  it('paints a remove as a null overlay entry that hides server truth', () => {
-    const claimed = claim(
-      stateWith({ 16: YELLOW, 17: GREEN }),
-      [16],
-      createWriteToken('remove'),
-      null,
-    )
-
-    expect(claimed.overlay).toEqual({ 16: null })
-    expect(selectMergedColors(claimed)).toEqual({ 17: GREEN })
+  it('paints a remove as an absence', () => {
+    expect(paint(stateWith({ 16: YELLOW, 17: GREEN }), [16], null).colors).toEqual({ 17: GREEN })
   })
 
   it('supersedes a pending reconcile entry for the same verse', () => {
-    const first = createWriteToken('apply')
-    const claimed = claim(stateWith(), [16], first, YELLOW)
-    const settled = settle(claimed, {
-      token: first,
+    const confirmed = confirm(paint(stateWith(), [16], YELLOW), {
       op: 'apply',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
-    expect(settled.reconcile.has(16)).toBe(true)
+    expect(confirmed.reconcile.has(16)).toBe(true)
 
-    const reclaimed = claim(settled, [16], createWriteToken('apply'), GREEN)
-    expect(reclaimed.reconcile.has(16)).toBe(false)
+    expect(paint(confirmed, [16], GREEN).reconcile.has(16)).toBe(false)
   })
 
   it('returns the same state for an empty verse list', () => {
     const state = stateWith({ 16: YELLOW })
-    expect(claim(state, [], createWriteToken('apply'), YELLOW)).toBe(state)
+    expect(paint(state, [], YELLOW)).toBe(state)
   })
 })
 
-describe('settle', () => {
-  it('keeps paint for succeeded verses and registers them for reconciliation', () => {
-    const token = createWriteToken('apply')
-    const claimed = claim(stateWith(), [16, 17], token, YELLOW)
+describe('confirm', () => {
+  it('registers accepted verses for reconciliation without touching the paint', () => {
+    const painted = paint(stateWith(), [16, 17], YELLOW)
+    const confirmed = confirm(painted, { op: 'apply', color: YELLOW, verses: [16, 17] })
 
-    const settled = settle(claimed, {
-      token,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [16, 17],
-      failedVerses: [],
-    })
-
-    expect(settled.overlay).toEqual({ 16: YELLOW, 17: YELLOW })
-    expect(settled.reconcile.get(16)).toEqual({ op: 'apply', color: YELLOW })
-    // Settled writes release their claim so intents cannot accumulate.
-    expect(settled.writeIntent.size).toBe(0)
+    expect(confirmed.colors).toEqual({ 16: YELLOW, 17: YELLOW })
+    expect(confirmed.reconcile.get(16)).toEqual({ op: 'apply', color: YELLOW })
   })
 
-  it('reverts paint for failed verses', () => {
-    const token = createWriteToken('apply')
-    const claimed = claim(stateWith({ 16: GREEN }), [16], token, YELLOW)
+  it('returns the same state for an empty verse list', () => {
+    const state = stateWith({ 16: YELLOW })
+    expect(confirm(state, { op: 'apply', color: YELLOW, verses: [] })).toBe(state)
+  })
+})
 
-    const settled = settle(claimed, {
-      token,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [],
-      failedVerses: [16],
-    })
-
-    expect(settled.overlay).toEqual({})
-    expect(selectMergedColors(settled)).toEqual({ 16: GREEN })
+describe('restore', () => {
+  it('puts back the color the server had', () => {
+    const painted = paint(stateWith({ 16: GREEN }), [16], YELLOW)
+    expect(restore(painted, { restored: { 16: GREEN }, cleared: [] }).colors).toEqual({ 16: GREEN })
   })
 
-  it('restores the highlight when a remove fails', () => {
-    const token = createWriteToken('remove')
-    const claimed = claim(stateWith({ 16: YELLOW }), [16], token, null)
-    expect(selectMergedColors(claimed)).toEqual({})
-
-    const settled = settle(claimed, {
-      token,
-      op: 'remove',
-      color: YELLOW,
-      succeededVerses: [],
-      failedVerses: [16],
-    })
-
-    expect(selectMergedColors(settled)).toEqual({ 16: YELLOW })
+  it('un-paints a verse the server had nothing for', () => {
+    const painted = paint(stateWith(), [16], YELLOW)
+    expect(restore(painted, { restored: {}, cleared: [16] }).colors).toEqual({})
   })
 
-  it('splits a partial batch: succeeded verses hold, failed verses revert', () => {
-    const token = createWriteToken('apply')
-    const claimed = claim(stateWith(), [16, 20], token, YELLOW)
-
-    const settled = settle(claimed, {
-      token,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [20],
+  it('restores the highlight a failed remove hid', () => {
+    const painted = paint(stateWith({ 16: YELLOW }), [16], null)
+    expect(painted.colors).toEqual({})
+    expect(restore(painted, { restored: { 16: YELLOW }, cleared: [] }).colors).toEqual({
+      16: YELLOW,
     })
-
-    expect(selectMergedColors(settled)).toEqual({ 16: YELLOW })
-    expect(settled.reconcile.get(16)).toEqual({ op: 'apply', color: YELLOW })
-    expect(settled.reconcile.has(20)).toBe(false)
   })
 
-  // AC 4 — the ownership token. This is the whole reason writeIntent exists.
-  it('does not clobber a newer claim when an older write fails (ownership token)', () => {
-    const yellowToken = createWriteToken('apply')
-    const greenToken = createWriteToken('apply')
-
-    // Tap yellow on 16, then tap green on 16 before yellow's POST returns.
-    let state = claim(stateWith(), [16], yellowToken, YELLOW)
-    state = claim(state, [16], greenToken, GREEN)
-    expect(selectMergedColors(state)).toEqual({ 16: GREEN })
-
-    // Now yellow's POST fails. It no longer owns verse 16.
-    const settled = settle(state, {
-      token: yellowToken,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [],
-      failedVerses: [16],
-    })
-
-    expect(selectMergedColors(settled)).toEqual({ 16: GREEN })
-    expect(settled.writeIntent.get(16)).toBe(greenToken)
-    // Nothing this op owned, so the state object is untouched.
-    expect(settled).toBe(state)
-  })
-
-  it('does not register a reconcile entry for a verse it no longer owns', () => {
-    const first = createWriteToken('apply')
-    const second = createWriteToken('apply')
-    let state = claim(stateWith(), [16], first, YELLOW)
-    state = claim(state, [16], second, GREEN)
-
-    const settled = settle(state, {
-      token: first,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
-    })
-
-    expect(settled.reconcile.has(16)).toBe(false)
-    expect(settled.writeIntent.get(16)).toBe(second)
+  it('returns the same state when there is nothing to put back', () => {
+    const state = stateWith({ 16: YELLOW })
+    expect(restore(state, { restored: {}, cleared: [] })).toBe(state)
+    expect(restore(state, { restored: { 16: YELLOW }, cleared: [] })).toBe(state)
   })
 })
 
 describe('reset (createOptimisticState)', () => {
-  it('clears overlay, reconcile and write intents, and re-seeds identity', () => {
-    const applyToken = createWriteToken('apply')
-    const pending = createWriteToken('apply')
-    let state = settle(claim(stateWith(), [16], applyToken, YELLOW), {
-      token: applyToken,
+  it('clears reconciliation and re-seeds identity', () => {
+    const state = confirm(paint(stateWith(), [16], YELLOW), {
       op: 'apply',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
-    // A second write is still in flight when the user navigates away.
-    state = claim(state, [20], pending, GREEN)
     expect(state.reconcile.size).toBe(1)
-    expect(state.writeIntent.size).toBe(1)
 
     const nextScope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '4' }
     const reset = createOptimisticState({
       scope: nextScope,
       userId: 'user-2',
-      serverColors: { 1: BLUE },
+      colors: { 1: BLUE },
     })
 
     expect(reset.scope).toEqual(nextScope)
     expect(reset.userId).toBe('user-2')
-    expect(reset.overlay).toEqual({})
+    expect(reset.colors).toEqual({ 1: BLUE })
     expect(reset.reconcile.size).toBe(0)
-    // Clearing writeIntent is what stops the in-flight write from settling onto
-    // a colliding verse number in the new scope.
-    expect(reset.writeIntent.size).toBe(0)
-    expect(
-      settle(reset, {
-        token: pending,
-        op: 'apply',
-        color: GREEN,
-        succeededVerses: [20],
-        failedVerses: [],
-      }),
-    ).toBe(reset)
   })
 })
 
 describe('serverUpdated', () => {
-  it('retires an apply overlay once the server reports the written color', () => {
-    const token = createWriteToken('apply')
-    const claimed = claim(stateWith(), [16], token, YELLOW)
-    const settled = settle(claimed, {
-      token,
+  it('retires a confirmed apply once the server reports the written color', () => {
+    const state = confirm(paint(stateWith(), [16], YELLOW), {
       op: 'apply',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
 
-    const reconciled = serverUpdated(settled, { 16: YELLOW })
+    const reconciled = serverUpdated(state, { 16: YELLOW }, NO_QUEUE)
 
-    expect(reconciled.overlay).toEqual({})
     expect(reconciled.reconcile.size).toBe(0)
-    expect(selectMergedColors(reconciled)).toEqual({ 16: YELLOW })
+    expect(reconciled.colors).toEqual({ 16: YELLOW })
   })
 
-  it('holds an apply overlay while the server still reports the old color', () => {
-    const token = createWriteToken('apply')
-    const settled = settle(claim(stateWith({ 16: GREEN }), [16], token, YELLOW), {
-      token,
+  it('holds a confirmed apply while the server still reports the old color', () => {
+    const state = confirm(paint(stateWith({ 16: GREEN }), [16], YELLOW), {
       op: 'apply',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
 
-    const reconciled = serverUpdated(settled, { 16: GREEN })
-
-    expect(reconciled.overlay).toEqual({ 16: YELLOW })
-    expect(selectMergedColors(reconciled)).toEqual({ 16: YELLOW })
+    expect(serverUpdated(state, { 16: GREEN }, NO_QUEUE).colors).toEqual({ 16: YELLOW })
   })
 
   // AC 5 — the vapor fix. A stale read replica echoing the color we just
   // deleted must not resurrect the highlight.
   it('never resurrects a removed verse when a stale fetch echoes the deleted color', () => {
-    const token = createWriteToken('remove')
-    const settled = settle(claim(stateWith({ 16: YELLOW }), [16], token, null), {
-      token,
+    const state = confirm(paint(stateWith({ 16: YELLOW }), [16], null), {
       op: 'remove',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
 
     // The replica has not caught up: it still reports the yellow we deleted.
-    const reconciled = serverUpdated(settled, { 16: YELLOW })
+    const reconciled = serverUpdated(state, { 16: YELLOW }, NO_QUEUE)
 
-    expect(reconciled.overlay).toEqual({ 16: null })
-    expect(selectMergedColors(reconciled)).toEqual({})
+    expect(reconciled.colors).toEqual({})
     // Still held — a later fetch gets another chance to confirm it.
     expect(reconciled.reconcile.has(16)).toBe(true)
   })
 
   // The other half of the color-aware retirement pair: our deliberate
   // divergence from web, which would suppress this repaint indefinitely.
-  it('retires a remove overlay when the server reports a DIFFERENT color', () => {
-    const token = createWriteToken('remove')
-    const settled = settle(claim(stateWith({ 16: YELLOW }), [16], token, null), {
-      token,
+  it('retires a confirmed remove when the server reports a DIFFERENT color', () => {
+    const state = confirm(paint(stateWith({ 16: YELLOW }), [16], null), {
       op: 'remove',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
 
     // Another device set green on this verse after our delete landed. A green
     // echo cannot be vapor from deleting yellow, so it is newer data.
-    const reconciled = serverUpdated(settled, { 16: GREEN })
+    const reconciled = serverUpdated(state, { 16: GREEN }, NO_QUEUE)
 
-    expect(reconciled.overlay).toEqual({})
-    expect(selectMergedColors(reconciled)).toEqual({ 16: GREEN })
+    expect(reconciled.colors).toEqual({ 16: GREEN })
+    expect(reconciled.reconcile.has(16)).toBe(false)
   })
 
-  it('retires a remove overlay once the verse is genuinely gone server-side', () => {
-    const token = createWriteToken('remove')
-    const settled = settle(claim(stateWith({ 16: YELLOW }), [16], token, null), {
-      token,
+  it('paints nothing once the verse is genuinely gone server-side', () => {
+    const state = confirm(paint(stateWith({ 16: YELLOW }), [16], null), {
       op: 'remove',
       color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
+      verses: [16],
     })
 
-    // The plan's rule holds the overlay while the deleted color is echoed; an
-    // absent verse is not an echo, but it also is not "a different color" — the
-    // overlay stays until the server stops lying, and the rendered result is
-    // identical either way.
-    const reconciled = serverUpdated(settled, {})
-    expect(selectMergedColors(reconciled)).toEqual({})
+    // The rule holds the entry while the deleted color is echoed; an absent
+    // verse is not an echo, but it also is not "a different color" — the entry
+    // stays until the server stops lying, and the paint is identical either way.
+    expect(serverUpdated(state, {}, NO_QUEUE).colors).toEqual({})
+  })
+
+  it('re-applies unsent writes over fresh server truth', () => {
+    const state = stateWith({ 16: YELLOW })
+    const queued: QueuedWrites = {
+      16: { local: GREEN, server: YELLOW },
+      20: { local: null, server: BLUE },
+    }
+
+    expect(serverUpdated(state, { 16: YELLOW, 20: BLUE }, queued).colors).toEqual({ 16: GREEN })
+  })
+
+  it('lets an unsent write win over a confirmed one for the same verse', () => {
+    const state = confirm(paint(stateWith(), [16], YELLOW), {
+      op: 'apply',
+      color: YELLOW,
+      verses: [16],
+    })
+    const queued: QueuedWrites = { 16: { local: GREEN, server: YELLOW } }
+
+    expect(serverUpdated(state, {}, queued).colors).toEqual({ 16: GREEN })
   })
 
   it('returns the same object when nothing changed (bridge stability)', () => {
     const state = stateWith({ 16: YELLOW })
-    expect(serverUpdated(state, { 16: YELLOW })).toBe(state)
+    expect(serverUpdated(state, { 16: YELLOW }, NO_QUEUE)).toBe(state)
   })
 
   it('returns a new object when server colors change', () => {
     const state = stateWith({ 16: YELLOW })
-    const next = serverUpdated(state, { 16: GREEN })
+    const next = serverUpdated(state, { 16: GREEN }, NO_QUEUE)
     expect(next).not.toBe(state)
-    expect(next.serverColors).toEqual({ 16: GREEN })
+    expect(next.colors).toEqual({ 16: GREEN })
   })
 
   it('keeps holding entries that did not retire while retiring the ones that did', () => {
-    const applyToken = createWriteToken('apply')
-    const removeToken = createWriteToken('remove')
     let state = stateWith({ 20: BLUE })
-    state = settle(claim(state, [16], applyToken, YELLOW), {
-      token: applyToken,
-      op: 'apply',
-      color: YELLOW,
-      succeededVerses: [16],
-      failedVerses: [],
-    })
-    state = settle(claim(state, [20], removeToken, null), {
-      token: removeToken,
-      op: 'remove',
-      color: BLUE,
-      succeededVerses: [20],
-      failedVerses: [],
-    })
+    state = confirm(paint(state, [16], YELLOW), { op: 'apply', color: YELLOW, verses: [16] })
+    state = confirm(paint(state, [20], null), { op: 'remove', color: BLUE, verses: [20] })
 
-    const reconciled = serverUpdated(state, { 16: YELLOW, 20: BLUE })
+    const reconciled = serverUpdated(state, { 16: YELLOW, 20: BLUE }, NO_QUEUE)
 
     expect(reconciled.reconcile.has(16)).toBe(false) // apply confirmed
     expect(reconciled.reconcile.has(20)).toBe(true) // remove echo held
-    expect(selectMergedColors(reconciled)).toEqual({ 16: YELLOW })
+    expect(reconciled.colors).toEqual({ 16: YELLOW })
   })
 })
 
@@ -416,7 +300,7 @@ describe('serverColorsEqual', () => {
 
 describe('selectHighlights', () => {
   it('emits one per-verse highlight, ascending', () => {
-    const state = claim(stateWith({ 20: BLUE }), [16, 17], createWriteToken('apply'), YELLOW)
+    const state = paint(stateWith({ 20: BLUE }), [16, 17], YELLOW)
 
     expect(selectHighlights(state)).toEqual([
       { version_id: 111, passage_id: 'JHN.3.16', color: YELLOW },
@@ -425,21 +309,16 @@ describe('selectHighlights', () => {
     ])
   })
 
-  it('omits verses the overlay removed', () => {
-    const state = claim(
-      stateWith({ 16: YELLOW, 17: GREEN }),
-      [16],
-      createWriteToken('remove'),
-      null,
-    )
+  it('omits removed verses', () => {
+    const state = paint(stateWith({ 16: YELLOW, 17: GREEN }), [16], null)
     expect(selectHighlights(state)).toEqual([
       { version_id: 111, passage_id: 'JHN.3.17', color: GREEN },
     ])
   })
 
   it('round-trips exactly through deriveServerColors', () => {
-    const state = claim(stateWith({ 20: BLUE }), [16, 17], createWriteToken('apply'), YELLOW)
-    expect(deriveServerColors(selectHighlights(state), scope)).toEqual(selectMergedColors(state))
+    const state = paint(stateWith({ 20: BLUE }), [16, 17], YELLOW)
+    expect(deriveServerColors(selectHighlights(state), scope)).toEqual(state.colors)
   })
 
   // Defensive contract test, NOT a production path: the API stores highlights
@@ -450,10 +329,9 @@ describe('selectHighlights', () => {
       [{ version_id: 111, passage_id: 'JHN.3.16-18', color: YELLOW }],
       scope,
     )
-    const state = claim(
-      createOptimisticState({ scope, userId: 'user-1', serverColors: fromRange }),
+    const state = paint(
+      createOptimisticState({ scope, userId: 'user-1', colors: fromRange }),
       [17],
-      createWriteToken('remove'),
       null,
     )
 
@@ -471,13 +349,13 @@ describe('selectVersesInColor', () => {
   })
 
   it('counts optimistic paint, not just server truth', () => {
-    const state = claim(stateWith({ 16: BLUE }), [16], createWriteToken('apply'), YELLOW)
+    const state = paint(stateWith({ 16: BLUE }), [16], YELLOW)
     expect(selectVersesInColor(state, [16], YELLOW)).toEqual([16])
     expect(selectVersesInColor(state, [16], BLUE)).toEqual([])
   })
 
   it('ignores verses an optimistic remove has already hidden', () => {
-    const state = claim(stateWith({ 16: YELLOW }), [16], createWriteToken('remove'), null)
+    const state = paint(stateWith({ 16: YELLOW }), [16], null)
     expect(selectVersesInColor(state, [16], YELLOW)).toEqual([])
   })
 })
@@ -494,11 +372,11 @@ describe('USFM range helpers', () => {
   })
 
   it('drops non-positive and non-integer verse numbers', () => {
-    expect(collapseVerseRuns([0, -1, 2, 3.5])).toEqual([{ start: 2, end: 2 }])
+    expect(collapseVerseRuns([0, -1, 1.5, 2])).toEqual([{ start: 2, end: 2 }])
   })
 
   it('formats a run as a range USFM, collapsing single verses', () => {
-    expect(formatPassageId('JHN', '3', { start: 16, end: 18 })).toBe('JHN.3.16-18')
+    expect(formatPassageId('JHN', '3', { start: 2, end: 3 })).toBe('JHN.3.2-3')
     expect(formatPassageId('JHN', '3', { start: 5, end: 5 })).toBe('JHN.3.5')
   })
 
@@ -508,7 +386,7 @@ describe('USFM range helpers', () => {
   })
 
   it('normalizes a verse list through the same run machinery', () => {
-    expect(normalizeVerseSelection([18, 16, 16, 0, 17, 20])).toEqual([16, 17, 18, 20])
+    expect(normalizeVerseSelection([18, 16, 17, 16, 0])).toEqual([16, 17, 18])
     expect(normalizeVerseSelection([])).toEqual([])
   })
 })
