@@ -1,6 +1,9 @@
 import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useEffect, useState } from 'react'
 import { AppState, Pressable, Text, View } from 'react-native'
+import { getCachedHighlights, setCachedHighlights } from '../../highlights/cache'
+import type { HighlightScope } from '../../highlights/constants'
+import { enqueueWrites, listQueuedScopes } from '../../highlights/queue'
 import { getOrSetInstallationId } from '../../installation-id'
 import type { AuthContextValue } from '../auth-context'
 import AuthProvider from '../auth-provider'
@@ -14,6 +17,7 @@ import type { AuthConfig, AuthPermission } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
 const mockMmkv = new Map<string, string>()
+let mockMmkvThrows = false
 
 jest.mock('../../storage/mmkv-storage', () => ({
   mmkvStorage: {
@@ -21,8 +25,14 @@ jest.mock('../../storage/mmkv-storage', () => ({
       mockMmkv.set(k, v)
     }),
     getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
+    remove: jest.fn((k: string) => {
+      if (mockMmkvThrows) throw new Error('mmkv unavailable')
+      return mockMmkv.delete(k)
+    }),
+    getAllKeys: jest.fn(() => {
+      if (mockMmkvThrows) throw new Error('mmkv unavailable')
+      return Array.from(mockMmkv.keys())
+    }),
   },
 }))
 
@@ -91,6 +101,14 @@ const validTokens = {
 }
 
 const adaUserInfo = { id: 'u1', name: 'Ada', email: undefined, avatarUrl: undefined }
+
+const JHN3: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
+const GEN1: HighlightScope = { versionId: 111, book: 'GEN', chapter: '1' }
+const PSA23: HighlightScope = { versionId: 111, book: 'PSA', chapter: '23' }
+
+function parkWrite(userId: string, scope: HighlightScope): void {
+  enqueueWrites({ userId, scope, verses: [16], color: 'fffe00', currentColors: {} })
+}
 
 /**
  * Latest context value, so a test can drive `requestPermissions` with its own
@@ -171,6 +189,7 @@ function fireAppStateChange(state: string) {
 
 beforeEach(() => {
   mockMmkv.clear()
+  mockMmkvThrows = false
   latestAuth = null
   jest.clearAllMocks()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
@@ -192,6 +211,32 @@ describe('AuthProvider — mount', () => {
     expect(getText('userInfo')).toBe('null')
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
+  // A purge that could not take leaves the record readable, so the next mount
+  // seeds the departed user. The bootstrap clear is what bounds that — no write
+  // into a store refusing writes can — so pin it.
+  it('drops a cached userInfo the store still refuses to remove', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockMmkvThrows = true
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('isAuthenticated')).toBe('false')
+    // The record itself survives: the accepted residual, not the exposure.
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
   })
 
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
@@ -405,13 +450,10 @@ describe('AuthProvider — signIn', () => {
 })
 
 describe('AuthProvider — signOut', () => {
-  it('clears tokens, resets in-memory state, and removes cached userInfo and highlights', async () => {
-    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
+  it('clears tokens, resets in-memory state, and removes cached userInfo, highlights and queued writes', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
-    mockMmkv.set(
-      highlightsKey,
-      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
-    )
+    setCachedHighlights('u1', JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }])
+    parkWrite('u1', JHN3)
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
@@ -436,7 +478,65 @@ describe('AuthProvider — signOut', () => {
       expiryDate: null,
     })
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
-    expect(mockMmkv.has(highlightsKey)).toBe(false)
+    expect(getCachedHighlights('u1', JHN3)).toBeNull()
+    expect(listQueuedScopes('u1')).toEqual([])
+  })
+
+  // Every user's entries, like the highlights cache: one user is signed in at a
+  // time, so anything under another id was already left by a departure.
+  it('leaves no queued write behind, for any chapter or any user', async () => {
+    parkWrite('u1', JHN3)
+    parkWrite('u1', GEN1)
+    parkWrite('u2', PSA23)
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(listQueuedScopes('u1')).toEqual([])
+    expect(listQueuedScopes('u2')).toEqual([])
+  })
+
+  // The purges run before the tokens are cleared. A store that throws must cost a
+  // surviving cache entry, never a user who asked to sign out and stayed in.
+  it('still signs out when the cache purges cannot reach the store', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    parkWrite('u1', JHN3)
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    mockMmkvThrows = true
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('userInfo')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith({
+      accessToken: null,
+      refreshToken: null,
+      expiryDate: null,
+    })
   })
 })
 
@@ -466,11 +566,10 @@ describe('AuthProvider — refresh failure policy', () => {
   })
 
   it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
-    const highlightsKey = 'yvp.highlights.user-1.111.JHN.3'
-    mockMmkv.set(
-      highlightsKey,
-      JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }]),
-    )
+    setCachedHighlights('user-1', JHN3, [
+      { version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' },
+    ])
+    parkWrite('user-1', JHN3)
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
 
@@ -485,7 +584,8 @@ describe('AuthProvider — refresh failure policy', () => {
     expect(getText('accessToken')).toBe('null')
     expect(getText('error')).toMatch(/401/)
     expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
-    expect(mockMmkv.has(highlightsKey)).toBe(false)
+    expect(getCachedHighlights('user-1', JHN3)).toBeNull()
+    expect(listQueuedScopes('user-1')).toEqual([])
   })
 })
 

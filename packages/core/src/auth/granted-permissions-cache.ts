@@ -81,6 +81,13 @@ export function mergeGrantedPermissions(
  * the server is the enforcement point, and a survived entry costs at most a
  * skipped prompt and a request the server denies. See
  * `docs/adr/0014-cached-grant-is-a-hint.md` before hardening this.
+ *
+ * The `catch` is not a detector, and reading it as one overstates what this can
+ * promise: `MMKV.remove` returns `false` rather than throwing on a read-only
+ * instance, so the entry can survive with nothing caught. It is here only so a
+ * throw cannot abort the caller mid-sign-out. Nothing can be layered on top
+ * either — an overwrite, a tombstone, or a retry is another *write* into the
+ * store that just refused one (ADR 0014's 2026-08-11 amendment).
  */
 export function clearGrantedPermissions(): void {
   try {

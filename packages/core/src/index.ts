@@ -16,6 +16,7 @@ export type {
 
 export {
   deriveServerColors,
+  hasQueuedHighlightWrites,
   HIGHLIGHT_COLORS,
   isHighlightColor,
   useHighlightPermissionFlow,
