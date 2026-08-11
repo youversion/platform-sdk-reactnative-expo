@@ -467,6 +467,8 @@ export function BibleReader({
     if (data) void handleShare(data)
   }, [verseSelection, handleShare, closeVerseActions])
 
+  // `async` with no `await` on purpose: the DOM wrapper types `onSignOutPress`
+  // as `() => Promise<void>`, so a plain `() => void` handler fails typecheck.
   const handleSignOutPress = useCallback(async () => {
     if (!signOut) return
 
