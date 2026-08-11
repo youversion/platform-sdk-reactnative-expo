@@ -103,16 +103,16 @@ The chapter a highlights flow is operating on: `versionId` + `book` + `chapter`.
 _Avoid_: Folding `userId` into this type; Reader Location (restore snapshot for uncontrolled readers, different purpose); cache key (implementation detail)
 
 **Server Colors**:
-The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. A _derived_ projection of **Cached Highlights** onto the displayed scope, used for optimistic overlay math — not something we persist, and not optimistic UI overlays themselves. Range passage ids expand to one entry per verse and colors are normalized to lowercase during projection.
+The verse→color map for a **Highlight Scope**: `Record<number, string>` where keys are verse numbers and values are 6-char hex colors with no `#`. A _derived_ projection of **Cached Highlights** onto the displayed scope — not something we persist. A verse appears at most once: one color at a time, so a recolor replaces rather than accumulates. Range passage ids expand to one entry per verse and colors are normalized to lowercase during projection.
 _Avoid_: Persisting this shape (it destroys passage ids — see **Cached Highlights**); highlight colors (ambiguous with UI state), highlightedVerses (Web SDK render prop; often boolean-keyed)
 
 **Cached Highlights**:
-The raw core API shape (`Highlight[]`: `version_id` + `passage_id` + `color`) persisted on native per `userId` + **Highlight Scope**. Passage ids may be verse ranges (`JHN.3.16-18`), so this is the only shape that can feed the web reader's controlled `highlights` prop on a cold start and that supports passage-id-targeted deletes. Reads are synchronous and validated; a valid empty array is a real snapshot (“none”), not a cache miss, and any corrupt or legacy payload reads as a miss.
-_Avoid_: Flattening to **Server Colors** before writing; treating an empty array as a miss
+The raw core API shape (`Highlight[]`: `version_id` + `passage_id` + `color`) persisted on native per `userId` + **Highlight Scope**. Passage ids may be verse ranges (`JHN.3.16-18`), so this is the only shape that can feed the web reader's controlled `highlights` prop on a cold start and that supports passage-id-targeted deletes. Reads are synchronous and validated; a valid empty array is a real snapshot (“none”), not a cache miss, and any corrupt or legacy payload reads as a miss. What the reader paints, not raw server truth: a **Queued Write** is folded in, which is what lets an unsent highlight survive a relaunch before anything touches the network.
+_Avoid_: Flattening to **Server Colors** before writing; treating an empty array as a miss; merging unsent writes into it
 
-**Highlight Overlay**:
-The local layer of pending edits for a **Highlight Scope**, `Record<number, string | null>` — a hex color where the user just applied one, `null` where they just removed one. Sits on top of **Server Colors** so the reader paints before the server answers; entries retire once the server confirms them (see [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) for the color-aware remove rule). Never persisted — see **Cached Highlights**.
-_Avoid_: Optimistic state (too vague — this is one specific layer), **Server Colors** (the layer underneath), persisting it
+**Reconcile Entry**:
+A write the server has accepted, held in memory until a fetch agrees with it. Without it a read replica one step behind repaints a highlight that was just deleted ("vapor"); the color-aware retirement rule is in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) and reads like a bug in both directions. In memory only — persisting it would make the drain re-send a write the server already has.
+_Avoid_: Highlight Overlay (the separate optimistic layer this replaced — **Cached Highlights** now hold the paint), ownership token / write intent (retired with it; a settling write finds its entries by value)
 
 **Controlled Highlights Latch**:
 The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
@@ -135,8 +135,8 @@ The highlight circles in a **Verse Action Sheet**. A pure function projects them
 _Avoid_: Re-deriving the rule from the sheet's UI; an ALL rule (a color on one verse of three still earns a remove circle); counting colors the palette does not contain
 
 **Highlight Write Outcome**:
-What an `apply` or `remove` resolves to: `ok` with the verses that landed, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true.
-_Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it)
+What an `apply` or `remove` resolves to: `ok` with the verses that landed, `queued` with the verses parked as **Queued Writes**, `noop` when there was nothing to write, or `error` carrying a `reason` (`not-signed-in` / `auth` / `invalid` / `transient`), a diagnostic `message`, and both `failedVerses` (reverted) and `succeededVerses` (landed — non-empty means a partial batch). The only channel a write failure reports on; the hook's `error` state is for fetches alone, so a failed write can never evict a fetch error that is still true. `queued` is a point-in-time signal at the tap, not a standing state — nothing in the API reports on a **Queued Write** afterwards.
+_Avoid_: Branching on `message` (generic outside development builds); routing write failures through the hook's `error`; a separate `partial` status (the two verse arrays already say it); reading `ok` as "saved" and `queued` as a failure (both mean the paint stays)
 
 **Access Token Result**:
 What `getAccessToken()` resolves to, and the only thing in the SDK that can tell a refresh that worked from one that did not — `refreshToken` swallows failure by design, so a caller reading the token afterwards cannot. Either `ok` with the `token` and the `userId` that owns it, or `unavailable` with a `reason`. The two reasons are different situations, not degrees of the same one: `signed-out` means there is no session, while `refresh-failed` means the session is intact and only the token endpoint is unreachable — tokens stay in storage and the user stays signed in. The `userId` rides along because it is read in the same synchronous block as the token; `userInfo` read through a render lags it, so a caller guarding on a captured identity that compares against the lagging one passes a check it should have failed.
@@ -156,7 +156,15 @@ _Avoid_: Branching on a write failure first (burns a round-trip before every fir
 
 **Pending Highlight**:
 The in-memory `{ color, verses, scope }` a **Permission Flow** stashes when the user taps a color before they can write, and applies when sign-in or consent succeeds. Lives only inside reducer state — `openAuthSessionAsync` returns to the same live process, so web's `sessionStorage` stash and TTL solve a problem native does not have. Discarded cleanly on every cancel, decline, failure, or scope change. Its `scope` is the passage the intent was formed in and governs it: verse numbers replayed into another chapter would paint text the user never selected, so anything resumed after an await is checked against the scope it was claimed under.
-_Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping it across a scope change (the user has left the passage); reading the current **Highlight Scope** at replay time instead of the claimed one; treating a discard as an error
+_Avoid_: Persisting it (a **Queued Write** is the persisted thing, and it is a different thing); keeping it across a scope change (the user has left the passage); reading the current **Highlight Scope** at replay time instead of the claimed one; treating a discard as an error
+
+**Queued Write**:
+One verse's unsent write, persisted per `userId` + **Highlight Scope**, written before the request goes out. Two sides: `local` is where the user wants the verse (a hex color, or `null` for none) and `server` is where the server had it before the user started editing, kept so a rejected write can be put back exactly — offline, and after a relaunch. Desired state, not an operation: a second tap overwrites `local` rather than appending, `server` survives that overwrite, and an entry whose two sides agree asks for nothing and is dropped. Retired when the server accepts or refuses it, never on a failure to reach it.
+_Avoid_: **Pending Highlight** (an in-memory permission-flow intent, discarded rather than persisted); a write log or op journal; "offline write" (a 5xx from a reachable server parks here too)
+
+**Highlight Write Queue**:
+The durable store of **Queued Writes** and the drain over them, owned by core's `YouVersionProvider` rather than any one `useHighlights` — a write must land after the user has navigated away, and draining needs a token. It runs on provider mount, on a token change, on `AppState` returning to active, on the rising edge of connectivity (`expo-network`), on any successful highlights GET, and otherwise on a per-entry backoff that widens on each consecutive failure and resets on success. Connectivity is a trigger, never a gate — the drain never asks whether the network is up before attempting. Unbounded by design — no size cap, no TTL, no attempt budget — with a single drop path, a 401/403 that survives a forced token refresh and one retry. Purged on sign-out with the rest of the user's data. See [ADR 0018](docs/adr/0018-highlight-write-queue.md).
+_Avoid_: Offline queue (5xx entries park here too); a per-scope or per-hook queue; gating a drain attempt on the connectivity answer; treating a stuck entry as something the SDK will eventually clean up
 
 ## Relationships
 
@@ -182,7 +190,7 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 - The **SDK Attribution Header** depends on **Compiled Distribution**: because published builds run from `build/` while dev runs from `src/`, the publish-time stamp can give the two different channel signals from one source file.
 - A **Highlight Scope** identifies the chapter for highlights (web-compatible location triple). Native persists **Cached Highlights** keyed by `userId` + **Highlight Scope**; without a known `userId`, the cache does not read or write. This is **Native-Owned State**, distinct from **Reader Location**.
 - **Server Colors** are derived from **Cached Highlights** for a given **Highlight Scope**, never stored: entries whose version, book, or chapter does not match the scope are ignored, so stale data cannot mispaint.
-- A **Highlight Overlay** sits on top of **Server Colors** and is the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. Each write claims the verses it paints, and a settling write only reverts verses it still owns.
+- **Cached Highlights** are the only optimistic layer in the stack — the web reader's controlled `highlights` prop is pure projection. A settling write only touches **Queued Writes** still asking for what it sent, so a rejection cannot revert a newer tap.
 - A **Highlight Write Outcome** is the sole report of a write's fate, and is where C3's sign-in branch reads from.
 - The reader's **Native Wrapper** derives **Cached Highlights** for its current **Highlight Scope** and holds the **Controlled Highlights Latch** with them; the **Expo DOM Component** only projects that array and never fetches, stores, or authenticates for highlights.
 - The highlights fetch is mounted only when the app **requested** the `highlights` permission on its auth config — not when a grant is known. A never-requested permission means no request; an unknown grant still fetches, because absence of a grant record is not a denial.
@@ -196,6 +204,12 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 - The **Verse Action Sheet** yields to the sign-in and consent sheets rather than competing with them. **Native Sheet** displacement would close it, and closing it clears the selection a **Pending Highlight** is waiting on.
 - **Verse Action Swatches** are a projection of **Verse Selection** over **Server Colors**, the same layer the reader paints from, so the tray and the passage can never disagree. A swatch press routes to **Permission Flow**'s guarded `apply`, or straight to `remove`.
 - A **Pending Highlight** belongs to exactly one **Permission Flow** and one **Highlight Scope**; when the flow ends in an apply, its fate is reported through the ordinary **Highlight Write Outcome**.
+- A write that fails to reach the server becomes a **Queued Write** instead of reverting; a write rejected by the server (401/403, or any other 4xx) reverts and reports as before, so auth never enters the **Highlight Write Queue**.
+- A **Queued Write** survives a cold start because **Cached Highlights** already carry it. MMKV is written queue first, cache second, and the mount re-applies the queue over the cache to repair a process that died between the two.
+- The **Highlight Write Queue** needs a way to tell mounted readers an entry was dropped, or a verse stays painted after the SDK has given up on it. A successful drain needs no notification to look right — the paint and the new server truth are the same color.
+- A **Queued Write** wins over disagreeing server truth (`Highlight` carries no id or timestamp, so recency cannot be computed).
+- A verse holds **one color at a time**, so an apply is an upsert and a color the user has replaced is not a state the server ever needs to see. A **Queued Write** superseded before it is sent is dropped rather than sent and overwritten.
+- A **Permission Flow** that cannot complete offline produces no **Queued Write**: the data-exchange mint fails before any browser opens, and the **Pending Highlight** is discarded. Offline highlighting works at all only because the pre-flight reads the _cached_ grant ([ADR 0014](docs/adr/0014-cached-grant-is-a-hint.md)).
 
 ## Example Dialogue
 
@@ -220,9 +234,17 @@ _Avoid_: Persisting it (that is F1's offline queue, a different thing); keeping 
 > **Dev:** "I wired `onClick` on `BibleVersionPickerLanguageTrigger` but the popover state still changes."
 > **Domain expert:** "Call `event.preventDefault()` in the DOM wrapper so the Web SDK doesn't also run `setIsLanguagesOpen`. Mobile uses the shell cross-fade, not popover layout."
 
+> **Dev:** "The user tapped a color offline — can I just persist the pending highlight until they reconnect?"
+> **Domain expert:** "Those are two different things. A **Pending Highlight** is an intent waiting on a _permission_, and it stays in memory (ADR 0016). A **Queued Write** is a write waiting on the _network_, and it is persisted. Offline with no grant, the flow fails and nothing is queued — there is no reason to believe that write is permitted."
+
+> **Dev:** "Should we add a connectivity library so the queue drains the moment service comes back?"
+> **Domain expert:** "We did — `expo-network`, on the rising edge only. Without it the wait is a foreground away, because the successful-GET signal can't fire on a network that's down, and the backoff that makes a stuck entry cheap is what makes that wait long. But it's a trigger, not a gate: we never ask whether the network is up before attempting, so a wrong answer costs a late attempt, never a skipped one."
+
 ## Flagged Ambiguities
 
 - "DOM component" can mean browser UI in general or an Expo DOM wrapper. Resolved: use **Expo DOM Component** for files with `'use dom'` in this SDK.
 - "Selection" and "press" are distinct. Resolved: **Picker Press** opens presentation from the current location; **Picker Selection** commits a new location.
 - "Passage id", "USFM ref", and reader state were used interchangeably. Resolved: the chapter picker selection payload is reader state: `book`, `chapter`, and `versionId`.
 - "**Native-Owned State**" was read as "all picker state on native." Resolved: committed outcomes and sheet coordination are native-owned; in-sheet panels are **DOM-Owned Sheet UI State** (see ADR 0005).
+- "Offline queue" (used in [ADR 0013](docs/adr/0013-native-highlights-optimistic-layer.md) and earlier drafts of this file) suggested the queue holds writes made without a network. Resolved: it is the **Highlight Write Queue**, and a 5xx from a perfectly reachable server parks in it too. "Offline" names one cause, not the eligibility rule.
+- "Pending" was used for both a permission-flow intent and an unsent write. Resolved: **Pending Highlight** is in-memory and waits on a permission; a **Queued Write** is persisted and waits on the server.

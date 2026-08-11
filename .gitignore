@@ -46,3 +46,6 @@ apps/example/web-build/
 
 # Riptide artifacts (cloud-synced) and workspace config
 .humanlayer/
+
+# Agent scratch (specs and tickets)
+.scratch/

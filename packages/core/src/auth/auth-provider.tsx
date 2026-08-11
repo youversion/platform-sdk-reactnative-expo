@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { AppState, type AppStateStatus } from 'react-native'
 import { z } from 'zod'
 import { toMessage } from '../error-message'
-import { clearHighlightsCache } from '../highlights'
+import { clearHighlightQueue, clearHighlightsCache } from '../highlights'
 import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from './auth-context'
@@ -34,6 +34,9 @@ type AuthProviderProps = {
 
 export default function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  // Seeding this synchronously is load-bearing for useHighlights: it paints from
+  // cache in its own initializer, keyed by `userInfo.id`. Seed it later and the
+  // reader loses its instant paint on a cold start.
   const [userInfo, setUserInfo] = useState<YVUserInfo | null>(() => loadCachedUserInfo())
   // Seeded synchronously so hasPermission answers correctly on the first render
   // after a cold start — the same pattern (and load-bearing coupling) as the
@@ -120,9 +123,19 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [])
 
   const clearAuthState = useCallback(async () => {
-    mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    // The cache purges are best-effort; none may abort the token clearing below.
+    // The three helpers swallow their own failures, this removal cannot.
+    //
+    // A survived record reseeds `userInfo` on the next mount; the bootstrap
+    // clear is what bounds that, not this catch (ADR 0014's amendment).
+    try {
+      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+    } catch {
+      // Cached user info survived; the tokens still go.
+    }
     invalidatePermissions()
     clearHighlightsCache()
+    clearHighlightQueue()
     expiryRef.current = null
     refreshTokenRef.current = null
     accessTokenRef.current = null
