@@ -34,6 +34,9 @@ type AuthProviderProps = {
 
 export default function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
+  // Seeding this synchronously is load-bearing for useHighlights: it paints from
+  // cache in its own initializer, keyed by `userInfo.id`. Seed it later and the
+  // reader loses its instant paint on a cold start.
   const [userInfo, setUserInfo] = useState<YVUserInfo | null>(() => loadCachedUserInfo())
   // Seeded synchronously so hasPermission answers correctly on the first render
   // after a cold start — the same pattern (and load-bearing coupling) as the
