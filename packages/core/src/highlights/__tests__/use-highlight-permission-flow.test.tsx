@@ -84,6 +84,11 @@ function authValue(state: AuthState): AuthContextValue {
     signOut: jest.fn(),
     refreshNow: jest.fn(),
     ensureFreshToken: mockEnsureFreshToken,
+    getAccessToken: jest.fn(async () =>
+      state.signedIn
+        ? ({ status: 'ok', token: 'token-1', userId: 'user-1' } as const)
+        : ({ status: 'unavailable', reason: 'signed-out' } as const),
+    ),
     isLoading: false,
     // An app that reaches this flow has asked for `highlights` — the reader
     // never mounts the fetch otherwise (`shouldFetchHighlights`). What the user
