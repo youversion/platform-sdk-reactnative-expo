@@ -213,6 +213,32 @@ describe('AuthProvider — mount', () => {
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
+  // A purge that could not take leaves the record readable, so the next mount
+  // seeds the departed user. The bootstrap clear is what bounds that — no write
+  // into a store refusing writes can — so pin it.
+  it('drops a cached userInfo the store still refuses to remove', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockMmkvThrows = true
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('isAuthenticated')).toBe('false')
+    // The record itself survives: the accepted residual, not the exposure.
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+  })
+
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
     mockLoadTokens.mockResolvedValue({

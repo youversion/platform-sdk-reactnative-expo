@@ -125,6 +125,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   const clearAuthState = useCallback(async () => {
     // The cache purges are best-effort; none may abort the token clearing below.
     // The three helpers swallow their own failures, this removal cannot.
+    //
+    // A survived record reseeds `userInfo` on the next mount; the bootstrap
+    // clear is what bounds that, not this catch (ADR 0014's amendment).
     try {
       mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     } catch {
