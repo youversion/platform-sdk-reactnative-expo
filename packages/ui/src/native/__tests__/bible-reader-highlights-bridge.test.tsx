@@ -216,6 +216,22 @@ describe('the controlled-mode latch', () => {
     expect(lastDomProps().highlights).toEqual([])
   })
 
+  it('forwards valid non-palette hex in highlights verbatim to the DOM reader', () => {
+    const NON_PALETTE = 'aabbcc'
+    const data = [
+      { version_id: 111, passage_id: 'JHN.3.16', color: NON_PALETTE },
+      highlight('JHN.3.17'),
+    ]
+    stubHighlights(data)
+
+    render(<BibleReader />, { wrapper })
+
+    expect(lastDomProps().highlights).toEqual(data)
+    expect(lastDomProps().highlights).toEqual(
+      expect.arrayContaining([expect.objectContaining({ color: NON_PALETTE })]),
+    )
+  })
+
   it('forwards the hook’s highlights verbatim, with no adapter in between', () => {
     const data = [highlight('JHN.3.16'), highlight('JHN.3.17-18')]
     stubHighlights(data)
