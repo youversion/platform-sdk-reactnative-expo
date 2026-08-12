@@ -67,10 +67,23 @@ describe('buildVerseActionSwatches', () => {
   })
 
   it('re-offers every color once more than one is present, even with nothing bare', () => {
-    // `activeHighlights.size > 1` is the other half of `showAllApplyColors`:
+    // `activeColors.size > 1` is the other half of `showAllApplyColors`:
     // with two colors in play, "make it all green" is a real action.
     const swatches = summarize({ verses: [1, 2], colors: { 1: YELLOW, 2: GREEN } })
     expect(swatches.filter((s) => s.startsWith('apply:'))).toHaveLength(5)
+  })
+
+  it('re-offers the full apply row when palette and non-palette hex both appear', () => {
+    // Web counts all valid active colors, not palette-only — paint over custom hex.
+    expect(summarize({ verses: [1, 2], colors: { 1: '123456', 2: YELLOW } })).toEqual([
+      `remove:${YELLOW}`,
+      'remove:123456',
+      `apply:${YELLOW}`,
+      `apply:${GREEN}`,
+      `apply:${BLUE}`,
+      `apply:${ORANGE}`,
+      `apply:${PINK}`,
+    ])
   })
 
   it('shows only remove circles when all five colors are present', () => {
@@ -103,9 +116,9 @@ describe('buildVerseActionSwatches', () => {
   })
 
   it('shows a remove circle for valid non-palette hex and drops invalid hex', () => {
-    expect(summarize({ verses: [1, 2], colors: { 1: '123456', 2: YELLOW } })).toEqual([
-      `remove:${YELLOW}`,
+    expect(summarize({ verses: [1], colors: { 1: '123456' } })).toEqual([
       'remove:123456',
+      `apply:${YELLOW}`,
       `apply:${GREEN}`,
       `apply:${BLUE}`,
       `apply:${ORANGE}`,

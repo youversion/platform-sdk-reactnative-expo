@@ -32,10 +32,11 @@ export type BuildVerseActionSwatchesInput = {
  * palette order.
  *
  * The apply row offers the whole palette when part of the selection is
- * unhighlighted, or when the selection already carries more than one palette
- * color. Otherwise it offers only the palette colors not already present. Apply
- * is palette-only; remove includes valid non-palette hex at its exact value.
- * Invalid hex is dropped from both rows.
+ * unhighlighted, or when the selection already carries more than one active
+ * color (palette or valid non-palette hex). Otherwise it offers only the
+ * palette colors not already present. Apply is palette-only; remove includes
+ * valid non-palette hex at its exact value. Invalid hex is dropped from both
+ * rows.
  */
 export function buildVerseActionSwatches(
   input: BuildVerseActionSwatchesInput,
@@ -44,6 +45,7 @@ export function buildVerseActionSwatches(
 
   const activePaletteColors = new Set<HighlightColor>()
   const activeNonPaletteColors = new Set<string>()
+  const activeColors = new Set<string>()
   let highlightedVerseCount = 0
   for (const verse of verses) {
     const color = colors[verse]
@@ -51,6 +53,7 @@ export function buildVerseActionSwatches(
       continue
     }
     const normalized = color.toLowerCase()
+    activeColors.add(normalized)
     if (isHighlightColor(normalized)) {
       activePaletteColors.add(normalized)
     } else {
@@ -63,7 +66,7 @@ export function buildVerseActionSwatches(
   const allPaletteColorsActive = activePaletteColors.size === HIGHLIGHT_COLORS.length
   const showAllApplyColors =
     !allPaletteColorsActive &&
-    (unHighlightedCount > 0 || activePaletteColors.size > 1)
+    (unHighlightedCount > 0 || activeColors.size > 1)
   const colorsToApply = showAllApplyColors
     ? HIGHLIGHT_COLORS
     : HIGHLIGHT_COLORS.filter((color) => !activePaletteColors.has(color))
