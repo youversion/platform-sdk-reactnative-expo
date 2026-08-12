@@ -67,7 +67,7 @@ describe('buildVerseActionSwatches', () => {
   })
 
   it('re-offers every color once more than one is present, even with nothing bare', () => {
-    // `activeColors.size > 1` is the other half of `showAllApplyColors`:
+    // Web `activeHighlights.size > 1` — all distinct valid colors, not palette-only.
     // with two colors in play, "make it all green" is a real action.
     const swatches = summarize({ verses: [1, 2], colors: { 1: YELLOW, 2: GREEN } })
     expect(swatches.filter((s) => s.startsWith('apply:'))).toHaveLength(5)
