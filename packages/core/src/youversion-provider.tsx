@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import AuthProvider from './auth/auth-provider'
 import type { AuthConfig } from './auth/types'
 import { DEFAULT_API_HOST } from './constants'
@@ -9,6 +9,10 @@ export type YouVersionProviderProps = {
   appKey: string
   apiHost?: string
   auth?: AuthConfig
+  /**
+   * Kept for API compatibility. Installation ID resolution is synchronous, so
+   * children render immediately and this prop is unused.
+   */
   fallback?: ReactNode
   children: ReactNode
 }
@@ -17,42 +21,15 @@ export default function YouVersionProvider({
   appKey,
   apiHost = DEFAULT_API_HOST,
   auth,
-  fallback = null,
+  fallback: _fallback = null,
   children,
 }: YouVersionProviderProps) {
-  const [installationId, setInstallationId] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    async function init() {
-      try {
-        const id = await getOrSetInstallationId()
-        if (!cancelled) {
-          setInstallationId(id)
-        }
-      } catch (e) {
-        if (!cancelled) {
-          console.error('Failed to load installationId:', e)
-        }
-      }
-    }
-    init()
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const [installationId] = useState(getOrSetInstallationId)
 
   const config = useMemo(
-    () =>
-      installationId
-        ? { installationId, appKey, apiHost, authRedirectUrl: auth?.redirectUri }
-        : null,
+    () => ({ installationId, appKey, apiHost, authRedirectUrl: auth?.redirectUri }),
     [installationId, appKey, apiHost, auth?.redirectUri],
   )
-
-  if (!config) {
-    return <>{fallback}</>
-  }
 
   return (
     <YouVersionContext.Provider value={config}>

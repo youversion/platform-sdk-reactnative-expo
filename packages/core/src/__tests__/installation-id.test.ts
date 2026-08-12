@@ -25,31 +25,31 @@ beforeEach(() => {
 })
 
 describe('getOrSetInstallationId', () => {
-  it('returns the cached id without generating a new UUID', async () => {
+  it('returns the cached id without generating a new UUID', () => {
     mockMmkv.set(MMKV_KEYS.installationId, 'pre-stored')
 
-    const id = await getOrSetInstallationId()
+    const id = getOrSetInstallationId()
 
     expect(id).toBe('pre-stored')
     expect(mockRandomUUID).not.toHaveBeenCalled()
   })
 
-  it('generates and persists a random UUID when none is stored', async () => {
+  it('generates and persists a random UUID when none is stored', () => {
     mockRandomUUID.mockReturnValue('uuid-fresh')
 
-    const id = await getOrSetInstallationId()
+    const id = getOrSetInstallationId()
 
     expect(id).toBe('uuid-fresh')
     expect(mockRandomUUID).toHaveBeenCalledTimes(1)
     expect(mockMmkv.get(MMKV_KEYS.installationId)).toBe('uuid-fresh')
   })
 
-  it('persists the generated id so subsequent calls skip generation', async () => {
+  it('persists the generated id so subsequent calls skip generation', () => {
     mockRandomUUID.mockReturnValue('uuid-once')
 
-    const first = await getOrSetInstallationId()
+    const first = getOrSetInstallationId()
     mockRandomUUID.mockClear()
-    const second = await getOrSetInstallationId()
+    const second = getOrSetInstallationId()
 
     expect(second).toBe(first)
     expect(mockRandomUUID).not.toHaveBeenCalled()
