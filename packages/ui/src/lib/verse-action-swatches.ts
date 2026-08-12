@@ -64,6 +64,9 @@ export function buildVerseActionSwatches(
 
   const unHighlightedCount = verses.length - highlightedVerseCount
   const allPaletteColorsActive = activePaletteColors.size === HIGHLIGHT_COLORS.length
+  // Dual-half rule (YPE-4494 / web highlight-colors Story 14): palette-only for
+  // "all active"; activeHighlights.size > 1 counts all valid colors (palette or
+  // non-palette). Matches web buildVerseActionSwatches (platform-sdk-react #330).
   const showAllApplyColors =
     !allPaletteColorsActive &&
     (unHighlightedCount > 0 || activeHighlights.size > 1)

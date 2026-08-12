@@ -104,7 +104,7 @@ The shipped YouVersion Bible app does more. It has a collapsed tray with a fanne
 
 Research settled the question ADR 0015 left open on the reference branch. That ADR said iOS was "believed" to use an ALL rule. It does not. Both public native SDKs filter their remove list with an "is this color on any selected verse" predicate. Kotlin does it at `BibleReaderViewModel.kt:504-520`, Swift at `BibleReaderViewModel+Navigation.swift:147-160`. Web, Swift, and Kotlin agree on the remove list, so this port preserves parity rather than creating a divergence.
 
-One difference survives, in the **add** list. Swift and Kotlin gate it on NOT-ALL. Web, and this port, use `!allColorsActive && (unHighlightedCount > 0 || activeColors.size > 1)`. The two disagree only when all five palette colors are active in one selection. Web then shows five remove circles and an empty apply row. The native SDKs would also show five apply circles. Cam decided on 2026-08-05 to ship the web rule. That edge stays with the separately tracked ANY-vs-ALL question.
+One difference survives, in the **add** list. Swift and Kotlin gate it on NOT-ALL. Web, and this port, use `!allPaletteColorsActive && (unHighlightedCount > 0 || activeHighlights.size > 1)` (see the 2026-08-12 amendment for YPE-4494's palette-only apply row). The two disagree only when all five palette colors are active in one selection. Web then shows five remove circles and an empty apply row. The native SDKs would also show five apply circles. Cam decided on 2026-08-05 to ship the web rule. That edge stays with the separately tracked ANY-vs-ALL question.
 
 A color covering some but not all of the selected verses appears **twice**: a checkmarked remove circle, and a plain apply circle that paints the whole selection in one tap. That is web's shipped behavior, verified against `verse-action-popover.tsx:270-284` at `ui-2.5.0`.
 
@@ -147,6 +147,16 @@ The action sheet's `isOpen` is `selection !== null && prompt === 'none' && !flow
 - `clearSelectionSignal` adds a DOM prop update on every sheet exit. Android has a standing `DomWebView.injectJavaScript` rejection when a prop update reaches an unmounted WebView. This work does not cause that rejection, but it does make the rejection easier to hit.
 - `expo-clipboard` is a new **peer dependency**. Consumers who take this version must install it and rebuild their dev client. `expo-application` is also now a UI peer, because the sign-in sheet reads the app's display name. Core already depended on it, so no new autolinked module reaches an app that already had core.
 - The sheet is not exported, so its layout is not public API and can change without a breaking release.
+
+## Amendment (2026-08-12): non-palette paint/clear (YPE-4494)
+
+YPE-4494 tightened the swatch seam beyond the original 2026-08-05 port:
+
+- **Remove row:** ANY rule unchanged — every distinct color on any selected verse earns a checkmarked remove circle. Palette colors and valid non-palette hex at their exact value qualify; invalid hex is dropped from paint and from both rows.
+- **Apply row:** palette-only. The five `HIGHLIGHT_COLORS` swatches are the only apply targets; non-palette hex never appears as an apply circle.
+- **`showAllApplyColors`:** the apply row shows the full palette when `!allPaletteColorsActive && (unHighlightedCount > 0 || activeHighlights.size > 1)`. The first half (`allPaletteColorsActive`) counts only palette colors; the second half (`activeHighlights.size > 1`) counts all valid colors, palette or non-palette. That dual-half rule matches the web SDK YPE-4494 tray (`buildVerseActionSwatches` in platform-sdk-react PR #330), not the published 2.5.0 popover formula alone.
+
+Core's `apply` rejects non-palette colors as `invalid` before painting or issuing a request. Valid non-palette hex from the API still paints and clears through the remove row. The WebView reader paint path depends on a future `@youversion/platform-react-ui` pin after web #330 publishes; that pin is tracked separately from this native tray work.
 
 ## Verification status
 
