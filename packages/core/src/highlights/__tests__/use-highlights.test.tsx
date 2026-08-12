@@ -586,6 +586,25 @@ describe('Highlights Refresh on AppState', () => {
       passage_id: 'JHN.3',
     })
   })
+
+  it('registers a "change" listener on mount and removes it on unmount', async () => {
+    const remove = jest.fn()
+    jest.mocked(AppState.addEventListener).mockImplementation((_event, listener) => {
+      appStateListener = listener as (state: AppStateStatus) => void
+      return { remove }
+    })
+
+    const { unmount } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(AppState.addEventListener).toHaveBeenCalledWith('change', expect.any(Function))
+    expect(remove).not.toHaveBeenCalled()
+
+    unmount()
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
 })
 
 // ── AC 2 / 3: optimistic apply ───────────────────────────────────────────────
