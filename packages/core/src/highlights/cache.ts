@@ -7,6 +7,7 @@ import {
   type HighlightScope,
   type ServerColors,
 } from './constants'
+import { isValidHighlightHex } from './paint-projection'
 import { highlightsFromColors } from './optimistic'
 
 export {
@@ -112,6 +113,9 @@ export function deriveServerColors(
       continue
     }
     const normalizedColor = color.toLowerCase()
+    if (!isValidHighlightHex(normalizedColor)) {
+      continue
+    }
     for (const verse of expanded.verses) {
       colors[verse] = normalizedColor
     }

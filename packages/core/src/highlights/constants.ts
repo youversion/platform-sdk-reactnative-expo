@@ -4,9 +4,9 @@ export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
 
 /**
- * The five highlight swatches, a company-wide standard across every YouVersion
- * SDK. Custom colors are not supported by the product, so both write paths
- * reject anything outside this list before painting or issuing a request.
+ * The five highlight swatches for apply. Partner apps may share a highlights DB
+ * with the main Bible app, which can paint valid non-palette hex from the API;
+ * only apply is restricted to this list.
  *
  * Duplicated from `@youversion/platform-react-ui`'s `HIGHLIGHT_COLORS` rather
  * than imported: that package peer-depends on `react-dom` (which core must not

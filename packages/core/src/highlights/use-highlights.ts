@@ -14,6 +14,7 @@ import {
 } from './cache'
 import { claimWrites } from './claims'
 import { isHighlightColor, NOT_SIGNED_IN_MESSAGE, type HighlightScope } from './constants'
+import { isValidHighlightHex } from './paint-projection'
 import { notifyDrain } from './drain-signals'
 import {
   applyQueuedWrites,
@@ -764,7 +765,17 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
         })
       }
 
-      if (!isHighlightColor(color)) {
+      if (!isValidHighlightHex(color)) {
+        return Promise.resolve({
+          status: 'error',
+          reason: 'invalid',
+          message: INVALID_COLOR_MESSAGE,
+          failedVerses: normalizeVerseSelection(rawVerses),
+          succeededVerses: [],
+        })
+      }
+
+      if (op === 'apply' && !isHighlightColor(color)) {
         return Promise.resolve({
           status: 'error',
           reason: 'invalid',
