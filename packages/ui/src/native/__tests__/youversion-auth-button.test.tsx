@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react'
+import type { ComponentProps } from 'react'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import * as core from '@youversion/platform-react-native-expo-core'
 import { Alert, Platform } from 'react-native'
