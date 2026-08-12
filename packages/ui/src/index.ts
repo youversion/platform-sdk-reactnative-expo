@@ -12,14 +12,18 @@ export {
 export type {
   BibleCardProps,
   BibleChapterPickerSheetProps,
+  BibleReaderHandle,
   BibleReaderProps,
   BibleReaderSettingsSheetProps,
   BibleReaderShareData,
   BibleReaderVerseSelection,
   BibleTextViewProps,
   BibleVersionPickerSheetProps,
+  HighlightWriteError,
   VerseOfTheDayProps,
   YouVersionAuthButtonProps,
   YouVersionProviderProps,
   YouVersionTheme,
 } from './native'
+export { useSignOutGuard } from './native'
+export type { SignOutGuardAuth } from './native'

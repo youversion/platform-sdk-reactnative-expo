@@ -1,6 +1,9 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { render, screen, userEvent } from '@testing-library/react-native'
+import * as core from '@youversion/platform-react-native-expo-core'
+import { Alert } from 'react-native'
 
+import en from '../../i18n/locales/en.json'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -8,16 +11,6 @@ const mockSignIn = jest.fn()
 const mockSignOut = jest.fn()
 let mockIsAuthenticated = false
 
-jest.mock('@youversion/platform-react-native-expo-core', () => ({
-  YouVersionProvider: ({ children }: { children: ReactNode }) => children,
-  useYVAuth: () => ({
-    isAuthenticated: mockIsAuthenticated,
-    signIn: mockSignIn,
-    signOut: mockSignOut,
-  }),
-}))
-
-// The SVG logo pulls in react-native-svg; stub it to a plain view.
 jest.mock('../bible-app-logo', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require('react-native')
@@ -38,7 +31,44 @@ beforeEach(() => {
   mockSignIn.mockClear()
   mockSignOut.mockClear()
   mockIsAuthenticated = false
+  jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
+  jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
+  jest.spyOn(core, 'useYVAuth').mockImplementation(() => ({
+    isAuthenticated: mockIsAuthenticated,
+    signIn: mockSignIn,
+    signOut: mockSignOut,
+    userInfo: mockIsAuthenticated ? { id: 'user-1' } : null,
+    accessToken: mockIsAuthenticated ? 'token' : null,
+    error: null,
+    refreshNow: jest.fn(async () => undefined),
+    ensureFreshToken: jest.fn(async () => undefined),
+    getAccessToken: jest.fn(async () =>
+      mockIsAuthenticated
+        ? ({ status: 'ok', token: 'token', userId: 'user-1' } as const)
+        : ({ status: 'unavailable', reason: 'signed-out' } as const),
+    ),
+    isLoading: false,
+    requestedPermissions: [],
+    grantedPermissions: null,
+    hasPermission: () => false,
+    invalidatePermissions: jest.fn(),
+    requestPermissions: jest.fn(async () => ({ status: 'cancel' }) as const),
+  }))
 })
+
+afterEach(() => {
+  jest.restoreAllMocks()
+})
+
+type AlertButton = { text?: string; onPress?: () => void }
+
+function pressAlertButton(text: string) {
+  const call = (Alert.alert as jest.Mock).mock.calls.at(-1)
+  const buttons = call?.[2] as AlertButton[] | undefined
+  const button = buttons?.find((candidate) => candidate.text === text)
+  expect(button).toBeTruthy()
+  button?.onPress?.()
+}
 
 describe('YouVersionAuthButton labels', () => {
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
@@ -120,17 +150,46 @@ describe('YouVersionAuthButton press behavior', () => {
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
+    expect(Alert.alert).not.toHaveBeenCalled()
   })
 
-  it('calls signOut when pressed authenticated (mode=auto)', async () => {
+  it('asks before signing out when authenticated (mode=auto)', async () => {
     mockIsAuthenticated = true
     const user = userEvent.setup()
     renderAuthButton()
 
     await user.press(screen.getByText(/sign out of/i))
 
+    expect(Alert.alert).toHaveBeenCalledTimes(1)
+    expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('signs out once the user confirms the guarded alert', async () => {
+    mockIsAuthenticated = true
+    const user = userEvent.setup()
+    renderAuthButton()
+
+    await user.press(screen.getByText(/sign out of/i))
+    pressAlertButton(en.signOut)
+
     expect(mockSignOut).toHaveBeenCalledTimes(1)
-    expect(mockSignIn).not.toHaveBeenCalled()
+  })
+
+  it('escalates the alert when queued writes exist and signs out on confirm only', async () => {
+    mockIsAuthenticated = true
+    jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(true)
+    const user = userEvent.setup()
+    renderAuthButton()
+
+    await user.press(screen.getByText(/sign out of/i))
+
+    const call = (Alert.alert as jest.Mock).mock.calls[0]
+    expect(call?.[0]).toBe(en.signOutPendingHighlightsQuestion)
+    expect(mockSignOut).not.toHaveBeenCalled()
+
+    pressAlertButton(en.signOutPendingHighlightsConfirm)
+
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
   })
 
   it('calls signIn when mode="signIn" and unauthenticated', async () => {
@@ -160,8 +219,8 @@ describe('YouVersionAuthButton press behavior', () => {
 
     await user.press(screen.getByText(/sign out of/i))
 
-    expect(mockSignOut).toHaveBeenCalledTimes(1)
-    expect(mockSignIn).not.toHaveBeenCalled()
+    expect(Alert.alert).toHaveBeenCalledTimes(1)
+    expect(mockSignOut).not.toHaveBeenCalled()
   })
 
   it('calls signOut when mode="signOut" and authenticated', async () => {
@@ -170,6 +229,7 @@ describe('YouVersionAuthButton press behavior', () => {
     renderAuthButton({ mode: 'signOut' })
 
     await user.press(screen.getByText(/sign out of/i))
+    pressAlertButton(en.signOut)
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
     expect(mockSignIn).not.toHaveBeenCalled()
