@@ -45,7 +45,7 @@ export function buildVerseActionSwatches(
 
   const activePaletteColors = new Set<HighlightColor>()
   const activeNonPaletteColors = new Set<string>()
-  const activeColors = new Set<string>()
+  const activeHighlights = new Set<string>()
   let highlightedVerseCount = 0
   for (const verse of verses) {
     const color = colors[verse]
@@ -53,7 +53,7 @@ export function buildVerseActionSwatches(
       continue
     }
     const normalized = color.toLowerCase()
-    activeColors.add(normalized)
+    activeHighlights.add(normalized)
     if (isHighlightColor(normalized)) {
       activePaletteColors.add(normalized)
     } else {
@@ -66,7 +66,7 @@ export function buildVerseActionSwatches(
   const allPaletteColorsActive = activePaletteColors.size === HIGHLIGHT_COLORS.length
   const showAllApplyColors =
     !allPaletteColorsActive &&
-    (unHighlightedCount > 0 || activeColors.size > 1)
+    (unHighlightedCount > 0 || activeHighlights.size > 1)
   const colorsToApply = showAllApplyColors
     ? HIGHLIGHT_COLORS
     : HIGHLIGHT_COLORS.filter((color) => !activePaletteColors.has(color))
