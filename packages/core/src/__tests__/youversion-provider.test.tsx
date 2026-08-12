@@ -81,16 +81,14 @@ describe('YouVersionProvider', () => {
     expect(MockDrainHost).not.toHaveBeenCalled()
   })
 
-  it('mounts the highlight queue drain alongside AuthProvider', async () => {
-    mockGetOrSetInstallationId.mockResolvedValue('inst-1')
-
+  it('mounts the highlight queue drain alongside AuthProvider', () => {
     render(
       <YouVersionProvider appKey="appkey" auth={{ redirectUri: 'app://callback' }}>
         <Text testID="content">Content</Text>
       </YouVersionProvider>,
     )
 
-    await waitFor(() => expect(screen.getByTestId('content')).toBeTruthy())
+    expect(screen.getByTestId('content')).toBeTruthy()
     expect(MockDrainHost).toHaveBeenCalled()
   })
 })
