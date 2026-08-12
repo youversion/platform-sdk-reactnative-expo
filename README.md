@@ -51,7 +51,7 @@ Install the required peer dependencies (Expo will pick versions compatible with 
 
 ```bash
 npx expo install @gorhom/bottom-sheet @expo/dom-webview \
-  expo-application expo-crypto expo-secure-store expo-web-browser \
+  expo-crypto expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
   react-native-nitro-modules react-native-reanimated \
