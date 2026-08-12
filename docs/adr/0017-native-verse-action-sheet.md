@@ -156,7 +156,7 @@ YPE-4494 tightened the swatch seam beyond the original 2026-08-05 port:
 - **Apply row:** palette-only. The five `HIGHLIGHT_COLORS` swatches are the only apply targets; non-palette hex never appears as an apply circle.
 - **`showAllApplyColors`:** the apply row shows the full palette when `!allPaletteColorsActive && (unHighlightedCount > 0 || activeHighlights.size > 1)`. The first half (`allPaletteColorsActive`) counts only palette colors; the second half (`activeHighlights.size > 1`) counts all valid colors, palette or non-palette. That dual-half rule matches the web SDK YPE-4494 tray (`buildVerseActionSwatches` in platform-sdk-react PR #330), not the published 2.5.0 popover formula alone.
 
-Core's `apply` rejects non-palette colors as `invalid` before painting or issuing a request. Valid non-palette hex from the API still paints and clears through the remove row. The WebView reader paint path depends on a future `@youversion/platform-react-ui` pin after web #330 publishes; that pin is tracked separately from this native tray work.
+Core's `apply` rejects non-palette colors as `invalid` before painting or issuing a request. Valid non-palette hex from the API still paints and clears through the remove row. The WebView reader paint path pins `@youversion/platform-react-ui@2.6.2` (web YPE-4494 / platform-sdk-react PR #330).
 
 ## Verification status
 
