@@ -58,7 +58,7 @@ async function postTokenEndpoint(
   appKey: string,
   body: Record<string, string>,
 ): Promise<TokenResponse> {
-  const installationId = await getOrSetInstallationId()
+  const installationId = getOrSetInstallationId()
   const headers = new Headers({
     'Content-Type': 'application/x-www-form-urlencoded',
     'X-YVP-App-Key': appKey,

@@ -98,11 +98,9 @@ jest.mock('expo/fetch', () => ({
 }))
 
 /**
- * Core's real `YouVersionProvider` gates children on async `getOrSetInstallationId`,
- * so synchronous `getByTestId` calls after `render(...)` see `fallback` (null)
- * instead of the wrapped component. UI tests verify the native wrapper, not
- * core's loading semantics — swap in a sync passthrough provider backed by a
- * test context. Other exports (`mmkvStorage`, types) keep their real values.
+ * UI tests verify the native wrapper, not core's provider wiring — swap in a
+ * sync passthrough provider backed by a test context. Other exports
+ * (`mmkvStorage`, types) keep their real values.
  */
 jest.mock('@youversion/platform-react-native-expo-core', () => {
   const React = require('react')

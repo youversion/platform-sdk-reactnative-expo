@@ -162,7 +162,7 @@ UI `YouVersionProvider` wraps core and adds theme context + `NativeSheetProvider
 
 **UI** bundles: `@radix-ui/react-use-controllable-state`, `@rn-primitives/portal`, `zustand`, `@youversion/platform-react-hooks`, `@youversion/platform-react-ui`, and `@youversion/platform-react-native-expo-core`.
 
-**Core** bundles: `expo-application`, `expo-crypto`, `expo-web-browser`.
+**Core** bundles: `expo-crypto`, `expo-web-browser`.
 
 Native modules and app-owned framework packages are peer dependencies. Consumers must install peer dependencies from both `packages/ui/package.json` and `packages/core/package.json` with Expo-compatible versions. Expo SDK 56 apps should also include `@expo/dom-webview` for Expo DOM Components and `react-native-worklets` when using Reanimated 4.
 

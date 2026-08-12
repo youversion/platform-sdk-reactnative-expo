@@ -84,7 +84,6 @@
   },
   "peerDependencies": {
     "expo": ">=56.0.0 <57.0.0",
-    "expo-application": ">=56.0.0 <57.0.0",
     "expo-crypto": ">=56.0.0 <57.0.0",
     "expo-secure-store": ">=56.0.0 <57.0.0",
     "expo-web-browser": ">=56.0.0 <57.0.0",

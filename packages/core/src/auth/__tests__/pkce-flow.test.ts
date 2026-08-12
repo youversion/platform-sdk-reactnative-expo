@@ -13,7 +13,7 @@ jest.mock('expo/fetch', () => ({
 }))
 
 jest.mock('../../installation-id', () => ({
-  getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
+  getOrSetInstallationId: jest.fn(() => 'inst-1'),
 }))
 
 jest.mock('../http', () => ({
