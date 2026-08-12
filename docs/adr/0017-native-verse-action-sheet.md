@@ -108,7 +108,7 @@ One difference survives, in the **add** list. Swift and Kotlin gate it on NOT-AL
 
 A color covering some but not all of the selected verses appears **twice**: a checkmarked remove circle, and a plain apply circle that paints the whole selection in one tap. That is web's shipped behavior, verified against `verse-action-popover.tsx:270-284` at `ui-2.5.0`.
 
-Colors outside the five swatches are ignored. That matches the projection the WebView paints from, because `deriveHighlightedVerses` drops them. Counting them would size the tray against paint the user cannot see.
+Apply stays palette-only: the apply row offers only the five `HIGHLIGHT_COLORS` swatches. Remove follows the ANY rule for palette colors and also for valid non-palette hex at its exact value — each earns a checkmarked remove circle. Invalid hex is dropped from paint and from both swatch rows. YPE-4494 locked this seam: partner apps may share a highlights DB with the main Bible app, which can paint valid custom hex from the API; only apply is restricted to the palette.
 
 ### Copy and Share stop crossing the bridge
 
