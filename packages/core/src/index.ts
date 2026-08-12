@@ -19,6 +19,7 @@ export {
   hasQueuedHighlightWrites,
   HIGHLIGHT_COLORS,
   isHighlightColor,
+  isValidHighlightHex,
   useHighlightPermissionFlow,
   useHighlights,
 } from './highlights'

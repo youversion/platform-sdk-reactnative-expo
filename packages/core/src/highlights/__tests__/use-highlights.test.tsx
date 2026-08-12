@@ -1069,7 +1069,7 @@ describe('color validation', () => {
     expect(mockCreateHighlight).not.toHaveBeenCalled()
   })
 
-  it('rejects a non-swatch color from remove with no request', async () => {
+  it('clears valid non-palette hex from remove', async () => {
     seedServer([highlight('JHN.3.16', 'ff0000')])
     const { result } = renderUseHighlights()
     await act(async () => {
@@ -1079,6 +1079,23 @@ describe('color validation', () => {
     let outcome: HighlightWriteOutcome | undefined
     await act(async () => {
       outcome = await result.current.remove('ff0000', [16])
+    })
+
+    expect(outcome).toMatchObject({ status: 'ok', verses: [16] })
+    expect(mockDeleteHighlight).toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({})
+  })
+
+  it('rejects invalid hex from remove with no request', async () => {
+    seedServer([highlight('JHN.3.16', 'fffe00')])
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.remove('gg0000', [16])
     })
 
     expect(outcome).toMatchObject({ status: 'error', reason: 'invalid' })

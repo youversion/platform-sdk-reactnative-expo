@@ -102,11 +102,20 @@ describe('buildVerseActionSwatches', () => {
     ])
   })
 
-  it('ignores colors outside the five swatches', () => {
-    // The WebView paints from a projection that drops these, so counting them
-    // would size the tray against paint the user cannot see. Verse 1 therefore
-    // reads as bare, which is why yellow stays in the apply row.
+  it('shows a remove circle for valid non-palette hex and drops invalid hex', () => {
     expect(summarize({ verses: [1, 2], colors: { 1: '123456', 2: YELLOW } })).toEqual([
+      `remove:${YELLOW}`,
+      'remove:123456',
+      `apply:${GREEN}`,
+      `apply:${BLUE}`,
+      `apply:${ORANGE}`,
+      `apply:${PINK}`,
+    ])
+  })
+
+  it('drops invalid hex from the tray', () => {
+    // Invalid paint is dropped, so verse 1 reads as bare — yellow stays in apply.
+    expect(summarize({ verses: [1, 2], colors: { 1: 'gg0000', 2: YELLOW } })).toEqual([
       `remove:${YELLOW}`,
       `apply:${YELLOW}`,
       `apply:${GREEN}`,
