@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import * as core from '@youversion/platform-react-native-expo-core'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import { YouVersionAuthButton } from '../youversion-auth-button'
@@ -142,6 +142,16 @@ describe('YouVersionAuthButton labels', () => {
 })
 
 describe('YouVersionAuthButton press behavior', () => {
+  const originalOs = Platform.OS
+
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: originalOs,
+    })
+  })
+
   it('calls signIn when pressed unauthenticated (mode=auto)', async () => {
     const user = userEvent.setup()
     renderAuthButton()
@@ -221,6 +231,22 @@ describe('YouVersionAuthButton press behavior', () => {
 
     expect(Alert.alert).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
+  })
+
+  it('signs out immediately on web without raising Alert', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'web',
+    })
+    mockIsAuthenticated = true
+    const user = userEvent.setup()
+    renderAuthButton()
+
+    await user.press(screen.getByText(/sign out of/i))
+
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
   })
 
   it('calls signOut when mode="signOut" and authenticated', async () => {

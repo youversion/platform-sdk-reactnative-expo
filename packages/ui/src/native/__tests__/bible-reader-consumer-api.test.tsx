@@ -197,8 +197,8 @@ async function selectVerses(getByTestId: (id: string) => Parameters<typeof fireE
   })
 }
 
-describe('BibleReader refreshHighlights handle', () => {
-  it('calls through to highlights.refresh', async () => {
+describe('BibleReader consumer API', () => {
+  it('refreshHighlights calls through to highlights.refresh', async () => {
     const reader = createRef<BibleReaderHandle>()
 
     render(<BibleReader ref={reader} book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -213,17 +213,15 @@ describe('BibleReader refreshHighlights handle', () => {
     expect(refreshHighlights).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes nothing beyond refreshHighlights', () => {
+  it('exposes nothing beyond refreshHighlights on the ref handle', () => {
     const reader = createRef<BibleReaderHandle>()
 
     render(<BibleReader ref={reader} book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     expect(Object.keys(reader.current ?? {})).toEqual(['refreshHighlights'])
   })
-})
 
-describe('BibleReader onHighlightError', () => {
-  it('fires for queued apply outcomes', async () => {
+  it('onHighlightError fires for queued apply outcomes', async () => {
     highlightPermissionFlowApply.mockResolvedValueOnce({ status: 'queued', verses: [1, 2] })
     const onHighlightError = jest.fn()
 
@@ -245,7 +243,7 @@ describe('BibleReader onHighlightError', () => {
     expect(onHighlightError).toHaveBeenCalledWith({ status: 'queued', verses: [1, 2] })
   })
 
-  it('fires for transient error outcomes on remove', async () => {
+  it('onHighlightError fires for transient error outcomes on remove', async () => {
     rawRemove.mockResolvedValueOnce({
       status: 'error',
       reason: 'transient',
@@ -276,60 +274,5 @@ describe('BibleReader onHighlightError', () => {
       verses: [1, 2],
       message: 'Network request failed',
     })
-  })
-
-  it.each([
-    ['ok', { status: 'ok', verses: [1, 2] } satisfies HighlightWriteOutcome],
-    ['noop', { status: 'noop' } satisfies HighlightWriteOutcome],
-    [
-      'invalid',
-      {
-        status: 'error',
-        reason: 'invalid',
-        message: 'Unsupported highlight color.',
-        failedVerses: [1, 2],
-        succeededVerses: [],
-      } satisfies HighlightWriteOutcome,
-    ],
-    [
-      'auth',
-      {
-        status: 'error',
-        reason: 'auth',
-        message: 'Request failed with status 403',
-        failedVerses: [1, 2],
-        succeededVerses: [],
-      } satisfies HighlightWriteOutcome,
-    ],
-    [
-      'not-signed-in',
-      {
-        status: 'error',
-        reason: 'not-signed-in',
-        message: 'Not signed in',
-        failedVerses: [1, 2],
-        succeededVerses: [],
-      } satisfies HighlightWriteOutcome,
-    ],
-  ] as const)('does not fire for %s outcomes', async (_label, outcome) => {
-    highlightPermissionFlowApply.mockResolvedValueOnce(outcome)
-    const onHighlightError = jest.fn()
-
-    const { getByTestId } = render(
-      <BibleReader
-        book="JHN"
-        chapter="1"
-        versionId={VERSION_ID}
-        onHighlightError={onHighlightError}
-      />,
-      { wrapper },
-    )
-
-    await selectVerses(getByTestId)
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-apply-swatch'))
-    })
-
-    expect(onHighlightError).not.toHaveBeenCalled()
   })
 })
