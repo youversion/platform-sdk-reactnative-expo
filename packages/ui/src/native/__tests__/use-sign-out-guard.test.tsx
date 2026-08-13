@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native'
 import * as core from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import { useSignOutGuard } from '../use-sign-out-guard'
@@ -133,5 +133,36 @@ describe('useSignOutGuard', () => {
     })
 
     expect(hasQueued).toHaveBeenCalledWith(USER_ID)
+  })
+
+  describe('web', () => {
+    const originalOs = Platform.OS
+
+    afterEach(() => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: originalOs,
+      })
+    })
+
+    it('signs out immediately without raising Alert', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'web',
+      })
+      const { result } = renderHook(
+        () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
+        { wrapper },
+      )
+
+      await act(async () => {
+        await result.current?.()
+      })
+
+      expect(Alert.alert).not.toHaveBeenCalled()
+      expect(signOut).toHaveBeenCalledTimes(1)
+    })
   })
 })

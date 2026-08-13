@@ -39,6 +39,21 @@ describe('reportHighlightWriteError', () => {
     ).not.toThrow()
   })
 
+  it('swallows a throwing onHighlightError callback', () => {
+    const onHighlightError = jest.fn(() => {
+      throw new Error('consumer blew up')
+    })
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    expect(() =>
+      reportHighlightWriteError({ status: 'queued', verses: [1, 2] }, onHighlightError),
+    ).not.toThrow()
+    expect(onHighlightError).toHaveBeenCalledTimes(1)
+    expect(consoleError).toHaveBeenCalledWith('onHighlightError failed:', expect.any(Error))
+
+    consoleError.mockRestore()
+  })
+
   it.each([
     ['ok', { status: 'ok', verses: [1, 2] } satisfies HighlightWriteOutcome],
     ['noop', { status: 'noop' } satisfies HighlightWriteOutcome],

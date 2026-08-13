@@ -1,5 +1,5 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
-import { Platform, Pressable, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet, Text } from 'react-native'
 import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { BibleAppLogo } from './bible-app-logo'
@@ -24,24 +24,22 @@ export function YouVersionAuthButton({
   text,
 }: YouVersionAuthButtonProps) {
   const auth = useYVAuth()
-  const { isAuthenticated, signIn, signOut } = auth
+  const { isAuthenticated, signIn } = auth
   const guardedSignOut = useSignOutGuard(auth)
-  // `Alert.alert` is a no-op on react-native-web, so web signs out unprompted.
-  const signOutAction = Platform.OS === 'web' || !signOut ? signOut : guardedSignOut
   const { t, i18n } = useSdkTranslation()
 
   const authFunction = async () => {
     try {
       if (mode === 'auto') {
         if (isAuthenticated) {
-          await signOutAction?.()
+          await guardedSignOut?.()
         } else {
           await signIn()
         }
       } else if (mode === 'signIn') {
         await signIn()
       } else {
-        await signOutAction?.()
+        await guardedSignOut?.()
       }
     } catch (error) {
       console.error(error)

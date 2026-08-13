@@ -208,7 +208,6 @@ export function BibleReader({
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
-  const signOut = auth?.signOut
   const guardedSignOut = useSignOutGuard(auth)
   const resolvedTheme = useTheme(theme)
 
@@ -565,8 +564,7 @@ export function BibleReader({
           onVerseSelect={handleVerseSelect}
           clearSelectionSignal={clearSelectionSignal + internalClearCount}
           onSignInPress={signIn}
-          // `Alert.alert` is a no-op on react-native-web, so web signs out unprompted.
-          onSignOutPress={Platform.OS === 'web' || !signOut ? signOut : guardedSignOut}
+          onSignOutPress={guardedSignOut}
           userInfo={userInfo}
           theme={resolvedTheme}
           book={book}

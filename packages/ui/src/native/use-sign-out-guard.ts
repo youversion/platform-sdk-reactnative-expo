@@ -1,6 +1,6 @@
 import { hasQueuedHighlightWrites } from '@youversion/platform-react-native-expo-core'
 import { useCallback } from 'react'
-import { Alert } from 'react-native'
+import { Alert, Platform } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 
@@ -23,6 +23,8 @@ export type SignOutGuardAuth = {
  * confirm the guard calls `signOut()` only — core's `clearAuthState` clears the
  * queue and cache. Cancelling leaves the user signed in and the queue intact.
  *
+ * On web, `Alert.alert` is a no-op, so the guard calls `signOut()` directly.
+ *
  * Returns `undefined` when there is nothing to sign out of, so callers can pass
  * the result straight through to an optional handler prop.
  */
@@ -33,6 +35,11 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
 
   const guardedSignOut = useCallback(async () => {
     if (signOut === undefined) {
+      return
+    }
+
+    if (Platform.OS === 'web') {
+      await signOut()
       return
     }
 

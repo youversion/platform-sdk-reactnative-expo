@@ -11,6 +11,17 @@ export type HighlightWriteError = {
   message?: string
 }
 
+function invokeHighlightErrorHandler(
+  onHighlightError: (error: HighlightWriteError) => void,
+  error: HighlightWriteError,
+): void {
+  try {
+    onHighlightError(error)
+  } catch (err) {
+    console.error('onHighlightError failed:', err)
+  }
+}
+
 export function reportHighlightWriteError(
   outcome: HighlightWriteOutcome,
   onHighlightError?: (error: HighlightWriteError) => void,
@@ -19,11 +30,11 @@ export function reportHighlightWriteError(
     return
   }
   if (outcome.status === 'queued') {
-    onHighlightError({ status: 'queued', verses: outcome.verses })
+    invokeHighlightErrorHandler(onHighlightError, { status: 'queued', verses: outcome.verses })
     return
   }
   if (outcome.status === 'error' && outcome.reason === 'transient') {
-    onHighlightError({
+    invokeHighlightErrorHandler(onHighlightError, {
       status: 'error',
       reason: 'transient',
       verses: outcome.failedVerses,
