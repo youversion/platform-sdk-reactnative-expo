@@ -52,20 +52,20 @@ describe('useSignOutGuard', () => {
     expect(result.current).toBeUndefined()
   })
 
-  it('returns undefined when the user is signed out', async () => {
+  it('signs out without Alert when the user is signed out', async () => {
     const { result } = renderHook(
       () => useSignOutGuard({ signOut, isAuthenticated: false, userInfo: null }),
       { wrapper },
     )
 
-    expect(result.current).toBeUndefined()
+    expect(result.current).toBeDefined()
 
     await act(async () => {
       await result.current?.()
     })
 
     expect(Alert.alert).not.toHaveBeenCalled()
-    expect(signOut).not.toHaveBeenCalled()
+    expect(signOut).toHaveBeenCalledTimes(1)
   })
 
   it('shows the normal sign-out alert when nothing is queued', async () => {

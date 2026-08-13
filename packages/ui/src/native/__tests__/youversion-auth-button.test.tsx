@@ -223,14 +223,14 @@ describe('YouVersionAuthButton press behavior', () => {
     expect(mockSignOut).not.toHaveBeenCalled()
   })
 
-  it('does nothing when mode="signOut" and unauthenticated', async () => {
+  it('calls signOut without Alert when mode="signOut" and unauthenticated', async () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
     await user.press(screen.getByText(/sign out of/i))
 
     expect(Alert.alert).not.toHaveBeenCalled()
-    expect(mockSignOut).not.toHaveBeenCalled()
+    expect(mockSignOut).toHaveBeenCalledTimes(1)
   })
 
   it('signs out immediately on web without raising Alert', async () => {

@@ -26,8 +26,12 @@ export type SignOutGuardAuth = {
  *
  * On web, `Alert.alert` is a no-op, so the guard calls `signOut()` directly.
  *
- * Returns `undefined` when there is nothing to sign out of, so callers can pass
- * the result straight through to an optional handler prop.
+ * When auth is configured but `isAuthenticated` is false (or has not caught up with
+ * a stored session), the guard still runs `signOut()` to clear leftover credentials
+ * — no Alert is shown. The Alert runs only when the user is authenticated.
+ *
+ * Returns `undefined` when auth is not configured (`signOut` is missing), so callers
+ * can pass the result straight through to an optional handler prop.
  */
 export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) | undefined {
   const { t } = useSdkTranslation()
@@ -37,6 +41,11 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
 
   const guardedSignOut = useCallback(async () => {
     if (signOut === undefined) {
+      return
+    }
+
+    if (!isAuthenticated) {
+      await signOut().catch((err) => console.error(err))
       return
     }
 
@@ -61,9 +70,9 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
         },
       ],
     )
-  }, [signOut, userId, t])
+  }, [signOut, isAuthenticated, userId, t])
 
-  if (signOut === undefined || !isAuthenticated) {
+  if (signOut === undefined) {
     return undefined
   }
 
