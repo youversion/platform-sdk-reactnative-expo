@@ -104,7 +104,7 @@ function stubAuth(isAuthenticated: boolean) {
   const value: AuthValue = {
     isAuthenticated,
     accessToken: isAuthenticated ? 'test-token' : null,
-    userInfo: null,
+    userInfo: isAuthenticated ? { id: 'test-user' } : null,
     error: null,
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
@@ -112,7 +112,7 @@ function stubAuth(isAuthenticated: boolean) {
     ensureFreshToken: jest.fn(async () => undefined),
     getAccessToken: jest.fn(async () =>
       isAuthenticated
-        ? ({ status: 'ok', token: 'test-token', userId: null } as const)
+        ? ({ status: 'ok', token: 'test-token', userId: 'test-user' } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
     ),
     isLoading: false,

@@ -69,14 +69,9 @@ describe('deriveUserInfo', () => {
     })
   })
 
-  it('returns undefined for non-string field values', () => {
-    const jwt = makeJwt({ sub: 123, name: null, email: { x: 1 }, profile_picture: false })
-    expect(deriveUserInfo(jwt)).toEqual({
-      id: undefined,
-      name: undefined,
-      email: undefined,
-      avatarUrl: undefined,
-    })
+  it('returns null when sub is missing or not a string', () => {
+    expect(deriveUserInfo(makeJwt({ name: 'Ada' }))).toBeNull()
+    expect(deriveUserInfo(makeJwt({ sub: 123, name: null, email: { x: 1 } }))).toBeNull()
   })
 
   it('ignores extra claims', () => {
@@ -91,7 +86,7 @@ describe('deriveUserInfo', () => {
 
   it('drops a sentinel profile_picture URL (backend "no photo" placeholder)', () => {
     const jwt = makeJwt({ sub: 'u1', profile_picture: 'https://none/' })
-    expect(deriveUserInfo(jwt).avatarUrl).toBeUndefined()
+    expect(deriveUserInfo(jwt)?.avatarUrl).toBeUndefined()
   })
 })
 

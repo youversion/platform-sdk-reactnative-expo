@@ -16,7 +16,7 @@ import {
   saveGrantedPermissions,
 } from './granted-permissions-cache'
 import { refreshTokens, TokenEndpointError } from './http'
-import { sanitizeAvatarUrl } from './id-token'
+import { deriveUserInfo, sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
@@ -59,6 +59,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // token it must send is the one that refresh just wrote, not the one this
   // render captured.
   const accessTokenRef = useRef<string | null>(null)
+  const idTokenRef = useRef<string | null>(null)
 
   // Latest identity, for a read that has to outlive a render: the data-exchange
   // initiator guard needs who is signed in *now*, once the browser comes back,
@@ -99,10 +100,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const setAuthState = useCallback(
     async (tokens: StoredTokens, user?: YVUserInfo) => {
+      if (user !== undefined && typeof user.id !== 'string') {
+        throw new Error('Cannot commit session without user id')
+      }
+
       await saveTokens(tokens)
       expiryRef.current = tokens.expiryDate
       refreshTokenRef.current = tokens.refreshToken
       accessTokenRef.current = tokens.accessToken
+      idTokenRef.current = tokens.idToken
       setAccessToken(tokens.accessToken)
 
       if (user) {
@@ -139,10 +145,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     expiryRef.current = null
     refreshTokenRef.current = null
     accessTokenRef.current = null
+    idTokenRef.current = null
     setAccessToken(null)
     setIdentity(null)
     setError(null)
-    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
+    await saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
   }, [invalidatePermissions, setIdentity])
 
   const refreshToken = useCallback(
@@ -181,6 +188,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
             accessToken: response.access_token,
             refreshToken: response.refresh_token,
             expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
+            idToken: typeof response.id_token === 'string' ? response.id_token : idTokenRef.current,
           })
         } catch (e) {
           if (e instanceof TokenEndpointError && e.isRevoked) {
@@ -232,8 +240,13 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
         const { setAuthState, refreshToken, clearAuthState } = authActionsRef.current
         if (stored.refreshToken) {
-          await setAuthState(stored)
-          await refreshToken()
+          const user = resolveSessionUser(loadCachedUserInfo(), stored.idToken)
+          if (user === null) {
+            await clearAuthState()
+          } else {
+            await setAuthState(stored, user)
+            await refreshToken()
+          }
         } else {
           await clearAuthState()
         }
@@ -277,16 +290,20 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       if (result.kind === 'cancel') {
         return
       }
+      if (typeof result.userInfo.id !== 'string') {
+        throw new Error('Sign-in did not return a user id')
+      }
       await setAuthState(
         {
           accessToken: result.tokens.access_token,
           refreshToken: result.tokens.refresh_token,
+          idToken: result.tokens.id_token ?? null,
           expiryDate: new Date(Date.now() + Number(result.tokens.expires_in) * 1000),
         },
         result.userInfo,
       )
 
-      const nextUserId = result.userInfo.id ?? null
+      const nextUserId = result.userInfo.id
       if (result.grantedPermissions != null) {
         saveGrantedPermissions(nextUserId, result.grantedPermissions)
         setGrantedPermissions(result.grantedPermissions)
@@ -344,8 +361,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     // write both, so a caller checking the owner it captured cannot be handed a
     // token from the other side of a sign-in.
     const token = accessTokenRef.current
-    const userId = userInfoRef.current?.id ?? null
-    if (refreshTokenRef.current === null || token === null) {
+    const userId = userInfoRef.current?.id
+    if (refreshTokenRef.current === null || token === null || typeof userId !== 'string') {
       return { status: 'unavailable', reason: 'signed-out' }
     }
 
@@ -501,7 +518,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const value: AuthContextValue = useMemo(
     () => ({
-      isAuthenticated: accessToken !== null,
+      isAuthenticated: accessToken !== null && typeof userInfo?.id === 'string',
       accessToken,
       userInfo,
       error,
@@ -548,18 +565,24 @@ function permissionKey(permissions: readonly AuthPermission[]): string {
 }
 
 // Validate untrusted cached JSON instead of blindly casting it to YVUserInfo.
-// The cache can predate the current schema, be hand-tampered, or be corrupt, so
-// each identity field falls back to undefined if it isn't a string rather than
-// trusting `as` — a corrupt `id` won't discard a valid `email`. avatarUrl is
-// left unknown here and run through sanitizeAvatarUrl below: it not only enforces
-// the type but also drops placeholders (e.g. "https://none/") persisted by a
-// build predating sanitizeAvatarUrl, since deriveUserInfo only runs at sign-in.
+// The cache can predate the current schema, be hand-tampered, or be corrupt.
+// Records without a string `id` are dropped — a signed-in session always has one.
 const cachedUserInfoSchema = z.object({
-  id: z.string().optional().catch(undefined),
+  id: z.string(),
   name: z.string().optional().catch(undefined),
   email: z.string().optional().catch(undefined),
   avatarUrl: z.unknown().optional(),
 })
+
+function resolveSessionUser(cached: YVUserInfo | null, idToken: string | null): YVUserInfo | null {
+  if (cached !== null) {
+    return cached
+  }
+  if (idToken === null) {
+    return null
+  }
+  return deriveUserInfo(idToken)
+}
 
 function loadCachedUserInfo(): YVUserInfo | null {
   try {

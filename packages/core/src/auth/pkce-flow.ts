@@ -109,7 +109,12 @@ export async function signInWithPKCE({
     throw new Error('Nonce mismatch - possible id_token replay')
   }
 
-  return { kind: 'success', tokens, userInfo: deriveUserInfo(tokens.id_token), grantedPermissions }
+  const userInfo = deriveUserInfo(tokens.id_token)
+  if (userInfo === null) {
+    throw new Error('id_token missing sub claim')
+  }
+
+  return { kind: 'success', tokens, userInfo, grantedPermissions }
 }
 
 async function obtainCodeFromCallback({

@@ -5,6 +5,7 @@ import { MMKV_AUTH_KEYS, SECURE_STORAGE_KEYS } from './constants'
 export type StoredTokens = {
   accessToken: string | null
   refreshToken: string | null
+  idToken: string | null
   expiryDate: Date | null
 }
 
@@ -14,6 +15,7 @@ export async function saveTokens(tokens: StoredTokens): Promise<void> {
   await Promise.all([
     writeSecureValue(SECURE_STORAGE_KEYS.accessToken, tokens.accessToken),
     writeSecureValue(SECURE_STORAGE_KEYS.refreshToken, tokens.refreshToken),
+    writeSecureValue(SECURE_STORAGE_KEYS.idToken, tokens.idToken),
   ])
   writeExpiry(tokens.expiryDate)
 }
@@ -35,15 +37,17 @@ function writeExpiry(expiryDate: Date | null): void {
 }
 
 export async function loadTokens(): Promise<StoredTokens> {
-  const [accessToken, refreshToken] = await Promise.all([
+  const [accessToken, refreshToken, idToken] = await Promise.all([
     secureStorage.get(SECURE_STORAGE_KEYS.accessToken),
     secureStorage.get(SECURE_STORAGE_KEYS.refreshToken),
+    secureStorage.get(SECURE_STORAGE_KEYS.idToken),
   ])
 
   const expiryISO = mmkvStorage.getString(MMKV_AUTH_KEYS.expiryDateISO)
   return {
     accessToken,
     refreshToken,
+    idToken,
     expiryDate: expiryISO ? new Date(expiryISO) : null,
   }
 }

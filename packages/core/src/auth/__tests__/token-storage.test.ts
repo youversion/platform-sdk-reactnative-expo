@@ -33,6 +33,7 @@ jest.mock('../../storage/mmkv-storage', () => ({
 const fullTokens: StoredTokens = {
   accessToken: 'access',
   refreshToken: 'refresh',
+  idToken: 'id.jwt.token',
   expiryDate: new Date('2030-01-01T00:00:00.000Z'),
 }
 
@@ -47,6 +48,7 @@ describe('saveTokens', () => {
     await saveTokens(fullTokens)
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken, 'access')
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken, 'refresh')
+    expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.idToken, 'id.jwt.token')
   })
 
   it('writes expiryDate as an ISO string under the MMKV_AUTH key', async () => {
@@ -58,9 +60,10 @@ describe('saveTokens', () => {
   })
 
   it('removes each secure value when its token is null', async () => {
-    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
+    await saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null })
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken)
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken)
+    expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.idToken)
     expect(secureStorage.set).not.toHaveBeenCalled()
   })
 
@@ -78,7 +81,7 @@ describe('saveTokens', () => {
     })
 
     await expect(
-      saveTokens({ accessToken: null, refreshToken: null, expiryDate: null }),
+      saveTokens({ accessToken: null, refreshToken: null, idToken: null, expiryDate: null }),
     ).resolves.toBeUndefined()
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken)
     expect(secureStorage.remove).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.refreshToken)
@@ -98,6 +101,7 @@ describe('saveTokens', () => {
     await saveTokens({
       accessToken: 'a',
       refreshToken: null,
+      idToken: null,
       expiryDate: new Date('2030-01-01T00:00:00.000Z'),
     })
     expect(secureStorage.set).toHaveBeenCalledWith(SECURE_STORAGE_KEYS.accessToken, 'a')
@@ -115,6 +119,7 @@ describe('loadTokens', () => {
     expect(await loadTokens()).toEqual({
       accessToken: null,
       refreshToken: null,
+      idToken: null,
       expiryDate: null,
     })
   })

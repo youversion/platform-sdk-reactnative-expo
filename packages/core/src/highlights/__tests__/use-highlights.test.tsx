@@ -4,6 +4,7 @@ import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
+import type { YVUserInfo } from '../../auth/types'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
 import type { HighlightsApiError } from '../api'
@@ -130,11 +131,11 @@ const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
 
 function defaultGetAccessToken(): Promise<AccessTokenResult> {
   const token = currentAuth?.accessToken ?? null
-  return Promise.resolve(
-    token === null
-      ? { status: 'unavailable', reason: 'signed-out' }
-      : { status: 'ok', token, userId: currentAuth?.userInfo?.id ?? null },
-  )
+  const userId = currentAuth?.userInfo?.id
+  if (token === null || typeof userId !== 'string') {
+    return Promise.resolve({ status: 'unavailable', reason: 'signed-out' })
+  }
+  return Promise.resolve({ status: 'ok', token, userId })
 }
 
 function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
@@ -1538,7 +1539,7 @@ describe('missing user id', () => {
     const noUserId: AuthShape = {
       isAuthenticated: true,
       accessToken: 'token-1',
-      userInfo: { name: 'Someone' },
+      userInfo: { name: 'Someone' } as YVUserInfo,
       isLoading: false,
     }
     mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', YELLOW)]))
@@ -1569,7 +1570,7 @@ describe('missing user id', () => {
     const { result } = renderUseHighlights({
       isAuthenticated: true,
       accessToken: 'token-1',
-      userInfo: { name: 'Someone' },
+      userInfo: { name: 'Someone' } as YVUserInfo,
       isLoading: false,
     })
 

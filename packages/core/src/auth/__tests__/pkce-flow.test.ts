@@ -299,6 +299,18 @@ describe('signInWithPKCE — id_token validation', () => {
       'Nonce mismatch - possible id_token replay',
     )
   })
+
+  it('throws when the id_token has no string sub claim', async () => {
+    arrangeHappyPath()
+    mockExchange.mockResolvedValue({
+      access_token: 'a',
+      refresh_token: 'r',
+      id_token: makeJwt({ nonce: 'NONCE', sub: 123 }),
+      expires_in: '3600',
+      token_type: 'Bearer',
+    })
+    await expect(signInWithPKCE(defaultProps())).rejects.toThrow('id_token missing sub claim')
+  })
 })
 
 describe('signInWithPKCE — happy path', () => {

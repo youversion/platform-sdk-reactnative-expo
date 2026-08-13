@@ -38,7 +38,7 @@ export type AuthConfig = {
 }
 
 export type YVUserInfo = {
-  id?: string
+  id: string
   name?: string
   email?: string
   avatarUrl?: string // resolved URL, not the {width} template the web SDK exposes

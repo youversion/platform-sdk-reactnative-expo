@@ -15,7 +15,7 @@ import type { AuthPermission, YVUserInfo } from './types'
  * lags the token by a render and can pass an owner check it should have failed.
  */
 export type AccessTokenResult =
-  | { status: 'ok'; token: string; userId: string | null }
+  | { status: 'ok'; token: string; userId: string }
   | { status: 'unavailable'; reason: 'signed-out' | 'refresh-failed' }
 
 export type AuthContextValue = {

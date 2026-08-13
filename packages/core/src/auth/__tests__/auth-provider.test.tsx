@@ -89,7 +89,32 @@ function makeJwt(payload: unknown): string {
 const noStoredTokens = {
   accessToken: null,
   refreshToken: null,
+  idToken: null,
   expiryDate: null,
+}
+
+const clearedTokens = { accessToken: null, refreshToken: null, idToken: null, expiryDate: null }
+
+function storedSessionTokens(
+  overrides: Partial<{
+    accessToken: string
+    refreshToken: string
+    idToken: string | null
+    expiryDate: Date
+  }> = {},
+) {
+  return {
+    accessToken: 'stored-access',
+    refreshToken: 'stored-refresh',
+    idToken: validTokens.id_token,
+    expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    ...overrides,
+  }
+}
+
+function seedSignedInColdStart(userInfo = adaUserInfo) {
+  mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(userInfo))
+  mockLoadTokens.mockResolvedValue(storedSessionTokens())
 }
 
 const validTokens = {
@@ -240,12 +265,7 @@ describe('AuthProvider — mount', () => {
   })
 
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    seedSignedInColdStart()
 
     render(
       <AuthProvider {...defaultProps}>
@@ -265,11 +285,7 @@ describe('AuthProvider — mount', () => {
       MMKV_AUTH_KEYS.cachedUserInfo,
       JSON.stringify({ id: 'u1', name: 'Ada', avatarUrl: 'https://none/' }),
     )
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens())
 
     render(
       <AuthProvider {...defaultProps}>
@@ -281,16 +297,12 @@ describe('AuthProvider — mount', () => {
     expect(JSON.parse(getText('userInfo')).avatarUrl).toBeUndefined()
   })
 
-  it('drops wrong-typed fields from a tampered/corrupt cached userInfo instead of trusting them', async () => {
+  it('drops cached userInfo without a string id and clears the session when no id_token can repair it', async () => {
     mockMmkv.set(
       MMKV_AUTH_KEYS.cachedUserInfo,
       JSON.stringify({ id: 42, name: { first: 'Ada' }, email: 'ada@example.com' }),
     )
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ idToken: null }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -299,21 +311,15 @@ describe('AuthProvider — mount', () => {
     )
 
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
-    expect(JSON.parse(getText('userInfo'))).toEqual({
-      id: undefined,
-      name: undefined,
-      email: 'ada@example.com',
-      avatarUrl: undefined,
-    })
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('accessToken')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
   })
 
-  it('returns null userInfo when cached JSON is a non-object (e.g. "null")', async () => {
+  it('returns null userInfo when cached JSON is a non-object and clears tokens without an id', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(null))
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ idToken: null }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -323,14 +329,14 @@ describe('AuthProvider — mount', () => {
 
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
     expect(getText('userInfo')).toBe('null')
+    expect(getText('isAuthenticated')).toBe('false')
   })
 
   it('triggers a refresh when the stored token is expired and applies the new tokens', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stale-access',
-      refreshToken: 'stale-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     mockRefreshTokens.mockResolvedValue(validTokens)
 
     render(
@@ -344,17 +350,16 @@ describe('AuthProvider — mount', () => {
     expect(mockRefreshTokens).toHaveBeenCalledWith({
       apiHost: 'api.example.com',
       appKey: 'appkey',
-      refreshToken: 'stale-refresh',
+      refreshToken: 'stored-refresh',
     })
     expect(getText('accessToken')).toBe('new-access')
   })
 
   it('sets error when refreshing an expired stored token fails', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stale-access',
-      refreshToken: 'stale-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     mockRefreshTokens.mockRejectedValue(new Error('refresh failed'))
 
     render(
@@ -380,6 +385,83 @@ describe('AuthProvider — mount', () => {
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
     expect(getText('error')).toBe('storage offline')
     expect(getText('isAuthenticated')).toBe('false')
+  })
+})
+
+describe('AuthProvider — signed-in user id invariant', () => {
+  it('clears the session on cold start when tokens exist but neither cache nor id_token yields an id', async () => {
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ idToken: null }))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('userInfo')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
+  it('repairs the session user from a stored id_token sub when cached userInfo is missing', async () => {
+    mockLoadTokens.mockResolvedValue(storedSessionTokens())
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(JSON.parse(getText('userInfo'))).toEqual({
+      id: 'u1',
+      name: 'Ada',
+      email: undefined,
+      avatarUrl: undefined,
+    })
+  })
+
+  it('reports isAuthenticated false when a token is present in memory but userInfo has no id', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: { id: undefined as unknown as string },
+      grantedPermissions: null,
+    })
+    fireEvent.press(screen.getByTestId('signIn'))
+    await waitFor(() =>
+      expect(getText('signInOutcome')).toBe('rejected: Sign-in did not return a user id'),
+    )
+
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('isAuthenticated')).toBe('false')
+  })
+
+  it('never exposes userInfo without a string id', async () => {
+    seedSignedInColdStart()
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    const parsed = JSON.parse(getText('userInfo')) as { id: string }
+    expect(typeof parsed.id).toBe('string')
   })
 })
 
@@ -447,6 +529,32 @@ describe('AuthProvider — signIn', () => {
     expect(getText('error')).toBe('PKCE blew up')
     expect(getText('isAuthenticated')).toBe('false')
   })
+
+  it('does not commit when sign-in returns user info without an id', async () => {
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: { id: undefined as unknown as string, name: 'Ada' },
+      grantedPermissions: null,
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    mockSaveTokens.mockClear()
+
+    fireEvent.press(screen.getByTestId('signIn'))
+
+    await waitFor(() =>
+      expect(getText('signInOutcome')).toBe('rejected: Sign-in did not return a user id'),
+    )
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('accessToken')).toBe('null')
+    expect(mockSaveTokens).not.toHaveBeenCalled()
+  })
 })
 
 describe('AuthProvider — signOut', () => {
@@ -454,11 +562,7 @@ describe('AuthProvider — signOut', () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     setCachedHighlights('u1', JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }])
     parkWrite('u1', JHN3)
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ accessToken: 'a', refreshToken: 'r' }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -472,11 +576,7 @@ describe('AuthProvider — signOut', () => {
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(getText('accessToken')).toBe('null')
     expect(getText('userInfo')).toBe('null')
-    expect(mockSaveTokens).toHaveBeenCalledWith({
-      accessToken: null,
-      refreshToken: null,
-      expiryDate: null,
-    })
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(getCachedHighlights('u1', JHN3)).toBeNull()
     expect(listQueuedScopes('u1')).toEqual([])
@@ -488,11 +588,8 @@ describe('AuthProvider — signOut', () => {
     parkWrite('u1', JHN3)
     parkWrite('u1', GEN1)
     parkWrite('u2', PSA23)
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ accessToken: 'a', refreshToken: 'r' }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -513,11 +610,7 @@ describe('AuthProvider — signOut', () => {
   it('still signs out when the cache purges cannot reach the store', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     parkWrite('u1', JHN3)
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ accessToken: 'a', refreshToken: 'r' }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -532,23 +625,15 @@ describe('AuthProvider — signOut', () => {
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(getText('accessToken')).toBe('null')
     expect(getText('userInfo')).toBe('null')
-    expect(mockSaveTokens).toHaveBeenCalledWith({
-      accessToken: null,
-      refreshToken: null,
-      expiryDate: null,
-    })
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
   })
 })
 
 describe('AuthProvider — refresh failure policy', () => {
-  const expiredStored = {
-    accessToken: 'stored-access',
-    refreshToken: 'stored-refresh',
-    expiryDate: new Date(Date.now() - 1000),
-  }
-  const clearedTokens = { accessToken: null, refreshToken: null, expiryDate: null }
+  const expiredStored = storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) })
 
   it('keeps tokens on a transient error (e.g. network failure) so the user can retry', async () => {
+    seedSignedInColdStart()
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
 
@@ -566,6 +651,7 @@ describe('AuthProvider — refresh failure policy', () => {
   })
 
   it('clears tokens when the refresh token is revoked (TokenEndpointError 401)', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'user-1' }))
     setCachedHighlights('user-1', JHN3, [
       { version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' },
     ])
@@ -591,11 +677,14 @@ describe('AuthProvider — refresh failure policy', () => {
 
 describe('AuthProvider — refresh lock', () => {
   it('prevents concurrent refresh calls (only one HTTP call while one is in flight)', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({
+        accessToken: 'a',
+        refreshToken: 'r',
+        expiryDate: new Date(Date.now() - 1000),
+      }),
+    )
 
     let resolveRefresh: (v: TokenResponse) => void = () => {}
     mockRefreshTokens.mockReturnValue(
@@ -625,11 +714,14 @@ describe('AuthProvider — refresh lock', () => {
   })
 
   it('joins an in-flight refresh instead of resolving on the stale token', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'expired-access',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({
+        accessToken: 'expired-access',
+        refreshToken: 'r',
+        expiryDate: new Date(Date.now() - 1000),
+      }),
+    )
 
     let resolveRefresh: (v: TokenResponse) => void = () => {}
     mockRefreshTokens.mockReturnValue(
@@ -678,8 +770,6 @@ describe('AuthProvider — refresh lock', () => {
 })
 
 describe('AuthProvider — getAccessToken', () => {
-  const clearedTokens = { accessToken: null, refreshToken: null, expiryDate: null }
-
   function renderProvider() {
     return render(
       <AuthProvider {...defaultProps}>
@@ -689,27 +779,22 @@ describe('AuthProvider — getAccessToken', () => {
   }
 
   it('resolves ok with the current token, with no refresh call, when it is beyond the leeway', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    seedSignedInColdStart()
 
     renderProvider()
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
 
     const result = await act(async () => latestAuth!.getAccessToken())
 
-    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: 'u1' })
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
   it('refreshes an expired token and resolves ok with the new one', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     // Bootstrap's refresh lands a token that is *still* at expiry, so the
     // accessor's own leeway check genuinely triggers the second refresh.
     mockRefreshTokens.mockResolvedValueOnce({
@@ -724,16 +809,15 @@ describe('AuthProvider — getAccessToken', () => {
     mockRefreshTokens.mockResolvedValueOnce({ ...validTokens, access_token: 'fresh-access' })
     const result = await act(async () => latestAuth!.getAccessToken())
 
-    expect(result).toEqual({ status: 'ok', token: 'fresh-access', userId: null })
+    expect(result).toEqual({ status: 'ok', token: 'fresh-access', userId: 'u1' })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
   })
 
   it('reports refresh-failed on a transient refresh error, keeping tokens and the session', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
 
     renderProvider()
@@ -752,11 +836,10 @@ describe('AuthProvider — getAccessToken', () => {
   // The leeway triggers the refresh; it does not decide usable. A token 30s from
   // expiry still works, so a failed refresh must hand it over, not refuse it.
   it('resolves ok with a token inside the leeway window that the refresh could not replace', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() + 30 * 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() + 30 * 1000) }),
+    )
     mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
 
     renderProvider()
@@ -764,17 +847,16 @@ describe('AuthProvider — getAccessToken', () => {
 
     const result = await act(async () => latestAuth!.getAccessToken())
 
-    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: null })
+    expect(result).toEqual({ status: 'ok', token: 'stored-access', userId: 'u1' })
     // Pins the failed-refresh path, not the fresh-token shortcut.
     expect(mockRefreshTokens).toHaveBeenCalled()
   })
 
   it('reports signed-out when the refresh finds the token revoked and clears the session', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     // Bootstrap keeps the token stale; the accessor's refresh hits the revocation.
     mockRefreshTokens
       .mockResolvedValueOnce({ ...validTokens, access_token: 'still-stale', expires_in: '0' })
@@ -807,11 +889,12 @@ describe('AuthProvider — getAccessToken', () => {
   // the caller is awaiting cannot hand it a token attributed to the old user.
   it('reports the signed-in user alongside the token, updated by a sign-in as somebody else', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'ada-access',
-      refreshToken: 'ada-refresh',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({
+        accessToken: 'ada-access',
+        refreshToken: 'ada-refresh',
+      }),
+    )
 
     renderProvider()
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
@@ -839,11 +922,14 @@ describe('AuthProvider — getAccessToken', () => {
   })
 
   it('joins an in-flight refresh: concurrent callers share one HTTP call and get the new token', async () => {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'expired-access',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({
+        accessToken: 'expired-access',
+        refreshToken: 'r',
+        expiryDate: new Date(Date.now() - 1000),
+      }),
+    )
 
     let resolveRefresh: (v: TokenResponse) => void = () => {}
     mockRefreshTokens.mockReturnValue(
@@ -867,8 +953,8 @@ describe('AuthProvider — getAccessToken', () => {
       await Promise.all([first, second])
     })
 
-    expect(await first).toEqual({ status: 'ok', token: 'new-access', userId: null })
-    expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: null })
+    expect(await first).toEqual({ status: 'ok', token: 'new-access', userId: 'u1' })
+    expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: 'u1' })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
   })
 })
@@ -955,11 +1041,7 @@ describe('AuthProvider — granted permissions', () => {
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'a',
-      refreshToken: 'r',
-      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
-    })
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ accessToken: 'a', refreshToken: 'r' }))
 
     render(
       <AuthProvider {...defaultProps}>
@@ -1355,11 +1437,10 @@ describe('AuthProvider — requestPermissions', () => {
    * short-circuiting on the leeway check.
    */
   async function signInWithStaleToken() {
-    mockLoadTokens.mockResolvedValue({
-      accessToken: 'stored-access',
-      refreshToken: 'stored-refresh',
-      expiryDate: new Date(Date.now() - 1000),
-    })
+    seedSignedInColdStart()
+    mockLoadTokens.mockResolvedValue(
+      storedSessionTokens({ expiryDate: new Date(Date.now() - 1000) }),
+    )
     mockRefreshTokens.mockResolvedValueOnce({
       ...validTokens,
       access_token: 'stale-access',

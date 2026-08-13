@@ -20,11 +20,15 @@ export function decodeIdToken(jwt: string): IdTokenPayload {
   return JSON.parse(payloadJson)
 }
 
-// Convenience: produce the YVUserInfo shape our hook returns.
-export function deriveUserInfo(idToken: string): YVUserInfo {
+// Convenience: produce the YVUserInfo shape our hook returns. Returns null when
+// the id_token carries no string `sub` — a session must not commit without one.
+export function deriveUserInfo(idToken: string): YVUserInfo | null {
   const p = decodeIdToken(idToken)
+  if (typeof p.sub !== 'string') {
+    return null
+  }
   return {
-    id: typeof p.sub === 'string' ? p.sub : undefined,
+    id: p.sub,
     name: typeof p.name === 'string' ? p.name : undefined,
     email: typeof p.email === 'string' ? p.email : undefined,
     avatarUrl: sanitizeAvatarUrl(p.profile_picture),
