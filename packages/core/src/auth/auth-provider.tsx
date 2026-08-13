@@ -66,10 +66,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // not who was captured in the closure when the flow started.
   //
   // The session id counts identity transitions — sign-in and sign-out, never a
-  // token refresh — so the guard can tell "signed out" from "signed in without
-  // an id", which a null `userInfo.id` alone cannot. Both are written together
-  // by `setIdentity` so they can never disagree; an effect would leave a window
-  // where the session id has moved and the id has not.
+  // token refresh — for the data-exchange initiator guard. A signed-in session
+  // always carries a non-empty `userId`; `userId: null` on the guard means
+  // signed out. Both are written together by `setIdentity` so they can never
+  // disagree; an effect would leave a window where the session id has moved
+  // and the id has not.
   const userInfoRef = useRef<YVUserInfo | null>(userInfo)
   const sessionIdRef = useRef<number>(0)
 

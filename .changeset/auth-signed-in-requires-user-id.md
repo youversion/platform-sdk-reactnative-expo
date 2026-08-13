@@ -1,5 +1,5 @@
 ---
-'@youversion/platform-react-native-expo-core': minor
+'@youversion/platform-react-native-expo-core': major
 ---
 
 Signed-in sessions now always carry a non-empty YouVersion user id.
