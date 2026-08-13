@@ -425,6 +425,40 @@ describe('AuthProvider — signed-in user id invariant', () => {
     })
   })
 
+  it('clears the session on cold start when the stored id_token is malformed', async () => {
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ idToken: 'not-a-jwt' }))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('accessToken')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
+  it('clears the session on cold start when the stored id_token has an empty sub', async () => {
+    mockLoadTokens.mockResolvedValue(storedSessionTokens({ idToken: makeJwt({ sub: '' }) }))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('accessToken')).toBe('null')
+    expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(mockRefreshTokens).not.toHaveBeenCalled()
+  })
+
   it('reports isAuthenticated false when a token is present in memory but userInfo has no id', async () => {
     mockLoadTokens.mockResolvedValue(noStoredTokens)
 

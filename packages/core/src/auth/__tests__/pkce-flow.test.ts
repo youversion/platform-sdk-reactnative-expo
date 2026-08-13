@@ -311,6 +311,18 @@ describe('signInWithPKCE — id_token validation', () => {
     })
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow('id_token missing sub claim')
   })
+
+  it('throws when the id_token has an empty sub claim', async () => {
+    arrangeHappyPath()
+    mockExchange.mockResolvedValue({
+      access_token: 'a',
+      refresh_token: 'r',
+      id_token: makeJwt({ nonce: 'NONCE', sub: '' }),
+      expires_in: '3600',
+      token_type: 'Bearer',
+    })
+    await expect(signInWithPKCE(defaultProps())).rejects.toThrow('id_token missing sub claim')
+  })
 })
 
 describe('signInWithPKCE — happy path', () => {

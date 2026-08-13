@@ -21,10 +21,10 @@ export function decodeIdToken(jwt: string): IdTokenPayload {
 }
 
 // Convenience: produce the YVUserInfo shape our hook returns. Returns null when
-// the id_token carries no string `sub` — a session must not commit without one.
+// the id_token carries no non-empty string `sub` — a session must not commit without one.
 export function deriveUserInfo(idToken: string): YVUserInfo | null {
   const p = decodeIdToken(idToken)
-  if (typeof p.sub !== 'string') {
+  if (typeof p.sub !== 'string' || p.sub.length === 0) {
     return null
   }
   return {

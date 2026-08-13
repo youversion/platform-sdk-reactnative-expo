@@ -69,9 +69,10 @@ describe('deriveUserInfo', () => {
     })
   })
 
-  it('returns null when sub is missing or not a string', () => {
+  it('returns null when sub is missing, not a string, or empty', () => {
     expect(deriveUserInfo(makeJwt({ name: 'Ada' }))).toBeNull()
     expect(deriveUserInfo(makeJwt({ sub: 123, name: null, email: { x: 1 } }))).toBeNull()
+    expect(deriveUserInfo(makeJwt({ sub: '' }))).toBeNull()
   })
 
   it('ignores extra claims', () => {

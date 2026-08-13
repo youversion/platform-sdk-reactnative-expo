@@ -568,7 +568,7 @@ function permissionKey(permissions: readonly AuthPermission[]): string {
 // The cache can predate the current schema, be hand-tampered, or be corrupt.
 // Records without a string `id` are dropped — a signed-in session always has one.
 const cachedUserInfoSchema = z.object({
-  id: z.string(),
+  id: z.string().min(1),
   name: z.string().optional().catch(undefined),
   email: z.string().optional().catch(undefined),
   avatarUrl: z.unknown().optional(),
@@ -581,7 +581,11 @@ function resolveSessionUser(cached: YVUserInfo | null, idToken: string | null): 
   if (idToken === null) {
     return null
   }
-  return deriveUserInfo(idToken)
+  try {
+    return deriveUserInfo(idToken)
+  } catch {
+    return null
+  }
 }
 
 function loadCachedUserInfo(): YVUserInfo | null {
