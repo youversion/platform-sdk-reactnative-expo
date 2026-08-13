@@ -194,5 +194,35 @@ describe('useSignOutGuard', () => {
       expect(Alert.alert).not.toHaveBeenCalled()
       expect(signOut).toHaveBeenCalledTimes(1)
     })
+
+    it('logs rejecting signOut without throwing', async () => {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: 'web',
+      })
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+      const rejectingSignOut = jest.fn(async () => {
+        throw new Error('sign-out failed')
+      })
+      const { result } = renderHook(
+        () =>
+          useSignOutGuard({
+            signOut: rejectingSignOut,
+            isAuthenticated: true,
+            userInfo: { id: USER_ID },
+          }),
+        { wrapper },
+      )
+
+      await act(async () => {
+        await expect(result.current?.()).resolves.toBeUndefined()
+      })
+
+      expect(rejectingSignOut).toHaveBeenCalledTimes(1)
+      expect(consoleError).toHaveBeenCalledWith(expect.any(Error))
+
+      consoleError.mockRestore()
+    })
   })
 })

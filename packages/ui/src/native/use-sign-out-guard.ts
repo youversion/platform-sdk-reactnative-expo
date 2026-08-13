@@ -41,7 +41,7 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
     }
 
     if (Platform.OS === 'web') {
-      await signOut()
+      await signOut().catch((err) => console.error(err))
       return
     }
 
