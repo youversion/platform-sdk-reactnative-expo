@@ -1,6 +1,19 @@
 import type { HighlightWriteOutcome } from '@youversion/platform-react-native-expo-core'
 
-import { reportHighlightWriteError } from '../report-highlight-write-error'
+import {
+  reportHighlightWriteError,
+  type HighlightWriteError,
+} from '../report-highlight-write-error'
+
+type AssertQueuedHasNoReason = Extract<
+  HighlightWriteError,
+  { status: 'queued' }
+> extends { reason?: unknown }
+  ? never
+  : true
+
+const assertQueuedHasNoReason: AssertQueuedHasNoReason = true
+void assertQueuedHasNoReason
 
 describe('reportHighlightWriteError', () => {
   it('fires for queued outcomes', () => {
@@ -110,5 +123,11 @@ describe('reportHighlightWriteError', () => {
     reportHighlightWriteError(outcome, onHighlightError)
 
     expect(onHighlightError).not.toHaveBeenCalled()
+  })
+
+  it('queued member has no reason field at the type level', () => {
+    // @ts-expect-error — queued outcomes never carry reason
+    const illegal: HighlightWriteError = { status: 'queued', reason: 'transient', verses: [1] }
+    void illegal
   })
 })

@@ -4,12 +4,9 @@ import type { HighlightWriteOutcome } from '@youversion/platform-react-native-ex
  * Consumer-facing slice of a highlight write outcome. Fired only for offline or
  * queued writes — not auth, invalid, ok, or noop.
  */
-export type HighlightWriteError = {
-  status: 'queued' | 'error'
-  reason?: 'transient'
-  verses: number[]
-  message?: string
-}
+export type HighlightWriteError =
+  | { status: 'queued'; verses: number[] }
+  | { status: 'error'; reason: 'transient'; verses: number[]; message?: string }
 
 function invokeHighlightErrorHandler(
   onHighlightError: (error: HighlightWriteError) => void,
