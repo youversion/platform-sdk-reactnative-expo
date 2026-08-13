@@ -16,7 +16,9 @@ function invokeHighlightErrorHandler(
   error: HighlightWriteError,
 ): void {
   try {
-    onHighlightError(error)
+    void Promise.resolve(onHighlightError(error)).catch((err) => {
+      console.error('onHighlightError failed:', err)
+    })
   } catch (err) {
     console.error('onHighlightError failed:', err)
   }
