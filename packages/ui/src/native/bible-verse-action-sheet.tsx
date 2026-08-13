@@ -5,6 +5,7 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
+import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
@@ -64,20 +65,10 @@ const SWATCH_GAP = 8
  */
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 
-/** Remaining pixels before an edge's fade retires. */
-const FADE_GATE_PX = 1
-
 /** `fffe00` → `rgba(255, 254, 0, 0.3)`. Input is always 6-char hex, no `#`. */
 function hexToRgba(hex: string, alpha: number): string {
   const value = Number.parseInt(hex, 16)
   return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`
-}
-
-function swatchTrayFadeGates(trayWidth: number, contentWidth: number, scrollX: number) {
-  return {
-    hasScrolledPast: scrollX > FADE_GATE_PX,
-    hasMoreToScroll: contentWidth - trayWidth - scrollX > FADE_GATE_PX,
-  }
 }
 
 export type BibleVerseActionSheetProps = {
@@ -113,25 +104,24 @@ export function BibleVerseActionSheet({
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
 
-  // Each edge shows its fade only while swatches are hidden under it. The gate
-  // is *remaining* scroll distance, not raw overflow, so a fade retires at the
-  // end it guards. Gating on overflow leaves the outermost swatch permanently
-  // dimmed, which reads as disabled.
+  // Each edge shows its fade only while swatches are hidden under it. The
+  // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
+  // trailing edge and distance already scrolled on the leading, not raw
+  // overflow, so a fade retires at the end it guards. Gating on overflow
+  // leaves the outermost swatch permanently dimmed, which reads as disabled.
   //
-  // Layout and offset stay in refs. React state holds only the two booleans the
-  // fades mount on, so a drag does not re-render the sheet every frame.
-  const trayWidthRef = useRef(0)
-  const contentWidthRef = useRef(0)
-  const scrollXRef = useRef(0)
+  // Layout and offset stay in a ref. React state holds only the two booleans
+  // the fades mount on, so a drag does not re-render the sheet every frame.
+  const metricsRef = useRef<SwatchTrayMetrics>({
+    trayWidth: 0,
+    contentWidth: 0,
+    scrollX: 0,
+  })
   const [hasScrolledPast, setHasScrolledPast] = useState(false)
   const [hasMoreToScroll, setHasMoreToScroll] = useState(false)
 
-  const commitFadeGates = () => {
-    const next = swatchTrayFadeGates(
-      trayWidthRef.current,
-      contentWidthRef.current,
-      scrollXRef.current,
-    )
+  const syncFadeGates = () => {
+    const next = swatchTrayFadeGates(metricsRef.current)
     setHasScrolledPast(next.hasScrolledPast)
     setHasMoreToScroll(next.hasMoreToScroll)
   }
@@ -170,16 +160,16 @@ export function BibleVerseActionSheet({
               horizontal
               showsHorizontalScrollIndicator={false}
               onLayout={(event) => {
-                trayWidthRef.current = event.nativeEvent.layout.width
-                commitFadeGates()
+                metricsRef.current.trayWidth = event.nativeEvent.layout.width
+                syncFadeGates()
               }}
               onContentSizeChange={(width) => {
-                contentWidthRef.current = width
-                commitFadeGates()
+                metricsRef.current.contentWidth = width
+                syncFadeGates()
               }}
               onScroll={(event) => {
-                scrollXRef.current = event.nativeEvent.contentOffset.x
-                commitFadeGates()
+                metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
+                syncFadeGates()
               }}
               scrollEventThrottle={16}
               style={styles.swatchScroll}

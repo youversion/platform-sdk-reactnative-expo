@@ -554,8 +554,8 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
   })
 
   /**
-   * Offset lives in a ref, not React state. A later layout pass must still see
-   * it, or both fades would drop the moment the tray remeasured.
+   * Guards a handler that zeros stored offset on remeasure. The fade arithmetic
+   * itself is pinned at layer 1 in `lib/__tests__/verse-action-fade-gates.test.ts`.
    */
   it('keeps both fades after a layout pass mid-strip', async () => {
     stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
