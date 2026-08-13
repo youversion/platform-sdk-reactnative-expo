@@ -1,7 +1,6 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import {
   deriveServerColors,
-  hasQueuedHighlightWrites,
   useHighlightPermissionFlow,
   useYouVersion,
   useYVAuthOptional,
@@ -17,19 +16,23 @@ import type {
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
-import { useCallback, useMemo, useRef, useState } from 'react'
-import { Alert, Platform, Share, StyleSheet, View } from 'react-native'
+import type { Ref } from 'react'
+import { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks/use-theme'
-import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
+import {
+  reportHighlightWriteError,
+  type HighlightWriteError,
+} from '../lib/report-highlight-write-error'
 import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
@@ -41,6 +44,7 @@ import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
+import { useSignOutGuard } from './use-sign-out-guard'
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -86,6 +90,27 @@ function sameScope(a: HighlightScope, b: HighlightScope): boolean {
  * `@youversion/platform-react-ui` directly.
  */
 export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+export type { HighlightWriteError } from '../lib/report-highlight-write-error'
+
+/**
+ * The imperative surface of `BibleReader`, reached through a `ref`.
+ *
+ * ```tsx
+ * const reader = useRef<BibleReaderHandle>(null)
+ * useFocusEffect(useCallback(() => { void reader.current?.refreshHighlights() }, []))
+ * <BibleReader ref={reader} />
+ * ```
+ */
+export type BibleReaderHandle = {
+  /**
+   * Re-fetch the highlights for the chapter on screen, picking up anything
+   * created on another device or in the YouVersion app.
+   *
+   * Safe to call at any time: it de-dupes against a fetch already in flight,
+   * no-ops when signed out, and never clears what is already painted.
+   */
+  refreshHighlights: () => Promise<void>
+}
 
 export type BibleReaderProps = Omit<
   DomBibleReaderProps,
@@ -134,6 +159,17 @@ export type BibleReaderProps = Omit<
   onCopy?: (data: BibleReaderShareData) => void | Promise<void>
   /** Share's counterpart to {@link BibleReaderProps.onCopy}. Falls back to RN's `Share.share`. */
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
+  /**
+   * A highlight has not reached the server yet — queued and retrying, or a
+   * transient failure the write queue will keep retrying. The paint stays on
+   * screen; render an offline or pending hint rather than an error toast.
+   */
+  onHighlightError?: (error: HighlightWriteError) => void
+  /**
+   * Imperative handle — see {@link BibleReaderHandle}. React 19 passes `ref`
+   * as an ordinary prop, so there is no `forwardRef` here.
+   */
+  ref?: Ref<BibleReaderHandle>
 }
 
 export function BibleReader({
@@ -161,18 +197,19 @@ export function BibleReader({
   clearSelectionSignal = 0,
   onCopy: consumerOnCopy,
   onShare: consumerOnShare,
+  onHighlightError,
   backgroundColor,
   foregroundColor,
   dom,
+  ref,
 }: BibleReaderProps) {
   const context = useYouVersion()
   const auth = useYVAuthOptional()
   const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
-  const signOut = auth?.signOut
+  const guardedSignOut = useSignOutGuard(auth)
   const resolvedTheme = useTheme(theme)
-  const { t } = useSdkTranslation()
 
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
@@ -225,7 +262,10 @@ export function BibleReader({
     highlights,
     scope: highlightScope,
     remove: removeHighlight,
+    refresh: refreshHighlights,
   } = highlightPermissionFlow.highlights
+
+  useImperativeHandle(ref, () => ({ refreshHighlights }), [refreshHighlights])
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
@@ -309,7 +349,9 @@ export function BibleReader({
       // `remove` goes straight to the unguarded write: a user looking at a
       // highlight already has the permissions it needs (ADR 0016).
       if (swatch.state === 'remove') {
-        void removeHighlight(swatch.color, verses)
+        void removeHighlight(swatch.color, verses).then((outcome) =>
+          reportHighlightWriteError(outcome, onHighlightError),
+        )
         return
       }
       if (needsSignIn) {
@@ -325,7 +367,9 @@ export function BibleReader({
       }
       // Fire-and-forget: the paint is optimistic inside `useHighlights`, so the
       // verse changes color on this frame instead of after the round-trip.
-      void applyHighlight(swatch.color, verses)
+      void applyHighlight(swatch.color, verses).then((outcome) =>
+        reportHighlightWriteError(outcome, onHighlightError),
+      )
     },
     [
       verseSelection,
@@ -333,6 +377,7 @@ export function BibleReader({
       removeHighlight,
       applyHighlight,
       needsSignIn,
+      onHighlightError,
       versionId,
       book,
       chapter,
@@ -350,8 +395,10 @@ export function BibleReader({
     // controlled location change must not hand verse numbers to the current
     // location-scoped flow.
     if (!sameScope(pending.scope, { versionId, book, chapter })) return
-    void applyHighlight(pending.color, pending.verses)
-  }, [applyHighlight, versionId, book, chapter])
+    void applyHighlight(pending.color, pending.verses).then((outcome) =>
+      reportHighlightWriteError(outcome, onHighlightError),
+    )
+  }, [applyHighlight, onHighlightError, versionId, book, chapter])
 
   // "No Thanks", a swipe-down, a backdrop tap, and displacement all land here.
   // Every one discards the intent, and nothing is written.
@@ -467,29 +514,6 @@ export function BibleReader({
     if (data) void handleShare(data)
   }, [verseSelection, handleShare, closeVerseActions])
 
-  // `async` with no `await` on purpose: the DOM wrapper types `onSignOutPress`
-  // as `() => Promise<void>`, so a plain `() => void` handler fails typecheck.
-  const handleSignOutPress = useCallback(async () => {
-    if (!signOut) return
-
-    const hasUnsentHighlights = hasQueuedHighlightWrites(userInfo?.id ?? null)
-
-    Alert.alert(
-      hasUnsentHighlights ? t('signOutPendingHighlightsQuestion') : t('signOutQuestion'),
-      hasUnsentHighlights ? t('signOutPendingHighlightsExplanation') : t('signOutExplanation'),
-      [
-        { text: t('cancel'), style: 'cancel' },
-        {
-          text: hasUnsentHighlights ? t('signOutPendingHighlightsConfirm') : t('signOut'),
-          style: 'destructive',
-          onPress: () => {
-            void signOut()
-          },
-        },
-      ],
-    )
-  }, [signOut, userInfo?.id, t])
-
   const onExternalLinkPress = useCallback(async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
@@ -540,8 +564,7 @@ export function BibleReader({
           onVerseSelect={handleVerseSelect}
           clearSelectionSignal={clearSelectionSignal + internalClearCount}
           onSignInPress={signIn}
-          // `Alert.alert` is a no-op on react-native-web, so web signs out unprompted.
-          onSignOutPress={Platform.OS === 'web' || !signOut ? signOut : handleSignOutPress}
+          onSignOutPress={guardedSignOut}
           userInfo={userInfo}
           theme={resolvedTheme}
           book={book}
