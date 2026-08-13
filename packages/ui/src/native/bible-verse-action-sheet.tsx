@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
+import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
@@ -103,15 +104,27 @@ export function BibleVerseActionSheet({
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
 
-  // Each edge shows its fade only while swatches are hidden under it. The gate
-  // is *remaining* scroll distance, not raw overflow, so a fade retires at the
-  // end it guards. Gating on overflow leaves the outermost swatch permanently
-  // dimmed, which reads as disabled.
-  const [trayWidth, setTrayWidth] = useState(0)
-  const [contentWidth, setContentWidth] = useState(0)
-  const [scrollX, setScrollX] = useState(0)
-  const hasMoreToScroll = contentWidth - trayWidth - scrollX > 1
-  const hasScrolledPast = scrollX > 1
+  // Each edge shows its fade only while swatches are hidden under it. The
+  // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
+  // trailing edge and distance already scrolled on the leading, not raw
+  // overflow, so a fade retires at the end it guards. Gating on overflow
+  // leaves the outermost swatch permanently dimmed, which reads as disabled.
+  //
+  // Layout and offset stay in a ref. React state holds only the two booleans
+  // the fades mount on, so a drag does not re-render the sheet every frame.
+  const metricsRef = useRef<SwatchTrayMetrics>({
+    trayWidth: 0,
+    contentWidth: 0,
+    scrollX: 0,
+  })
+  const [hasScrolledPast, setHasScrolledPast] = useState(false)
+  const [hasMoreToScroll, setHasMoreToScroll] = useState(false)
+
+  const syncFadeGates = () => {
+    const next = swatchTrayFadeGates(metricsRef.current)
+    setHasScrolledPast(next.hasScrolledPast)
+    setHasMoreToScroll(next.hasMoreToScroll)
+  }
 
   return (
     // Non-modal: the user is still building the selection, so the passage behind
@@ -146,9 +159,18 @@ export function BibleVerseActionSheet({
               testID="bible-verse-action-swatch-scroll"
               horizontal
               showsHorizontalScrollIndicator={false}
-              onLayout={(event) => setTrayWidth(event.nativeEvent.layout.width)}
-              onContentSizeChange={(width) => setContentWidth(width)}
-              onScroll={(event) => setScrollX(event.nativeEvent.contentOffset.x)}
+              onLayout={(event) => {
+                metricsRef.current.trayWidth = event.nativeEvent.layout.width
+                syncFadeGates()
+              }}
+              onContentSizeChange={(width) => {
+                metricsRef.current.contentWidth = width
+                syncFadeGates()
+              }}
+              onScroll={(event) => {
+                metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
+                syncFadeGates()
+              }}
               scrollEventThrottle={16}
               style={styles.swatchScroll}
               contentContainerStyle={styles.swatchTrayContent}

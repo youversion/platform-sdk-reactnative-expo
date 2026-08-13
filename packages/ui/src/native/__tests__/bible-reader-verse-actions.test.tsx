@@ -552,6 +552,23 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
   })
+
+  /**
+   * Guards a handler that zeros stored offset on remeasure. The fade arithmetic
+   * itself is pinned at layer 1 in `lib/__tests__/verse-action-fade-gates.test.ts`.
+   */
+  it('keeps both fades after a layout pass mid-strip', async () => {
+    stubHighlightPermissionFlow([highlight(1, YELLOW), highlight(2, BLUE)])
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    measureTray(200, 320)
+    scrollTray(60)
+    measureTray(200, 320)
+
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+  })
 })
 
 /**
