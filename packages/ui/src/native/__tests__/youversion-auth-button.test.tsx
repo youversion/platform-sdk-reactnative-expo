@@ -7,8 +7,8 @@ import en from '../../i18n/locales/en.json'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
 
-const mockSignIn = jest.fn()
-const mockSignOut = jest.fn()
+const mockSignIn = jest.fn(async () => undefined)
+const mockSignOut = jest.fn(async () => undefined)
 let mockIsAuthenticated = false
 
 jest.mock('../bible-app-logo', () => {
@@ -223,13 +223,13 @@ describe('YouVersionAuthButton press behavior', () => {
     expect(mockSignOut).not.toHaveBeenCalled()
   })
 
-  it('calls signOut when mode="signOut" and unauthenticated', async () => {
+  it('does nothing when mode="signOut" and unauthenticated', async () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
     await user.press(screen.getByText(/sign out of/i))
 
-    expect(Alert.alert).toHaveBeenCalledTimes(1)
+    expect(Alert.alert).not.toHaveBeenCalled()
     expect(mockSignOut).not.toHaveBeenCalled()
   })
 

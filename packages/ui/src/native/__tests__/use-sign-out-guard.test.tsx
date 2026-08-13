@@ -10,6 +10,8 @@ import { YouVersionProvider } from '../youversion-provider'
 const signOut = jest.fn(async () => undefined)
 const USER_ID = 'user-1'
 
+const signedInAuth = { signOut, isAuthenticated: true as const, userInfo: { id: USER_ID } }
+
 const wrapper = ({ children }: { children: ReactNode }) => (
   <YouVersionProvider appKey="test-key" theme="light">
     {children}
@@ -50,11 +52,24 @@ describe('useSignOutGuard', () => {
     expect(result.current).toBeUndefined()
   })
 
-  it('shows the normal sign-out alert when nothing is queued', async () => {
+  it('returns undefined when the user is signed out', async () => {
     const { result } = renderHook(
-      () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
+      () => useSignOutGuard({ signOut, isAuthenticated: false, userInfo: null }),
       { wrapper },
     )
+
+    expect(result.current).toBeUndefined()
+
+    await act(async () => {
+      await result.current?.()
+    })
+
+    expect(Alert.alert).not.toHaveBeenCalled()
+    expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('shows the normal sign-out alert when nothing is queued', async () => {
+    const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
@@ -68,10 +83,7 @@ describe('useSignOutGuard', () => {
   })
 
   it('signs out once the user confirms the normal variant', async () => {
-    const { result } = renderHook(
-      () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
-      { wrapper },
-    )
+    const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
@@ -82,10 +94,7 @@ describe('useSignOutGuard', () => {
   })
 
   it('keeps the user signed in when they cancel', async () => {
-    const { result } = renderHook(
-      () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
-      { wrapper },
-    )
+    const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
@@ -97,10 +106,7 @@ describe('useSignOutGuard', () => {
 
   it('escalates when queued writes exist and signs out on confirm without discarding', async () => {
     jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(true)
-    const { result } = renderHook(
-      () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
-      { wrapper },
-    )
+    const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
@@ -121,12 +127,39 @@ describe('useSignOutGuard', () => {
     expect(core.hasQueuedHighlightWrites).toHaveBeenCalledWith(USER_ID)
   })
 
-  it('asks the queue about the signed-in user id', async () => {
-    const hasQueued = jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
+  it('logs rejecting signOut from the native confirm button without throwing', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const rejectingSignOut = jest.fn(async () => {
+      throw new Error('sign-out failed')
+    })
     const { result } = renderHook(
-      () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
+      () =>
+        useSignOutGuard({
+          signOut: rejectingSignOut,
+          isAuthenticated: true,
+          userInfo: { id: USER_ID },
+        }),
       { wrapper },
     )
+
+    await act(async () => {
+      await result.current?.()
+    })
+    pressAlertButton(en.signOut)
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(rejectingSignOut).toHaveBeenCalledTimes(1)
+    expect(consoleError).toHaveBeenCalledWith(expect.any(Error))
+
+    consoleError.mockRestore()
+  })
+
+  it('asks the queue about the signed-in user id', async () => {
+    const hasQueued = jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
+    const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
@@ -152,10 +185,7 @@ describe('useSignOutGuard', () => {
         enumerable: true,
         value: 'web',
       })
-      const { result } = renderHook(
-        () => useSignOutGuard({ signOut, userInfo: { id: USER_ID } }),
-        { wrapper },
-      )
+      const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
       await act(async () => {
         await result.current?.()

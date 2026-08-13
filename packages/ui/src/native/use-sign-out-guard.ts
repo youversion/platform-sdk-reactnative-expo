@@ -11,6 +11,7 @@ import { useSdkTranslation } from '../i18n/use-sdk-translation'
  */
 export type SignOutGuardAuth = {
   signOut: () => Promise<void>
+  isAuthenticated?: boolean
   userInfo?: { id?: string | null } | null
 } | null
 
@@ -31,6 +32,7 @@ export type SignOutGuardAuth = {
 export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) | undefined {
   const { t } = useSdkTranslation()
   const signOut = auth?.signOut
+  const isAuthenticated = auth?.isAuthenticated ?? false
   const userId = auth?.userInfo?.id ?? null
 
   const guardedSignOut = useCallback(async () => {
@@ -54,12 +56,16 @@ export function useSignOutGuard(auth: SignOutGuardAuth): (() => Promise<void>) |
           text: hasUnsentHighlights ? t('signOutPendingHighlightsConfirm') : t('signOut'),
           style: 'destructive',
           onPress: () => {
-            void signOut()
+            void signOut().catch((err) => console.error(err))
           },
         },
       ],
     )
   }, [signOut, userId, t])
 
-  return signOut === undefined ? undefined : guardedSignOut
+  if (signOut === undefined || !isAuthenticated) {
+    return undefined
+  }
+
+  return guardedSignOut
 }
