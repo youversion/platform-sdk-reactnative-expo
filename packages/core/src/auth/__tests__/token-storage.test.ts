@@ -70,8 +70,9 @@ describe('saveTokens', () => {
     expect(mmkvStorage.set).not.toHaveBeenCalled()
   })
 
-  // Sign-out clears the session before it awaits this, so a rejection here would
-  // land after the fact — on a store that refuses writes, with nothing to undo.
+  // Expiry is a cache over the tokens. A refusal here must not fail the save:
+  // sign-out clears tokens through this function before it clears the session,
+  // so a throw after those writes would abort with the tokens already gone.
   it('resolves when the store refuses to remove the expiry', async () => {
     jest.mocked(mmkvStorage.remove).mockImplementationOnce(() => {
       throw new Error('mmkv is read-only')

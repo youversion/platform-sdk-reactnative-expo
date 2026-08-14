@@ -127,6 +127,7 @@ function requestPermissionsFromContext(permissions: readonly AuthPermission[]) {
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
+  const [signOutOutcome, setSignOutOutcome] = useState<string>('idle')
   const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
 
   useEffect(() => {
@@ -145,6 +146,7 @@ function AuthPeek() {
       </Text>
       <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Text testID="signOutOutcome">{signOutOutcome}</Text>
       <Text testID="permissionOutcome">{permissionOutcome}</Text>
       <Pressable
         testID="requestPermissions"
@@ -171,7 +173,18 @@ function AuthPeek() {
       >
         <Text>signIn</Text>
       </Pressable>
-      <Pressable testID="signOut" onPress={() => auth.signOut()}>
+      <Pressable
+        testID="signOut"
+        onPress={async () => {
+          setSignOutOutcome('pending')
+          try {
+            await auth.signOut()
+            setSignOutOutcome('resolved')
+          } catch (e) {
+            setSignOutOutcome(`rejected: ${(e as Error).message}`)
+          }
+        }}
+      >
         <Text>signOut</Text>
       </Pressable>
     </View>
@@ -192,6 +205,10 @@ beforeEach(() => {
   mockMmkvThrows = false
   latestAuth = null
   jest.clearAllMocks()
+  // `clearAllMocks` drops recorded calls but keeps implementations, and one test
+  // installs a lasting `mockImplementation` on `saveTokens`. Reset it so that
+  // implementation cannot leak into the tests that run after it.
+  mockSaveTokens.mockReset()
   mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
 })
 
@@ -237,6 +254,33 @@ describe('AuthProvider — mount', () => {
     expect(getText('isAuthenticated')).toBe('false')
     // The record itself survives: the accepted residual, not the exposure.
     expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+  })
+
+  // The sibling case, and the reason bootstrap does not pass
+  // `abortOnTokenFailure`. There are no tokens to clear here — the whole branch
+  // is "nothing stored" — so a Keychain that rejects that defensive write must
+  // not cost the identity drop ADR 0014 names as the bound.
+  it('drops a cached userInfo even when the token clear rejects', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('userInfo')).toBe('null')
+    expect(getText('grantedPermissions')).toBe('null')
+    expect(getText('isAuthenticated')).toBe('false')
+    // The purges ran too — the rejection was swallowed, not propagated.
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
   })
 
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
@@ -508,8 +552,9 @@ describe('AuthProvider — signOut', () => {
     expect(listQueuedScopes('u2')).toEqual([])
   })
 
-  // The purges run before the tokens are cleared. A store that throws must cost a
-  // surviving cache entry, never a user who asked to sign out and stayed in.
+  // The purges run after the tokens are cleared, and swallow their own failures.
+  // A store that throws must cost a surviving cache entry, never a user who asked
+  // to sign out and stayed in.
   it('still signs out when the cache purges cannot reach the store', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     parkWrite('u1', JHN3)
@@ -537,6 +582,49 @@ describe('AuthProvider — signOut', () => {
       refreshToken: null,
       expiryDate: null,
     })
+  })
+
+  // The token clear runs first precisely so this case aborts loudly. A Keychain
+  // that refuses the write leaves the session on disk, so the app has to keep
+  // saying "signed in" — purge the caches anyway and the user sees a signed-out
+  // app whose session comes back on the next launch.
+  it('aborts the whole sign-out, caches included, when the token clear rejects', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1', name: 'Ada' }))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    setCachedHighlights('u1', JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }])
+    parkWrite('u1', JHN3)
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    // Loud: signOut is the one path allowed to reject, so the caller can tell the
+    // user their session is still live.
+    await waitFor(() => expect(getText('signOutOutcome')).toBe('rejected: keychain unavailable'))
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('accessToken')).toBe('a')
+    expect(JSON.parse(getText('userInfo')).id).toBe('u1')
+    expect(getText('hasHighlights')).toBe('true')
+
+    // Nothing downstream of the token clear ran.
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+    expect(getCachedHighlights('u1', JHN3)).not.toBeNull()
+    expect(listQueuedScopes('u1')).toHaveLength(1)
   })
 })
 
@@ -584,6 +672,40 @@ describe('AuthProvider — refresh failure policy', () => {
     expect(getText('accessToken')).toBe('null')
     expect(getText('error')).toMatch(/401/)
     expect(mockSaveTokens).toHaveBeenCalledWith(clearedTokens)
+    expect(getCachedHighlights('user-1', JHN3)).toBeNull()
+    expect(listQueuedScopes('user-1')).toEqual([])
+  })
+
+  // The revocation is the server's, not a gesture anyone can retry, so this path
+  // passes no `abortOnTokenFailure`. Aborting would leave the departed user's
+  // highlights painted on top of a session that is already over.
+  it('still purges the caches when the revoked session cannot clear its tokens', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    setCachedHighlights('user-1', JHN3, [
+      { version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' },
+    ])
+    parkWrite('user-1', JHN3)
+    mockLoadTokens.mockResolvedValue(expiredStored)
+    mockRefreshTokens.mockRejectedValue(new TokenEndpointError(401, 'invalid_grant'))
+    // Only the clearing write rejects. Bootstrap hydrates through `setAuthState`
+    // first, and a blanket rejection would fail that instead, never reaching the
+    // revoked branch this case is about.
+    mockSaveTokens.mockImplementation(async (tokens: { refreshToken: string | null }) => {
+      if (tokens.refreshToken === null) {
+        throw new Error('keychain unavailable')
+      }
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+    expect(getText('isAuthenticated')).toBe('false')
+    expect(getText('accessToken')).toBe('null')
+    expect(getText('userInfo')).toBe('null')
     expect(getCachedHighlights('user-1', JHN3)).toBeNull()
     expect(listQueuedScopes('user-1')).toEqual([])
   })
@@ -1497,8 +1619,8 @@ describe('AuthProvider — requestPermissions', () => {
     )
   })
 
-  // Clearing a revoked session ends in a Keychain write. It can reject, and this
-  // flow is documented to resolve — a consumer following that has no catch.
+  // Clearing a revoked session starts with a Keychain write. It can reject, and
+  // this flow is documented to resolve — a consumer following that has no catch.
   it('resolves rather than rejecting when clearing a revoked session fails', async () => {
     await signInWithStaleToken()
 
@@ -1508,6 +1630,10 @@ describe('AuthProvider — requestPermissions', () => {
 
     const outcome = await act(async () => requestPermissionsFromContext(['highlights']))
 
+    // The revoked path passes no `abortOnTokenFailure`, so the rejection is
+    // swallowed and the clear runs on. That empties the token ref, which puts
+    // this on the same footing as the case above: mint with the render's token
+    // and let the initiator guard discard the grant.
     expect(outcome).toEqual({ status: 'cancel' })
   })
 })

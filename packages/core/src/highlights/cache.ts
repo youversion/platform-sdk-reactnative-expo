@@ -191,8 +191,8 @@ export function mergeCachedHighlights(
 /**
  * Empties the cached paint for every user — sign-out's job.
  *
- * Never throws: sign-out purges before it clears the tokens, so an unreadable
- * store costs stale paint, not a user who is still signed in.
+ * Never throws: the tokens are already gone by the time sign-out reaches this
+ * purge, so an unreadable store costs stale paint, never the sign-out itself.
  */
 export function clearHighlightsCache(): void {
   try {

@@ -209,6 +209,23 @@ describe('the controlled-mode latch', () => {
     }
   })
 
+  // The counterpart to the latch: the WebView paints highlights, so it needs no
+  // credential to fetch or write them. A token crossing here would land in
+  // WebView `localStorage`, which is disk-backed on iOS and outlives sign-out.
+  it('sends no access token across the bridge, on any render', async () => {
+    stubHighlights([highlight('JHN.3.16')])
+    const { getByTestId } = render(<BibleReader />, { wrapper })
+
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-chapter-change'))
+    })
+
+    expect(mockDomPropsHistory.length).toBeGreaterThan(1)
+    for (const props of mockDomPropsHistory) {
+      expect(props).not.toHaveProperty('accessToken')
+    }
+  })
+
   // The hook is stubbed, so this pins the wrapper's pass-through, not the hook's
   // no-auth behaviour — core covers that in `use-highlights.test.tsx`.
   it('passes an empty hook result through as [], never undefined', () => {
@@ -392,5 +409,21 @@ describe('the DOM component source (unobservable from layer 3)', () => {
     expect(source).not.toContain('onHighlightRemove')
     expect(source).not.toContain('onCopy=')
     expect(source).not.toContain('onShare=')
+  })
+
+  it('neither declares nor applies an accessToken prop', () => {
+    // Anchored to a line that starts with the identifier, so the file's prose
+    // about why the token is gone cannot satisfy either assertion. This catches
+    // both the type member (`accessToken: string | null`) and the destructure.
+    expect(source).not.toMatch(/^\s*accessToken\b/m)
+    // The applier itself: re-adding it is how the token would get back into
+    // WebView `localStorage`, where iOS keeps it on disk across relaunch.
+    expect(source).not.toContain('applyAuthToken')
+  })
+
+  it('still clears the residue prior versions left in WebView storage', () => {
+    // Upgrading installs carry an `accessToken` key written by an older SDK
+    // version. Dropping this call would strand it there for good.
+    expect(source).toMatch(/^\s*clearAuthResidue\(\)$/m)
   })
 })

@@ -11,7 +11,7 @@ import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { applyAuthToken, applySDKConfig } from '../lib/dom-apply'
+import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
@@ -29,7 +29,9 @@ type BibleReaderBaseProps = {
   appKey: string
   apiHost: string
   installationId: string
-  accessToken: string | null
+  // No `accessToken`. The reader is a pure view: highlights are controlled, auth
+  // is native-owned, and nothing in the WebView has a use for the token. See
+  // `clearAuthResidue` below for the upgrading-install cleanup.
   /**
    * Must be defined on the first render — its presence latches the reader into
    * controlled mode, and omitting it lets the WebView fetch and write highlights
@@ -96,7 +98,6 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     appKey,
     apiHost,
     installationId,
-    accessToken,
     highlights,
     verseActions,
     onVerseSelect,
@@ -128,7 +129,13 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     bottomScrollPadding = 0,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
-  applyAuthToken(accessToken)
+
+  // Once per mount, not per render: there is no token to keep in sync any more,
+  // only residue an older SDK version left in this WebView's `localStorage`
+  // (disk-backed on iOS, so it outlives both sign-out and relaunch).
+  useEffect(() => {
+    clearAuthResidue()
+  }, [])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.

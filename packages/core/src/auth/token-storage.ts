@@ -19,9 +19,10 @@ export async function saveTokens(tokens: StoredTokens): Promise<void> {
 }
 
 // The expiry is a cache over the tokens, which are the record, so a store that
-// refuses it cannot fail the save — sign-out awaits this after it has already
-// cleared the session. A lost expiry costs one refresh: `refreshToken` reads a
-// missing one as already stale.
+// refuses it cannot fail the save. Sign-out clears tokens through this function
+// before it clears the session; a throw here after those writes would abort
+// with the tokens already gone. A lost expiry costs one refresh: `refreshToken`
+// reads a missing one as already stale.
 function writeExpiry(expiryDate: Date | null): void {
   try {
     if (expiryDate) {

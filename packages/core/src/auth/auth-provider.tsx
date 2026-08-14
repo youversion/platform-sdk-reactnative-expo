@@ -131,28 +131,61 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setGrantedPermissions(null)
   }, [])
 
-  const clearAuthState = useCallback(async () => {
-    // The cache purges are best-effort; none may abort the token clearing below.
-    // The three helpers swallow their own failures, this removal cannot.
-    //
-    // A survived record reseeds `userInfo` on the next mount; the bootstrap
-    // clear is what bounds that, not this catch (ADR 0014's amendment).
-    try {
-      mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
-    } catch {
-      // Cached user info survived; the tokens still go.
-    }
-    invalidatePermissions()
-    clearHighlightsCache()
-    clearHighlightQueue()
-    expiryRef.current = null
-    refreshTokenRef.current = null
-    accessTokenRef.current = null
-    setAccessToken(null)
-    setIdentity(null)
-    setError(null)
-    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
-  }, [invalidatePermissions, setIdentity])
+  /**
+   * Ends the session: the secure-store tokens first, then every cached trace of
+   * the user. Tokens lead either way — a cache that outlives the session is a
+   * stale entry, while a session that outlives the caches is a sign-out that did
+   * not take.
+   *
+   * `abortOnTokenFailure` is what separates the sign-out **gesture** from an
+   * involuntary teardown, and only `signOut` passes it. The gesture has someone
+   * to report to and something to retry, so a Keychain that refuses the write
+   * aborts here, before a single cache is touched, and the app goes on showing
+   * the session it still holds on disk — the truthful state. Purge first and
+   * that same rejection leaves a signed-out looking app whose session comes back
+   * on the next launch.
+   *
+   * The other two callers have neither: a revoked refresh token and the
+   * bootstrap residue clear both end a session that is already over, so they
+   * clear what they can and swallow what they cannot. The bootstrap call in
+   * particular is ADR 0014's bound on a cached `userInfo` that outlived its own
+   * removal — it has to reach `setIdentity(null)` whether or not either store
+   * cooperates, which an abort would take away.
+   */
+  const clearAuthState = useCallback(
+    async ({ abortOnTokenFailure = false } = {}) => {
+      try {
+        await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
+      } catch (e) {
+        if (abortOnTokenFailure) {
+          throw e
+        }
+        // Involuntary teardown: the session is already over, and leaving the
+        // caches painted on top of it would be the worse of the two failures.
+      }
+
+      // Everything below is best-effort. A store that refuses a removal costs a
+      // stale cache entry, never the sign-out.
+      //
+      // A survived record reseeds `userInfo` on the next mount; the bootstrap
+      // clear is what bounds that, not this catch (ADR 0014's amendment).
+      try {
+        mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
+      } catch {
+        // Cached user info survived; the session is gone either way.
+      }
+      invalidatePermissions()
+      clearHighlightsCache()
+      clearHighlightQueue()
+      expiryRef.current = null
+      refreshTokenRef.current = null
+      accessTokenRef.current = null
+      setAccessToken(null)
+      setIdentity(null)
+      setError(null)
+    },
+    [invalidatePermissions, setIdentity],
+  )
 
   const refreshToken = useCallback(
     async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
@@ -205,14 +238,18 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         } catch (e) {
           const revoked = e instanceof TokenEndpointError && e.isRevoked
           if (revoked) {
-            // Clearing is best-effort: it ends in a Keychain write, which can
-            // reject. Everything downstream of this refresh — getAccessToken,
-            // requestPermissions — is documented never to throw, so a storage
-            // failure must not escape as one.
+            // An involuntary teardown, so no `abortOnTokenFailure`: the session
+            // is already revoked, and there is no one to report a Keychain
+            // rejection to. Clearing what it can beats leaving the caches
+            // painted on top of a session the server has ended.
             try {
               await clearAuthState()
             } catch {
-              // In-memory state is already cleared; only the persisted copy lost.
+              // A backstop, not a live path — without the abort flag every step
+              // of `clearAuthState` swallows its own failure. It stays because
+              // everything downstream of this refresh (getAccessToken,
+              // requestPermissions) is documented never to throw, and that
+              // contract should not rest on the internals of another function.
             }
           }
           // After `clearAuthState`, which nulls `error`. One write for both
@@ -335,8 +372,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     }
   }, [apiHost, appKey, config.redirectUri, config.scopes, config.permissions, setAuthState])
 
+  // The one caller that opts into the loud abort. A user asked for this, so a
+  // Keychain that refuses the token clear is theirs to hear about and retry —
+  // see `clearAuthState`.
   const signOut = useCallback(async () => {
-    await clearAuthState()
+    await clearAuthState({ abortOnTokenFailure: true })
   }, [clearAuthState])
 
   const refreshNow = useCallback(async () => {
