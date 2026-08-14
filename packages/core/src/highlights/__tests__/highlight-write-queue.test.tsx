@@ -96,8 +96,6 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
   return { promise, resolve }
 }
 
-const ensureFreshToken = jest.fn(async () => undefined)
-
 /** Hoisted rather than built per render, so a test can drive a failed refresh. */
 const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
 
@@ -124,7 +122,6 @@ function authValue(): AuthContextValue {
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
     refreshNow: jest.fn(async () => undefined),
-    ensureFreshToken,
     getAccessToken,
     isLoading: false,
     requestedPermissions: ['highlights'],
@@ -187,8 +184,6 @@ beforeEach(() => {
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
-  ensureFreshToken.mockReset()
-  ensureFreshToken.mockResolvedValue(undefined)
   getAccessToken.mockReset()
   getAccessToken.mockResolvedValue({ status: 'ok', token: 'token-1', userId })
   mockGetHighlights.mockResolvedValue(collection([]))

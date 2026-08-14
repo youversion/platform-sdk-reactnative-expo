@@ -51,7 +51,7 @@ beforeEach(() => {
   mockUseAuth.mockReturnValue({
     userInfo: { id: 'user-1' },
     accessToken: 'token-1',
-    ensureFreshToken: jest.fn(),
+    getAccessToken: jest.fn(),
     refreshNow: jest.fn(),
   })
   mockStartDrain.mockReturnValue(drain)
@@ -105,7 +105,7 @@ describe('HighlightQueueDrainHost', () => {
     mockUseAuth.mockReturnValue({
       userInfo: { id: 'user-1' },
       accessToken: 'token-2',
-      ensureFreshToken: jest.fn(),
+      getAccessToken: jest.fn(),
     })
     rerender(<HighlightQueueDrainHost />)
 

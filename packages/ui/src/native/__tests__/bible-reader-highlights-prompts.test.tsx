@@ -109,7 +109,6 @@ function stubAuth(isAuthenticated: boolean) {
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
     refreshNow: jest.fn(async () => undefined),
-    ensureFreshToken: jest.fn(async () => undefined),
     getAccessToken: jest.fn(async () =>
       isAuthenticated
         ? ({ status: 'ok', token: 'test-token', userId: null } as const)

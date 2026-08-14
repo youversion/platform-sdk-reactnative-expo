@@ -9,7 +9,7 @@ import { useSdkTranslation } from '../i18n/use-sdk-translation'
  * `AuthContextValue`: the reader reaches auth through `useYVAuthOptional()` and
  * may have none at all, while the button uses `useYVAuth()`.
  */
-export type SignOutGuardAuth = {
+type SignOutGuardAuth = {
   signOut: () => Promise<void>
   isAuthenticated?: boolean
   userInfo?: { id?: string | null } | null

@@ -29,7 +29,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
-- **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`)
+- **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
 - **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides
 - **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
@@ -170,6 +170,54 @@ Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To hand
 
 On web, `BibleReader` keeps the React Web SDK's verse action popover, because native bottom sheets do not exist there. Its Copy and Share work. Its color swatches do not write.
 
+#### Highlights made offline
+
+A highlight tapped without service keeps its paint rather than disappearing, is persisted through a force-quit, and reaches the user's account on its own once service returns — including while the reader is on a different chapter, or not mounted at all. Nothing is required of you for that to work.
+
+To surface it, pass `onHighlightError`. It fires only for writes worth telling the user about — a parked write and a transient failure — and stays silent for `ok`, `noop`, and the auth and invalid cases the reader already handles itself:
+
+```tsx
+import { BibleReader, type HighlightWriteError } from '@youversion/platform-react-native-expo-ui'
+
+function Reader() {
+  return (
+    <BibleReader
+      defaultVersionId={3034}
+      onHighlightError={(error: HighlightWriteError) => {
+        // { status: 'queued', verses } — saved on the device, will sync
+        // { status: 'error', reason: 'transient', verses, message } — the write did not stick
+      }}
+    />
+  )
+}
+```
+
+`queued` reports the write just made, not the verse's history, so it repeats on every tap of a verse that is still parked. Show "saved offline" once by holding that in your own state.
+
+#### Refreshing highlights
+
+`BibleReader` fetches highlights for the chapter on screen and refreshes when the app returns to the foreground. To pull in highlights made on another device or in the YouVersion app at some other moment — a screen refocus, a pull-to-refresh — call `refreshHighlights()` on the reader's ref:
+
+```tsx
+import { useCallback, useRef } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { BibleReader, type BibleReaderHandle } from '@youversion/platform-react-native-expo-ui'
+
+function ReaderScreen() {
+  const reader = useRef<BibleReaderHandle>(null)
+
+  useFocusEffect(
+    useCallback(() => {
+      void reader.current?.refreshHighlights()
+    }, []),
+  )
+
+  return <BibleReader ref={reader} defaultVersionId={3034} />
+}
+```
+
+It is safe to call at any time: it de-dupes against a fetch already in flight, no-ops when signed out, and never clears what is already painted.
+
 #### Verse selection
 
 `onVerseSelect` reports every selection change, so you can react to one however you like — analytics, your own action UI, a custom share flow. It fires alongside the verse action sheet, not instead of it. `clearSelectionSignal` dismisses the current selection from native: increment it, and note its value at mount is the baseline, so mounting never clears.
@@ -299,6 +347,30 @@ function ProfileScreen() {
 ```
 
 It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`), `outline`, `radius` (`'rounded' | 'rectangular'`), `size` (`'default' | 'short' | 'icon'`), and `text` (string, replaces the default localized label).
+
+#### Signing out
+
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s user menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+
+On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
+
+For your own sign-out UI, `useSignOutGuard` gives you the same confirmation:
+
+```tsx
+import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import { useSignOutGuard } from '@youversion/platform-react-native-expo-ui'
+
+function SignOutButton() {
+  const auth = useYVAuth()
+  const signOut = useSignOutGuard(auth)
+
+  return <Button title="Sign out" onPress={() => void signOut?.()} />
+}
+```
+
+It returns `undefined` when auth is not configured, so it drops straight into an optional handler prop. Confirming calls `signOut()` and nothing else — the SDK clears the queue and the caches for you. Cancelling leaves the user signed in with the queue intact.
+
+`useYVAuth().signOut()` is unguarded and signs out immediately, which is what your own confirmation flow wants. To decide between the two confirmation copies yourself, `hasQueuedHighlightWrites(userId)` from the core package answers whether anything is still waiting.
 
 To build custom UI instead, use the `useYVAuth` hook:
 

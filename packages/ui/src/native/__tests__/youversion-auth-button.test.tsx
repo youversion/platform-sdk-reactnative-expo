@@ -41,7 +41,6 @@ beforeEach(() => {
     accessToken: mockIsAuthenticated ? 'token' : null,
     error: null,
     refreshNow: jest.fn(async () => undefined),
-    ensureFreshToken: jest.fn(async () => undefined),
     getAccessToken: jest.fn(async () =>
       mockIsAuthenticated
         ? ({ status: 'ok', token: 'token', userId: 'user-1' } as const)

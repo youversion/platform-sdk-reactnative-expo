@@ -27,34 +27,25 @@ export type AuthContextValue = {
   signOut: () => Promise<void>
   refreshNow: () => Promise<void>
   /**
-   * Refresh the access token **only if it is at or near expiry**, then resolve.
-   * Cheap to await on every user gesture, unlike {@link refreshNow}, which always
-   * hits the token endpoint.
+   * Resolve a token that is verifiably fresh, or say why one is unavailable.
+   * Refreshes **only if the token is at or near expiry**, unlike
+   * {@link refreshNow}, which always hits the token endpoint — cheap enough to
+   * await on every user gesture.
    *
-   * Exists so an expired token cannot be misread as a missing permission
-   * (Swift's `hasValidToken()` parity). It never throws: a failed refresh
-   * surfaces through {@link error}, exactly as the periodic refresh does.
+   * It reports whether the refresh worked, so a caller can tell "refreshed" from
+   * "still expired" and stop a doomed request before it 401s and gets misread as
+   * a revoked grant. Exists so an expired token cannot be mistaken for a missing
+   * permission (Swift's `hasValidToken()` parity).
    *
    * Await it on the **send** path, immediately before an auth-sensitive request
    * — not in front of whatever the user just tapped. When a refresh is due this
    * costs a full token round-trip, so anything optimistic should have painted
    * already. `useHighlights` is the worked example.
    *
-   * A refresh already in flight is **joined**, not skipped, so once this resolves
-   * the token is the current one. A failed refresh still leaves the old token in
-   * place, so a caller doing something auth-sensitive wants a corrective path for
-   * a 401 regardless.
-   */
-  ensureFreshToken: () => Promise<void>
-  /**
-   * Resolve a token that is verifiably fresh, or say why one is unavailable.
-   * Unlike {@link ensureFreshToken}, which only performs the refresh side
-   * effect, this reports whether it worked — so a caller can tell "refreshed"
-   * from "still expired" and stop a doomed request before it 401s and gets
-   * misread as a revoked grant.
-   *
-   * Leeway-gated and single-flight like {@link ensureFreshToken}: cheap when
-   * the token is fresh, joins an in-flight refresh otherwise. Never rejects.
+   * Single-flight: a refresh already in flight is **joined**, not skipped, so
+   * once this resolves the token is the current one. It never rejects, and a
+   * failed refresh also surfaces through {@link error}, exactly as the periodic
+   * refresh does.
    */
   getAccessToken: () => Promise<AccessTokenResult>
   isLoading: boolean

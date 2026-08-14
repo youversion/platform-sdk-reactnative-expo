@@ -117,14 +117,11 @@ const signedInWithoutPermission: AuthShape = {
   requestedPermissions: [],
 }
 
-// Hoisted rather than built per render, so a test can assert on it and can gate
-// it on a deferred promise.
-const ensureFreshToken = jest.fn(async () => undefined)
-
 /**
- * Hoisted for the same reason. The default implementation mirrors the real
- * accessor against the *current* auth value, so identity/token transitions via
- * `setAuth` flow through; tests override it to exercise `refresh-failed`.
+ * Hoisted rather than built per render, so a test can assert on it and can gate
+ * it on a deferred promise. The default implementation mirrors the real accessor
+ * against the *current* auth value, so identity/token transitions via `setAuth`
+ * flow through; tests override it to exercise `refresh-failed`.
  */
 const getAccessToken = jest.fn<Promise<AccessTokenResult>, []>()
 
@@ -146,7 +143,6 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     signIn: jest.fn(async () => undefined),
     signOut: jest.fn(async () => undefined),
     refreshNow,
-    ensureFreshToken,
     getAccessToken,
     isLoading: false,
     // The default for every existing case: these tests exercise the fetch, so
@@ -235,8 +231,6 @@ beforeEach(() => {
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
-  ensureFreshToken.mockReset()
-  ensureFreshToken.mockResolvedValue(undefined)
   getAccessToken.mockReset()
   getAccessToken.mockImplementation(defaultGetAccessToken)
   mockGetHighlights.mockResolvedValue(collection([]))

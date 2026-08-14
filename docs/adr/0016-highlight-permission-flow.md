@@ -68,6 +68,6 @@ Cancels and declines resolve `{ status: 'noop' }`. A user choice is not an error
 
 The accepted residual is the one ADR 0014 already named: a grant the server disagrees with costs the user one extra consent prompt. This flow bounds that at one prompt per tap rather than removing it.
 
-`ensureFreshToken` joins an in-flight refresh rather than skipping it, so awaiting it does mean the token is current. A failed refresh still leaves the old token in place, which is why the corrective path exists at all and must not be removed as redundant.
+`getAccessToken` joins an in-flight refresh rather than skipping it, so awaiting it does mean the token is current. A failed refresh still leaves the old token in place, which is why the corrective path exists at all and must not be removed as redundant.
 
 A write now settles no faster than before — the refresh round-trip moved, it did not disappear. What changed is that the user stops waiting on it. Anything added in front of `apply`'s branch, or in front of the claim in `useHighlights.startWrite`, puts the delay back.

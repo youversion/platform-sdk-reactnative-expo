@@ -1,9 +1,12 @@
 import type { HighlightColor, ServerColors } from '@youversion/platform-react-native-expo-core'
-import {
-  HIGHLIGHT_COLORS,
-  isHighlightColor,
-  isValidHighlightHex,
-} from '@youversion/platform-react-native-expo-core'
+import { HIGHLIGHT_COLORS, isHighlightColor } from '@youversion/platform-react-native-expo-core'
+
+/** Six-digit hex, no `#`. Case-insensitive at the boundary. */
+const HIGHLIGHT_HEX_PATTERN = /^[0-9a-f]{6}$/i
+
+function isValidHighlightHex(color: string): boolean {
+  return HIGHLIGHT_HEX_PATTERN.test(color)
+}
 
 /**
  * One circle in the verse action sheet's swatch tray.
