@@ -143,7 +143,6 @@ export type BibleReaderProps = Omit<
   | 'style'
   | 'apiHost'
   | 'installationId'
-  | 'accessToken'
   | 'onSignInPress'
   | 'onSignOutPress'
   | 'onExternalLinkPress'
@@ -216,8 +215,9 @@ export function BibleReader({
   ref,
 }: BibleReaderProps) {
   const context = useYouVersion()
+  // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
+  // deliberately not read here: it never crosses into the WebView.
   const auth = useYVAuthOptional()
-  const accessToken = auth?.accessToken ?? null
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const guardedSignOut = useSignOutGuard(auth)
@@ -615,7 +615,6 @@ export function BibleReader({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
-          accessToken={accessToken}
           highlights={highlights}
           verseActions={VERSE_ACTIONS}
           onVerseSelect={handleVerseSelect}
