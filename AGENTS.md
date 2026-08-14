@@ -43,7 +43,7 @@ Native copy or locale keys: `docs/contributing/native-i18n.md`.
 
 ## Distribution
 
-Package entry, `publishConfig`, or tsconfig split: [ADR 0011](docs/adr/0011-compiled-distribution.md).
+Package entry, `publishConfig`, or tsconfig split: [ADR 0011](docs/adr/0011-compiled-distribution.md). `react-dom` stays a peer — **Dependency Boundary** in `CONTEXT.md`.
 
 ## Release
 

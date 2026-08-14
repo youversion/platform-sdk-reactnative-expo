@@ -21,8 +21,8 @@ The platform-specific surface that displays reusable content, such as a Radix Po
 _Avoid_: Modal, popup
 
 **Native Sheet**:
-The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. Closing it dismisses a keyboard raised by its Expo DOM content.
-_Avoid_: Modal
+The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. Closing it dismisses a keyboard raised by its Expo DOM content only when that content receives `isOpen` and calls `useDismissKeyboardOnClose`. See [ADR 0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md).
+_Avoid_: Modal; treating keyboard dismiss as automatic native `Keyboard.dismiss()`
 
 **Inactive Sheet Inertness**:
 A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.
@@ -89,6 +89,10 @@ _Avoid_: Toolbar when referring to product behavior rather than the Web SDK comp
 **Compiled Distribution**:
 Published packages ship compiled `build/` (`tsc` preserves `'use dom'`). Dev resolves `src/`; `publishConfig` swaps at `pnpm publish`. See [ADR 0011](docs/adr/0011-compiled-distribution.md).
 _Avoid_: Source-only, "a compiled build strips the directive"
+
+**Dependency Boundary**:
+`@youversion/platform-react-ui` and `@youversion/platform-react-hooks` are `dependencies`. `react-dom` is a `peerDependency` so web-capable consumers do not get a second React. Native modules stay peers.
+_Avoid_: Bundled deps, vendored web SDK
 
 **SDK Attribution Header**:
 `x-yvp-sdk: ReactNativeSDK=<version>` on DOM-side API calls. Source builds report `{version}-dev`; published builds report `{version}`. See [ADR 0012](docs/adr/0012-sdk-version-stamp-on-publish.md).
