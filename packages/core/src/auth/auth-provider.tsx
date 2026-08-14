@@ -181,10 +181,12 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         if (!options?.force) {
           return joined
         }
-        if (refreshTokenRef.current === null) {
-          return 'signed-out'
-        }
-        return refreshToken({ force: true })
+      }
+
+      // Re-read after a join: the run we waited on can rotate the refresh token.
+      const tokenToSpend = refreshTokenRef.current
+      if (tokenToSpend === null) {
+        return 'signed-out'
       }
 
       const run = (async (): Promise<RefreshOutcome> => {
@@ -192,7 +194,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           const response = await refreshTokens({
             apiHost,
             appKey,
-            refreshToken: currentRefreshToken,
+            refreshToken: tokenToSpend,
           })
           await setAuthState({
             accessToken: response.access_token,
