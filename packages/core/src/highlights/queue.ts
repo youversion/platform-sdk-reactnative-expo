@@ -254,8 +254,9 @@ export function dropRejectedWrites(input: {
  * highlights cache. Every user's entries, not just the current one's: only a
  * departure can leave an entry under somebody else's id.
  *
- * Never throws: sign-out purges before it clears the tokens, so an unreadable
- * store costs a surviving entry, not a user who is still signed in.
+ * Never throws: the tokens are already gone by the time sign-out reaches this
+ * purge, so an unreadable store costs a surviving entry — an entry belonging to
+ * someone who has left, reachable by no session that could send it.
  */
 export function clearHighlightQueue(): void {
   try {

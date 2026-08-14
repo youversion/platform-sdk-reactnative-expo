@@ -9,6 +9,7 @@ import type { HighlightsApiError } from '../api'
 import { isWriteClaimed } from '../claims'
 import { startHighlightQueueDrain } from '../drain'
 import { onDrainSignal, type DrainSignal } from '../drain-signals'
+import { enqueueWrites } from '../queue'
 import {
   highlightQueueKey,
   highlightsCacheKey,
@@ -348,6 +349,49 @@ describe('a queued write after a relaunch', () => {
     const second = renderUseHighlights()
 
     expect(colorsOf(second.result.current)).toEqual({ 'JHN.3.16': YELLOW })
+  })
+})
+
+// MMKV is written queue first, cache second, and the two writes are not atomic.
+// The mount re-applies the queue over the cache to repair a process that died
+// between them (`initialStateFor`). The relaunch cases above lose the whole cache
+// key; here the cache survives holding server truth, so only the repair can
+// account for the queued color being on screen.
+describe('a crash between the queue write and the cache write', () => {
+  it('paints the queued color over the server color the cache still holds', async () => {
+    seedServer([highlight('JHN.3.16', GREEN), highlight('JHN.3.17', GREEN)])
+    mockGetHighlights.mockResolvedValue(unreachable())
+
+    // The queue write landed; the process died before the cache write.
+    enqueueWrites({
+      userId,
+      scope,
+      verses: [16],
+      color: BLUE,
+      currentColors: { 16: GREEN, 17: GREEN },
+    })
+
+    const { result } = renderUseHighlights()
+
+    // First render, before anything touches the network.
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': BLUE, 'JHN.3.17': GREEN })
+    expect(queuedWrites()).toEqual({ 16: { local: BLUE, server: GREEN } })
+
+    await flush()
+  })
+
+  it('keeps a queued removal off screen, though the cache still paints it', async () => {
+    seedServer([highlight('JHN.3.16', YELLOW)])
+    mockGetHighlights.mockResolvedValue(unreachable())
+
+    enqueueWrites({ userId, scope, verses: [16], color: null, currentColors: { 16: YELLOW } })
+
+    const { result } = renderUseHighlights()
+
+    expect(colorsOf(result.current)).toEqual({})
+    expect(queuedWrites()).toEqual({ 16: { local: null, server: YELLOW } })
+
+    await flush()
   })
 })
 
