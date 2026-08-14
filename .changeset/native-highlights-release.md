@@ -25,7 +25,7 @@ CAUTION: The default serif font of the reader changes from Source Serif 4 to Unt
 
 A verse selection opens a native sheet with the reference, color swatches, Copy, and Share. No new prop turns this on.
 
-- Swatches: a remove circle for each color on the selection, then an apply circle for each of the five palette colors.
+- Swatches: a remove circle for each color on the selection, then an apply circle for the palette colors not already covering the selection.
 - Sign-in and consent: the sheet asks for whatever is missing, then applies the chosen color. This needs `auth.permissions` to include `highlights`.
 - Copy and Share fall back to `expo-clipboard` and React Native `Share`. Optional `onCopy` and `onShare` take either over. Both receive `BibleReaderShareData`.
 
@@ -50,7 +50,7 @@ On web, the Web SDK popover is the verse-action UI. Sign-out is unprompted becau
 
 `useHighlights({ versionId, book, chapter })` is the public surface for highlight data. It paints from an MMKV cache on the first render. `apply` and `remove` are optimistic. If the server refuses a write, the paint reverts.
 
-`apply` and `remove` resolve a `HighlightWriteOutcome`: `ok`, `noop`, `queued`, or `error`. An `error` carries `reason` (`not-signed-in` / `auth` / `invalid` / `transient`) plus `failedVerses` and `succeededVerses`. The hook `error` is fetch-only.
+`apply` and `remove` resolve a `HighlightWriteOutcome`: `ok`, `noop`, `queued`, or `error`. `queued` is new. It is a `minor` because no existing status changed meaning. An exhaustive `switch` with no `default` is the only consumer branch that breaks. An `error` carries `reason` (`not-signed-in` / `auth` / `invalid` / `transient`) plus `failedVerses` and `succeededVerses`. The hook `error` is fetch-only.
 
 Also exported: `deriveServerColors`, `HIGHLIGHT_COLORS`, `isHighlightColor`, `refresh()`, and the `Highlight` / `HighlightColor` / `HighlightScope` / `ServerColors` types.
 

@@ -5,7 +5,7 @@ Revised: 2026-08-04 — the original SDK-owned scheme was wrong on device.
 
 ## Status
 
-Accepted
+Accepted — supersedes the original SDK-owned return scheme of the same number
 
 An app key has exactly one callback URL. Sign-in already owns it. Data exchange must use that same `redirectUri`.
 

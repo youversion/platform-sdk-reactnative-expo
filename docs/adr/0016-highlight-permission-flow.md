@@ -6,7 +6,7 @@ Date: 2026-08-05
 
 Accepted
 
-A tap before sign-in or before the `highlights` grant must survive the missing step. Four choices here look cheaper the other way.
+A tap before sign-in or before the `highlights` grant must survive the missing step. Five choices here look cheaper the other way.
 
 **Branch on the cached grant. Treat `reason: 'auth'` as the corrective path, not the primary one.** Reason-first issues a request the SDK already knows will fail before every first highlight. [ADR 0014](0014-cached-grant-is-a-hint.md) still holds: a 401/403 invalidates the hint and re-prompts.
 

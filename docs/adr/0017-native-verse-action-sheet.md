@@ -17,6 +17,10 @@ Verse actions are the reference, the highlight swatches, Copy, and Share. Swift 
 
 **Do not turn off content panning to make the swatch tray scroll.** On Android, Gorhom's pan has no activation criteria, so a sideways drag claims the sheet and cancels the tray `ScrollView`. `panActiveOffsetY` constrains that pan to vertical intent. `enableContentPanningGesture={false}` scrolls the tray and kills swipe-down. This sheet has no backdrop, so swipe-down is the only exit that does not act on the sheet.
 
+**The tray fades gate on remaining scroll, not overflow.** `swatchTrayFadeGates` answers both ends from one triple (`trayWidth`, `contentWidth`, `scrollX`) with `FADE_GATE_PX` of slack. The three measurements travel together. Gating on overflow alone leaves the last swatch dimmed once scrolled to.
+
+**Copy and Share stay native.** `onCopy` and `onShare` are native-only props. `shareData` rides in on `onVerseSelect`, so neither button crosses the bridge.
+
 **Writes go through `useHighlightPermissionFlow`.** A second gate in the UI layer gives a write two places to disagree. The reader adds only a sign-in prompt in front, because the flow calls `signIn()` with no UI of its own. A `null` auth is unconfigured, not signed out, and must not raise a prompt. The action sheet stays closed while a prompt is up, so displacement cannot clear a Pending Highlight.
 
 **The sheet stays internal.** A host that wants its own UI uses `onVerseSelect` plus `useHighlights`.
