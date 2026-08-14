@@ -7,7 +7,7 @@ Amended: 2026-08-12 — apply is palette-only. Remove follows the ANY rule for v
 
 Accepted
 
-Verse actions are the reference, the highlight swatches, Copy, and Share. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection, paint, and the selection payload.
+Verse actions are the reference, the highlight swatches, Copy, and Share. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection and the selection payload. It renders controlled highlights. Native owns the paint data ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
 
 **Web keeps the popover.** `NativeSheet` renders nothing on web. Suppressing the popover there leaves no verse-action UI. The fork is `lib/resolve-verse-actions.ts`. The `'use dom'` file cannot read the host `Platform.OS`.
 
