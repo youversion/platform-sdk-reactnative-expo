@@ -23,10 +23,11 @@ export default function HighlightQueueDrainHost() {
   const userId = auth?.userInfo?.id ?? null
   const accessToken = auth?.accessToken ?? null
   const getAccessToken = auth?.getAccessToken ?? null
-  const refreshNow = auth?.refreshNow ?? null
 
   // The drain wants the refresh side effect only — it re-reads the token per
-  // scope from this same context afterwards.
+  // scope from this same context afterwards. The forced retry uses the same
+  // accessor with `{ force: true }` so a silent mint failure cannot look like
+  // a freshly minted token.
   const ensureFreshToken = useMemo(
     () =>
       getAccessToken === null
@@ -37,11 +38,11 @@ export default function HighlightQueueDrainHost() {
     [getAccessToken],
   )
 
-  const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken, refreshNow })
+  const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken, getAccessToken })
   // Declared before the effects that read it: effects run in order, so the drain
   // starts against real values rather than the mount-time snapshot.
   useEffect(() => {
-    authRef.current = { userId, accessToken, ensureFreshToken, refreshNow }
+    authRef.current = { userId, accessToken, ensureFreshToken, getAccessToken }
   })
 
   const api = useMemo(

@@ -52,7 +52,6 @@ beforeEach(() => {
     userInfo: { id: 'user-1' },
     accessToken: 'token-1',
     getAccessToken: jest.fn(),
-    refreshNow: jest.fn(),
   })
   mockStartDrain.mockReturnValue(drain)
   mockAddNetworkStateListener.mockImplementation((listener) => {
@@ -81,7 +80,7 @@ describe('HighlightQueueDrainHost', () => {
       userId: 'user-1',
       accessToken: 'token-1',
       ensureFreshToken: expect.any(Function),
-      refreshNow: expect.any(Function),
+      getAccessToken: expect.any(Function),
     })
   })
 
@@ -94,7 +93,7 @@ describe('HighlightQueueDrainHost', () => {
       userId: null,
       accessToken: null,
       ensureFreshToken: null,
-      refreshNow: null,
+      getAccessToken: null,
     })
   })
 

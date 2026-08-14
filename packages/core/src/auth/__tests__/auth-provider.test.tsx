@@ -838,6 +838,42 @@ describe('AuthProvider — getAccessToken', () => {
     })
   })
 
+  it('force:true hits the endpoint even when the token is beyond leeway', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    mockRefreshTokens.mockResolvedValue({ ...validTokens, access_token: 'forced-access' })
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken({ force: true }))
+
+    expect(result).toEqual({ status: 'ok', token: 'forced-access', userId: null })
+    expect(mockRefreshTokens).toHaveBeenCalled()
+  })
+
+  it('force:true reports refresh-failed when the mint does not land, even if a leftover is unexpired', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'stored-access',
+      refreshToken: 'stored-refresh',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+    mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))
+
+    renderProvider()
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    const result = await act(async () => latestAuth!.getAccessToken({ force: true }))
+
+    expect(result).toEqual({ status: 'unavailable', reason: 'refresh-failed' })
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('accessToken')).toBe('stored-access')
+    expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
+  })
+
   it('joins an in-flight refresh: concurrent callers share one HTTP call and get the new token', async () => {
     mockLoadTokens.mockResolvedValue({
       accessToken: 'expired-access',
@@ -870,6 +906,38 @@ describe('AuthProvider — getAccessToken', () => {
     expect(await first).toEqual({ status: 'ok', token: 'new-access', userId: null })
     expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: null })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
+  })
+
+  it('force:true remints after joining an in-flight refresh', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'expired-access',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+
+    let resolveFirst: (v: TokenResponse) => void = () => {}
+    mockRefreshTokens
+      .mockImplementationOnce(
+        () =>
+          new Promise<TokenResponse>((r) => {
+            resolveFirst = r
+          }),
+      )
+      .mockResolvedValueOnce({ ...validTokens, access_token: 'forced-access' })
+
+    renderProvider()
+    await waitFor(() => expect(mockRefreshTokens).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(latestAuth).not.toBeNull())
+
+    const forced = latestAuth!.getAccessToken({ force: true })
+
+    await act(async () => {
+      resolveFirst({ ...validTokens, access_token: 'joined-access' })
+      await forced
+    })
+
+    expect(await forced).toEqual({ status: 'ok', token: 'forced-access', userId: null })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
   })
 })
 

@@ -37,7 +37,7 @@ It runs inside `useHighlights.runWrite`, next to the existing `waitForAuthSettle
 
 `hasPermission` reads the local grant cache and needs no token, so nothing about the branch decision required the refresh to come first. `runWrite` already re-reads the current token at send time — deliberately, so a mid-write refresh does not fail the write — which is the same place the fresh one lands.
 
-Two things follow. `apply` is now synchronous up to the branch, so the guard that compared `pending.scope` across the pre-flight await is gone: the window it covered no longer exists. And `remove`, plus any direct `useHighlights` consumer, gets the same protection `apply` used to get alone.
+Two things follow. `apply` is synchronous up to the branch in the common case. The one exception is bootstrap: `hasPermission` is seeded from MMKV before `accessToken` lands, so writing on that hint while `isLoading && !isAuthenticated` still reverts if the session is gone. Wait only in that window. A token in hand is settled even if `isLoading` is still true. The claimed-scope guard returns for that await only. `remove`, plus any direct `useHighlights` consumer, still gets the same send-path refresh `apply` used to get alone.
 
 **Re-prompt exactly once, then go terminal.**
 
@@ -53,6 +53,7 @@ The reducer carries a `retried` flag from `confirming` onward. A write refused w
 | ----------------------------------------------------- | --------------------------------------------- |
 | A live flow spans a scope change                      | Render-time `RESET` plus the generation token |
 | A straight-through write is out and comes back `auth` | Claimed scope versus the current scope        |
+| Bootstrap is `isLoading && !isAuthenticated`          | Claimed scope versus the current scope        |
 
 The second is the one a generation token cannot cover: no flow exists yet, so there is no waiting caller to abandon.
 
@@ -70,4 +71,4 @@ The accepted residual is the one ADR 0014 already named: a grant the server disa
 
 `getAccessToken` joins an in-flight refresh rather than skipping it, so awaiting it does mean the token is current. A failed refresh still leaves the old token in place, which is why the corrective path exists at all and must not be removed as redundant.
 
-A write now settles no faster than before — the refresh round-trip moved, it did not disappear. What changed is that the user stops waiting on it. Anything added in front of `apply`'s branch, or in front of the claim in `useHighlights.startWrite`, puts the delay back.
+A write now settles no faster than before — the refresh round-trip moved, it did not disappear. What changed is that the user stops waiting on it. Anything added in front of `apply`'s branch in the common case, or in front of the claim in `useHighlights.startWrite`, puts the delay back. The bootstrap wait is the documented exception, and it is gated on `isLoading && !isAuthenticated`, never on `isLoading` alone.

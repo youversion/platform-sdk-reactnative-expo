@@ -5,6 +5,7 @@ export { default as YouVersionProvider } from './youversion-provider'
 export { useYVAuth, useYVAuthOptional } from './auth'
 export type {
   AccessTokenResult,
+  GetAccessTokenOptions,
   AuthConfig,
   AuthPermission,
   AuthScope,

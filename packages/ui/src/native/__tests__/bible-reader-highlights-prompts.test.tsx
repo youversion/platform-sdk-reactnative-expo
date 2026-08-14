@@ -100,7 +100,7 @@ type AuthValue = NonNullable<ReturnType<typeof core.useYVAuthOptional>>
  * the passthrough provider mounts no `AuthProvider` — means something different
  * and is covered by its own case below.
  */
-function stubAuth(isAuthenticated: boolean) {
+function stubAuth(isAuthenticated: boolean, isLoading = false) {
   const value: AuthValue = {
     isAuthenticated,
     accessToken: isAuthenticated ? 'test-token' : null,
@@ -114,7 +114,7 @@ function stubAuth(isAuthenticated: boolean) {
         ? ({ status: 'ok', token: 'test-token', userId: null } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
     ),
-    isLoading: false,
+    isLoading,
     requestedPermissions: ['highlights'],
     grantedPermissions: null,
     hasPermission: () => false,
@@ -407,6 +407,97 @@ describe('BibleReader — the sign-in pre-step', () => {
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
     expect(screen.queryByTestId('highlight-consent-sheet')).toBeNull()
     expect(rawRemove).toHaveBeenCalledWith(BLUE, [1, 2])
+  })
+
+  it('holds the tap while auth is still loading', async () => {
+    stubAuth(false, true)
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+  })
+
+  it('opens sign-in once bootstrap settles signed out', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    stubAuth(false)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+  })
+
+  it('applies once bootstrap settles signed in', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    stubAuth(true)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
+    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+  })
+
+  it('drops a held tap when the user selects different verses', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    await selectVerses({
+      ...SELECTION,
+      verses: [3],
+      passageIds: ['JHN.1.3'],
+      reference: 'John 1:3',
+    })
+
+    stubAuth(false)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+  })
+
+  it('keeps a held tap when the action sheet clears the selection', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+    await selectVerses({ ...SELECTION, verses: [], passageIds: [], reference: '' })
+
+    stubAuth(false)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
   })
 
   it('goes straight to the flow for a signed-in user', async () => {
