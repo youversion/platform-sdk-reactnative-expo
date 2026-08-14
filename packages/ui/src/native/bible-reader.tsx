@@ -338,7 +338,9 @@ export function BibleReader({
 
   // A `null` auth means the consumer configured no auth at all, which is not the
   // same as signed out. There is nothing to sign in to, so there is no prompt.
-  const needsSignIn = auth !== null && !auth.isAuthenticated
+  // `isLoading` is the token-loading window — not signed-out. The write path
+  // already waits; treating it as signed-out would prompt a stored session.
+  const needsSignIn = auth !== null && !auth.isAuthenticated && !auth.isLoading
 
   const handleSwatchPress = useCallback(
     (swatch: VerseActionSwatch) => {

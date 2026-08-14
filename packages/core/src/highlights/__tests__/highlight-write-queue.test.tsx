@@ -621,7 +621,7 @@ describe('a parked write the drain drops', () => {
         userId,
         accessToken: 'token-1',
         ensureFreshToken: null,
-        refreshNow: async () => undefined,
+        getAccessToken: async () => ({ status: 'ok' as const, token: 'token-1', userId }),
       }),
     })
     await act(async () => {

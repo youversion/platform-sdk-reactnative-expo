@@ -54,7 +54,7 @@ const mockSignIn = jest.fn<Promise<void>, []>()
 const mockRequestPermissions = jest.fn<Promise<DataExchangeOutcome>, [readonly AuthPermission[]]>()
 const mockInvalidatePermissions = jest.fn<void, []>()
 
-type AuthState = { signedIn: boolean; permissions: string[] }
+type AuthState = { signedIn: boolean; permissions: string[]; isLoading?: boolean }
 
 /** `null` models a provider with no `auth` configured at all. */
 let currentAuth: AuthState | null = null
@@ -87,7 +87,7 @@ function authValue(state: AuthState): AuthContextValue {
         ? ({ status: 'ok', token: 'token-1', userId: 'user-1' } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
     ),
-    isLoading: false,
+    isLoading: state.isLoading ?? false,
     // An app that reaches this flow has asked for `highlights` — the reader
     // never mounts the fetch otherwise (`shouldFetchHighlights`). What the user
     // then granted is `state.permissions` below, which is what this suite
@@ -203,6 +203,19 @@ beforeEach(() => {
 // ── The pre-flight ───────────────────────────────────────────────────────────
 
 describe('pre-flight', () => {
+  it('writes straight through while auth is still loading, instead of opening sign-in', async () => {
+    currentAuth = { signedIn: false, permissions: [], isLoading: true }
+
+    const { result } = renderFlow()
+    const { promise } = await startApply(result)
+
+    await expect(promise).resolves.toEqual({ status: 'ok', verses: [16] })
+    expect(mockWriteApply).toHaveBeenCalledWith(YELLOW, [16])
+    expect(mockSignIn).not.toHaveBeenCalled()
+    expect(mockRequestPermissions).not.toHaveBeenCalled()
+    expect(result.current.isConfirming).toBe(false)
+  })
+
   it('writes straight through when the permission is already granted', async () => {
     const { result } = renderFlow()
     const { promise } = await startApply(result)

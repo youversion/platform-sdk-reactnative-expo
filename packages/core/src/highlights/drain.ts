@@ -6,6 +6,7 @@
  * relaunch nothing in memory remembers the scope.
  */
 
+import type { AccessTokenResult, GetAccessTokenOptions } from '../auth'
 import { nextBackoffDelay } from './backoff'
 import { mergeCachedHighlights } from './cache'
 import { isWriteClaimed } from './claims'
@@ -19,8 +20,8 @@ export type DrainAuth = {
   userId: string | null
   accessToken: string | null
   ensureFreshToken: (() => Promise<void>) | null
-  /** Unconditional mint, for the one retry a refusal earns. */
-  refreshNow: (() => Promise<void>) | null
+  /** Outcome-reporting accessor. Forced mint for the one retry a refusal earns. */
+  getAccessToken: ((options?: GetAccessTokenOptions) => Promise<AccessTokenResult>) | null
 }
 
 export type HighlightQueueDrain = {
@@ -120,21 +121,24 @@ export function startHighlightQueueDrain(deps: {
 
   /**
    * A fresh token for the retry, or `null` if there is no route to one — no
-   * refresh to call, one that threw, or one that ended the session this write
-   * belongs to. Only a refusal of a genuinely minted token may revert.
+   * accessor, a refresh that failed or threw, or one that ended the session
+   * this write belongs to. Only a refusal of a genuinely minted token may revert.
    */
   async function forcedToken(userId: string): Promise<string | null> {
-    const refreshNow = getAuth().refreshNow
-    if (refreshNow === null) {
+    const getAccessToken = getAuth().getAccessToken
+    if (getAccessToken === null) {
       return null
     }
+    let result: AccessTokenResult
     try {
-      await refreshNow()
+      result = await getAccessToken({ force: true })
     } catch {
       return null
     }
-    const next = getAuth()
-    return stopped || next.userId !== userId ? null : next.accessToken
+    if (result.status !== 'ok') {
+      return null
+    }
+    return stopped || result.userId !== userId ? null : result.token
   }
 
   async function sendColor(

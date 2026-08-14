@@ -473,7 +473,10 @@ export function useHighlightPermissionFlow(
       // the claim rather than in front of it (ADR 0016). Putting a refresh here
       // instead would make the common case wait on a token round-trip before a
       // single pixel changed.
-      if (current.hasPermission(HIGHLIGHTS_PERMISSION)) {
+      if (current.hasPermission(HIGHLIGHTS_PERMISSION) || current.isLoading) {
+        // `isLoading` is the token-loading window, not signed-out. The write
+        // path already waits (`waitForAuthSettled`). Branching to sign-in here
+        // would open OAuth for a user who is still booting a stored session.
         return applyThroughGrant(color, verses)
       }
 

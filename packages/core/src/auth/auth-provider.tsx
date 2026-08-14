@@ -5,7 +5,14 @@ import { toMessage } from '../error-message'
 import { clearHighlightQueue, clearHighlightsCache } from '../highlights'
 import { getOrSetInstallationId } from '../installation-id'
 import { mmkvStorage } from '../storage/mmkv-storage'
-import { AuthContext, type AccessTokenResult, type AuthContextValue } from './auth-context'
+import {
+  AuthContext,
+  type AccessTokenResult,
+  type AuthContextValue,
+  type GetAccessTokenOptions,
+} from './auth-context'
+
+type RefreshOutcome = 'ok' | 'skipped' | 'failed' | 'signed-out'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { requestDataExchange, type AuthIdentity, type DataExchangeOutcome } from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
@@ -53,7 +60,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   // second caller can *join* it. A caller that awaits `refreshToken` needs a
   // usable token when it resolves; a boolean flag can only tell it to give up
   // and carry on with the expired one it was trying to replace.
-  const refreshPromiseRef = useRef<Promise<void> | null>(null)
+  const refreshPromiseRef = useRef<Promise<RefreshOutcome> | null>(null)
   // The access token as a ref, alongside the state, for the one read that has to
   // see past the render closure: data exchange refreshes before minting, and the
   // token it must send is the one that refresh just wrote, not the one this
@@ -146,15 +153,15 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [invalidatePermissions, setIdentity])
 
   const refreshToken = useCallback(
-    async (options?: { force?: boolean }): Promise<void> => {
+    async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
       const currentRefreshToken = refreshTokenRef.current
       if (!currentRefreshToken) {
-        return
+        return 'signed-out'
       }
       const expiresAt = expiryRef.current?.getTime() ?? 0
 
       if (!options?.force && expiresAt > Date.now() + REFRESH_LEEWAY_SECONDS * 1000) {
-        return
+        return 'skipped'
       }
 
       // Join an in-flight refresh rather than stepping over it. The trigger is
@@ -170,7 +177,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         return inFlight
       }
 
-      const run = (async () => {
+      const run = (async (): Promise<RefreshOutcome> => {
         try {
           const response = await refreshTokens({
             apiHost,
@@ -182,6 +189,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
             refreshToken: response.refresh_token,
             expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
           })
+          return 'ok'
         } catch (e) {
           if (e instanceof TokenEndpointError && e.isRevoked) {
             // Clearing is best-effort: it ends in a Keychain write, which can
@@ -193,8 +201,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
             } catch {
               // In-memory state is already cleared; only the persisted copy lost.
             }
+            setError(e instanceof Error ? e : new Error(String(e)))
+            return 'signed-out'
           }
           setError(e instanceof Error ? e : new Error(String(e)))
+          return 'failed'
         }
       })()
 
@@ -203,7 +214,7 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       // that started the run clears it; joiners return the promise untouched.
       refreshPromiseRef.current = run
       try {
-        await run
+        return await run
       } finally {
         refreshPromiseRef.current = null
       }
@@ -315,44 +326,55 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     await clearAuthState()
   }, [clearAuthState])
 
-  const refreshNow = useCallback(() => refreshToken({ force: true }), [refreshToken])
+  const refreshNow = useCallback(async () => {
+    await refreshToken({ force: true })
+  }, [refreshToken])
 
   const requestedPermissions = config.permissions ?? NO_PERMISSIONS
 
-  // The leeway-gated refresh with its outcome attached. `refreshToken` swallows
-  // failure by design, so a caller reading the token afterwards cannot tell "refreshed"
+  // The refresh with its outcome attached. `refreshToken` swallows failure by
+  // design, so a caller reading the token afterwards cannot tell "refreshed"
   // from "still expired" — this re-reads the refs it left behind and says which.
-  // Non-forced on purpose: the leeway gate already refreshes exactly when the
-  // token needs it, and joining an in-flight refresh comes free.
-  const getAccessToken = useCallback(async (): Promise<AccessTokenResult> => {
-    if (refreshTokenRef.current === null) {
-      return { status: 'unavailable', reason: 'signed-out' }
-    }
+  // Non-forced: the leeway gate already refreshes exactly when the token needs
+  // it. Forced: always hit the endpoint, and a failure is `refresh-failed` even
+  // if an unexpired leftover remains — that leftover is what a 401 just refused.
+  const getAccessToken = useCallback(
+    async (options?: GetAccessTokenOptions): Promise<AccessTokenResult> => {
+      if (refreshTokenRef.current === null) {
+        return { status: 'unavailable', reason: 'signed-out' }
+      }
 
-    await refreshToken()
+      const force = options?.force === true
+      const outcome = await refreshToken({ force })
 
-    // Re-read the refs, never closure state: the refresh may have replaced the
-    // token, or found it revoked and cleared the session via clearAuthState.
-    // Token and owner in one synchronous block — `setAuthState`/`clearAuthState`
-    // write both, so a caller checking the owner it captured cannot be handed a
-    // token from the other side of a sign-in.
-    const token = accessTokenRef.current
-    const userId = userInfoRef.current?.id ?? null
-    if (refreshTokenRef.current === null || token === null) {
-      return { status: 'unavailable', reason: 'signed-out' }
-    }
+      // Re-read the refs, never closure state: the refresh may have replaced the
+      // token, or found it revoked and cleared the session via clearAuthState.
+      // Token and owner in one synchronous block — `setAuthState`/`clearAuthState`
+      // write both, so a caller checking the owner it captured cannot be handed a
+      // token from the other side of a sign-in.
+      const token = accessTokenRef.current
+      const userId = userInfoRef.current?.id ?? null
+      if (refreshTokenRef.current === null || token === null) {
+        return { status: 'unavailable', reason: 'signed-out' }
+      }
 
-    // Actual expiry, not the leeway window the refresh triggers on: a token
-    // inside the window is still one the server takes, and refusing it here
-    // would fail writes that would have succeeded. A corrupt stored expiry is
-    // NaN, which fails every comparison — hence the finite check.
-    const expiresAt = expiryRef.current?.getTime() ?? 0
-    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
-      return { status: 'unavailable', reason: 'refresh-failed' }
-    }
+      if (force && outcome === 'failed') {
+        return { status: 'unavailable', reason: 'refresh-failed' }
+      }
 
-    return { status: 'ok', token, userId }
-  }, [refreshToken])
+      // Actual expiry, not the leeway window the refresh triggers on: a token
+      // inside the window is still one the server takes, and refusing it here
+      // would fail writes that would have succeeded. A corrupt stored expiry is
+      // NaN, which fails every comparison — hence the finite check.
+      const expiresAt = expiryRef.current?.getTime() ?? 0
+      if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
+        return { status: 'unavailable', reason: 'refresh-failed' }
+      }
+
+      return { status: 'ok', token, userId }
+    },
+    [refreshToken],
+  )
 
   const hasPermission = useCallback(
     (permission: AuthPermission) => grantedPermissions?.includes(permission) ?? false,
