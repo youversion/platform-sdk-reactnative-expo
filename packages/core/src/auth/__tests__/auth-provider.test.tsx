@@ -127,6 +127,7 @@ function requestPermissionsFromContext(permissions: readonly AuthPermission[]) {
 function AuthPeek() {
   const auth = useYVAuth()
   const [signInOutcome, setSignInOutcome] = useState<string>('idle')
+  const [signOutOutcome, setSignOutOutcome] = useState<string>('idle')
   const [permissionOutcome, setPermissionOutcome] = useState<string>('idle')
 
   useEffect(() => {
@@ -145,6 +146,7 @@ function AuthPeek() {
       </Text>
       <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
+      <Text testID="signOutOutcome">{signOutOutcome}</Text>
       <Text testID="permissionOutcome">{permissionOutcome}</Text>
       <Pressable
         testID="requestPermissions"
@@ -171,7 +173,18 @@ function AuthPeek() {
       >
         <Text>signIn</Text>
       </Pressable>
-      <Pressable testID="signOut" onPress={() => auth.signOut()}>
+      <Pressable
+        testID="signOut"
+        onPress={async () => {
+          setSignOutOutcome('pending')
+          try {
+            await auth.signOut()
+            setSignOutOutcome('resolved')
+          } catch (e) {
+            setSignOutOutcome(`rejected: ${(e as Error).message}`)
+          }
+        }}
+      >
         <Text>signOut</Text>
       </Pressable>
     </View>
@@ -508,8 +521,9 @@ describe('AuthProvider — signOut', () => {
     expect(listQueuedScopes('u2')).toEqual([])
   })
 
-  // The purges run before the tokens are cleared. A store that throws must cost a
-  // surviving cache entry, never a user who asked to sign out and stayed in.
+  // The purges run after the tokens are cleared, and swallow their own failures.
+  // A store that throws must cost a surviving cache entry, never a user who asked
+  // to sign out and stayed in.
   it('still signs out when the cache purges cannot reach the store', async () => {
     mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     parkWrite('u1', JHN3)
@@ -537,6 +551,49 @@ describe('AuthProvider — signOut', () => {
       refreshToken: null,
       expiryDate: null,
     })
+  })
+
+  // The token clear runs first precisely so this case aborts loudly. A Keychain
+  // that refuses the write leaves the session on disk, so the app has to keep
+  // saying "signed in" — purge the caches anyway and the user sees a signed-out
+  // app whose session comes back on the next launch.
+  it('aborts the whole sign-out, caches included, when the token clear rejects', async () => {
+    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1', name: 'Ada' }))
+    mockMmkv.set(
+      MMKV_AUTH_KEYS.grantedPermissions,
+      JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
+    )
+    setCachedHighlights('u1', JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }])
+    parkWrite('u1', JHN3)
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isAuthenticated')).toBe('true'))
+
+    mockSaveTokens.mockRejectedValueOnce(new Error('keychain unavailable'))
+    fireEvent.press(screen.getByTestId('signOut'))
+
+    // Loud: signOut is the one path allowed to reject, so the caller can tell the
+    // user their session is still live.
+    await waitFor(() => expect(getText('signOutOutcome')).toBe('rejected: keychain unavailable'))
+    expect(getText('isAuthenticated')).toBe('true')
+    expect(getText('accessToken')).toBe('a')
+    expect(JSON.parse(getText('userInfo')).id).toBe('u1')
+    expect(getText('hasHighlights')).toBe('true')
+
+    // Nothing downstream of the token clear ran.
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+    expect(getCachedHighlights('u1', JHN3)).not.toBeNull()
+    expect(listQueuedScopes('u1')).toHaveLength(1)
   })
 })
 
@@ -1497,8 +1554,8 @@ describe('AuthProvider — requestPermissions', () => {
     )
   })
 
-  // Clearing a revoked session ends in a Keychain write. It can reject, and this
-  // flow is documented to resolve — a consumer following that has no catch.
+  // Clearing a revoked session starts with a Keychain write. It can reject, and
+  // this flow is documented to resolve — a consumer following that has no catch.
   it('resolves rather than rejecting when clearing a revoked session fails', async () => {
     await signInWithStaleToken()
 
@@ -1508,6 +1565,10 @@ describe('AuthProvider — requestPermissions', () => {
 
     const outcome = await act(async () => requestPermissionsFromContext(['highlights']))
 
-    expect(outcome).toEqual({ status: 'cancel' })
+    // Resolved, never thrown — that is what this pins. The clear aborted on its
+    // first step, so the expired token is still in storage and the accessor says
+    // `refresh-failed`, which this flow reports as transient without minting.
+    expect(outcome).toMatchObject({ status: 'failure', reason: 'transient' })
+    expect(mockRequestDataExchange).not.toHaveBeenCalled()
   })
 })

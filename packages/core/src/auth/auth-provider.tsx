@@ -132,15 +132,22 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
   }, [])
 
   const clearAuthState = useCallback(async () => {
-    // The cache purges are best-effort; none may abort the token clearing below.
-    // The three helpers swallow their own failures, this removal cannot.
+    // Tokens first, and deliberately unguarded. A Keychain rejection aborts the
+    // sign-out here, before a single cache is touched, and the app goes on
+    // showing the session it still holds on disk — which is the truthful state.
+    // Run the purges first and that same rejection would leave a signed-out
+    // looking app whose session comes back on the next launch.
+    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
+
+    // Everything below is best-effort. The tokens are already gone, so a store
+    // that refuses a removal costs a stale cache entry, never the sign-out.
     //
     // A survived record reseeds `userInfo` on the next mount; the bootstrap
     // clear is what bounds that, not this catch (ADR 0014's amendment).
     try {
       mmkvStorage.remove(MMKV_AUTH_KEYS.cachedUserInfo)
     } catch {
-      // Cached user info survived; the tokens still go.
+      // Cached user info survived; the tokens are already gone.
     }
     invalidatePermissions()
     clearHighlightsCache()
@@ -151,7 +158,6 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
     setAccessToken(null)
     setIdentity(null)
     setError(null)
-    await saveTokens({ accessToken: null, refreshToken: null, expiryDate: null })
   }, [invalidatePermissions, setIdentity])
 
   const refreshToken = useCallback(
@@ -205,14 +211,16 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         } catch (e) {
           const revoked = e instanceof TokenEndpointError && e.isRevoked
           if (revoked) {
-            // Clearing is best-effort: it ends in a Keychain write, which can
-            // reject. Everything downstream of this refresh — getAccessToken,
+            // Clearing is best-effort: it *starts* with a Keychain write, which
+            // can reject. Everything downstream of this refresh — getAccessToken,
             // requestPermissions — is documented never to throw, so a storage
             // failure must not escape as one.
             try {
               await clearAuthState()
             } catch {
-              // In-memory state is already cleared; only the persisted copy lost.
+              // The Keychain write failed, so nothing was cleared and the app
+              // still shows the revoked session. The next launch loads the same
+              // stored refresh token, earns the same revocation, and retries.
             }
           }
           // After `clearAuthState`, which nulls `error`. One write for both
