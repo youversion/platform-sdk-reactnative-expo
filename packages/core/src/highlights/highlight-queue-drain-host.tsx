@@ -22,8 +22,20 @@ export default function HighlightQueueDrainHost() {
 
   const userId = auth?.userInfo?.id ?? null
   const accessToken = auth?.accessToken ?? null
-  const ensureFreshToken = auth?.ensureFreshToken ?? null
+  const getAccessToken = auth?.getAccessToken ?? null
   const refreshNow = auth?.refreshNow ?? null
+
+  // The drain wants the refresh side effect only — it re-reads the token per
+  // scope from this same context afterwards.
+  const ensureFreshToken = useMemo(
+    () =>
+      getAccessToken === null
+        ? null
+        : async () => {
+            await getAccessToken()
+          },
+    [getAccessToken],
+  )
 
   const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken, refreshNow })
   // Declared before the effects that read it: effects run in order, so the drain

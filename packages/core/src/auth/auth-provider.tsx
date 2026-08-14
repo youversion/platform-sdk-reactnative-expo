@@ -185,9 +185,9 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
         } catch (e) {
           if (e instanceof TokenEndpointError && e.isRevoked) {
             // Clearing is best-effort: it ends in a Keychain write, which can
-            // reject. Everything downstream of this refresh — ensureFreshToken,
-            // getAccessToken, requestPermissions — is documented never to
-            // throw, so a storage failure must not escape as one.
+            // reject. Everything downstream of this refresh — getAccessToken,
+            // requestPermissions — is documented never to throw, so a storage
+            // failure must not escape as one.
             try {
               await clearAuthState()
             } catch {
@@ -319,15 +319,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
 
   const requestedPermissions = config.permissions ?? NO_PERMISSIONS
 
-  // The leeway-gated refresh, made public under a name that says what a caller
-  // wants from it. A pre-flight before a permission-sensitive write needs "make
-  // sure the token is usable" without paying for a token round-trip on every
-  // tap, which is exactly the non-forced path — and, since the refresh is
-  // single-flight by promise, awaiting it does mean the token is usable.
-  const ensureFreshToken = useCallback(() => refreshToken(), [refreshToken])
-
-  // The refresh with its outcome attached. `refreshToken` swallows failure by
-  // design, so a caller reading the token afterwards cannot tell "refreshed"
+  // The leeway-gated refresh with its outcome attached. `refreshToken` swallows
+  // failure by design, so a caller reading the token afterwards cannot tell "refreshed"
   // from "still expired" — this re-reads the refs it left behind and says which.
   // Non-forced on purpose: the leeway gate already refreshes exactly when the
   // token needs it, and joining an in-flight refresh comes free.
@@ -508,7 +501,6 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
-      ensureFreshToken,
       getAccessToken,
       isLoading,
       requestedPermissions,
@@ -524,7 +516,6 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       signIn,
       signOut,
       refreshNow,
-      ensureFreshToken,
       getAccessToken,
       isLoading,
       requestedPermissions,

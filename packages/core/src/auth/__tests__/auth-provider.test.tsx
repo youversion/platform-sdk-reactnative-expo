@@ -651,7 +651,7 @@ describe('AuthProvider — refresh lock', () => {
     await waitFor(() => expect(latestAuth).not.toBeNull())
 
     let joined = false
-    const joiner = latestAuth!.ensureFreshToken().then(() => {
+    const joiner = latestAuth!.getAccessToken().then(() => {
       joined = true
     })
 

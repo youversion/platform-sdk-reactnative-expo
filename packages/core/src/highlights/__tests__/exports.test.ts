@@ -30,6 +30,7 @@ describe('package exports', () => {
     expect(names).not.toContain('setCachedHighlights')
     expect(names).not.toContain('clearHighlightsCache')
     expect(names).not.toContain('clearHighlightQueue')
+    expect(names).not.toContain('isValidHighlightHex')
     expect(names).not.toContain('ok')
     expect(names).not.toContain('err')
   })

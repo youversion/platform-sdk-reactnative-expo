@@ -26,4 +26,3 @@ export type {
   YouVersionTheme,
 } from './native'
 export { useSignOutGuard } from './native'
-export type { SignOutGuardAuth } from './native'

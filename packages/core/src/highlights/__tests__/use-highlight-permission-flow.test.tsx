@@ -53,7 +53,6 @@ let calls: string[] = []
 const mockSignIn = jest.fn<Promise<void>, []>()
 const mockRequestPermissions = jest.fn<Promise<DataExchangeOutcome>, [readonly AuthPermission[]]>()
 const mockInvalidatePermissions = jest.fn<void, []>()
-const mockEnsureFreshToken = jest.fn<Promise<void>, []>()
 
 type AuthState = { signedIn: boolean; permissions: string[] }
 
@@ -83,7 +82,6 @@ function authValue(state: AuthState): AuthContextValue {
     signIn: mockSignIn,
     signOut: jest.fn(),
     refreshNow: jest.fn(),
-    ensureFreshToken: mockEnsureFreshToken,
     getAccessToken: jest.fn(async () =>
       state.signedIn
         ? ({ status: 'ok', token: 'token-1', userId: 'user-1' } as const)
@@ -187,7 +185,6 @@ beforeEach(() => {
   mockWriteApply.mockReset()
   mockRequestPermissions.mockReset()
   mockSignIn.mockReset()
-  mockEnsureFreshToken.mockReset()
 
   calls = []
   currentAuth = signedInWithGrant
@@ -201,9 +198,6 @@ beforeEach(() => {
   // which is the whole reason the flow re-reads it.
   mockSignIn.mockImplementation(async () => undefined)
   mockRequestPermissions.mockResolvedValue({ status: 'cancel' })
-  mockEnsureFreshToken.mockImplementation(async () => {
-    calls.push('ensureFreshToken')
-  })
 })
 
 // ── The pre-flight ───────────────────────────────────────────────────────────
@@ -235,7 +229,6 @@ describe('pre-flight', () => {
     // text until that await resolved. The token refresh the write needs runs
     // inside `useHighlights.runWrite` instead, behind the claim (ADR 0016).
     expect(calls).toEqual(['hasPermission:highlights', 'apply'])
-    expect(mockEnsureFreshToken).not.toHaveBeenCalled()
 
     await act(async () => {
       await promise
@@ -784,7 +777,6 @@ describe('with no auth configured', () => {
     expect(warn.mock.calls[0]?.[0]).toContain('needs `auth` configured')
     // Passed straight through both times — no prompt, no flow, no sign-in.
     expect(mockWriteApply).toHaveBeenCalledTimes(2)
-    expect(mockEnsureFreshToken).not.toHaveBeenCalled()
     expect(result.current.isConfirming).toBe(false)
 
     warn.mockRestore()
