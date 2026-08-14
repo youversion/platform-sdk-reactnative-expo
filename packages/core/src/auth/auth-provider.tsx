@@ -26,6 +26,8 @@ import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
 
+// `getAccessToken({ force: true })` only reads `'failed'`. The other members
+// are `refreshToken`'s own control flow (leeway skip, revoke, mint).
 type RefreshOutcome = 'ok' | 'skipped' | 'failed' | 'signed-out'
 
 // Stable empty reference, so an unconfigured `permissions` does not give the
@@ -170,11 +172,19 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
       // pre-flight on the very token this refresh exists to replace, and the
       // write that followed would 401.
       //
-      // A `force` caller joins too. It asked for a token minted now, and the run
-      // it joins was minted now.
+      // A `force` caller joins that run, then mints again. The drain needs a
+      // token minted *after* the 401 that provoked the force, not whatever
+      // refresh was already in flight when the refusal landed.
       const inFlight = refreshPromiseRef.current
       if (inFlight !== null) {
-        return inFlight
+        const joined = await inFlight
+        if (!options?.force) {
+          return joined
+        }
+        if (refreshTokenRef.current === null) {
+          return 'signed-out'
+        }
+        return refreshToken({ force: true })
       }
 
       const run = (async (): Promise<RefreshOutcome> => {
@@ -191,7 +201,8 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
           })
           return 'ok'
         } catch (e) {
-          if (e instanceof TokenEndpointError && e.isRevoked) {
+          const revoked = e instanceof TokenEndpointError && e.isRevoked
+          if (revoked) {
             // Clearing is best-effort: it ends in a Keychain write, which can
             // reject. Everything downstream of this refresh — getAccessToken,
             // requestPermissions — is documented never to throw, so a storage
@@ -201,11 +212,11 @@ export default function AuthProvider({ config, appKey, apiHost, children }: Auth
             } catch {
               // In-memory state is already cleared; only the persisted copy lost.
             }
-            setError(e instanceof Error ? e : new Error(String(e)))
-            return 'signed-out'
           }
+          // After `clearAuthState`, which nulls `error`. One write for both
+          // branches so a revoke and a failed mint report the same way.
           setError(e instanceof Error ? e : new Error(String(e)))
-          return 'failed'
+          return revoked ? 'signed-out' : 'failed'
         }
       })()
 

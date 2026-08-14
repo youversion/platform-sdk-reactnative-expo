@@ -238,6 +238,38 @@ describe('pre-flight', () => {
     expect(mockRequestPermissions).not.toHaveBeenCalled()
   })
 
+  it('holds a cached-grant tap until bootstrap settles, instead of writing', async () => {
+    currentAuth = { signedIn: false, permissions: ['highlights'], isLoading: true }
+
+    const { result } = renderFlow()
+    const { promise } = await startApply(result)
+    expect(mockWriteApply).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setAuth(signedOut)
+    })
+
+    expect(mockSignIn).toHaveBeenCalledTimes(1)
+    expect(mockWriteApply).not.toHaveBeenCalled()
+    await expect(promise).resolves.toEqual({ status: 'noop' })
+  })
+
+  it('releases the wait once a token is in hand, even if isLoading is still true', async () => {
+    currentAuth = { signedIn: false, permissions: ['highlights'], isLoading: true }
+
+    const { result } = renderFlow()
+    const { promise } = await startApply(result)
+    expect(mockWriteApply).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setAuth({ signedIn: true, permissions: ['highlights'], isLoading: true })
+    })
+
+    await expect(promise).resolves.toEqual({ status: 'ok', verses: [16] })
+    expect(mockWriteApply).toHaveBeenCalledWith(YELLOW, [16])
+    expect(mockSignIn).not.toHaveBeenCalled()
+  })
+
   it('starts sign-in once bootstrap settles signed out', async () => {
     currentAuth = { signedIn: false, permissions: [], isLoading: true }
 

@@ -456,6 +456,50 @@ describe('BibleReader — the sign-in pre-step', () => {
     expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
   })
 
+  it('drops a held tap when the user selects different verses', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+
+    await selectVerses({
+      ...SELECTION,
+      verses: [3],
+      passageIds: ['JHN.1.3'],
+      reference: 'John 1:3',
+    })
+
+    stubAuth(false)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+  })
+
+  it('keeps a held tap when the action sheet clears the selection', async () => {
+    stubAuth(false, true)
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
+      wrapper,
+    })
+
+    await selectVerses()
+    await press(`bible-verse-action-swatch-apply-${GREEN}`)
+    await selectVerses({ ...SELECTION, verses: [], passageIds: [], reference: '' })
+
+    stubAuth(false)
+    await act(async () => {
+      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+    })
+
+    expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+  })
+
   it('goes straight to the flow for a signed-in user', async () => {
     stubAuth(true)
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })

@@ -78,6 +78,18 @@ type PendingSwatchIntent = { color: HighlightColor; verses: number[]; scope: Hig
  */
 type PromptState = { kind: 'none' } | { kind: 'sign-in'; scope: HighlightScope }
 
+type AuthGate = 'unconfigured' | 'settling' | 'signed-out' | 'ready'
+
+function resolveAuthGate(auth: ReturnType<typeof useYVAuthOptional>): AuthGate {
+  if (auth === null) return 'unconfigured'
+  // A token in hand is ready even if `isLoading` is still true. `isAuthenticated`
+  // is `accessToken !== null`, not the seeded `userInfo`. A stored session is
+  // therefore *not* authenticated during the loading window.
+  if (auth.isAuthenticated) return 'ready'
+  if (auth.isLoading) return 'settling'
+  return 'signed-out'
+}
+
 /** Stable identity, so the render-time discard cannot re-trigger itself. */
 const NO_PROMPT: PromptState = { kind: 'none' }
 
@@ -312,10 +324,16 @@ export function BibleReader({
 
   const handleVerseSelect = useCallback(
     async (next: BibleReaderVerseSelection) => {
+      // A new non-empty selection is the user picking other verses. Drop a
+      // held tap so settle cannot prompt for the old ones. An empty payload is
+      // our own `closeVerseActions` after the swatch press — keep the hold.
+      if (next.verses.length > 0 && prompt.kind === 'none' && pendingIntentRef.current !== null) {
+        pendingIntentRef.current = null
+      }
       setVerseSelection(next.verses.length > 0 ? next : null)
       await onVerseSelect?.(next)
     },
-    [onVerseSelect],
+    [onVerseSelect, prompt.kind],
   )
 
   const closeVerseActions = useCallback(() => {
@@ -335,14 +353,20 @@ export function BibleReader({
   )
 
   const applyHighlight = highlightPermissionFlow.apply
+  const authGate = resolveAuthGate(auth)
 
-  // A `null` auth means the consumer configured no auth at all, which is not the
-  // same as signed out. There is nothing to sign in to, so there is no prompt.
-  // `isLoading` is the token-loading window — not signed-out. A stored session
-  // is already `isAuthenticated` (userInfo is seeded). A signed-out launch is
-  // not: stash the tap and wait for bootstrap before opening the prompt.
-  const needsSignIn = auth !== null && !auth.isAuthenticated && !auth.isLoading
-  const authSettling = auth !== null && !auth.isAuthenticated && auth.isLoading
+  const replayPendingIntent = useCallback(() => {
+    const pending = pendingIntentRef.current
+    pendingIntentRef.current = null
+    if (!pending) return
+    // Backstop for the during-render discard above. A confirm that races a
+    // controlled location change must not hand verse numbers to the current
+    // location-scoped flow.
+    if (!sameScope(pending.scope, { versionId, book, chapter })) return
+    void applyHighlight(pending.color, pending.verses).then((outcome) =>
+      reportHighlightWriteError(outcome, onHighlightError),
+    )
+  }, [applyHighlight, onHighlightError, versionId, book, chapter])
 
   const handleSwatchPress = useCallback(
     (swatch: VerseActionSwatch) => {
@@ -358,35 +382,44 @@ export function BibleReader({
         )
         return
       }
-      if (needsSignIn || authSettling) {
-        // The flow calls `signIn()` with no UI of its own, so the reader owns
-        // this pre-step: hold the intent, ask, hand it over on confirm.
-        // While bootstrap is still settling, hold the intent and wait. Opening
-        // the sheet now would prompt a stored session; applying now would drop
-        // a signed-out tap after the write reverts.
-        pendingIntentRef.current = {
-          color: swatch.color,
-          verses,
-          scope: { versionId, book, chapter },
+      switch (authGate) {
+        case 'settling':
+        case 'signed-out': {
+          // The flow calls `signIn()` with no UI of its own, so the reader owns
+          // this pre-step: hold the intent, ask, hand it over on confirm.
+          // While bootstrap is still settling, hold the intent and wait. Opening
+          // the sheet now would prompt a stored session; applying now would drop
+          // a signed-out tap after the write reverts.
+          pendingIntentRef.current = {
+            color: swatch.color,
+            verses,
+            scope: { versionId, book, chapter },
+          }
+          if (authGate === 'signed-out') {
+            setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+          }
+          return
         }
-        if (needsSignIn) {
-          setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+        case 'unconfigured':
+        case 'ready':
+          // Fire-and-forget: the paint is optimistic inside `useHighlights`, so
+          // the verse changes color on this frame instead of after the round-trip.
+          void applyHighlight(swatch.color, verses).then((outcome) =>
+            reportHighlightWriteError(outcome, onHighlightError),
+          )
+          return
+        default: {
+          const _exhaustive: never = authGate
+          return _exhaustive
         }
-        return
       }
-      // Fire-and-forget: the paint is optimistic inside `useHighlights`, so the
-      // verse changes color on this frame instead of after the round-trip.
-      void applyHighlight(swatch.color, verses).then((outcome) =>
-        reportHighlightWriteError(outcome, onHighlightError),
-      )
     },
     [
       verseSelection,
       closeVerseActions,
       removeHighlight,
       applyHighlight,
-      needsSignIn,
-      authSettling,
+      authGate,
       onHighlightError,
       versionId,
       book,
@@ -395,20 +428,11 @@ export function BibleReader({
   )
 
   const handleSignInConfirm = useCallback(() => {
-    const pending = pendingIntentRef.current
-    pendingIntentRef.current = null
     setPrompt(NO_PROMPT)
     // Straight back into the flow, which signs in, asks for consent if the grant
     // is still missing, and writes. The user never reselects the verse.
-    if (!pending) return
-    // Backstop for the during-render discard above. A confirm that races a
-    // controlled location change must not hand verse numbers to the current
-    // location-scoped flow.
-    if (!sameScope(pending.scope, { versionId, book, chapter })) return
-    void applyHighlight(pending.color, pending.verses).then((outcome) =>
-      reportHighlightWriteError(outcome, onHighlightError),
-    )
-  }, [applyHighlight, onHighlightError, versionId, book, chapter])
+    replayPendingIntent()
+  }, [replayPendingIntent])
 
   // "No Thanks", a swipe-down, a backdrop tap, and displacement all land here.
   // Every one discards the intent, and nothing is written.
@@ -418,7 +442,7 @@ export function BibleReader({
   }, [])
 
   useEffect(() => {
-    if (auth === null || auth.isLoading) return
+    if (authGate === 'unconfigured' || authGate === 'settling') return
     if (prompt.kind !== 'none') return
     const pending = pendingIntentRef.current
     if (pending === null) return
@@ -426,15 +450,19 @@ export function BibleReader({
       pendingIntentRef.current = null
       return
     }
-    if (!auth.isAuthenticated) {
-      setPrompt({ kind: 'sign-in', scope: pending.scope })
-      return
+    switch (authGate) {
+      case 'signed-out':
+        setPrompt({ kind: 'sign-in', scope: pending.scope })
+        return
+      case 'ready':
+        replayPendingIntent()
+        return
+      default: {
+        const _exhaustive: never = authGate
+        return _exhaustive
+      }
     }
-    pendingIntentRef.current = null
-    void applyHighlight(pending.color, pending.verses).then((outcome) =>
-      reportHighlightWriteError(outcome, onHighlightError),
-    )
-  }, [auth, prompt.kind, versionId, book, chapter, applyHighlight, onHighlightError])
+  }, [authGate, prompt.kind, versionId, book, chapter, replayPendingIntent])
 
   const handleOpenBibleThemeSettings = useCallback(() => {
     setIsSettingsSheetOpen(true)

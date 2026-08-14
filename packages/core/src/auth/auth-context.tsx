@@ -9,7 +9,8 @@ import type { AuthPermission, YVUserInfo } from './types'
  *
  * Without `{ force: true }`, `ok` is not "freshly minted": it may be an
  * unexpired leftover no refresh was owed for. With `force: true`, `ok` means
- * the endpoint minted on this call (or the in-flight this call joined), and
+ * the endpoint minted on this call: a force caller joins any in-flight refresh,
+ * then mints again, so the token is newer than the 401 that provoked the force.
  * `refresh-failed` includes a force that did not land even if an unexpired
  * leftover remains.
  *
@@ -56,10 +57,11 @@ export type AuthContextValue = {
    * already. `useHighlights` is the worked example. The highlight write-queue
    * drain is the worked example of `{ force: true }`.
    *
-   * Single-flight: a refresh already in flight is **joined**, not skipped, so
-   * once this resolves the token is the current one. It never rejects, and a
-   * failed refresh also surfaces through {@link error}, exactly as the periodic
-   * refresh does.
+   * Single-flight for a non-force caller: a refresh already in flight is
+   * **joined**, not skipped, so once this resolves the token is the current one.
+   * A force caller joins that run, then starts its own mint. It never rejects,
+   * and a failed refresh also surfaces through {@link error}, exactly as the
+   * periodic refresh does.
    */
   getAccessToken: (options?: GetAccessTokenOptions) => Promise<AccessTokenResult>
   isLoading: boolean

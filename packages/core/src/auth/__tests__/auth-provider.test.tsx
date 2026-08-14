@@ -907,6 +907,38 @@ describe('AuthProvider — getAccessToken', () => {
     expect(await second).toEqual({ status: 'ok', token: 'new-access', userId: null })
     expect(mockRefreshTokens).toHaveBeenCalledTimes(1)
   })
+
+  it('force:true remints after joining an in-flight refresh', async () => {
+    mockLoadTokens.mockResolvedValue({
+      accessToken: 'expired-access',
+      refreshToken: 'r',
+      expiryDate: new Date(Date.now() - 1000),
+    })
+
+    let resolveFirst: (v: TokenResponse) => void = () => {}
+    mockRefreshTokens
+      .mockImplementationOnce(
+        () =>
+          new Promise<TokenResponse>((r) => {
+            resolveFirst = r
+          }),
+      )
+      .mockResolvedValueOnce({ ...validTokens, access_token: 'forced-access' })
+
+    renderProvider()
+    await waitFor(() => expect(mockRefreshTokens).toHaveBeenCalledTimes(1))
+    await waitFor(() => expect(latestAuth).not.toBeNull())
+
+    const forced = latestAuth!.getAccessToken({ force: true })
+
+    await act(async () => {
+      resolveFirst({ ...validTokens, access_token: 'joined-access' })
+      await forced
+    })
+
+    expect(await forced).toEqual({ status: 'ok', token: 'forced-access', userId: null })
+    expect(mockRefreshTokens).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('AuthProvider — AppState wiring', () => {
