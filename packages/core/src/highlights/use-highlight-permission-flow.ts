@@ -151,6 +151,8 @@ export function useHighlightPermissionFlow(
   // just awaited (see `nextCommittedRender`).
   const [, bumpRender] = useState(0)
   const renderWaitersRef = useRef<(() => void)[]>([])
+  const authSettledWaitersRef = useRef<(() => void)[]>([])
+  const isUnmountedRef = useRef(false)
 
   /**
    * Resolve whoever is waiting on a flow that ended without an answer for them —
@@ -192,10 +194,20 @@ export function useHighlightPermissionFlow(
     for (const resolve of waiters) {
       resolve()
     }
+
+    if (auth === null || !auth.isLoading) {
+      const settled = authSettledWaitersRef.current
+      authSettledWaitersRef.current = []
+      for (const resolve of settled) {
+        resolve()
+      }
+    }
   })
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isUnmountedRef.current = false
+    return () => {
+      isUnmountedRef.current = true
       // On unmount, settle first (so any flushed continuation finds nothing to
       // answer) and then release the waiters, rather than leaving a caller's
       // promise pending for the lifetime of the app.
@@ -205,9 +217,13 @@ export function useHighlightPermissionFlow(
       for (const resolve of waiters) {
         resolve()
       }
-    },
-    [settleAbandoned],
-  )
+      const settled = authSettledWaitersRef.current
+      authSettledWaitersRef.current = []
+      for (const resolve of settled) {
+        resolve()
+      }
+    }
+  }, [settleAbandoned])
 
   /**
    * Resolves after React has committed a render, so `authRef` reflects state that
@@ -228,6 +244,16 @@ export function useHighlightPermissionFlow(
       }),
     [],
   )
+
+  const waitForAuthNotLoading = useCallback((): Promise<void> => {
+    const current = authRef.current
+    if (current === null || !current.isLoading) {
+      return Promise.resolve()
+    }
+    return new Promise<void>((resolve) => {
+      authSettledWaitersRef.current.push(resolve)
+    })
+  }, [])
 
   /**
    * Reduce and dispatch in one step, returning the next state synchronously.
@@ -455,6 +481,37 @@ export function useHighlightPermissionFlow(
     [startFlow],
   )
 
+  /**
+   * Bootstrap is still settling. Do not treat that as signed-out (a stored
+   * session would get a false prompt) and do not write yet (a signed-out
+   * launch would paint, revert, and drop the tap). Re-read after settle.
+   */
+  const settleThenApply = useCallback(
+    async (color: string, verses: number[]): Promise<HighlightWriteOutcome> => {
+      const claimedScope = highlightsRef.current.scope
+      await waitForAuthNotLoading()
+      if (isUnmountedRef.current) {
+        return { status: 'noop' }
+      }
+      if (scopeKey(claimedScope) !== scopeKey(highlightsRef.current.scope)) {
+        return { status: 'noop' }
+      }
+      const after = authRef.current
+      if (after === null) {
+        return highlightsRef.current.apply(color, verses)
+      }
+      if (after.hasPermission(HIGHLIGHTS_PERMISSION)) {
+        return applyThroughGrant(color, verses)
+      }
+      const pending: PendingHighlight = { color, verses, scope: claimedScope }
+      return startFlow(
+        { type: 'TAP', pending, branch: after.isAuthenticated ? 'consent' : 'sign-in' },
+        pending,
+      )
+    },
+    [applyThroughGrant, startFlow, waitForAuthNotLoading],
+  )
+
   // Deliberately not `async`. Every branch already returns a promise, and the
   // whole point of this function is that nothing is awaited before the write is
   // handed off, so an `async` wrapper here would only invite one back.
@@ -473,11 +530,12 @@ export function useHighlightPermissionFlow(
       // the claim rather than in front of it (ADR 0016). Putting a refresh here
       // instead would make the common case wait on a token round-trip before a
       // single pixel changed.
-      if (current.hasPermission(HIGHLIGHTS_PERMISSION) || current.isLoading) {
-        // `isLoading` is the token-loading window, not signed-out. The write
-        // path already waits (`waitForAuthSettled`). Branching to sign-in here
-        // would open OAuth for a user who is still booting a stored session.
+      if (current.hasPermission(HIGHLIGHTS_PERMISSION)) {
         return applyThroughGrant(color, verses)
+      }
+
+      if (current.isLoading) {
+        return settleThenApply(color, verses)
       }
 
       // Records the passage the user actually tapped, so nothing replayed after
@@ -489,7 +547,7 @@ export function useHighlightPermissionFlow(
         pending,
       )
     },
-    [applyThroughGrant, startFlow],
+    [applyThroughGrant, settleThenApply, startFlow],
   )
 
   const confirm = useCallback((): void => {

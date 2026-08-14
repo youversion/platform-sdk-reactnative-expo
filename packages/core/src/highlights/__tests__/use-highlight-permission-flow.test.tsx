@@ -203,17 +203,54 @@ beforeEach(() => {
 // ── The pre-flight ───────────────────────────────────────────────────────────
 
 describe('pre-flight', () => {
-  it('writes straight through while auth is still loading, instead of opening sign-in', async () => {
+  it('does not write or sign in while auth is still loading', async () => {
     currentAuth = { signedIn: false, permissions: [], isLoading: true }
 
     const { result } = renderFlow()
     const { promise } = await startApply(result)
 
+    expect(mockWriteApply).not.toHaveBeenCalled()
+    expect(mockSignIn).not.toHaveBeenCalled()
+    expect(result.current.isConfirming).toBe(false)
+
+    let settled = false
+    void promise.then(() => {
+      settled = true
+    })
+    await act(async () => undefined)
+    expect(settled).toBe(false)
+  })
+
+  it('writes once bootstrap settles with a grant, without opening sign-in', async () => {
+    currentAuth = { signedIn: false, permissions: [], isLoading: true }
+
+    const { result } = renderFlow()
+    const { promise } = await startApply(result)
+    expect(mockWriteApply).not.toHaveBeenCalled()
+
+    await act(async () => {
+      setAuth(signedInWithGrant)
+    })
+
     await expect(promise).resolves.toEqual({ status: 'ok', verses: [16] })
     expect(mockWriteApply).toHaveBeenCalledWith(YELLOW, [16])
     expect(mockSignIn).not.toHaveBeenCalled()
     expect(mockRequestPermissions).not.toHaveBeenCalled()
-    expect(result.current.isConfirming).toBe(false)
+  })
+
+  it('starts sign-in once bootstrap settles signed out', async () => {
+    currentAuth = { signedIn: false, permissions: [], isLoading: true }
+
+    const { result } = renderFlow()
+    const { promise } = await startApply(result)
+
+    await act(async () => {
+      setAuth(signedOut)
+    })
+
+    expect(mockSignIn).toHaveBeenCalledTimes(1)
+    expect(mockWriteApply).not.toHaveBeenCalled()
+    await expect(promise).resolves.toEqual({ status: 'noop' })
   })
 
   it('writes straight through when the permission is already granted', async () => {

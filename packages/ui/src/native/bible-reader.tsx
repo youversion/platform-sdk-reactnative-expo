@@ -17,7 +17,7 @@ import type {
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import type { Ref } from 'react'
-import { useCallback, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -338,9 +338,11 @@ export function BibleReader({
 
   // A `null` auth means the consumer configured no auth at all, which is not the
   // same as signed out. There is nothing to sign in to, so there is no prompt.
-  // `isLoading` is the token-loading window — not signed-out. The write path
-  // already waits; treating it as signed-out would prompt a stored session.
+  // `isLoading` is the token-loading window — not signed-out. A stored session
+  // is already `isAuthenticated` (userInfo is seeded). A signed-out launch is
+  // not: stash the tap and wait for bootstrap before opening the prompt.
   const needsSignIn = auth !== null && !auth.isAuthenticated && !auth.isLoading
+  const authSettling = auth !== null && !auth.isAuthenticated && auth.isLoading
 
   const handleSwatchPress = useCallback(
     (swatch: VerseActionSwatch) => {
@@ -356,15 +358,20 @@ export function BibleReader({
         )
         return
       }
-      if (needsSignIn) {
+      if (needsSignIn || authSettling) {
         // The flow calls `signIn()` with no UI of its own, so the reader owns
         // this pre-step: hold the intent, ask, hand it over on confirm.
+        // While bootstrap is still settling, hold the intent and wait. Opening
+        // the sheet now would prompt a stored session; applying now would drop
+        // a signed-out tap after the write reverts.
         pendingIntentRef.current = {
           color: swatch.color,
           verses,
           scope: { versionId, book, chapter },
         }
-        setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+        if (needsSignIn) {
+          setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+        }
         return
       }
       // Fire-and-forget: the paint is optimistic inside `useHighlights`, so the
@@ -379,6 +386,7 @@ export function BibleReader({
       removeHighlight,
       applyHighlight,
       needsSignIn,
+      authSettling,
       onHighlightError,
       versionId,
       book,
@@ -408,6 +416,25 @@ export function BibleReader({
     pendingIntentRef.current = null
     setPrompt(NO_PROMPT)
   }, [])
+
+  useEffect(() => {
+    if (auth === null || auth.isLoading) return
+    if (prompt.kind !== 'none') return
+    const pending = pendingIntentRef.current
+    if (pending === null) return
+    if (!sameScope(pending.scope, { versionId, book, chapter })) {
+      pendingIntentRef.current = null
+      return
+    }
+    if (!auth.isAuthenticated) {
+      setPrompt({ kind: 'sign-in', scope: pending.scope })
+      return
+    }
+    pendingIntentRef.current = null
+    void applyHighlight(pending.color, pending.verses).then((outcome) =>
+      reportHighlightWriteError(outcome, onHighlightError),
+    )
+  }, [auth, prompt.kind, versionId, book, chapter, applyHighlight, onHighlightError])
 
   const handleOpenBibleThemeSettings = useCallback(() => {
     setIsSettingsSheetOpen(true)
