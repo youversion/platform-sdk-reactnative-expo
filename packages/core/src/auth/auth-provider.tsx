@@ -11,8 +11,6 @@ import {
   type AuthContextValue,
   type GetAccessTokenOptions,
 } from './auth-context'
-
-type RefreshOutcome = 'ok' | 'skipped' | 'failed' | 'signed-out'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
 import { requestDataExchange, type AuthIdentity, type DataExchangeOutcome } from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
@@ -27,6 +25,8 @@ import { sanitizeAvatarUrl } from './id-token'
 import { signInWithPKCE } from './pkce-flow'
 import { loadTokens, saveTokens, type StoredTokens } from './token-storage'
 import type { AuthConfig, AuthPermission, YVUserInfo } from './types'
+
+type RefreshOutcome = 'ok' | 'skipped' | 'failed' | 'signed-out'
 
 // Stable empty reference, so an unconfigured `permissions` does not give the
 // context value a new identity on every render.
