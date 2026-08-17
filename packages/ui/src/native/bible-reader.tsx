@@ -46,6 +46,7 @@ import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 
+// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
