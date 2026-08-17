@@ -4,6 +4,9 @@ Wraps `@youversion/platform-react-ui` as Expo DOM components for React Native. T
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 
+Setup, Metro, native rebuild: `CONTRIBUTING.md`.
+Consumer API: `README.md`.
+
 ## Gotchas
 
 - **Worktree.** `pnpm install` at the worktree root first — iOS pods resolve via `:path:` into that worktree's `node_modules`. Copy `apps/example/.env`.
@@ -18,6 +21,7 @@ Keep this file brief. Put task-specific guidance behind a pointer.
 ## Supply-Chain Protection
 
 - Lift the cooldown with `pnpm install --config.minimumReleaseAge=0`. `--force` does not. A lockfile that resolved a too-new version reds CI until that version ages — lockfile verification runs on `--frozen-lockfile` too.
+- pnpm 11 blocks postinstall unless listed in `allowBuilds`. Prefer `false` for packages that ship prebuilt binaries (`unrs-resolver`).
 - After `expo install --fix`, re-pin the `~` ranges it wrote. Published `dependencies` / `devDependencies` stay exact; `peerDependencies` stay ranges.
 - Third-party version bumps: pick a release ≥3 days old. `@youversion/*` is exempt.
 

@@ -11,6 +11,7 @@ import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
+// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
