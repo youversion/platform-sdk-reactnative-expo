@@ -1,12 +1,19 @@
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
-import * as Linking from 'expo-linking'
 import { Stack } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import MissingAppKey from './_components/missing-app-key'
 
+/**
+ * An app key has exactly one registered callback URL, and both flows that come
+ * back through the browser — sign-in and the data-exchange permission grant —
+ * use it. Register this exact value in the YouVersion Platform console, and
+ * register the `youversionauth` scheme in `app.json` so Android can route it.
+ */
+const REDIRECT_URI = 'youversionauth://callback'
+
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
-  const redirectUri = Linking.createURL('callback')
+
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -14,7 +21,11 @@ export default function RootLayout() {
         <YouVersionProvider
           appKey={appKey}
           theme="system"
-          auth={{ redirectUri, scopes: ['profile', 'email'] }}
+          auth={{
+            redirectUri: REDIRECT_URI,
+            scopes: ['profile', 'email'],
+            permissions: ['highlights'],
+          }}
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>

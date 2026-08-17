@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native'
 import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { BibleAppLogo } from './bible-app-logo'
+import { useSignOutGuard } from './use-sign-out-guard'
 
 export type YouVersionAuthButtonProps = {
   background?: 'light' | 'dark'
@@ -22,15 +23,23 @@ export function YouVersionAuthButton({
   size = 'default',
   text,
 }: YouVersionAuthButtonProps) {
-  const { isAuthenticated, signOut, signIn } = useYVAuth()
+  const auth = useYVAuth()
+  const { isAuthenticated, signIn } = auth
+  const guardedSignOut = useSignOutGuard(auth)
   const { t, i18n } = useSdkTranslation()
 
   const authFunction = async () => {
     try {
       if (mode === 'auto') {
-        await (isAuthenticated ? signOut() : signIn())
+        if (isAuthenticated) {
+          await guardedSignOut?.()
+        } else {
+          await signIn()
+        }
+      } else if (mode === 'signIn') {
+        await signIn()
       } else {
-        await (mode === 'signIn' ? signIn() : signOut())
+        await guardedSignOut?.()
       }
     } catch (error) {
       console.error(error)

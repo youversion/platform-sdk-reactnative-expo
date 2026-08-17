@@ -1,0 +1,74 @@
+export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
+
+/** Distinct from the cache prefix, so sign-out purges the queue by its own call, not by a prefix match. */
+export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
+
+/**
+ * The five highlight swatches for apply. Partner apps may share a highlights DB
+ * with the main Bible app, which can paint valid non-palette hex from the API;
+ * only apply is restricted to this list.
+ *
+ * Duplicated from `@youversion/platform-react-ui`'s `HIGHLIGHT_COLORS` rather
+ * than imported: that package peer-depends on `react-dom` (which core must not
+ * require of a native consumer), exposes no deep import path, and would pull a
+ * second `@youversion/platform-core` into this package's subtree. A pinning
+ * test guards the values. Upstream ask: relocate the palette into
+ * `@youversion/platform-core`, which both SDKs already depend on, and make this
+ * a re-export.
+ */
+export const HIGHLIGHT_COLORS = ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'] as const
+
+export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]
+
+/** Case-insensitive membership test against {@link HIGHLIGHT_COLORS}. */
+export function isHighlightColor(color: string): color is HighlightColor {
+  return (HIGHLIGHT_COLORS as readonly string[]).includes(color.toLowerCase())
+}
+
+export type HighlightScope = {
+  versionId: number
+  book: string
+  chapter: string
+}
+
+export type ServerColors = Record<number, string>
+
+export type QueuedWrite = {
+  local: string | null
+  /**
+   * What the server had before the user started editing this verse, restored if
+   * the write is rejected. Survives a later write to the same verse.
+   */
+  server: string | null
+}
+
+/** Verse number -> its unsent write. An entry where the two states agree is dropped. */
+export type QueuedWrites = Record<number, QueuedWrite>
+
+/**
+ * One copy of the message, shared by the write path and the permission flow that
+ * wraps it. Both can report the same refusal, and two drifting copies of a
+ * user-facing string is a bug waiting for a translator.
+ */
+export const NOT_SIGNED_IN_MESSAGE =
+  'Not signed in — highlights require an authenticated YouVersion user.'
+
+export function highlightsCacheKey(userId: string, scope: HighlightScope): string {
+  return `${MMKV_HIGHLIGHTS_KEY_PREFIX}${userId}.${scope.versionId}.${scope.book}.${scope.chapter}`
+}
+
+/**
+ * Every queue key belonging to one user, and the only thing the prefix scans in
+ * `queue.ts` may match on. Built here rather than at each scan so it cannot
+ * disagree with {@link highlightQueueKey}: a scan that stops matching fails
+ * silently in both directions — the drain finds no scope to send, and sign-out
+ * reports nothing to lose.
+ */
+export function highlightQueueUserPrefix(userId: string): string {
+  return `${MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX}${userId}.`
+}
+
+/** Keyed like the cache, so a tap rewrites one chapter's slice, not a global blob. */
+export function highlightQueueKey(userId: string, scope: HighlightScope): string {
+  return `${highlightQueueUserPrefix(userId)}${scope.versionId}.${scope.book}.${scope.chapter}`
+}

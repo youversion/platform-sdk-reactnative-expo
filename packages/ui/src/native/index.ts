@@ -3,7 +3,13 @@ export type { BibleCardProps } from './bible-card'
 export { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 export type { BibleChapterPickerSheetProps } from './bible-chapter-picker-sheet'
 export { BibleReader } from './bible-reader'
-export type { BibleReaderProps } from './bible-reader'
+export type {
+  BibleReaderHandle,
+  BibleReaderProps,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
+  HighlightWriteError,
+} from './bible-reader'
 export { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 export type { BibleReaderSettingsSheetProps } from './bible-reader-settings-sheet'
 export { BibleTextView } from './bible-text-view'
@@ -16,3 +22,4 @@ export { YouVersionAuthButton } from './youversion-auth-button'
 export type { YouVersionAuthButtonProps } from './youversion-auth-button'
 export { YouVersionProvider } from './youversion-provider'
 export type { YouVersionProviderProps, YouVersionTheme } from './youversion-provider'
+export { useSignOutGuard } from './use-sign-out-guard'
