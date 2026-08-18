@@ -8,6 +8,7 @@ import {
   expandPassageId,
   getCachedHighlights,
   highlightsCacheKey,
+  parseChapterScopeFromUsfm,
   setCachedHighlights,
   type HighlightScope,
 } from '../cache'
@@ -142,6 +143,26 @@ describe('expandPassageId', () => {
   })
 })
 
+describe('parseChapterScopeFromUsfm', () => {
+  it('returns book and chapter for chapter, verse, and verse-range USFM', () => {
+    expect(parseChapterScopeFromUsfm('JHN.3')).toEqual({ book: 'JHN', chapter: '3' })
+    expect(parseChapterScopeFromUsfm('JHN.3.16')).toEqual({ book: 'JHN', chapter: '3' })
+    expect(parseChapterScopeFromUsfm('JHN.3.16-18')).toEqual({ book: 'JHN', chapter: '3' })
+  })
+
+  it('returns null for invalid USFM', () => {
+    expect(parseChapterScopeFromUsfm('')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN.3.16.18')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN..16')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN.3.abc')).toBeNull()
+  })
+
+  it('does not change expandPassageId’s rejection of chapter-scope USFM', () => {
+    expect(expandPassageId('JHN.3')).toBeNull()
+  })
+})
+
 describe('deriveServerColors', () => {
   it('projects verses and normalizes hex to lowercase', () => {
     const colors = deriveServerColors(
@@ -227,7 +248,11 @@ describe('deriveServerColors', () => {
   it('drops invalid hex from paint projection', () => {
     expect(
       deriveServerColors(
-        [highlight('JHN.3.16', 'fffe00'), highlight('JHN.3.17', 'gg0000'), highlight('JHN.3.18', '123456')],
+        [
+          highlight('JHN.3.16', 'fffe00'),
+          highlight('JHN.3.17', 'gg0000'),
+          highlight('JHN.3.18', '123456'),
+        ],
         scope,
       ),
     ).toEqual({ 16: 'fffe00', 18: '123456' })

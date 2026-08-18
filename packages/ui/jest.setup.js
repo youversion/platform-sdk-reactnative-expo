@@ -163,6 +163,14 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
   }
 
   /**
+   * The real hook hits BibleClient. Signed-out/loading-shaped (`null`) by
+   * default; suites that care about a resolved passage_id spy this themselves.
+   */
+  function useVerseOfTheDayPassageId() {
+    return null
+  }
+
+  /**
    * Same reason as `useHighlights` above, one layer up: the real flow calls
    * `useHighlights` through a *relative* import, so stubbing the barrel export
    * alone does not intercept it and the real hook still reaches core's own
@@ -196,6 +204,7 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     useYVAuth,
     useHighlights,
     useHighlightPermissionFlow,
+    useVerseOfTheDayPassageId,
   }
 
   return mocked

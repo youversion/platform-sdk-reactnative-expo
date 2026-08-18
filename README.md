@@ -148,6 +148,8 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
+<!-- TODO(YPE): after platform-sdk-react#335 pin, document paint-only highlights on BibleTextView, BibleCard, and VerseOfTheDay -->
+
 #### Verse actions
 
 Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.

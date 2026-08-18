@@ -1,5 +1,9 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import {
+  parseChapterScopeFromUsfm,
+  useYouVersion,
+  type HighlightScope,
+} from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
@@ -11,6 +15,7 @@ import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
+import { HighlightsPaint } from './highlights-paint'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -30,6 +35,7 @@ export type BibleCardProps = Omit<
   | 'onVersionPickerPress'
   | 'theme'
   | 'versionId'
+  | 'highlights'
 > & {
   theme?: 'light' | 'dark' | 'system'
   versionId?: number
@@ -37,6 +43,20 @@ export type BibleCardProps = Omit<
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+}
+
+function highlightScopeFor(
+  reference: string | undefined,
+  versionId: number | undefined,
+): HighlightScope | null {
+  if (reference === undefined || typeof versionId !== 'number') {
+    return null
+  }
+  const parsed = parseChapterScopeFromUsfm(reference)
+  if (parsed === null) {
+    return null
+  }
+  return { versionId, book: parsed.book, chapter: parsed.chapter }
 }
 
 export function BibleCard({
@@ -111,50 +131,56 @@ export function BibleCard({
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showVersionPicker && !consumerOnVersionPickerPress
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
+  const scope = highlightScopeFor(props.reference, versionId)
 
   return (
-    <>
-      <BibleCardDOM
-        {...props}
-        dom={withEmbedDomDefaults(dom)}
-        appKey={context.appKey}
-        apiHost={context.apiHost}
-        installationId={context.installationId}
-        theme={resolvedTheme}
-        versionId={versionId}
-        onVersionChange={handleVersionChange}
-        onVersionPickerPress={handleVersionPickerPress}
-        onFootnotePress={onFootnotePress}
-        showVersionPicker={showVersionPicker}
-      />
-      {showVersionPickerSheet && (
-        <BibleVersionPickerSheet
-          isOpen={isVersionPickerOpen}
-          onClose={() => setIsVersionPickerOpen(false)}
-          versionId={versionId}
-          theme={resolvedTheme}
-          onSelect={async (newVersionId) => {
-            setVersionId(newVersionId)
-          }}
-        />
-      )}
-      {showFootnoteSheet && (
-        <NativeSheet
-          isOpen={!!footnoteData}
-          onClose={() => setFootnoteData(null)}
-          showAndroidLoader
-          theme={resolvedTheme}
-        >
-          <FootnoteContent
-            dom={withSheetDomDefaults()}
-            data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={resolvedTheme}
+    <HighlightsPaint scope={scope}>
+      {(highlights) => (
+        <>
+          <BibleCardDOM
+            {...props}
+            highlights={highlights}
+            dom={withEmbedDomDefaults(dom)}
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            theme={resolvedTheme}
+            versionId={versionId}
+            onVersionChange={handleVersionChange}
+            onVersionPickerPress={handleVersionPickerPress}
+            onFootnotePress={onFootnotePress}
+            showVersionPicker={showVersionPicker}
           />
-        </NativeSheet>
+          {showVersionPickerSheet && (
+            <BibleVersionPickerSheet
+              isOpen={isVersionPickerOpen}
+              onClose={() => setIsVersionPickerOpen(false)}
+              versionId={versionId}
+              theme={resolvedTheme}
+              onSelect={async (newVersionId) => {
+                setVersionId(newVersionId)
+              }}
+            />
+          )}
+          {showFootnoteSheet && (
+            <NativeSheet
+              isOpen={!!footnoteData}
+              onClose={() => setFootnoteData(null)}
+              showAndroidLoader
+              theme={resolvedTheme}
+            >
+              <FootnoteContent
+                dom={withSheetDomDefaults()}
+                data={footnoteData ?? EMPTY_FOOTNOTE}
+                theme={resolvedTheme}
+                appKey={context.appKey}
+                apiHost={context.apiHost}
+                installationId={context.installationId}
+              />
+            </NativeSheet>
+          )}
+        </>
       )}
-    </>
+    </HighlightsPaint>
   )
 }

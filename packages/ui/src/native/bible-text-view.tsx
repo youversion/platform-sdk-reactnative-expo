@@ -1,4 +1,8 @@
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import {
+  parseChapterScopeFromUsfm,
+  useYouVersion,
+  type HighlightScope,
+} from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
@@ -8,6 +12,7 @@ import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import FootnoteContent from '../dom/footnote-content'
 import { resolveTheme } from '../lib/resolve-theme'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
+import { HighlightsPaint } from './highlights-paint'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -20,9 +25,23 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 export type BibleTextViewProps = Omit<
   BibleTextViewDOMProps,
-  'appKey' | 'apiHost' | 'installationId'
+  'appKey' | 'apiHost' | 'installationId' | 'highlights'
 > & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+}
+
+function highlightScopeFor(
+  reference: string | undefined,
+  versionId: number | undefined,
+): HighlightScope | null {
+  if (reference === undefined || typeof versionId !== 'number') {
+    return null
+  }
+  const parsed = parseChapterScopeFromUsfm(reference)
+  if (parsed === null) {
+    return null
+  }
+  return { versionId, book: parsed.book, chapter: parsed.chapter }
 }
 
 export function BibleTextView({
@@ -49,36 +68,42 @@ export function BibleTextView({
 
   const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const footnoteTheme: FootnoteContentDOMProps['theme'] = resolvedTheme
+  const scope = highlightScopeFor(domProps.reference, domProps.versionId)
 
   return (
-    <>
-      <BibleTextViewDOM
-        {...domProps}
-        appKey={context.appKey}
-        apiHost={context.apiHost}
-        installationId={context.installationId}
-        theme={theme}
-        onFootnotePress={onFootnotePress}
-      />
-      {showSheet && (
-        <NativeSheet
-          isOpen={!!footnoteData}
-          openKey={footnoteOpenKey}
-          onClose={() => setFootnoteData(null)}
-          showAndroidLoader
-          theme={footnoteTheme}
-        >
-          <FootnoteContent
-            dom={withSheetDomDefaults()}
-            data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={footnoteTheme}
-            fontSize={domProps.fontSize}
+    <HighlightsPaint scope={scope}>
+      {(highlights) => (
+        <>
+          <BibleTextViewDOM
+            {...domProps}
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            highlights={highlights}
+            theme={theme}
+            onFootnotePress={onFootnotePress}
           />
-        </NativeSheet>
+          {showSheet && (
+            <NativeSheet
+              isOpen={!!footnoteData}
+              openKey={footnoteOpenKey}
+              onClose={() => setFootnoteData(null)}
+              showAndroidLoader
+              theme={footnoteTheme}
+            >
+              <FootnoteContent
+                dom={withSheetDomDefaults()}
+                data={footnoteData ?? EMPTY_FOOTNOTE}
+                theme={footnoteTheme}
+                fontSize={domProps.fontSize}
+                appKey={context.appKey}
+                apiHost={context.apiHost}
+                installationId={context.installationId}
+              />
+            </NativeSheet>
+          )}
+        </>
       )}
-    </>
+    </HighlightsPaint>
   )
 }

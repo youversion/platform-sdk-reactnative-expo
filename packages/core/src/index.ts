@@ -19,8 +19,10 @@ export {
   hasQueuedHighlightWrites,
   HIGHLIGHT_COLORS,
   isHighlightColor,
+  parseChapterScopeFromUsfm,
   useHighlightPermissionFlow,
   useHighlights,
+  useVerseOfTheDayPassageId,
 } from './highlights'
 export type {
   Highlight,
