@@ -4,11 +4,13 @@ import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
+import type { HookOverrides } from '../../hook-overrides'
 import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
 import * as api from '../api'
 import type { HighlightsApiError } from '../api'
+import * as drainSignals from '../drain-signals'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
   useHighlights,
@@ -1565,5 +1567,90 @@ describe('missing user id', () => {
     })
 
     expect(outcome).toMatchObject({ reason: 'not-signed-in' })
+  })
+})
+
+describe('hookOverrides skip live work', () => {
+  const stubResult: UseHighlightsResult = {
+    highlights: [],
+    scope,
+    isRefreshing: false,
+    error: null,
+    refresh: async () => undefined,
+    apply: async () => ({ status: 'noop' }),
+    remove: async () => ({ status: 'noop' }),
+  }
+
+  function OverrideWrapper({
+    children,
+    hookOverrides,
+  }: {
+    children: ReactNode
+    hookOverrides: HookOverrides
+  }) {
+    return (
+      <YouVersionContext.Provider
+        value={{
+          appKey: 'app-key',
+          apiHost: 'api.youversion.com',
+          installationId: 'install-1',
+          hookOverrides,
+        }}
+      >
+        <AuthContext.Provider value={authValue(signedIn ?? {})}>{children}</AuthContext.Provider>
+      </YouVersionContext.Provider>
+    )
+  }
+
+  it('does not fetch, notify the drain, or persist cache when useHighlights is overridden', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+    const notifyDrain = jest.spyOn(drainSignals, 'notifyDrain')
+
+    const { result } = renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper hookOverrides={{ useHighlights: () => stubResult }}>
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.highlights).toEqual([])
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(notifyDrain).not.toHaveBeenCalled()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
+  })
+
+  it('does not fetch when only the permission-flow override is set', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+
+    renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper
+          hookOverrides={{
+            useHighlightPermissionFlow: () => ({
+              highlights: stubResult,
+              isConfirming: false,
+              apply: async () => ({ status: 'noop' as const }),
+              confirm: () => undefined,
+              decline: () => undefined,
+              flowError: null,
+            }),
+          }}
+        >
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
   })
 })

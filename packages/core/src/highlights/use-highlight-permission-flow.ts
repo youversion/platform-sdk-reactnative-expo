@@ -592,6 +592,8 @@ export function useHighlightPermissionFlow(
   options: UseHighlightsOptions,
 ): UseHighlightPermissionFlowResult {
   const override = useYouVersion().hookOverrides?.useHighlightPermissionFlow
+  // Still mounts so hook order stays stable. Nested `useHighlights` sees this
+  // override and skips live fetch / drain / cache persist.
   const real = useHighlightPermissionFlowImplementation(options)
   return override?.(options) ?? real
 }

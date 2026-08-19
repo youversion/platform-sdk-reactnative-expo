@@ -4,6 +4,7 @@ import { AppState } from 'react-native'
 
 import type { AccessTokenResult, AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
+import type { HookOverrides } from '../hook-overrides'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import {
@@ -275,7 +276,16 @@ type AuthSettleOutcome = 'settled' | 'aborted'
  * that config's `permissions` — without it no GET is ever issued (see
  * {@link shouldFetchHighlights}), so `highlights` stays whatever the cache holds.
  */
-function useHighlightsImplementation(options: UseHighlightsOptions): UseHighlightsResult {
+function shouldRunLiveHighlightWork(overrides: HookOverrides | undefined): boolean {
+  return (
+    overrides?.useHighlights === undefined && overrides?.useHighlightPermissionFlow === undefined
+  )
+}
+
+function useHighlightsImplementation(
+  options: UseHighlightsOptions,
+  live: boolean,
+): UseHighlightsResult {
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -284,8 +294,9 @@ function useHighlightsImplementation(options: UseHighlightsOptions): UseHighligh
   const userId = auth?.userInfo?.id ?? null
   // Config, not state: effectively constant for the life of the provider. Read
   // through the closure rather than a ref so a change still re-runs the fetch
-  // effect below (`runFetch` is one of its deps).
-  const canFetchHighlights = shouldFetchHighlights(auth?.requestedPermissions ?? [])
+  // effect below (`runFetch` is one of its deps). An override still mounts this
+  // hook (rules of hooks) but must not GET, notify the drain, or persist cache.
+  const canFetchHighlights = live && shouldFetchHighlights(auth?.requestedPermissions ?? [])
   const getAccessToken = auth?.getAccessToken ?? null
 
   const scope = useMemo<HighlightScope>(
@@ -494,31 +505,35 @@ function useHighlightsImplementation(options: UseHighlightsOptions): UseHighligh
   // refresh and the Highlight Write Queue drain. Do not clear inFlightRef:
   // foreground should join an in-flight GET, not abandon it.
   useEffect(() => {
+    if (!live) {
+      return
+    }
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void runFetch()
       }
     })
     return () => subscription.remove()
-  }, [runFetch])
+  }, [live, runFetch])
 
   // The drain gave up on a write this reader is still painting. Nothing remounts,
   // so the un-paint arrives here (ADR 0018).
-  useEffect(
-    () =>
-      onWritesDropped((dropped) => {
-        const captured = identityRef.current
-        if (identityKeyFor(dropped.userId, dropped.scope) !== captured.key) {
-          return
-        }
-        setState((prev) =>
-          sameIdentity(prev, captured)
-            ? restore(prev, { restored: dropped.restored, cleared: dropped.cleared })
-            : prev,
-        )
-      }),
-    [],
-  )
+  useEffect(() => {
+    if (!live) {
+      return
+    }
+    return onWritesDropped((dropped) => {
+      const captured = identityRef.current
+      if (identityKeyFor(dropped.userId, dropped.scope) !== captured.key) {
+        return
+      }
+      setState((prev) =>
+        sameIdentity(prev, captured)
+          ? restore(prev, { restored: dropped.restored, cleared: dropped.cleared })
+          : prev,
+      )
+    })
+  }, [live])
 
   // ── Writes ─────────────────────────────────────────────────────────────────
   // A promise chain, not a queue: the web machine needs an explicit queue only
@@ -878,7 +893,7 @@ function useHighlightsImplementation(options: UseHighlightsOptions): UseHighligh
 
   // One place, so no write path can paint without persisting.
   useEffect(() => {
-    if (userId === null) {
+    if (!live || userId === null) {
       return
     }
     try {
@@ -888,7 +903,7 @@ function useHighlightsImplementation(options: UseHighlightsOptions): UseHighligh
       // that refuses this write costs a slower next mount, and must not take the
       // component rendering the chapter down with it.
     }
-  }, [userId, scope, highlights])
+  }, [live, userId, scope, highlights])
 
   return {
     highlights,
@@ -902,7 +917,8 @@ function useHighlightsImplementation(options: UseHighlightsOptions): UseHighligh
 }
 
 export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
-  const override = useYouVersion().hookOverrides?.useHighlights
-  const real = useHighlightsImplementation(options)
+  const overrides = useYouVersion().hookOverrides
+  const override = overrides?.useHighlights
+  const real = useHighlightsImplementation(options, shouldRunLiveHighlightWork(overrides))
   return override?.(options) ?? real
 }

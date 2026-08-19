@@ -5,6 +5,9 @@ import type { UseHighlightsOptions, UseHighlightsResult } from './highlights/use
 /**
  * Test seam: skip live fetch and return stub hook results.
  * Production providers leave this unset.
+ *
+ * Override wrappers still call the real hook (rules of hooks) but pass
+ * `live: false` so it does not GET, notify the drain, or persist cache.
  */
 export type HookOverrides = {
   useYVAuth?: AuthContextValue | null
