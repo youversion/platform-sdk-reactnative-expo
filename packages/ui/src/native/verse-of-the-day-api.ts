@@ -7,20 +7,23 @@ const DEFAULT_API_HOST = 'api.youversion.com'
  * Copied from `@youversion/platform-react-hooks` `getDayOfYear` so native VOTD
  * paint uses the same local calendar day as the Web SDK card. Do not invent a
  * different day-of-year.
+ *
+ * Internal. Not on the UI or core package barrel.
  */
-function getDayOfYear(date: Date): number {
+export function getDayOfYear(date: Date): number {
   return Math.floor((date.getTime() - new Date(date.getFullYear(), 0, 0).getTime()) / 86400000)
 }
 
 /**
- * Looks up today's VOTD `passage_id`. Returns `null` on any failure — callers
- * paint nothing rather than throw. No access token: this is not a user-owned
- * resource.
+ * Looks up the VOTD `passage_id` for a pinned `dayOfYear`. Returns `null` on
+ * any failure — callers paint nothing rather than throw. No access token: this
+ * is not a user-owned resource.
  *
  * Internal. Not on the UI or core package barrel.
  */
 export async function getVerseOfTheDayPassageId(
   credentials: YouVersionContextValue,
+  dayOfYear: number,
 ): Promise<string | null> {
   try {
     const { appKey, apiHost, installationId } = credentials
@@ -32,7 +35,7 @@ export async function getVerseOfTheDayPassageId(
         installationId,
       }),
     )
-    const { passage_id } = await client.getVOTD(getDayOfYear(new Date()))
+    const { passage_id } = await client.getVOTD(dayOfYear)
     if (!passage_id) {
       return null
     }

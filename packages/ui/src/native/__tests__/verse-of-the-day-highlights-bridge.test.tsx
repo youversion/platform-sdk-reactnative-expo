@@ -22,6 +22,7 @@ import * as votdPassage from '../use-verse-of-the-day-passage-id'
 type CapturedDomProps = {
   highlights?: unknown
   versionId?: number
+  dayOfYear?: number
 }
 
 /** Every render's props, so "always an array" can be checked, not just "eventually". */
@@ -127,6 +128,15 @@ describe('the Controlled Highlights Latch', () => {
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
       expect(props).not.toHaveProperty('accessToken')
+    }
+  })
+
+  it('pins a dayOfYear on every DOM render so the WebView cannot sample a different day', () => {
+    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+
+    expect(mockDomPropsHistory.length).toBeGreaterThan(0)
+    for (const props of mockDomPropsHistory) {
+      expect(typeof props.dayOfYear).toBe('number')
     }
   })
 

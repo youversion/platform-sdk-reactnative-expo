@@ -32,23 +32,23 @@ describe('getVerseOfTheDayPassageId', () => {
   it('returns the passage_id when the lookup succeeds', async () => {
     getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
 
-    await expect(getVerseOfTheDayPassageId(credentials)).resolves.toBe('JHN.3.16')
+    await expect(getVerseOfTheDayPassageId(credentials, 15)).resolves.toBe('JHN.3.16')
     expect(getVOTD).toHaveBeenCalledTimes(1)
-    expect(getVOTD).toHaveBeenCalledWith(expect.any(Number))
+    expect(getVOTD).toHaveBeenCalledWith(15)
   })
 
   it('returns null when the lookup fails', async () => {
     getVOTD.mockRejectedValue(new Error('network'))
 
-    await expect(getVerseOfTheDayPassageId(credentials)).resolves.toBeNull()
+    await expect(getVerseOfTheDayPassageId(credentials, 15)).resolves.toBeNull()
   })
 
   it('never passes an access token', async () => {
     getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
 
-    await getVerseOfTheDayPassageId(credentials)
+    await getVerseOfTheDayPassageId(credentials, 15)
 
-    expect(getVOTD.mock.calls[0]).toEqual([expect.any(Number)])
+    expect(getVOTD.mock.calls[0]).toEqual([15])
     expect(getVOTD.mock.calls[0]).toHaveLength(1)
   })
 })
@@ -57,23 +57,46 @@ describe('useVerseOfTheDayPassageId', () => {
   it('returns the passage_id once the lookup succeeds', async () => {
     getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
 
-    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper: wrapper() })
+    const { result } = renderHook(() => useVerseOfTheDayPassageId(15), { wrapper: wrapper() })
 
     expect(result.current).toBeNull()
     await waitFor(() => {
       expect(result.current).toBe('JHN.3.16')
     })
+    expect(getVOTD).toHaveBeenCalledWith(15)
   })
 
   it('stays null when the lookup fails', async () => {
     getVOTD.mockRejectedValue(new Error('network'))
 
-    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper: wrapper() })
+    const { result } = renderHook(() => useVerseOfTheDayPassageId(15), { wrapper: wrapper() })
 
     expect(result.current).toBeNull()
     await waitFor(() => {
       expect(getVOTD).toHaveBeenCalled()
     })
     expect(result.current).toBeNull()
+  })
+
+  it('returns null for the new day until that lookup resolves', async () => {
+    getVOTD.mockResolvedValueOnce({ day: 15, passage_id: 'JHN.3.16' })
+    getVOTD.mockResolvedValueOnce({ day: 16, passage_id: 'MAT.5.1' })
+
+    const { result, rerender } = renderHook(
+      ({ dayOfYear }: { dayOfYear: number }) => useVerseOfTheDayPassageId(dayOfYear),
+      { wrapper: wrapper(), initialProps: { dayOfYear: 15 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current).toBe('JHN.3.16')
+    })
+
+    rerender({ dayOfYear: 16 })
+    expect(result.current).toBeNull()
+
+    await waitFor(() => {
+      expect(result.current).toBe('MAT.5.1')
+    })
+    expect(getVOTD).toHaveBeenLastCalledWith(16)
   })
 })

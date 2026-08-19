@@ -51,6 +51,7 @@ describe('package exports', () => {
     expect(names).not.toContain('PromptSheetParagraph')
     expect(names).not.toContain('useVerseOfTheDayPassageId')
     expect(names).not.toContain('getVerseOfTheDayPassageId')
+    expect(names).not.toContain('getDayOfYear')
   })
 
   it('exports nothing beyond the pinned list', () => {

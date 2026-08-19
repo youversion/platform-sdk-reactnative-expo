@@ -3,30 +3,39 @@ import { useEffect, useState } from 'react'
 
 import { getVerseOfTheDayPassageId } from './verse-of-the-day-api'
 
+type PassageForDay = {
+  dayOfYear: number
+  passageId: string | null
+}
+
 /**
- * Today's VOTD `passage_id` from the local calendar, or `null` while loading
- * and on failure. Native paint-only surfaces parse chapter from this and
- * subscribe at Highlight Scope — the WebView never does this lookup.
+ * VOTD `passage_id` for a pinned `dayOfYear`, or `null` while loading, on
+ * failure, and while the resolved day does not match the requested one.
+ * Native paint-only surfaces parse chapter from this and subscribe at
+ * Highlight Scope — the WebView never does this lookup.
  *
  * Internal. Not on the UI or core package barrel.
  */
-export function useVerseOfTheDayPassageId(): string | null {
+export function useVerseOfTheDayPassageId(dayOfYear: number): string | null {
   const { appKey, apiHost, installationId } = useYouVersion()
-  const [passageId, setPassageId] = useState<string | null>(null)
+  const [result, setResult] = useState<PassageForDay | null>(null)
 
   useEffect(() => {
     let cancelled = false
 
-    void getVerseOfTheDayPassageId({ appKey, apiHost, installationId }).then((id) => {
+    void getVerseOfTheDayPassageId({ appKey, apiHost, installationId }, dayOfYear).then((id) => {
       if (!cancelled) {
-        setPassageId(id)
+        setResult({ dayOfYear, passageId: id })
       }
     })
 
     return () => {
       cancelled = true
     }
-  }, [appKey, apiHost, installationId])
+  }, [appKey, apiHost, installationId, dayOfYear])
 
-  return passageId
+  if (result === null || result.dayOfYear !== dayOfYear) {
+    return null
+  }
+  return result.passageId
 }

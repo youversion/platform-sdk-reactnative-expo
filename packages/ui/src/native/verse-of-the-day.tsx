@@ -1,6 +1,6 @@
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
@@ -10,6 +10,7 @@ import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { useVerseOfTheDayPassageId } from './use-verse-of-the-day-passage-id'
+import { getDayOfYear } from './verse-of-the-day-api'
 
 export type VerseOfTheDayProps = Omit<
   VerseOfTheDayDOMProps,
@@ -20,12 +21,17 @@ export function VerseOfTheDay({
   theme,
   onShare: consumerOnShare,
   versionId = DEFAULT_BIBLE_VERSION_ID,
+  dayOfYear: dayOfYearProp,
   dom,
   ...props
 }: VerseOfTheDayProps) {
   const context = useYouVersion()
   const themeContext = useTheme()
-  const passageId = useVerseOfTheDayPassageId()
+  const [sampledDayOfYear] = useState(() => getDayOfYear(new Date()))
+  // Pin the calendar day on native and always pass it into the WebView so paint
+  // and the card cannot resolve "today" on opposite sides of midnight.
+  const dayOfYear = dayOfYearProp ?? sampledDayOfYear
+  const passageId = useVerseOfTheDayPassageId(dayOfYear)
   const scope = highlightScopeFor(passageId, versionId)
 
   const handleShare = useCallback(
@@ -51,6 +57,7 @@ export function VerseOfTheDay({
         <VerseOfTheDayDOM
           {...props}
           versionId={versionId}
+          dayOfYear={dayOfYear}
           highlights={highlights}
           dom={withEmbedDomDefaults(dom)}
           appKey={context.appKey}
