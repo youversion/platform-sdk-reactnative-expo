@@ -30,6 +30,8 @@ function seedFixedBytes() {
 beforeEach(() => {
   mockGetRandomBytesAsync = jest.spyOn(Crypto, 'getRandomBytesAsync')
   mockDigestStringAsync = jest.spyOn(Crypto, 'digestStringAsync')
+  mockGetRandomBytesAsync.mockReset()
+  mockDigestStringAsync.mockReset()
   // Use a real SHA-256 inside the mock so codeChallenge assertions are meaningful.
   mockDigestStringAsync.mockImplementation((_algo, input: string) =>
     Promise.resolve(createHash('sha256').update(input).digest('base64')),

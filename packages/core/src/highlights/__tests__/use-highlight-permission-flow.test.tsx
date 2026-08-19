@@ -188,7 +188,9 @@ beforeEach(() => {
   mockRequestPermissions.mockReset()
   mockSignIn.mockReset()
   jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
-    getHighlights: jest.fn(async () => ({ ok: true, value: { data: [], next_page_token: null } })),
+    // Never settles: the real hook still runs for rules-of-hooks; a resolved
+    // GET would setState after the flow assertions and trip act() warnings.
+    getHighlights: jest.fn(() => new Promise(() => {})),
     createHighlight: jest.fn(),
     deleteHighlight: jest.fn(),
   })

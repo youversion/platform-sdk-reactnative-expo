@@ -12,6 +12,7 @@ let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsy
 beforeEach(() => {
   mmkvStorage.clearAll()
   mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
+  mockOpenAuthSession.mockReset()
   mintToken.mockReset()
   mintToken.mockResolvedValue({ ok: true, value: 'dx-token' })
 })

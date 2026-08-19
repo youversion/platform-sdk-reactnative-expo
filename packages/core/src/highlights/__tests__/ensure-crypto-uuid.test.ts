@@ -8,6 +8,7 @@ let mockRandomUUID: jest.SpiedFunction<typeof Crypto.randomUUID>
 
 beforeEach(() => {
   mockRandomUUID = jest.spyOn(Crypto, 'randomUUID').mockReturnValue(SHIM_UUID)
+  mockRandomUUID.mockClear()
 })
 
 afterEach(() => {

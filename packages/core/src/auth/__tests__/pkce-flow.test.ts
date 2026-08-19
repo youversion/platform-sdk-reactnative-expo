@@ -63,6 +63,10 @@ beforeEach(() => {
   mockExpoFetch = jest.spyOn(ExpoFetch, 'fetch')
   mockExchange = jest.spyOn(http, 'exchangeCodeForTokens')
   mockGeneratePkce = jest.spyOn(pkce, 'generatePKCEParameters')
+  mockOpenAuthSession.mockReset()
+  mockExpoFetch.mockReset()
+  mockExchange.mockReset()
+  mockGeneratePkce.mockReset()
   jest.spyOn(installationId, 'getOrSetInstallationId').mockReturnValue('inst-1')
 })
 

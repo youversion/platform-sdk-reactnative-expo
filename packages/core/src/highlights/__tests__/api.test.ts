@@ -10,6 +10,7 @@ beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
   mockRandomUUID = jest.spyOn(Crypto, 'randomUUID')
+  mockRandomUUID.mockClear()
 })
 
 afterEach(() => {
