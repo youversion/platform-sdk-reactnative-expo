@@ -1,33 +1,14 @@
 import * as WebBrowser from 'expo-web-browser'
-import { fetch as expoFetch } from 'expo/fetch'
-import { exchangeCodeForTokens } from '../http'
-import { generatePKCEParameters } from '../pkce'
+import * as ExpoFetch from 'expo/fetch'
+import * as installationId from '../../installation-id'
+import * as http from '../http'
+import * as pkce from '../pkce'
 import { signInWithPKCE } from '../pkce-flow'
 
-jest.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: jest.fn(),
-}))
-
-jest.mock('expo/fetch', () => ({
-  fetch: jest.fn(),
-}))
-
-jest.mock('../../installation-id', () => ({
-  getOrSetInstallationId: jest.fn(() => 'inst-1'),
-}))
-
-jest.mock('../http', () => ({
-  exchangeCodeForTokens: jest.fn(),
-}))
-
-jest.mock('../pkce', () => ({
-  generatePKCEParameters: jest.fn(),
-}))
-
-const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
-const mockExpoFetch = expoFetch as jest.Mock
-const mockExchange = exchangeCodeForTokens as jest.Mock
-const mockGeneratePkce = generatePKCEParameters as jest.Mock
+let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsync>
+let mockExpoFetch: jest.SpiedFunction<typeof ExpoFetch.fetch>
+let mockExchange: jest.SpiedFunction<typeof http.exchangeCodeForTokens>
+let mockGeneratePkce: jest.SpiedFunction<typeof pkce.generatePKCEParameters>
 
 const PKCE_FIXTURE = {
   codeVerifier: 'cv',
@@ -78,7 +59,15 @@ function arrangeHappyPath(redirectQuery = 'state=STATE') {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks()
+  mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
+  mockExpoFetch = jest.spyOn(ExpoFetch, 'fetch')
+  mockExchange = jest.spyOn(http, 'exchangeCodeForTokens')
+  mockGeneratePkce = jest.spyOn(pkce, 'generatePKCEParameters')
+  jest.spyOn(installationId, 'getOrSetInstallationId').mockReturnValue('inst-1')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('signInWithPKCE — cancel', () => {

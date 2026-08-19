@@ -4,8 +4,10 @@ import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
+import * as api from '../api'
 import type { HighlightsApiError } from '../api'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
@@ -16,33 +18,9 @@ import {
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
 const mockCreateHighlight = jest.fn()
 const mockDeleteHighlight = jest.fn()
-
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: mockCreateHighlight,
-    deleteHighlight: mockDeleteHighlight,
-  })),
-}))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -198,7 +176,7 @@ function setAuth(rerender: (props: typeof options) => void, auth: AuthShape): vo
 }
 
 function seedCache(highlights: Highlight[], forUser = userId, forScope = scope) {
-  mockMmkv.set(highlightsCacheKey(forUser, forScope), JSON.stringify(highlights))
+  mmkvStorage.set(highlightsCacheKey(forUser, forScope), JSON.stringify(highlights))
 }
 
 /**
@@ -212,7 +190,7 @@ function seedServer(highlights: Highlight[]) {
 }
 
 function readCache(forUser = userId, forScope = scope): Highlight[] | null {
-  const raw = mockMmkv.get(highlightsCacheKey(forUser, forScope))
+  const raw = mmkvStorage.getString(highlightsCacheKey(forUser, forScope))
   return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
 }
 
@@ -223,11 +201,7 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 let appStateListener: ((state: AppStateStatus) => void) | null = null
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
-  // `clearAllMocks` clears calls but NOT queued `mockResolvedValueOnce` values,
-  // so an unconsumed queue would leak into the next test. Reset these three
-  // explicitly rather than `resetAllMocks`, which would also wipe the MMKV fake.
+  mmkvStorage.clearAll()
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
@@ -236,11 +210,20 @@ beforeEach(() => {
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: mockCreateHighlight,
+    deleteHighlight: mockDeleteHighlight,
+  })
   appStateListener = null
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
     appStateListener = listener as (state: AppStateStatus) => void
     return { remove: jest.fn() }
   })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 // ── AC 1: instant mount ──────────────────────────────────────────────────────
@@ -1469,7 +1452,7 @@ describe('auth states', () => {
     })
 
     // AuthProvider.clearAuthState() has just emptied the highlights cache.
-    mockMmkv.clear()
+    mmkvStorage.clearAll()
     setAuth(rerender, signedOut)
 
     mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', YELLOW)]))
@@ -1544,7 +1527,7 @@ describe('missing user id', () => {
 
     // Network still paints; only the cache is disabled.
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
-    expect(mockMmkv.size).toBe(0)
+    expect(mmkvStorage.getAllKeys()).toHaveLength(0)
     expect(warn).toHaveBeenCalledTimes(1)
 
     unmount()

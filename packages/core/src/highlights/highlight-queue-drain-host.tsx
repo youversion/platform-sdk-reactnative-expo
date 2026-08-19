@@ -16,7 +16,7 @@ import { createHighlightsApi } from './api'
 import { onDrainSignal } from './drain-signals'
 import { startHighlightQueueDrain, type DrainAuth, type HighlightQueueDrain } from './drain'
 
-export default function HighlightQueueDrainHost() {
+export function HighlightQueueDrainHost() {
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -105,3 +105,5 @@ export default function HighlightQueueDrainHost() {
 
   return null
 }
+
+export default HighlightQueueDrainHost

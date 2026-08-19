@@ -1,6 +1,6 @@
 /**
  * Vertical seam for the Highlight Write Queue drain: real queue, real cache,
- * real paint projection. Only MMKV and the API client are faked.
+ * real paint projection. The API client is faked; MMKV is the in-memory shim.
  *
  * No test pins a backoff interval. The growth test measures the gaps the drain
  * actually waits and asserts the shape of the sequence, so retuning the
@@ -14,22 +14,7 @@ import { enqueueWrites, getQueuedWrites } from '../queue'
 import { err, ok } from '../../result'
 import type { HighlightsApi, HighlightsApiError } from '../api'
 import type { HighlightScope } from '../constants'
-
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
+import { mmkvStorage } from '../../storage/mmkv-storage'
 
 const USER = 'user-1'
 const JHN3: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
@@ -102,7 +87,7 @@ async function settle() {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
   jest.clearAllMocks()
 })
 
@@ -257,7 +242,7 @@ describe('startHighlightQueueDrain', () => {
 
   it('retires an entry the server already agrees with, without a request', async () => {
     // `local === server` — a reconcile caught up with it while it sat queued.
-    mockMmkv.set(
+    mmkvStorage.set(
       `yvp.highlightqueue.${USER}.111.JHN.3`,
       JSON.stringify({ 16: { local: YELLOW, server: YELLOW } }),
     )

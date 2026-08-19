@@ -12,22 +12,6 @@ import {
   type HighlightScope,
 } from '../cache'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const userId = 'user-1'
 
@@ -36,8 +20,12 @@ function highlight(passageId: string, color: string, versionId = scope.versionId
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  jest.spyOn(mmkvStorage, 'set')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('highlights cache', () => {
@@ -50,7 +38,7 @@ describe('highlights cache', () => {
     // not flattened away, so the reader's controlled `highlights` prop and
     // passage-id-targeted deletes still work on a cold start.
     expect(getCachedHighlights(userId, scope)).toEqual(highlights)
-    expect(mockMmkv.has(highlightsCacheKey(userId, scope))).toBe(true)
+    expect(mmkvStorage.contains(highlightsCacheKey(userId, scope))).toBe(true)
   })
 
   it('returns synchronously (not a Promise)', () => {
@@ -63,29 +51,29 @@ describe('highlights cache', () => {
   it('returns null for corrupt or invalid cached payloads without throwing', () => {
     const key = highlightsCacheKey(userId, scope)
 
-    mockMmkv.set(key, '{not-json')
+    mmkvStorage.set(key, '{not-json')
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
     // Legacy Server Colors payloads (the shape this cache used to persist).
-    mockMmkv.set(key, JSON.stringify({ 16: 'fffe00' }))
+    mmkvStorage.set(key, JSON.stringify({ 16: 'fffe00' }))
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
-    mockMmkv.set(key, JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16' }]))
+    mmkvStorage.set(key, JSON.stringify([{ version_id: 111, passage_id: 'JHN.3.16' }]))
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
-    mockMmkv.set(key, JSON.stringify([highlight('JHN.3.16', 'gg0000')]))
+    mmkvStorage.set(key, JSON.stringify([highlight('JHN.3.16', 'gg0000')]))
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
-    mockMmkv.set(
+    mmkvStorage.set(
       key,
       JSON.stringify([{ version_id: '111', passage_id: 'JHN.3.16', color: 'fffe00' }]),
     )
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
-    mockMmkv.set(key, JSON.stringify([{ version_id: 0, passage_id: 'JHN.3.16', color: 'fffe00' }]))
+    mmkvStorage.set(key, JSON.stringify([{ version_id: 0, passage_id: 'JHN.3.16', color: 'fffe00' }]))
     expect(getCachedHighlights(userId, scope)).toBeNull()
 
-    mockMmkv.set(key, JSON.stringify([highlight('', 'fffe00')]))
+    mmkvStorage.set(key, JSON.stringify([highlight('', 'fffe00')]))
     expect(getCachedHighlights(userId, scope)).toBeNull()
   })
 
@@ -99,22 +87,22 @@ describe('highlights cache', () => {
 
     setCachedHighlights('', scope, [highlight('JHN.3.1', 'fffe00')])
     expect(mmkvStorage.set).not.toHaveBeenCalled()
-    expect(mockMmkv.size).toBe(0)
+    expect(mmkvStorage.getAllKeys()).toHaveLength(0)
   })
 
   it('clears only yvp.highlights.* keys', () => {
     const highlightsKey = highlightsCacheKey(userId, scope)
-    mockMmkv.set(highlightsKey, JSON.stringify([highlight('JHN.3.16', 'fffe00')]))
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, '{"id":"u1"}')
-    mockMmkv.set(MMKV_AUTH_KEYS.expiryDateISO, '2026-01-01T00:00:00.000Z')
-    mockMmkv.set(MMKV_KEYS.installationId, 'inst-1')
+    mmkvStorage.set(highlightsKey, JSON.stringify([highlight('JHN.3.16', 'fffe00')]))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, '{"id":"u1"}')
+    mmkvStorage.set(MMKV_AUTH_KEYS.expiryDateISO, '2026-01-01T00:00:00.000Z')
+    mmkvStorage.set(MMKV_KEYS.installationId, 'inst-1')
 
     clearHighlightsCache()
 
-    expect(mockMmkv.has(highlightsKey)).toBe(false)
-    expect(mockMmkv.get(MMKV_AUTH_KEYS.cachedUserInfo)).toBe('{"id":"u1"}')
-    expect(mockMmkv.get(MMKV_AUTH_KEYS.expiryDateISO)).toBe('2026-01-01T00:00:00.000Z')
-    expect(mockMmkv.get(MMKV_KEYS.installationId)).toBe('inst-1')
+    expect(mmkvStorage.contains(highlightsKey)).toBe(false)
+    expect(mmkvStorage.getString(MMKV_AUTH_KEYS.cachedUserInfo)).toBe('{"id":"u1"}')
+    expect(mmkvStorage.getString(MMKV_AUTH_KEYS.expiryDateISO)).toBe('2026-01-01T00:00:00.000Z')
+    expect(mmkvStorage.getString(MMKV_KEYS.installationId)).toBe('inst-1')
   })
 })
 

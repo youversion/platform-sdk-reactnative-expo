@@ -8,24 +8,9 @@
  * DELETE for a highlight it never had, and a re-tap of the color already on the
  * server spends a request to change nothing.
  */
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { highlightQueueKey, type HighlightScope } from '../constants'
 import { enqueueWrites, getQueuedWrites } from '../queue'
-
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
 
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const userId = 'user-1'
@@ -36,7 +21,7 @@ const BLUE = '00d6ff'
 
 /** What survived to storage, not just what the call returned. */
 function persisted() {
-  const raw = mockMmkv.get(highlightQueueKey(userId, scope))
+  const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
   return raw === undefined ? null : (JSON.parse(raw) as Record<string, unknown>)
 }
 
@@ -55,7 +40,7 @@ function enqueue(input: {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
 })
 
 describe('an entry whose two sides agree is dropped', () => {

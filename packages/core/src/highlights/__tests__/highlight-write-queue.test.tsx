@@ -4,7 +4,9 @@ import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
 import type { Result } from '../../result'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
+import * as api from '../api'
 import type { HighlightsApiError } from '../api'
 import { isWriteClaimed } from '../claims'
 import { startHighlightQueueDrain } from '../drain'
@@ -24,42 +26,15 @@ import {
 } from '../use-highlights'
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
-// Only the two real external edges are faked: MMKV and the API client. The
-// queue, its projection, the optimistic layer and the cache all run for real.
-
-const mockMmkv = new Map<string, string>()
+// Only the API client is faked. The queue, its projection, the optimistic
+// layer and the cache all run against the in-memory MMKV shim.
 
 /** Set to a key prefix to make `mmkvStorage.set` throw for it, as a full store does. */
 let mockFailingSetPrefix: string | null = null
 
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      if (mockFailingSetPrefix !== null && k.startsWith(mockFailingSetPrefix)) {
-        throw new Error('MMKV is out of space')
-      }
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
 const mockCreateHighlight = jest.fn()
 const mockDeleteHighlight = jest.fn()
-
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: mockCreateHighlight,
-    deleteHighlight: mockDeleteHighlight,
-  })),
-}))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -152,7 +127,7 @@ function renderUseHighlights(initialProps = options) {
 }
 
 function seedServer(highlights: Highlight[]) {
-  mockMmkv.set(highlightsCacheKey(userId, scope), JSON.stringify(highlights))
+  mmkvStorage.set(highlightsCacheKey(userId, scope), JSON.stringify(highlights))
   mockGetHighlights.mockResolvedValue(collection(highlights))
 }
 
@@ -161,12 +136,12 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 }
 
 function queuedWrites(): QueuedWrites | null {
-  const raw = mockMmkv.get(highlightQueueKey(userId, scope))
+  const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
   return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
 }
 
 function readCache(forScope = scope): Highlight[] | null {
-  const raw = mockMmkv.get(highlightsCacheKey(userId, forScope))
+  const raw = mmkvStorage.getString(highlightsCacheKey(userId, forScope))
   return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
 }
 
@@ -178,10 +153,9 @@ async function flush() {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
   mockFailingSetPrefix = null
   authOverrides = {}
-  jest.clearAllMocks()
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
@@ -190,6 +164,22 @@ beforeEach(() => {
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: mockCreateHighlight,
+    deleteHighlight: mockDeleteHighlight,
+  })
+  const originalSet = mmkvStorage.set.bind(mmkvStorage)
+  jest.spyOn(mmkvStorage, 'set').mockImplementation((key, value) => {
+    if (mockFailingSetPrefix !== null && key.startsWith(mockFailingSetPrefix)) {
+      throw new Error('MMKV is out of space')
+    }
+    return originalSet(key, value)
+  })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('a write that cannot reach the server', () => {
@@ -343,7 +333,7 @@ describe('a queued write after a relaunch', () => {
       await first.result.current.apply(YELLOW, [16])
     })
     first.unmount()
-    mockMmkv.delete(highlightsCacheKey(userId, scope))
+    mmkvStorage.remove(highlightsCacheKey(userId, scope))
 
     mockGetHighlights.mockResolvedValue(unreachable())
     const second = renderUseHighlights()
@@ -402,7 +392,7 @@ describe('an unreadable queue', () => {
     ['an unusable verse number', '{"0":{"local":"fffe00","server":null}}'],
   ])('falls back to the cache rather than throwing when it holds %s', async (_label, raw) => {
     seedServer([highlight('JHN.3.16', GREEN)])
-    mockMmkv.set(highlightQueueKey(userId, scope), raw)
+    mmkvStorage.set(highlightQueueKey(userId, scope), raw)
     mockGetHighlights.mockResolvedValue(unreachable())
 
     const { result } = renderUseHighlights()
@@ -649,7 +639,7 @@ describe('a parked write the drain drops', () => {
   const refused = () => apiError({ kind: 'auth', status: 401, message: 'no' })
 
   function queuedWritesFor(target: HighlightScope): QueuedWrites | null {
-    const raw = mockMmkv.get(highlightQueueKey(userId, target))
+    const raw = mmkvStorage.getString(highlightQueueKey(userId, target))
     return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
   }
 

@@ -41,7 +41,7 @@ type AuthProviderProps = {
   children: ReactNode
 }
 
-export default function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
+export function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   // Seeding this synchronously is load-bearing for useHighlights: it paints from
   // cache in its own initializer, keyed by `userInfo.id`. Seed it later and the
@@ -643,3 +643,5 @@ function loadCachedUserInfo(): YVUserInfo | null {
     return null
   }
 }
+
+export default AuthProvider

@@ -6,15 +6,6 @@
  */
 import * as core from '../../index'
 
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn(),
-    getString: jest.fn(),
-    remove: jest.fn(),
-    getAllKeys: jest.fn(() => []),
-  },
-}))
-
 describe('package exports', () => {
   it('exposes the highlights hook and the palette', () => {
     expect(typeof core.useHighlights).toBe('function')

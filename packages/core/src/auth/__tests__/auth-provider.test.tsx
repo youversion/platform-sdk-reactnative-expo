@@ -4,75 +4,29 @@ import { AppState, Pressable, Text, View } from 'react-native'
 import { getCachedHighlights, setCachedHighlights } from '../../highlights/cache'
 import type { HighlightScope } from '../../highlights/constants'
 import { enqueueWrites, listQueuedScopes } from '../../highlights/queue'
-import { getOrSetInstallationId } from '../../installation-id'
+import * as installationId from '../../installation-id'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import type { AuthContextValue } from '../auth-context'
-import AuthProvider from '../auth-provider'
+import { AuthProvider } from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
-import { requestDataExchange } from '../data-exchange'
-import { createDataExchangeApi } from '../data-exchange-api'
-import { refreshTokens, TokenEndpointError, type TokenResponse } from '../http'
-import { signInWithPKCE } from '../pkce-flow'
-import { loadTokens, saveTokens } from '../token-storage'
+import * as dataExchange from '../data-exchange'
+import * as dataExchangeApi from '../data-exchange-api'
+import * as http from '../http'
+import { TokenEndpointError, type TokenResponse } from '../http'
+import * as pkceFlow from '../pkce-flow'
+import * as tokenStorage from '../token-storage'
 import type { AuthConfig, AuthPermission } from '../types'
 import { useYVAuth } from '../use-yv-auth'
 
-const mockMmkv = new Map<string, string>()
 let mockMmkvThrows = false
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      if (mockMmkvThrows) throw new Error('mmkv unavailable')
-      return mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => {
-      if (mockMmkvThrows) throw new Error('mmkv unavailable')
-      return Array.from(mockMmkv.keys())
-    }),
-  },
-}))
-
-jest.mock('../token-storage', () => ({
-  loadTokens: jest.fn(),
-  saveTokens: jest.fn(() => Promise.resolve()),
-}))
-
-jest.mock('../http', () => ({
-  ...jest.requireActual('../http'),
-  refreshTokens: jest.fn(),
-}))
-
-jest.mock('../pkce-flow', () => ({
-  signInWithPKCE: jest.fn(),
-}))
-
-jest.mock('../../installation-id', () => ({
-  getOrSetInstallationId: jest.fn(() => Promise.resolve('inst-1')),
-}))
-
-// The grant flow itself is covered in data-exchange.test.ts; here we only care
-// about what the provider hands it and what it does with the outcome — so no
-// browser or API client is ever constructed.
-jest.mock('../data-exchange', () => ({
-  requestDataExchange: jest.fn(),
-}))
-
-jest.mock('../data-exchange-api', () => ({
-  createDataExchangeApi: jest.fn(() => ({ mintToken: jest.fn() })),
-}))
-
-const mockLoadTokens = loadTokens as jest.Mock
-const mockSaveTokens = saveTokens as jest.Mock
-const mockRefreshTokens = refreshTokens as jest.Mock
-const mockSignInWithPKCE = signInWithPKCE as jest.Mock
-const mockRequestDataExchange = requestDataExchange as jest.Mock
-const mockCreateDataExchangeApi = createDataExchangeApi as jest.Mock
-const mockGetOrSetInstallationId = getOrSetInstallationId as jest.Mock
-const mockAppStateAddEventListener = jest.spyOn(AppState, 'addEventListener')
+let mockLoadTokens: jest.SpiedFunction<typeof tokenStorage.loadTokens>
+let mockSaveTokens: jest.SpiedFunction<typeof tokenStorage.saveTokens>
+let mockRefreshTokens: jest.SpiedFunction<typeof http.refreshTokens>
+let mockSignInWithPKCE: jest.SpiedFunction<typeof pkceFlow.signInWithPKCE>
+let mockRequestDataExchange: jest.SpiedFunction<typeof dataExchange.requestDataExchange>
+let mockCreateDataExchangeApi: jest.SpiedFunction<typeof dataExchangeApi.createDataExchangeApi>
+let mockGetOrSetInstallationId: jest.SpiedFunction<typeof installationId.getOrSetInstallationId>
+let mockAppStateAddEventListener: jest.SpiedFunction<typeof AppState.addEventListener>
 
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
 const defaultProps = { config: defaultConfig, appKey: 'appkey', apiHost: 'api.example.com' }
@@ -201,20 +155,44 @@ function fireAppStateChange(state: string) {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
   mockMmkvThrows = false
   latestAuth = null
-  jest.clearAllMocks()
-  // `clearAllMocks` drops recorded calls but keeps implementations, and one test
-  // installs a lasting `mockImplementation` on `saveTokens`. Reset it so that
-  // implementation cannot leak into the tests that run after it.
-  mockSaveTokens.mockReset()
-  mockAppStateAddEventListener.mockImplementation(() => ({ remove: jest.fn() }))
+
+  const originalRemove = mmkvStorage.remove.bind(mmkvStorage)
+  const originalGetAllKeys = mmkvStorage.getAllKeys.bind(mmkvStorage)
+  jest.spyOn(mmkvStorage, 'remove').mockImplementation((key) => {
+    if (mockMmkvThrows) throw new Error('mmkv unavailable')
+    return originalRemove(key)
+  })
+  jest.spyOn(mmkvStorage, 'getAllKeys').mockImplementation(() => {
+    if (mockMmkvThrows) throw new Error('mmkv unavailable')
+    return originalGetAllKeys()
+  })
+
+  mockLoadTokens = jest.spyOn(tokenStorage, 'loadTokens')
+  mockSaveTokens = jest.spyOn(tokenStorage, 'saveTokens').mockResolvedValue(undefined)
+  mockRefreshTokens = jest.spyOn(http, 'refreshTokens')
+  mockSignInWithPKCE = jest.spyOn(pkceFlow, 'signInWithPKCE')
+  mockRequestDataExchange = jest.spyOn(dataExchange, 'requestDataExchange')
+  mockCreateDataExchangeApi = jest
+    .spyOn(dataExchangeApi, 'createDataExchangeApi')
+    .mockReturnValue({ mintToken: jest.fn() })
+  mockGetOrSetInstallationId = jest
+    .spyOn(installationId, 'getOrSetInstallationId')
+    .mockReturnValue('inst-1')
+  mockAppStateAddEventListener = jest
+    .spyOn(AppState, 'addEventListener')
+    .mockImplementation(() => ({ remove: jest.fn() }))
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('AuthProvider — mount', () => {
   it('clears stale cached userInfo when no tokens are stored', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'stale-user' }))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'stale-user' }))
     mockLoadTokens.mockResolvedValue(noStoredTokens)
 
     render(
@@ -226,7 +204,7 @@ describe('AuthProvider — mount', () => {
     await waitFor(() => expect(getText('isLoading')).toBe('false'))
     expect(getText('isAuthenticated')).toBe('false')
     expect(getText('userInfo')).toBe('null')
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(mockRefreshTokens).not.toHaveBeenCalled()
   })
 
@@ -234,8 +212,8 @@ describe('AuthProvider — mount', () => {
   // seeds the departed user. The bootstrap clear is what bounds that — no write
   // into a store refusing writes can — so pin it.
   it('drops a cached userInfo the store still refuses to remove', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
-    mockMmkv.set(
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
@@ -253,7 +231,7 @@ describe('AuthProvider — mount', () => {
     expect(getText('grantedPermissions')).toBe('null')
     expect(getText('isAuthenticated')).toBe('false')
     // The record itself survives: the accepted residual, not the exposure.
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
   })
 
   // The sibling case, and the reason bootstrap does not pass
@@ -261,8 +239,8 @@ describe('AuthProvider — mount', () => {
   // is "nothing stored" — so a Keychain that rejects that defensive write must
   // not cost the identity drop ADR 0014 names as the bound.
   it('drops a cached userInfo even when the token clear rejects', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
-    mockMmkv.set(
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
@@ -280,11 +258,11 @@ describe('AuthProvider — mount', () => {
     expect(getText('grantedPermissions')).toBe('null')
     expect(getText('isAuthenticated')).toBe('false')
     // The purges ran too — the rejection was swallowed, not propagated.
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
   })
 
   it('hydrates state from stored tokens and skips refresh when not near expiry', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stored-access',
       refreshToken: 'stored-refresh',
@@ -305,7 +283,7 @@ describe('AuthProvider — mount', () => {
   })
 
   it('re-sanitizes a placeholder avatarUrl cached by a pre-fix build', async () => {
-    mockMmkv.set(
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.cachedUserInfo,
       JSON.stringify({ id: 'u1', name: 'Ada', avatarUrl: 'https://none/' }),
     )
@@ -326,7 +304,7 @@ describe('AuthProvider — mount', () => {
   })
 
   it('drops wrong-typed fields from a tampered/corrupt cached userInfo instead of trusting them', async () => {
-    mockMmkv.set(
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.cachedUserInfo,
       JSON.stringify({ id: 42, name: { first: 'Ada' }, email: 'ada@example.com' }),
     )
@@ -352,7 +330,7 @@ describe('AuthProvider — mount', () => {
   })
 
   it('returns null userInfo when cached JSON is a non-object (e.g. "null")', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(null))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(null))
     mockLoadTokens.mockResolvedValue({
       accessToken: 'stored-access',
       refreshToken: 'stored-refresh',
@@ -495,7 +473,7 @@ describe('AuthProvider — signIn', () => {
 
 describe('AuthProvider — signOut', () => {
   it('clears tokens, resets in-memory state, and removes cached userInfo, highlights and queued writes', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     setCachedHighlights('u1', JHN3, [{ version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' }])
     parkWrite('u1', JHN3)
     mockLoadTokens.mockResolvedValue({
@@ -521,7 +499,7 @@ describe('AuthProvider — signOut', () => {
       refreshToken: null,
       expiryDate: null,
     })
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(false)
     expect(getCachedHighlights('u1', JHN3)).toBeNull()
     expect(listQueuedScopes('u1')).toEqual([])
   })
@@ -556,7 +534,7 @@ describe('AuthProvider — signOut', () => {
   // A store that throws must cost a surviving cache entry, never a user who asked
   // to sign out and stayed in.
   it('still signs out when the cache purges cannot reach the store', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
     parkWrite('u1', JHN3)
     mockLoadTokens.mockResolvedValue({
       accessToken: 'a',
@@ -589,8 +567,8 @@ describe('AuthProvider — signOut', () => {
   // saying "signed in" — purge the caches anyway and the user sees a signed-out
   // app whose session comes back on the next launch.
   it('aborts the whole sign-out, caches included, when the token clear rejects', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1', name: 'Ada' }))
-    mockMmkv.set(
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1', name: 'Ada' }))
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
@@ -621,8 +599,8 @@ describe('AuthProvider — signOut', () => {
     expect(getText('hasHighlights')).toBe('true')
 
     // Nothing downstream of the token clear ran.
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
     expect(getCachedHighlights('u1', JHN3)).not.toBeNull()
     expect(listQueuedScopes('u1')).toHaveLength(1)
   })
@@ -680,7 +658,7 @@ describe('AuthProvider — refresh failure policy', () => {
   // passes no `abortOnTokenFailure`. Aborting would leave the departed user's
   // highlights painted on top of a session that is already over.
   it('still purges the caches when the revoked session cannot clear its tokens', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
     setCachedHighlights('user-1', JHN3, [
       { version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' },
     ])
@@ -928,7 +906,7 @@ describe('AuthProvider — getAccessToken', () => {
   // id of whoever owns it come from the same read, so a sign-in that lands while
   // the caller is awaiting cannot hand it a token attributed to the old user.
   it('reports the signed-in user alongside the token, updated by a sign-in as somebody else', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
     mockLoadTokens.mockResolvedValue({
       accessToken: 'ada-access',
       refreshToken: 'ada-refresh',
@@ -1133,15 +1111,15 @@ describe('AuthProvider — granted permissions', () => {
 
     expect(getText('hasHighlights')).toBe('true')
     expect(JSON.parse(getText('grantedPermissions'))).toEqual(['highlights'])
-    expect(JSON.parse(mockMmkv.get(MMKV_AUTH_KEYS.grantedPermissions)!)).toEqual({
+    expect(JSON.parse(mmkvStorage.getString(MMKV_AUTH_KEYS.grantedPermissions)!)).toEqual({
       userId: 'u1',
       permissions: ['highlights'],
     })
   })
 
   it('seeds the grant synchronously from cache on a cold start', async () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
-    mockMmkv.set(
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify(adaUserInfo))
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: ['highlights'] }),
     )
@@ -1185,7 +1163,7 @@ describe('AuthProvider — granted permissions', () => {
     await waitFor(() => expect(getText('signInOutcome')).toBe('resolved'))
 
     expect(getText('hasHighlights')).toBe('true')
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(true)
   })
 
   it('a scopes-only sign-in by a different user reads no grant', async () => {
@@ -1213,7 +1191,7 @@ describe('AuthProvider — granted permissions', () => {
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
     expect(getText('hasHighlights')).toBe('false')
     expect(getText('grantedPermissions')).toBe('null')
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
   })
 
   it('invalidatePermissions drops both the cache and the in-memory grant', async () => {
@@ -1226,7 +1204,7 @@ describe('AuthProvider — granted permissions', () => {
 
     expect(getText('hasHighlights')).toBe('false')
     expect(getText('grantedPermissions')).toBe('null')
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
   })
 
   it('keeps a granted permission outside the known union verbatim', async () => {

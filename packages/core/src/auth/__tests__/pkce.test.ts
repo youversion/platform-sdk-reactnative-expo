@@ -3,15 +3,8 @@ import { createHash, randomBytes as nodeRandomBytes } from 'node:crypto'
 import * as Crypto from 'expo-crypto'
 import { generatePKCEParameters } from '../pkce'
 
-jest.mock('expo-crypto', () => ({
-  getRandomBytesAsync: jest.fn(),
-  digestStringAsync: jest.fn(),
-  CryptoDigestAlgorithm: { SHA256: 'SHA-256' },
-  CryptoEncoding: { BASE64: 'base64' },
-}))
-
-const mockGetRandomBytesAsync = Crypto.getRandomBytesAsync as jest.Mock
-const mockDigestStringAsync = Crypto.digestStringAsync as jest.Mock
+let mockGetRandomBytesAsync: jest.SpiedFunction<typeof Crypto.getRandomBytesAsync>
+let mockDigestStringAsync: jest.SpiedFunction<typeof Crypto.digestStringAsync>
 
 function fillBytes(byte: number, length: number): Uint8Array {
   return new Uint8Array(length).fill(byte)
@@ -35,12 +28,16 @@ function seedFixedBytes() {
 }
 
 beforeEach(() => {
-  mockGetRandomBytesAsync.mockReset()
-  mockDigestStringAsync.mockReset()
+  mockGetRandomBytesAsync = jest.spyOn(Crypto, 'getRandomBytesAsync')
+  mockDigestStringAsync = jest.spyOn(Crypto, 'digestStringAsync')
   // Use a real SHA-256 inside the mock so codeChallenge assertions are meaningful.
   mockDigestStringAsync.mockImplementation((_algo, input: string) =>
     Promise.resolve(createHash('sha256').update(input).digest('base64')),
   )
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('generatePKCEParameters', () => {

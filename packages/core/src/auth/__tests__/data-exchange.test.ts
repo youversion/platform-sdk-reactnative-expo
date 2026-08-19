@@ -1,34 +1,23 @@
 import * as WebBrowser from 'expo-web-browser'
 
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { MMKV_AUTH_KEYS } from '../constants'
 import { requestDataExchange, type RequestDataExchangeArgs } from '../data-exchange'
 import type { DataExchangeApi } from '../data-exchange-api'
 import { saveGrantedPermissions } from '../granted-permissions-cache'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-  },
-}))
-
-jest.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: jest.fn(),
-}))
-
-const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
 const mintToken = jest.fn<ReturnType<DataExchangeApi['mintToken']>, unknown[]>()
+let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsync>
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
+  mintToken.mockReset()
   mintToken.mockResolvedValue({ ok: true, value: 'dx-token' })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 /** The app's registered callback URL, which the consent page returns to. */
@@ -56,7 +45,7 @@ function arriveWith(search: string) {
 }
 
 function cachedGrant(): unknown {
-  const raw = mockMmkv.get(MMKV_AUTH_KEYS.grantedPermissions)
+  const raw = mmkvStorage.getString(MMKV_AUTH_KEYS.grantedPermissions)
   return raw === undefined ? undefined : JSON.parse(raw)
 }
 

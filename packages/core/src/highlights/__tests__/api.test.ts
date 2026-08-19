@@ -3,14 +3,17 @@ import * as Crypto from 'expo-crypto'
 import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
-jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }))
-
-const mockRandomUUID = Crypto.randomUUID as jest.Mock
 const mockFetch = jest.fn()
+let mockRandomUUID: jest.SpiedFunction<typeof Crypto.randomUUID>
 
 beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
+  mockRandomUUID = jest.spyOn(Crypto, 'randomUUID')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 function jsonResponse(body: unknown, status = 200): Response {

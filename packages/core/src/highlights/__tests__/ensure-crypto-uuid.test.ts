@@ -3,20 +3,17 @@ import * as Crypto from 'expo-crypto'
 import { cryptoGlobal, SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { ensureCryptoRandomUUID } from '../ensure-crypto-uuid'
 
-jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }))
-
-const mockRandomUUID = Crypto.randomUUID as jest.Mock
-
 let restoreCrypto: (() => void) | undefined
+let mockRandomUUID: jest.SpiedFunction<typeof Crypto.randomUUID>
 
 beforeEach(() => {
-  jest.clearAllMocks()
-  mockRandomUUID.mockReturnValue(SHIM_UUID)
+  mockRandomUUID = jest.spyOn(Crypto, 'randomUUID').mockReturnValue(SHIM_UUID)
 })
 
 afterEach(() => {
   restoreCrypto?.()
   restoreCrypto = undefined
+  jest.restoreAllMocks()
 })
 
 describe('ensureCryptoRandomUUID', () => {

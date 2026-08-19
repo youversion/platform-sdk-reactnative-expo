@@ -1,14 +1,16 @@
+import * as installationId from '../../installation-id'
 import { exchangeCodeForTokens, refreshTokens, type TokenResponse } from '../http'
-
-jest.mock('../../installation-id', () => ({
-  getOrSetInstallationId: jest.fn(() => 'inst-1'),
-}))
 
 const mockFetch = jest.fn()
 
 beforeEach(() => {
   mockFetch.mockReset()
   global.fetch = mockFetch as unknown as typeof fetch
+  jest.spyOn(installationId, 'getOrSetInstallationId').mockReturnValue('inst-1')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 const okTokens: TokenResponse = {
