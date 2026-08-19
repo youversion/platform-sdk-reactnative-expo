@@ -21,15 +21,15 @@ export type BibleCardProps = Omit<
   'onVersionChange' | 'onVersionPickerPress' | 'onFootnotePress'
 > &
   VersionFilterProps & {
-  appKey: string
-  onVersionChange?: (versionId: number) => Promise<void>
-  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-  apiHost: string
-  installationId: string
-  theme?: 'light' | 'dark'
-  dom?: import('expo/dom').DOMProps
-}
+    appKey: string
+    onVersionChange?: (versionId: number) => Promise<void>
+    onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+    onFootnotePress?: (data: FootnoteData) => Promise<void>
+    apiHost: string
+    installationId: string
+    theme?: 'light' | 'dark'
+    dom?: import('expo/dom').DOMProps
+  }
 
 export default function BibleCardDOM({
   appKey,

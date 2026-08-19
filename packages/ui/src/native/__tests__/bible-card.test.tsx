@@ -150,21 +150,24 @@ describe('BibleCard', () => {
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
   })
 
-  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
-    const filterWrapper =
-      (lists: {
-        permittedVersionIds?: number[]
-        excludedVersionIds?: number[]
-        permittedLanguageTags?: string[]
-      }) =>
-      ({ children }: { children: ReactNode }) => (
+  function versionFilterWrapper(lists: {
+    permittedVersionIds?: number[]
+    excludedVersionIds?: number[]
+    permittedLanguageTags?: string[]
+  }) {
+    function FilterWrapper({ children }: { children: ReactNode }) {
+      return (
         <YouVersionProvider appKey="test-key" theme="light" {...lists}>
           {children}
         </YouVersionProvider>
       )
+    }
+    return FilterWrapper
+  }
 
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
     render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
-      wrapper: filterWrapper({
+      wrapper: versionFilterWrapper({
         permittedVersionIds: [111],
         excludedVersionIds: [3034],
         permittedLanguageTags: ['en'],

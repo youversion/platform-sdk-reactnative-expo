@@ -14,7 +14,6 @@ const REDIRECT_URI = 'youversionauth://callback'
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
 
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {appKey ? (

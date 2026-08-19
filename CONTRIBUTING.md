@@ -81,11 +81,11 @@ commit — Android **and** iOS. New commits do not rebuild automatically. To
 upload the current PR head again, an approved collaborator comments one of
 the following on the open PR:
 
-| Comment | Platforms rebuilt |
-|---|---|
-| `/app-live <sha>` | Android **and** iOS |
-| `/app-live-ios <sha>` | iOS only |
-| `/app-live-android <sha>` | Android only |
+| Comment                   | Platforms rebuilt   |
+| ------------------------- | ------------------- |
+| `/app-live <sha>`         | Android **and** iOS |
+| `/app-live-ios <sha>`     | iOS only            |
+| `/app-live-android <sha>` | Android only        |
 
 `<sha>` is the full 40-character sha of the head commit being approved, and
 the comment must contain nothing else. The single-platform commands are

@@ -9,12 +9,12 @@ import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VerseOfTheDayProps = WebVerseOfTheDayProps &
   VersionFilterProps & {
-  appKey: string
-  apiHost: string
-  installationId: string
-  theme?: 'light' | 'dark' | 'system'
-  dom?: import('expo/dom').DOMProps
-}
+    appKey: string
+    apiHost: string
+    installationId: string
+    theme?: 'light' | 'dark' | 'system'
+    dom?: import('expo/dom').DOMProps
+  }
 
 export default function VerseOfTheDayDOM({
   appKey,

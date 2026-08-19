@@ -20,17 +20,17 @@ export type BibleTextViewProps = Omit<
   'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
 > &
   VersionFilterProps & {
-  appKey: string
-  apiHost: string
-  installationId: string
-  theme?: 'light' | 'dark' | 'system'
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
-  onVerseSelect?: (verses: number[]) => Promise<void>
-  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-  passageState?: DomPassageState
-  dom?: import('expo/dom').DOMProps
-}
+    appKey: string
+    apiHost: string
+    installationId: string
+    theme?: 'light' | 'dark' | 'system'
+    // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+    onVerseSelect?: (verses: number[]) => Promise<void>
+    // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+    onFootnotePress?: (data: FootnoteData) => Promise<void>
+    passageState?: DomPassageState
+    dom?: import('expo/dom').DOMProps
+  }
 
 export default function BibleTextViewDOM({
   appKey,
