@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import VersionPickerContentDOM from '../dom/bible-version-picker-content'
@@ -39,9 +39,9 @@ export function BibleVersionPickerSheet({
   const [resetKey, setResetKey] = useState(0)
   const [wasOpen, setWasOpen] = useState(false)
   const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
-  const handleDismissKeyboardStart = useCallback(() => {
+  const handleDismissKeyboardStart = () => {
     setDismissKeyboardNonce((n) => n + 1)
-  }, [])
+  }
   if (isOpen !== wasOpen) {
     setWasOpen(isOpen)
     if (isOpen) setResetKey((k) => k + 1)

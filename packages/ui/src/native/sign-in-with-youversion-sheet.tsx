@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -11,6 +10,7 @@ import { YouVersionPlatformLogo, youVersionPlatformLogoSize } from './youversion
 
 /** Wide enough to read at the sheet's width, narrow enough to leave margin. */
 const WORDMARK_WIDTH = 190
+const WORDMARK_SIZE = youVersionPlatformLogoSize(WORDMARK_WIDTH)
 
 export type SignInWithYouVersionSheetProps = {
   isOpen: boolean
@@ -38,7 +38,6 @@ export function SignInWithYouVersionSheet({
 }: SignInWithYouVersionSheetProps) {
   const { t } = useSdkTranslation()
   const appName = resolveAppName()
-  const logoSize = useMemo(() => youVersionPlatformLogoSize(WORDMARK_WIDTH), [])
 
   return (
     <NativeSheet isOpen={isOpen} onClose={onDismiss} theme={theme}>
@@ -50,8 +49,8 @@ export function SignInWithYouVersionSheet({
         <YouVersionPlatformLogo
           theme={theme}
           accessibilityLabel={t('youVersionPlatformLogoAriaLabel')}
-          width={logoSize.width}
-          height={logoSize.height}
+          width={WORDMARK_SIZE.width}
+          height={WORDMARK_SIZE.height}
         />
 
         <PromptSheetParagraph theme={theme}>
