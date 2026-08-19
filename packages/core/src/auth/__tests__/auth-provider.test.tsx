@@ -1415,7 +1415,9 @@ describe('AuthProvider — requestPermissions', () => {
     // Native state read, so it can genuinely fail. `requestPermissions` is
     // documented to resolve rather than throw, and a consumer following that
     // contract has no catch to land in.
-    mockGetOrSetInstallationId.mockRejectedValueOnce(new Error('no installation id'))
+    mockGetOrSetInstallationId.mockImplementationOnce(() => {
+      throw new Error('no installation id')
+    })
 
     expect(await pressRequestPermissions()).toEqual({
       status: 'failure',
