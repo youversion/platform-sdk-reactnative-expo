@@ -1,10 +1,13 @@
-import BottomSheetModule from '@gorhom/bottom-sheet'
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import {
+  latestBottomSheetProps,
+  resetLatestBottomSheetProps,
+} from '../../../jest.gorhom-mock'
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
@@ -12,25 +15,8 @@ import { resetImpls } from '../../test-utils/install-test-impls'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
-let latestBottomSheetProps: Record<string, unknown> = {}
 let mockBottomInset = 0
 let mockWindowWidth = 390
-
-type BottomSheetHost = {
-  render: (this: BottomSheetHost) => ReactNode
-  props: Record<string, unknown> & {
-    children?: ReactElement<{ children?: ReactNode } & Record<string, unknown>>
-    onChange?: (index: number) => void
-    onAnimate?: (fromIndex: number, toIndex: number) => void
-  }
-}
-
-const BottomSheet =
-  (BottomSheetModule as unknown as { default?: typeof BottomSheetModule }).default ??
-  BottomSheetModule
-
-const bottomSheetHost = BottomSheet.prototype as unknown as BottomSheetHost
-const originalBottomSheetRender = bottomSheetHost.render
 
 function SheetProvider({ children }: { children: ReactNode }) {
   return (
@@ -95,19 +81,6 @@ describe('NativeSheet', () => {
   }
 
   beforeEach(() => {
-    bottomSheetHost.render = function captureBottomSheetProps(this: BottomSheetHost) {
-      latestBottomSheetProps = { ...this.props }
-      const child = this.props.children
-      return (
-        <View testID="bottom-sheet">
-          {child ? (
-            <View testID="bottom-sheet-view" {...child.props}>
-              {child.props.children}
-            </View>
-          ) : null}
-        </View>
-      )
-    }
     jest.spyOn(ReactNative, 'useWindowDimensions').mockImplementation(() => ({
       width: mockWindowWidth,
       height: 844,
@@ -117,8 +90,7 @@ describe('NativeSheet', () => {
   })
 
   afterEach(() => {
-    bottomSheetHost.render = originalBottomSheetRender
-    latestBottomSheetProps = {}
+    resetLatestBottomSheetProps()
     mockBottomInset = 0
     mockWindowWidth = 390
     resetImpls()

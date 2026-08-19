@@ -65,7 +65,7 @@ if (typeof global.nativeModuleProxy === 'undefined') {
   )
 }
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
-jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
+jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
 
 /**
  * `react-native-safe-area-context` throws "No safe area value available" when
