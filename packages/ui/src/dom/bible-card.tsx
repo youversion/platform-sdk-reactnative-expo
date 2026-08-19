@@ -6,6 +6,7 @@ import type { ComponentType } from 'react'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
+import type { VersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
@@ -18,7 +19,8 @@ type NativeActionBibleCardProps = WebBibleCardProps & {
 export type BibleCardProps = Omit<
   WebBibleCardProps,
   'onVersionChange' | 'onVersionPickerPress' | 'onFootnotePress'
-> & {
+> &
+  VersionFilterProps & {
   appKey: string
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
@@ -37,13 +39,22 @@ export default function BibleCardDOM({
   onVersionChange,
   onVersionPickerPress,
   onFootnotePress,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   ...props
 }: BibleCardProps) {
   applySDKConfig({ appKey, apiHost, installationId })
   const NativeActionBibleCard = BibleCard as ComponentType<NativeActionBibleCardProps>
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <ContentSizedBody />
       <NativeActionBibleCard
         {...props}

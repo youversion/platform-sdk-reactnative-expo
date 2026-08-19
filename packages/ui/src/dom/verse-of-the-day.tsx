@@ -4,9 +4,11 @@ import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
 import { applySDKConfig } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
+import type { VersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
+export type VerseOfTheDayProps = WebVerseOfTheDayProps &
+  VersionFilterProps & {
   appKey: string
   apiHost: string
   installationId: string
@@ -20,12 +22,21 @@ export default function VerseOfTheDayDOM({
   installationId,
   theme = 'light',
   onShare,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   ...props
 }: VerseOfTheDayProps) {
   applySDKConfig({ appKey, apiHost, installationId })
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <ContentSizedBody />
       <VerseOfTheDay {...props} onShare={onShare} />
     </YouVersionProvider>

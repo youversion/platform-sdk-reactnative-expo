@@ -15,7 +15,12 @@ jest.mock('@youversion/platform-react-ui', () => ({
 // break these.
 const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
-type RenderedProps = { additionalHeaders?: Record<string, string> }
+type RenderedProps = {
+  additionalHeaders?: Record<string, string>
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+}
 
 function renderShim(props: Record<string, unknown>): RenderedProps {
   const element = YouVersionProvider({
@@ -49,5 +54,32 @@ describe('web YouVersionProvider', () => {
       'x-yvp-sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
+  })
+
+  it('forwards version filter lists to the web YouVersionProvider', () => {
+    expect(
+      renderShim({
+        permittedVersionIds: [111, 206],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en', 'zh-Hans'],
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111, 206],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en', 'zh-Hans'],
+      }),
+    )
+  })
+
+  it('forwards empty version filter arrays without coercing to undefined', () => {
+    const props = renderShim({
+      permittedVersionIds: [],
+      excludedVersionIds: [],
+      permittedLanguageTags: [],
+    })
+    expect(props.permittedVersionIds).toEqual([])
+    expect(props.excludedVersionIds).toEqual([])
+    expect(props.permittedLanguageTags).toEqual([])
   })
 })

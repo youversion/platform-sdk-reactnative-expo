@@ -120,6 +120,9 @@ export function BibleCard({
         appKey={context.appKey}
         apiHost={context.apiHost}
         installationId={context.installationId}
+        permittedVersionIds={context.permittedVersionIds}
+        excludedVersionIds={context.excludedVersionIds}
+        permittedLanguageTags={context.permittedLanguageTags}
         theme={resolvedTheme}
         versionId={versionId}
         onVersionChange={handleVersionChange}

@@ -5,6 +5,7 @@ import { BibleTextView } from '@youversion/platform-react-ui'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
+import type { VersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
@@ -17,7 +18,8 @@ type DomPassageState = Omit<WebPassageState, 'error'> & {
 export type BibleTextViewProps = Omit<
   WebBibleTextViewProps,
   'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
-> & {
+> &
+  VersionFilterProps & {
   appKey: string
   apiHost: string
   installationId: string
@@ -38,6 +40,9 @@ export default function BibleTextViewDOM({
   onVerseSelect,
   onFootnotePress,
   passageState,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   ...props
 }: BibleTextViewProps) {
   applySDKConfig({ apiHost, appKey, installationId })
@@ -50,7 +55,13 @@ export default function BibleTextViewDOM({
       : undefined
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <BibleTextView
         {...props}
         passageState={webPassageState}
