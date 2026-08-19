@@ -5,7 +5,7 @@ import { ensureDomLocalStorage } from './dom-local-storage'
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
 import { createElement, type ComponentProps, type ComponentType, type ReactNode } from 'react'
 
-import { getSdkHeaders } from './sdk-version'
+import { getSdkHeaders, type SdkHeaders } from './sdk-version'
 
 ensureDomLocalStorage()
 
@@ -22,8 +22,8 @@ const TypedProvider = BaseYouVersionProvider as ComponentType<ProviderProps>
 // Header set is constant for the life of the bundle, so compute it once.
 const SDK_HEADERS = getSdkHeaders()
 
-export function mergeSdkHeaders(additionalHeaders?: Record<string, string>) {
-  return { ...additionalHeaders, ...SDK_HEADERS } satisfies Record<string, string>
+export function mergeSdkHeaders(additionalHeaders?: Record<string, string>): SdkHeaders {
+  return { ...additionalHeaders, ...SDK_HEADERS }
 }
 
 // DOM-side wrapper for the Web SDK's `YouVersionProvider`. Stamps the
