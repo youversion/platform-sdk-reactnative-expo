@@ -5,8 +5,7 @@
  * Native looks up today's passage_id (never in the WebView), parses Highlight
  * Scope from it, and always hands the DOM component a `Highlight[]` so the
  * Web SDK can latch Controlled Highlights Latch. Until the passage is known,
- * that array is a Cached Highlights superset (or `[]` when signed out) and
- * `useHighlights` is called with `enabled: false`.
+ * that array is `[]` and `useHighlights` is called with `enabled: false`.
  */
 import { render } from '@testing-library/react-native'
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
@@ -164,40 +163,17 @@ describe('the highlights subscription scope', () => {
     })
   })
 
-  it('passes a Cached Highlights superset while passage_id is unknown', () => {
-    const data = [highlight('JHN.3.16'), highlight('MAT.5.1')]
-    const useHighlightPaintSpy = jest.spyOn(core, 'useHighlightPaint')
-    useHighlightPaintSpy.mockImplementation((scope) => {
-      const enabled = scope !== null
-      let versionId = 1
-      let book = '_'
-      let chapter = '0'
-      if (scope !== null) {
-        versionId = scope.versionId
-        book = scope.book
-        chapter = scope.chapter
-      }
-      core.useHighlights({ versionId, book, chapter, enabled })
-      if (scope !== null) {
-        return []
-      }
-      return data
+  it('passes [] while passage_id is unknown so other-scope rows cannot paint', () => {
+    stubHighlights([highlight('JHN.3.16'), highlight('MAT.5.1')])
+    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+
+    expect(mockDomPropsHistory[0]?.highlights).toEqual([])
+    expect(useHighlightsSpy).toHaveBeenCalledWith({
+      versionId: 1,
+      book: '_',
+      chapter: '0',
+      enabled: false,
     })
-
-    try {
-      render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
-
-      expect(Array.isArray(mockDomPropsHistory[0]?.highlights)).toBe(true)
-      expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
-      expect(useHighlightsSpy).toHaveBeenCalledWith({
-        versionId: 1,
-        book: '_',
-        chapter: '0',
-        enabled: false,
-      })
-    } finally {
-      useHighlightPaintSpy.mockRestore()
-    }
   })
 
   it('subscribes at Highlight Scope from the passage_id once it is known', () => {
@@ -222,11 +198,12 @@ describe('the highlights subscription scope', () => {
     })
   })
 
-  it('passes a superset (or []) and does not fetch when the passage_id is invalid USFM', () => {
+  it('passes [] and does not fetch when the passage_id is invalid USFM', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('not-usfm')
+    stubHighlights([highlight('JHN.3.16')])
     render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
 
-    expect(Array.isArray(lastDomProps().highlights)).toBe(true)
+    expect(lastDomProps().highlights).toEqual([])
     expect(useHighlightsSpy).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',

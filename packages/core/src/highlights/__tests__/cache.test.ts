@@ -8,12 +8,10 @@ import {
   expandPassageId,
   getCachedHighlights,
   highlightsCacheKey,
-  listCachedHighlights,
   parseChapterScopeFromUsfm,
   setCachedHighlights,
   type HighlightScope,
 } from '../cache'
-import { enqueueWrites } from '../queue'
 
 const mockMmkv = new Map<string, string>()
 
@@ -118,48 +116,6 @@ describe('highlights cache', () => {
     expect(mockMmkv.get(MMKV_AUTH_KEYS.cachedUserInfo)).toBe('{"id":"u1"}')
     expect(mockMmkv.get(MMKV_AUTH_KEYS.expiryDateISO)).toBe('2026-01-01T00:00:00.000Z')
     expect(mockMmkv.get(MMKV_KEYS.installationId)).toBe('inst-1')
-  })
-})
-
-describe('listCachedHighlights', () => {
-  const jhn3: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
-  const jhn4: HighlightScope = { versionId: 111, book: 'JHN', chapter: '4' }
-
-  it('lists multiple scopes for one user and ignores another user', () => {
-    setCachedHighlights(userId, jhn3, [highlight('JHN.3.16', 'fffe00')])
-    setCachedHighlights(userId, jhn4, [highlight('JHN.4.1', '5dff79')])
-    setCachedHighlights('user-2', jhn3, [highlight('JHN.3.16', '00d6ff')])
-
-    expect(listCachedHighlights(userId)).toEqual([
-      highlight('JHN.3.16', 'fffe00'),
-      highlight('JHN.4.1', '5dff79'),
-    ])
-  })
-
-  it('skips corrupt JSON and does not let empty snapshot lines add rows', () => {
-    mockMmkv.set(highlightsCacheKey(userId, jhn3), '{not-json')
-    setCachedHighlights(userId, jhn4, [])
-    setCachedHighlights(userId, { versionId: 111, book: 'MAT', chapter: '5' }, [
-      highlight('MAT.5.1', 'fffe00'),
-    ])
-
-    expect(listCachedHighlights(userId)).toEqual([highlight('MAT.5.1', 'fffe00')])
-  })
-
-  it('folds queued writes into each scope’s paint', () => {
-    setCachedHighlights(userId, jhn3, [highlight('JHN.3.16', 'fffe00')])
-    enqueueWrites({
-      userId,
-      scope: jhn3,
-      verses: [17],
-      color: '5dff79',
-      currentColors: {},
-    })
-
-    expect(listCachedHighlights(userId)).toEqual([
-      highlight('JHN.3.16', 'fffe00'),
-      highlight('JHN.3.17', '5dff79'),
-    ])
   })
 })
 

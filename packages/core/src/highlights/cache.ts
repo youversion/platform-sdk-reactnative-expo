@@ -8,8 +8,7 @@ import {
   type ServerColors,
 } from './constants'
 import { isValidHighlightHex } from './paint-projection'
-import { applyQueuedWrites, highlightsFromColors } from './optimistic'
-import { getQueuedWrites, listQueuedScopes } from './queue'
+import { highlightsFromColors } from './optimistic'
 
 export {
   highlightsCacheKey,
@@ -180,80 +179,6 @@ export function getCachedHighlights(userId: string, scope: HighlightScope): High
   } catch {
     return null
   }
-}
-
-/**
- * `111.JHN.3` — the tail of a cache key after `yvp.highlights.${userId}.`.
- * Book codes and chapters carry no dots.
- */
-function parseHighlightsCacheScope(key: string, prefix: string): HighlightScope | null {
-  const suffix = key.slice(prefix.length)
-  const parts = suffix.split('.')
-  if (parts.length !== 3) {
-    return null
-  }
-  const [versionIdRaw, book, chapter] = parts
-  if (!versionIdRaw || !book || !chapter || !/^\d+$/.test(versionIdRaw)) {
-    return null
-  }
-  return { versionId: Number(versionIdRaw), book, chapter }
-}
-
-function scopeIdentity(scope: HighlightScope): string {
-  return `${scope.versionId}.${scope.book}.${scope.chapter}`
-}
-
-/**
- * Every Cached Highlights row for this user, all chapter lines, with Queued
- * Writes folded in the same way mount does. Used when VOTD has no Highlight
- * Scope yet so the Web SDK can clip host rows to today's passage.
- *
- * Corrupt lines are skipped. Empty snapshots add nothing. Another user's keys
- * are ignored. Internal — not on the package barrel.
- */
-export function listCachedHighlights(userId: string): Highlight[] {
-  if (!userId) {
-    return []
-  }
-
-  const prefix = `${MMKV_HIGHLIGHTS_KEY_PREFIX}${userId}.`
-  const painted: Highlight[] = []
-  const seen = new Set<string>()
-
-  const paintScope = (scope: HighlightScope, cached: Highlight[]): void => {
-    const colors = deriveServerColors(cached, scope)
-    applyQueuedWrites(colors, getQueuedWrites(userId, scope))
-    painted.push(...highlightsFromColors(scope, colors))
-    seen.add(scopeIdentity(scope))
-  }
-
-  try {
-    for (const key of mmkvStorage.getAllKeys()) {
-      if (!key.startsWith(prefix)) {
-        continue
-      }
-      const scope = parseHighlightsCacheScope(key, prefix)
-      if (scope === null) {
-        continue
-      }
-      const cached = getCachedHighlights(userId, scope)
-      if (cached === null) {
-        continue
-      }
-      paintScope(scope, cached)
-    }
-
-    for (const scope of listQueuedScopes(userId)) {
-      if (seen.has(scopeIdentity(scope))) {
-        continue
-      }
-      paintScope(scope, [])
-    }
-  } catch {
-    // Store unreadable: paint what we collected.
-  }
-
-  return painted
 }
 
 /** Persists the raw API shape so passage ids (and ranges) survive a cold start. */
