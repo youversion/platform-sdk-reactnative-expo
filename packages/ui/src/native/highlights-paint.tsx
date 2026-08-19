@@ -3,7 +3,7 @@ import {
   type Highlight,
   type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 
 type HighlightsPaintProps = {
   scope: HighlightScope | null
@@ -42,15 +42,15 @@ function sameHighlights(left: Highlight[], right: Highlight[]): boolean {
  * does not remount the WebView.
  */
 export function HighlightsPaint({ scope, children }: HighlightsPaintProps) {
-  const [highlights, setHighlights] = useState<Highlight[]>([])
   const scopeKey = scope === null ? '' : `${scope.versionId}:${scope.book}:${scope.chapter}`
-  const scopeKeyRef = useRef(scopeKey)
+  const [seenKey, setSeenKey] = useState(scopeKey)
+  const [highlights, setHighlights] = useState<Highlight[]>([])
 
-  if (scopeKeyRef.current !== scopeKey) {
-    scopeKeyRef.current = scopeKey
-    if (highlights.length > 0) {
-      setHighlights([])
-    }
+  // Drop previous-scope rows before paint so a new Highlight Scope (or none)
+  // never shows the last chapter's Cached Highlights for a frame.
+  if (seenKey !== scopeKey) {
+    setSeenKey(scopeKey)
+    setHighlights([])
   }
 
   const onHighlights = useCallback((next: Highlight[]) => {

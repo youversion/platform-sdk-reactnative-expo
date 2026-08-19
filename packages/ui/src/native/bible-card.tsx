@@ -2,6 +2,7 @@ import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import {
   parseChapterScopeFromUsfm,
   useYouVersion,
+  type Highlight,
   type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
@@ -17,7 +18,7 @@ import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightsPaint } from './highlights-paint'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from '../hooks/use-theme'
+import { useTheme, type Theme } from '../hooks/use-theme'
 
 // Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
@@ -57,6 +58,102 @@ function highlightScopeFor(
     return null
   }
   return { versionId, book: parsed.book, chapter: parsed.chapter }
+}
+
+type BibleCardBodyProps = Omit<
+  BibleCardProps,
+  | 'theme'
+  | 'versionId'
+  | 'defaultVersionId'
+  | 'onVersionChange'
+  | 'onVersionPickerPress'
+  | 'onFootnotePress'
+  | 'showVersionPicker'
+> & {
+  highlights: Highlight[]
+  appKey: string
+  apiHost: string
+  installationId: string
+  resolvedTheme: Theme
+  versionId: number | undefined
+  onVersionChange: (newVersionId: number) => Promise<void>
+  onVersionPickerPress: (data: BibleVersionPickerPressData) => Promise<void>
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+  showVersionPicker: boolean
+  showVersionPickerSheet: boolean
+  isVersionPickerOpen: boolean
+  onCloseVersionPicker: () => void
+  onSelectVersion: (newVersionId: number) => Promise<void>
+  showFootnoteSheet: boolean
+  footnoteData: FootnoteData | null
+  onCloseFootnote: () => void
+}
+
+function BibleCardBody({
+  highlights,
+  appKey,
+  apiHost,
+  installationId,
+  resolvedTheme,
+  versionId,
+  onVersionChange,
+  onVersionPickerPress,
+  onFootnotePress,
+  showVersionPicker,
+  showVersionPickerSheet,
+  isVersionPickerOpen,
+  onCloseVersionPicker,
+  onSelectVersion,
+  showFootnoteSheet,
+  footnoteData,
+  onCloseFootnote,
+  dom,
+  ...props
+}: BibleCardBodyProps) {
+  return (
+    <>
+      <BibleCardDOM
+        {...props}
+        highlights={highlights}
+        dom={withEmbedDomDefaults(dom)}
+        appKey={appKey}
+        apiHost={apiHost}
+        installationId={installationId}
+        theme={resolvedTheme}
+        versionId={versionId}
+        onVersionChange={onVersionChange}
+        onVersionPickerPress={onVersionPickerPress}
+        onFootnotePress={onFootnotePress}
+        showVersionPicker={showVersionPicker}
+      />
+      {showVersionPickerSheet && (
+        <BibleVersionPickerSheet
+          isOpen={isVersionPickerOpen}
+          onClose={onCloseVersionPicker}
+          versionId={versionId}
+          theme={resolvedTheme}
+          onSelect={onSelectVersion}
+        />
+      )}
+      {showFootnoteSheet && (
+        <NativeSheet
+          isOpen={!!footnoteData}
+          onClose={onCloseFootnote}
+          showAndroidLoader
+          theme={resolvedTheme}
+        >
+          <FootnoteContent
+            dom={withSheetDomDefaults()}
+            data={footnoteData ?? EMPTY_FOOTNOTE}
+            theme={resolvedTheme}
+            appKey={appKey}
+            apiHost={apiHost}
+            installationId={installationId}
+          />
+        </NativeSheet>
+      )}
+    </>
+  )
 }
 
 export function BibleCard({
@@ -118,12 +215,15 @@ export function BibleCard({
         setIsVersionPickerOpen(true)
       }
     },
-    [consumerOnVersionPickerPress, showVersionPicker],
+    [consumerOnVersionPickerPress, setIsVersionPickerOpen, showVersionPicker],
   )
 
-  const handleFootnotePress = useCallback(async (data: FootnoteData) => {
-    setFootnoteData(data)
-  }, [])
+  const handleFootnotePress = useCallback(
+    async (data: FootnoteData) => {
+      setFootnoteData(data)
+    },
+    [setFootnoteData],
+  )
 
   const onFootnotePress =
     Platform.OS !== 'web' ? (consumerOnFootnotePress ?? handleFootnotePress) : undefined
@@ -136,50 +236,29 @@ export function BibleCard({
   return (
     <HighlightsPaint scope={scope}>
       {(highlights) => (
-        <>
-          <BibleCardDOM
-            {...props}
-            highlights={highlights}
-            dom={withEmbedDomDefaults(dom)}
-            appKey={context.appKey}
-            apiHost={context.apiHost}
-            installationId={context.installationId}
-            theme={resolvedTheme}
-            versionId={versionId}
-            onVersionChange={handleVersionChange}
-            onVersionPickerPress={handleVersionPickerPress}
-            onFootnotePress={onFootnotePress}
-            showVersionPicker={showVersionPicker}
-          />
-          {showVersionPickerSheet && (
-            <BibleVersionPickerSheet
-              isOpen={isVersionPickerOpen}
-              onClose={() => setIsVersionPickerOpen(false)}
-              versionId={versionId}
-              theme={resolvedTheme}
-              onSelect={async (newVersionId) => {
-                setVersionId(newVersionId)
-              }}
-            />
-          )}
-          {showFootnoteSheet && (
-            <NativeSheet
-              isOpen={!!footnoteData}
-              onClose={() => setFootnoteData(null)}
-              showAndroidLoader
-              theme={resolvedTheme}
-            >
-              <FootnoteContent
-                dom={withSheetDomDefaults()}
-                data={footnoteData ?? EMPTY_FOOTNOTE}
-                theme={resolvedTheme}
-                appKey={context.appKey}
-                apiHost={context.apiHost}
-                installationId={context.installationId}
-              />
-            </NativeSheet>
-          )}
-        </>
+        <BibleCardBody
+          {...props}
+          highlights={highlights}
+          appKey={context.appKey}
+          apiHost={context.apiHost}
+          installationId={context.installationId}
+          resolvedTheme={resolvedTheme}
+          versionId={versionId}
+          onVersionChange={handleVersionChange}
+          onVersionPickerPress={handleVersionPickerPress}
+          onFootnotePress={onFootnotePress}
+          showVersionPicker={showVersionPicker}
+          showVersionPickerSheet={showVersionPickerSheet}
+          isVersionPickerOpen={isVersionPickerOpen}
+          onCloseVersionPicker={() => setIsVersionPickerOpen(false)}
+          onSelectVersion={async (newVersionId) => {
+            setVersionId(newVersionId)
+          }}
+          showFootnoteSheet={showFootnoteSheet}
+          footnoteData={footnoteData}
+          onCloseFootnote={() => setFootnoteData(null)}
+          dom={dom}
+        />
       )}
     </HighlightsPaint>
   )
