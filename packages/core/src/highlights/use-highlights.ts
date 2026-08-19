@@ -36,6 +36,13 @@ export type UseHighlightsOptions = {
   versionId: number
   book: string
   chapter: string
+  /**
+   * When false, skip Highlights Refresh and do not persist this scope's cache.
+   * `highlights` is `[]`, ignoring whatever the dummy scope's cache holds.
+   * Default true. Paint-only surfaces pass false for a dummy Highlight Scope
+   * while VOTD (or invalid USFM) has no real scope.
+   */
+  enabled?: boolean
 }
 
 export type HighlightWriteReason = 'not-signed-in' | 'auth' | 'transient' | 'invalid'
@@ -276,6 +283,7 @@ type AuthSettleOutcome = 'settled' | 'aborted'
  * {@link shouldFetchHighlights}), so `highlights` stays whatever the cache holds.
  */
 export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+  const { versionId, book, chapter, enabled = true } = options
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -289,8 +297,8 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const getAccessToken = auth?.getAccessToken ?? null
 
   const scope = useMemo<HighlightScope>(
-    () => ({ versionId: options.versionId, book: options.book, chapter: options.chapter }),
-    [options.versionId, options.book, options.chapter],
+    () => ({ versionId, book, chapter }),
+    [versionId, book, chapter],
   )
 
   const api = useMemo<HighlightsApi>(
@@ -421,6 +429,9 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     if (!canFetchHighlights) {
       return Promise.resolve()
     }
+    if (!enabled) {
+      return Promise.resolve()
+    }
 
     const existing = inFlightRef.current
     if (existing !== null) {
@@ -478,7 +489,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
     inFlightRef.current = promise
     return promise
-  }, [api, canFetchHighlights])
+  }, [api, canFetchHighlights, enabled])
 
   useEffect(() => {
     // Abandon any fetch belonging to the previous identity or token: there is no
@@ -881,6 +892,9 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     if (userId === null) {
       return
     }
+    if (!enabled) {
+      return
+    }
     try {
       setCachedHighlights(userId, scope, highlights)
     } catch {
@@ -888,12 +902,17 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // that refuses this write costs a slower next mount, and must not take the
       // component rendering the chapter down with it.
     }
-  }, [userId, scope, highlights])
+  }, [userId, scope, highlights, enabled])
+
+  let paintedHighlights = highlights
+  if (!enabled) {
+    paintedHighlights = []
+  }
 
   return {
-    highlights,
+    highlights: paintedHighlights,
     scope,
-    isRefreshing: isRefreshing && canFetchHighlights,
+    isRefreshing: isRefreshing && canFetchHighlights && enabled,
     error,
     refresh,
     apply,

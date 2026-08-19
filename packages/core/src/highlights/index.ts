@@ -51,4 +51,4 @@ export {
   type UseHighlightsResult,
 } from './use-highlights'
 
-export { useVerseOfTheDayPassageId } from './use-verse-of-the-day-passage-id'
+export { useHighlightPaint } from './use-highlight-paint'

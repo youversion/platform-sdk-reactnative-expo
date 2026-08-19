@@ -93,12 +93,14 @@ afterAll(() => {
   useHighlightsSpy.mockRestore()
 })
 
-describe('the controlled-mode latch', () => {
-  it('hands the DOM component an array on the very first render', () => {
+describe('the Controlled Highlights Latch', () => {
+  it('hands the DOM component the hook’s cache snapshot on the very first render', () => {
+    const data = [highlight('JHN.3.16')]
+    stubHighlights(data)
     render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
-    expect(Array.isArray(mockDomPropsHistory[0]?.highlights)).toBe(true)
+    expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
   })
 
   it('never renders with an undefined highlights prop, on any render', () => {
@@ -140,26 +142,46 @@ describe('the highlights subscription scope', () => {
   it('subscribes at Highlight Scope for a verse USFM', () => {
     render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({ versionId: 111, book: 'JHN', chapter: '3' })
+    expect(useHighlightsSpy).toHaveBeenCalledWith({
+      versionId: 111,
+      book: 'JHN',
+      chapter: '3',
+      enabled: true,
+    })
   })
 
   it('subscribes at Highlight Scope for a verse-range USFM', () => {
     render(<BibleTextView reference="JHN.1.1-4" versionId={111} />, { wrapper: wrapper() })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({ versionId: 111, book: 'JHN', chapter: '1' })
+    expect(useHighlightsSpy).toHaveBeenCalledWith({
+      versionId: 111,
+      book: 'JHN',
+      chapter: '1',
+      enabled: true,
+    })
   })
 
   it('subscribes at Highlight Scope for a chapter USFM', () => {
     render(<BibleTextView reference="JHN.1" versionId={111} />, { wrapper: wrapper() })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({ versionId: 111, book: 'JHN', chapter: '1' })
+    expect(useHighlightsSpy).toHaveBeenCalledWith({
+      versionId: 111,
+      book: 'JHN',
+      chapter: '1',
+      enabled: true,
+    })
   })
 
-  it('passes [] and does not subscribe when the USFM is invalid', () => {
+  it('passes [] and does not fetch when the USFM is invalid', () => {
     render(<BibleTextView reference="not-usfm" versionId={111} />, { wrapper: wrapper() })
 
     expect(lastDomProps().highlights).toEqual([])
-    expect(useHighlightsSpy).not.toHaveBeenCalled()
+    expect(useHighlightsSpy).toHaveBeenCalledWith({
+      versionId: 1,
+      book: '_',
+      chapter: '0',
+      enabled: false,
+    })
   })
 })
 

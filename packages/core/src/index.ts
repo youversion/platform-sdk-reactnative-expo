@@ -20,9 +20,9 @@ export {
   HIGHLIGHT_COLORS,
   isHighlightColor,
   parseChapterScopeFromUsfm,
+  useHighlightPaint,
   useHighlightPermissionFlow,
   useHighlights,
-  useVerseOfTheDayPassageId,
 } from './highlights'
 export type {
   Highlight,

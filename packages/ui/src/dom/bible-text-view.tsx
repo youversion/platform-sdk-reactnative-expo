@@ -3,7 +3,6 @@
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { BibleTextView } from '@youversion/platform-react-ui'
-import type { ComponentType } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
@@ -17,11 +16,6 @@ type DomPassageState = Omit<WebPassageState, 'error'> & {
   error?: DomError
 }
 
-// TODO(YPE): drop after platform-sdk-react#335 pin
-type NativeActionBibleTextViewProps = WebBibleTextViewProps & {
-  highlights: Highlight[]
-}
-
 export type BibleTextViewProps = Omit<
   WebBibleTextViewProps,
   'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
@@ -30,9 +24,10 @@ export type BibleTextViewProps = Omit<
   apiHost: string
   installationId: string
   /**
-   * Must be defined on the first render — its presence latches the reader into
-   * controlled mode, and omitting it lets the WebView fetch and write highlights
-   * with the token we hand it. Pass `[]` for "nothing highlighted".
+   * Must be defined on the first render — its presence latches Controlled
+   * Highlights Latch. `[]` means nothing highlighted. Omitting it latches
+   * self-contained fetch in the WebView; we never omit, because the token
+   * stays native.
    */
   highlights: Highlight[]
   theme?: 'light' | 'dark' | 'system'
@@ -66,11 +61,11 @@ export default function BibleTextViewDOM({
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.
   // Coerce, don't just warn — the warning compiles out in production, and a
-  // missing prop hands the WebView back the ability to write highlights.
+  // missing prop latches self-contained fetch in a WebView that has no token.
   const safeHighlights = Array.isArray(highlights) ? highlights : []
   if (process.env.NODE_ENV !== 'production' && !Array.isArray(highlights)) {
     console.error(
-      `[YouVersion SDK] BibleTextView received a non-array \`highlights\` prop. The reader falls back to self-contained mode when this prop is missing, which lets the WebView write highlights itself. Pass \`[]\` for "nothing highlighted".`,
+      `[YouVersion SDK] BibleTextView received a non-array \`highlights\` prop. Omitting this prop latches self-contained fetch in the WebView. Pass \`[]\` for "nothing highlighted".`,
     )
   }
 
@@ -82,12 +77,9 @@ export default function BibleTextViewDOM({
         }
       : undefined
 
-  // TODO(YPE): drop after platform-sdk-react#335 pin
-  const NativeActionBibleTextView = BibleTextView as ComponentType<NativeActionBibleTextViewProps>
-
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>
-      <NativeActionBibleTextView
+      <BibleTextView
         {...props}
         highlights={safeHighlights}
         passageState={webPassageState}

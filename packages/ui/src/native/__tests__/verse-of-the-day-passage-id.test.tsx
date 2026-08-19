@@ -2,15 +2,13 @@
  * Layer 1 — VOTD passage lookup for paint-only Highlight Scope.
  *
  * Native wrappers subscribe at chapter scope from this passage_id. The lookup
- * is public-API only as `useVerseOfTheDayPassageId`; the wrapper is internal,
- * same rule as `createHighlightsApi`. No access token: VOTD is not a
- * user-owned resource.
+ * is internal; the wrapper is internal, same rule as `createHighlightsApi`.
+ * No access token: VOTD is not a user-owned resource.
  */
 import { BibleClient } from '@youversion/platform-core'
 import { renderHook, waitFor } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
 
-import { YouVersionContext } from '../../youversion-context'
+import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { useVerseOfTheDayPassageId } from '../use-verse-of-the-day-passage-id'
 import { getVerseOfTheDayPassageId } from '../verse-of-the-day-api'
 
@@ -56,14 +54,10 @@ describe('getVerseOfTheDayPassageId', () => {
 })
 
 describe('useVerseOfTheDayPassageId', () => {
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <YouVersionContext.Provider value={credentials}>{children}</YouVersionContext.Provider>
-  )
-
   it('returns the passage_id once the lookup succeeds', async () => {
     getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
 
-    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper })
+    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper: wrapper() })
 
     expect(result.current).toBeNull()
     await waitFor(() => {
@@ -74,7 +68,7 @@ describe('useVerseOfTheDayPassageId', () => {
   it('stays null when the lookup fails', async () => {
     getVOTD.mockRejectedValue(new Error('network'))
 
-    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper })
+    const { result } = renderHook(() => useVerseOfTheDayPassageId(), { wrapper: wrapper() })
 
     expect(result.current).toBeNull()
     await waitFor(() => {

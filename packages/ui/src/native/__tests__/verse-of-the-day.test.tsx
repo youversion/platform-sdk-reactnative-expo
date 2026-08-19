@@ -6,6 +6,10 @@ import { Platform, Share } from 'react-native'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 
+jest.mock('../verse-of-the-day-api', () => ({
+  getVerseOfTheDayPassageId: jest.fn(async () => null),
+}))
+
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
   reference: 'John 3:16 NIV',

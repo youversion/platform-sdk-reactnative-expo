@@ -1,8 +1,4 @@
-import {
-  parseChapterScopeFromUsfm,
-  useYouVersion,
-  type HighlightScope,
-} from '@youversion/platform-react-native-expo-core'
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
@@ -13,6 +9,7 @@ import FootnoteContent from '../dom/footnote-content'
 import { resolveTheme } from '../lib/resolve-theme'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { HighlightsPaint } from './highlights-paint'
+import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -28,20 +25,6 @@ export type BibleTextViewProps = Omit<
   'appKey' | 'apiHost' | 'installationId' | 'highlights'
 > & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
-
-function highlightScopeFor(
-  reference: string | undefined,
-  versionId: number | undefined,
-): HighlightScope | null {
-  if (reference === undefined || typeof versionId !== 'number') {
-    return null
-  }
-  const parsed = parseChapterScopeFromUsfm(reference)
-  if (parsed === null) {
-    return null
-  }
-  return { versionId, book: parsed.book, chapter: parsed.chapter }
 }
 
 export function BibleTextView({

@@ -163,14 +163,6 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
   }
 
   /**
-   * The real hook hits BibleClient. Signed-out/loading-shaped (`null`) by
-   * default; suites that care about a resolved passage_id spy this themselves.
-   */
-  function useVerseOfTheDayPassageId() {
-    return null
-  }
-
-  /**
    * Same reason as `useHighlights` above, one layer up: the real flow calls
    * `useHighlights` through a *relative* import, so stubbing the barrel export
    * alone does not intercept it and the real hook still reaches core's own
@@ -191,6 +183,29 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     }
   }
 
+  /**
+   * The real hook relatively imports `useHighlights`, which would bypass a
+   * barrel spy. Delegate so `jest.spyOn(core, 'useHighlights')` still sees
+   * chapter-scope (and dummy-scope `enabled: false`) calls. Signed-out
+   * default when scope is null is `[]` so Controlled Highlights Latch holds.
+   */
+  function useHighlightPaint(scope) {
+    const enabled = scope !== null
+    let versionId = 1
+    let book = '_'
+    let chapter = '0'
+    if (enabled) {
+      versionId = scope.versionId
+      book = scope.book
+      chapter = scope.chapter
+    }
+    const { highlights } = mocked.useHighlights({ versionId, book, chapter, enabled })
+    if (!enabled) {
+      return []
+    }
+    return highlights
+  }
+
   const mocked = {
     // Babel defines the real module's `__esModule` non-enumerably, so the spread
     // above drops it. Without it back, `import * as core` runs through
@@ -203,8 +218,8 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     useYouVersion,
     useYVAuth,
     useHighlights,
+    useHighlightPaint,
     useHighlightPermissionFlow,
-    useVerseOfTheDayPassageId,
   }
 
   return mocked

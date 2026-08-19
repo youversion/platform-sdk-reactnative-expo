@@ -1,7 +1,7 @@
 import { ApiClient, BibleClient } from '@youversion/platform-core'
+import type { YouVersionContextValue } from '@youversion/platform-react-native-expo-core'
 
-import { DEFAULT_API_HOST } from '../constants'
-import type { YouVersionContextValue } from '../youversion-context'
+const DEFAULT_API_HOST = 'api.youversion.com'
 
 /**
  * Copied from `@youversion/platform-react-hooks` `getDayOfYear` so native VOTD
@@ -17,17 +17,19 @@ function getDayOfYear(date: Date): number {
  * paint nothing rather than throw. No access token: this is not a user-owned
  * resource.
  *
- * Internal. Same rule as `createHighlightsApi` — not on the package barrel.
+ * Internal. Not on the UI or core package barrel.
  */
 export async function getVerseOfTheDayPassageId(
   credentials: YouVersionContextValue,
 ): Promise<string | null> {
   try {
+    const { appKey, apiHost, installationId } = credentials
+    const host = apiHost || DEFAULT_API_HOST
     const client = new BibleClient(
       new ApiClient({
-        appKey: credentials.appKey,
-        apiHost: credentials.apiHost || DEFAULT_API_HOST,
-        installationId: credentials.installationId,
+        appKey,
+        apiHost: host,
+        installationId,
       }),
     )
     const { passage_id } = await client.getVOTD(getDayOfYear(new Date()))

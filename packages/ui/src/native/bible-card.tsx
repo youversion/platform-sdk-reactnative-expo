@@ -1,9 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import {
-  parseChapterScopeFromUsfm,
   useYouVersion,
   type Highlight,
-  type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { useCallback, useState } from 'react'
@@ -17,6 +15,7 @@ import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-pro
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightsPaint } from './highlights-paint'
+import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
 import { useTheme, type Theme } from '../hooks/use-theme'
 
@@ -44,20 +43,6 @@ export type BibleCardProps = Omit<
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
-
-function highlightScopeFor(
-  reference: string | undefined,
-  versionId: number | undefined,
-): HighlightScope | null {
-  if (reference === undefined || typeof versionId !== 'number') {
-    return null
-  }
-  const parsed = parseChapterScopeFromUsfm(reference)
-  if (parsed === null) {
-    return null
-  }
-  return { versionId, book: parsed.book, chapter: parsed.chapter }
 }
 
 type BibleCardBodyProps = Omit<

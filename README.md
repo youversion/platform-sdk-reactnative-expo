@@ -148,7 +148,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-<!-- TODO(YPE): after platform-sdk-react#335 pin, document paint-only highlights on BibleTextView, BibleCard, and VerseOfTheDay -->
+`BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 
 #### Verse actions
 
