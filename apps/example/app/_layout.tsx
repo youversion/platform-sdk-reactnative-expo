@@ -26,6 +26,10 @@ export default function RootLayout() {
             scopes: ['profile', 'email'],
             permissions: ['highlights'],
           }}
+          // Optional version filter (forwarded to the web SDK once published):
+          // permittedVersionIds={[111, 206]}
+          // excludedVersionIds={[3034]}
+          // permittedLanguageTags={['en', 'zh-Hans']}
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
