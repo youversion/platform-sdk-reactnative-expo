@@ -4,17 +4,18 @@ import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
 import { applySDKConfig } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
-import type { VersionFilterProps } from '../lib/version-filter-props'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-export type VerseOfTheDayProps = WebVerseOfTheDayProps &
-  VersionFilterProps & {
-    appKey: string
-    apiHost: string
-    installationId: string
-    theme?: 'light' | 'dark' | 'system'
-    dom?: import('expo/dom').DOMProps
-  }
+export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
+  appKey: string
+  apiHost: string
+  installationId: string
+  theme?: 'light' | 'dark' | 'system'
+  dom?: import('expo/dom').DOMProps
+}
+
+type VerseOfTheDayDOMProps = VerseOfTheDayProps & InternalVersionFilterProps
 
 export default function VerseOfTheDayDOM({
   appKey,
@@ -26,7 +27,7 @@ export default function VerseOfTheDayDOM({
   excludedVersionIds,
   permittedLanguageTags,
   ...props
-}: VerseOfTheDayProps) {
+}: VerseOfTheDayDOMProps) {
   applySDKConfig({ appKey, apiHost, installationId })
 
   return (

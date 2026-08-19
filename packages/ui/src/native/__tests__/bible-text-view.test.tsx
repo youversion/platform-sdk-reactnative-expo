@@ -4,6 +4,8 @@ import { Platform } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { BibleTextView } from '../bible-text-view'
+import { YouVersionProvider } from '../youversion-provider'
+import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 
 const sampleFootnote: FootnoteData = {
@@ -11,6 +13,12 @@ const sampleFootnote: FootnoteData = {
   notes: [],
   verseHtml: '<p>footnote</p>',
 }
+
+let latestTextViewDomProps: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+} = {}
 
 jest.mock('../../dom/bible-text-view', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -24,8 +32,12 @@ jest.mock('../../dom/bible-text-view', () => {
       showVerseNumbers?: boolean
       fontSize?: number
       theme?: string
+      permittedVersionIds?: number[]
+      excludedVersionIds?: number[]
+      permittedLanguageTags?: string[]
       onFootnotePress?: (data: FootnoteData) => Promise<void>
     }) {
+      latestTextViewDomProps = props
       return (
         <View testID="mock-btv-dom">
           <Text testID="mock-app-key">{props.appKey}</Text>
@@ -102,6 +114,10 @@ jest.mock('../native-sheet', () => {
 
 describe('BibleTextView', () => {
   const originalOs = Platform.OS
+
+  beforeEach(() => {
+    latestTextViewDomProps = {}
+  })
 
   afterEach(() => {
     Object.defineProperty(Platform, 'OS', {
@@ -207,5 +223,33 @@ describe('BibleTextView', () => {
     fireEvent.press(getByTestId('mock-footnote-trigger'))
 
     expect(getByTestId('mock-footnote-theme').children).toContain('light')
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          permittedVersionIds={[111]}
+          excludedVersionIds={[3034]}
+          permittedLanguageTags={['en']}
+        >
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestTextViewDomProps.permittedVersionIds).toEqual([111])
+    expect(latestTextViewDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestTextViewDomProps.permittedLanguageTags).toEqual(['en'])
+
+    expect(webProviderPropsFromDomBridge(latestTextViewDomProps)).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    )
   })
 })

@@ -13,6 +13,7 @@ import {
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VersionPickerContentDOMProps = {
@@ -28,6 +29,8 @@ export type VersionPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
+type VersionPickerContentInternalProps = VersionPickerContentDOMProps & InternalVersionFilterProps
+
 export default function VersionPickerContentDOM({
   appKey,
   versionId = 3034,
@@ -36,7 +39,10 @@ export default function VersionPickerContentDOM({
   isOpen,
   dismissKeyboardNonce,
   onVersionChange,
-}: VersionPickerContentDOMProps) {
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
+}: VersionPickerContentInternalProps) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
   useDismissKeyboardOnClose(isOpen)
@@ -68,7 +74,13 @@ export default function VersionPickerContentDOM({
   }, [isOpen])
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <style>{versionPickerStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-version-picker-shell>
         {/* key remounts the picker tree on each sheet open to reset scroll and filter state */}

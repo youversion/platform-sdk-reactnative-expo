@@ -15,7 +15,7 @@ import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
-import type { VersionFilterProps } from '../lib/version-filter-props'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps =
@@ -87,15 +87,16 @@ type BibleReaderBaseProps = {
 }
 
 export type BibleReaderProps = BibleReaderBaseProps &
-  VersionFilterProps &
   (
     | { includeAuth: true; authRedirectUrl: string }
     | { includeAuth?: false; authRedirectUrl?: never }
   )
 
+type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps
+
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
-export default function BibleReaderDOM(props: BibleReaderProps) {
+export default function BibleReaderDOM(props: BibleReaderDOMProps) {
   const {
     appKey,
     apiHost,

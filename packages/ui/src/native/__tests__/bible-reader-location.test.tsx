@@ -9,6 +9,13 @@ import {
 } from '../../stores/reader-location-store'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
+import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
+
+let latestReaderDomProps: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+} = {}
 
 jest.mock('../../dom/bible-reader', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -19,10 +26,14 @@ jest.mock('../../dom/bible-reader', () => {
       book?: string
       chapter?: string
       versionId?: number
+      permittedVersionIds?: number[]
+      excludedVersionIds?: number[]
+      permittedLanguageTags?: string[]
       onBookChange?: (book: string) => Promise<void>
       onChapterChange?: (chapter: string) => Promise<void>
       onVersionChange?: (versionId: number) => Promise<void>
     }) {
+      latestReaderDomProps = props
       return (
         <View testID="mock-dom">
           <Text testID="book">{props.book ?? 'none'}</Text>
@@ -105,6 +116,20 @@ const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+function versionFilterWrapper(lists: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+}) {
+  return function FilterWrapper({ children }: { children: ReactNode }) {
+    return (
+      <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+        {children}
+      </YouVersionProvider>
+    )
+  }
+}
+
 async function resetReaderLocationStore() {
   mmkvStorage.clearAll()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
@@ -124,6 +149,7 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
+    latestReaderDomProps = {}
     await resetReaderLocationStore()
   })
 
@@ -200,5 +226,27 @@ describe('BibleReader Reader Location persistence', () => {
     const { getByTestId } = render(<BibleReader versionId={59} />, { wrapper: refuseFilterWrapper })
 
     expect(getByTestId('version-id').props.children).toBe('59')
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleReader />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestReaderDomProps.permittedVersionIds).toEqual([111])
+    expect(latestReaderDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestReaderDomProps.permittedLanguageTags).toEqual(['en'])
+
+    expect(webProviderPropsFromDomBridge(latestReaderDomProps)).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    )
   })
 })

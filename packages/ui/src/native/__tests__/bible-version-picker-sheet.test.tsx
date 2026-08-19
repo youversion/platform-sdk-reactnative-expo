@@ -3,12 +3,16 @@ import type { ReactNode } from 'react'
 
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
+import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 
 type MockDomProps = {
   appKey?: string
   theme?: string
   versionId?: number
   resetKey?: number
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   onVersionChange?: (versionId: number) => Promise<void>
 }
 
@@ -55,6 +59,20 @@ const wrapper = ({ children }: { children: ReactNode }) => (
     {children}
   </YouVersionProvider>
 )
+
+function versionFilterWrapper(lists: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+}) {
+  return function FilterWrapper({ children }: { children: ReactNode }) {
+    return (
+      <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+        {children}
+      </YouVersionProvider>
+    )
+  }
+}
 
 describe('BibleVersionPickerSheet', () => {
   beforeEach(() => {
@@ -167,5 +185,68 @@ describe('BibleVersionPickerSheet', () => {
 
     expect(latestDomProps).not.toHaveProperty('showLanguagePicker')
     expect(latestDomProps).not.toHaveProperty('handleShowLanguagePicker')
+  })
+
+  it('forwards version filter lists from YouVersionProvider to DOM content', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+
+    expect(webProviderPropsFromDomBridge(latestDomProps)).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    )
+  })
+
+  it('forwards empty version filter arrays to DOM content without coercing to undefined', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [],
+        excludedVersionIds: [],
+        permittedLanguageTags: [],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([])
+    expect(latestDomProps.excludedVersionIds).toEqual([])
+    expect(latestDomProps.permittedLanguageTags).toEqual([])
+
+    const webProps = webProviderPropsFromDomBridge(latestDomProps)
+    expect(webProps.permittedVersionIds).toEqual([])
+    expect(webProps.excludedVersionIds).toEqual([])
+    expect(webProps.permittedLanguageTags).toEqual([])
+  })
+
+  it('keeps unset version filter lists distinct from empty arrays at the web YouVersionProvider bridge', () => {
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    const unsetWeb = webProviderPropsFromDomBridge(latestDomProps)
+    expect(unsetWeb.permittedVersionIds).toBeUndefined()
+    expect(unsetWeb.excludedVersionIds).toBeUndefined()
+    expect(unsetWeb.permittedLanguageTags).toBeUndefined()
+
+    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [],
+        excludedVersionIds: [],
+        permittedLanguageTags: [],
+      }),
+    })
+
+    const emptyWeb = webProviderPropsFromDomBridge(latestDomProps)
+    expect(emptyWeb.permittedVersionIds).toEqual([])
+    expect(emptyWeb.excludedVersionIds).toEqual([])
+    expect(emptyWeb.permittedLanguageTags).toEqual([])
   })
 })

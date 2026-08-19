@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 
 import { BibleCard } from '../bible-card'
 import { YouVersionProvider } from '../youversion-provider'
+import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
@@ -177,6 +178,14 @@ describe('BibleCard', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+
+    expect(webProviderPropsFromDomBridge(latestDomProps)).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    )
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {

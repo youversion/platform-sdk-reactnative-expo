@@ -5,7 +5,7 @@ import { BibleTextView } from '@youversion/platform-react-ui'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
-import type { VersionFilterProps } from '../lib/version-filter-props'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
@@ -18,19 +18,20 @@ type DomPassageState = Omit<WebPassageState, 'error'> & {
 export type BibleTextViewProps = Omit<
   WebBibleTextViewProps,
   'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
-> &
-  VersionFilterProps & {
-    appKey: string
-    apiHost: string
-    installationId: string
-    theme?: 'light' | 'dark' | 'system'
-    // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
-    onVerseSelect?: (verses: number[]) => Promise<void>
-    // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
-    onFootnotePress?: (data: FootnoteData) => Promise<void>
-    passageState?: DomPassageState
-    dom?: import('expo/dom').DOMProps
-  }
+> & {
+  appKey: string
+  apiHost: string
+  installationId: string
+  theme?: 'light' | 'dark' | 'system'
+  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+  onVerseSelect?: (verses: number[]) => Promise<void>
+  // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+  passageState?: DomPassageState
+  dom?: import('expo/dom').DOMProps
+}
+
+type BibleTextViewDOMProps = BibleTextViewProps & InternalVersionFilterProps
 
 export default function BibleTextViewDOM({
   appKey,
@@ -44,7 +45,7 @@ export default function BibleTextViewDOM({
   excludedVersionIds,
   permittedLanguageTags,
   ...props
-}: BibleTextViewProps) {
+}: BibleTextViewDOMProps) {
   applySDKConfig({ apiHost, appKey, installationId })
   const webPassageState: WebBibleTextViewProps['passageState'] =
     passageState != null

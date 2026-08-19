@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react'
+import { type ReactElement } from 'react'
 
 import pkg from '../../../package.json'
 import { YouVersionProvider } from '../web-yv-provider'

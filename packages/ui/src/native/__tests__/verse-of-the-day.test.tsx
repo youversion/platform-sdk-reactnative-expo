@@ -5,6 +5,8 @@ import { Platform, Share } from 'react-native'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
+import { YouVersionProvider } from '../youversion-provider'
+import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
@@ -16,6 +18,9 @@ let latestDomProps: {
   appKey?: string
   versionId?: number
   theme?: string
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   dom?: { matchContents?: boolean; containerStyle?: unknown }
   onShare?: (data: VerseOfTheDayShareData) => Promise<void>
 } = {}
@@ -29,6 +34,9 @@ jest.mock('../../dom/verse-of-the-day', () => {
       appKey: string
       versionId?: number
       theme?: string
+      permittedVersionIds?: number[]
+      excludedVersionIds?: number[]
+      permittedLanguageTags?: string[]
       dom?: { matchContents?: boolean }
       onShare?: (data: VerseOfTheDayShareData) => Promise<void>
     }) {
@@ -214,5 +222,33 @@ describe('VerseOfTheDay', () => {
       fireEvent.press(getByTestId('mock-share-trigger'))
     })
     expect(Share.share).not.toHaveBeenCalled()
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<VerseOfTheDay versionId={3034} />, {
+      wrapper: ({ children }: { children: React.ReactNode }) => (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          permittedVersionIds={[111]}
+          excludedVersionIds={[3034]}
+          permittedLanguageTags={['en']}
+        >
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+
+    expect(webProviderPropsFromDomBridge(latestDomProps)).toEqual(
+      expect.objectContaining({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    )
   })
 })
