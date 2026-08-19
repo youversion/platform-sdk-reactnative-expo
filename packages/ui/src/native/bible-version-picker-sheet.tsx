@@ -1,4 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import type { DOMProps } from 'expo/dom'
 import { useCallback, useState, type ReactNode } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
@@ -14,7 +15,7 @@ export type BibleVersionPickerSheetProps = {
   versionId?: number
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (versionId: number) => void | Promise<void>
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 function BibleVersionPickerSheetImpl({

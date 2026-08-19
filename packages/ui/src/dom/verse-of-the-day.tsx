@@ -2,6 +2,8 @@
 
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 import { applySDKConfig } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
 import { YouVersionProvider } from '../lib/web-yv-provider'
@@ -11,7 +13,7 @@ export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
   apiHost: string
   installationId: string
   theme?: 'light' | 'dark' | 'system'
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function VerseOfTheDayDOM({
@@ -21,7 +23,7 @@ export default function VerseOfTheDayDOM({
   theme = 'light',
   onShare,
   ...props
-}: VerseOfTheDayProps) {
+}: VerseOfTheDayProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
 
   return (

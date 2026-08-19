@@ -1,4 +1,5 @@
 import { ApiClient, DataExchangeClient } from '@youversion/platform-core'
+import { z } from 'zod'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
@@ -52,13 +53,13 @@ export function createDataExchangeApi(config: CreateDataExchangeApiConfig): Data
         // not the one this provider is signed in with.
         return ok(await client.updateToken([...permissions], accessToken))
       } catch (caught) {
-        return err(toDataExchangeError(caught))
+        return err(toDataExchangeError(caught instanceof Error ? caught : new Error(String(caught))))
       }
     },
   }
 }
 
-function toDataExchangeError(caught: unknown): DataExchangeError {
+function toDataExchangeError(caught: Error): DataExchangeError {
   const status = extractStatus(caught)
   const message = toMessage(caught)
 
@@ -71,11 +72,12 @@ function toDataExchangeError(caught: unknown): DataExchangeError {
     : { kind: 'transient', status, message }
 }
 
+const httpStatusErrorSchema = z.object({
+  status: z.number(),
+})
+
 /** Pulls an HTTP status off a thrown ApiClient error. Twin of the one in `highlights/api.ts`. */
-function extractStatus(error: unknown): number | undefined {
-  if (typeof error === 'object' && error !== null && 'status' in error) {
-    const status = (error as { status?: unknown }).status
-    return typeof status === 'number' ? status : undefined
-  }
-  return undefined
+function extractStatus(error: Error): number | undefined {
+  const parsed = httpStatusErrorSchema.safeParse(error)
+  return parsed.success ? parsed.data.status : undefined
 }

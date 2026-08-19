@@ -1,6 +1,6 @@
-import { DEFAULT_SCOPES } from './constants'
+import type { DEFAULT_SCOPES } from './constants'
 
-export type AuthScope = (typeof DEFAULT_SCOPES)[number]
+export type AuthScope = DEFAULT_SCOPES[number]
 
 /** The permissions this SDK version knows about. See {@link AuthPermission}. */
 export type KnownAuthPermission =

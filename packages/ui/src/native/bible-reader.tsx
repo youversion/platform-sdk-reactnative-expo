@@ -17,7 +17,15 @@ import type {
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import type { Ref } from 'react'
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
@@ -213,7 +221,7 @@ export function BibleReader({
   foregroundColor,
   dom,
   ref,
-}: BibleReaderProps) {
+}: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
   // deliberately not read here: it never crosses into the WebView.
@@ -245,7 +253,7 @@ export function BibleReader({
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: (newBook) => {
       if (controlledBook === undefined) setLocation({ book: newBook })
-      onBookChange?.(newBook)
+      void onBookChange?.(newBook)
     },
   })
 
@@ -255,7 +263,7 @@ export function BibleReader({
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: (newChapter) => {
       if (controlledChapter === undefined) setLocation({ chapter: newChapter })
-      onChapterChange?.(newChapter)
+      void onChapterChange?.(newChapter)
     },
   })
 
@@ -265,7 +273,7 @@ export function BibleReader({
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: (newVersionId) => {
       if (controlledVersionId === undefined) setLocation({ versionId: newVersionId })
-      onVersionChange?.(newVersionId)
+      void onVersionChange?.(newVersionId)
     },
   })
 

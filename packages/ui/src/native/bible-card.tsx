@@ -1,7 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
@@ -49,7 +49,7 @@ export function BibleCard({
   showVersionPicker = false,
   dom,
   ...props
-}: BibleCardProps) {
+}: BibleCardProps): ReactNode {
   const context = useYouVersion()
   const resolvedTheme = useTheme(themeOverride)
 

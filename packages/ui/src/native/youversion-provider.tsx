@@ -34,7 +34,7 @@ export function YouVersionProvider({
   fallback,
   hookOverrides,
   children,
-}: YouVersionProviderProps) {
+}: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
 

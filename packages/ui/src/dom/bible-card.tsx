@@ -1,14 +1,18 @@
 'use dom'
 
-import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { BibleCard } from '@youversion/platform-react-ui'
-import type { ComponentType } from 'react'
+import {
+  BibleCard,
+  type BibleCardProps as WebBibleCardProps,
+  type BibleVersionPickerPressData,
+  type FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ComponentType, ReactNode } from 'react'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
 type NativeActionBibleCardProps = WebBibleCardProps & {
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
@@ -26,7 +30,7 @@ export type BibleCardProps = Omit<
   apiHost: string
   installationId: string
   theme?: 'light' | 'dark'
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function BibleCardDOM({
@@ -38,8 +42,9 @@ export default function BibleCardDOM({
   onVersionPickerPress,
   onFootnotePress,
   ...props
-}: BibleCardProps) {
+}: BibleCardProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
+  // SAFETY: Expo DOM native actions are Promise-returning; Web SDK types them as void.
   const NativeActionBibleCard = BibleCard as ComponentType<NativeActionBibleCardProps>
 
   return (

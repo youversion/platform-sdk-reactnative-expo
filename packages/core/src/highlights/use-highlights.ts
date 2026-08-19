@@ -119,12 +119,12 @@ const UNEXPECTED_WRITE_FAILURE_MESSAGE = 'The highlight write could not be compl
  * produced by {@link classifyApiError}, only constructed directly, so it can
  * never be one of several competing failures in a batch.
  */
-const REASON_RANK: Record<HighlightWriteReason, number> = {
+const REASON_RANK = {
   'not-signed-in': 4,
   auth: 3,
   invalid: 2,
   transient: 1,
-}
+} satisfies Record<HighlightWriteReason, number>
 
 /**
  * `api.ts` maps 401/403 to `auth` and everything else to `transient`, but

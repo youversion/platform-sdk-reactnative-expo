@@ -7,9 +7,19 @@ import { supportedSdkLngs } from './locales'
  * BCP-47 tags that should resolve to a different bundled locale code.
  * Norwegian devices report `nb` / `nn`; platform-localization ships `no`.
  */
-const SDK_LOCALE_ALIASES: Readonly<Record<string, string>> = {
+const SDK_LOCALE_ALIASES = {
   nb: 'no',
   nn: 'no',
+} satisfies Record<string, string>
+
+function localeAlias(tag: string): string | undefined {
+  switch (tag) {
+    case 'nb':
+    case 'nn':
+      return SDK_LOCALE_ALIASES[tag]
+    default:
+      return undefined
+  }
 }
 
 function lookupSupportedLocale(
@@ -21,7 +31,7 @@ function lookupSupportedLocale(
     return direct
   }
 
-  const aliased = SDK_LOCALE_ALIASES[tag]
+  const aliased = localeAlias(tag)
   if (!aliased) {
     return undefined
   }

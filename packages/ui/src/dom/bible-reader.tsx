@@ -3,11 +3,13 @@
 import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
+  BibleReaderRootProps,
   BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import type { ComponentType, ReactNode } from 'react'
 import { useEffect, useMemo } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
@@ -17,8 +19,7 @@ import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-type NativeActionBibleReaderRootProps =
-  import('@youversion/platform-react-ui').BibleReaderRootProps & {
+type NativeActionBibleReaderRootProps = BibleReaderRootProps & {
     onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
     onSignInPress?: () => Promise<void>
     onSignOutPress?: () => Promise<void>
@@ -82,7 +83,7 @@ type BibleReaderBaseProps = {
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
   bottomScrollPadding?: number
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export type BibleReaderProps = BibleReaderBaseProps &
@@ -93,7 +94,7 @@ export type BibleReaderProps = BibleReaderBaseProps &
 
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
-export default function BibleReaderDOM(props: BibleReaderProps) {
+export default function BibleReaderDOM(props: BibleReaderProps): ReactNode {
   const {
     appKey,
     apiHost,
@@ -157,7 +158,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
       onVerseSelect
         ? (selection: BibleReaderVerseSelection) => {
             // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
-            Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
+            Promise.resolve(onVerseSelect(selection)).catch((error: Error) => {
               console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
             })
           }
@@ -172,7 +173,9 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
   useEffect(() => {
     if (!onExternalLinkPress) return
     const handleClick = (event: MouseEvent) => {
-      const anchor = (event.target as Element | null)?.closest?.('a')
+      // SAFETY: click targets are EventTarget; closest() exists only on Element.
+      const target = event.target
+      const anchor = target instanceof Element ? target.closest('a') : null
       if (!anchor) return
       const rawHref = anchor.getAttribute('href') ?? ''
       const href = anchor.href
@@ -188,6 +191,7 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     return () => document.removeEventListener('click', handleClick, true)
   }, [onExternalLinkPress])
 
+  // SAFETY: Expo DOM native actions are Promise-returning; Web SDK types them as void.
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
@@ -232,14 +236,62 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
           book={book}
           chapter={chapter}
           versionId={versionId}
-          onBookChange={onBookChange}
-          onChapterChange={onChapterChange}
-          onVersionChange={onVersionChange}
-          onChapterPickerPress={onChapterPickerPress}
-          onVersionPickerPress={onVersionPickerPress}
-          onSignInPress={onSignInPress}
-          onSignOutPress={onSignOutPress}
-          onFootnotePress={onFootnotePress}
+          onBookChange={
+            onBookChange
+              ? (nextBook) => {
+                  void onBookChange(nextBook)
+                }
+              : undefined
+          }
+          onChapterChange={
+            onChapterChange
+              ? (nextChapter) => {
+                  void onChapterChange(nextChapter)
+                }
+              : undefined
+          }
+          onVersionChange={
+            onVersionChange
+              ? (nextVersionId) => {
+                  void onVersionChange(nextVersionId)
+                }
+              : undefined
+          }
+          onChapterPickerPress={
+            onChapterPickerPress
+              ? (data) => {
+                  void onChapterPickerPress(data)
+                }
+              : undefined
+          }
+          onVersionPickerPress={
+            onVersionPickerPress
+              ? (data) => {
+                  void onVersionPickerPress(data)
+                }
+              : undefined
+          }
+          onSignInPress={
+            onSignInPress
+              ? () => {
+                  void onSignInPress()
+                }
+              : undefined
+          }
+          onSignOutPress={
+            onSignOutPress
+              ? () => {
+                  void onSignOutPress()
+                }
+              : undefined
+          }
+          onFootnotePress={
+            onFootnotePress
+              ? (data) => {
+                  void onFootnotePress(data)
+                }
+              : undefined
+          }
           fontSize={fontSize}
           fontFamily={resolvedFontFamily}
           lineSpacing={lineSpacing}

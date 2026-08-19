@@ -41,7 +41,7 @@ type AuthProviderProps = {
   children: ReactNode
 }
 
-export function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps) {
+export function AuthProvider({ config, appKey, apiHost, children }: AuthProviderProps): ReactNode {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   // Seeding this synchronously is load-bearing for useHighlights: it paints from
   // cache in its own initializer, keyed by `userInfo.id`. Seed it later and the
@@ -308,7 +308,7 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
         }
       }
     }
-    init()
+    void init()
     return () => {
       cancelled = true
     }
@@ -317,7 +317,7 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
   useEffect(() => {
     const handler = (state: AppStateStatus) => {
       if (state === 'active') {
-        refreshToken()
+        void refreshToken()
       }
     }
     const sub = AppState.addEventListener('change', handler)
@@ -528,12 +528,12 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
         // resolve — so it is guarded like the browser call inside the flow.
         let installationId: string
         try {
-          installationId = await getOrSetInstallationId()
+          installationId = getOrSetInstallationId()
         } catch (caught) {
           return {
             status: 'failure',
             reason: 'transient',
-            message: toMessage(caught),
+            message: toMessage(caught instanceof Error ? caught : new Error(String(caught))),
           }
         }
 
@@ -624,7 +624,7 @@ const cachedUserInfoSchema = z.object({
   id: z.string().optional().catch(undefined),
   name: z.string().optional().catch(undefined),
   email: z.string().optional().catch(undefined),
-  avatarUrl: z.unknown().optional(),
+  avatarUrl: z.string().optional().catch(undefined),
 })
 
 function loadCachedUserInfo(): YVUserInfo | null {
@@ -638,7 +638,10 @@ function loadCachedUserInfo(): YVUserInfo | null {
       return null
     }
     const { avatarUrl, ...identity } = parsed.data
-    return { ...identity, avatarUrl: sanitizeAvatarUrl(avatarUrl) }
+    return {
+      ...identity,
+      avatarUrl: avatarUrl === undefined ? undefined : sanitizeAvatarUrl(avatarUrl),
+    }
   } catch {
     return null
   }

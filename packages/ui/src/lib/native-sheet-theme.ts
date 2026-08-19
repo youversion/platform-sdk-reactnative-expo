@@ -17,56 +17,56 @@ import type { Theme } from './resolve-theme'
  */
 
 /** Background surface behind the sheet chrome (handle area, rounded top corners). Mirrors --yv-background. */
-export const SHEET_SURFACE: Record<Theme, string> = {
+export const SHEET_SURFACE = {
   light: '#ffffff',
   dark: '#121212',
-}
+} satisfies Record<Theme, string>
 
 /** Drag-handle indicator color. */
-export const SHEET_HANDLE: Record<Theme, string> = {
+export const SHEET_HANDLE = {
   light: '#cccccc',
   dark: '#5a5757',
-}
+} satisfies Record<Theme, string>
 
 /**
  * Muted surface used behind a search bar at the bottom of picker sheets. Mirrors
  * the Web SDK --yv-muted so the native footer inset meets the DOM search section
  * with no seam.
  */
-export const SHEET_MUTED_BACKGROUND: Record<Theme, string> = {
+export const SHEET_MUTED_BACKGROUND = {
   light: '#f6f4f4',
   dark: '#353333',
-}
+} satisfies Record<Theme, string>
 
 /**
  * Primary on-surface color: body text, icons, and the fill of a solid button.
  * Mirrors the Web SDK --yv-foreground.
  */
-export const SHEET_FOREGROUND: Record<Theme, string> = {
+export const SHEET_FOREGROUND = {
   light: '#121212',
   dark: '#ffffff',
-}
+} satisfies Record<Theme, string>
 
 /**
  * Label color for a button filled with {@link SHEET_FOREGROUND}, which inverts
  * the surface and so needs the surface's own color back for its text.
  */
-export const SHEET_INVERSE_FOREGROUND: Record<Theme, string> = {
+export const SHEET_INVERSE_FOREGROUND = {
   light: '#ffffff',
   dark: '#121212',
-}
+} satisfies Record<Theme, string>
 
 /** Secondary on-surface color: supporting paragraphs and eyebrow labels. Mirrors --yv-muted-foreground. */
-export const SHEET_MUTED_FOREGROUND: Record<Theme, string> = {
+export const SHEET_MUTED_FOREGROUND = {
   light: '#6b6a6a',
   dark: '#a8a5a5',
-}
+} satisfies Record<Theme, string>
 
 /** Hairline border on an outlined control drawn over the sheet surface. {@link SHEET_FOREGROUND} at 20%. */
-export const SHEET_STROKE: Record<Theme, string> = {
+export const SHEET_STROKE = {
   light: 'rgba(18, 18, 18, 0.2)',
   dark: 'rgba(255, 255, 255, 0.2)',
-}
+} satisfies Record<Theme, string>
 
 /**
  * Upward drop shadow separating a sheet's top edge from the content behind it.
@@ -81,7 +81,7 @@ export const SHEET_STROKE: Record<Theme, string> = {
  * Dark mode carries much higher alpha, because a black shadow has little
  * luminance to spend against a near-black surface.
  */
-export const SHEET_TOP_SHADOW: Record<Theme, readonly BoxShadowValue[]> = {
+export const SHEET_TOP_SHADOW = {
   light: [
     { offsetX: 0, offsetY: -2, blurRadius: 4, color: 'rgba(18, 18, 18, 0.06)' },
     { offsetX: 0, offsetY: -16, blurRadius: 32, color: 'rgba(18, 18, 18, 0.14)' },
@@ -90,4 +90,4 @@ export const SHEET_TOP_SHADOW: Record<Theme, readonly BoxShadowValue[]> = {
     { offsetX: 0, offsetY: -2, blurRadius: 4, color: 'rgba(0, 0, 0, 0.5)' },
     { offsetX: 0, offsetY: -16, blurRadius: 32, color: 'rgba(0, 0, 0, 0.7)' },
   ],
-}
+} satisfies Record<Theme, readonly BoxShadowValue[]>

@@ -15,7 +15,7 @@ import { NativeSheet } from './native-sheet'
  * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
  * previews at the alpha it paints, so the dark tray reads dimmer.
  */
-const FILL_OPACITY: Record<Theme, number> = { light: 1, dark: 0.3 }
+const FILL_OPACITY = { light: 1, dark: 0.3 } satisfies Record<Theme, number>
 
 /**
  * Row metrics. The swatch tray and both action tiles share one row height, and

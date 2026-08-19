@@ -28,7 +28,7 @@ export default function YouVersionProvider({
   fallback: _fallback = null,
   hookOverrides,
   children,
-}: YouVersionProviderProps) {
+}: YouVersionProviderProps): ReactNode {
   const [installationId] = useState(getOrSetInstallationId)
 
   const config = useMemo(

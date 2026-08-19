@@ -36,11 +36,8 @@ export function getImpl(key: ImplKey): ImplComponent {
   return impl
 }
 
-export function setImpls(next: Partial<Record<ImplKey, ImplComponent>>): void {
-  for (const key of Object.keys(next) as ImplKey[]) {
-    const impl = next[key]
-    if (impl) overrides.set(key, impl)
-  }
+export function setImpl(key: ImplKey, impl: ImplComponent): void {
+  overrides.set(key, impl)
 }
 
 export function resetImpls(): void {

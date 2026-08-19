@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 /**
  * Keeps `html`, `body`, and `#root` content-sized so `dom={{ matchContents: true }}`
  * can measure the content height rather than a frame height.
@@ -11,6 +13,6 @@
  */
 const CONTENT_SIZED_BODY_CSS = `html, body, #root { height: auto; }`
 
-export function ContentSizedBody() {
+export function ContentSizedBody(): ReactNode {
   return <style>{CONTENT_SIZED_BODY_CSS}</style>
 }

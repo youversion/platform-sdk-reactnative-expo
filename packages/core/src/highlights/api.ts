@@ -7,8 +7,10 @@ import {
   type GetHighlightsOptions,
   type Highlight,
 } from '@youversion/platform-core'
+import { z } from 'zod'
 
 import { DEFAULT_API_HOST } from '../constants'
+import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
 import { ensureCryptoRandomUUID } from './ensure-crypto-uuid'
 
@@ -81,13 +83,13 @@ async function catchAsResult<Value>(
   try {
     return ok(await run())
   } catch (caught) {
-    return err(toHighlightsApiError(caught))
+    return err(toHighlightsApiError(caught instanceof Error ? caught : new Error(String(caught))))
   }
 }
 
-function toHighlightsApiError(caught: unknown): HighlightsApiError {
+function toHighlightsApiError(caught: Error): HighlightsApiError {
   const status = extractStatus(caught)
-  const message = caught instanceof Error ? caught.message : String(caught)
+  const message = toMessage(caught)
 
   if (status === 401 || status === 403) {
     return { kind: 'auth', status, message }
@@ -98,11 +100,12 @@ function toHighlightsApiError(caught: unknown): HighlightsApiError {
     : { kind: 'transient', status, message }
 }
 
+const httpStatusErrorSchema = z.object({
+  status: z.number(),
+})
+
 /** Pulls an HTTP status off a thrown ApiClient error (same shape Web uses). */
-function extractStatus(error: unknown): number | undefined {
-  if (typeof error === 'object' && error !== null && 'status' in error) {
-    const status = (error as { status?: unknown }).status
-    return typeof status === 'number' ? status : undefined
-  }
-  return undefined
+function extractStatus(error: Error): number | undefined {
+  const parsed = httpStatusErrorSchema.safeParse(error)
+  return parsed.success ? parsed.data.status : undefined
 }

@@ -1,6 +1,6 @@
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useCallback } from 'react'
+import { useCallback, type ReactNode } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import { getImpl } from './component-impls'
@@ -17,7 +17,7 @@ export function VerseOfTheDay({
   onShare: consumerOnShare,
   dom,
   ...props
-}: VerseOfTheDayProps) {
+}: VerseOfTheDayProps): ReactNode {
   const context = useYouVersion()
   const themeContext = useTheme()
 

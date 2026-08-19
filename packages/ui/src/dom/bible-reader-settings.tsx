@@ -1,6 +1,8 @@
 'use dom'
 
 import { BibleThemeSettingsContent } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
@@ -18,7 +20,7 @@ export type BibleReaderSettingsDOMProps = {
   onFontDecreased: () => void
   onFontSelected: (fontFamily: FontFamily) => void
   onLineSpacingChange: () => void
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function BibleReaderSettingsDOM({
@@ -31,22 +33,22 @@ export default function BibleReaderSettingsDOM({
   onFontDecreased,
   onFontSelected,
   onLineSpacingChange,
-}: BibleReaderSettingsDOMProps) {
+}: BibleReaderSettingsDOMProps): ReactNode {
   // React invokes button onClick handlers with a SyntheticEvent. That event
   // isn't JSON-serializable, so passing the bridge-bound handlers straight
   // through would crash the DOM <-> native bridge. These wrappers swallow the
   // event and forward only serializable args.
   const handleFontIncreased = () => {
-    void onFontIncreased()
+    onFontIncreased()
   }
   const handleFontDecreased = () => {
-    void onFontDecreased()
+    onFontDecreased()
   }
   const handleFontSelected = (family: FontFamily) => {
-    void onFontSelected(family)
+    onFontSelected(family)
   }
   const handleLineSpacingChange = () => {
-    void onLineSpacingChange()
+    onLineSpacingChange()
   }
 
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the

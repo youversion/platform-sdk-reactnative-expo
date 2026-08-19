@@ -1,5 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useCallback, useState, type ReactNode } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
@@ -22,7 +23,7 @@ export type BibleChapterPickerSheetProps = {
 
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (data: BibleChapterPickerSelectData) => void | Promise<void>
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 function BibleChapterPickerSheetImpl({

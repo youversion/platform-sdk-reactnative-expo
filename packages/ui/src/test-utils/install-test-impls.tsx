@@ -1,38 +1,34 @@
 import { Text, View } from 'react-native'
 
-import {
-  resetImpls,
-  setImpls,
-  type ImplComponent,
-  type ImplKey,
-} from '../native/component-impls'
+import { resetImpls, setImpl, type ImplComponent, type ImplKey } from '../native/component-impls'
 
-export { resetImpls, setImpls }
+export { resetImpls, setImpl }
 
-export function captureDom(
+export function captureDom<P extends object>(
   key: ImplKey,
-  assign: (props: Record<string, unknown>) => void,
+  assign: (props: P) => void,
   testID = `mock-${key}`,
 ): void {
   const Capture: ImplComponent = (props) => {
-    assign(props)
+    // SAFETY: registered for one key; tests type P as that component's props.
+    assign(props as P)
     return (
       <View testID={testID}>
         <Text>{key}</Text>
       </View>
     )
   }
-  setImpls({ [key]: Capture })
+  setImpl(key, Capture)
 }
 
 export function stubImpl(key: ImplKey, testID = `mock-${key}`): void {
   const Stub: ImplComponent = () => <View testID={testID} />
-  setImpls({ [key]: Stub })
+  setImpl(key, Stub)
 }
 
 /** Sibling sheets + unused DOM so BibleReader tests do not mount `'use dom'`. */
-export function installBibleReaderTestImpls(
-  assignReaderProps?: (props: Record<string, unknown>) => void,
+export function installBibleReaderTestImpls<P extends object>(
+  assignReaderProps?: (props: P) => void,
 ): void {
   stubImpl('FootnoteContent', 'mock-footnote')
   stubImpl('BibleChapterPickerSheet', 'mock-chapter-picker-sheet')

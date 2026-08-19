@@ -15,9 +15,14 @@ export function getPickerViewportMetrics(
   return { overlap, visibleHeight, offsetTop }
 }
 
+export type PickerViewportCssProperties = {
+  '--yv-visible-height': string
+  '--yv-viewport-offset-top': string
+}
+
 export function getPickerViewportCssProperties(
   metrics: PickerViewportMetrics,
-): Record<string, string> {
+): PickerViewportCssProperties {
   return {
     '--yv-visible-height': `${metrics.visibleHeight}px`,
     '--yv-viewport-offset-top': `${metrics.offsetTop}px`,

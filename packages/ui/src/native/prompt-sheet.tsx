@@ -40,7 +40,7 @@ export function PromptSheetButton({
   variant,
   theme,
   testID,
-}: PromptSheetButtonProps) {
+}: PromptSheetButtonProps): ReactNode {
   const isPrimary = variant === 'primary'
 
   return (
@@ -68,7 +68,13 @@ export function PromptSheetButton({
 }
 
 /** Centered supporting copy under a prompt sheet's headline. */
-export function PromptSheetParagraph({ children, theme }: { children: ReactNode; theme: Theme }) {
+export function PromptSheetParagraph({
+  children,
+  theme,
+}: {
+  children: ReactNode
+  theme: Theme
+}): ReactNode {
   return (
     <Text style={[styles.paragraph, { color: SHEET_MUTED_FOREGROUND[theme] }]}>{children}</Text>
   )

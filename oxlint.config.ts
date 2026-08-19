@@ -47,6 +47,7 @@ export default defineConfig({
     '**/coverage/**',
     '**/ios/**',
     '**/jest.setup.js',
+    '**/*.d.ts',
     '**/scripts/**',
     'tools/oxlint/anti-slop/**',
     '**/*.config.js',
@@ -88,6 +89,11 @@ export default defineConfig({
       rules: {
         'typescript/no-non-null-assertion': 'off',
         'typescript/explicit-module-boundary-types': 'off',
+        // spyOn(obj, 'method') and RTL onPress handlers are test noise.
+        'typescript/unbound-method': 'off',
+        'typescript/no-misused-promises': 'off',
+        'typescript/no-floating-promises': 'off',
+        'typescript/no-redundant-type-constituents': 'off',
       },
     },
     {

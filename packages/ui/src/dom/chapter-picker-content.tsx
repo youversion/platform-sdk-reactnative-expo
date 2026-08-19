@@ -4,7 +4,8 @@ import {
   BibleChapterPicker,
   type BibleChapterPickerSelectData,
 } from '@youversion/platform-react-ui'
-import { useEffect } from 'react'
+import type { DOMProps } from 'expo/dom'
+import { useEffect, type ReactNode } from 'react'
 
 import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
 import {
@@ -25,7 +26,7 @@ export type ChapterPickerContentDOMProps = {
   dismissKeyboardNonce?: number
   resetKey?: number
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function ChapterPickerContentDOM({
@@ -38,7 +39,7 @@ export default function ChapterPickerContentDOM({
   dismissKeyboardNonce,
   resetKey,
   onSelect,
-}: ChapterPickerContentDOMProps) {
+}: ChapterPickerContentDOMProps): ReactNode {
   useDismissKeyboardOnClose(isOpen)
   useDismissKeyboardOnSignal(dismissKeyboardNonce)
 
@@ -73,7 +74,15 @@ export default function ChapterPickerContentDOM({
           // so this handler is intentionally empty.
           onChapterPickerPress={() => {}}
         >
-          <BibleChapterPicker.Content onSelect={onSelect} />
+          <BibleChapterPicker.Content
+            onSelect={
+              onSelect
+                ? (data) => {
+                    void onSelect(data)
+                  }
+                : undefined
+            }
+          />
         </BibleChapterPicker.Root>
       </div>
     </YouVersionProvider>

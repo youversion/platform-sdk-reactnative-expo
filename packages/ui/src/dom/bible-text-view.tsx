@@ -1,13 +1,17 @@
 'use dom'
 
-import type { FootnoteData } from '@youversion/platform-react-ui'
-import { BibleTextView } from '@youversion/platform-react-ui'
+import {
+  BibleTextView,
+  type BibleTextViewProps as WebBibleTextViewProps,
+  type FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
 
 type DomPassageState = Omit<WebPassageState, 'error'> & {
@@ -27,7 +31,7 @@ export type BibleTextViewProps = Omit<
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   passageState?: DomPassageState
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function BibleTextViewDOM({
@@ -39,7 +43,7 @@ export default function BibleTextViewDOM({
   onFootnotePress,
   passageState,
   ...props
-}: BibleTextViewProps) {
+}: BibleTextViewProps): ReactNode {
   applySDKConfig({ apiHost, appKey, installationId })
   const webPassageState: WebBibleTextViewProps['passageState'] =
     passageState != null
@@ -54,8 +58,20 @@ export default function BibleTextViewDOM({
       <BibleTextView
         {...props}
         passageState={webPassageState}
-        onVerseSelect={onVerseSelect}
-        onFootnotePress={onFootnotePress}
+        onVerseSelect={
+          onVerseSelect
+            ? (verses) => {
+                void onVerseSelect(verses)
+              }
+            : undefined
+        }
+        onFootnotePress={
+          onFootnotePress
+            ? (data) => {
+                void onFootnotePress(data)
+              }
+            : undefined
+        }
       />
     </YouVersionProvider>
   )

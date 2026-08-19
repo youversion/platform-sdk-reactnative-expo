@@ -25,7 +25,7 @@ export function onDrainSignal(listener: DrainSignalListener): () => void {
 }
 
 export function notifyDrain(signal: DrainSignal): void {
-  for (const listener of [...listeners]) {
+  for (const listener of listeners) {
     listener(signal)
   }
 }

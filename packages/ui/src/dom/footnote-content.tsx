@@ -2,6 +2,8 @@
 
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
@@ -14,7 +16,7 @@ export type FootnoteContentDOMProps = {
   appKey: string
   apiHost: string
   installationId: string
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export default function FootnoteContentDOM({
@@ -24,7 +26,7 @@ export default function FootnoteContentDOM({
   appKey,
   apiHost,
   installationId,
-}: FootnoteContentDOMProps) {
+}: FootnoteContentDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
   return (
     <YouVersionProvider appKey={appKey} theme={theme}>

@@ -23,6 +23,10 @@ export const SDK_VERSION: string = IS_PUBLISH_BUILD ? pkg.version : `${pkg.versi
 
 const SDK_HEADER_NAME = 'x-yvp-sdk'
 
-export function getSdkHeaders(): Record<string, string> {
-  return { [SDK_HEADER_NAME]: `ReactNativeSDK=${SDK_VERSION}` }
+export type SdkHeaders = {
+  'x-yvp-sdk': string
+}
+
+export function getSdkHeaders(): SdkHeaders {
+  return { [SDK_HEADER_NAME]: `ReactNativeSDK=${SDK_VERSION}` } satisfies SdkHeaders
 }

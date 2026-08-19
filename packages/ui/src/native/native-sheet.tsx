@@ -13,7 +13,7 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { Portal, PortalHost } from '@rn-primitives/portal'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Platform,
@@ -80,7 +80,7 @@ export type NativeSheetProps = {
   // the same symptom by removing swipe-down. Gorhom applies the value to the
   // handle pan as well as the content pan; both still open on a deliberate drag.
   panActiveOffsetY?: [number, number]
-  children: React.ReactNode
+  children: ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
   loaderMinHeight?: number
@@ -197,7 +197,7 @@ function SheetHost({
   onDismissKeyboardStart?: () => void
   modal: boolean
   panActiveOffsetY?: [number, number]
-  children: React.ReactNode
+  children: ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
   theme?: Theme
@@ -435,14 +435,14 @@ function SheetHost({
 
 registerDefault('NativeSheet', NativeSheetImpl)
 
-export function NativeSheet(props: NativeSheetProps): React.ReactNode {
+export function NativeSheet(props: NativeSheetProps): ReactNode {
   const Impl = getImpl('NativeSheet')
   return <Impl {...props} />
 }
 
 const renderNoBackdrop = () => null
 
-export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
+export function NativeSheetProvider({ children }: { children: ReactNode }): ReactNode {
   if (Platform.OS === 'web') return <>{children}</>
   return (
     <>

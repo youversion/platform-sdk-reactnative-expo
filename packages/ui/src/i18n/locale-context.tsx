@@ -26,7 +26,7 @@ export type LocaleProviderProps = {
   children: ReactNode
 }
 
-export function LocaleProvider({ locale, children }: LocaleProviderProps) {
+export function LocaleProvider({ locale, children }: LocaleProviderProps): ReactNode {
   const locales = useLocales()
   const deviceLocale = detectDeviceLocale(locales[0])
   const lng = locale !== undefined ? resolveSdkLocale([locale]) : deviceLocale

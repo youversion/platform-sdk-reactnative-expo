@@ -1,6 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import type { BibleTextViewProps as BibleTextViewDOMProps } from '../dom/bible-text-view'
 import type { FootnoteContentDOMProps } from '../dom/footnote-content'
@@ -27,7 +27,7 @@ export type BibleTextViewProps = Omit<
 export function BibleTextView({
   onFootnotePress: consumerOnFootnotePress,
   ...domProps
-}: BibleTextViewProps) {
+}: BibleTextViewProps): ReactNode {
   const context = useYouVersion()
   const themeContext = useTheme()
   const theme = domProps.theme ?? themeContext
