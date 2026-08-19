@@ -1,4 +1,5 @@
 import { defineConfig } from 'oxlint'
+import { NATIVE_I18N_JSX_ATTRIBUTES } from './scripts/native-i18n-attributes.ts'
 
 const antiSlopRules = {
   'anti-slop/no-chained-type-assertions': 'error',
@@ -19,12 +20,15 @@ const antiSlopRules = {
 } as const
 
 export default defineConfig({
+  options: {
+    typeAware: true,
+  },
   ignorePatterns: [
     '.agent/**',
     '.agents/**',
     '.claude/**',
-    '.codex/**',
     '.codegraph/**',
+    '.codex/**',
     '.continue/**',
     '.cursor/**',
     '.firecrawl/**',
@@ -42,6 +46,7 @@ export default defineConfig({
     '**/build/**',
     '**/coverage/**',
     '**/ios/**',
+    '**/jest.setup.js',
     '**/scripts/**',
     'tools/oxlint/anti-slop/**',
     '**/*.config.js',
@@ -49,11 +54,65 @@ export default defineConfig({
     '**/*.config.mjs',
     '**/*.config.ts',
   ],
-  jsPlugins: [{ name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' }],
+  jsPlugins: [
+    { name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' },
+    { name: 'i18next', specifier: 'eslint-plugin-i18next' },
+    { name: 'expo', specifier: 'eslint-plugin-expo' },
+  ],
   categories: {
-    correctness: 'off',
+    correctness: 'error',
   },
   rules: {
     ...antiSlopRules,
+    'typescript/no-non-null-assertion': 'error',
+    'typescript/no-explicit-any': 'off',
+    'typescript/restrict-template-expressions': ['error', { allowNumber: true }],
+    'typescript/prefer-nullish-coalescing': 'off',
+    'typescript/consistent-type-imports': [
+      'error',
+      { prefer: 'type-imports', fixStyle: 'separate-type-imports' },
+    ],
+    'typescript/explicit-module-boundary-types': 'error',
+    'typescript/no-floating-promises': 'error',
+    'typescript/no-misused-promises': 'error',
+    'typescript/await-thenable': 'error',
+    'react-hooks/rules-of-hooks': 'error',
+    'react-hooks/exhaustive-deps': 'error',
+    'expo/use-dom-exports': 'error',
+    'expo/no-env-var-destructuring': 'error',
+    'expo/no-dynamic-env-var': 'error',
   },
+  overrides: [
+    {
+      files: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx', '**/test-utils/**'],
+      rules: {
+        'typescript/no-non-null-assertion': 'off',
+        'typescript/explicit-module-boundary-types': 'off',
+      },
+    },
+    {
+      files: ['apps/example/**'],
+      rules: {
+        'typescript/explicit-module-boundary-types': 'off',
+      },
+    },
+    {
+      files: ['packages/ui/src/native/**/*.{ts,tsx}'],
+      excludeFiles: ['**/__tests__/**', '**/*.test.ts', '**/*.test.tsx'],
+      rules: {
+        'i18next/no-literal-string': [
+          'error',
+          {
+            framework: 'react',
+            mode: 'jsx-only',
+            'jsx-attributes': {
+              include: [...NATIVE_I18N_JSX_ATTRIBUTES],
+            },
+            message:
+              'Use useSdkTranslation() with t() or <Trans i18nKey> for user-visible native strings. See docs/contributing/native-i18n.md.',
+          },
+        ],
+      },
+    },
+  ],
 })

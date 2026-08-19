@@ -12,8 +12,8 @@ Consumer API: `README.md`.
 - **Worktree.** `pnpm install` at the worktree root first — iOS pods resolve via `:path:` into that worktree's `node_modules`. Copy `apps/example/.env`.
 - **Metro cache.** Shared at `$TMPDIR/metro-cache`. A DOM bundling error that names another worktree: `cd apps/example && pnpm exec expo start --dev-client -c`.
 - **Android `localStorage`.** Keep `ensureDomLocalStorage()`. `@expo/dom-webview` leaves `localStorage` null; the Web SDK throws and the component paints blank.
-- **Tests.** Layers 1 (pure) and 3 (native). Mock `'use dom'` as RN primitives — do not mount them in RNTL. Assert the bridge with `latestDomProps`. Spread `jest.requireActual` when mocking `NativeSheet` so `NativeSheetProvider` survives.
-- **Lint.** `pnpm lint` is ESLint, then oxlint anti-slop. Do not suppress anti-slop rules. How to run: `CONTRIBUTING.md`.
+- **Tests.** Layers 1 (pure) and 3 (native). Do not mount `'use dom'` in RNTL — swap DOM / NativeSheet / sibling sheets through `component-impls` and assert the bridge with `latestDomProps`. Steer hooks through `hookOverrides`. Do not `jest.mock` app modules. `jest.setup.js` may shim native runtimes that cannot load in Jest.
+- **Lint.** `pnpm lint` is type-aware oxlint (Expo DOM, native i18n, anti-slop). Do not suppress anti-slop rules. How to run: `CONTRIBUTING.md`.
 
 ## Guardrails
 

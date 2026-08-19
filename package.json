@@ -17,9 +17,9 @@
     "test": "turbo test",
     "test:coverage": "turbo test:coverage",
     "clean:cache": "bash scripts/clear-cache.sh",
-    "lint": "eslint . --max-warnings=0 && oxlint",
-    "lint:fix": "eslint . --fix && oxlint --fix",
-    "lint:native-i18n": "node scripts/test-native-i18n-eslint.mjs",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "lint:native-i18n": "node scripts/test-native-i18n-oxlint.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:locale-parity": "node scripts/check-locale-parity.mjs",
@@ -33,13 +33,12 @@
   "devDependencies": {
     "@changesets/cli": "2.29.7",
     "@oxlint/plugins": "1.78.0",
-    "eslint": "9.39.4",
-    "eslint-config-expo": "56.0.4",
-    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-expo": "1.1.0",
     "eslint-plugin-i18next": "6.1.4",
     "oxlint": "1.78.0",
+    "oxlint-tsgolint": "7.0.2001",
     "prettier": "3.8.3",
     "turbo": "2.9.7",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   }
 }

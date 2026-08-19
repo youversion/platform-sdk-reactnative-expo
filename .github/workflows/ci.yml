@@ -19,7 +19,7 @@ jobs:
       - uses: ./.github/actions/setup
       - name: Run lint
         run: pnpm lint
-      - name: Run native i18n ESLint regression tests
+      - name: Run native i18n oxlint regression tests
         run: pnpm lint:native-i18n
 
   typecheck:
