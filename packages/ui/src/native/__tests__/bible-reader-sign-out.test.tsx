@@ -5,7 +5,7 @@
  * Queue, so it is never immediate. The alert escalates when the queue still holds
  * writes the server has not taken, matching the Swift SDK.
  */
-import * as core from '@youversion/platform-react-native-expo-core'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
 import { Alert, Pressable, Text, View } from 'react-native'
 
@@ -16,6 +16,7 @@ import {
   resetImpls,
   setImpls,
 } from '../../test-utils/install-test-impls'
+import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
@@ -68,13 +69,14 @@ function pressAlertButton(text: string) {
 }
 
 async function renderAndPressSignOut(hasQueuedWrites: boolean) {
-  jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(hasQueuedWrites)
+  if (hasQueuedWrites) seedQueuedHighlightWrites(USER_ID)
   render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
   await user.press(screen.getByTestId('trigger-sign-out'))
 }
 
 beforeEach(() => {
   signOut.mockClear()
+  mmkvStorage.clearAll()
   installBibleReaderTestImpls()
   setImpls({ BibleReaderDom: MockDOM })
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
@@ -136,12 +138,12 @@ describe('BibleReader — sign-out confirmation', () => {
   })
 
   it('asks the queue about the signed-in user', async () => {
-    const hasQueued = jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
+    seedQueuedHighlightWrites('someone-else')
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await user.press(screen.getByTestId('trigger-sign-out'))
 
-    expect(hasQueued).toHaveBeenCalledWith(USER_ID)
+    expect(alertCall().title).toBe(en.signOutQuestion)
   })
 
   it('leaves the DOM sign-out unwired when no auth is configured', () => {

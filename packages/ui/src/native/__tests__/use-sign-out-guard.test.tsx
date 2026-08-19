@@ -1,9 +1,11 @@
 import { act, renderHook } from '@testing-library/react-native'
-import * as core from '@youversion/platform-react-native-expo-core'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
 import { Alert, Platform } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { useSignOutGuard } from '../use-sign-out-guard'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -13,7 +15,7 @@ const USER_ID = 'user-1'
 const signedInAuth = { signOut, isAuthenticated: true as const, userInfo: { id: USER_ID } }
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
+  <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
     {children}
   </YouVersionProvider>
 )
@@ -38,8 +40,8 @@ function pressAlertButton(text: string) {
 
 beforeEach(() => {
   signOut.mockClear()
+  mmkvStorage.clearAll()
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
-  jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
 })
 
 afterEach(() => {
@@ -105,7 +107,7 @@ describe('useSignOutGuard', () => {
   })
 
   it('escalates when queued writes exist and signs out on confirm without discarding', async () => {
-    jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(true)
+    seedQueuedHighlightWrites(USER_ID)
     const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
@@ -124,7 +126,6 @@ describe('useSignOutGuard', () => {
     pressAlertButton(en.signOutPendingHighlightsConfirm)
 
     expect(signOut).toHaveBeenCalledTimes(1)
-    expect(core.hasQueuedHighlightWrites).toHaveBeenCalledWith(USER_ID)
   })
 
   it('logs rejecting signOut from the native confirm button without throwing', async () => {
@@ -158,14 +159,14 @@ describe('useSignOutGuard', () => {
   })
 
   it('asks the queue about the signed-in user id', async () => {
-    const hasQueued = jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
+    seedQueuedHighlightWrites('someone-else')
     const { result } = renderHook(() => useSignOutGuard(signedInAuth), { wrapper })
 
     await act(async () => {
       await result.current?.()
     })
 
-    expect(hasQueued).toHaveBeenCalledWith(USER_ID)
+    expect(alertCall().title).toBe(en.signOutQuestion)
   })
 
   describe('web', () => {

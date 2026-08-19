@@ -183,7 +183,7 @@ describe('BibleCard', () => {
 
   it('throws when YouVersionProvider is missing', () => {
     expect(() => render(<BibleCard reference="JHN.1.1" versionId={3034} />)).toThrow(
-      'YouVersionProvider is required. Wrap your app with <YouVersionProvider appKey="...">.',
+      'useYouVersion must be used inside of YouVersionProvider',
     )
   })
 

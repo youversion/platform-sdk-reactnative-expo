@@ -1,11 +1,12 @@
 import type { ComponentProps } from 'react'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import * as core from '@youversion/platform-react-native-expo-core'
 import { Alert, Platform, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -42,11 +43,11 @@ beforeEach(() => {
   mockSignIn.mockClear()
   mockSignOut.mockClear()
   mockIsAuthenticated = false
+  mmkvStorage.clearAll()
   setImpls({
     BibleAppLogo: (props) => <View testID="bible-app-logo" {...props} />,
   })
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
-  jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
 })
 
 afterEach(() => {
@@ -181,7 +182,7 @@ describe('YouVersionAuthButton press behavior', () => {
 
   it('escalates the alert when queued writes exist and signs out on confirm only', async () => {
     mockIsAuthenticated = true
-    jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(true)
+    seedQueuedHighlightWrites('user-1')
     const user = userEvent.setup()
     renderAuthButton()
 

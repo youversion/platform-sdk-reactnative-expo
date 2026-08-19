@@ -1,4 +1,4 @@
-import BottomSheet from '@gorhom/bottom-sheet'
+import BottomSheetModule from '@gorhom/bottom-sheet'
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
 import * as ReactNative from 'react-native'
@@ -24,6 +24,10 @@ type BottomSheetHost = {
     onAnimate?: (fromIndex: number, toIndex: number) => void
   }
 }
+
+const BottomSheet =
+  (BottomSheetModule as unknown as { default?: typeof BottomSheetModule }).default ??
+  BottomSheetModule
 
 const bottomSheetHost = BottomSheet.prototype as unknown as BottomSheetHost
 const originalBottomSheetRender = bottomSheetHost.render

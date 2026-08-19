@@ -20,7 +20,7 @@ import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
-import { emptyHighlights } from '../../test-utils/default-hook-overrides'
+import { defaultPermissionFlow, emptyHighlights } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
@@ -82,6 +82,10 @@ function stubHighlights(highlights: Highlight[]) {
 
 const wrapper = youVersionProviderWrapper('light', undefined, {
   useHighlights: useHighlightsMock,
+  useHighlightPermissionFlow: (options) => ({
+    ...defaultPermissionFlow(options),
+    highlights: useHighlightsMock(options),
+  }),
 })
 
 function lastDomProps(): CapturedDomProps {
