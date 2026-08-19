@@ -1,6 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import * as WebBrowser from 'expo-web-browser'
+import type { WebBrowserResult } from 'expo-web-browser'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -37,14 +38,18 @@ function MockDOM(props: LatestDomProps) {
 
 const wrapper = youVersionProviderWrapper()
 
+function dismissedBrowser(): WebBrowserResult {
+  const result = { type: 'dismiss' }
+  // SAFETY: expo-web-browser types `type` as a string enum, not the `'dismiss'` literal.
+  return result as WebBrowserResult
+}
+
 describe('BibleReader external link handling', () => {
   beforeEach(async () => {
     latestDomProps = {}
     installBibleReaderTestImpls()
     setImpl('BibleReaderDom', MockDOM)
-    jest
-      .spyOn(WebBrowser, 'openBrowserAsync')
-      .mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
+    jest.spyOn(WebBrowser, 'openBrowserAsync').mockResolvedValue(dismissedBrowser())
     mmkvStorage.clearAll()
     useReaderLocationStore.setState(readerLocationStoreInitialState)
     await useReaderLocationStore.persist.rehydrate()

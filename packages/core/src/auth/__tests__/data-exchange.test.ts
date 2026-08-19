@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser'
+import type { WebBrowserAuthSessionResult } from 'expo-web-browser'
 
 import { mmkvStorage } from '../../storage/mmkv-storage'
 import { MMKV_AUTH_KEYS } from '../constants'
@@ -46,6 +47,12 @@ function arriveWith(search: string) {
     type: 'success',
     url: `${TEST_REDIRECT_URI}?${search}`,
   })
+}
+
+function dismissedAuthSession(): WebBrowserAuthSessionResult {
+  const result = { type: 'dismiss' }
+  // SAFETY: Jest's expo-web-browser mock does not export the string enum.
+  return result as WebBrowserAuthSessionResult
 }
 
 type CachedGrant = {
@@ -123,7 +130,7 @@ describe('requestDataExchange — cancel', () => {
     // This is also what Android reports when the return never matches
     // `redirectUri`: the session hangs, then reports `dismiss`.
     saveGrantedPermissions('u1', ['votd'])
-    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
+    mockOpenAuthSession.mockResolvedValue(dismissedAuthSession())
 
     expect(await run()).toEqual({ status: 'cancel' })
     expect(cachedGrant()).toEqual({ userId: 'u1', permissions: ['votd'] })

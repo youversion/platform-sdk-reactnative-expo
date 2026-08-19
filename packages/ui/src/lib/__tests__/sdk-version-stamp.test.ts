@@ -60,7 +60,7 @@ describe('stampPublishBuild against real tsc output', () => {
     const sourcePath = path.join(__dirname, '..', 'sdk-version.ts')
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdk-stamp-'))
     execFileSync(
-      require.resolve('typescript/bin/tsc'),
+      path.join(path.dirname(require.resolve('typescript/package.json')), 'bin/tsc'),
       [
         sourcePath,
         '--ignoreConfig',

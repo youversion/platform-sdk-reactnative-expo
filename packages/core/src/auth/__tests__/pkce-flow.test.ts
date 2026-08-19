@@ -1,4 +1,5 @@
 import * as WebBrowser from 'expo-web-browser'
+import type { WebBrowserAuthSessionResult } from 'expo-web-browser'
 import * as ExpoFetch from 'expo/fetch'
 import * as installationId from '../../installation-id'
 import * as http from '../http'
@@ -81,6 +82,12 @@ function lastAuthSessionCall() {
   return call
 }
 
+function dismissedAuthSession(): WebBrowserAuthSessionResult {
+  const result = { type: 'dismiss' }
+  // SAFETY: Jest's expo-web-browser mock does not export the string enum.
+  return result as WebBrowserAuthSessionResult
+}
+
 beforeEach(() => {
   mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
   mockExpoFetch = jest.spyOn(ExpoFetch, 'fetch')
@@ -100,7 +107,7 @@ afterEach(() => {
 describe('signInWithPKCE — cancel', () => {
   it('returns { kind: "cancel" } when the browser session is dismissed', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
+    mockOpenAuthSession.mockResolvedValue(dismissedAuthSession())
 
     const result = await signInWithPKCE(defaultProps())
     expect(result).toEqual({ kind: 'cancel' })
@@ -112,7 +119,7 @@ describe('signInWithPKCE — cancel', () => {
 describe('signInWithPKCE — authorization URL', () => {
   it('strips trailing slash from redirectUri, sorts+dedupes scopes (incl. openid), encodes spaces as %20', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
+    mockOpenAuthSession.mockResolvedValue(dismissedAuthSession())
 
     await signInWithPKCE(
       defaultProps({
@@ -145,7 +152,7 @@ describe('signInWithPKCE — requested permissions', () => {
     overrides: Partial<Parameters<typeof signInWithPKCE>[0]> = {},
   ): Promise<URLSearchParams> {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
+    mockOpenAuthSession.mockResolvedValue(dismissedAuthSession())
 
     await signInWithPKCE(defaultProps(overrides))
 

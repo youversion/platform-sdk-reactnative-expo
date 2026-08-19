@@ -81,11 +81,7 @@ describe('NativeSheet', () => {
   const originalOs = Platform.OS
   const originalVersion = Platform.Version
   const renderLatestBackdrop = () => {
-    const backdrop = latestBottomSheetProps.backdropComponent?.({ animatedIndex: { value: 0 } })
-    if (backdrop == null) {
-      throw new Error('expected a backdrop component')
-    }
-    return backdrop
+    return latestBottomSheetProps.backdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
   afterEach(() => {
@@ -906,7 +902,9 @@ describe('NativeSheet', () => {
       )
 
       const backdrop = renderLatestBackdrop()
-      expect(backdrop).toBeTruthy()
+      if (backdrop == null) {
+        throw new Error('expected a backdrop')
+      }
 
       const onAnimate = latestBottomSheetProps.onAnimate
 
