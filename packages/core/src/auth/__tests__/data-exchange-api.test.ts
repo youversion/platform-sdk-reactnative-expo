@@ -29,7 +29,23 @@ function errorResponse(status: number, body = ''): Response {
   })
 }
 
-function lastRequest(): { url: string; init: RequestInit } {
+type LastRequest = {
+  url: string
+  init: RequestInit
+}
+
+function requestBodyText(body: BodyInit | null | undefined): string {
+  if (body === undefined || body === null) return ''
+  if (body instanceof URLSearchParams) return body.toString()
+  if (body instanceof FormData) return ''
+  if (body instanceof Blob) return ''
+  if (body instanceof ArrayBuffer) return ''
+  if (ArrayBuffer.isView(body)) return ''
+  if (body instanceof ReadableStream) return ''
+  return body
+}
+
+function lastRequest(): LastRequest {
   const call = mockFetch.mock.calls[0]
   expect(call).toBeDefined()
   const [input, init] = call
@@ -55,7 +71,9 @@ describe('createDataExchangeApi — mintToken', () => {
     const { url, init } = lastRequest()
     expect(url).toBe('https://api.example.com/data-exchange/token?app-key=appkey')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(String(init.body ?? ''))).toEqual({ requested_permissions: ['highlights'] })
+    expect(JSON.parse(requestBodyText(init.body))).toEqual({
+      requested_permissions: ['highlights'],
+    })
     const headers = new Headers(init.headers)
     expect(headers.get('Authorization')).toBe('Bearer tok')
     expect(headers.get('X-YVP-App-Key')).toBe('appkey')

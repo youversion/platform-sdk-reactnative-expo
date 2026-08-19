@@ -52,7 +52,23 @@ function errorResponse(status: number, body = ''): Response {
   })
 }
 
-function lastRequest(): { url: string; init: RequestInit } {
+type LastRequest = {
+  url: string
+  init: RequestInit
+}
+
+function requestBodyText(body: BodyInit | null | undefined): string {
+  if (body === undefined || body === null) return ''
+  if (body instanceof URLSearchParams) return body.toString()
+  if (body instanceof FormData) return ''
+  if (body instanceof Blob) return ''
+  if (body instanceof ArrayBuffer) return ''
+  if (ArrayBuffer.isView(body)) return ''
+  if (body instanceof ReadableStream) return ''
+  return body
+}
+
+function lastRequest(): LastRequest {
   const call = mockFetch.mock.calls[0]
   expect(call).toBeDefined()
   const [input, init] = call
@@ -187,7 +203,7 @@ describe('createHighlightsApi', () => {
       expect(headers.get('Authorization')).toBe('Bearer tok')
       expect(headers.get('X-YVP-App-Key')).toBe('appkey')
       expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
-      const body: CreatedHighlightBody = JSON.parse(String(init.body ?? ''))
+      const body: CreatedHighlightBody = JSON.parse(requestBodyText(init.body))
       expect(body.highlight).toEqual({
         bible_id: 111,
         passage_id: 'JHN.3.16',
@@ -230,7 +246,7 @@ describe('createHighlightsApi', () => {
         })
 
         const { init } = lastRequest()
-        const body: { request_id: string } = JSON.parse(String(init.body ?? ''))
+        const body: { request_id: string } = JSON.parse(requestBodyText(init.body))
         expect(body.request_id).toBe(SHIM_UUID)
         expect(mockRandomUUID).toHaveBeenCalled()
       })

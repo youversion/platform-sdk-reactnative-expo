@@ -38,6 +38,17 @@ function errorResponse(status: number, body: string): Response {
   return new Response(body, { status })
 }
 
+function requestBodyText(body: BodyInit | null | undefined): string {
+  if (body === undefined || body === null) return ''
+  if (body instanceof URLSearchParams) return body.toString()
+  if (body instanceof FormData) return ''
+  if (body instanceof Blob) return ''
+  if (body instanceof ArrayBuffer) return ''
+  if (ArrayBuffer.isView(body)) return ''
+  if (body instanceof ReadableStream) return ''
+  return body
+}
+
 function lastInit(): RequestInit {
   const call = mockFetch.mock.calls[0]
   expect(call).toBeDefined()
@@ -68,7 +79,7 @@ describe('exchangeCodeForTokens', () => {
     expect(headers.get('X-YVP-App-Key')).toBe('appkey')
     expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
 
-    const body = new URLSearchParams(String(init?.body ?? ''))
+    const body = new URLSearchParams(requestBodyText(init?.body))
     expect(body.get('grant_type')).toBe('authorization_code')
     expect(body.get('code')).toBe('authcode')
     expect(body.get('redirect_uri')).toBe('https://app/cb')
@@ -89,7 +100,7 @@ describe('refreshTokens', () => {
 
     expect(result).toEqual(okTokens)
     const init = lastInit()
-    const body = new URLSearchParams(String(init.body ?? ''))
+    const body = new URLSearchParams(requestBodyText(init.body))
     expect(body.get('grant_type')).toBe('refresh_token')
     expect(body.get('refresh_token')).toBe('rt')
     expect(body.get('client_id')).toBe('appkey')
