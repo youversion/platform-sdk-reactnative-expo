@@ -1,6 +1,5 @@
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
-import * as ReactNative from 'react-native'
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
@@ -8,6 +7,10 @@ import {
   latestBottomSheetProps,
   resetLatestBottomSheetProps,
 } from '../../../jest.gorhom-mock'
+import {
+  mockWindowDimensions,
+  resetMockWindowDimensions,
+} from '../../../jest.window-dimensions-mock'
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
@@ -19,6 +22,10 @@ let mockBottomInset = 0
 let mockWindowWidth = 390
 
 function SheetProvider({ children }: { children: ReactNode }) {
+  mockWindowDimensions.width = mockWindowWidth
+  mockWindowDimensions.height = 844
+  mockWindowDimensions.scale = 2
+  mockWindowDimensions.fontScale = 1
   return (
     <SafeAreaProvider
       initialMetrics={{
@@ -80,17 +87,9 @@ describe('NativeSheet', () => {
     return BackdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
-  beforeEach(() => {
-    jest.spyOn(ReactNative, 'useWindowDimensions').mockImplementation(() => ({
-      width: mockWindowWidth,
-      height: 844,
-      scale: 2,
-      fontScale: 1,
-    }))
-  })
-
   afterEach(() => {
     resetLatestBottomSheetProps()
+    resetMockWindowDimensions()
     mockBottomInset = 0
     mockWindowWidth = 390
     resetImpls()

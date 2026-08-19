@@ -66,6 +66,10 @@ if (typeof global.nativeModuleProxy === 'undefined') {
 }
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
+jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
+  __esModule: true,
+  default: require('./jest.window-dimensions-mock').mockUseWindowDimensions,
+}))
 
 /**
  * `react-native-safe-area-context` throws "No safe area value available" when
