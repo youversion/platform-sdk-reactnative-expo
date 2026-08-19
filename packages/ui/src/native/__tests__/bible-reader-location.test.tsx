@@ -1,103 +1,41 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
-
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { Pressable, Text, View } from 'react-native'
+
 import { READER_LOCATION_PERSIST_KEY } from '../../lib/constants'
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import {
+  installBibleReaderTestImpls,
+  resetImpls,
+  setImpls,
+} from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
-import { YouVersionProvider } from '../youversion-provider'
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      book?: string
-      chapter?: string
-      versionId?: number
-      onBookChange?: (book: string) => Promise<void>
-      onChapterChange?: (chapter: string) => Promise<void>
-      onVersionChange?: (versionId: number) => Promise<void>
-    }) {
-      return (
-        <View testID="mock-dom">
-          <Text testID="book">{props.book ?? 'none'}</Text>
-          <Text testID="chapter">{props.chapter ?? 'none'}</Text>
-          <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('5')}>
-            <Text>Chapter</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+function MockDOM(props: {
+  book?: string
+  chapter?: string
+  versionId?: number
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+}) {
+  return (
+    <View testID="mock-dom">
+      <Text testID="book">{props.book ?? 'none'}</Text>
+      <Text testID="chapter">{props.chapter ?? 'none'}</Text>
+      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
+      <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('5')}>
+        <Text>Chapter</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: () => <View testID="mock-footnote" />,
-  }
-})
-
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" />,
-  }
-})
-
-jest.mock('../../stores/reader-settings-store', () => ({
-  useReaderSettingsStore: () => ({
-    fontSize: 16,
-    fontFamily: '"Inter", sans-serif',
-    setFontSize: jest.fn(),
-    setFontFamily: jest.fn(),
-  }),
-}))
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 async function resetReaderLocationStore() {
   mmkvStorage.clearAll()
@@ -118,7 +56,14 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
+    installBibleReaderTestImpls()
+    setImpls({ BibleReaderDom: MockDOM })
     await resetReaderLocationStore()
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('hydrates uncontrolled state from MMKV on mount', async () => {

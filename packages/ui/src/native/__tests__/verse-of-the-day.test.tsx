@@ -1,8 +1,9 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import * as ReactNative from 'react-native'
-import { Platform, Share } from 'react-native'
+import { Platform, Pressable, Share, Text, View } from 'react-native'
 
+import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 
@@ -12,59 +13,48 @@ const sampleShareData: VerseOfTheDayShareData = {
   verseText: 'For God so loved the world...',
 }
 
-let latestDomProps: {
+type LatestDomProps = {
   appKey?: string
   versionId?: number
   theme?: string
   dom?: { matchContents?: boolean; containerStyle?: unknown }
   onShare?: (data: VerseOfTheDayShareData) => Promise<void>
-} = {}
+}
 
-jest.mock('../../dom/verse-of-the-day', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text: RNText, View: RNView } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockVerseOfTheDayDOM(props: {
-      appKey: string
-      versionId?: number
-      theme?: string
-      dom?: { matchContents?: boolean }
-      onShare?: (data: VerseOfTheDayShareData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <RNView testID="mock-votd-dom">
-          <RNText testID="mock-app-key">{props.appKey}</RNText>
-          <RNText testID="mock-version-id">{String(props.versionId ?? '')}</RNText>
-          <RNText testID="mock-theme">{props.theme ?? ''}</RNText>
-          <RNText testID="mock-dom-match-contents">
-            {props.dom?.matchContents === true ? '1' : '0'}
-          </RNText>
-          <RNText testID="mock-has-share-handler">{props.onShare ? 'yes' : 'no'}</RNText>
-          <Pressable
-            testID="mock-share-trigger"
-            onPress={() => {
-              void props.onShare?.(sampleShareData)
-            }}
-          >
-            <RNText>share</RNText>
-          </Pressable>
-        </RNView>
-      )
-    },
-  }
-})
+let latestDomProps: LatestDomProps = {}
+
+function MockVerseOfTheDayDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-votd-dom">
+      <Text testID="mock-app-key">{props.appKey}</Text>
+      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
+      <Text testID="mock-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
+      <Text testID="mock-has-share-handler">{props.onShare ? 'yes' : 'no'}</Text>
+      <Pressable
+        testID="mock-share-trigger"
+        onPress={() => {
+          void props.onShare?.(sampleShareData)
+        }}
+      >
+        <Text>share</Text>
+      </Pressable>
+    </View>
+  )
+}
 
 describe('VerseOfTheDay', () => {
   const originalOs = Platform.OS
 
   beforeEach(() => {
     latestDomProps = {}
+    setImpls({ VerseOfTheDayDom: MockVerseOfTheDayDOM })
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
   })
 
   afterEach(() => {
+    resetImpls()
     jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,

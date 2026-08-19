@@ -1,9 +1,13 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
+import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
+import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 
 let latestDomProps: {
   theme?: string
@@ -11,69 +15,30 @@ let latestDomProps: {
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
 } = {}
 
-jest.mock('../../dom/chapter-picker-content', () => {
-  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      theme?: string
-      resetKey?: number
-      onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="theme-value">{props.theme ?? 'none'}</Text>
-          <Pressable
-            testID="trigger-select"
-            onPress={() => {
-              if (props.onSelect) {
-                props.onSelect({ book: 'GEN', chapter: '3', versionId: 3034 })
-              }
-            }}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+function MockDOM(props: {
+  theme?: string
+  resetKey?: number
+  onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
+}) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="theme-value">{props.theme ?? 'none'}</Text>
+      <Pressable
+        testID="trigger-select"
+        onPress={() => {
+          if (props.onSelect) {
+            props.onSelect({ book: 'GEN', chapter: '3', versionId: 3034 })
+          }
+        }}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Pressable, Text } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      children: ReactNode
-    }) =>
-      isOpen ? (
-        <View testID="sheet">
-          <Pressable testID="trigger-close" onPress={onClose}>
-            <Text>Close</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null,
-  }
-})
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
   book: 'GEN',
@@ -84,6 +49,31 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
+    setImpls({
+      ChapterPickerContent: MockDOM,
+      NativeSheet: ({
+        isOpen,
+        onClose,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? (
+          <View testID="sheet">
+            <Pressable testID="trigger-close" onPress={onClose}>
+              <Text>Close</Text>
+            </Pressable>
+            {children}
+          </View>
+        ) : null,
+    })
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('fires onSelect with picker selection data and closes the sheet', async () => {
@@ -138,7 +128,7 @@ describe('BibleChapterPickerSheet', () => {
   it('explicit theme overrides provider theme', () => {
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
       wrapper: ({ children }) => (
-        <YouVersionProvider appKey="test-key" theme="light">
+        <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
           {children}
         </YouVersionProvider>
       ),

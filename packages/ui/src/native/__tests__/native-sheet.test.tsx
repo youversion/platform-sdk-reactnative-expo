@@ -1,100 +1,46 @@
+import BottomSheet from '@gorhom/bottom-sheet'
 import { act, render, userEvent } from '@testing-library/react-native'
 import type { ReactElement, ReactNode } from 'react'
+import * as ReactNative from 'react-native'
 import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { resetImpls } from '../../test-utils/install-test-impls'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('@youversion/platform-react-native-expo-core', () => ({
-  YouVersionProvider: ({ children }: { children: ReactNode }) => children,
-}))
 
 let latestBottomSheetProps: Record<string, unknown> = {}
 let mockBottomInset = 0
 let mockWindowWidth = 390
 
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: mockBottomInset }),
-}))
-
-jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
-  __esModule: true,
-  default: () => ({ width: mockWindowWidth, height: 844, scale: 2, fontScale: 1 }),
-}))
-
-jest.mock('@rn-primitives/portal', () => ({
-  Portal: ({ children }: { children: ReactNode }) => <>{children}</>,
-  PortalHost: () => null,
-}))
-
-jest.mock('@gorhom/bottom-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-
-  const MockBottomSheet = React.forwardRef(
-    (
-      {
-        children,
-        onChange,
-        onAnimate,
-        ...props
-      }: {
-        children: ReactNode
-        onChange?: (index: number) => void
-        onAnimate?: (fromIndex: number, toIndex: number) => void
-        [key: string]: unknown
-      },
-      ref: React.Ref<{ close: () => void; snapToIndex: (index: number) => void }>,
-    ) => {
-      // Module-level mutable capture cell for the latest render's props —
-      // intentional test infra, so the react-hooks/globals rule is scoped off
-      // for this assignment.
-      // eslint-disable-next-line react-hooks/globals
-      latestBottomSheetProps = { ...props, onChange, onAnimate }
-      React.useImperativeHandle(ref, () => ({
-        close: () => {
-          onAnimate?.(0, -1)
-          onChange?.(-1)
-        },
-        snapToIndex: (index: number) => onChange?.(index),
-      }))
-      return <View testID="bottom-sheet">{children}</View>
-    },
-  )
-  MockBottomSheet.displayName = 'MockBottomSheet'
-
-  return {
-    __esModule: true,
-    default: MockBottomSheet,
-    BottomSheetBackdrop: ({
-      onPress,
-      ...props
-    }: {
-      onPress?: () => void
-      [key: string]: unknown
-    }) => (
-      <View
-        testID="bottom-sheet-backdrop"
-        {...props}
-        onTouchEnd={() => {
-          onPress?.()
-        }}
-      />
-    ),
-    BottomSheetView: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
-      <View testID="bottom-sheet-view" {...props}>
-        {children}
-      </View>
-    ),
+type BottomSheetHost = {
+  render: (this: BottomSheetHost) => ReactNode
+  props: Record<string, unknown> & {
+    children?: ReactElement<{ children?: ReactNode } & Record<string, unknown>>
+    onChange?: (index: number) => void
+    onAnimate?: (fromIndex: number, toIndex: number) => void
   }
-})
+}
+
+const bottomSheetHost = BottomSheet.prototype as unknown as BottomSheetHost
+const originalBottomSheetRender = bottomSheetHost.render
 
 function SheetProvider({ children }: { children: ReactNode }) {
-  return <YouVersionProvider appKey="test-key">{children}</YouVersionProvider>
+  return (
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: mockWindowWidth, height: 844 },
+        insets: { top: 0, right: 0, bottom: mockBottomInset, left: 0 },
+      }}
+    >
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        {children}
+      </YouVersionProvider>
+    </SafeAreaProvider>
+  )
 }
 
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
@@ -144,10 +90,35 @@ describe('NativeSheet', () => {
     return BackdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
+  beforeEach(() => {
+    bottomSheetHost.render = function captureBottomSheetProps(this: BottomSheetHost) {
+      latestBottomSheetProps = { ...this.props }
+      const child = this.props.children
+      return (
+        <View testID="bottom-sheet">
+          {child ? (
+            <View testID="bottom-sheet-view" {...child.props}>
+              {child.props.children}
+            </View>
+          ) : null}
+        </View>
+      )
+    }
+    jest.spyOn(ReactNative, 'useWindowDimensions').mockImplementation(() => ({
+      width: mockWindowWidth,
+      height: 844,
+      scale: 2,
+      fontScale: 1,
+    }))
+  })
+
   afterEach(() => {
+    bottomSheetHost.render = originalBottomSheetRender
     latestBottomSheetProps = {}
     mockBottomInset = 0
     mockWindowWidth = 390
+    resetImpls()
+    jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,

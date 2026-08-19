@@ -1,10 +1,11 @@
 import { fireEvent, render } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import { Platform } from 'react-native'
 import type { ReactNode } from 'react'
+import { Platform, Pressable, Text, View } from 'react-native'
 
-import { BibleTextView } from '../bible-text-view'
+import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
+import { BibleTextView } from '../bible-text-view'
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -12,98 +13,84 @@ const sampleFootnote: FootnoteData = {
   verseHtml: '<p>footnote</p>',
 }
 
-jest.mock('../../dom/bible-text-view', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text, View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockBibleTextViewDOM(props: {
-      appKey: string
-      reference?: string
-      versionId?: number
-      showVerseNumbers?: boolean
-      fontSize?: number
-      theme?: string
-      onFootnotePress?: (data: FootnoteData) => Promise<void>
-    }) {
-      return (
-        <View testID="mock-btv-dom">
-          <Text testID="mock-app-key">{props.appKey}</Text>
-          <Text testID="mock-reference">{props.reference ?? ''}</Text>
-          <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
-          <Text testID="mock-show-verse-numbers">
-            {props.showVerseNumbers === true ? '1' : '0'}
-          </Text>
-          <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
-          <Text testID="mock-theme">{props.theme ?? ''}</Text>
-          <Text testID="mock-has-footnote-handler">
-            {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
-          </Text>
-          <Pressable
-            testID="mock-footnote-trigger"
-            onPress={() => void props.onFootnotePress?.(sampleFootnote)}
-          >
-            <Text>footnote</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+type BibleTextViewDomProps = {
+  appKey: string
+  reference?: string
+  versionId?: number
+  showVerseNumbers?: boolean
+  fontSize?: number
+  theme?: string
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+}
 
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Text, View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockFootnoteContent(props: {
-      data: FootnoteData
-      theme?: string
-      fontSize?: number
-      appKey: string
-    }) {
-      return (
-        <View testID="mock-footnote-content">
-          <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
-          <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
-          <Text testID="mock-footnote-font-size">{String(props.fontSize ?? '')}</Text>
-          <Text testID="mock-footnote-app-key">{props.appKey}</Text>
-        </View>
-      )
-    },
-  }
-})
+function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
+  return (
+    <View testID="mock-btv-dom">
+      <Text testID="mock-app-key">{props.appKey}</Text>
+      <Text testID="mock-reference">{props.reference ?? ''}</Text>
+      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
+      <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
+      <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
+      <Text testID="mock-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-has-footnote-handler">
+        {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
+      </Text>
+      <Pressable
+        testID="mock-footnote-trigger"
+        onPress={() => void props.onFootnotePress?.(sampleFootnote)}
+      >
+        <Text>footnote</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text, View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      children: ReactNode
-    }) =>
-      isOpen ? (
-        <View testID="footnote-sheet">
-          <Pressable testID="footnote-sheet-close" onPress={onClose}>
-            <Text>Close</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null,
-  }
-})
+function MockFootnoteContent(props: {
+  data: FootnoteData
+  theme?: string
+  fontSize?: number
+  appKey: string
+}) {
+  return (
+    <View testID="mock-footnote-content">
+      <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
+      <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-footnote-font-size">{String(props.fontSize ?? '')}</Text>
+      <Text testID="mock-footnote-app-key">{props.appKey}</Text>
+    </View>
+  )
+}
 
 describe('BibleTextView', () => {
   const originalOs = Platform.OS
 
+  beforeEach(() => {
+    setImpls({
+      BibleTextViewDom: MockBibleTextViewDOM,
+      FootnoteContent: MockFootnoteContent,
+      NativeSheet: ({
+        isOpen,
+        onClose,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? (
+          <View testID="footnote-sheet">
+            <Pressable testID="footnote-sheet-close" onPress={onClose}>
+              <Text>Close</Text>
+            </Pressable>
+            {children}
+          </View>
+        ) : null,
+    })
+  })
+
   afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,

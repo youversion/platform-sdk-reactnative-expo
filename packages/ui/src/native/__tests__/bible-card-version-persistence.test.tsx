@@ -1,15 +1,16 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
-
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
+import { Pressable, Text, View } from 'react-native'
+
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
+import { resetImpls, setImpls, stubImpl } from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
-import { YouVersionProvider } from '../youversion-provider'
-import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
 
 let latestDomProps: {
   versionId?: number
@@ -17,71 +18,28 @@ let latestDomProps: {
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
 } = {}
 
-jest.mock('../../dom/bible-card', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      versionId?: number
-      onVersionChange?: (versionId: number) => Promise<void>
-      onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Pressable
-            testID="trigger-version-picker"
-            onPress={() => {
-              props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
-            }}
-          >
-            <Text>VersionPicker</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+function MockDOM(props: {
+  versionId?: number
+  onVersionChange?: (versionId: number) => Promise<void>
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+}) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
+      <Pressable
+        testID="trigger-version-picker"
+        onPress={() => {
+          props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
+        }}
+      >
+        <Text>VersionPicker</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: ({
-      isOpen,
-      onSelect,
-    }: {
-      isOpen: boolean
-      onSelect?: (versionId: number) => Promise<void>
-    }) =>
-      isOpen ? (
-        <View testID="mock-version-picker-sheet">
-          <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      ) : null,
-  }
-})
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 async function resetBibleCardVersionStore() {
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
@@ -103,7 +61,31 @@ async function seedBibleCardVersion(versionId: number) {
 describe('BibleCard version persistence', () => {
   beforeEach(async () => {
     latestDomProps = {}
+    stubImpl('FootnoteContent', 'mock-footnote')
+    setImpls({
+      BibleCardDom: MockDOM,
+      NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
+      BibleVersionPickerSheet: ({
+        isOpen,
+        onSelect,
+      }: {
+        isOpen: boolean
+        onSelect?: (versionId: number) => Promise<void>
+      }) =>
+        isOpen ? (
+          <View testID="mock-version-picker-sheet">
+            <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
+              <Text>Select</Text>
+            </Pressable>
+          </View>
+        ) : null,
+    })
     await resetBibleCardVersionStore()
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('hydrates uncontrolled state from MMKV on mount', async () => {

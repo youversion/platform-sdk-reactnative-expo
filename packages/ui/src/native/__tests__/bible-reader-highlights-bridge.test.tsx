@@ -9,20 +9,25 @@
  * this suite pins.
  */
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
+import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import { emptyHighlights } from '../../test-utils/default-hook-overrides'
+import {
+  installBibleReaderTestImpls,
+  resetImpls,
+  setImpls,
+} from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
-import { YouVersionProvider } from '../youversion-provider'
 
 type CapturedDomProps = {
   highlights?: unknown
@@ -43,81 +48,22 @@ let mockDomPropsHistory: CapturedDomProps[] = []
  */
 let mockVerseSelection: BibleReaderVerseSelection
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Pressable, Text } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: CapturedDomProps) {
-      mockDomPropsHistory.push(props)
-      return (
-        <View testID="mock-dom">
-          <Pressable
-            testID="trigger-verse-select"
-            onPress={() => props.onVerseSelect?.(mockVerseSelection)}
-          >
-            <Text>Select</Text>
-          </Pressable>
-          <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('4')}>
-            <Text>Next chapter</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
-
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, default: () => <View testID="mock-footnote" /> }
-})
-
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" /> }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
-
-jest.mock('../../stores/reader-settings-store', () => ({
-  useReaderSettingsStore: () => ({
-    fontSize: 16,
-    fontFamily: '"Inter", sans-serif',
-    lineSpacing: 1.5,
-    setFontSize: jest.fn(),
-    setFontFamily: jest.fn(),
-    setLineSpacing: jest.fn(),
-  }),
-}))
+function MockDOM(props: CapturedDomProps) {
+  mockDomPropsHistory.push(props)
+  return (
+    <View testID="mock-dom">
+      <Pressable
+        testID="trigger-verse-select"
+        onPress={() => props.onVerseSelect?.(mockVerseSelection)}
+      >
+        <Text>Select</Text>
+      </Pressable>
+      <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('4')}>
+        <Text>Next chapter</Text>
+      </Pressable>
+    </View>
+  )
+}
 
 const YELLOW = 'fffe00'
 
@@ -125,30 +71,18 @@ function highlight(passageId: string, versionId = 111): Highlight {
   return { version_id: versionId, passage_id: passageId, color: YELLOW }
 }
 
-/**
- * The hook is already stubbed signed-out-shaped in `jest.setup.js` (the real one
- * needs core's own provider, which UI tests replace). Steer it per test rather
- * than re-mocking the whole package and losing that passthrough provider.
- */
-const useHighlightsSpy = jest.spyOn(core, 'useHighlights')
+const useHighlightsMock = jest.fn(emptyHighlights)
 
 function stubHighlights(highlights: Highlight[]) {
-  useHighlightsSpy.mockImplementation(({ versionId, book, chapter }) => ({
+  useHighlightsMock.mockImplementation((options: UseHighlightsOptions) => ({
+    ...emptyHighlights(options),
     highlights,
-    scope: { versionId, book, chapter },
-    isRefreshing: false,
-    error: null,
-    refresh: jest.fn(async () => undefined),
-    apply: jest.fn(async () => ({ status: 'noop' }) as const),
-    remove: jest.fn(async () => ({ status: 'noop' }) as const),
   }))
 }
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper('light', undefined, {
+  useHighlights: useHighlightsMock,
+})
 
 function lastDomProps(): CapturedDomProps {
   const props = mockDomPropsHistory.at(-1)
@@ -160,6 +94,7 @@ function lastDomProps(): CapturedDomProps {
 
 beforeEach(async () => {
   mockDomPropsHistory = []
+  useHighlightsMock.mockClear()
   mockVerseSelection = {
     versionId: 111,
     book: 'HEB',
@@ -178,13 +113,16 @@ beforeEach(async () => {
     },
   }
   stubHighlights([])
+  installBibleReaderTestImpls()
+  setImpls({ BibleReaderDom: MockDOM })
   mmkvStorage.clearAll()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   await useReaderLocationStore.persist.rehydrate()
 })
 
-afterAll(() => {
-  useHighlightsSpy.mockRestore()
+afterEach(() => {
+  resetImpls()
+  jest.restoreAllMocks()
 })
 
 describe('the controlled-mode latch', () => {
@@ -263,7 +201,7 @@ describe('the highlights subscription scope', () => {
   it('subscribes to the reader’s current location', () => {
     render(<BibleReader defaultBook="ROM" defaultChapter="8" defaultVersionId={111} />, { wrapper })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({ versionId: 111, book: 'ROM', chapter: '8' })
+    expect(useHighlightsMock).toHaveBeenCalledWith({ versionId: 111, book: 'ROM', chapter: '8' })
   })
 
   it('re-scopes when the WebView navigates to another chapter', async () => {
@@ -275,7 +213,7 @@ describe('the highlights subscription scope', () => {
       fireEvent.press(getByTestId('trigger-chapter-change'))
     })
 
-    expect(useHighlightsSpy).toHaveBeenLastCalledWith(
+    expect(useHighlightsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ book: 'ROM', chapter: '4' }),
     )
   })

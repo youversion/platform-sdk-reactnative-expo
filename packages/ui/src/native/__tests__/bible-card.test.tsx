@@ -1,17 +1,18 @@
 import { fireEvent, render } from '@testing-library/react-native'
-import type { FootnoteData } from '@youversion/platform-react-ui'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import * as ReactNative from 'react-native'
-import { Platform } from 'react-native'
+import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import * as ReactNative from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 
-import { BibleCard } from '../bible-card'
+import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
-import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
+import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
+import { BibleCard } from '../bible-card'
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -19,114 +20,84 @@ const sampleFootnote: FootnoteData = {
   verseHtml: '<p>footnote</p>',
 }
 
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet-stub" />,
-  }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text, View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      children: ReactNode
-    }) =>
-      isOpen ? (
-        <View testID="footnote-sheet">
-          <Pressable testID="footnote-sheet-close" onPress={onClose}>
-            <Text>Close</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null,
-  }
-})
-
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Text, View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockFootnoteContent(props: {
-      data: FootnoteData
-      theme?: string
-      appKey: string
-    }) {
-      return (
-        <View testID="mock-footnote-content">
-          <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
-          <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
-          <Text testID="mock-footnote-app-key">{props.appKey}</Text>
-        </View>
-      )
-    },
-  }
-})
-
 let latestDomProps: {
   dom?: { matchContents?: boolean; containerStyle?: unknown }
 } = {}
 
-jest.mock('../../dom/bible-card', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text, View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockBibleCardDOM(props: {
-      appKey: string
-      reference?: string
-      versionId?: number
-      theme?: string
-      dom?: { matchContents?: boolean; containerStyle?: unknown }
-      onFootnotePress?: (data: FootnoteData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-bible-card-dom">
-          <Text testID="mock-app-key">{props.appKey}</Text>
-          <Text testID="mock-reference">{props.reference ?? ''}</Text>
-          <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
-          <Text testID="mock-theme">{props.theme ?? ''}</Text>
-          <Text testID="mock-dom-match-contents">
-            {props.dom?.matchContents === true ? '1' : '0'}
-          </Text>
-          <Text testID="mock-has-footnote-handler">
-            {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
-          </Text>
-          <Pressable
-            testID="mock-footnote-trigger"
-            onPress={() => void props.onFootnotePress?.(sampleFootnote)}
-          >
-            <Text>footnote</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+function MockBibleCardDOM(props: {
+  appKey: string
+  reference?: string
+  versionId?: number
+  theme?: string
+  dom?: { matchContents?: boolean; containerStyle?: unknown }
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+}) {
+  latestDomProps = props
+  return (
+    <View testID="mock-bible-card-dom">
+      <Text testID="mock-app-key">{props.appKey}</Text>
+      <Text testID="mock-reference">{props.reference ?? ''}</Text>
+      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
+      <Text testID="mock-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
+      <Text testID="mock-has-footnote-handler">
+        {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
+      </Text>
+      <Pressable
+        testID="mock-footnote-trigger"
+        onPress={() => void props.onFootnotePress?.(sampleFootnote)}
+      >
+        <Text>footnote</Text>
+      </Pressable>
+    </View>
+  )
+}
+
+function MockFootnoteContent(props: { data: FootnoteData; theme?: string; appKey: string }) {
+  return (
+    <View testID="mock-footnote-content">
+      <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
+      <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-footnote-app-key">{props.appKey}</Text>
+    </View>
+  )
+}
 
 describe('BibleCard', () => {
   const originalOs = Platform.OS
 
   beforeEach(async () => {
     latestDomProps = {}
+    setImpls({
+      BibleCardDom: MockBibleCardDOM,
+      FootnoteContent: MockFootnoteContent,
+      BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet-stub" />,
+      NativeSheet: ({
+        isOpen,
+        onClose,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? (
+          <View testID="footnote-sheet">
+            <Pressable testID="footnote-sheet-close" onPress={onClose}>
+              <Text>Close</Text>
+            </Pressable>
+            {children}
+          </View>
+        ) : null,
+    })
     mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
     useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
     await useBibleCardVersionStore.persist.rehydrate()
   })
 
   afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,

@@ -1,19 +1,10 @@
 import { render } from '@testing-library/react-native'
+import * as Localization from 'expo-localization'
 import { Text } from 'react-native'
 
 import { useLocale } from '../../i18n/locale-context'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('@youversion/platform-react-native-expo-core', () => ({
-  YouVersionProvider: ({ children }: { children: React.ReactNode }) => children,
-}))
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 function LocaleProbe() {
   const { lng, i18n } = useLocale()
@@ -26,12 +17,18 @@ function LocaleProbe() {
 }
 
 describe('YouVersionProvider locale', () => {
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
   // `xx` is not a real language code, so it stays unbundled as locales are synced.
   it('falls back to en when locale prop is omitted and device locale is unsupported', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    jest
+      .spyOn(Localization, 'useLocales')
+      .mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }] as Localization.Locale[])
 
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key">
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
         <LocaleProbe />
       </YouVersionProvider>,
     )
@@ -42,7 +39,7 @@ describe('YouVersionProvider locale', () => {
 
   it('passes the locale prop through locale context as lng', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="en">
+      <YouVersionProvider appKey="test-key" locale="en" hookOverrides={defaultHookOverrides}>
         <LocaleProbe />
       </YouVersionProvider>,
     )
@@ -52,7 +49,7 @@ describe('YouVersionProvider locale', () => {
 
   it('initializes i18n with resolved lng on first render', () => {
     const { getByTestId } = render(
-      <YouVersionProvider appKey="test-key" locale="en">
+      <YouVersionProvider appKey="test-key" locale="en" hookOverrides={defaultHookOverrides}>
         <LocaleProbe />
       </YouVersionProvider>,
     )

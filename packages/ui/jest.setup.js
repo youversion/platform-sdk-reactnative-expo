@@ -67,22 +67,29 @@ if (typeof global.nativeModuleProxy === 'undefined') {
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('@gorhom/bottom-sheet/mock'))
 
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
-}))
-
 /**
  * `react-native-safe-area-context` throws "No safe area value available" when
  * `useSafeAreaInsets` runs without a `<SafeAreaProvider>`. UI tests render
- * native wrappers (e.g. `BibleReader`) directly without one, so provide a
- * default zero-inset mock. Test files that need specific insets (e.g.
- * `native-sheet.test.tsx`) override this with their own file-level mock.
+ * native wrappers (e.g. `BibleReader`) directly without one, so the default
+ * insets are zero. Tests that need a specific inset wrap with
+ * `<SafeAreaProvider initialMetrics>`.
  */
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
-  SafeAreaProvider: ({ children }) => children,
-  SafeAreaView: ({ children }) => children,
-}))
+jest.mock('react-native-safe-area-context', () => {
+  const React = require('react')
+  const defaultInsets = { top: 0, right: 0, bottom: 0, left: 0 }
+  const InsetsContext = React.createContext(defaultInsets)
+
+  function SafeAreaProvider({ children, initialMetrics }) {
+    const insets = initialMetrics?.insets ?? defaultInsets
+    return React.createElement(InsetsContext.Provider, { value: insets }, children)
+  }
+
+  return {
+    useSafeAreaInsets: () => React.useContext(InsetsContext),
+    SafeAreaProvider,
+    SafeAreaView: ({ children }) => children,
+  }
+})
 
 /**
  * `expo/fetch` exports a `FetchResponse` class that extends the global
@@ -97,109 +104,11 @@ jest.mock('expo/fetch', () => ({
   fetch: jest.fn(() => Promise.reject(new Error('expo/fetch is mocked in UI tests'))),
 }))
 
-/**
- * UI tests verify the native wrapper, not core's provider wiring — swap in a
- * sync passthrough provider backed by a test context. Other exports
- * (`mmkvStorage`, types) keep their real values.
- */
-jest.mock('@youversion/platform-react-native-expo-core', () => {
-  const React = require('react')
-  const actual = jest.requireActual('@youversion/platform-react-native-expo-core')
-
-  const TestContext = React.createContext(null)
-
-  function YouVersionProvider({ appKey, apiHost, children }) {
-    const value = React.useMemo(
-      () => ({
-        appKey,
-        apiHost: apiHost ?? 'https://api.youversion.com',
-        installationId: 'test-installation-id',
-      }),
-      [appKey, apiHost],
-    )
-    return React.createElement(TestContext.Provider, { value }, children)
-  }
-
-  function useYouVersion() {
-    const ctx = React.useContext(TestContext)
-    if (!ctx) {
-      throw new Error(
-        'YouVersionProvider is required. Wrap your app with <YouVersionProvider appKey="...">.',
-      )
-    }
-    return ctx
-  }
-
-  function useYVAuth() {
-    return {
-      isAuthenticated: false,
-      accessToken: null,
-      userInfo: null,
-      error: null,
-      signIn: jest.fn(),
-      signOut: jest.fn(),
-      refreshNow: jest.fn(),
-      isLoading: false,
-      requestedPermissions: [],
-    }
-  }
-
-  /**
-   * The real hook reads core's own `YouVersionContext`, which the passthrough
-   * provider above deliberately does not populate — so `BibleReader` would throw
-   * the moment it subscribes. Signed-out-shaped by default (`highlights: []`);
-   * suites that care about highlight data re-mock this module themselves.
-   */
-  function useHighlights({ versionId, book, chapter }) {
-    return {
-      highlights: [],
-      scope: { versionId, book, chapter },
-      isRefreshing: false,
-      error: null,
-      refresh: jest.fn(async () => undefined),
-      apply: jest.fn(async () => ({ status: 'noop' })),
-      remove: jest.fn(async () => ({ status: 'noop' })),
-    }
-  }
-
-  /**
-   * Same reason as `useHighlights` above, one layer up: the real flow calls
-   * `useHighlights` through a *relative* import, so stubbing the barrel export
-   * alone does not intercept it and the real hook still reaches core's own
-   * context. Signed-out-shaped, and `apply` is the guarded write — suites that
-   * care about what a swatch press does re-mock or spy on this themselves.
-   */
-  function useHighlightPermissionFlow(options) {
-    return {
-      // Through the module object, not the local binding: a test that steers
-      // highlight data with `jest.spyOn(core, 'useHighlights')` patches the
-      // property, and a direct call here would sail past it.
-      highlights: mocked.useHighlights(options),
-      isConfirming: false,
-      apply: jest.fn(async () => ({ status: 'noop' })),
-      confirm: jest.fn(),
-      decline: jest.fn(),
-      flowError: null,
-    }
-  }
-
-  const mocked = {
-    // Babel defines the real module's `__esModule` non-enumerably, so the spread
-    // above drops it. Without it back, `import * as core` runs through
-    // `_interopRequireWildcard`, which hands the importer a *copy* — and a
-    // `jest.spyOn(core, ...)` in a test file then patches the copy while the
-    // component under test keeps calling the original.
-    __esModule: true,
-    ...actual,
-    YouVersionProvider,
-    useYouVersion,
-    useYVAuth,
-    useHighlights,
-    useHighlightPermissionFlow,
-  }
-
-  return mocked
-})
+jest.mock('@rn-primitives/portal', () => ({
+  Portal: ({ children }) => children,
+  PortalHost: () => null,
+  PortalProvider: ({ children }) => children,
+}))
 
 /**
  * react-native-mmkv v4 ships on top of NitroModules, whose native turbo module
