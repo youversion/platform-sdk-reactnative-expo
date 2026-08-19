@@ -12,6 +12,7 @@ export default [
       '**/.claude/**',
       '**/coverage/**',
       '**/*.config.js',
+      'tools/oxlint/anti-slop/**',
     ],
   },
   ...expoConfig,

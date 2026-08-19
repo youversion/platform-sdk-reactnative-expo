@@ -148,8 +148,8 @@ From the repo root:
 pnpm build          # turbo build
 pnpm typecheck      # turbo typecheck
 pnpm test           # turbo test
-pnpm lint           # eslint
-pnpm lint:fix       # eslint --fix
+pnpm lint           # eslint, then oxlint (anti-slop)
+pnpm lint:fix       # eslint --fix, then oxlint --fix
 pnpm format:check   # prettier check
 pnpm format         # prettier write
 ```

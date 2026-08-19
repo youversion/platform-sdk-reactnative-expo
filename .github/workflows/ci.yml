@@ -17,8 +17,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
-      - name: Run ESLint
-        run: pnpm lint --max-warnings=0
+      - name: Run lint
+        run: pnpm lint
       - name: Run native i18n ESLint regression tests
         run: pnpm lint:native-i18n
 

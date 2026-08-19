@@ -8,3 +8,4 @@ coverage
 pnpm-lock.yaml
 **/ios/**
 **/android/**
+tools/oxlint/anti-slop/**
