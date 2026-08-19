@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import { useEffect, useState } from 'react'
-import { AppState, Pressable, Text, View } from 'react-native'
+import { AppState, Pressable, Text, View, type AppStateStatus } from 'react-native'
 import { getCachedHighlights, setCachedHighlights } from '../../highlights/cache'
 import type { HighlightScope } from '../../highlights/constants'
 import { enqueueWrites, listQueuedScopes } from '../../highlights/queue'
@@ -156,10 +156,18 @@ function getText(id: string): string {
   return Array.isArray(children) ? children.join('') : String(children ?? '')
 }
 
-function fireAppStateChange(state: string) {
+function fireAppStateChange(state: AppStateStatus) {
   const handler = mockAppStateAddEventListener.mock.calls.at(-1)?.[1]
   expect(handler).toEqual(expect.any(Function))
   handler?.(state)
+}
+
+function lastDataExchangeArgs() {
+  const call = mockRequestDataExchange.mock.calls[0]
+  if (call === undefined) {
+    throw new Error('expected requestDataExchange to have been called')
+  }
+  return call[0]
 }
 
 beforeEach(() => {
@@ -423,6 +431,7 @@ describe('AuthProvider — signIn', () => {
       kind: 'success',
       tokens: validTokens,
       userInfo: adaUserInfo,
+      grantedPermissions: null,
     })
 
     render(
@@ -1328,47 +1337,40 @@ describe('AuthProvider — requestPermissions', () => {
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
 
-    const { initiator, getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0]
-    expect(getCurrentIdentity()).toEqual(initiator)
+    const firstArgs = lastDataExchangeArgs()
+    expect(firstArgs.getCurrentIdentity()).toEqual(firstArgs.initiator)
 
     fireEvent.press(screen.getByTestId('signOut'))
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
 
     // Reading a captured closure would still say 'u1' here, and the initiator
     // guard would wave a grant through for a user who has left.
-    expect(getCurrentIdentity().userId).toBeNull()
-    expect(getCurrentIdentity().sessionId).not.toBe(initiator.sessionId)
+    expect(firstArgs.getCurrentIdentity().userId).toBeNull()
+    expect(firstArgs.getCurrentIdentity().sessionId).not.toBe(firstArgs.initiator.sessionId)
   })
 
-  it('captures the initiator before awaiting the installation id, not after', async () => {
+  it('captures the initiator before the first await, not after', async () => {
     await signInWithGrant(null)
 
-    let releaseInstallationId = () => {}
-    mockGetOrSetInstallationId.mockReturnValueOnce(
-      new Promise<string>((resolve) => {
-        releaseInstallationId = () => resolve('inst-1')
-      }),
-    )
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
 
     const pending = requestPermissionsFromContext(['highlights'])
 
-    // Sign out while the installation id is still resolving. The mint will
-    // still use this render's token, so the initiator has to be the user that
-    // token belongs to — read it afterwards and the guard compares the
-    // replacement identity against itself, passes, and files the grant under
-    // whoever is signed in now.
+    // Sign out while `getAccessToken` is still resolving. The mint will still
+    // use this render's token, so the initiator has to be the user that token
+    // belongs to — read it afterwards and the guard compares the replacement
+    // identity against itself, passes, and files the grant under whoever is
+    // signed in now.
     fireEvent.press(screen.getByTestId('signOut'))
     await waitFor(() => expect(getText('isAuthenticated')).toBe('false'))
 
     await act(async () => {
-      releaseInstallationId()
       await pending
     })
 
-    const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0]
-    expect(accessToken).toBe('new-access')
-    expect(initiator.userId).toBe('u1')
+    const args = lastDataExchangeArgs()
+    expect(args.accessToken).toBe('new-access')
+    expect(args.initiator.userId).toBe('u1')
   })
 
   it('moves the session id on sign-out but not on a token refresh', async () => {
@@ -1376,7 +1378,7 @@ describe('AuthProvider — requestPermissions', () => {
 
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
-    const { getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0]
+    const { getCurrentIdentity } = lastDataExchangeArgs()
     const atSignIn = getCurrentIdentity().sessionId
 
     // A refresh is the same person with a new token — the guard must not fire.

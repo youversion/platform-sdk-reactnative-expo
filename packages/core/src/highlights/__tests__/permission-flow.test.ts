@@ -45,6 +45,15 @@ function run(
 const TAP_SIGN_IN: PermissionFlowEvent = { type: 'TAP', pending, branch: 'sign-in' }
 const TAP_CONSENT: PermissionFlowEvent = { type: 'TAP', pending, branch: 'consent' }
 
+type UnrecognizedFlowEvent = {
+  type: string
+}
+
+function unrecognizedEvent(event: UnrecognizedFlowEvent): PermissionFlowEvent {
+  // SAFETY: reducer default must ignore events that are not PermissionFlowEvent members.
+  return event as PermissionFlowEvent
+}
+
 // ── The two branches ─────────────────────────────────────────────────────────
 
 describe('the not-signed-in branch', () => {
@@ -313,12 +322,19 @@ describe('events invalid for the current step', () => {
     granting: ['GRANT_RESULT'],
     applying: ['APPLY_RESULT'],
   } satisfies {
-    [K in PermissionFlowState['step']]: PermissionFlowEvent['type'][]
+    [K in PermissionFlowState['step']]: readonly PermissionFlowEvent['type'][]
+  }
+
+  function allowsEvent(
+    allowed: readonly PermissionFlowEvent['type'][],
+    type: PermissionFlowEvent['type'],
+  ): boolean {
+    return allowed.includes(type)
   }
 
   for (const state of states) {
     for (const event of events) {
-      if (validFor[state.step].includes(event.type)) {
+      if (allowsEvent(validFor[state.step], event.type)) {
         continue
       }
       const label = event.type === 'TAP' ? `TAP(${event.branch})` : event.type
@@ -355,10 +371,7 @@ describe('events invalid for the current step', () => {
   it('ignores an event it does not recognise rather than corrupting the flow', () => {
     const state: PermissionFlowState = { step: 'granting', pending, retried: false }
     // Reachable from untyped callers and from a hot reload mid-flow.
-    // SAFETY: reducer default must ignore events that are not PermissionFlowEvent members.
-    const bogus = { type: 'SOMETHING_ELSE' } as PermissionFlowEvent
-
-    expect(permissionFlowReducer(state, bogus)).toBe(state)
+    expect(permissionFlowReducer(state, unrecognizedEvent({ type: 'SOMETHING_ELSE' }))).toBe(state)
   })
 })
 

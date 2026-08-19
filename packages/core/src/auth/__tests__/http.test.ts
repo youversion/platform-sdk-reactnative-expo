@@ -49,10 +49,16 @@ function requestBodyText(body: BodyInit | null | undefined): string {
   return body
 }
 
-function lastInit(): RequestInit {
+function lastFetchCall() {
   const call = mockFetch.mock.calls[0]
-  expect(call).toBeDefined()
-  return call[1] ?? {}
+  if (call === undefined) {
+    throw new Error('expected fetch to have been called')
+  }
+  return call
+}
+
+function lastInit(): RequestInit {
+  return lastFetchCall()[1] ?? {}
 }
 
 describe('exchangeCodeForTokens', () => {
@@ -70,16 +76,16 @@ describe('exchangeCodeForTokens', () => {
     expect(result).toEqual(okTokens)
     expect(mockFetch).toHaveBeenCalledTimes(1)
 
-    const [url, init] = mockFetch.mock.calls[0]
-    expect(url).toBe('https://api.example.com/auth/token')
-    expect(init?.method).toBe('POST')
+    const call = lastFetchCall()
+    expect(call[0]).toBe('https://api.example.com/auth/token')
+    expect(call[1]?.method).toBe('POST')
 
-    const headers = new Headers(init?.headers)
+    const headers = new Headers(call[1]?.headers)
     expect(headers.get('Content-Type')).toBe('application/x-www-form-urlencoded')
     expect(headers.get('X-YVP-App-Key')).toBe('appkey')
     expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
 
-    const body = new URLSearchParams(requestBodyText(init?.body))
+    const body = new URLSearchParams(requestBodyText(call[1]?.body))
     expect(body.get('grant_type')).toBe('authorization_code')
     expect(body.get('code')).toBe('authcode')
     expect(body.get('redirect_uri')).toBe('https://app/cb')

@@ -103,8 +103,11 @@ describe('HighlightQueueDrainHost', () => {
   it('reads auth through a ref that is current before the drain starts', () => {
     renderHost()
 
-    const [{ getAuth }] = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
-    expect(getAuth()).toEqual({
+    const firstCall = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected startHighlightQueueDrain to have been called')
+    }
+    expect(firstCall[0].getAuth()).toEqual({
       userId: 'user-1',
       accessToken: 'token-1',
       ensureFreshToken: expect.any(Function),
@@ -116,8 +119,11 @@ describe('HighlightQueueDrainHost', () => {
     currentAuth = null
     renderHost()
 
-    const [{ getAuth }] = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
-    expect(getAuth()).toEqual({
+    const firstCall = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected startHighlightQueueDrain to have been called')
+    }
+    expect(firstCall[0].getAuth()).toEqual({
       userId: null,
       accessToken: null,
       ensureFreshToken: null,

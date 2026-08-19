@@ -1,7 +1,7 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
-
-import ts from 'typescript'
 
 // The publish stamp lives in scripts/ as a single `.cjs` so Node can run it at
 // publish time with no build step, while this test requires the same file and
@@ -57,10 +57,26 @@ describe('stampPublishBuild', () => {
 // survives, so drift fails a PR instead of a publish.
 describe('stampPublishBuild against real tsc output', () => {
   function transpileSource(): string {
-    const source = fs.readFileSync(path.join(__dirname, '..', 'sdk-version.ts'), 'utf8')
-    return ts.transpileModule(source, {
-      compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
-    }).outputText
+    const sourcePath = path.join(__dirname, '..', 'sdk-version.ts')
+    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdk-stamp-'))
+    execFileSync(
+      require.resolve('typescript/bin/tsc'),
+      [
+        sourcePath,
+        '--ignoreConfig',
+        '--target',
+        'ESNext',
+        '--module',
+        'ESNext',
+        '--outDir',
+        outDir,
+        '--skipLibCheck',
+        '--declaration',
+        'false',
+      ],
+      { encoding: 'utf8' },
+    )
+    return fs.readFileSync(path.join(outDir, 'src/lib/sdk-version.js'), 'utf8')
   }
 
   it('emits exactly one anchor from src/lib/sdk-version.ts', () => {

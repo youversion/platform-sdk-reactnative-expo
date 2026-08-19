@@ -70,9 +70,10 @@ function requestBodyText(body: BodyInit | null | undefined): string {
 
 function lastRequest(): LastRequest {
   const call = mockFetch.mock.calls[0]
-  expect(call).toBeDefined()
-  const [input, init] = call
-  return { url: String(input), init: init ?? {} }
+  if (call === undefined) {
+    throw new Error('expected fetch to have been called')
+  }
+  return { url: String(call[0]), init: call[1] ?? {} }
 }
 
 type FetchRequestHeaders = {

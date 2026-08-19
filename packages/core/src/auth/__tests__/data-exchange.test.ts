@@ -69,12 +69,15 @@ describe('requestDataExchange — happy path', () => {
     expect(outcome).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
     expect(mintToken).toHaveBeenCalledWith('tok', ['highlights'])
 
-    const [url, returnUrl] = mockOpenAuthSession.mock.calls[0]
+    const call = mockOpenAuthSession.mock.calls[0]
+    if (call === undefined) {
+      throw new Error('expected openAuthSessionAsync to have been called')
+    }
     // An app key has one callback URL and OAuth already owns it, so the auth
     // session must watch the app's `redirectUri`. Watching anything else means
     // the return never matches and real grants are discarded as `cancel`.
-    expect(returnUrl).toBe(TEST_REDIRECT_URI)
-    const parsed = new URL(url)
+    expect(call[1]).toBe(TEST_REDIRECT_URI)
+    const parsed = new URL(call[0])
     expect(parsed.origin + parsed.pathname).toBe('https://api.example.com/data-exchange')
     expect(parsed.searchParams.get('token')).toBe('dx-token')
     expect(parsed.searchParams.get('app_key')).toBe('appkey')
@@ -120,7 +123,7 @@ describe('requestDataExchange — cancel', () => {
     // This is also what Android reports when the return never matches
     // `redirectUri`: the session hangs, then reports `dismiss`.
     saveGrantedPermissions('u1', ['votd'])
-    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
 
     expect(await run()).toEqual({ status: 'cancel' })
     expect(cachedGrant()).toEqual({ userId: 'u1', permissions: ['votd'] })

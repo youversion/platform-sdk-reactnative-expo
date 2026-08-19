@@ -10,5 +10,6 @@ export const MMKV_AUTH_KEYS = {
 } as const
 
 export const DEFAULT_SCOPES = ['profile', 'email'] as const
+export type DefaultScope = (typeof DEFAULT_SCOPES)[number]
 
 export const REFRESH_LEEWAY_SECONDS = 60 // 60 seconds

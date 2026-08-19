@@ -42,6 +42,18 @@ function defaultProps(overrides: Partial<Parameters<typeof signInWithPKCE>[0]> =
   }
 }
 
+function mockCallbackHop(status: number, location: string | null) {
+  const headers = new Headers()
+  if (location !== null) {
+    headers.set('Location', location)
+  }
+  // SAFETY: obtainCodeFromCallback only reads status and headers.get('Location').
+  mockExpoFetch.mockResolvedValue({
+    status,
+    headers,
+  } as Awaited<ReturnType<typeof ExpoFetch.fetch>>)
+}
+
 function arrangeHappyPath(redirectQuery = 'state=STATE') {
   mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
   mockOpenAuthSession.mockResolvedValue({
@@ -51,10 +63,7 @@ function arrangeHappyPath(redirectQuery = 'state=STATE') {
   // The /auth/callback hop deliberately carries no granted_permissions: on device
   // its Location header drops them, so a test that read the grant from here would
   // pass while the real flow reported "unknown".
-  mockExpoFetch.mockResolvedValue({
-    status: 302,
-    headers: { get: jest.fn(() => 'https://app/cb?code=AUTHCODE') },
-  })
+  mockCallbackHop(302, 'https://app/cb?code=AUTHCODE')
   mockExchange.mockResolvedValue({
     access_token: 'access',
     refresh_token: 'refresh',
@@ -62,6 +71,14 @@ function arrangeHappyPath(redirectQuery = 'state=STATE') {
     expires_in: '3600',
     token_type: 'Bearer',
   })
+}
+
+function lastAuthSessionCall() {
+  const call = mockOpenAuthSession.mock.calls[0]
+  if (call === undefined) {
+    throw new Error('expected openAuthSessionAsync to have been called')
+  }
+  return call
 }
 
 beforeEach(() => {
@@ -83,7 +100,7 @@ afterEach(() => {
 describe('signInWithPKCE — cancel', () => {
   it('returns { kind: "cancel" } when the browser session is dismissed', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
 
     const result = await signInWithPKCE(defaultProps())
     expect(result).toEqual({ kind: 'cancel' })
@@ -95,7 +112,7 @@ describe('signInWithPKCE — cancel', () => {
 describe('signInWithPKCE — authorization URL', () => {
   it('strips trailing slash from redirectUri, sorts+dedupes scopes (incl. openid), encodes spaces as %20', async () => {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
 
     await signInWithPKCE(
       defaultProps({
@@ -104,10 +121,10 @@ describe('signInWithPKCE — authorization URL', () => {
       }),
     )
 
-    const [url, redirectUriArg] = mockOpenAuthSession.mock.calls[0]
-    expect(redirectUriArg).toBe('https://app/cb')
+    const call = lastAuthSessionCall()
+    expect(call[1]).toBe('https://app/cb')
 
-    const parsed = new URL(url)
+    const parsed = new URL(call[0])
     expect(parsed.searchParams.get('redirect_uri')).toBe('https://app/cb')
     expect(parsed.searchParams.get('response_type')).toBe('code')
     expect(parsed.searchParams.get('client_id')).toBe('appkey')
@@ -128,12 +145,12 @@ describe('signInWithPKCE — requested permissions', () => {
     overrides: Partial<Parameters<typeof signInWithPKCE>[0]> = {},
   ): Promise<URLSearchParams> {
     mockGeneratePkce.mockResolvedValue(PKCE_FIXTURE)
-    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+    mockOpenAuthSession.mockResolvedValue({ type: WebBrowser.WebBrowserResultType.DISMISS })
 
     await signInWithPKCE(defaultProps(overrides))
 
-    const [url] = mockOpenAuthSession.mock.calls[0]
-    return new URL(url).searchParams
+    const call = lastAuthSessionCall()
+    return new URL(call[0]).searchParams
   }
 
   it('appends a requested_permissions[] param per configured permission', async () => {
@@ -241,10 +258,7 @@ describe('signInWithPKCE — callback error + state CSRF', () => {
 describe('signInWithPKCE — obtainCodeFromCallback', () => {
   it('throws when /auth/callback returns a non-302', async () => {
     arrangeHappyPath()
-    mockExpoFetch.mockResolvedValue({
-      status: 200,
-      headers: { get: jest.fn(() => null) },
-    })
+    mockCallbackHop(200, null)
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
       'auth/callback expected a 302, got 200',
     )
@@ -252,10 +266,7 @@ describe('signInWithPKCE — obtainCodeFromCallback', () => {
 
   it('throws when /auth/callback returns no Location header', async () => {
     arrangeHappyPath()
-    mockExpoFetch.mockResolvedValue({
-      status: 302,
-      headers: { get: jest.fn(() => null) },
-    })
+    mockCallbackHop(302, null)
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
       'auth/callback returned no Location header',
     )
@@ -263,10 +274,7 @@ describe('signInWithPKCE — obtainCodeFromCallback', () => {
 
   it('throws when the Location URL carries no code param', async () => {
     arrangeHappyPath()
-    mockExpoFetch.mockResolvedValue({
-      status: 302,
-      headers: { get: jest.fn(() => 'https://app/cb?state=STATE') },
-    })
+    mockCallbackHop(302, 'https://app/cb?state=STATE')
     await expect(signInWithPKCE(defaultProps())).rejects.toThrow(
       'Location header had no code param',
     )

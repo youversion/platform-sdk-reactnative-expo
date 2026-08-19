@@ -19,7 +19,10 @@ import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-type NativeActionBibleReaderRootProps = BibleReaderRootProps & {
+type NativeActionBibleReaderRootProps = Omit<
+    BibleReaderRootProps,
+    'onVersionPickerPress' | 'onSignInPress' | 'onSignOutPress'
+  > & {
     onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
     onSignInPress?: () => Promise<void>
     onSignOutPress?: () => Promise<void>
@@ -264,27 +267,9 @@ export default function BibleReaderDOM(props: BibleReaderProps): ReactNode {
                 }
               : undefined
           }
-          onVersionPickerPress={
-            onVersionPickerPress
-              ? (data) => {
-                  void onVersionPickerPress(data)
-                }
-              : undefined
-          }
-          onSignInPress={
-            onSignInPress
-              ? () => {
-                  void onSignInPress()
-                }
-              : undefined
-          }
-          onSignOutPress={
-            onSignOutPress
-              ? () => {
-                  void onSignOutPress()
-                }
-              : undefined
-          }
+          onVersionPickerPress={onVersionPickerPress}
+          onSignInPress={onSignInPress}
+          onSignOutPress={onSignOutPress}
           onFootnotePress={
             onFootnotePress
               ? (data) => {

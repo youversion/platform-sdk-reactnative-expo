@@ -1,4 +1,4 @@
-export type { AccessTokenResult, GetAccessTokenOptions } from './auth-context'
+export type { AccessTokenResult, AuthContextValue, GetAccessTokenOptions } from './auth-context'
 export type { DataExchangeFailureReason, DataExchangeOutcome } from './data-exchange'
 export type {
   AuthConfig,

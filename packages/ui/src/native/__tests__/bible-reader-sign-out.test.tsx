@@ -52,7 +52,9 @@ const user = userEvent.setup()
 
 function alertCall() {
   const call = jest.mocked(Alert.alert).mock.calls[0]
-  expect(call).toBeDefined()
+  if (call === undefined) {
+    throw new Error('expected Alert.alert to have been called')
+  }
   return {
     title: call[0],
     message: call[1],

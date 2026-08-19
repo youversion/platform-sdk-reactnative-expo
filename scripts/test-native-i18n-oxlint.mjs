@@ -39,11 +39,11 @@ function runOxlint(args) {
 
 function i18nDiagnostics(report, fileSuffix) {
   const diagnostics = report.diagnostics ?? []
-  return diagnostics.filter(
-    (diagnostic) =>
-      diagnostic.code === 'eslint(i18next/no-literal-string)' &&
-      diagnostic.filename?.endsWith(fileSuffix),
-  )
+  return diagnostics.filter((diagnostic) => {
+    const code = diagnostic.code ?? ''
+    const isI18n = code === 'i18next(no-literal-string)' || code === 'eslint(i18next/no-literal-string)'
+    return isI18n && diagnostic.filename?.endsWith(fileSuffix)
+  })
 }
 
 test('native i18n oxlint uses jsx-only mode so included JSX attributes are checked', () => {
