@@ -275,7 +275,7 @@ type AuthSettleOutcome = 'settled' | 'aborted'
  * that config's `permissions` — without it no GET is ever issued (see
  * {@link shouldFetchHighlights}), so `highlights` stays whatever the cache holds.
  */
-export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+function useHighlightsImplementation(options: UseHighlightsOptions): UseHighlightsResult {
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -899,4 +899,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     apply,
     remove,
   }
+}
+
+export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+  const override = useYouVersion().hookOverrides?.useHighlights
+  const real = useHighlightsImplementation(options)
+  return override?.(options) ?? real
 }

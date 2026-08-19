@@ -5,8 +5,7 @@ import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
-import BibleCardDOM from '../dom/bible-card'
-import FootnoteContent from '../dom/footnote-content'
+import { getImpl } from './component-impls'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
@@ -111,6 +110,8 @@ export function BibleCard({
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showVersionPicker && !consumerOnVersionPickerPress
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
+  const BibleCardDOM = getImpl('BibleCardDom')
+  const FootnoteContent = getImpl('FootnoteContent')
 
   return (
     <>

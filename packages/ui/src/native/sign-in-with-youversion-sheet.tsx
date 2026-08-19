@@ -1,10 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { resolveAppName } from '../lib/app-name'
 import { SHEET_MUTED_FOREGROUND } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
+import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
 import { PromptSheetButton, PromptSheetParagraph } from './prompt-sheet'
 import { YouVersionPlatformLogo, youVersionPlatformLogoSize } from './youversion-platform-logo'
@@ -30,7 +31,7 @@ export type SignInWithYouVersionSheetProps = {
  * with `HighlightConsentSheet` so the two prompts in the highlight flow read as
  * one family.
  */
-export function SignInWithYouVersionSheet({
+function SignInWithYouVersionSheetImpl({
   isOpen,
   onConfirm,
   onDismiss,
@@ -78,6 +79,13 @@ export function SignInWithYouVersionSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('SignInWithYouVersionSheet', SignInWithYouVersionSheetImpl)
+
+export function SignInWithYouVersionSheet(props: SignInWithYouVersionSheetProps): ReactNode {
+  const Impl = getImpl('SignInWithYouVersionSheet')
+  return <Impl {...props} />
 }
 
 const styles = StyleSheet.create({

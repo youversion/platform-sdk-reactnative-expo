@@ -22,8 +22,7 @@ import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
-import BibleReaderDOM from '../dom/bible-reader'
-import FootnoteContent from '../dom/footnote-content'
+import { getImpl } from './component-impls'
 import { useTheme } from '../hooks/use-theme'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
@@ -596,6 +595,9 @@ export function BibleReader({
   // automatically, but the reader opts out — clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
+
+  const BibleReaderDOM = getImpl('BibleReaderDom')
+  const FootnoteContent = getImpl('FootnoteContent')
 
   const readerDom = useMemo(
     () => ({

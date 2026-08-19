@@ -3,9 +3,8 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useState } from 'react'
 import { Platform, useColorScheme } from 'react-native'
 import type { BibleTextViewProps as BibleTextViewDOMProps } from '../dom/bible-text-view'
-import BibleTextViewDOM from '../dom/bible-text-view'
 import type { FootnoteContentDOMProps } from '../dom/footnote-content'
-import FootnoteContent from '../dom/footnote-content'
+import { getImpl } from './component-impls'
 import { resolveTheme } from '../lib/resolve-theme'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { NativeSheet } from './native-sheet'
@@ -49,6 +48,8 @@ export function BibleTextView({
 
   const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const footnoteTheme: FootnoteContentDOMProps['theme'] = resolvedTheme
+  const BibleTextViewDOM = getImpl('BibleTextViewDom')
+  const FootnoteContent = getImpl('FootnoteContent')
 
   return (
     <>

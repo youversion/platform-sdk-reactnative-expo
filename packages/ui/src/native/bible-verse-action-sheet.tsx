@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
@@ -7,6 +7,7 @@ import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/n
 import type { Theme } from '../lib/resolve-theme'
 import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
+import { getImpl, registerDefault } from './component-impls'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
@@ -92,7 +93,7 @@ export type BibleVerseActionSheetProps = {
  * show. Acting on a press, which means writing the highlight and clearing the
  * selection, is the reader's job.
  */
-export function BibleVerseActionSheet({
+function BibleVerseActionSheetImpl({
   isOpen,
   reference,
   swatches,
@@ -238,6 +239,13 @@ export function BibleVerseActionSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('BibleVerseActionSheet', BibleVerseActionSheetImpl)
+
+export function BibleVerseActionSheet(props: BibleVerseActionSheetProps): ReactNode {
+  const Impl = getImpl('BibleVerseActionSheet')
+  return <Impl {...props} />
 }
 
 /**

@@ -3,7 +3,7 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useCallback } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
-import VerseOfTheDayDOM from '../dom/verse-of-the-day'
+import { getImpl } from './component-impls'
 import { useTheme } from '../hooks/use-theme'
 import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 
@@ -37,6 +37,7 @@ export function VerseOfTheDay({
   )
 
   const onShare = Platform.OS !== 'web' ? handleShare : undefined
+  const VerseOfTheDayDOM = getImpl('VerseOfTheDayDom')
 
   return (
     <VerseOfTheDayDOM

@@ -1,4 +1,5 @@
 import { createContext } from 'react'
+import type { HookOverrides } from './hook-overrides'
 
 /**
  * The core provider's context value, and the return type of `useYouVersion()`.
@@ -13,6 +14,8 @@ export type YouVersionContextValue = {
   apiHost: string
   installationId: string
   authRedirectUrl?: string
+  /** Test seam: return stub hook results without fetching. */
+  hookOverrides?: HookOverrides
 }
 
 export const YouVersionContext = createContext<YouVersionContextValue | null>(null)

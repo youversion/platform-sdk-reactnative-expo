@@ -1,10 +1,10 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
-import { useMemo } from 'react'
-import BibleReaderSettingsDOM from '../dom/bible-reader-settings'
+import { useMemo, type ReactNode } from 'react'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -13,7 +13,7 @@ export type BibleReaderSettingsSheetProps = {
   onClose: () => void
 }
 
-export function BibleReaderSettingsSheet({
+function BibleReaderSettingsSheetImpl({
   isSettingsSheetOpen,
   onClose,
 }: BibleReaderSettingsSheetProps) {
@@ -35,6 +35,8 @@ export function BibleReaderSettingsSheet({
     [setFontSize, setFontFamily, setLineSpacing],
   )
 
+  const BibleReaderSettingsDOM = getImpl('BibleReaderSettings')
+
   return (
     <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose} showAndroidLoader theme={theme}>
       <BibleReaderSettingsDOM
@@ -51,4 +53,11 @@ export function BibleReaderSettingsSheet({
       />
     </NativeSheet>
   )
+}
+
+registerDefault('BibleReaderSettingsSheet', BibleReaderSettingsSheetImpl)
+
+export function BibleReaderSettingsSheet(props: BibleReaderSettingsSheetProps): ReactNode {
+  const Impl = getImpl('BibleReaderSettingsSheet')
+  return <Impl {...props} />
 }

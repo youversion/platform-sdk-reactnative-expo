@@ -1,6 +1,7 @@
 import {
   YouVersionProvider as CoreYouVersionProvider,
   type AuthConfig,
+  type HookOverrides,
 } from '@youversion/platform-react-native-expo-core'
 import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
@@ -19,6 +20,8 @@ export type YouVersionProviderProps = {
   locale?: string
   auth?: AuthConfig
   fallback?: ReactNode
+  /** Test seam: skip live fetch and return stub hook results. */
+  hookOverrides?: HookOverrides
   children: ReactNode
 }
 
@@ -29,13 +32,20 @@ export function YouVersionProvider({
   locale,
   auth,
   fallback,
+  hookOverrides,
   children,
 }: YouVersionProviderProps) {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
 
   return (
-    <CoreYouVersionProvider appKey={appKey} apiHost={apiHost} auth={auth} fallback={fallback}>
+    <CoreYouVersionProvider
+      appKey={appKey}
+      apiHost={apiHost}
+      auth={auth}
+      fallback={fallback}
+      hookOverrides={hookOverrides}
+    >
       <LocaleProvider locale={locale}>
         <ThemeContext.Provider value={resolvedTheme}>
           <NativeSheetProvider>{children}</NativeSheetProvider>

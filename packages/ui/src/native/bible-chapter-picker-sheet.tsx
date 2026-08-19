@@ -1,12 +1,12 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import ChapterPickerContentDOM from '../dom/chapter-picker-content'
 import { useTheme } from '../hooks/use-theme'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
+import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
 
 const DEFAULT_BOOK = 'JHN'
@@ -25,7 +25,7 @@ export type BibleChapterPickerSheetProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-export function BibleChapterPickerSheet({
+function BibleChapterPickerSheetImpl({
   isOpen,
   onClose,
   book = DEFAULT_BOOK,
@@ -75,6 +75,8 @@ export function BibleChapterPickerSheet({
     handleClose()
   }
 
+  const ChapterPickerContentDOM = getImpl('ChapterPickerContent')
+
   return (
     <NativeSheet
       isOpen={isOpen}
@@ -103,6 +105,13 @@ export function BibleChapterPickerSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('BibleChapterPickerSheet', BibleChapterPickerSheetImpl)
+
+export function BibleChapterPickerSheet(props: BibleChapterPickerSheetProps): ReactNode {
+  const Impl = getImpl('BibleChapterPickerSheet')
+  return <Impl {...props} />
 }
 
 const styles = StyleSheet.create({

@@ -32,6 +32,7 @@ import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
+import { getImpl, registerDefault } from './component-impls'
 
 const HOST_NAME = 'native-sheet-host'
 let nextSheetId = 0
@@ -44,7 +45,7 @@ const useSheetStore = create<SheetState>(() => ({
   activeSheetId: null,
 }))
 
-type NativeSheetProps = {
+export type NativeSheetProps = {
   isOpen: boolean
   // Re-open signal for repeated actions while isOpen is already true.
   openKey?: number
@@ -96,7 +97,7 @@ type NativeSheetProps = {
 const DEFAULT_LOADER_MIN_HEIGHT = 180
 const CONTENT_READY_HEIGHT_THRESHOLD = 4
 
-export function NativeSheet({
+function NativeSheetImpl({
   isOpen,
   openKey,
   contentStyle,
@@ -430,6 +431,13 @@ function SheetHost({
       </BottomSheet>
     </View>
   )
+}
+
+registerDefault('NativeSheet', NativeSheetImpl)
+
+export function NativeSheet(props: NativeSheetProps): React.ReactNode {
+  const Impl = getImpl('NativeSheet')
+  return <Impl {...props} />
 }
 
 const renderNoBackdrop = () => null
