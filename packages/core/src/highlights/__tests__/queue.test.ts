@@ -9,7 +9,7 @@
  * server spends a request to change nothing.
  */
 import { mmkvStorage } from '../../storage/mmkv-storage'
-import { highlightQueueKey, type HighlightScope } from '../constants'
+import { highlightQueueKey, type HighlightScope, type QueuedWrites } from '../constants'
 import { enqueueWrites, getQueuedWrites } from '../queue'
 
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
@@ -20,9 +20,11 @@ const GREEN = '5dff79'
 const BLUE = '00d6ff'
 
 /** What survived to storage, not just what the call returned. */
-function persisted() {
+function persisted(): QueuedWrites | null {
   const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
-  return raw === undefined ? null : (JSON.parse(raw) as Record<string, unknown>)
+  if (raw === undefined) return null
+  const parsed: QueuedWrites = JSON.parse(raw)
+  return parsed
 }
 
 function enqueue(input: {

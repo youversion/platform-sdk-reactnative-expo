@@ -13,22 +13,20 @@ import {
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
-let latestDomProps: {
+type LatestDomProps = {
   versionId?: number
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
-} = {}
+}
 
-function MockDOM(props: {
-  versionId?: number
-  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-  onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
-}) {
+let latestDomProps: LatestDomProps = {}
+
+function MockDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-dom">
@@ -53,9 +51,10 @@ describe('BibleReader version picker integration', () => {
   beforeEach(async () => {
     latestDomProps = {}
     installBibleReaderTestImpls()
-    setImpls({
-      BibleReaderDom: MockDOM,
-      BibleVersionPickerSheet: ({
+    setImpl('BibleReaderDom', MockDOM)
+    setImpl(
+      'BibleVersionPickerSheet',
+      ({
         isOpen,
         onClose,
         onSelect,
@@ -77,7 +76,7 @@ describe('BibleReader version picker integration', () => {
             </Pressable>
           </View>
         ) : null,
-    })
+    )
     mmkvStorage.clearAll()
     useReaderLocationStore.setState(readerLocationStoreInitialState)
     await useReaderLocationStore.persist.rehydrate()

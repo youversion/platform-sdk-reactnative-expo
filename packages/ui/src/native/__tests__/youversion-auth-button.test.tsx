@@ -5,7 +5,7 @@ import { Alert, Platform, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
@@ -44,9 +44,7 @@ beforeEach(() => {
   mockSignOut.mockClear()
   mockIsAuthenticated = false
   mmkvStorage.clearAll()
-  setImpls({
-    BibleAppLogo: (props) => <View testID="bible-app-logo" {...props} />,
-  })
+  setImpl('BibleAppLogo', (props) => <View testID="bible-app-logo" {...props} />)
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 })
 
@@ -55,12 +53,10 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-type AlertButton = { text?: string; onPress?: () => void }
-
 function pressAlertButton(text: string) {
-  const call = (Alert.alert as jest.Mock).mock.calls.at(-1)
-  const buttons = call?.[2] as AlertButton[] | undefined
-  const button = buttons?.find((candidate) => candidate.text === text)
+  const call = jest.mocked(Alert.alert).mock.calls.at(-1)
+  const buttons = call?.[2] ?? []
+  const button = buttons.find((candidate) => candidate.text === text)
   expect(button).toBeTruthy()
   button?.onPress?.()
 }
@@ -188,7 +184,7 @@ describe('YouVersionAuthButton press behavior', () => {
 
     await user.press(screen.getByText(/sign out of/i))
 
-    const call = (Alert.alert as jest.Mock).mock.calls[0]
+    const call = jest.mocked(Alert.alert).mock.calls[0]
     expect(call?.[0]).toBe(en.signOutPendingHighlightsQuestion)
     expect(mockSignOut).not.toHaveBeenCalled()
 

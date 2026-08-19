@@ -3,7 +3,7 @@ import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import * as ReactNative from 'react-native'
 import { Platform, Pressable, Share, Text, View } from 'react-native'
 
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 
@@ -49,7 +49,7 @@ describe('VerseOfTheDay', () => {
 
   beforeEach(() => {
     latestDomProps = {}
-    setImpls({ VerseOfTheDayDom: MockVerseOfTheDayDOM })
+    setImpl('VerseOfTheDayDom', MockVerseOfTheDayDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
   })
 

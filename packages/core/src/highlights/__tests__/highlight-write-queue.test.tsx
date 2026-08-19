@@ -64,7 +64,12 @@ const unreachable = () => apiError({ kind: 'transient', message: 'Network reques
 /** The server answered and said no. Reverts rather than parking. */
 const rejected = () => apiError({ kind: 'transient', status: 422, message: 'no' })
 
-function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+type Deferred<T> = {
+  promise: Promise<T>
+  resolve: (value: T) => void
+}
+
+function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((r) => {
     resolve = r
@@ -137,12 +142,16 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 
 function queuedWrites(): QueuedWrites | null {
   const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
-  return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
+  if (raw === undefined) return null
+  const parsed: QueuedWrites = JSON.parse(raw)
+  return parsed
 }
 
 function readCache(forScope = scope): Highlight[] | null {
   const raw = mmkvStorage.getString(highlightsCacheKey(userId, forScope))
-  return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
+  if (raw === undefined) return null
+  const parsed: Highlight[] = JSON.parse(raw)
+  return parsed
 }
 
 /** Let the mount fetch (and anything else already queued) settle. */
@@ -640,7 +649,9 @@ describe('a parked write the drain drops', () => {
 
   function queuedWritesFor(target: HighlightScope): QueuedWrites | null {
     const raw = mmkvStorage.getString(highlightQueueKey(userId, target))
-    return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
+    if (raw === undefined) return null
+    const parsed: QueuedWrites = JSON.parse(raw)
+    return parsed
   }
 
   /** One full drain pass against the same fake MMKV the mounted hooks read. */

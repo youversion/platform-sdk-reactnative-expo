@@ -3,23 +3,21 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
-let latestDomProps: {
+type LatestDomProps = {
   theme?: string
   resetKey?: number
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-} = {}
+}
 
-function MockDOM(props: {
-  theme?: string
-  resetKey?: number
-  onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-}) {
+let latestDomProps: LatestDomProps = {}
+
+function MockDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-dom">
@@ -49,9 +47,10 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    setImpls({
-      ChapterPickerContent: MockDOM,
-      NativeSheet: ({
+    setImpl('ChapterPickerContent', MockDOM)
+    setImpl(
+      'NativeSheet',
+      ({
         isOpen,
         onClose,
         children,
@@ -68,7 +67,7 @@ describe('BibleChapterPickerSheet', () => {
             {children}
           </View>
         ) : null,
-    })
+    )
   })
 
   afterEach(() => {

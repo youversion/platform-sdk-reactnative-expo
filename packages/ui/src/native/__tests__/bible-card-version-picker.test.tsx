@@ -8,23 +8,20 @@ import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
-import { resetImpls, setImpls, stubImpl } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
 
-let latestDomProps: {
+type LatestDomProps = {
   versionId?: number
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   showVersionPicker?: boolean
-} = {}
+}
 
-function MockDOM(props: {
-  versionId?: number
-  onVersionChange?: (versionId: number) => Promise<void>
-  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-  showVersionPicker?: boolean
-}) {
+let latestDomProps: LatestDomProps = {}
+
+function MockDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-dom">
@@ -56,10 +53,11 @@ describe('BibleCard version picker integration', () => {
   beforeEach(async () => {
     latestDomProps = {}
     stubImpl('FootnoteContent', 'mock-footnote')
-    setImpls({
-      BibleCardDom: MockDOM,
-      NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
-      BibleVersionPickerSheet: ({
+    setImpl('BibleCardDom', MockDOM)
+    setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
+    setImpl(
+      'BibleVersionPickerSheet',
+      ({
         isOpen,
         onClose,
         onSelect,
@@ -81,7 +79,7 @@ describe('BibleCard version picker integration', () => {
             </Pressable>
           </View>
         ) : null,
-    })
+    )
     await resetBibleCardVersionStore()
   })
 

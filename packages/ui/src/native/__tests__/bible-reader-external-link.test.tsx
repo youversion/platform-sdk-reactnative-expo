@@ -10,14 +10,18 @@ import {
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
-let latestDomProps: { onExternalLinkPress?: (url: string) => Promise<void> } = {}
+type LatestDomProps = {
+  onExternalLinkPress?: (url: string) => Promise<void>
+}
 
-function MockDOM(props: { onExternalLinkPress?: (url: string) => Promise<void> }) {
+let latestDomProps: LatestDomProps = {}
+
+function MockDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-dom">
@@ -37,7 +41,7 @@ describe('BibleReader external link handling', () => {
   beforeEach(async () => {
     latestDomProps = {}
     installBibleReaderTestImpls()
-    setImpls({ BibleReaderDom: MockDOM })
+    setImpl('BibleReaderDom', MockDOM)
     jest.spyOn(WebBrowser, 'openBrowserAsync').mockResolvedValue({ type: 'dismiss' })
     mmkvStorage.clearAll()
     useReaderLocationStore.setState(readerLocationStoreInitialState)
@@ -51,7 +55,7 @@ describe('BibleReader external link handling', () => {
 
   it('passes onExternalLinkPress across the bridge', () => {
     render(<BibleReader />, { wrapper })
-    expect(typeof latestDomProps.onExternalLinkPress).toBe('function')
+    expect(latestDomProps.onExternalLinkPress).toEqual(expect.any(Function))
   })
 
   it('opens an outbound URL in the system browser', async () => {

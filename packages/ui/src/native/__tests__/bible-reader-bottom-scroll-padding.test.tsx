@@ -13,14 +13,18 @@ import {
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
-let latestDomProps: { bottomScrollPadding?: number } = {}
+type LatestDomProps = {
+  bottomScrollPadding?: number
+}
+
+let latestDomProps: LatestDomProps = {}
 
 const wrapper = youVersionProviderWrapper()
 
 describe('BibleReader bottom scroll padding', () => {
   beforeEach(() => {
     latestDomProps = {}
-    installBibleReaderTestImpls((props) => {
+    installBibleReaderTestImpls((props: LatestDomProps) => {
       latestDomProps = props
     })
   })

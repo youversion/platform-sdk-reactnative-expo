@@ -10,6 +10,7 @@ import type { AuthContextValue } from '../auth-context'
 import { AuthProvider } from '../auth-provider'
 import { MMKV_AUTH_KEYS } from '../constants'
 import * as dataExchange from '../data-exchange'
+import type { DataExchangeOutcome } from '../data-exchange'
 import * as dataExchangeApi from '../data-exchange-api'
 import * as http from '../http'
 import { TokenEndpointError, type TokenResponse } from '../http'
@@ -31,7 +32,12 @@ let mockAppStateAddEventListener: jest.SpiedFunction<typeof AppState.addEventLis
 const defaultConfig: AuthConfig = { redirectUri: 'https://app/cb' }
 const defaultProps = { config: defaultConfig, appKey: 'appkey', apiHost: 'api.example.com' }
 
-function makeJwt(payload: unknown): string {
+type JwtClaims = {
+  sub?: string
+  name?: string
+}
+
+function makeJwt(payload: JwtClaims): string {
   const b64url = Buffer.from(JSON.stringify(payload), 'utf8')
     .toString('base64')
     .replace(/\+/g, '-')
@@ -121,7 +127,7 @@ function AuthPeek() {
             await auth.signIn()
             setSignInOutcome('resolved')
           } catch (e) {
-            setSignInOutcome(`rejected: ${(e as Error).message}`)
+            setSignInOutcome(`rejected: ${e instanceof Error ? e.message : String(e)}`)
           }
         }}
       >
@@ -135,7 +141,7 @@ function AuthPeek() {
             await auth.signOut()
             setSignOutOutcome('resolved')
           } catch (e) {
-            setSignOutOutcome(`rejected: ${(e as Error).message}`)
+            setSignOutOutcome(`rejected: ${e instanceof Error ? e.message : String(e)}`)
           }
         }}
       >
@@ -146,12 +152,14 @@ function AuthPeek() {
 }
 
 function getText(id: string): string {
-  return screen.getByTestId(id).props.children
+  const children = screen.getByTestId(id).props.children
+  return Array.isArray(children) ? children.join('') : String(children ?? '')
 }
 
 function fireAppStateChange(state: string) {
-  const handler = mockAppStateAddEventListener.mock.calls.at(-1)![1] as (s: string) => void
-  handler(state)
+  const handler = mockAppStateAddEventListener.mock.calls.at(-1)?.[1]
+  expect(handler).toEqual(expect.any(Function))
+  handler?.(state)
 }
 
 beforeEach(() => {
@@ -1320,10 +1328,7 @@ describe('AuthProvider — requestPermissions', () => {
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
 
-    const { initiator, getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
-      initiator: { sessionId: number; userId: string | null }
-      getCurrentIdentity: () => { sessionId: number; userId: string | null }
-    }
+    const { initiator, getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0]
     expect(getCurrentIdentity()).toEqual(initiator)
 
     fireEvent.press(screen.getByTestId('signOut'))
@@ -1361,10 +1366,7 @@ describe('AuthProvider — requestPermissions', () => {
       await pending
     })
 
-    const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0] as {
-      initiator: { sessionId: number; userId: string | null }
-      accessToken: string
-    }
+    const { initiator, accessToken } = mockRequestDataExchange.mock.calls[0][0]
     expect(accessToken).toBe('new-access')
     expect(initiator.userId).toBe('u1')
   })
@@ -1374,9 +1376,7 @@ describe('AuthProvider — requestPermissions', () => {
 
     mockRequestDataExchange.mockResolvedValue({ status: 'cancel' })
     await pressRequestPermissions()
-    const { getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0] as {
-      getCurrentIdentity: () => { sessionId: number; userId: string | null }
-    }
+    const { getCurrentIdentity } = mockRequestDataExchange.mock.calls[0][0]
     const atSignIn = getCurrentIdentity().sessionId
 
     // A refresh is the same person with a new token — the guard must not fire.
@@ -1431,7 +1431,7 @@ describe('AuthProvider — requestPermissions', () => {
     // A double-tap. Left unguarded this mints a second token and opens a second
     // auth session — which on Android rejects outright ("WebBrowser is already
     // open"), and either way races the first to write the grant cache.
-    let settle = (_outcome: unknown) => {}
+    let settle = (_outcome: DataExchangeOutcome) => {}
     mockRequestDataExchange.mockReturnValue(
       new Promise((resolve) => {
         settle = resolve
@@ -1464,7 +1464,7 @@ describe('AuthProvider — requestPermissions', () => {
   it('refuses a concurrent request for different permissions instead of handing it the wrong outcome', async () => {
     await signInWithGrant(null)
 
-    let settle = (_outcome: unknown) => {}
+    let settle = (_outcome: DataExchangeOutcome) => {}
     mockRequestDataExchange.mockReturnValue(
       new Promise((resolve) => {
         settle = resolve
@@ -1496,7 +1496,7 @@ describe('AuthProvider — requestPermissions', () => {
   it('shares the flow when a concurrent request asks for the same permissions in a different order', async () => {
     await signInWithGrant(null)
 
-    let settle = (_outcome: unknown) => {}
+    let settle = (_outcome: DataExchangeOutcome) => {}
     mockRequestDataExchange.mockReturnValue(
       new Promise((resolve) => {
         settle = resolve

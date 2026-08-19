@@ -17,7 +17,13 @@ const PKCE_FIXTURE = {
   state: 'STATE',
 }
 
-function makeJwt(payload: unknown): string {
+type JwtClaims = {
+  nonce?: string
+  sub?: string
+  name?: string
+}
+
+function makeJwt(payload: JwtClaims): string {
   const json = JSON.stringify(payload)
   const b64url = Buffer.from(json, 'utf8')
     .toString('base64')

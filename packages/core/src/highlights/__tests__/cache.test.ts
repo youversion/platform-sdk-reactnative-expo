@@ -45,7 +45,7 @@ describe('highlights cache', () => {
     setCachedHighlights(userId, scope, [highlight('JHN.3.1', 'fffe00')])
     const result = getCachedHighlights(userId, scope)
     expect(result).not.toBeInstanceOf(Promise)
-    expect(typeof (result as { then?: unknown } | null)?.then).toBe('undefined')
+    expect(result).toEqual([highlight('JHN.3.1', 'fffe00')])
   })
 
   it('returns null for corrupt or invalid cached payloads without throwing', () => {

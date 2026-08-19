@@ -6,7 +6,10 @@ import { requestDataExchange, type RequestDataExchangeArgs } from '../data-excha
 import type { DataExchangeApi } from '../data-exchange-api'
 import { saveGrantedPermissions } from '../granted-permissions-cache'
 
-const mintToken = jest.fn<ReturnType<DataExchangeApi['mintToken']>, unknown[]>()
+const mintToken = jest.fn<
+  ReturnType<DataExchangeApi['mintToken']>,
+  Parameters<DataExchangeApi['mintToken']>
+>()
 let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsync>
 
 beforeEach(() => {
@@ -26,7 +29,7 @@ const TEST_REDIRECT_URI = 'yvp-rn-example://callback'
 
 function run(overrides: Partial<RequestDataExchangeArgs> = {}) {
   return requestDataExchange({
-    api: { mintToken } as DataExchangeApi,
+    api: { mintToken },
     appKey: 'appkey',
     apiHost: 'api.example.com',
     accessToken: 'tok',
@@ -45,9 +48,16 @@ function arriveWith(search: string) {
   })
 }
 
-function cachedGrant(): unknown {
+type CachedGrant = {
+  userId: string
+  permissions: string[]
+}
+
+function cachedGrant(): CachedGrant | undefined {
   const raw = mmkvStorage.getString(MMKV_AUTH_KEYS.grantedPermissions)
-  return raw === undefined ? undefined : JSON.parse(raw)
+  if (raw === undefined) return undefined
+  const parsed: CachedGrant = JSON.parse(raw)
+  return parsed
 }
 
 describe('requestDataExchange — happy path', () => {
@@ -59,7 +69,7 @@ describe('requestDataExchange — happy path', () => {
     expect(outcome).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
     expect(mintToken).toHaveBeenCalledWith('tok', ['highlights'])
 
-    const [url, returnUrl] = mockOpenAuthSession.mock.calls[0] as [string, string]
+    const [url, returnUrl] = mockOpenAuthSession.mock.calls[0]
     // An app key has one callback URL and OAuth already owns it, so the auth
     // session must watch the app's `redirectUri`. Watching anything else means
     // the return never matches and real grants are discarded as `cancel`.

@@ -1,11 +1,11 @@
 import * as installationId from '../../installation-id'
 import { exchangeCodeForTokens, refreshTokens, type TokenResponse } from '../http'
 
-const mockFetch = jest.fn()
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
 
 beforeEach(() => {
   mockFetch.mockReset()
-  global.fetch = mockFetch as unknown as typeof fetch
+  global.fetch = mockFetch
   jest.spyOn(installationId, 'getOrSetInstallationId').mockReturnValue('inst-1')
 })
 
@@ -21,22 +21,27 @@ const okTokens: TokenResponse = {
   token_type: 'Bearer',
 }
 
-function okResponse(body: unknown): Response {
-  return {
-    ok: true,
-    status: 200,
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
-  } as Response
+type MalformedTokenBody =
+  | { refresh_token: string; expires_in: string; token_type: string }
+  | { access_token: string; expires_in: string; token_type: string }
+  | { access_token: string; refresh_token: string; token_type: string }
+  | { access_token: string; refresh_token: string; expires_in: string }
+  | (Omit<TokenResponse, 'expires_in'> & { expires_in: number })
+  | string
+  | null
+
+function okResponse(body: TokenResponse | MalformedTokenBody): Response {
+  return new Response(JSON.stringify(body), { status: 200 })
 }
 
 function errorResponse(status: number, body: string): Response {
-  return {
-    ok: false,
-    status,
-    json: () => Promise.resolve(null),
-    text: () => Promise.resolve(body),
-  } as Response
+  return new Response(body, { status })
+}
+
+function lastInit(): RequestInit {
+  const call = mockFetch.mock.calls[0]
+  expect(call).toBeDefined()
+  return call[1] ?? {}
 }
 
 describe('exchangeCodeForTokens', () => {
@@ -56,14 +61,14 @@ describe('exchangeCodeForTokens', () => {
 
     const [url, init] = mockFetch.mock.calls[0]
     expect(url).toBe('https://api.example.com/auth/token')
-    expect(init.method).toBe('POST')
+    expect(init?.method).toBe('POST')
 
-    const headers = init.headers as Headers
+    const headers = new Headers(init?.headers)
     expect(headers.get('Content-Type')).toBe('application/x-www-form-urlencoded')
     expect(headers.get('X-YVP-App-Key')).toBe('appkey')
     expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
 
-    const body = new URLSearchParams(init.body as string)
+    const body = new URLSearchParams(String(init?.body ?? ''))
     expect(body.get('grant_type')).toBe('authorization_code')
     expect(body.get('code')).toBe('authcode')
     expect(body.get('redirect_uri')).toBe('https://app/cb')
@@ -83,8 +88,8 @@ describe('refreshTokens', () => {
     })
 
     expect(result).toEqual(okTokens)
-    const init = mockFetch.mock.calls[0][1]
-    const body = new URLSearchParams(init.body as string)
+    const init = lastInit()
+    const body = new URLSearchParams(String(init.body ?? ''))
     expect(body.get('grant_type')).toBe('refresh_token')
     expect(body.get('refresh_token')).toBe('rt')
     expect(body.get('client_id')).toBe('appkey')
@@ -106,7 +111,7 @@ describe('error paths (via exchangeCodeForTokens)', () => {
     await expect(callExchange()).rejects.toThrow('Token endpoint returned 400: bad request body')
   })
 
-  it.each<[string, unknown]>([
+  it.each<[string, MalformedTokenBody]>([
     ['missing access_token', { refresh_token: 'r', expires_in: '1', token_type: 'Bearer' }],
     ['missing refresh_token', { access_token: 'a', expires_in: '1', token_type: 'Bearer' }],
     ['missing expires_in', { access_token: 'a', refresh_token: 'r', token_type: 'Bearer' }],

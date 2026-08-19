@@ -48,7 +48,8 @@ function signedInAuth(overrides: Partial<AuthContextValue> = {}): AuthContextVal
 let currentAuth: AuthContextValue | null = signedInAuth()
 
 function emitNetwork(isConnected: boolean | undefined) {
-  act(() => networkListener?.({ isConnected } as NetworkState))
+  const state: NetworkState = { isConnected }
+  act(() => networkListener?.(state))
 }
 
 function renderHost() {
@@ -71,14 +72,18 @@ beforeEach(() => {
   drain.noteParkedWrite.mockReset()
   drain.stop.mockReset()
 
-  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({} as never)
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: jest.fn(),
+    createHighlight: jest.fn(),
+    deleteHighlight: jest.fn(),
+  })
   jest.spyOn(drainModule, 'startHighlightQueueDrain').mockReturnValue(drain)
   jest.spyOn(Network, 'addNetworkStateListener').mockImplementation((listener) => {
     networkListener = listener
     return { remove: jest.fn() }
   })
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
-    appStateListener = listener as (state: AppStateStatus) => void
+    appStateListener = listener
     return { remove: jest.fn() }
   })
 })

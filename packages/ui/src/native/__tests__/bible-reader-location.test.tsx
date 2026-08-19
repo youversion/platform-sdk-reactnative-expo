@@ -10,7 +10,7 @@ import {
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
@@ -57,7 +57,7 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
     installBibleReaderTestImpls()
-    setImpls({ BibleReaderDom: MockDOM })
+    setImpl('BibleReaderDom', MockDOM)
     await resetReaderLocationStore()
   })
 
@@ -118,7 +118,8 @@ describe('BibleReader Reader Location persistence', () => {
 
     const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { chapter?: string } }
+    type PersistedLocation = { state: { chapter?: string } }
+    const parsed: PersistedLocation = JSON.parse(raw!)
     expect(parsed.state.chapter).toBe('5')
   })
 })

@@ -24,13 +24,13 @@ import { defaultPermissionFlow, emptyHighlights } from '../../test-utils/default
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
 type CapturedDomProps = {
-  highlights?: unknown
+  highlights?: Highlight[]
   versionId?: number
   book?: string
   chapter?: string
@@ -118,7 +118,7 @@ beforeEach(async () => {
   }
   stubHighlights([])
   installBibleReaderTestImpls()
-  setImpls({ BibleReaderDom: MockDOM })
+  setImpl('BibleReaderDom', MockDOM)
   mmkvStorage.clearAll()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   await useReaderLocationStore.persist.rehydrate()

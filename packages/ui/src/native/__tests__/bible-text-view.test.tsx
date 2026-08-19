@@ -3,7 +3,7 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Text, View } from 'react-native'
 
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
 
@@ -33,7 +33,7 @@ function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
       <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-has-footnote-handler">
-        {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
+        {props.onFootnotePress ? 'yes' : 'no'}
       </Text>
       <Pressable
         testID="mock-footnote-trigger"
@@ -65,10 +65,11 @@ describe('BibleTextView', () => {
   const originalOs = Platform.OS
 
   beforeEach(() => {
-    setImpls({
-      BibleTextViewDom: MockBibleTextViewDOM,
-      FootnoteContent: MockFootnoteContent,
-      NativeSheet: ({
+    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
+    setImpl('FootnoteContent', MockFootnoteContent)
+    setImpl(
+      'NativeSheet',
+      ({
         isOpen,
         onClose,
         children,
@@ -85,7 +86,7 @@ describe('BibleTextView', () => {
             {children}
           </View>
         ) : null,
-    })
+    )
   })
 
   afterEach(() => {

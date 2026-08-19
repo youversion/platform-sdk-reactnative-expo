@@ -2,7 +2,7 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
@@ -41,11 +41,10 @@ const wrapper = youVersionProviderWrapper()
 describe('BibleVersionPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    setImpls({
-      BibleVersionPickerContent: MockDOM,
-      NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-        isOpen ? <View testID="sheet">{children}</View> : null,
-    })
+    setImpl('BibleVersionPickerContent', MockDOM)
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
+    )
   })
 
   afterEach(() => {

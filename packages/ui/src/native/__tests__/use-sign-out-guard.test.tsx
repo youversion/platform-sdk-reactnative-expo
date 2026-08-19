@@ -20,15 +20,13 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
-type AlertButton = { text?: string; style?: string; onPress?: () => void }
-
 function alertCall() {
-  const call = (Alert.alert as jest.Mock).mock.calls.at(-1)
-  expect(call).toBeTruthy()
+  const call = jest.mocked(Alert.alert).mock.calls.at(-1)
+  expect(call).toBeDefined()
   return {
-    title: call?.[0] as string,
-    message: call?.[1] as string,
-    buttons: call?.[2] as AlertButton[],
+    title: call[0],
+    message: call[1],
+    buttons: call[2] ?? [],
   }
 }
 

@@ -2,33 +2,38 @@ import { DataExchangeClient } from '@youversion/platform-core'
 
 import { createDataExchangeApi } from '../data-exchange-api'
 
-const mockFetch = jest.fn()
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
 
 beforeEach(() => {
   mockFetch.mockReset()
-  global.fetch = mockFetch as unknown as typeof fetch
+  global.fetch = mockFetch
 })
 
-function jsonResponse(body: unknown, status = 201): Response {
-  return {
-    ok: status >= 200 && status < 300,
+type TokenJson = {
+  token?: string
+  not_a_token?: boolean
+}
+
+function jsonResponse(body: TokenJson, status = 201): Response {
+  return new Response(JSON.stringify(body), {
     status,
     statusText: String(status),
-    headers: { get: (name: string) => (name === 'content-type' ? 'application/json' : null) },
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
-  } as unknown as Response
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
 function errorResponse(status: number, body = ''): Response {
-  return {
-    ok: false,
+  return new Response(body, {
     status,
     statusText: String(status),
-    headers: { get: () => null },
-    json: () => Promise.resolve(null),
-    text: () => Promise.resolve(body),
-  } as unknown as Response
+  })
+}
+
+function lastRequest(): { url: string; init: RequestInit } {
+  const call = mockFetch.mock.calls[0]
+  expect(call).toBeDefined()
+  const [input, init] = call
+  return { url: String(input), init: init ?? {} }
 }
 
 const api = () =>
@@ -47,14 +52,14 @@ describe('createDataExchangeApi — mintToken', () => {
     expect(result).toEqual({ ok: true, value: 'dx-token' })
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+    const { url, init } = lastRequest()
     expect(url).toBe('https://api.example.com/data-exchange/token?app-key=appkey')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body as string)).toEqual({ requested_permissions: ['highlights'] })
-    const headers = init.headers as Record<string, string>
-    expect(headers.Authorization).toBe('Bearer tok')
-    expect(headers['X-YVP-App-Key']).toBe('appkey')
-    expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+    expect(JSON.parse(String(init.body ?? ''))).toEqual({ requested_permissions: ['highlights'] })
+    const headers = new Headers(init.headers)
+    expect(headers.get('Authorization')).toBe('Bearer tok')
+    expect(headers.get('X-YVP-App-Key')).toBe('appkey')
+    expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
   })
 
   it('falls back to the default API host when none is configured', async () => {
@@ -64,7 +69,7 @@ describe('createDataExchangeApi — mintToken', () => {
       'highlights',
     ])
 
-    const [url] = mockFetch.mock.calls[0] as [string]
+    const { url } = lastRequest()
     expect(url).toBe('https://api.youversion.com/data-exchange/token?app-key=appkey')
   })
 

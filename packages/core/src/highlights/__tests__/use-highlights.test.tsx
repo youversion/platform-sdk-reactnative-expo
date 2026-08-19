@@ -44,8 +44,13 @@ function apiError(error: HighlightsApiError): Result<never, HighlightsApiError> 
   return { ok: false, error }
 }
 
-const transient = (status?: number, message = 'boom') =>
-  apiError({ kind: 'transient', ...(status === undefined ? {} : { status }), message })
+const transient = (status?: number, message = 'boom') => {
+  const error: HighlightsApiError =
+    status === undefined
+      ? { kind: 'transient', message }
+      : { kind: 'transient', status, message }
+  return apiError(error)
+}
 const authError = (status: 401 | 403 = 401) =>
   apiError({ kind: 'auth', status, message: 'unauthorized' })
 
@@ -59,16 +64,16 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-type AuthShape = Partial<AuthContextValue> | null
+type AuthOverrides = Partial<AuthContextValue> | null
 
-const signedIn: AuthShape = {
+const signedIn: AuthOverrides = {
   isAuthenticated: true,
   accessToken: 'token-1',
   userInfo: { id: userId },
   isLoading: false,
 }
 
-const signedOut: AuthShape = {
+const signedOut: AuthOverrides = {
   isAuthenticated: false,
   accessToken: null,
   userInfo: null,
@@ -76,7 +81,7 @@ const signedOut: AuthShape = {
 }
 
 /** Signed in, `userInfo` seeded from cache, but `loadTokens()` has not resolved. */
-const tokenLoading: AuthShape = {
+const tokenLoading: AuthOverrides = {
   isAuthenticated: false,
   accessToken: null,
   userInfo: { id: userId },
@@ -90,7 +95,7 @@ const refreshNow = jest.fn(async () => undefined)
  * learned either way. Either way the fetch is still mounted; see
  * `shouldFetchHighlights`.
  */
-const signedInWithoutPermission: AuthShape = {
+const signedInWithoutPermission: AuthOverrides = {
   ...signedIn,
   requestedPermissions: [],
 }
@@ -141,7 +146,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
 // wrapper, so auth-state transitions (the token-loading window, sign-out
 // mid-write) swap this value and re-render rather than remounting — a remount
 // would lose the in-flight write under test.
-let currentAuth: AuthShape = signedIn
+let currentAuth: AuthOverrides = signedIn
 
 function Wrapper({ children }: { children: ReactNode }) {
   const inner =
@@ -159,7 +164,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-function renderUseHighlights(auth: AuthShape = signedIn, initialProps = options) {
+function renderUseHighlights(auth: AuthOverrides = signedIn, initialProps = options) {
   currentAuth = auth
   return renderHook((props: typeof options) => useHighlights(props), {
     wrapper: Wrapper,
@@ -168,7 +173,7 @@ function renderUseHighlights(auth: AuthShape = signedIn, initialProps = options)
 }
 
 /** Move to a new auth state without remounting the hook. */
-function setAuth(rerender: (props: typeof options) => void, auth: AuthShape): void {
+function setAuth(rerender: (props: typeof options) => void, auth: AuthOverrides): void {
   currentAuth = auth
   act(() => {
     rerender({ ...options })
@@ -191,7 +196,9 @@ function seedServer(highlights: Highlight[]) {
 
 function readCache(forUser = userId, forScope = scope): Highlight[] | null {
   const raw = mmkvStorage.getString(highlightsCacheKey(forUser, forScope))
-  return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
+  if (raw === undefined) return null
+  const parsed: Highlight[] = JSON.parse(raw)
+  return parsed
 }
 
 function colorsOf(result: UseHighlightsResult): Record<string, string> {
@@ -217,7 +224,7 @@ beforeEach(() => {
   })
   appStateListener = null
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
-    appStateListener = listener as (state: AppStateStatus) => void
+    appStateListener = listener
     return { remove: jest.fn() }
   })
 })
@@ -251,8 +258,10 @@ describe('instant mount from cache', () => {
     )
 
     const first = renders[0]
-    expect(first).toBeDefined()
-    expect(colorsOf(first as UseHighlightsResult)).toEqual({
+    if (first === undefined) {
+      throw new Error('expected a first render')
+    }
+    expect(colorsOf(first)).toEqual({
       'JHN.3.16': YELLOW, // normalized to lowercase on projection
       'JHN.3.20': GREEN, // the cached range expands per verse
       'JHN.3.21': GREEN,
@@ -567,7 +576,7 @@ describe('Highlights Refresh on AppState', () => {
   it('registers a "change" listener on mount and removes it on unmount', async () => {
     const remove = jest.fn()
     jest.mocked(AppState.addEventListener).mockImplementation((_event, listener) => {
-      appStateListener = listener as (state: AppStateStatus) => void
+      appStateListener = listener
       return { remove }
     })
 
@@ -1512,7 +1521,7 @@ describe('error surface', () => {
 describe('missing user id', () => {
   it('runs cache-less with a single dev warning', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const noUserId: AuthShape = {
+    const noUserId: AuthOverrides = {
       isAuthenticated: true,
       accessToken: 'token-1',
       userInfo: { name: 'Someone' },

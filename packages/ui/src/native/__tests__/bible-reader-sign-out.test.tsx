@@ -14,7 +14,7 @@ import { signedOutAuth } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -50,15 +50,13 @@ const wrapper = youVersionProviderWrapper('light', undefined, { useYVAuth: signe
 
 const user = userEvent.setup()
 
-type AlertButton = { text?: string; style?: string; onPress?: () => void }
-
 function alertCall() {
-  const call = (Alert.alert as jest.Mock).mock.calls[0]
-  expect(call).toBeTruthy()
+  const call = jest.mocked(Alert.alert).mock.calls[0]
+  expect(call).toBeDefined()
   return {
-    title: call[0] as string,
-    message: call[1] as string,
-    buttons: call[2] as AlertButton[],
+    title: call[0],
+    message: call[1],
+    buttons: call[2] ?? [],
   }
 }
 
@@ -78,7 +76,7 @@ beforeEach(() => {
   signOut.mockClear()
   mmkvStorage.clearAll()
   installBibleReaderTestImpls()
-  setImpls({ BibleReaderDom: MockDOM })
+  setImpl('BibleReaderDom', MockDOM)
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 })
 

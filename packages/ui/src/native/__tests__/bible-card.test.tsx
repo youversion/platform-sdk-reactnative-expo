@@ -10,7 +10,7 @@ import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
 
@@ -20,18 +20,28 @@ const sampleFootnote: FootnoteData = {
   verseHtml: '<p>footnote</p>',
 }
 
-let latestDomProps: {
-  dom?: { matchContents?: boolean; containerStyle?: unknown }
-} = {}
+type EmbedDomProps = {
+  matchContents?: boolean
+  containerStyle?: object
+  scrollEnabled?: boolean
+  bounces?: boolean
+  overScrollMode?: string
+  showsVerticalScrollIndicator?: boolean
+  showsHorizontalScrollIndicator?: boolean
+}
 
-function MockBibleCardDOM(props: {
-  appKey: string
+type LatestDomProps = {
+  appKey?: string
   reference?: string
   versionId?: number
   theme?: string
-  dom?: { matchContents?: boolean; containerStyle?: unknown }
+  dom?: EmbedDomProps
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-}) {
+}
+
+let latestDomProps: LatestDomProps = {}
+
+function MockBibleCardDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-bible-card-dom">
@@ -41,7 +51,7 @@ function MockBibleCardDOM(props: {
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
       <Text testID="mock-has-footnote-handler">
-        {typeof props.onFootnotePress === 'function' ? 'yes' : 'no'}
+        {props.onFootnotePress ? 'yes' : 'no'}
       </Text>
       <Pressable
         testID="mock-footnote-trigger"
@@ -68,11 +78,12 @@ describe('BibleCard', () => {
 
   beforeEach(async () => {
     latestDomProps = {}
-    setImpls({
-      BibleCardDom: MockBibleCardDOM,
-      FootnoteContent: MockFootnoteContent,
-      BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet-stub" />,
-      NativeSheet: ({
+    setImpl('BibleCardDom', MockBibleCardDOM)
+    setImpl('FootnoteContent', MockFootnoteContent)
+    setImpl('BibleVersionPickerSheet', () => <View testID="mock-version-picker-sheet-stub" />)
+    setImpl(
+      'NativeSheet',
+      ({
         isOpen,
         onClose,
         children,
@@ -89,7 +100,7 @@ describe('BibleCard', () => {
             {children}
           </View>
         ) : null,
-    })
+    )
     mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
     useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
     await useBibleCardVersionStore.persist.rehydrate()

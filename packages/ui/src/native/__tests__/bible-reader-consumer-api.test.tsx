@@ -19,7 +19,7 @@ import {
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader, type BibleReaderHandle } from '../bible-reader'
@@ -92,9 +92,10 @@ beforeEach(() => {
   rawRemove.mockClear()
   refreshHighlights.mockClear()
   installBibleReaderTestImpls()
-  setImpls({
-    BibleReaderDom: MockDOM,
-    BibleVerseActionSheet: (props: {
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl(
+    'BibleVerseActionSheet',
+    (props: {
       isOpen: boolean
       onSwatchPress: (swatch: { color: string; state: 'apply' | 'remove' }) => void
     }) =>
@@ -114,7 +115,7 @@ beforeEach(() => {
           </Pressable>
         </View>
       ) : null,
-  })
+  )
 })
 
 afterEach(() => {

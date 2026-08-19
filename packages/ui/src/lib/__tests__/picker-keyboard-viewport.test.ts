@@ -6,22 +6,8 @@ import {
   isPickerViewportHidden,
 } from '../picker-keyboard-viewport'
 
-function createMockRoot() {
-  const styles = new Map<string, string>()
-
-  return {
-    style: {
-      setProperty(name: string, value: string) {
-        styles.set(name, value)
-      },
-      removeProperty(name: string) {
-        styles.delete(name)
-      },
-      getPropertyValue(name: string) {
-        return styles.get(name) ?? ''
-      },
-    },
-  } as HTMLElement
+function createMockRoot(): HTMLElement {
+  return document.createElement('div')
 }
 
 function createMockVisualViewport(initial: { height: number; offsetTop: number }) {

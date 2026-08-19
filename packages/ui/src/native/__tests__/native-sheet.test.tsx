@@ -1,6 +1,6 @@
 import { act, render, userEvent } from '@testing-library/react-native'
-import type { ReactElement, ReactNode } from 'react'
-import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import type { ReactNode } from 'react'
+import { Platform, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import {
@@ -81,10 +81,7 @@ describe('NativeSheet', () => {
   const originalOs = Platform.OS
   const originalVersion = Platform.Version
   const renderLatestBackdrop = () => {
-    const BackdropComponent = latestBottomSheetProps.backdropComponent as
-      | ((props: Record<string, unknown>) => ReactNode)
-      | undefined
-    return BackdropComponent?.({ animatedIndex: { value: 0 } })
+    return latestBottomSheetProps.backdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
   afterEach(() => {
@@ -139,7 +136,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.bottomInset).toBe(24)
     expect(latestBottomSheetProps.containerStyle).toEqual({ transform: [{ translateY: 1000 }] })
     expect(latestBottomSheetProps.handleComponent).toBeNull()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
     expect(latestBottomSheetProps.backgroundComponent).toBeNull()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(false)
@@ -186,7 +183,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.bottomInset).toBe(0)
     expect(latestBottomSheetProps.containerStyle).toBeUndefined()
     expect(latestBottomSheetProps.handleComponent).toBeUndefined()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeTruthy()
     expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
@@ -220,7 +217,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.detached).toBe(true)
     expect(latestBottomSheetProps.bottomInset).toBe(24)
     expect(latestBottomSheetProps.handleComponent).toBeNull()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
   })
 
@@ -254,7 +251,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.containerStyle).toBeUndefined()
     expect(latestBottomSheetProps.handleComponent).toBeUndefined()
     expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeTruthy()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
     expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(true)
@@ -378,7 +375,7 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
   })
 
@@ -543,8 +540,12 @@ describe('NativeSheet', () => {
       )
     }
 
+    type ContentLayoutEvent = {
+      nativeEvent: { layout: { width: number; height: number; x: number; y: number } }
+    }
+
     const fireContentLayout = (
-      node: { props: { onLayout?: (e: unknown) => void } },
+      node: { props: { onLayout?: (e: ContentLayoutEvent) => void } },
       height: number,
     ) => {
       node.props.onLayout?.({ nativeEvent: { layout: { width: 320, height, x: 0, y: 0 } } })
@@ -847,7 +848,7 @@ describe('NativeSheet', () => {
     })
 
     const flattenedSheetStyle = () =>
-      StyleSheet.flatten(latestBottomSheetProps.style as StyleProp<ViewStyle>)
+      StyleSheet.flatten(latestBottomSheetProps.style)
 
     it('does not add horizontal margins on phone-width windows', () => {
       mockWindowWidth = 390
@@ -900,12 +901,10 @@ describe('NativeSheet', () => {
         </SheetProvider>,
       )
 
-      const backdrop = renderLatestBackdrop() as ReactElement<{ onPress?: () => void }>
+      const backdrop = renderLatestBackdrop()
       expect(backdrop).toBeTruthy()
 
-      const onAnimate = latestBottomSheetProps.onAnimate as
-        | ((fromIndex: number, toIndex: number) => void)
-        | undefined
+      const onAnimate = latestBottomSheetProps.onAnimate
 
       // Backdrop press closes the sheet: pressBehavior="close" triggers onAnimate(0, -1).
       await act(async () => {
@@ -933,9 +932,7 @@ describe('NativeSheet', () => {
         </SheetProvider>,
       )
 
-      const onAnimate = latestBottomSheetProps.onAnimate as
-        | ((fromIndex: number, toIndex: number) => void)
-        | undefined
+      const onAnimate = latestBottomSheetProps.onAnimate
 
       await act(async () => {
         onAnimate?.(0, -1)

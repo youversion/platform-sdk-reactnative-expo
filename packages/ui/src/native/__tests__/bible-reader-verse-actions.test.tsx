@@ -21,7 +21,7 @@ import { emptyHighlights } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
-  setImpls,
+  setImpl,
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
@@ -101,19 +101,16 @@ function useHighlightPermissionFlow({ versionId, book, chapter }: UseHighlightsO
 /** Which verse-selection payload the mocked DOM component emits on the next press. */
 let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
-let latestDomProps: {
+type LatestDomProps = {
   clearSelectionSignal?: number
-  onCopy?: unknown
-  onShare?: unknown
+  onCopy?: (data: BibleReaderShareData) => Promise<void>
+  onShare?: (data: BibleReaderShareData) => Promise<void>
   onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-} = {}
+}
 
-function MockDOM(props: {
-  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-  clearSelectionSignal?: number
-  onCopy?: unknown
-  onShare?: unknown
-}) {
+let latestDomProps: LatestDomProps = {}
+
+function MockDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
     <View testID="mock-dom">
@@ -142,10 +139,21 @@ function MockDOM(props: {
  * tray's horizontal scroll and the sheet's swipe-down both depend on how the
  * sheet's pan is configured, and only one configuration keeps both.
  */
-let latestSheetProps: {
+type LatestSheetProps = {
   enableContentPanningGesture?: boolean
   panActiveOffsetY?: [number, number]
-} = {}
+}
+
+let latestSheetProps: LatestSheetProps = {}
+
+type MockNativeSheetProps = {
+  isOpen: boolean
+  onClose: () => void
+  modal?: boolean
+  enableContentPanningGesture?: boolean
+  panActiveOffsetY?: [number, number]
+  children: ReactNode
+}
 
 function MockNativeSheet({
   isOpen,
@@ -154,14 +162,7 @@ function MockNativeSheet({
   enableContentPanningGesture,
   panActiveOffsetY,
   children,
-}: {
-  isOpen: boolean
-  onClose: () => void
-  modal?: boolean
-  enableContentPanningGesture?: boolean
-  panActiveOffsetY?: [number, number]
-  children: ReactNode
-}) {
+}: MockNativeSheetProps) {
   if (isOpen) {
     latestSheetProps = { enableContentPanningGesture, panActiveOffsetY }
   }
@@ -198,10 +199,8 @@ beforeEach(() => {
   rawRemove.mockClear()
   stubHighlightPermissionFlow()
   installBibleReaderTestImpls()
-  setImpls({
-    BibleReaderDom: MockDOM,
-    NativeSheet: MockNativeSheet,
-  })
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
   jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true)

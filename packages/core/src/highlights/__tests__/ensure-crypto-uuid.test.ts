@@ -23,7 +23,7 @@ describe('ensureCryptoRandomUUID', () => {
 
     ensureCryptoRandomUUID()
 
-    expect(typeof cryptoGlobal()?.randomUUID).toBe('function')
+    expect(cryptoGlobal()?.randomUUID).toEqual(expect.any(Function))
     expect(cryptoGlobal()?.randomUUID?.()).toBe(SHIM_UUID)
     expect(mockRandomUUID).toHaveBeenCalledTimes(1)
   })
@@ -33,7 +33,7 @@ describe('ensureCryptoRandomUUID', () => {
 
     ensureCryptoRandomUUID()
 
-    expect(typeof cryptoGlobal()?.randomUUID).toBe('function')
+    expect(cryptoGlobal()?.randomUUID).toEqual(expect.any(Function))
     expect(cryptoGlobal()?.randomUUID?.()).toBe(SHIM_UUID)
   })
 

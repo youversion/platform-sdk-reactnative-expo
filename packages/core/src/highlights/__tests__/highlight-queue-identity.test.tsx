@@ -93,18 +93,20 @@ function renderApp() {
 }
 
 function getText(id: string): string {
-  return screen.getByTestId(id).props.children
+  const children = screen.getByTestId(id).props.children
+  return Array.isArray(children) ? children.join('') : String(children ?? '')
 }
 
 function painted(): string[] {
-  return JSON.parse(getText('painted')) as string[]
+  const parsed: string[] = JSON.parse(getText('painted'))
+  return parsed
 }
 
 /** Every token the write path and the drain have sent a highlight under. */
 function tokensSent(): string[] {
   return [
-    ...mockCreateHighlight.mock.calls.map(([token]) => token as string),
-    ...mockDeleteHighlight.mock.calls.map(([token]) => token as string),
+    ...mockCreateHighlight.mock.calls.map(([token]) => token),
+    ...mockDeleteHighlight.mock.calls.map(([token]) => token),
   ]
 }
 

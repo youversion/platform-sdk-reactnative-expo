@@ -29,7 +29,7 @@ import {
 } from '../../test-utils/default-hook-overrides'
 import {
   resetImpls,
-  setImpls,
+  setImpl,
   stubImpl,
 } from '../../test-utils/install-test-impls'
 import { YouVersionProvider } from '../youversion-provider'
@@ -73,10 +73,15 @@ const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
 let permissionHighlights: Highlight[] = []
 let permissionIsConfirming = false
 
+type PermissionFlowStub = {
+  highlights?: Highlight[]
+  isConfirming?: boolean
+}
+
 function stubHighlightPermissionFlow({
-  highlights = [] as Highlight[],
+  highlights = [],
   isConfirming = false,
-} = {}) {
+}: PermissionFlowStub = {}) {
   permissionHighlights = highlights
   permissionIsConfirming = isConfirming
 }
@@ -207,10 +212,8 @@ beforeEach(() => {
   stubImpl('BibleChapterPickerSheet', 'mock-chapter-picker-sheet')
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('BibleReaderSettingsSheet', 'mock-settings-sheet')
-  setImpls({
-    BibleReaderDom: MockDOM,
-    NativeSheet: MockNativeSheet,
-  })
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
 })
 

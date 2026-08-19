@@ -172,7 +172,9 @@ function paintedColors(result: FlowResult): Record<string, string> {
 
 function queuedWrites(): QueuedWrites | null {
   const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
-  return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
+  if (raw === undefined) return null
+  const parsed: QueuedWrites = JSON.parse(raw)
+  return parsed
 }
 
 /** Let the mount fetch (and anything else already queued) settle. */

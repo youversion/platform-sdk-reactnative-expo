@@ -8,7 +8,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { FONT_FAMILY_TOKEN, INTER_FONT, UNTITLED_SERIF_FONT } from '../../lib/reader-fonts'
 import { useReaderSettingsStore } from '../../stores/reader-settings-store'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
-import { resetImpls, setImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
 
@@ -72,11 +72,10 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 
 describe('BibleReaderSettingsSheet', () => {
   beforeEach(() => {
-    setImpls({
-      BibleReaderSettings: MockDOM,
-      NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-        isOpen ? <View testID="sheet">{children}</View> : null,
-    })
+    setImpl('BibleReaderSettings', MockDOM)
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
+    )
     mmkvStorage.clearAll()
     useReaderSettingsStore.setState({
       fontSize: BIBLE_READER_FONT.DEFAULT,
