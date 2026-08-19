@@ -83,6 +83,12 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   </YouVersionProvider>
 )
 
+const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
+  <YouVersionProvider appKey="test-key" theme="light" permittedVersionIds={[]}>
+    {children}
+  </YouVersionProvider>
+)
+
 async function resetBibleCardVersionStore() {
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
@@ -166,6 +172,25 @@ describe('BibleCard version persistence', () => {
     await seedBibleCardVersion(59)
 
     render(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
+
+    expect(latestDomProps.versionId).toBe(59)
+  })
+
+  it('passes a stored versionId into the DOM when version filter lists would refuse it', async () => {
+    await seedBibleCardVersion(59)
+
+    render(<BibleCard reference="JHN.1.1" />, { wrapper: refuseFilterWrapper })
+
+    expect(latestDomProps.versionId).toBe(59)
+
+    const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(59)
+  })
+
+  it('passes a host versionId into the DOM when version filter lists would refuse it', () => {
+    render(<BibleCard reference="JHN.1.1" versionId={59} />, { wrapper: refuseFilterWrapper })
 
     expect(latestDomProps.versionId).toBe(59)
   })
