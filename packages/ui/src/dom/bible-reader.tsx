@@ -17,6 +17,7 @@ import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps = Omit<
@@ -37,9 +38,9 @@ type BibleReaderBaseProps = {
   // is native-owned, and nothing in the WebView has a use for the token. See
   // `clearAuthResidue` below for the upgrading-install cleanup.
   /**
-   * Must be defined on the first render — its presence latches the reader into
-   * controlled mode, and omitting it lets the WebView fetch and write highlights
-   * with the token we hand it. Pass `[]` for "nothing highlighted".
+   * Must be defined on the first render — its presence latches Controlled
+   * Highlights Latch. `[]` means nothing highlighted. Omitting it lets the
+   * WebView fetch and write highlights with the token we hand it.
    */
   highlights: Highlight[]
   /**
@@ -95,9 +96,11 @@ export type BibleReaderProps = BibleReaderBaseProps &
     | { includeAuth?: false; authRedirectUrl?: never }
   )
 
+type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps
+
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
-export default function BibleReaderDOM(props: BibleReaderProps): ReactNode {
+export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const {
     appKey,
     apiHost,
@@ -131,6 +134,9 @@ export default function BibleReaderDOM(props: BibleReaderProps): ReactNode {
     backgroundColor,
     foregroundColor,
     bottomScrollPadding = 0,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
 
@@ -319,11 +325,20 @@ export default function BibleReaderDOM(props: BibleReaderProps): ReactNode {
       appKey={appKey}
       theme={theme}
       userInfo={providerUserInfo}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
     >
       {providerContent}
     </YouVersionProvider>
   ) : (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       {providerContent}
     </YouVersionProvider>
   )

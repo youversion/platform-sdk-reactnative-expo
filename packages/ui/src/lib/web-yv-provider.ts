@@ -10,10 +10,13 @@ import { getSdkHeaders, type SdkHeaders } from './sdk-version'
 ensureDomLocalStorage()
 
 // `additionalHeaders` ships in the next Web SDK release; widen the prop type
-// locally until that publishes.
+// locally until that publishes. Same for version filter lists (YPE-4657).
 type BaseProps = ComponentProps<typeof BaseYouVersionProvider>
 type ProviderProps = BaseProps & {
   additionalHeaders?: Record<string, string>
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
 }
 
 // SAFETY: additionalHeaders lands in the next Web SDK; widen until it publishes.

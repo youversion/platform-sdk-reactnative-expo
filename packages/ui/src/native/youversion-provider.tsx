@@ -19,6 +19,12 @@ export type YouVersionProviderProps = {
   /** When omitted, native SDK strings follow the device locale (expo-localization). */
   locale?: string
   auth?: AuthConfig
+  /** Version filter: unset = no restriction; `[]` = permit nothing. Forwarded to core. */
+  permittedVersionIds?: number[]
+  /** Version filter: excluded version ids win over permits. Forwarded to core. */
+  excludedVersionIds?: number[]
+  /** Version filter: BCP 47 language tags (e.g. `en`, `zh-Hans`). Forwarded to core. */
+  permittedLanguageTags?: string[]
   fallback?: ReactNode
   /** Test seam: skip live fetch and return stub hook results. */
   hookOverrides?: HookOverrides
@@ -31,6 +37,9 @@ export function YouVersionProvider({
   theme = 'system',
   locale,
   auth,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   fallback,
   hookOverrides,
   children,
@@ -45,6 +54,9 @@ export function YouVersionProvider({
       auth={auth}
       fallback={fallback}
       hookOverrides={hookOverrides}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
     >
       <LocaleProvider locale={locale}>
         <ThemeContext.Provider value={resolvedTheme}>

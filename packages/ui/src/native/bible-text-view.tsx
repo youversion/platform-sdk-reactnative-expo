@@ -7,6 +7,8 @@ import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import { getImpl } from './component-impls'
 import { resolveTheme } from '../lib/resolve-theme'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
+import { HighlightsPaint } from './highlights-paint'
+import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 
@@ -19,7 +21,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 export type BibleTextViewProps = Omit<
   BibleTextViewDOMProps,
-  'appKey' | 'apiHost' | 'installationId'
+  'appKey' | 'apiHost' | 'installationId' | 'highlights'
 > & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
@@ -50,36 +52,45 @@ export function BibleTextView({
   const footnoteTheme: FootnoteContentDOMProps['theme'] = resolvedTheme
   const BibleTextViewDOM = getImpl('BibleTextViewDom')
   const FootnoteContent = getImpl('FootnoteContent')
+  const scope = highlightScopeFor(domProps.reference, domProps.versionId)
 
   return (
-    <>
-      <BibleTextViewDOM
-        {...domProps}
-        appKey={context.appKey}
-        apiHost={context.apiHost}
-        installationId={context.installationId}
-        theme={theme}
-        onFootnotePress={onFootnotePress}
-      />
-      {showSheet && (
-        <NativeSheet
-          isOpen={!!footnoteData}
-          openKey={footnoteOpenKey}
-          onClose={() => setFootnoteData(null)}
-          showAndroidLoader
-          theme={footnoteTheme}
-        >
-          <FootnoteContent
-            dom={withSheetDomDefaults()}
-            data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={footnoteTheme}
-            fontSize={domProps.fontSize}
+    <HighlightsPaint scope={scope}>
+      {(highlights) => (
+        <>
+          <BibleTextViewDOM
+            {...domProps}
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            permittedVersionIds={context.permittedVersionIds}
+            excludedVersionIds={context.excludedVersionIds}
+            permittedLanguageTags={context.permittedLanguageTags}
+            highlights={highlights}
+            theme={theme}
+            onFootnotePress={onFootnotePress}
           />
-        </NativeSheet>
+          {showSheet && (
+            <NativeSheet
+              isOpen={!!footnoteData}
+              openKey={footnoteOpenKey}
+              onClose={() => setFootnoteData(null)}
+              showAndroidLoader
+              theme={footnoteTheme}
+            >
+              <FootnoteContent
+                dom={withSheetDomDefaults()}
+                data={footnoteData ?? EMPTY_FOOTNOTE}
+                theme={footnoteTheme}
+                fontSize={domProps.fontSize}
+                appKey={context.appKey}
+                apiHost={context.apiHost}
+                installationId={context.installationId}
+              />
+            </NativeSheet>
+          )}
+        </>
       )}
-    </>
+    </HighlightsPaint>
   )
 }

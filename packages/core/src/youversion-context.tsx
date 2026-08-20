@@ -16,6 +16,12 @@ export type YouVersionContextValue = {
   authRedirectUrl?: string
   /** Test seam: return stub hook results without fetching. */
   hookOverrides?: HookOverrides
+  /** Version filter: unset = no restriction; `[]` = permit nothing. See web SDK version filter. */
+  permittedVersionIds?: number[]
+  /** Version filter: excluded version ids win over permits. */
+  excludedVersionIds?: number[]
+  /** Version filter: BCP 47 language tags (e.g. `en`, `zh-Hans`). */
+  permittedLanguageTags?: string[]
 }
 
 export const YouVersionContext = createContext<YouVersionContextValue | null>(null)

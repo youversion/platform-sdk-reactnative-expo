@@ -1,6 +1,7 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
+import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
@@ -8,9 +9,11 @@ import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
+import { YouVersionProvider } from '../youversion-provider'
 
 type LatestDomProps = {
   versionId?: number
@@ -42,6 +45,17 @@ function MockDOM(props: LatestDomProps) {
 }
 
 const wrapper = youVersionProviderWrapper()
+
+const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
+  <YouVersionProvider
+    appKey="test-key"
+    theme="light"
+    hookOverrides={defaultHookOverrides}
+    permittedVersionIds={[]}
+  >
+    {children}
+  </YouVersionProvider>
+)
 
 async function resetBibleCardVersionStore() {
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
@@ -151,6 +165,25 @@ describe('BibleCard version persistence', () => {
     await seedBibleCardVersion(59)
 
     render(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
+
+    expect(latestDomProps.versionId).toBe(59)
+  })
+
+  it('passes a stored versionId into the DOM when version filter lists would refuse it', async () => {
+    await seedBibleCardVersion(59)
+
+    render(<BibleCard reference="JHN.1.1" />, { wrapper: refuseFilterWrapper })
+
+    expect(latestDomProps.versionId).toBe(59)
+
+    const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(59)
+  })
+
+  it('passes a host versionId into the DOM when version filter lists would refuse it', () => {
+    render(<BibleCard reference="JHN.1.1" versionId={59} />, { wrapper: refuseFilterWrapper })
 
     expect(latestDomProps.versionId).toBe(59)
   })

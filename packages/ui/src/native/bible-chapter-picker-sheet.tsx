@@ -102,6 +102,9 @@ function BibleChapterPickerSheetImpl({
           dismissKeyboardNonce={dismissKeyboardNonce}
           resetKey={resetKey}
           onSelect={handleSelect}
+          permittedVersionIds={context.permittedVersionIds}
+          excludedVersionIds={context.excludedVersionIds}
+          permittedLanguageTags={context.permittedLanguageTags}
         />
       </View>
     </NativeSheet>

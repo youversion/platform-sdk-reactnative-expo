@@ -15,6 +15,7 @@ import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
   useHighlights,
   type HighlightWriteOutcome,
+  type UseHighlightsOptions,
   type UseHighlightsResult,
 } from '../use-highlights'
 
@@ -166,9 +167,12 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-function renderUseHighlights(auth: AuthOverrides = signedIn, initialProps = options) {
+function renderUseHighlights(
+  auth: AuthOverrides = signedIn,
+  initialProps: UseHighlightsOptions = options,
+) {
   currentAuth = auth
-  return renderHook((props: typeof options) => useHighlights(props), {
+  return renderHook((props: UseHighlightsOptions) => useHighlights(props), {
     wrapper: Wrapper,
     initialProps,
   })
@@ -373,6 +377,23 @@ describe('fetching server truth', () => {
     })
     expect(mockGetHighlights).not.toHaveBeenCalled()
     expect(result.current.highlights).toEqual([])
+  })
+
+  it('does not GET or persist when enabled is false', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+    const { result } = renderUseHighlights(signedIn, {
+      versionId: 1,
+      book: '_',
+      chapter: '0',
+      enabled: false,
+    })
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(result.current.highlights).toEqual([])
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(readCache(userId, { versionId: 1, book: '_', chapter: '0' })).toBeNull()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
   })
 
   it('does not fetch when the app never requested the highlights permission', async () => {

@@ -1,5 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { READER_LOCATION_PERSIST_KEY } from '../../lib/constants'
@@ -7,6 +8,7 @@ import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
@@ -14,15 +16,24 @@ import {
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
+import { YouVersionProvider } from '../youversion-provider'
 
-function MockDOM(props: {
+type LatestReaderDomProps = {
   book?: string
   chapter?: string
   versionId?: number
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   onBookChange?: (book: string) => Promise<void>
   onChapterChange?: (chapter: string) => Promise<void>
   onVersionChange?: (versionId: number) => Promise<void>
-}) {
+}
+
+let latestReaderDomProps: LatestReaderDomProps = {}
+
+function MockDOM(props: LatestReaderDomProps) {
+  latestReaderDomProps = props
   return (
     <View testID="mock-dom">
       <Text testID="book">{props.book ?? 'none'}</Text>
@@ -36,6 +47,36 @@ function MockDOM(props: {
 }
 
 const wrapper = youVersionProviderWrapper()
+
+const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
+  <YouVersionProvider
+    appKey="test-key"
+    theme="light"
+    permittedVersionIds={[]}
+    hookOverrides={defaultHookOverrides}
+  >
+    {children}
+  </YouVersionProvider>
+)
+
+function versionFilterWrapper(lists: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+}) {
+  return function FilterWrapper({ children }: { children: ReactNode }) {
+    return (
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={defaultHookOverrides}
+        {...lists}
+      >
+        {children}
+      </YouVersionProvider>
+    )
+  }
+}
 
 async function resetReaderLocationStore() {
   mmkvStorage.clearAll()
@@ -56,6 +97,7 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
+    latestReaderDomProps = {}
     installBibleReaderTestImpls()
     setImpl('BibleReaderDom', MockDOM)
     await resetReaderLocationStore()
@@ -121,5 +163,38 @@ describe('BibleReader Reader Location persistence', () => {
     type PersistedLocation = { state: { chapter?: string } }
     const parsed: PersistedLocation = JSON.parse(raw!)
     expect(parsed.state.chapter).toBe('5')
+  })
+
+  it('passes a stored versionId into the DOM when version filter lists would refuse it', async () => {
+    await seedReaderLocation({ book: 'GEN', chapter: '2', versionId: 59 })
+
+    const { getByTestId } = render(<BibleReader />, { wrapper: refuseFilterWrapper })
+
+    expect(getByTestId('version-id').props.children).toBe('59')
+
+    const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)
+    expect(raw).toBeTruthy()
+    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    expect(parsed.state.versionId).toBe(59)
+  })
+
+  it('passes a host versionId into the DOM when version filter lists would refuse it', () => {
+    const { getByTestId } = render(<BibleReader versionId={59} />, { wrapper: refuseFilterWrapper })
+
+    expect(getByTestId('version-id').props.children).toBe('59')
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleReader />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestReaderDomProps.permittedVersionIds).toEqual([111])
+    expect(latestReaderDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestReaderDomProps.permittedLanguageTags).toEqual(['en'])
   })
 })

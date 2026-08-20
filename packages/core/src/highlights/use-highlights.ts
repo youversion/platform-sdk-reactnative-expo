@@ -37,6 +37,13 @@ export type UseHighlightsOptions = {
   versionId: number
   book: string
   chapter: string
+  /**
+   * When false, skip Highlights Refresh and do not persist this scope's cache.
+   * `highlights` is `[]`, ignoring whatever the dummy scope's cache holds.
+   * Default true. Paint-only surfaces pass false for a dummy Highlight Scope
+   * while VOTD (or invalid USFM) has no real scope.
+   */
+  enabled?: boolean
 }
 
 export type HighlightWriteReason = 'not-signed-in' | 'auth' | 'transient' | 'invalid'
@@ -286,6 +293,7 @@ function useHighlightsImplementation(
   options: UseHighlightsOptions,
   live: boolean,
 ): UseHighlightsResult {
+  const { versionId, book, chapter, enabled = true } = options
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -296,12 +304,13 @@ function useHighlightsImplementation(
   // through the closure rather than a ref so a change still re-runs the fetch
   // effect below (`runFetch` is one of its deps). An override still mounts this
   // hook (rules of hooks) but must not GET, notify the drain, or persist cache.
-  const canFetchHighlights = live && shouldFetchHighlights(auth?.requestedPermissions ?? [])
+  const canFetchHighlights =
+    live && enabled && shouldFetchHighlights(auth?.requestedPermissions ?? [])
   const getAccessToken = auth?.getAccessToken ?? null
 
   const scope = useMemo<HighlightScope>(
-    () => ({ versionId: options.versionId, book: options.book, chapter: options.chapter }),
-    [options.versionId, options.book, options.chapter],
+    () => ({ versionId, book, chapter }),
+    [versionId, book, chapter],
   )
 
   const api = useMemo<HighlightsApi>(
@@ -432,6 +441,9 @@ function useHighlightsImplementation(
     if (!canFetchHighlights) {
       return Promise.resolve()
     }
+    if (!enabled) {
+      return Promise.resolve()
+    }
 
     const existing = inFlightRef.current
     if (existing !== null) {
@@ -489,7 +501,7 @@ function useHighlightsImplementation(
 
     inFlightRef.current = promise
     return promise
-  }, [api, canFetchHighlights])
+  }, [api, canFetchHighlights, enabled])
 
   useEffect(() => {
     // Abandon any fetch belonging to the previous identity or token: there is no
@@ -896,6 +908,9 @@ function useHighlightsImplementation(
     if (!live || userId === null) {
       return
     }
+    if (!enabled) {
+      return
+    }
     try {
       setCachedHighlights(userId, scope, highlights)
     } catch {
@@ -903,12 +918,17 @@ function useHighlightsImplementation(
       // that refuses this write costs a slower next mount, and must not take the
       // component rendering the chapter down with it.
     }
-  }, [live, userId, scope, highlights])
+  }, [live, userId, scope, highlights, enabled])
+
+  let paintedHighlights = highlights
+  if (!enabled) {
+    paintedHighlights = []
+  }
 
   return {
-    highlights,
+    highlights: paintedHighlights,
     scope,
-    isRefreshing: isRefreshing && canFetchHighlights,
+    isRefreshing: isRefreshing && canFetchHighlights && enabled,
     error,
     refresh,
     apply,

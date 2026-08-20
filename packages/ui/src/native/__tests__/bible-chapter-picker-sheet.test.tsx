@@ -12,6 +12,9 @@ import { YouVersionProvider } from '../youversion-provider'
 type LatestDomProps = {
   theme?: string
   resetKey?: number
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
 }
 
@@ -37,6 +40,25 @@ function MockDOM(props: LatestDomProps) {
 }
 
 const wrapper = youVersionProviderWrapper()
+
+function versionFilterWrapper(lists: {
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
+}) {
+  return function FilterWrapper({ children }: { children: ReactNode }) {
+    return (
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={defaultHookOverrides}
+        {...lists}
+      >
+        {children}
+      </YouVersionProvider>
+    )
+  }
+}
 
 const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
   book: 'GEN',
@@ -162,5 +184,33 @@ describe('BibleChapterPickerSheet', () => {
     rerender(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />)
 
     expect(latestDomProps.resetKey).toBeGreaterThan(firstKey!)
+  })
+
+  it('forwards version filter lists from YouVersionProvider to DOM content', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards empty version filter arrays to DOM content without coercing to undefined', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [],
+        excludedVersionIds: [],
+        permittedLanguageTags: [],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([])
+    expect(latestDomProps.excludedVersionIds).toEqual([])
+    expect(latestDomProps.permittedLanguageTags).toEqual([])
   })
 })

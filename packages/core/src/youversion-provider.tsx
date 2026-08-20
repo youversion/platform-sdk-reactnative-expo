@@ -13,6 +13,12 @@ export type YouVersionProviderProps = {
   auth?: AuthConfig
   /** Test seam: skip live fetch and return stub hook results. */
   hookOverrides?: HookOverrides
+  /** Version filter: unset = no restriction; `[]` = permit nothing. Forwarded to web SDK. */
+  permittedVersionIds?: number[]
+  /** Version filter: excluded version ids win over permits. Forwarded to web SDK. */
+  excludedVersionIds?: number[]
+  /** Version filter: BCP 47 language tags (e.g. `en`, `zh-Hans`). */
+  permittedLanguageTags?: string[]
   /**
    * Kept for API compatibility. Installation ID resolution is synchronous, so
    * children render immediately and this prop is unused.
@@ -25,6 +31,9 @@ export default function YouVersionProvider({
   appKey,
   apiHost = DEFAULT_API_HOST,
   auth,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   fallback: _fallback = null,
   hookOverrides,
   children,
@@ -38,8 +47,20 @@ export default function YouVersionProvider({
       apiHost,
       authRedirectUrl: auth?.redirectUri,
       hookOverrides,
+      permittedVersionIds,
+      excludedVersionIds,
+      permittedLanguageTags,
     }),
-    [installationId, appKey, apiHost, auth?.redirectUri, hookOverrides],
+    [
+      installationId,
+      appKey,
+      apiHost,
+      auth?.redirectUri,
+      hookOverrides,
+      permittedVersionIds,
+      excludedVersionIds,
+      permittedLanguageTags,
+    ],
   )
 
   return (

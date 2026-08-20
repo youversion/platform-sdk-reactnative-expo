@@ -3,9 +3,11 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Text, View } from 'react-native'
 
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
+import { YouVersionProvider } from '../youversion-provider'
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -20,10 +22,16 @@ type BibleTextViewDomProps = {
   showVerseNumbers?: boolean
   fontSize?: number
   theme?: string
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
+let latestTextViewDomProps: Partial<BibleTextViewDomProps> = {}
+
 function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
+  latestTextViewDomProps = props
   return (
     <View testID="mock-btv-dom">
       <Text testID="mock-app-key">{props.appKey}</Text>
@@ -65,6 +73,7 @@ describe('BibleTextView', () => {
   const originalOs = Platform.OS
 
   beforeEach(() => {
+    latestTextViewDomProps = {}
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
     setImpl(
@@ -195,5 +204,26 @@ describe('BibleTextView', () => {
     fireEvent.press(getByTestId('mock-footnote-trigger'))
 
     expect(getByTestId('mock-footnote-theme').children).toContain('light')
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedVersionIds={[111]}
+          excludedVersionIds={[3034]}
+          permittedLanguageTags={['en']}
+        >
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestTextViewDomProps.permittedVersionIds).toEqual([111])
+    expect(latestTextViewDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestTextViewDomProps.permittedLanguageTags).toEqual(['en'])
   })
 })

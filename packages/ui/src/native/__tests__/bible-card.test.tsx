@@ -10,9 +10,11 @@ import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
+import { YouVersionProvider } from '../youversion-provider'
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -35,6 +37,9 @@ type LatestDomProps = {
   reference?: string
   versionId?: number
   theme?: string
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   dom?: EmbedDomProps
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
@@ -126,6 +131,40 @@ describe('BibleCard', () => {
     expect(getByTestId('mock-reference').children).toContain('JHN.3.16')
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
+  })
+
+  function versionFilterWrapper(lists: {
+    permittedVersionIds?: number[]
+    excludedVersionIds?: number[]
+    permittedLanguageTags?: string[]
+  }) {
+    function FilterWrapper({ children }: { children: ReactNode }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          {...lists}
+        >
+          {children}
+        </YouVersionProvider>
+      )
+    }
+    return FilterWrapper
+  }
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {

@@ -14,7 +14,6 @@ const REDIRECT_URI = 'youversionauth://callback'
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
 
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {appKey ? (
@@ -26,6 +25,10 @@ export default function RootLayout() {
             scopes: ['profile', 'email'],
             permissions: ['highlights'],
           }}
+          // Optional version filter (forwarded to the web SDK once published):
+          // permittedVersionIds={[111, 206]}
+          // excludedVersionIds={[3034]}
+          // permittedLanguageTags={['en', 'zh-Hans']}
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
