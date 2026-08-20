@@ -89,9 +89,6 @@ export function BibleVersionPickerSheet({
           isOpen={isOpen}
           dismissKeyboardNonce={dismissKeyboardNonce}
           onVersionChange={handleVersionChange}
-          permittedVersionIds={context.permittedVersionIds}
-          excludedVersionIds={context.excludedVersionIds}
-          permittedLanguageTags={context.permittedLanguageTags}
         />
       </View>
     </NativeSheet>

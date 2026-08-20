@@ -22,13 +22,13 @@ const SELECTION: BibleReaderVerseSelection = {
   shareData: null,
 }
 
-const highlightPermissionFlowApply = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>(
+const highlightPermissionFlowApply = jest.fn<
+  Promise<HighlightWriteOutcome>,
+  [string, number[]]
+>(async () => ({ status: 'ok', verses: [1, 2] }))
+const rawRemove = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>(
   async () => ({ status: 'ok', verses: [1, 2] }),
 )
-const rawRemove = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>(async () => ({
-  status: 'ok',
-  verses: [1, 2],
-}))
 const refreshHighlights = jest.fn(async () => undefined)
 
 function stubHighlightPermissionFlow() {

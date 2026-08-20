@@ -227,11 +227,7 @@ describe('deriveServerColors', () => {
   it('drops invalid hex from paint projection', () => {
     expect(
       deriveServerColors(
-        [
-          highlight('JHN.3.16', 'fffe00'),
-          highlight('JHN.3.17', 'gg0000'),
-          highlight('JHN.3.18', '123456'),
-        ],
+        [highlight('JHN.3.16', 'fffe00'), highlight('JHN.3.17', 'gg0000'), highlight('JHN.3.18', '123456')],
         scope,
       ),
     ).toEqual({ 16: 'fffe00', 18: '123456' })

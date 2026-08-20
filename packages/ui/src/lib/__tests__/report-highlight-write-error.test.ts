@@ -5,8 +5,12 @@ import {
   type HighlightWriteError,
 } from '../report-highlight-write-error'
 
-type AssertQueuedHasNoReason =
-  Extract<HighlightWriteError, { status: 'queued' }> extends { reason?: unknown } ? never : true
+type AssertQueuedHasNoReason = Extract<
+  HighlightWriteError,
+  { status: 'queued' }
+> extends { reason?: unknown }
+  ? never
+  : true
 
 const assertQueuedHasNoReason: AssertQueuedHasNoReason = true
 void assertQueuedHasNoReason
@@ -43,7 +47,9 @@ describe('reportHighlightWriteError', () => {
   })
 
   it('does nothing when no handler is passed', () => {
-    expect(() => reportHighlightWriteError({ status: 'queued', verses: [1, 2] })).not.toThrow()
+    expect(() =>
+      reportHighlightWriteError({ status: 'queued', verses: [1, 2] }),
+    ).not.toThrow()
   })
 
   it('swallows a throwing onHighlightError callback', () => {

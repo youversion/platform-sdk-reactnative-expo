@@ -71,7 +71,8 @@ export function buildVerseActionSwatches(
   // "all active"; activeHighlights.size > 1 counts all valid colors (palette or
   // non-palette). Matches web buildVerseActionSwatches (platform-sdk-react #330).
   const showAllApplyColors =
-    !allPaletteColorsActive && (unHighlightedCount > 0 || activeHighlights.size > 1)
+    !allPaletteColorsActive &&
+    (unHighlightedCount > 0 || activeHighlights.size > 1)
   const colorsToApply = showAllApplyColors
     ? HIGHLIGHT_COLORS
     : HIGHLIGHT_COLORS.filter((color) => !activePaletteColors.has(color))
@@ -80,9 +81,9 @@ export function buildVerseActionSwatches(
     ...HIGHLIGHT_COLORS.filter((color) => activePaletteColors.has(color)).map(
       (color): VerseActionSwatch => ({ color, state: 'remove' }),
     ),
-    ...[...activeNonPaletteColors]
-      .sort()
-      .map((color): VerseActionSwatch => ({ color, state: 'remove' })),
+    ...[...activeNonPaletteColors].sort().map(
+      (color): VerseActionSwatch => ({ color, state: 'remove' }),
+    ),
   ]
 
   return [

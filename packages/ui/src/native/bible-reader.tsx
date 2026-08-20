@@ -616,9 +616,6 @@ export function BibleReader({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
-          permittedVersionIds={context.permittedVersionIds}
-          excludedVersionIds={context.excludedVersionIds}
-          permittedLanguageTags={context.permittedLanguageTags}
           highlights={highlights}
           verseActions={VERSE_ACTIONS}
           onVerseSelect={handleVerseSelect}

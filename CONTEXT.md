@@ -66,14 +66,6 @@ _Avoid_: Picker modal, chapter popover
 A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. In-sheet navigation (version list ↔ language list) is owned by the **Version Picker Shell Layout** — not native.
 _Avoid_: Version modal, stacked picker sheets, native language-panel flags
 
-**Version Filter**:
-Optional allowlists on core `YouVersionProvider` — `permittedVersionIds`, `excludedVersionIds`, `permittedLanguageTags` — that restrict which Bible versions and languages the web SDK may use. Unset permit list = no restriction; `[]` = permit nothing; exclusion wins; language tags are BCP 47. Native stores and forwards the lists into each Expo DOM web `YouVersionProvider`; it does not re-implement the web usability predicate.
-_Avoid_: Per-component filter props; a native `isUsableVersion` helper; renaming to platform-configuration types
-
-**Version Refuse**:
-When a persisted or host `versionId` is not permitted, native chrome still passes that id into the WebView and lets the web SDK refuse. Native does not auto-pick another version, silently fall back to the default version id, or rewrite **Reader Location** / Bible Card version MMKV on refuse. First-open defaults when there is no stored or host id are unchanged.
-_Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders
-
 **Version Picker Shell Layout**:
 The Expo DOM wrapper (`bible-version-picker-content.tsx`) for version picker sheet content. It owns the version ↔ language cross-fade, shell height, and keyboard overlap via `visualViewport` (same role as **Chapter Picker Shell Layout** for chapter picker). Web uses Radix popover + `isLanguagesOpen`; mobile duplicates layout outside that **Presentation Shell**. On the language trigger, call `event.preventDefault()` so the Web SDK does not also run `setIsLanguagesOpen`.
 _Avoid_: Assuming `BibleVersionPicker.Content` popover layout applies inside **Native Sheet**
