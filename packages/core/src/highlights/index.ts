@@ -16,6 +16,7 @@ export {
   deriveServerColors,
   expandPassageId,
   getCachedHighlights,
+  parseChapterScopeFromUsfm,
   highlightsCacheKey,
   MMKV_HIGHLIGHTS_KEY_PREFIX,
   setCachedHighlights,
@@ -49,3 +50,5 @@ export {
   type UseHighlightsOptions,
   type UseHighlightsResult,
 } from './use-highlights'
+
+export { useHighlightPaint } from './use-highlight-paint'

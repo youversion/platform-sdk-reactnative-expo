@@ -8,6 +8,7 @@ import {
   expandPassageId,
   getCachedHighlights,
   highlightsCacheKey,
+  parseChapterScopeFromUsfm,
   setCachedHighlights,
   type HighlightScope,
 } from '../cache'
@@ -139,6 +140,26 @@ describe('expandPassageId', () => {
     expect(expandPassageId('JHN.3.0')).toBeNull() // verse 0
     expect(expandPassageId('JHN.3.1-9999')).toBeNull() // implausibly large
     expect(expandPassageId('')).toBeNull()
+  })
+})
+
+describe('parseChapterScopeFromUsfm', () => {
+  it('returns book and chapter for chapter, verse, and verse-range USFM', () => {
+    expect(parseChapterScopeFromUsfm('JHN.3')).toEqual({ book: 'JHN', chapter: '3' })
+    expect(parseChapterScopeFromUsfm('JHN.3.16')).toEqual({ book: 'JHN', chapter: '3' })
+    expect(parseChapterScopeFromUsfm('JHN.3.16-18')).toEqual({ book: 'JHN', chapter: '3' })
+  })
+
+  it('returns null for invalid USFM', () => {
+    expect(parseChapterScopeFromUsfm('')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN.3.16.18')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN..16')).toBeNull()
+    expect(parseChapterScopeFromUsfm('JHN.3.abc')).toBeNull()
+  })
+
+  it('does not change expandPassageId’s rejection of chapter-scope USFM', () => {
+    expect(expandPassageId('JHN.3')).toBeNull()
   })
 })
 

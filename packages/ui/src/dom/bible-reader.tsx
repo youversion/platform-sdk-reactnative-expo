@@ -34,9 +34,9 @@ type BibleReaderBaseProps = {
   // is native-owned, and nothing in the WebView has a use for the token. See
   // `clearAuthResidue` below for the upgrading-install cleanup.
   /**
-   * Must be defined on the first render — its presence latches the reader into
-   * controlled mode, and omitting it lets the WebView fetch and write highlights
-   * with the token we hand it. Pass `[]` for "nothing highlighted".
+   * Must be defined on the first render — its presence latches Controlled
+   * Highlights Latch. `[]` means nothing highlighted. Omitting it lets the
+   * WebView fetch and write highlights with the token we hand it.
    */
   highlights: Highlight[]
   /**

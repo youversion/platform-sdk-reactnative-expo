@@ -91,6 +91,39 @@ export function expandPassageId(passageId: string): ExpandedPassageId | null {
 }
 
 /**
+ * Book + chapter from a chapter, verse, or verse-range USFM (`JHN.3`,
+ * `JHN.3.16`, `JHN.3.16-18`). Used to subscribe paint-only surfaces at
+ * Highlight Scope so they share the reader’s chapter cache line.
+ *
+ * Returns `null` for anything that is not a chapter-addressable USFM. Chapter
+ * scope (`JHN.3`) is valid here even though {@link expandPassageId} rejects it —
+ * that helper names a highlightable verse unit, not a paint subscription.
+ */
+export function parseChapterScopeFromUsfm(usfm: string): { book: string; chapter: string } | null {
+  const expanded = expandPassageId(usfm)
+  if (expanded) {
+    return { book: expanded.book, chapter: expanded.chapter }
+  }
+
+  const parts = usfm.split('.')
+  if (parts.length !== 2) {
+    return null
+  }
+  const [book, chapter] = parts
+  if (!book || !chapter) {
+    return null
+  }
+  if (!/^\d+$/.test(chapter)) {
+    return null
+  }
+  const chapterNumber = parseInt(chapter, 10)
+  if (chapterNumber < 1) {
+    return null
+  }
+  return { book, chapter }
+}
+
+/**
  * Projects a cached `Highlight[]` (core API shape) onto the displayed scope as
  * the verse -> hex color render map used for optimistic overlay math.
  *

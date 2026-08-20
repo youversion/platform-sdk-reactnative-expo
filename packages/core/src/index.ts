@@ -19,6 +19,8 @@ export {
   hasQueuedHighlightWrites,
   HIGHLIGHT_COLORS,
   isHighlightColor,
+  parseChapterScopeFromUsfm,
+  useHighlightPaint,
   useHighlightPermissionFlow,
   useHighlights,
 } from './highlights'
