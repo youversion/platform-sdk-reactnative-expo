@@ -13,9 +13,9 @@ The cache is a **hint**. Use it to choose UI and to skip a redundant prompt. The
 
 Clearing stays best-effort. No extra write is layered on a store that just refused a write.
 
-| Failure | Behavior |
-| --- | --- |
-| Normal clear | Entry removed |
+| Failure       | Behavior                                     |
+| ------------- | -------------------------------------------- |
+| Normal clear  | Entry removed                                |
 | Removal fails | Stale grant accepted — bounded by the server |
 
 The second row needs an MMKV removal to fail. The worst outcome is a skipped prompt, then a request the server denies. Reviewers will keep rediscovering this. It is a decision, not a missing `try`.

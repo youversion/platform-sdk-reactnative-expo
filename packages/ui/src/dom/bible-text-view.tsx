@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
@@ -39,6 +40,8 @@ export type BibleTextViewProps = Omit<
   dom?: import('expo/dom').DOMProps
 }
 
+type BibleTextViewDOMProps = BibleTextViewProps & InternalVersionFilterProps
+
 export default function BibleTextViewDOM({
   appKey,
   apiHost,
@@ -48,8 +51,11 @@ export default function BibleTextViewDOM({
   onVerseSelect,
   onFootnotePress,
   passageState,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   ...props
-}: BibleTextViewProps) {
+}: BibleTextViewDOMProps) {
   applySDKConfig({ apiHost, appKey, installationId })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
@@ -78,7 +84,13 @@ export default function BibleTextViewDOM({
       : undefined
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <BibleTextView
         {...props}
         highlights={safeHighlights}

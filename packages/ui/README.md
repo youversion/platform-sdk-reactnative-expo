@@ -47,6 +47,8 @@ export default function App() {
 }
 ```
 
+The UI `YouVersionProvider` forwards the same optional version filter lists as core (`permittedVersionIds`, `excludedVersionIds`, `permittedLanguageTags`). See the core package README for unset vs `[]`, exclusion wins, and native refuse behavior.
+
 ## Documentation and API Reference
 
 - [React Native (Expo) SDK Quick Start](https://developers.youversion.com/sdks/react-native)

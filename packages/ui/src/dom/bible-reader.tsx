@@ -15,6 +15,7 @@ import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps =
@@ -91,9 +92,11 @@ export type BibleReaderProps = BibleReaderBaseProps &
     | { includeAuth?: false; authRedirectUrl?: never }
   )
 
+type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps
+
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
-export default function BibleReaderDOM(props: BibleReaderProps) {
+export default function BibleReaderDOM(props: BibleReaderDOMProps) {
   const {
     appKey,
     apiHost,
@@ -127,6 +130,9 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
     backgroundColor,
     foregroundColor,
     bottomScrollPadding = 0,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
 
@@ -282,11 +288,20 @@ export default function BibleReaderDOM(props: BibleReaderProps) {
       appKey={appKey}
       theme={theme}
       userInfo={providerUserInfo}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
     >
       {providerContent}
     </YouVersionProvider>
   ) : (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       {providerContent}
     </YouVersionProvider>
   )

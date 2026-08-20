@@ -108,14 +108,24 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
 
   const TestContext = React.createContext(null)
 
-  function YouVersionProvider({ appKey, apiHost, children }) {
+  function YouVersionProvider({
+    appKey,
+    apiHost,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+    children,
+  }) {
     const value = React.useMemo(
       () => ({
         appKey,
         apiHost: apiHost ?? 'https://api.youversion.com',
         installationId: 'test-installation-id',
+        permittedVersionIds,
+        excludedVersionIds,
+        permittedLanguageTags,
       }),
-      [appKey, apiHost],
+      [appKey, apiHost, permittedVersionIds, excludedVersionIds, permittedLanguageTags],
     )
     return React.createElement(TestContext.Provider, { value }, children)
   }

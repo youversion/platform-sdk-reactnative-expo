@@ -62,6 +62,9 @@ export function BibleTextView({
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            permittedVersionIds={context.permittedVersionIds}
+            excludedVersionIds={context.excludedVersionIds}
+            permittedLanguageTags={context.permittedLanguageTags}
             highlights={highlights}
             theme={theme}
             onFootnotePress={onFootnotePress}

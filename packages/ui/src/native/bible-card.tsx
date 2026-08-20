@@ -1,8 +1,5 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import {
-  useYouVersion,
-  type Highlight,
-} from '@youversion/platform-react-native-expo-core'
+import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { useCallback, useState } from 'react'
 import { Platform } from 'react-native'
@@ -12,6 +9,7 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightsPaint } from './highlights-paint'
@@ -54,31 +52,35 @@ type BibleCardBodyProps = Omit<
   | 'onVersionPickerPress'
   | 'onFootnotePress'
   | 'showVersionPicker'
-> & {
-  highlights: Highlight[]
-  appKey: string
-  apiHost: string
-  installationId: string
-  resolvedTheme: Theme
-  versionId: number | undefined
-  onVersionChange: (newVersionId: number) => Promise<void>
-  onVersionPickerPress: (data: BibleVersionPickerPressData) => Promise<void>
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-  showVersionPicker: boolean
-  showVersionPickerSheet: boolean
-  isVersionPickerOpen: boolean
-  onCloseVersionPicker: () => void
-  onSelectVersion: (newVersionId: number) => Promise<void>
-  showFootnoteSheet: boolean
-  footnoteData: FootnoteData | null
-  onCloseFootnote: () => void
-}
+> &
+  InternalVersionFilterProps & {
+    highlights: Highlight[]
+    appKey: string
+    apiHost: string
+    installationId: string
+    resolvedTheme: Theme
+    versionId: number | undefined
+    onVersionChange: (newVersionId: number) => Promise<void>
+    onVersionPickerPress: (data: BibleVersionPickerPressData) => Promise<void>
+    onFootnotePress?: (data: FootnoteData) => Promise<void>
+    showVersionPicker: boolean
+    showVersionPickerSheet: boolean
+    isVersionPickerOpen: boolean
+    onCloseVersionPicker: () => void
+    onSelectVersion: (newVersionId: number) => Promise<void>
+    showFootnoteSheet: boolean
+    footnoteData: FootnoteData | null
+    onCloseFootnote: () => void
+  }
 
 function BibleCardBody({
   highlights,
   appKey,
   apiHost,
   installationId,
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
   resolvedTheme,
   versionId,
   onVersionChange,
@@ -104,6 +106,9 @@ function BibleCardBody({
         appKey={appKey}
         apiHost={apiHost}
         installationId={installationId}
+        permittedVersionIds={permittedVersionIds}
+        excludedVersionIds={excludedVersionIds}
+        permittedLanguageTags={permittedLanguageTags}
         theme={resolvedTheme}
         versionId={versionId}
         onVersionChange={onVersionChange}
@@ -227,6 +232,9 @@ export function BibleCard({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
+          permittedVersionIds={context.permittedVersionIds}
+          excludedVersionIds={context.excludedVersionIds}
+          permittedLanguageTags={context.permittedLanguageTags}
           resolvedTheme={resolvedTheme}
           versionId={versionId}
           onVersionChange={handleVersionChange}

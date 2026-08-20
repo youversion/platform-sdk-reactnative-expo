@@ -6,6 +6,7 @@ import { Platform } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { BibleCard } from '../bible-card'
+import { YouVersionProvider } from '../youversion-provider'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
@@ -76,6 +77,9 @@ jest.mock('../../dom/footnote-content', () => {
 
 let latestDomProps: {
   dom?: { matchContents?: boolean; containerStyle?: unknown }
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
 } = {}
 
 jest.mock('../../dom/bible-card', () => {
@@ -144,6 +148,35 @@ describe('BibleCard', () => {
     expect(getByTestId('mock-reference').children).toContain('JHN.3.16')
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
+  })
+
+  function versionFilterWrapper(lists: {
+    permittedVersionIds?: number[]
+    excludedVersionIds?: number[]
+    permittedLanguageTags?: string[]
+  }) {
+    function FilterWrapper({ children }: { children: ReactNode }) {
+      return (
+        <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+          {children}
+        </YouVersionProvider>
+      )
+    }
+    return FilterWrapper
+  }
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {
