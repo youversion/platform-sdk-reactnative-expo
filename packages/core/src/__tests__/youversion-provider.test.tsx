@@ -114,10 +114,11 @@ describe('YouVersionProvider', () => {
       </YouVersionProvider>,
     )
 
-    const unset = JSON.parse(screen.getByTestId('ctx').props.children) as Record<string, unknown>
-    expect(unset.permittedVersionIds).toBeUndefined()
-    expect(unset.excludedVersionIds).toBeUndefined()
-    expect(unset.permittedLanguageTags).toBeUndefined()
+    expect(JSON.parse(screen.getByTestId('ctx').props.children)).toEqual({
+      installationId: 'inst-1',
+      appKey: 'appkey',
+      apiHost: 'api.youversion.com',
+    })
 
     rerender(
       <YouVersionProvider
@@ -130,9 +131,13 @@ describe('YouVersionProvider', () => {
       </YouVersionProvider>,
     )
 
-    const empty = JSON.parse(screen.getByTestId('ctx').props.children) as Record<string, unknown>
-    expect(empty.permittedVersionIds).toEqual([])
-    expect(empty.excludedVersionIds).toEqual([])
-    expect(empty.permittedLanguageTags).toEqual([])
+    expect(JSON.parse(screen.getByTestId('ctx').props.children)).toEqual({
+      installationId: 'inst-1',
+      appKey: 'appkey',
+      apiHost: 'api.youversion.com',
+      permittedVersionIds: [],
+      excludedVersionIds: [],
+      permittedLanguageTags: [],
+    })
   })
 })

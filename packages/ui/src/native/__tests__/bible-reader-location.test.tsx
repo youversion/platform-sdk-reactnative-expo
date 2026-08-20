@@ -174,7 +174,11 @@ describe('BibleReader Reader Location persistence', () => {
 
     const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    if (raw === undefined) {
+      throw new Error('expected persisted reader location')
+    }
+    // SAFETY: zustand persist writes `{ state, version }`; this test seeded versionId.
+    const parsed = JSON.parse(raw) as { state: { versionId?: number } }
     expect(parsed.state.versionId).toBe(59)
   })
 

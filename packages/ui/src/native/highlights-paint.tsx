@@ -19,7 +19,7 @@ type HighlightsPaintProps = {
  * means resolving a VOTD passage_id (scope null → a real Highlight Scope) does
  * not remount the WebView.
  */
-export function HighlightsPaint({ scope, children }: HighlightsPaintProps) {
+export function HighlightsPaint({ scope, children }: HighlightsPaintProps): ReactNode {
   const highlights = useHighlightPaint(scope)
   return children(highlights)
 }

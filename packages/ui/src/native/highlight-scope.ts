@@ -12,7 +12,7 @@ export function highlightScopeFor(
   reference: string | null | undefined,
   versionId: number | undefined,
 ): HighlightScope | null {
-  if (reference == null || typeof versionId !== 'number') {
+  if (reference == null || versionId === undefined) {
     return null
   }
   const parsed = parseChapterScopeFromUsfm(reference)

@@ -129,7 +129,7 @@ describe('the Controlled Highlights Latch', () => {
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
-      expect(typeof props.dayOfYear).toBe('number')
+      expect(props.dayOfYear).toEqual(expect.any(Number))
     }
   })
 

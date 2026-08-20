@@ -178,7 +178,11 @@ describe('BibleCard version persistence', () => {
 
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    if (raw === undefined) {
+      throw new Error('expected persisted bible card version')
+    }
+    // SAFETY: zustand persist writes `{ state, version }`; this test seeded versionId.
+    const parsed = JSON.parse(raw) as { state: { versionId?: number } }
     expect(parsed.state.versionId).toBe(59)
   })
 

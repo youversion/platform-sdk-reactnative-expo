@@ -8,13 +8,8 @@ import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
-import { getDayOfYear, getVerseOfTheDayPassageId } from '../verse-of-the-day-api'
+import * as votdApi from '../verse-of-the-day-api'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('../verse-of-the-day-api', () => ({
-  ...jest.requireActual('../verse-of-the-day-api'),
-  getVerseOfTheDayPassageId: jest.fn(async () => null),
-}))
 
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
@@ -64,7 +59,7 @@ describe('VerseOfTheDay', () => {
     latestDomProps = {}
     setImpl('VerseOfTheDayDom', MockVerseOfTheDayDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
-    jest.mocked(getVerseOfTheDayPassageId).mockClear()
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
   })
 
   afterEach(() => {
@@ -226,8 +221,8 @@ describe('VerseOfTheDay', () => {
     try {
       render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
-      const dayOfYear = getDayOfYear(new Date())
-      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+      const dayOfYear = votdApi.getDayOfYear(new Date())
+      expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
         expect.objectContaining({ appKey: 'test-key' }),
         dayOfYear,
       )
@@ -243,7 +238,7 @@ describe('VerseOfTheDay', () => {
     try {
       render(<VerseOfTheDay versionId={3034} dayOfYear={1} />, { wrapper: wrapper() })
 
-      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+      expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
         expect.objectContaining({ appKey: 'test-key' }),
         1,
       )

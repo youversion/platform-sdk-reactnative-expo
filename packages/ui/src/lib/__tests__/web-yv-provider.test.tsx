@@ -7,20 +7,20 @@ import { mergeSdkHeaders, YouVersionProvider } from '../web-yv-provider'
 
 const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
-type RenderedProps = {
-  additionalHeaders?: Record<string, string>
+type FilterProps = {
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
 }
 
-function renderShim(props: Record<string, unknown>): RenderedProps {
+function renderShim(props: FilterProps): FilterProps {
   const element = YouVersionProvider({
     appKey: 'test-key',
     children: null,
     ...props,
-  } as Parameters<typeof YouVersionProvider>[0]) as ReactElement<RenderedProps>
-  return element.props
+  })
+  // SAFETY: web YouVersionProvider is a function component; calling it returns the element we inspect.
+  return (element as ReactElement<FilterProps>).props
 }
 
 const DOM_ENTRIES = [
