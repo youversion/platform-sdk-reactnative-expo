@@ -17,7 +17,7 @@ const COMPILED = [
   "import pkg from '../../package.json';",
   'const IS_PUBLISH_BUILD = false;',
   'export const SDK_VERSION = IS_PUBLISH_BUILD ? pkg.version : `${pkg.version}-dev`;',
-  "const SDK_HEADER_NAME = 'x-yvp-sdk';",
+  "const SDK_HEADER_NAME = 'X-YVP-Sdk';",
   '',
 ].join('\n')
 
@@ -30,7 +30,7 @@ describe('stampPublishBuild', () => {
 
   it('leaves the surrounding lines untouched', () => {
     const out = stampPublishBuild(COMPILED)
-    expect(out).toContain("const SDK_HEADER_NAME = 'x-yvp-sdk';")
+    expect(out).toContain("const SDK_HEADER_NAME = 'X-YVP-Sdk';")
     expect(out).toContain("import pkg from '../../package.json';")
   })
 

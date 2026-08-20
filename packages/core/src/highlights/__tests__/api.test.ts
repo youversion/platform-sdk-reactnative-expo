@@ -45,6 +45,10 @@ function jsonResponse(body: HighlightsJson, status = 200): Response {
   })
 }
 
+function header(init: RequestInit, name: string): string | null {
+  return new Headers(init.headers).get(name)
+}
+
 function errorResponse(status: number, body = ''): Response {
   return new Response(body, {
     status,
@@ -74,21 +78,6 @@ function lastRequest(): LastRequest {
     throw new Error('expected fetch to have been called')
   }
   return { url: String(call[0]), init: call[1] ?? {} }
-}
-
-type FetchRequestHeaders = {
-  Authorization?: string
-  'X-YVP-App-Key'?: string
-  'X-YVP-Installation-Id'?: string
-  'x-yvp-sdk'?: string
-}
-
-function requestHeaders(init: RequestInit): FetchRequestHeaders {
-  const headers = init.headers
-  if (headers === undefined || Array.isArray(headers) || headers instanceof Headers) {
-    return {}
-  }
-  return headers
 }
 
 const api = () =>
@@ -126,11 +115,10 @@ describe('createHighlightsApi', () => {
       const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights?bible_id=111&passage_id=JHN.3')
       expect(init.method).toBe('GET')
-      const headers = requestHeaders(init)
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
-      expect(headers['x-yvp-sdk']).toBe('ReactNativeSDK=1.0.0-dev')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'x-yvp-sdk')).toBe('ReactSDK=2.8.0, ReactNativeSDK=1.0.0-dev')
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {
@@ -211,10 +199,9 @@ describe('createHighlightsApi', () => {
       const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights')
       expect(init.method).toBe('POST')
-      const headers = requestHeaders(init)
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
       const body: CreatedHighlightBody = JSON.parse(requestBodyText(init.body))
       expect(body.highlight).toEqual({
         bible_id: 111,
@@ -312,10 +299,9 @@ describe('createHighlightsApi', () => {
       const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights/JHN.3.16?bible_id=111')
       expect(init.method).toBe('DELETE')
-      const headers = requestHeaders(init)
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
     })
 
     it('returns auth failure for 403', async () => {

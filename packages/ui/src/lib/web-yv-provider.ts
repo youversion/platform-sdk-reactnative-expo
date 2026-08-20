@@ -3,38 +3,20 @@
 import { ensureDomLocalStorage } from './dom-local-storage'
 
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
-import { createElement, type ComponentProps, type ComponentType, type ReactNode } from 'react'
+import { createElement, type ComponentProps, type ReactNode } from 'react'
 
-import { getSdkHeaders, type SdkHeaders } from './sdk-version'
+import { mergeSdkHeaders } from './sdk-version'
 
 ensureDomLocalStorage()
 
-// `additionalHeaders` ships in the next Web SDK release; widen the prop type
-// locally until that publishes. Same for version filter lists (YPE-4657).
-type BaseProps = ComponentProps<typeof BaseYouVersionProvider>
-type ProviderProps = BaseProps & {
-  additionalHeaders?: Record<string, string>
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-}
-
-// SAFETY: additionalHeaders lands in the next Web SDK; widen until it publishes.
-const TypedProvider = BaseYouVersionProvider as ComponentType<ProviderProps>
-
-// Header set is constant for the life of the bundle, so compute it once.
-const SDK_HEADERS = getSdkHeaders()
-
-export function mergeSdkHeaders(additionalHeaders?: Record<string, string>): SdkHeaders {
-  return { ...additionalHeaders, ...SDK_HEADERS }
-}
+type ProviderProps = ComponentProps<typeof BaseYouVersionProvider>
 
 // DOM-side wrapper for the Web SDK's `YouVersionProvider`. Stamps the
 // `x-yvp-sdk` header onto every API call made from inside a DOM component.
 // SDK-attribution headers must always reach the data lake intact, so they
 // override any consumer-supplied entry on the same key.
 export function YouVersionProvider({ additionalHeaders, ...rest }: ProviderProps): ReactNode {
-  return createElement(TypedProvider, {
+  return createElement(BaseYouVersionProvider, {
     ...rest,
     additionalHeaders: mergeSdkHeaders(additionalHeaders),
   })

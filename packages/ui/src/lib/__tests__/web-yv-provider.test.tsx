@@ -3,11 +3,12 @@ import { join } from 'node:path'
 import { type ReactElement } from 'react'
 
 import pkg from '../../../package.json'
-import { mergeSdkHeaders, YouVersionProvider } from '../web-yv-provider'
+import { YouVersionProvider } from '../web-yv-provider'
 
 const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
 type FilterProps = {
+  additionalHeaders?: Record<string, string>
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -34,21 +35,25 @@ const DOM_ENTRIES = [
 
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {
-    expect(mergeSdkHeaders()).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+    expect(renderShim({}).additionalHeaders).toEqual({
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
     })
   })
 
   it('preserves consumer additionalHeaders on non-colliding keys', () => {
-    expect(mergeSdkHeaders({ 'x-custom': 'ok' })).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+    expect(renderShim({ additionalHeaders: { 'x-custom': 'ok' } }).additionalHeaders).toEqual({
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })
 
   it('SDK header wins over consumer-supplied x-yvp-sdk so attribution stays intact', () => {
-    expect(mergeSdkHeaders({ 'x-yvp-sdk': 'hacked', 'x-custom': 'ok' })).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+    expect(
+      renderShim({
+        additionalHeaders: { 'x-yvp-sdk': 'hacked', 'x-custom': 'ok' },
+      }).additionalHeaders,
+    ).toEqual({
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })

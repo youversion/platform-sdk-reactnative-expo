@@ -14,6 +14,10 @@ type TokenJson = {
   not_a_token?: boolean
 }
 
+function header(init: RequestInit, name: string): string | null {
+  return new Headers(init.headers).get(name)
+}
+
 function jsonResponse(body: TokenJson, status = 201): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -75,10 +79,9 @@ describe('createDataExchangeApi — mintToken', () => {
     expect(JSON.parse(requestBodyText(init.body))).toEqual({
       requested_permissions: ['highlights'],
     })
-    const headers = new Headers(init.headers)
-    expect(headers.get('Authorization')).toBe('Bearer tok')
-    expect(headers.get('X-YVP-App-Key')).toBe('appkey')
-    expect(headers.get('X-YVP-Installation-Id')).toBe('inst-1')
+    expect(header(init, 'Authorization')).toBe('Bearer tok')
+    expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+    expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
   })
 
   it('falls back to the default API host when none is configured', async () => {

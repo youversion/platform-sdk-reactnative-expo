@@ -1,6 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
-import { useMemo, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
@@ -22,18 +22,15 @@ function BibleReaderSettingsSheetImpl({
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
 
-  const { onFontIncreased, onFontDecreased, onFontSelected, onChangeLineSpacing } = useMemo(
-    () =>
-      createBibleThemeSettingsContentHandlers({
-        getFontSize: () => useReaderSettingsStore.getState().fontSize,
-        getFontFamily: () => useReaderSettingsStore.getState().fontFamily,
-        getLineSpacing: () => useReaderSettingsStore.getState().lineSpacing,
-        setFontSize,
-        setFontFamily,
-        setLineSpacing,
-      }),
-    [setFontSize, setFontFamily, setLineSpacing],
-  )
+  const { onFontIncreased, onFontDecreased, onFontSelected, onChangeLineSpacing } =
+    createBibleThemeSettingsContentHandlers({
+      getFontSize: () => useReaderSettingsStore.getState().fontSize,
+      getFontFamily: () => useReaderSettingsStore.getState().fontFamily,
+      getLineSpacing: () => useReaderSettingsStore.getState().lineSpacing,
+      setFontSize,
+      setFontFamily,
+      setLineSpacing,
+    })
 
   const BibleReaderSettingsDOM = getImpl('BibleReaderSettings')
 

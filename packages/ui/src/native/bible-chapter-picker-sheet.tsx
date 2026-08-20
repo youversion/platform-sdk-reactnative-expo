@@ -1,7 +1,7 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
-import { useCallback, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useTheme } from '../hooks/use-theme'
@@ -47,9 +47,9 @@ function BibleChapterPickerSheetImpl({
   // rather than an effect — see https://react.dev/learn/you-might-not-need-an-effect.
   const [resetKey, setResetKey] = useState(0)
   const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
-  const handleDismissKeyboardStart = useCallback(() => {
+  const handleDismissKeyboardStart = () => {
     setDismissKeyboardNonce((n) => n + 1)
-  }, [])
+  }
 
   const handleClose = () => {
     setResetKey((k) => k + 1)
