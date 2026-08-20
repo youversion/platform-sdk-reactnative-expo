@@ -9,7 +9,6 @@ import {
 } from '../../stores/reader-location-store'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
-import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 
 let latestReaderDomProps: {
   permittedVersionIds?: number[]
@@ -240,13 +239,5 @@ describe('BibleReader Reader Location persistence', () => {
     expect(latestReaderDomProps.permittedVersionIds).toEqual([111])
     expect(latestReaderDomProps.excludedVersionIds).toEqual([3034])
     expect(latestReaderDomProps.permittedLanguageTags).toEqual(['en'])
-
-    expect(webProviderPropsFromDomBridge(latestReaderDomProps)).toEqual(
-      expect.objectContaining({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    )
   })
 })

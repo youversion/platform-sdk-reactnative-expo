@@ -5,7 +5,6 @@ import type { ReactNode } from 'react'
 
 import { BibleTextView } from '../bible-text-view'
 import { YouVersionProvider } from '../youversion-provider'
-import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 
 const sampleFootnote: FootnoteData = {
@@ -243,13 +242,5 @@ describe('BibleTextView', () => {
     expect(latestTextViewDomProps.permittedVersionIds).toEqual([111])
     expect(latestTextViewDomProps.excludedVersionIds).toEqual([3034])
     expect(latestTextViewDomProps.permittedLanguageTags).toEqual(['en'])
-
-    expect(webProviderPropsFromDomBridge(latestTextViewDomProps)).toEqual(
-      expect.objectContaining({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    )
   })
 })

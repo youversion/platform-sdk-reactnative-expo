@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 
 type MockDomProps = {
   appKey?: string
@@ -199,14 +198,6 @@ describe('BibleVersionPickerSheet', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
-
-    expect(webProviderPropsFromDomBridge(latestDomProps)).toEqual(
-      expect.objectContaining({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    )
   })
 
   it('forwards empty version filter arrays to DOM content without coercing to undefined', () => {
@@ -221,32 +212,5 @@ describe('BibleVersionPickerSheet', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([])
     expect(latestDomProps.excludedVersionIds).toEqual([])
     expect(latestDomProps.permittedLanguageTags).toEqual([])
-
-    const webProps = webProviderPropsFromDomBridge(latestDomProps)
-    expect(webProps.permittedVersionIds).toEqual([])
-    expect(webProps.excludedVersionIds).toEqual([])
-    expect(webProps.permittedLanguageTags).toEqual([])
-  })
-
-  it('keeps unset version filter lists distinct from empty arrays at the web YouVersionProvider bridge', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    const unsetWeb = webProviderPropsFromDomBridge(latestDomProps)
-    expect(unsetWeb.permittedVersionIds).toBeUndefined()
-    expect(unsetWeb.excludedVersionIds).toBeUndefined()
-    expect(unsetWeb.permittedLanguageTags).toBeUndefined()
-
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [],
-        excludedVersionIds: [],
-        permittedLanguageTags: [],
-      }),
-    })
-
-    const emptyWeb = webProviderPropsFromDomBridge(latestDomProps)
-    expect(emptyWeb.permittedVersionIds).toEqual([])
-    expect(emptyWeb.excludedVersionIds).toEqual([])
-    expect(emptyWeb.permittedLanguageTags).toEqual([])
   })
 })

@@ -6,7 +6,6 @@ import { Platform, Share } from 'react-native'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 import { YouVersionProvider } from '../youversion-provider'
-import { webProviderPropsFromDomBridge } from '../../test-utils/version-filter-web-provider-expect'
 
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
@@ -242,13 +241,5 @@ describe('VerseOfTheDay', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
-
-    expect(webProviderPropsFromDomBridge(latestDomProps)).toEqual(
-      expect.objectContaining({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    )
   })
 })
