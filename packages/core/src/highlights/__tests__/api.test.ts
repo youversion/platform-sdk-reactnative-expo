@@ -24,6 +24,10 @@ function jsonResponse(body: unknown, status = 200): Response {
   } as unknown as Response
 }
 
+function header(init: RequestInit, name: string): string | null {
+  return new Headers(init.headers).get(name)
+}
+
 function errorResponse(status: number, body = ''): Response {
   return {
     ok: false,
@@ -70,11 +74,10 @@ describe('createHighlightsApi', () => {
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
       expect(url).toBe('https://api.example.com/v1/highlights?bible_id=111&passage_id=JHN.3')
       expect(init.method).toBe('GET')
-      const headers = init.headers as Record<string, string>
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
-      expect(headers['x-yvp-sdk']).toBe('ReactNativeSDK=1.0.0-dev')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'x-yvp-sdk')).toBe('ReactSDK=2.8.0, ReactNativeSDK=1.0.0-dev')
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {
@@ -155,10 +158,9 @@ describe('createHighlightsApi', () => {
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
       expect(url).toBe('https://api.example.com/v1/highlights')
       expect(init.method).toBe('POST')
-      const headers = init.headers as Record<string, string>
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
       const body = JSON.parse(init.body as string) as {
         request_id: string
         highlight: { bible_id: number; passage_id: string; color: string }
@@ -266,10 +268,9 @@ describe('createHighlightsApi', () => {
       const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
       expect(url).toBe('https://api.example.com/v1/highlights/JHN.3.16?bible_id=111')
       expect(init.method).toBe('DELETE')
-      const headers = init.headers as Record<string, string>
-      expect(headers.Authorization).toBe('Bearer tok')
-      expect(headers['X-YVP-App-Key']).toBe('appkey')
-      expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+      expect(header(init, 'Authorization')).toBe('Bearer tok')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
     })
 
     it('returns auth failure for 403', async () => {
