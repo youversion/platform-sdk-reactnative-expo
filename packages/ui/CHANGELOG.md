@@ -1,5 +1,21 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.3.0
+
+### Minor Changes
+
+- 7388cbe: feat: paint host highlights on BibleTextView, BibleCard, and VerseOfTheDay
+
+  Subscribe those surfaces at chapter scope and always pass Highlight[] into the DOM so paint uses the native cache.
+
+- f88fd12: Add optional version filter lists to `YouVersionProvider`: `permittedVersionIds`, `excludedVersionIds`, and `permittedLanguageTags`. The UI provider forwards them through native wrappers into each DOM web `YouVersionProvider`. Pin `@youversion/platform-react-ui` and `@youversion/platform-core` to 2.8.0 so the web SDK enforces those lists in Expo DOM WebViews (YPE-4657/YPE-4658).
+
+### Patch Changes
+
+- Updated dependencies [7388cbe]
+- Updated dependencies [f88fd12]
+  - @youversion/platform-react-native-expo-core@1.3.0
+
 ## 1.2.0
 
 ### Minor Changes
