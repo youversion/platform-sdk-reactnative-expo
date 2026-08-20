@@ -3,23 +3,13 @@
 import { ensureDomLocalStorage } from './dom-local-storage'
 
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
-import { createElement, type ComponentProps, type ComponentType } from 'react'
+import { createElement, type ComponentProps } from 'react'
 
 import { getSdkHeaders } from './sdk-version'
 
 ensureDomLocalStorage()
 
-// `additionalHeaders` ships in the next Web SDK release; widen the prop type
-// locally until that publishes. Same for version filter lists (YPE-4657).
-type BaseProps = ComponentProps<typeof BaseYouVersionProvider>
-type ProviderProps = BaseProps & {
-  additionalHeaders?: Record<string, string>
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-}
-
-const TypedProvider = BaseYouVersionProvider as ComponentType<ProviderProps>
+type ProviderProps = ComponentProps<typeof BaseYouVersionProvider>
 
 // Header set is constant for the life of the bundle, so compute it once.
 const SDK_HEADERS = getSdkHeaders()
@@ -29,7 +19,7 @@ const SDK_HEADERS = getSdkHeaders()
 // SDK-attribution headers must always reach the data lake intact, so they
 // override any consumer-supplied entry on the same key.
 export function YouVersionProvider({ additionalHeaders, ...rest }: ProviderProps) {
-  return createElement(TypedProvider, {
+  return createElement(BaseYouVersionProvider, {
     ...rest,
     additionalHeaders: { ...additionalHeaders, ...SDK_HEADERS },
   })

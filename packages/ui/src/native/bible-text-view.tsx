@@ -12,6 +12,7 @@ import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
+import { useLocale } from '../i18n/locale-context'
 
 // Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
@@ -32,6 +33,7 @@ export function BibleTextView({
   ...domProps
 }: BibleTextViewProps) {
   const context = useYouVersion()
+  const { lng } = useLocale()
   const themeContext = useTheme()
   const theme = domProps.theme ?? themeContext
   const colorScheme = useColorScheme()
@@ -65,6 +67,7 @@ export function BibleTextView({
             permittedVersionIds={context.permittedVersionIds}
             excludedVersionIds={context.excludedVersionIds}
             permittedLanguageTags={context.permittedLanguageTags}
+            locale={lng}
             highlights={highlights}
             theme={theme}
             onFootnotePress={onFootnotePress}
@@ -85,6 +88,7 @@ export function BibleTextView({
                 appKey={context.appKey}
                 apiHost={context.apiHost}
                 installationId={context.installationId}
+                locale={lng}
               />
             </NativeSheet>
           )}

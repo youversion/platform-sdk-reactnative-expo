@@ -5,9 +5,17 @@ import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 let latestDomProps: {
   theme?: string
   resetKey?: number
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -26,6 +34,7 @@ jest.mock('../../dom/chapter-picker-content', () => {
       permittedVersionIds?: number[]
       excludedVersionIds?: number[]
       permittedLanguageTags?: string[]
+      locale?: string
       onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
     }) {
       latestDomProps = props
@@ -104,6 +113,7 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
   })
 
   it('fires onSelect with picker selection data and closes the sheet', async () => {
@@ -221,5 +231,25 @@ describe('BibleChapterPickerSheet', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([])
     expect(latestDomProps.excludedVersionIds).toEqual([])
     expect(latestDomProps.permittedLanguageTags).toEqual([])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to DOM content', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider appKey="test-key" theme="light" locale="es">
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 })

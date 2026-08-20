@@ -11,6 +11,7 @@ import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -29,7 +30,9 @@ export type ChapterPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-type ChapterPickerContentInternalProps = ChapterPickerContentDOMProps & InternalVersionFilterProps
+type ChapterPickerContentInternalProps = ChapterPickerContentDOMProps &
+  InternalVersionFilterProps &
+  InternalLocaleProps
 
 export default function ChapterPickerContentDOM({
   appKey,
@@ -44,6 +47,7 @@ export default function ChapterPickerContentDOM({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
 }: ChapterPickerContentInternalProps) {
   useDismissKeyboardOnClose(isOpen)
   useDismissKeyboardOnSignal(dismissKeyboardNonce)
@@ -69,6 +73,7 @@ export default function ChapterPickerContentDOM({
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       <style>{chapterPickerStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-chapter-picker-shell>

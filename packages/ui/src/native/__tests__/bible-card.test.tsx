@@ -14,6 +14,13 @@ import {
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
   notes: [],
@@ -77,6 +84,7 @@ jest.mock('../../dom/footnote-content', () => {
 
 let latestDomProps: {
   dom?: { matchContents?: boolean; containerStyle?: unknown }
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -92,6 +100,7 @@ jest.mock('../../dom/bible-card', () => {
       reference?: string
       versionId?: number
       theme?: string
+      locale?: string
       dom?: { matchContents?: boolean; containerStyle?: unknown }
       onFootnotePress?: (data: FootnoteData) => Promise<void>
     }) {
@@ -125,6 +134,7 @@ describe('BibleCard', () => {
 
   beforeEach(async () => {
     latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
     useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
     await useBibleCardVersionStore.persist.rehydrate()
@@ -177,6 +187,22 @@ describe('BibleCard', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: wrapper('light', 'es'),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, { wrapper: wrapper() })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {

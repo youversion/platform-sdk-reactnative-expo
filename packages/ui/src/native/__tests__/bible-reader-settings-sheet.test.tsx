@@ -12,6 +12,17 @@ import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
+let latestDomProps: {
+  locale?: string
+} = {}
+
 // Stub the Expo DOM wrapper so we can assert orchestration without spinning
 // up a WebView. The mock exposes the same handler props as testIDs so tests
 // can invoke them directly.
@@ -24,11 +35,13 @@ jest.mock('../../dom/bible-reader-settings', () => {
       fontSize: number
       fontFamily: string
       lineSpacing: number
+      locale?: string
       onFontIncreased: () => Promise<void>
       onFontDecreased: () => Promise<void>
       onFontSelected: (next: string) => Promise<void>
       onLineSpacingChange: () => Promise<void>
     }) {
+      latestDomProps = props
       return (
         <V testID="mock-dom">
           <T testID="font-size">{String(props.fontSize)}</T>
@@ -99,6 +112,8 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 
 describe('BibleReaderSettingsSheet', () => {
   beforeEach(() => {
+    latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     mmkvStorage.clearAll()
     useReaderSettingsStore.setState({
       fontSize: BIBLE_READER_FONT.DEFAULT,
@@ -166,5 +181,25 @@ describe('BibleReaderSettingsSheet', () => {
       'props.children',
       String(READER_LINE_SPACING.LG),
     )
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<SheetHarness isOpen />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider appKey="test-key" theme="light" locale="es">
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<SheetHarness isOpen />, { wrapper })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 })

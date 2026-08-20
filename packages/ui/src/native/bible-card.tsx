@@ -9,6 +9,7 @@ import BibleCardDOM from '../dom/bible-card'
 import FootnoteContent from '../dom/footnote-content'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
@@ -16,6 +17,7 @@ import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
 import { useTheme, type Theme } from '../hooks/use-theme'
+import { useLocale } from '../i18n/locale-context'
 
 // Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
@@ -53,7 +55,8 @@ type BibleCardBodyProps = Omit<
   | 'onFootnotePress'
   | 'showVersionPicker'
 > &
-  InternalVersionFilterProps & {
+  InternalVersionFilterProps &
+  InternalLocaleProps & {
     highlights: Highlight[]
     appKey: string
     apiHost: string
@@ -81,6 +84,7 @@ function BibleCardBody({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
   resolvedTheme,
   versionId,
   onVersionChange,
@@ -109,6 +113,7 @@ function BibleCardBody({
         permittedVersionIds={permittedVersionIds}
         excludedVersionIds={excludedVersionIds}
         permittedLanguageTags={permittedLanguageTags}
+        locale={locale}
         theme={resolvedTheme}
         versionId={versionId}
         onVersionChange={onVersionChange}
@@ -139,6 +144,7 @@ function BibleCardBody({
             appKey={appKey}
             apiHost={apiHost}
             installationId={installationId}
+            locale={locale}
           />
         </NativeSheet>
       )}
@@ -159,6 +165,7 @@ export function BibleCard({
   ...props
 }: BibleCardProps) {
   const context = useYouVersion()
+  const { lng } = useLocale()
   const resolvedTheme = useTheme(themeOverride)
 
   // This mimics how it's done in the React Web SDK.
@@ -235,6 +242,7 @@ export function BibleCard({
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}
+          locale={lng}
           resolvedTheme={resolvedTheme}
           versionId={versionId}
           onVersionChange={handleVersionChange}

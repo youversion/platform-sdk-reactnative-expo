@@ -7,6 +7,7 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -25,7 +26,7 @@ export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
   dom?: import('expo/dom').DOMProps
 }
 
-type VerseOfTheDayDOMProps = VerseOfTheDayProps & InternalVersionFilterProps
+type VerseOfTheDayDOMProps = VerseOfTheDayProps & InternalVersionFilterProps & InternalLocaleProps
 
 export default function VerseOfTheDayDOM({
   appKey,
@@ -37,6 +38,7 @@ export default function VerseOfTheDayDOM({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
   ...props
 }: VerseOfTheDayDOMProps) {
   applySDKConfig({ appKey, apiHost, installationId })
@@ -65,6 +67,7 @@ export default function VerseOfTheDayDOM({
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       <ContentSizedBody />
       <VerseOfTheDay {...props} highlights={safeHighlights} onShare={onShare} />

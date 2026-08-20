@@ -19,6 +19,7 @@ const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
 type RenderedProps = {
   additionalHeaders?: Record<string, string>
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -33,13 +34,19 @@ function renderShim(props: Record<string, unknown>): RenderedProps {
   return element.props
 }
 
-const DOM_ENTRIES = [
+const VERSION_FILTER_DOM_ENTRIES = [
   'bible-card.tsx',
   'bible-reader.tsx',
   'bible-text-view.tsx',
   'verse-of-the-day.tsx',
   'bible-version-picker-content.tsx',
   'chapter-picker-content.tsx',
+] as const
+
+const DOM_ENTRIES = [
+  ...VERSION_FILTER_DOM_ENTRIES,
+  'bible-reader-settings.tsx',
+  'footnote-content.tsx',
 ] as const
 
 describe('web YouVersionProvider', () => {
@@ -83,6 +90,10 @@ describe('web YouVersionProvider', () => {
     )
   })
 
+  it('forwards locale to the web YouVersionProvider', () => {
+    expect(renderShim({ locale: 'es' })).toEqual(expect.objectContaining({ locale: 'es' }))
+  })
+
   it('forwards empty version filter arrays without coercing to undefined', () => {
     const props = renderShim({
       permittedVersionIds: [],
@@ -97,7 +108,7 @@ describe('web YouVersionProvider', () => {
   // Layer-3 mocks replace every `'use dom'` entry, so nothing observes whether
   // those files pass filter lists into web YouVersionProvider. Source asserts
   // (same pattern as bible-reader-highlights-bridge) close that seam.
-  it.each(DOM_ENTRIES)(
+  it.each(VERSION_FILTER_DOM_ENTRIES)(
     '%s source forwards version filter lists onto web YouVersionProvider',
     (filename) => {
       const source = readFileSync(join(__dirname, '../../dom', filename), 'utf8')
@@ -106,4 +117,9 @@ describe('web YouVersionProvider', () => {
       expect(source).toMatch(/^\s*permittedLanguageTags=\{permittedLanguageTags\}$/m)
     },
   )
+
+  it.each(DOM_ENTRIES)('%s source forwards locale onto web YouVersionProvider', (filename) => {
+    const source = readFileSync(join(__dirname, '../../dom', filename), 'utf8')
+    expect(source).toMatch(/locale=\{locale\}/)
+  })
 })
