@@ -9,6 +9,10 @@ beforeEach(() => {
   global.fetch = mockFetch as unknown as typeof fetch
 })
 
+function header(init: RequestInit, name: string): string | null {
+  return new Headers(init.headers).get(name)
+}
+
 function jsonResponse(body: unknown, status = 201): Response {
   return {
     ok: status >= 200 && status < 300,
@@ -51,10 +55,9 @@ describe('createDataExchangeApi — mintToken', () => {
     expect(url).toBe('https://api.example.com/data-exchange/token?app-key=appkey')
     expect(init.method).toBe('POST')
     expect(JSON.parse(init.body as string)).toEqual({ requested_permissions: ['highlights'] })
-    const headers = init.headers as Record<string, string>
-    expect(headers.Authorization).toBe('Bearer tok')
-    expect(headers['X-YVP-App-Key']).toBe('appkey')
-    expect(headers['X-YVP-Installation-Id']).toBe('inst-1')
+    expect(header(init, 'Authorization')).toBe('Bearer tok')
+    expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+    expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
   })
 
   it('falls back to the default API host when none is configured', async () => {
