@@ -29,6 +29,8 @@ export default function RootLayout() {
           // permittedVersionIds={[111, 206]}
           // excludedVersionIds={[3034]}
           // permittedLanguageTags={['en', 'zh-Hans']}
+          // Optional locale override (resolved lng is forwarded into each DOM web provider):
+          // locale="es"
         >
           <Stack screenOptions={{ headerShown: false }} />
         </YouVersionProvider>
