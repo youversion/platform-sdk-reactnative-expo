@@ -1,7 +1,7 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Platform } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
@@ -188,32 +188,23 @@ export function BibleCard({
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
-  const handleVersionChange = useCallback(
-    async (newVersionId: number) => {
-      setVersionId(newVersionId)
-    },
-    [setVersionId],
-  )
+  const handleVersionChange = async (newVersionId: number) => {
+    setVersionId(newVersionId)
+  }
 
-  const handleVersionPickerPress = useCallback(
-    async (_data: BibleVersionPickerPressData) => {
-      if (Platform.OS === 'web') return
-      if (!showVersionPicker) return
-      if (consumerOnVersionPickerPress) {
-        await consumerOnVersionPickerPress(_data)
-      } else {
-        setIsVersionPickerOpen(true)
-      }
-    },
-    [consumerOnVersionPickerPress, setIsVersionPickerOpen, showVersionPicker],
-  )
+  const handleVersionPickerPress = async (_data: BibleVersionPickerPressData) => {
+    if (Platform.OS === 'web') return
+    if (!showVersionPicker) return
+    if (consumerOnVersionPickerPress) {
+      await consumerOnVersionPickerPress(_data)
+    } else {
+      setIsVersionPickerOpen(true)
+    }
+  }
 
-  const handleFootnotePress = useCallback(
-    async (data: FootnoteData) => {
-      setFootnoteData(data)
-    },
-    [setFootnoteData],
-  )
+  const handleFootnotePress = async (data: FootnoteData) => {
+    setFootnoteData(data)
+  }
 
   const onFootnotePress =
     Platform.OS !== 'web' ? (consumerOnFootnotePress ?? handleFootnotePress) : undefined

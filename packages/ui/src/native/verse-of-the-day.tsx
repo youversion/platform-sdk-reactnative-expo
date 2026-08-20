@@ -1,6 +1,6 @@
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
@@ -34,20 +34,17 @@ export function VerseOfTheDay({
   const passageId = useVerseOfTheDayPassageId(dayOfYear)
   const scope = highlightScopeFor(passageId, versionId)
 
-  const handleShare = useCallback(
-    async (data: VerseOfTheDayShareData) => {
-      try {
-        if (consumerOnShare) {
-          await consumerOnShare(data)
-          return
-        }
-        await Share.share({ message: data.text })
-      } catch (error) {
-        console.error('VerseOfTheDay share failed:', error)
+  const handleShare = async (data: VerseOfTheDayShareData) => {
+    try {
+      if (consumerOnShare) {
+        await consumerOnShare(data)
+        return
       }
-    },
-    [consumerOnShare],
-  )
+      await Share.share({ message: data.text })
+    } catch (error) {
+      console.error('VerseOfTheDay share failed:', error)
+    }
+  }
 
   const onShare = Platform.OS !== 'web' ? handleShare : undefined
 

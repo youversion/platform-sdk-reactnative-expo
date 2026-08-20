@@ -28,15 +28,12 @@ export default function HighlightQueueDrainHost() {
   // scope from this same context afterwards. The forced retry uses the same
   // accessor with `{ force: true }` so a silent mint failure cannot look like
   // a freshly minted token.
-  const ensureFreshToken = useMemo(
-    () =>
-      getAccessToken === null
-        ? null
-        : async () => {
-            await getAccessToken()
-          },
-    [getAccessToken],
-  )
+  const ensureFreshToken =
+    getAccessToken === null
+      ? null
+      : async () => {
+          await getAccessToken()
+        }
 
   const authRef = useRef<DrainAuth>({ userId, accessToken, ensureFreshToken, getAccessToken })
   // Declared before the effects that read it: effects run in order, so the drain
