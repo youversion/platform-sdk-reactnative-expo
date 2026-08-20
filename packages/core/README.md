@@ -54,6 +54,27 @@ export default function App() {
 }
 ```
 
+### Version filter
+
+Optional lists on `YouVersionProvider` restrict which Bible versions and languages the SDK may use. They are stored on the provider context and forwarded into each DOM component's web `YouVersionProvider` for the web SDK to enforce.
+
+- `permittedVersionIds?: number[]` — unset means no restriction; `[]` means permit nothing
+- `excludedVersionIds?: number[]` — exclusion wins over permits
+- `permittedLanguageTags?: string[]` — BCP 47 tags (e.g. `en`, `zh-Hans`)
+
+Native chrome does not auto-pick another version or rewrite persisted reader location when a stored or host `versionId` is refused. The id is still passed into the WebView; the web SDK handles version refuse. First-open defaults when there is no stored or host id are unchanged.
+
+```tsx
+<YouVersionProvider
+  appKey="YOUR_APP_KEY"
+  permittedVersionIds={[111, 206]}
+  excludedVersionIds={[3034]}
+  permittedLanguageTags={['en']}
+>
+  {/* ... */}
+</YouVersionProvider>
+```
+
 ### Permissions
 
 `auth.permissions` asks for YouVersion Platform permissions (e.g. `'highlights'`) at sign-in; the user can decline. Read the grant back with `useYVAuth()`: `hasPermission(permission)`, or `grantedPermissions` for the list (`null` = nothing requested or nothing known yet, `[]` = declined).

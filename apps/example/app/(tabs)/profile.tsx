@@ -24,7 +24,9 @@ export default function ProfileScreen() {
           ) : null}
           <Text style={[styles.muted, { color: theme.muted }]}>You are signed in as</Text>
           <Text style={[styles.name, { color: theme.fg }]}>{userInfo?.name ?? '(no name)'}</Text>
-          <Text style={[styles.email, { color: theme.email }]}>{userInfo?.email ?? '(no email)'}</Text>
+          <Text style={[styles.email, { color: theme.email }]}>
+            {userInfo?.email ?? '(no email)'}
+          </Text>
           <View style={styles.button}>
             <YouVersionAuthButton mode="signOut" background={colorScheme} outline />
           </View>

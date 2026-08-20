@@ -187,7 +187,7 @@ afterAll(() => {
   useHighlightsSpy.mockRestore()
 })
 
-describe('the controlled-mode latch', () => {
+describe('the Controlled Highlights Latch', () => {
   it('hands the DOM component an array on the very first render', () => {
     render(<BibleReader />, { wrapper })
 

@@ -11,6 +11,7 @@ import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type ChapterPickerContentDOMProps = {
@@ -28,6 +29,8 @@ export type ChapterPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
+type ChapterPickerContentInternalProps = ChapterPickerContentDOMProps & InternalVersionFilterProps
+
 export default function ChapterPickerContentDOM({
   appKey,
   book,
@@ -38,7 +41,10 @@ export default function ChapterPickerContentDOM({
   dismissKeyboardNonce,
   resetKey,
   onSelect,
-}: ChapterPickerContentDOMProps) {
+  permittedVersionIds,
+  excludedVersionIds,
+  permittedLanguageTags,
+}: ChapterPickerContentInternalProps) {
   useDismissKeyboardOnClose(isOpen)
   useDismissKeyboardOnSignal(dismissKeyboardNonce)
 
@@ -57,7 +63,13 @@ export default function ChapterPickerContentDOM({
   }, [isOpen])
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider
+      appKey={appKey}
+      theme={theme}
+      permittedVersionIds={permittedVersionIds}
+      excludedVersionIds={excludedVersionIds}
+      permittedLanguageTags={permittedLanguageTags}
+    >
       <style>{chapterPickerStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-chapter-picker-shell>
         {/* key remounts the picker tree when resetKey changes (on sheet close) to clear scroll and filter state */}

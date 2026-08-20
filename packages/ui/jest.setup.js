@@ -108,14 +108,24 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
 
   const TestContext = React.createContext(null)
 
-  function YouVersionProvider({ appKey, apiHost, children }) {
+  function YouVersionProvider({
+    appKey,
+    apiHost,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+    children,
+  }) {
     const value = React.useMemo(
       () => ({
         appKey,
         apiHost: apiHost ?? 'https://api.youversion.com',
         installationId: 'test-installation-id',
+        permittedVersionIds,
+        excludedVersionIds,
+        permittedLanguageTags,
       }),
-      [appKey, apiHost],
+      [appKey, apiHost, permittedVersionIds, excludedVersionIds, permittedLanguageTags],
     )
     return React.createElement(TestContext.Provider, { value }, children)
   }
@@ -183,6 +193,30 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     }
   }
 
+  /**
+   * The real hook relatively imports `useHighlights`, which would bypass a
+   * barrel spy. Delegate so `jest.spyOn(core, 'useHighlights')` still sees
+   * chapter-scope (and dummy-scope `enabled: false`) calls. A null scope
+   * yields `[]` so Controlled Highlights Latch holds and other-scope rows
+   * cannot paint.
+   */
+  function useHighlightPaint(scope) {
+    const enabled = scope !== null
+    let versionId = 1
+    let book = '_'
+    let chapter = '0'
+    if (enabled) {
+      versionId = scope.versionId
+      book = scope.book
+      chapter = scope.chapter
+    }
+    const { highlights } = mocked.useHighlights({ versionId, book, chapter, enabled })
+    if (!enabled) {
+      return []
+    }
+    return highlights
+  }
+
   const mocked = {
     // Babel defines the real module's `__esModule` non-enumerably, so the spread
     // above drops it. Without it back, `import * as core` runs through
@@ -195,6 +229,7 @@ jest.mock('@youversion/platform-react-native-expo-core', () => {
     useYouVersion,
     useYVAuth,
     useHighlights,
+    useHighlightPaint,
     useHighlightPermissionFlow,
   }
 

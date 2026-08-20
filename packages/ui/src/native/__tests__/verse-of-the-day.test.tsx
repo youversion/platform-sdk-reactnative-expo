@@ -1,10 +1,18 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 import { Platform, Share } from 'react-native'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
+import { getDayOfYear, getVerseOfTheDayPassageId } from '../verse-of-the-day-api'
+import { YouVersionProvider } from '../youversion-provider'
+
+jest.mock('../verse-of-the-day-api', () => ({
+  ...jest.requireActual('../verse-of-the-day-api'),
+  getVerseOfTheDayPassageId: jest.fn(async () => null),
+}))
 
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
@@ -15,7 +23,11 @@ const sampleShareData: VerseOfTheDayShareData = {
 let latestDomProps: {
   appKey?: string
   versionId?: number
+  dayOfYear?: number
   theme?: string
+  permittedVersionIds?: number[]
+  excludedVersionIds?: number[]
+  permittedLanguageTags?: string[]
   dom?: { matchContents?: boolean; containerStyle?: unknown }
   onShare?: (data: VerseOfTheDayShareData) => Promise<void>
 } = {}
@@ -28,7 +40,11 @@ jest.mock('../../dom/verse-of-the-day', () => {
     default: function MockVerseOfTheDayDOM(props: {
       appKey: string
       versionId?: number
+      dayOfYear?: number
       theme?: string
+      permittedVersionIds?: number[]
+      excludedVersionIds?: number[]
+      permittedLanguageTags?: string[]
       dom?: { matchContents?: boolean }
       onShare?: (data: VerseOfTheDayShareData) => Promise<void>
     }) {
@@ -62,6 +78,7 @@ describe('VerseOfTheDay', () => {
   beforeEach(() => {
     latestDomProps = {}
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
+    jest.mocked(getVerseOfTheDayPassageId).mockClear()
   })
 
   afterEach(() => {
@@ -214,5 +231,58 @@ describe('VerseOfTheDay', () => {
       fireEvent.press(getByTestId('mock-share-trigger'))
     })
     expect(Share.share).not.toHaveBeenCalled()
+  })
+
+  it('pins a sampled local calendar day on the lookup and the DOM', () => {
+    jest.useFakeTimers({ now: new Date(2026, 5, 20) })
+
+    try {
+      render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+
+      const dayOfYear = getDayOfYear(new Date())
+      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+        expect.objectContaining({ appKey: 'test-key' }),
+        dayOfYear,
+      )
+      expect(latestDomProps.dayOfYear).toBe(dayOfYear)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('uses a consumer dayOfYear for both the lookup and the DOM', () => {
+    jest.useFakeTimers({ now: new Date(2026, 5, 20) })
+
+    try {
+      render(<VerseOfTheDay versionId={3034} dayOfYear={1} />, { wrapper: wrapper() })
+
+      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+        expect.objectContaining({ appKey: 'test-key' }),
+        1,
+      )
+      expect(latestDomProps.dayOfYear).toBe(1)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
+    render(<VerseOfTheDay versionId={3034} />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          permittedVersionIds={[111]}
+          excludedVersionIds={[3034]}
+          permittedLanguageTags={['en']}
+        >
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(latestDomProps.permittedVersionIds).toEqual([111])
+    expect(latestDomProps.excludedVersionIds).toEqual([3034])
+    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
   })
 })
