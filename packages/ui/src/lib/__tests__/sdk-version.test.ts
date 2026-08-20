@@ -1,5 +1,5 @@
 import pkg from '../../../package.json'
-import { SDK_VERSION, getSdkHeaders } from '../sdk-version'
+import { SDK_VERSION, getSdkHeaders, mergeSdkHeaders } from '../sdk-version'
 
 describe('sdk-version', () => {
   it('suffixes SDK_VERSION with -dev for non-published builds', () => {
@@ -12,6 +12,19 @@ describe('sdk-version', () => {
   })
 
   it('returns the x-yvp-sdk header in ReactNativeSDK={version}-dev form', () => {
-    expect(getSdkHeaders()).toEqual({ 'x-yvp-sdk': `ReactNativeSDK=${pkg.version}-dev` })
+    expect(getSdkHeaders()).toEqual({ 'X-YVP-Sdk': `ReactNativeSDK=${pkg.version}-dev` })
+  })
+
+  it('drops consumer x-yvp-sdk keys so Headers cannot combine them with the SDK stamp', () => {
+    expect(
+      mergeSdkHeaders({
+        'x-yvp-sdk': 'hacked',
+        'X-YVP-Sdk': 'also-hacked',
+        'x-custom': 'ok',
+      }),
+    ).toEqual({
+      'x-custom': 'ok',
+      'X-YVP-Sdk': `ReactNativeSDK=${pkg.version}-dev`,
+    })
   })
 })

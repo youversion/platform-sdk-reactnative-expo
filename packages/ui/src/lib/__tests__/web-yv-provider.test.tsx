@@ -52,13 +52,13 @@ const DOM_ENTRIES = [
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {
     expect(renderShim({}).additionalHeaders).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
     })
   })
 
   it('preserves consumer additionalHeaders on non-colliding keys', () => {
     expect(renderShim({ additionalHeaders: { 'x-custom': 'ok' } }).additionalHeaders).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })
@@ -69,7 +69,7 @@ describe('web YouVersionProvider', () => {
         additionalHeaders: { 'x-yvp-sdk': 'hacked', 'x-custom': 'ok' },
       }).additionalHeaders,
     ).toEqual({
-      'x-yvp-sdk': SDK_HEADER_VALUE,
+      'X-YVP-Sdk': SDK_HEADER_VALUE,
       'x-custom': 'ok',
     })
   })

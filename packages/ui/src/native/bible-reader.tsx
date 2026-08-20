@@ -325,24 +325,21 @@ export function BibleReader({
     setPrompt(NO_PROMPT)
   }
 
-  const handleVerseSelect = useCallback(
-    async (next: BibleReaderVerseSelection) => {
-      // A new non-empty selection is the user picking other verses. Drop a
-      // held tap so settle cannot prompt for the old ones. An empty payload is
-      // our own `closeVerseActions` after the swatch press — keep the hold.
-      if (next.verses.length > 0 && prompt.kind === 'none' && pendingIntentRef.current !== null) {
-        pendingIntentRef.current = null
-      }
-      setVerseSelection(next.verses.length > 0 ? next : null)
-      await onVerseSelect?.(next)
-    },
-    [onVerseSelect, prompt.kind],
-  )
+  const handleVerseSelect = async (next: BibleReaderVerseSelection) => {
+    // A new non-empty selection is the user picking other verses. Drop a
+    // held tap so settle cannot prompt for the old ones. An empty payload is
+    // our own `closeVerseActions` after the swatch press — keep the hold.
+    if (next.verses.length > 0 && prompt.kind === 'none' && pendingIntentRef.current !== null) {
+      pendingIntentRef.current = null
+    }
+    setVerseSelection(next.verses.length > 0 ? next : null)
+    await onVerseSelect?.(next)
+  }
 
-  const closeVerseActions = useCallback(() => {
+  const closeVerseActions = () => {
     setVerseSelection(null)
     setInternalClearCount((count) => count + 1)
-  }, [])
+  }
 
   // Which circles the tray shows, projected from the same painted array the
   // WebView renders. A swatch can never disagree with the passage behind it.
@@ -371,78 +368,65 @@ export function BibleReader({
     )
   }, [applyHighlight, onHighlightError, versionId, book, chapter])
 
-  const handleSwatchPress = useCallback(
-    (swatch: VerseActionSwatch) => {
-      const verses = verseSelection?.verses ?? []
-      // Read the selection first: closing drops the mirror this reads from.
-      closeVerseActions()
-      if (verses.length === 0) return
-      // `remove` goes straight to the unguarded write: a user looking at a
-      // highlight already has the permissions it needs (ADR 0016).
-      if (swatch.state === 'remove') {
-        void removeHighlight(swatch.color, verses).then((outcome) =>
+  const handleSwatchPress = (swatch: VerseActionSwatch) => {
+    const verses = verseSelection?.verses ?? []
+    // Read the selection first: closing drops the mirror this reads from.
+    closeVerseActions()
+    if (verses.length === 0) return
+    // `remove` goes straight to the unguarded write: a user looking at a
+    // highlight already has the permissions it needs (ADR 0016).
+    if (swatch.state === 'remove') {
+      void removeHighlight(swatch.color, verses).then((outcome) =>
+        reportHighlightWriteError(outcome, onHighlightError),
+      )
+      return
+    }
+    switch (authGate) {
+      case 'settling':
+      case 'signed-out': {
+        // The flow calls `signIn()` with no UI of its own, so the reader owns
+        // this pre-step: hold the intent, ask, hand it over on confirm.
+        // While bootstrap is still settling, hold the intent and wait. Opening
+        // the sheet now would prompt a stored session; applying now would drop
+        // a signed-out tap after the write reverts.
+        pendingIntentRef.current = {
+          color: swatch.color,
+          verses,
+          scope: { versionId, book, chapter },
+        }
+        if (authGate === 'signed-out') {
+          setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+        }
+        return
+      }
+      case 'unconfigured':
+      case 'ready':
+        // Fire-and-forget: the paint is optimistic inside `useHighlights`, so
+        // the verse changes color on this frame instead of after the round-trip.
+        void applyHighlight(swatch.color, verses).then((outcome) =>
           reportHighlightWriteError(outcome, onHighlightError),
         )
         return
+      default: {
+        const _exhaustive: never = authGate
+        return _exhaustive
       }
-      switch (authGate) {
-        case 'settling':
-        case 'signed-out': {
-          // The flow calls `signIn()` with no UI of its own, so the reader owns
-          // this pre-step: hold the intent, ask, hand it over on confirm.
-          // While bootstrap is still settling, hold the intent and wait. Opening
-          // the sheet now would prompt a stored session; applying now would drop
-          // a signed-out tap after the write reverts.
-          pendingIntentRef.current = {
-            color: swatch.color,
-            verses,
-            scope: { versionId, book, chapter },
-          }
-          if (authGate === 'signed-out') {
-            setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
-          }
-          return
-        }
-        case 'unconfigured':
-        case 'ready':
-          // Fire-and-forget: the paint is optimistic inside `useHighlights`, so
-          // the verse changes color on this frame instead of after the round-trip.
-          void applyHighlight(swatch.color, verses).then((outcome) =>
-            reportHighlightWriteError(outcome, onHighlightError),
-          )
-          return
-        default: {
-          const _exhaustive: never = authGate
-          return _exhaustive
-        }
-      }
-    },
-    [
-      verseSelection,
-      closeVerseActions,
-      removeHighlight,
-      applyHighlight,
-      authGate,
-      onHighlightError,
-      versionId,
-      book,
-      chapter,
-    ],
-  )
+    }
+  }
 
-  const handleSignInConfirm = useCallback(() => {
+  const handleSignInConfirm = () => {
     setPrompt(NO_PROMPT)
     // Straight back into the flow, which signs in, asks for consent if the grant
     // is still missing, and writes. The user never reselects the verse.
     replayPendingIntent()
-  }, [replayPendingIntent])
+  }
 
   // "No Thanks", a swipe-down, a backdrop tap, and displacement all land here.
   // Every one discards the intent, and nothing is written.
-  const handleSignInDismiss = useCallback(() => {
+  const handleSignInDismiss = () => {
     pendingIntentRef.current = null
     setPrompt(NO_PROMPT)
-  }, [])
+  }
 
   useEffect(() => {
     if (authGate === 'unconfigured' || authGate === 'settling') return
@@ -467,30 +451,21 @@ export function BibleReader({
     }
   }, [authGate, prompt.kind, versionId, book, chapter, replayPendingIntent])
 
-  const handleOpenBibleThemeSettings = useCallback(() => {
+  const handleOpenBibleThemeSettings = () => {
     setIsSettingsSheetOpen(true)
-  }, [])
+  }
 
-  const handleBookChange = useCallback(
-    async (b: string) => {
-      setBook(b)
-    },
-    [setBook],
-  )
+  const handleBookChange = async (b: string) => {
+    setBook(b)
+  }
 
-  const handleChapterChange = useCallback(
-    async (c: string) => {
-      setChapter(c)
-    },
-    [setChapter],
-  )
+  const handleChapterChange = async (c: string) => {
+    setChapter(c)
+  }
 
-  const handleVersionChange = useCallback(
-    async (id: number) => {
-      setVersionId(id)
-    },
-    [setVersionId],
-  )
+  const handleVersionChange = async (id: number) => {
+    setVersionId(id)
+  }
 
   const onFootnotePress =
     Platform.OS !== 'web'
@@ -501,80 +476,68 @@ export function BibleReader({
         }))
       : undefined
 
-  const handleChapterPickerPress = useCallback(
-    async (data: BibleChapterPickerPressData) => {
-      if (Platform.OS === 'web' || !showToolbar) return
-      if (consumerOnChapterPickerPress) {
-        await consumerOnChapterPickerPress(data)
-      } else {
-        setIsPickerOpen(true)
-      }
-    },
-    [consumerOnChapterPickerPress, showToolbar],
-  )
+  const handleChapterPickerPress = async (data: BibleChapterPickerPressData) => {
+    if (Platform.OS === 'web' || !showToolbar) return
+    if (consumerOnChapterPickerPress) {
+      await consumerOnChapterPickerPress(data)
+    } else {
+      setIsPickerOpen(true)
+    }
+  }
 
-  const handleVersionPickerPress = useCallback(
-    async (data: BibleVersionPickerPressData) => {
-      if (Platform.OS === 'web' || !showToolbar) return
-      if (consumerOnVersionPickerPress) {
-        await consumerOnVersionPickerPress(data)
-      } else {
-        setIsVersionPickerOpen(true)
-      }
-    },
-    [consumerOnVersionPickerPress, showToolbar],
-  )
+  const handleVersionPickerPress = async (data: BibleVersionPickerPressData) => {
+    if (Platform.OS === 'web' || !showToolbar) return
+    if (consumerOnVersionPickerPress) {
+      await consumerOnVersionPickerPress(data)
+    } else {
+      setIsVersionPickerOpen(true)
+    }
+  }
 
   // The consumer override wins. Otherwise the native fallback runs, because
   // browser defaults do not work inside an Expo DOM WebView.
-  const handleCopy = useCallback(
-    async (data: BibleReaderShareData) => {
-      try {
-        if (consumerOnCopy) {
-          await consumerOnCopy(data)
-          return
-        }
-        await Clipboard.setStringAsync(data.text)
-      } catch (error) {
-        // Swallowed. A failed copy reads to the user like a dismissed sheet,
-        // and there is nothing useful to say about it.
-        console.error('BibleReader copy failed:', error)
+  const handleCopy = async (data: BibleReaderShareData) => {
+    try {
+      if (consumerOnCopy) {
+        await consumerOnCopy(data)
+        return
       }
-    },
-    [consumerOnCopy],
-  )
+      await Clipboard.setStringAsync(data.text)
+    } catch (error) {
+      // Swallowed. A failed copy reads to the user like a dismissed sheet,
+      // and there is nothing useful to say about it.
+      console.error('BibleReader copy failed:', error)
+    }
+  }
 
-  const handleShare = useCallback(
-    async (data: BibleReaderShareData) => {
-      try {
-        if (consumerOnShare) {
-          await consumerOnShare(data)
-          return
-        }
-        await Share.share({ message: data.text })
-      } catch (error) {
-        console.error('BibleReader share failed:', error)
+  const handleShare = async (data: BibleReaderShareData) => {
+    try {
+      if (consumerOnShare) {
+        await consumerOnShare(data)
+        return
       }
-    },
-    [consumerOnShare],
-  )
+      await Share.share({ message: data.text })
+    } catch (error) {
+      console.error('BibleReader share failed:', error)
+    }
+  }
 
   // `shareData` rides in on `onVerseSelect`, so these handlers need no round-trip
   // back into the WebView. Read the data before `closeVerseActions` drops the
   // selection.
-  const handleCopyPress = useCallback(() => {
+  const handleCopyPress = () => {
     const data = verseSelection?.shareData
     closeVerseActions()
     if (data) void handleCopy(data)
-  }, [verseSelection, handleCopy, closeVerseActions])
+  }
 
-  const handleSharePress = useCallback(() => {
+  const handleSharePress = () => {
     const data = verseSelection?.shareData
     closeVerseActions()
     if (data) void handleShare(data)
-  }, [verseSelection, handleShare, closeVerseActions])
+  }
 
-  const onExternalLinkPress = useCallback(async (url: string) => {
+  const onExternalLinkPress = async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
         dismissButtonStyle: 'close',
@@ -582,7 +545,7 @@ export function BibleReader({
     } catch (error) {
       console.error(error)
     }
-  }, [])
+  }
 
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress

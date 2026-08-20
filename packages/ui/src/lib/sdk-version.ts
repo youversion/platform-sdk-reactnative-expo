@@ -21,8 +21,21 @@ const IS_PUBLISH_BUILD = false
 
 export const SDK_VERSION: string = IS_PUBLISH_BUILD ? pkg.version : `${pkg.version}-dev`
 
-const SDK_HEADER_NAME = 'x-yvp-sdk'
+// Same name platform-core 2.8.0 writes. A lowercase `x-yvp-sdk` is a
+// different object key and `Headers` would combine both values.
+const SDK_HEADER_NAME = 'X-YVP-Sdk'
 
 export function getSdkHeaders(): Record<string, string> {
   return { [SDK_HEADER_NAME]: `ReactNativeSDK=${SDK_VERSION}` }
+}
+
+export function mergeSdkHeaders(
+  additionalHeaders?: Record<string, string>,
+): Record<string, string> {
+  const rest = Object.fromEntries(
+    Object.entries(additionalHeaders ?? {}).filter(
+      ([key]) => key.toLowerCase() !== SDK_HEADER_NAME.toLowerCase(),
+    ),
+  )
+  return { ...rest, ...getSdkHeaders() }
 }

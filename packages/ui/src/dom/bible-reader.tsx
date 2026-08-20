@@ -9,7 +9,7 @@ import type {
 } from '@youversion/platform-react-ui'
 import { BibleReader } from '@youversion/platform-react-ui'
 import type { ComponentType, ReactNode } from 'react'
-import { useEffect, useMemo } from 'react'
+import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
@@ -160,18 +160,14 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps) {
   // native action can only be async — so fire and forget. Catch rather than
   // `void`: expo's `marshal` rejects when the consumer's handler throws, and an
   // unattached rejection surfaces as an unhandled rejection in the DOM.
-  const handleVerseSelect = useMemo(
-    () =>
-      onVerseSelect
-        ? (selection: BibleReaderVerseSelection) => {
-            // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
-            Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
-              console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
-            })
-          }
-        : undefined,
-    [onVerseSelect],
-  )
+  const handleVerseSelect = onVerseSelect
+    ? (selection: BibleReaderVerseSelection) => {
+        // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
+        Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
+          console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
+        })
+      }
+    : undefined
 
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the
   // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
