@@ -165,7 +165,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const handleVerseSelect = onVerseSelect
     ? (selection: BibleReaderVerseSelection) => {
         // `Promise.resolve` so a sync handler (no bridge) can't throw on `.catch`.
-        Promise.resolve(onVerseSelect(selection)).catch((error: unknown) => {
+        Promise.resolve(onVerseSelect(selection)).catch((error: Error) => {
           console.error('[YouVersion SDK] onVerseSelect handler rejected:', error)
         })
       }
