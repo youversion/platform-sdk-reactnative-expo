@@ -8,11 +8,11 @@ How to add user-visible copy in `packages/ui/src/native/**` without hardcoding E
 
 **Out of scope:**
 
-- `packages/ui/src/dom/**` — WebView-hosted Bible UI stays English until a future DOM strategy ships ([ADR 0009](../adr/0009-deferred-dom-localization.md)).
+- `packages/ui/src/dom/**` — do not add SDK i18n keys or `useSdkTranslation` here. In-WebView copy follows `YouVersionProvider locale` via the web SDK ([ADR 0019](../adr/0019-provider-locale-crosses-dom-bridge.md)).
 - Consumer-provided prop values (e.g. `YouVersionAuthButton` `text` override).
 - Test files asserting rendered output.
 
-`YouVersionProvider locale` drives native strings only. It does not cross the DOM bridge and is not the same as Bible `versionId` / language picker state — see [ADR 0007](../adr/0007-app-locale-vs-bible-language-id.md) and [ADR 0008](../adr/0008-sdk-owned-i18next-no-consumer-overrides.md).
+`YouVersionProvider locale` drives native strings and is forwarded as resolved `lng` into each DOM web `YouVersionProvider`. It is not Bible `versionId` / language picker state — see [ADR 0007](../adr/0007-app-locale-vs-bible-language-id.md) and [ADR 0008](../adr/0008-sdk-owned-i18next-no-consumer-overrides.md).
 
 ## Required pattern
 
@@ -155,4 +155,4 @@ Do not hand-fill a missing translation with English to make a catalog look compl
 
 - [ADR 0007 — App locale vs Bible languageId](../adr/0007-app-locale-vs-bible-language-id.md)
 - [ADR 0008 — SDK-owned i18next](../adr/0008-sdk-owned-i18next-no-consumer-overrides.md)
-- [ADR 0009 — Deferred DOM localization](../adr/0009-deferred-dom-localization.md)
+- [ADR 0019 — Provider locale crosses the DOM bridge](../adr/0019-provider-locale-crosses-dom-bridge.md)

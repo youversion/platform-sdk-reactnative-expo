@@ -9,6 +9,13 @@ import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversio
 import { BibleTextView } from '../bible-text-view'
 import { YouVersionProvider } from '../youversion-provider'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
   notes: [],
@@ -25,6 +32,7 @@ type BibleTextViewDomProps = {
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
+  locale?: string
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
@@ -74,6 +82,7 @@ describe('BibleTextView', () => {
 
   beforeEach(() => {
     latestTextViewDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
     setImpl(
@@ -225,5 +234,21 @@ describe('BibleTextView', () => {
     expect(latestTextViewDomProps.permittedVersionIds).toEqual([111])
     expect(latestTextViewDomProps.excludedVersionIds).toEqual([3034])
     expect(latestTextViewDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
+      wrapper: wrapper('light', 'es'),
+    })
+
+    expect(latestTextViewDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, { wrapper: wrapper() })
+
+    expect(latestTextViewDomProps.locale).toBe('es')
   })
 })

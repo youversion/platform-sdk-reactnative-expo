@@ -9,9 +9,17 @@ import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 type LatestDomProps = {
   theme?: string
   resetKey?: number
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -69,6 +77,7 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     setImpl('ChapterPickerContent', MockDOM)
     setImpl(
       'NativeSheet',
@@ -212,5 +221,21 @@ describe('BibleChapterPickerSheet', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([])
     expect(latestDomProps.excludedVersionIds).toEqual([])
     expect(latestDomProps.permittedLanguageTags).toEqual([])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to DOM content', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
+      wrapper: youVersionProviderWrapper('light', 'es'),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 })

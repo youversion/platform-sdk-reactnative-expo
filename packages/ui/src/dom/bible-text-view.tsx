@@ -12,6 +12,7 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { toWebError, type DomError } from '../lib/dom-error'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -44,7 +45,7 @@ export type BibleTextViewProps = Omit<
   dom?: DOMProps
 }
 
-type BibleTextViewDOMProps = BibleTextViewProps & InternalVersionFilterProps
+type BibleTextViewDOMProps = BibleTextViewProps & InternalVersionFilterProps & InternalLocaleProps
 
 export default function BibleTextViewDOM({
   appKey,
@@ -58,6 +59,7 @@ export default function BibleTextViewDOM({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
   ...props
 }: BibleTextViewDOMProps): ReactNode {
   applySDKConfig({ apiHost, appKey, installationId })
@@ -94,6 +96,7 @@ export default function BibleTextViewDOM({
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       <BibleTextView
         {...props}

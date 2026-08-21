@@ -4,6 +4,7 @@ import { BibleThemeSettingsContent } from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
 import type { ReactNode } from 'react'
 
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import { YouVersionProvider } from '../lib/web-yv-provider'
@@ -21,7 +22,7 @@ export type BibleReaderSettingsDOMProps = {
   onFontSelected: (fontFamily: FontFamily) => void
   onLineSpacingChange: () => void
   dom?: DOMProps
-}
+} & InternalLocaleProps
 
 export default function BibleReaderSettingsDOM({
   appKey,
@@ -33,6 +34,7 @@ export default function BibleReaderSettingsDOM({
   onFontDecreased,
   onFontSelected,
   onLineSpacingChange,
+  locale,
 }: BibleReaderSettingsDOMProps): ReactNode {
   // React invokes button onClick handlers with a SyntheticEvent. That event
   // isn't JSON-serializable, so passing the bridge-bound handlers straight
@@ -57,7 +59,7 @@ export default function BibleReaderSettingsDOM({
   const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
 
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider appKey={appKey} theme={theme} locale={locale}>
       <style>{settingsStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-settings-shell>
         <BibleThemeSettingsContent

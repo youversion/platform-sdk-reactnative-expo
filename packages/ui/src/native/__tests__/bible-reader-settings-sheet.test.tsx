@@ -12,15 +12,28 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
 
-function MockDOM(props: {
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
+type LatestDomProps = {
   fontSize: number
   fontFamily: string
   lineSpacing: number
+  locale?: string
   onFontIncreased: () => Promise<void>
   onFontDecreased: () => Promise<void>
   onFontSelected: (next: string) => Promise<void>
   onLineSpacingChange: () => Promise<void>
-}) {
+}
+
+let latestDomProps: LatestDomProps | Record<string, never> = {}
+
+function MockDOM(props: LatestDomProps) {
+  latestDomProps = props
   return (
     <View testID="mock-dom">
       <Text testID="font-size">{String(props.fontSize)}</Text>
@@ -72,6 +85,8 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 
 describe('BibleReaderSettingsSheet', () => {
   beforeEach(() => {
+    latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     setImpl('BibleReaderSettings', MockDOM)
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="sheet">{children}</View> : null,
@@ -148,5 +163,21 @@ describe('BibleReaderSettingsSheet', () => {
       'props.children',
       String(READER_LINE_SPACING.LG),
     )
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<SheetHarness isOpen />, {
+      wrapper: youVersionProviderWrapper('light', 'es'),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<SheetHarness isOpen />, { wrapper })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 })

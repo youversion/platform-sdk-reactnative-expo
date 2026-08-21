@@ -46,7 +46,7 @@ const { t } = useSdkTranslation()
 
 ## Do not flag
 
-- `packages/ui/src/dom/**` — DOM/WebView copy is English per [ADR 0009](../docs/adr/0009-deferred-dom-localization.md)
+- `packages/ui/src/dom/**` — in-WebView copy follows provider `locale` via the web SDK; DOM files must not grow their own i18n keys ([ADR 0019](../docs/adr/0019-provider-locale-crosses-dom-bridge.md))
 - Test files (`__tests__/**`, `*.test.tsx`) asserting rendered English output
 - Strings passed through from consumer props (e.g. `YouVersionAuthButton` `text` override)
 - Non-user-facing literals (test IDs, log messages, style tokens, route names)

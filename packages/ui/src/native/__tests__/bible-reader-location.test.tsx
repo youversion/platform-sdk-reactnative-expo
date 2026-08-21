@@ -18,10 +18,18 @@ import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 type LatestReaderDomProps = {
   book?: string
   chapter?: string
   versionId?: number
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -98,6 +106,7 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
     latestReaderDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     installBibleReaderTestImpls()
     setImpl('BibleReaderDom', MockDOM)
     await resetReaderLocationStore()
@@ -200,5 +209,21 @@ describe('BibleReader Reader Location persistence', () => {
     expect(latestReaderDomProps.permittedVersionIds).toEqual([111])
     expect(latestReaderDomProps.excludedVersionIds).toEqual([3034])
     expect(latestReaderDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<BibleReader />, {
+      wrapper: youVersionProviderWrapper('light', 'es'),
+    })
+
+    expect(latestReaderDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleReader />, { wrapper })
+
+    expect(latestReaderDomProps.locale).toBe('es')
   })
 })

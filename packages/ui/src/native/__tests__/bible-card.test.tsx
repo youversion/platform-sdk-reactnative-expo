@@ -16,6 +16,13 @@ import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversio
 import { BibleCard } from '../bible-card'
 import { YouVersionProvider } from '../youversion-provider'
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
   notes: [],
@@ -37,6 +44,7 @@ type LatestDomProps = {
   reference?: string
   versionId?: number
   theme?: string
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -83,6 +91,7 @@ describe('BibleCard', () => {
 
   beforeEach(async () => {
     latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     setImpl('BibleCardDom', MockBibleCardDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
     setImpl('BibleVersionPickerSheet', () => <View testID="mock-version-picker-sheet-stub" />)
@@ -165,6 +174,22 @@ describe('BibleCard', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: wrapper('light', 'es'),
+    })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<BibleCard reference="JHN.3.16" versionId={3034} />, { wrapper: wrapper() })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {

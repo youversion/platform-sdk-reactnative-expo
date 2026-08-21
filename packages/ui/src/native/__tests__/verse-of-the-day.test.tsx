@@ -17,11 +17,19 @@ const sampleShareData: VerseOfTheDayShareData = {
   verseText: 'For God so loved the world...',
 }
 
+jest.mock('expo-localization', () => ({
+  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
+}))
+
+const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
+
 type LatestDomProps = {
   appKey?: string
   versionId?: number
   dayOfYear?: number
   theme?: string
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
@@ -57,6 +65,7 @@ describe('VerseOfTheDay', () => {
 
   beforeEach(() => {
     latestDomProps = {}
+    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
     setImpl('VerseOfTheDayDom', MockVerseOfTheDayDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
@@ -267,5 +276,19 @@ describe('VerseOfTheDay', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
+    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper('light', 'es') })
+
+    expect(latestDomProps.locale).toBe('es')
+  })
+
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+
+    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+
+    expect(latestDomProps.locale).toBe('es')
   })
 })

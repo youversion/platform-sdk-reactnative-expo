@@ -1,12 +1,13 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import { useTheme } from '../hooks/use-theme'
+import { useLocale } from '../i18n/locale-context'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from '../hooks/use-theme'
 
 export type BibleReaderSettingsSheetProps = {
   isSettingsSheetOpen: boolean
@@ -18,6 +19,7 @@ function BibleReaderSettingsSheetImpl({
   onClose,
 }: BibleReaderSettingsSheetProps) {
   const { appKey } = useYouVersion()
+  const { lng } = useLocale()
   const theme = useTheme()
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
@@ -40,6 +42,7 @@ function BibleReaderSettingsSheetImpl({
         dom={withSheetDomDefaults()}
         appKey={appKey}
         theme={theme}
+        locale={lng}
         fontSize={fontSize}
         fontFamily={encodeFontFamilyForDom(fontFamily)}
         lineSpacing={lineSpacing}

@@ -1,4 +1,10 @@
+---
+Status: superseded by ADR 0019
+---
+
 # Deferred DOM localization
+
+> **Superseded by [ADR 0019](0019-provider-locale-crosses-dom-bridge.md).** Resolved Expo `YouVersionProvider` locale (`useLocale().lng`) now crosses the DOM bridge as `locale` on each web `YouVersionProvider`. Kept for history.
 
 Expo DOM components in this SDK wrap `@youversion/platform-react-ui` inside WebViews. The team is moving away from WebViews as the long-term presentation layer for Bible UI.
 
