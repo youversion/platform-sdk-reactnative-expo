@@ -5,6 +5,7 @@ import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import VerseOfTheDayDOM from '../dom/verse-of-the-day'
 import { useTheme } from '../hooks/use-theme'
+import { useLocale } from '../i18n/locale-context'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import { HighlightsPaint } from './highlights-paint'
@@ -26,6 +27,7 @@ export function VerseOfTheDay({
   ...props
 }: VerseOfTheDayProps) {
   const context = useYouVersion()
+  const { lng } = useLocale()
   const themeContext = useTheme()
   const [sampledDayOfYear] = useState(() => getDayOfYear(new Date()))
   // Pin the calendar day on native and always pass it into the WebView so paint
@@ -63,6 +65,7 @@ export function VerseOfTheDay({
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}
+          locale={lng}
           theme={theme ?? themeContext}
           onShare={onShare}
         />

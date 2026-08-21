@@ -13,6 +13,7 @@ import {
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
 import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -29,7 +30,9 @@ export type VersionPickerContentDOMProps = {
   dom?: import('expo/dom').DOMProps
 }
 
-type VersionPickerContentInternalProps = VersionPickerContentDOMProps & InternalVersionFilterProps
+type VersionPickerContentInternalProps = VersionPickerContentDOMProps &
+  InternalVersionFilterProps &
+  InternalLocaleProps
 
 export default function VersionPickerContentDOM({
   appKey,
@@ -42,6 +45,7 @@ export default function VersionPickerContentDOM({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
 }: VersionPickerContentInternalProps) {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
@@ -80,6 +84,7 @@ export default function VersionPickerContentDOM({
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       <style>{versionPickerStyles}</style>
       <div data-yv-sdk data-yv-theme={theme} data-yv-version-picker-shell>

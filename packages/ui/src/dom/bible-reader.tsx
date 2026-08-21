@@ -15,6 +15,7 @@ import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -92,7 +93,7 @@ export type BibleReaderProps = BibleReaderBaseProps &
     | { includeAuth?: false; authRedirectUrl?: never }
   )
 
-type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps
+type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
 
 const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
@@ -133,6 +134,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps) {
     permittedVersionIds,
     excludedVersionIds,
     permittedLanguageTags,
+    locale,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
 
@@ -277,26 +279,32 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps) {
             avatar_url: userInfo.avatarUrl,
           }
 
-  return props.includeAuth ? (
+  if (props.includeAuth) {
+    return (
+      <YouVersionProvider
+        includeAuth
+        authRedirectUrl={props.authRedirectUrl}
+        appKey={appKey}
+        theme={theme}
+        userInfo={providerUserInfo}
+        permittedVersionIds={permittedVersionIds}
+        excludedVersionIds={excludedVersionIds}
+        permittedLanguageTags={permittedLanguageTags}
+        locale={locale}
+      >
+        {providerContent}
+      </YouVersionProvider>
+    )
+  }
+
+  return (
     <YouVersionProvider
-      includeAuth
-      authRedirectUrl={props.authRedirectUrl}
       appKey={appKey}
       theme={theme}
-      userInfo={providerUserInfo}
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
-    >
-      {providerContent}
-    </YouVersionProvider>
-  ) : (
-    <YouVersionProvider
-      appKey={appKey}
-      theme={theme}
-      permittedVersionIds={permittedVersionIds}
-      excludedVersionIds={excludedVersionIds}
-      permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       {providerContent}
     </YouVersionProvider>

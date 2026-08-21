@@ -25,6 +25,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reade
 import BibleReaderDOM from '../dom/bible-reader'
 import FootnoteContent from '../dom/footnote-content'
 import { useTheme } from '../hooks/use-theme'
+import { useLocale } from '../i18n/locale-context'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -216,6 +217,7 @@ export function BibleReader({
   ref,
 }: BibleReaderProps) {
   const context = useYouVersion()
+  const { lng } = useLocale()
   // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
   // deliberately not read here: it never crosses into the WebView.
   const auth = useYVAuthOptional()
@@ -582,6 +584,7 @@ export function BibleReader({
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}
+          locale={lng}
           highlights={highlights}
           verseActions={VERSE_ACTIONS}
           onVerseSelect={handleVerseSelect}
@@ -673,6 +676,7 @@ export function BibleReader({
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            locale={lng}
           />
         </NativeSheet>
       )}

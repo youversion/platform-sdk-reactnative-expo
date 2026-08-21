@@ -4,6 +4,7 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
 
 import { applySDKConfig } from '../lib/dom-apply'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -15,7 +16,7 @@ export type FootnoteContentDOMProps = {
   apiHost: string
   installationId: string
   dom?: import('expo/dom').DOMProps
-}
+} & InternalLocaleProps
 
 export default function FootnoteContentDOM({
   data,
@@ -24,10 +25,11 @@ export default function FootnoteContentDOM({
   appKey,
   apiHost,
   installationId,
+  locale,
 }: FootnoteContentDOMProps) {
   applySDKConfig({ appKey, apiHost, installationId })
   return (
-    <YouVersionProvider appKey={appKey} theme={theme}>
+    <YouVersionProvider appKey={appKey} theme={theme} locale={locale}>
       <style href="yv-footnote-content-scroll-lock" precedence="medium">
         {`html, body { overflow: hidden }`}
       </style>

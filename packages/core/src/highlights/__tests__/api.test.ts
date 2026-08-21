@@ -77,7 +77,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'x-yvp-sdk')).toBe('ReactSDK=2.8.0, ReactNativeSDK=1.0.0-dev')
+      expect(header(init, 'x-yvp-sdk')).toBe('ReactSDK=2.9.0, ReactNativeSDK=1.0.0-dev')
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {

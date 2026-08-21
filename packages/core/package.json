@@ -102,7 +102,7 @@
     "jest-expo": "56.0.5"
   },
   "dependencies": {
-    "@youversion/platform-core": "2.8.0",
+    "@youversion/platform-core": "2.9.0",
     "zod": "4.4.3"
   }
 }

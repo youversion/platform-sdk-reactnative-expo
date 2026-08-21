@@ -1,6 +1,7 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import { useState } from 'react'
+import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import ChapterPickerContentDOM from '../dom/chapter-picker-content'
@@ -36,6 +37,7 @@ export function BibleChapterPickerSheet({
   dom,
 }: BibleChapterPickerSheetProps) {
   const context = useYouVersion()
+  const { lng } = useLocale()
   const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
@@ -102,6 +104,7 @@ export function BibleChapterPickerSheet({
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}
+          locale={lng}
         />
       </View>
     </NativeSheet>

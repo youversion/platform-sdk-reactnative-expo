@@ -8,6 +8,7 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { ContentSizedBody } from '../lib/content-sized-body'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -41,7 +42,7 @@ type BibleCardBridgeProps = Omit<
 
 export type BibleCardProps = BibleCardBridgeProps
 
-type BibleCardDOMProps = BibleCardBridgeProps & InternalVersionFilterProps
+type BibleCardDOMProps = BibleCardBridgeProps & InternalVersionFilterProps & InternalLocaleProps
 
 export default function BibleCardDOM({
   appKey,
@@ -55,6 +56,7 @@ export default function BibleCardDOM({
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
+  locale,
   ...props
 }: BibleCardDOMProps) {
   applySDKConfig({ appKey, apiHost, installationId })
@@ -85,6 +87,7 @@ export default function BibleCardDOM({
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
+      locale={locale}
     >
       <ContentSizedBody />
       <NativeActionBibleCard
