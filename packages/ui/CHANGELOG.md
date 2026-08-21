@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.3.1
+
+### Patch Changes
+
+- 9d90e75: fix: forward resolved provider locale into DOM WebViews so in-WebView copy matches native SDK language.
+  - @youversion/platform-react-native-expo-core@1.3.1
+
 ## 1.3.0
 
 ### Minor Changes
