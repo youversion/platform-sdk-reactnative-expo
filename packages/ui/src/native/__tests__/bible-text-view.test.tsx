@@ -5,16 +5,10 @@ import { Platform, Pressable, Text, View } from 'react-native'
 
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -82,7 +76,7 @@ describe('BibleTextView', () => {
 
   beforeEach(() => {
     latestTextViewDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
     setImpl(
@@ -245,7 +239,7 @@ describe('BibleTextView', () => {
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<BibleTextView reference="JHN.1.1" versionId={3034} />, { wrapper: wrapper() })
 

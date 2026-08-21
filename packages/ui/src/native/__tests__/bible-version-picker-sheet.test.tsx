@@ -3,17 +3,11 @@ import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 type MockDomProps = {
   appKey?: string
@@ -71,7 +65,7 @@ function versionFilterWrapper(lists: {
 describe('BibleVersionPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
     setImpl('BibleVersionPickerContent', MockDOM)
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="sheet">{children}</View> : null,
@@ -228,7 +222,7 @@ describe('BibleVersionPickerSheet', () => {
   })
 
   it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 

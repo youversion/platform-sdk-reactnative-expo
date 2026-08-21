@@ -6,6 +6,7 @@ import { Platform, Pressable, Share, Text, View } from 'react-native'
 
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 import * as votdApi from '../verse-of-the-day-api'
@@ -16,13 +17,6 @@ const sampleShareData: VerseOfTheDayShareData = {
   reference: 'John 3:16 NIV',
   verseText: 'For God so loved the world...',
 }
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 type LatestDomProps = {
   appKey?: string
@@ -65,7 +59,7 @@ describe('VerseOfTheDay', () => {
 
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
     setImpl('VerseOfTheDayDom', MockVerseOfTheDayDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
@@ -285,7 +279,7 @@ describe('VerseOfTheDay', () => {
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 

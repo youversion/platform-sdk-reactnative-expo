@@ -9,15 +9,9 @@ import { FONT_FAMILY_TOKEN, INTER_FONT, UNTITLED_SERIF_FONT } from '../../lib/re
 import { useReaderSettingsStore } from '../../stores/reader-settings-store'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 type LatestDomProps = {
   fontSize: number
@@ -86,7 +80,7 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 describe('BibleReaderSettingsSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
     setImpl('BibleReaderSettings', MockDOM)
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="sheet">{children}</View> : null,
@@ -174,7 +168,7 @@ describe('BibleReaderSettingsSheet', () => {
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<SheetHarness isOpen />, { wrapper })
 
