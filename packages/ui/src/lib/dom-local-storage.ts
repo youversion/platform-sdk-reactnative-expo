@@ -56,11 +56,19 @@ function createMemoryStorage(): Storage {
  * DOM/browser context (e.g. native screen tests where `window` is undefined).
  */
 export function ensureDomLocalStorage(): void {
+  // Reading `localStorage` can itself throw in some sandboxed contexts; treat a
+  // throw the same as "missing" and install the shim.
+  let current: Storage | null = null
   try {
-    if (window.localStorage != null) {
-      return
-    }
+    current = window.localStorage
+  } catch {
+    current = null
+  }
+  if (current != null) {
+    return
+  }
 
+  try {
     // `localStorage` is a getter-only accessor on `Window.prototype`, so it can't
     // be assigned directly — define an own property on the instance to shadow it.
     Object.defineProperty(window, 'localStorage', {

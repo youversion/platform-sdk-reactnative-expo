@@ -75,4 +75,22 @@ describe('ensureDomLocalStorage', () => {
     setWindow(undefined)
     expect(() => ensureDomLocalStorage()).not.toThrow()
   })
+
+  it('installs a working memory shim when reading localStorage throws', () => {
+    const host = {}
+    Object.defineProperty(host, 'localStorage', {
+      get() {
+        throw new Error('SecurityError')
+      },
+      configurable: true,
+    })
+    setWindow(host as { localStorage: Storage | null })
+
+    ensureDomLocalStorage()
+
+    const ls = globalThis.window.localStorage
+    expect(ls).not.toBeNull()
+    ls.setItem('x-yvp-installation-id', 'install-1')
+    expect(ls.getItem('x-yvp-installation-id')).toBe('install-1')
+  })
 })
