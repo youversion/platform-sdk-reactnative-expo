@@ -24,7 +24,11 @@ function memoryStorage(): Storage {
   }
 }
 
-function setWindow(value: { localStorage: Storage | null } | undefined): void {
+type WindowStub = {
+  localStorage?: Storage | null
+}
+
+function setWindow(value: WindowStub | undefined): void {
   Object.defineProperty(globalThis, 'window', {
     value,
     configurable: true,
@@ -77,14 +81,14 @@ describe('ensureDomLocalStorage', () => {
   })
 
   it('installs a working memory shim when reading localStorage throws', () => {
-    const host = {}
+    const host: WindowStub = {}
     Object.defineProperty(host, 'localStorage', {
       get() {
         throw new Error('SecurityError')
       },
       configurable: true,
     })
-    setWindow(host as { localStorage: Storage | null })
+    setWindow(host)
 
     ensureDomLocalStorage()
 
