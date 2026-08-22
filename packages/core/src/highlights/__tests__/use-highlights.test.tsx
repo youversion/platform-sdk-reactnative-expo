@@ -11,6 +11,7 @@ import type { Result } from '../../result'
 import * as api from '../api'
 import type { HighlightsApiError } from '../api'
 import * as drainSignals from '../drain-signals'
+import { hasQueuedHighlightWrites } from '../queue'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
   useHighlights,
@@ -1672,6 +1673,45 @@ describe('hookOverrides skip live work', () => {
     })
 
     expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
+  })
+
+  it('does not enqueue or transmit apply/remove when only the permission-flow override is set', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+
+    const { result } = renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper
+          hookOverrides={{
+            useHighlightPermissionFlow: () => ({
+              highlights: stubResult,
+              isConfirming: false,
+              apply: async () => ({ status: 'noop' as const }),
+              confirm: () => undefined,
+              decline: () => undefined,
+              flowError: null,
+            }),
+          }}
+        >
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [17])
+      await result.current.remove(YELLOW, [16])
+    })
+
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(mockDeleteHighlight).not.toHaveBeenCalled()
+    expect(hasQueuedHighlightWrites(userId)).toBe(false)
     expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
   })
 })

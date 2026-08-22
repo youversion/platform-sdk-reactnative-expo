@@ -303,7 +303,7 @@ function useHighlightsImplementation(
   // Config, not state: effectively constant for the life of the provider. Read
   // through the closure rather than a ref so a change still re-runs the fetch
   // effect below (`runFetch` is one of its deps). An override still mounts this
-  // hook (rules of hooks) but must not GET, notify the drain, or persist cache.
+  // hook (rules of hooks) but must not GET, write, notify the drain, or persist cache.
   const canFetchHighlights =
     live && enabled && shouldFetchHighlights(auth?.requestedPermissions ?? [])
   const getAccessToken = auth?.getAccessToken ?? null
@@ -775,6 +775,10 @@ function useHighlightsImplementation(
 
   const startWrite = useCallback(
     (op: WriteOp, rawColor: string, rawVerses: number[]): Promise<HighlightWriteOutcome> => {
+      if (!live) {
+        return Promise.resolve({ status: 'noop' })
+      }
+
       const captured = identityRef.current
       const color = rawColor.toLowerCase()
 
@@ -888,7 +892,7 @@ function useHighlightsImplementation(
           )
       )
     },
-    [enqueue, runWrite],
+    [enqueue, live, runWrite],
   )
 
   const apply = useCallback(
