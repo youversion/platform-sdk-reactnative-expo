@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: ./.github/actions/setup
       - name: Run lint
-        run: pnpm lint
+        run: pnpm lint --max-warnings=0
       - name: Run native i18n oxlint regression tests
         run: pnpm lint:native-i18n
 
