@@ -2,7 +2,9 @@
 /**
  * Regression tests for native i18n oxlint (i18next/no-literal-string jsx-attributes).
  *
- * Fixtures live under scripts/eslint-fixtures/native-i18n/.
+ * Violation fixtures live under scripts/eslint-fixtures/native-i18n/.
+ * The outside-native-scope fixture lives under packages/ui so product oxlint
+ * inspects it. The scripts directory is ignored.
  */
 
 import assert from 'node:assert/strict'
@@ -41,7 +43,8 @@ function i18nDiagnostics(report, fileSuffix) {
   const diagnostics = report.diagnostics ?? []
   return diagnostics.filter((diagnostic) => {
     const code = diagnostic.code ?? ''
-    const isI18n = code === 'i18next(no-literal-string)' || code === 'eslint(i18next/no-literal-string)'
+    const isI18n =
+      code === 'i18next(no-literal-string)' || code === 'eslint(i18next/no-literal-string)'
     return isI18n && diagnostic.filename?.endsWith(fileSuffix)
   })
 }
@@ -92,10 +95,14 @@ test('native i18n oxlint does not apply outside packages/ui/src/native', () => {
   const report = runOxlint([
     '--config',
     'oxlint.config.ts',
-    'scripts/eslint-fixtures/native-i18n/outside-native-scope.tsx',
+    'packages/ui/src/test-utils/outside-native-scope.fixture.tsx',
   ])
+  assert.ok(
+    report.number_of_files > 0,
+    'oxlint must inspect the outside-native-scope fixture; an ignored file hides a global-rule regression',
+  )
   assert.equal(
-    i18nDiagnostics(report, 'outside-native-scope.tsx').length,
+    i18nDiagnostics(report, 'outside-native-scope.fixture.tsx').length,
     0,
     'files outside packages/ui/src/native must not be flagged by native i18n oxlint',
   )
