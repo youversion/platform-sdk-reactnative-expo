@@ -8,10 +8,11 @@ type ReaderLocationFields = {
 
 const storedBookSchema = z.string().trim().min(1)
 const storedVersionIdSchema = z.number().int().finite().gte(1)
-const locationSchema = z.object({
-  book: z.string().optional().nullable(),
-  chapter: z.union([z.string(), z.number()]).optional().nullable(),
-  versionId: z.number().optional().nullable(),
+const storedChapterValueSchema = z.union([z.string(), z.number()])
+const storedLocationEnvelopeSchema = z.object({
+  book: z.unknown().optional(),
+  chapter: z.unknown().optional(),
+  versionId: z.unknown().optional(),
 })
 
 export function parseStoredBook(raw: string): string | null {
@@ -34,20 +35,19 @@ export function parseStoredVersionId(raw: number): number | null {
 
 export function parseStoredLocation(raw: string): ReaderLocationFields {
   try {
-    const parsed = locationSchema.safeParse(JSON.parse(raw))
-    if (!parsed.success) {
+    const envelope = storedLocationEnvelopeSchema.safeParse(JSON.parse(raw))
+    if (!envelope.success) {
       return { book: null, chapter: null, versionId: null }
     }
 
-    const chapter =
-      parsed.data.chapter === undefined || parsed.data.chapter === null
-        ? ''
-        : String(parsed.data.chapter)
+    const chapterValue = storedChapterValueSchema.safeParse(envelope.data.chapter)
+    const bookValue = storedBookSchema.safeParse(envelope.data.book)
+    const versionValue = storedVersionIdSchema.safeParse(envelope.data.versionId)
 
     return {
-      book: parseStoredBook(parsed.data.book ?? ''),
-      chapter: parseStoredChapter(chapter),
-      versionId: parseStoredVersionId(parsed.data.versionId ?? 0),
+      book: bookValue.success ? parseStoredBook(bookValue.data) : null,
+      chapter: chapterValue.success ? parseStoredChapter(String(chapterValue.data)) : null,
+      versionId: versionValue.success ? parseStoredVersionId(versionValue.data) : null,
     }
   } catch {
     return { book: null, chapter: null, versionId: null }
