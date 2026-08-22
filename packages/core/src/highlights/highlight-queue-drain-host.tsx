@@ -7,7 +7,7 @@
  */
 
 import { addNetworkStateListener } from 'expo-network'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AppState } from 'react-native'
 
 import { useYVAuthOptional } from '../auth'
@@ -16,7 +16,7 @@ import { createHighlightsApi } from './api'
 import { onDrainSignal } from './drain-signals'
 import { startHighlightQueueDrain, type DrainAuth, type HighlightQueueDrain } from './drain'
 
-export default function HighlightQueueDrainHost() {
+export function HighlightQueueDrainHost(): ReactNode {
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
 
@@ -102,3 +102,5 @@ export default function HighlightQueueDrainHost() {
 
   return null
 }
+
+export default HighlightQueueDrainHost

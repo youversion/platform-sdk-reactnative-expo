@@ -1,4 +1,5 @@
 import { BIBLE_READER_FONT, clampBibleReaderFontSize } from '@youversion/platform-react-ui'
+import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
@@ -27,18 +28,20 @@ type ReaderSettingsState = {
   setLineSpacing: (size: number) => void
 }
 
-type PersistedReaderSlice = Partial<
-  Pick<ReaderSettingsState, 'fontSize' | 'fontFamily' | 'lineSpacing'>
->
+const persistedReaderSliceSchema = z.object({
+  fontSize: z.number().optional(),
+  fontFamily: z.string().optional(),
+  lineSpacing: z.number().optional(),
+})
+
+const LINE_SPACING_VALUES = new Set<number>(Object.values(READER_LINE_SPACING))
 
 /**
  * Line spacing cycles through a fixed set of values (see `changeBibleReaderLineSpacing`),
  * so an arbitrary or stale persisted number is coerced back to the default rather than clamped.
  */
 const normalizeLineSpacing = (value: number | undefined): number =>
-  Object.values(READER_LINE_SPACING).some((spacing) => spacing === value)
-    ? (value as number)
-    : READER_LINE_SPACING.DEFAULT
+  value !== undefined && LINE_SPACING_VALUES.has(value) ? value : READER_LINE_SPACING.DEFAULT
 
 /**
  * Web SDK 2.5.0 replaced the Source Serif stack with Untitled Serif and migrates
@@ -73,21 +76,20 @@ export const useReaderSettingsStore = create<ReaderSettingsState>()(
         lineSpacing: state.lineSpacing,
       }),
       merge: (persistedState, currentState) => {
-        if (persistedState == null || typeof persistedState !== 'object') {
+        const persistedReaderSlice = persistedReaderSliceSchema.safeParse(persistedState)
+        if (!persistedReaderSlice.success) {
           return currentState
         }
 
-        // Zustand types merge's first arg as `unknown` (PersistOptions), so TS can't infer persistedState.
-        const persistedReaderSlice = persistedState as PersistedReaderSlice
         return {
           fontSize: clampBibleReaderFontSize(
-            persistedReaderSlice.fontSize ?? currentState.fontSize,
+            persistedReaderSlice.data.fontSize ?? currentState.fontSize,
           ),
           fontFamily: normalizeFontFamily(
-            persistedReaderSlice.fontFamily ?? currentState.fontFamily,
+            persistedReaderSlice.data.fontFamily ?? currentState.fontFamily,
           ),
           lineSpacing: normalizeLineSpacing(
-            persistedReaderSlice.lineSpacing ?? currentState.lineSpacing,
+            persistedReaderSlice.data.lineSpacing ?? currentState.lineSpacing,
           ),
           setFontSize: currentState.setFontSize,
           setFontFamily: currentState.setFontFamily,

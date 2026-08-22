@@ -13,61 +13,24 @@ import { Pressable, Text, View } from 'react-native'
 import { useYVAuth } from '../../auth'
 import type { Result } from '../../result'
 import { MMKV_AUTH_KEYS } from '../../auth/constants'
-import { loadTokens } from '../../auth/token-storage'
-import { signInWithPKCE } from '../../auth/pkce-flow'
+import * as tokenStorage from '../../auth/token-storage'
+import * as pkceFlow from '../../auth/pkce-flow'
+import * as http from '../../auth/http'
+import * as installationId from '../../installation-id'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import YouVersionProvider from '../../youversion-provider'
+import * as api from '../api'
 import type { HighlightsApiError } from '../api'
 import type { HighlightScope } from '../constants'
 import { enqueueWrites, listQueuedScopes } from '../queue'
 import { useHighlights } from '../use-highlights'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
 const mockCreateHighlight = jest.fn()
 const mockDeleteHighlight = jest.fn()
 
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: mockCreateHighlight,
-    deleteHighlight: mockDeleteHighlight,
-  })),
-}))
-
-jest.mock('../../auth/token-storage', () => ({
-  loadTokens: jest.fn(),
-  saveTokens: jest.fn(() => Promise.resolve()),
-}))
-
-jest.mock('../../auth/pkce-flow', () => ({ signInWithPKCE: jest.fn() }))
-jest.mock('../../auth/http', () => ({
-  ...jest.requireActual('../../auth/http'),
-  refreshTokens: jest.fn(),
-}))
-jest.mock('../../installation-id', () => ({
-  getOrSetInstallationId: jest.fn(() => Promise.resolve('install-1')),
-}))
-jest.mock('expo-network', () => ({
-  addNetworkStateListener: jest.fn(() => ({ remove: jest.fn() })),
-}))
-
-const mockLoadTokens = loadTokens as jest.Mock
-const mockSignInWithPKCE = signInWithPKCE as jest.Mock
+let mockLoadTokens: jest.SpiedFunction<typeof tokenStorage.loadTokens>
+let mockSignInWithPKCE: jest.SpiedFunction<typeof pkceFlow.signInWithPKCE>
 
 const YELLOW = 'fffe00'
 const GREEN = '5dff79'
@@ -130,24 +93,26 @@ function renderApp() {
 }
 
 function getText(id: string): string {
-  return screen.getByTestId(id).props.children
+  const children = screen.getByTestId(id).props.children
+  return Array.isArray(children) ? children.join('') : String(children ?? '')
 }
 
 function painted(): string[] {
-  return JSON.parse(getText('painted')) as string[]
+  const parsed: string[] = JSON.parse(getText('painted'))
+  return parsed
 }
 
 /** Every token the write path and the drain have sent a highlight under. */
 function tokensSent(): string[] {
   return [
-    ...mockCreateHighlight.mock.calls.map(([token]) => token as string),
-    ...mockDeleteHighlight.mock.calls.map(([token]) => token as string),
+    ...mockCreateHighlight.mock.calls.map(([token]) => token),
+    ...mockDeleteHighlight.mock.calls.map(([token]) => token),
   ]
 }
 
 /** Signs `user` in from stored tokens, the way a relaunch does. */
 function arrangeSignedIn(user: string) {
-  mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: user }))
+  mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: user }))
   mockLoadTokens.mockResolvedValue({
     accessToken: `${user}-token`,
     refreshToken: `${user}-refresh`,
@@ -156,12 +121,32 @@ function arrangeSignedIn(user: string) {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  mockGetHighlights.mockReset()
+  mockCreateHighlight.mockReset()
+  mockDeleteHighlight.mockReset()
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: {} })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
-  mockLoadTokens.mockResolvedValue({ accessToken: null, refreshToken: null, expiryDate: null })
+
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: mockCreateHighlight,
+    deleteHighlight: mockDeleteHighlight,
+  })
+  mockLoadTokens = jest.spyOn(tokenStorage, 'loadTokens').mockResolvedValue({
+    accessToken: null,
+    refreshToken: null,
+    expiryDate: null,
+  })
+  jest.spyOn(tokenStorage, 'saveTokens').mockResolvedValue(undefined)
+  mockSignInWithPKCE = jest.spyOn(pkceFlow, 'signInWithPKCE')
+  jest.spyOn(http, 'refreshTokens')
+  jest.spyOn(installationId, 'getOrSetInstallationId').mockReturnValue('install-1')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('a queued write and the user who made it', () => {

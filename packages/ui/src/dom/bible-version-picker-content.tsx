@@ -5,7 +5,8 @@ import {
   BibleVersionPicker,
   BibleVersionPickerLanguageTrigger,
 } from '@youversion/platform-react-ui'
-import { useEffect, useState, type MouseEvent, type TouchEvent } from 'react'
+import type { DOMProps } from 'expo/dom'
+import { useEffect, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 
 import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
 import {
@@ -27,7 +28,7 @@ export type VersionPickerContentDOMProps = {
   // Incremented when backdrop/pan-down dismiss starts, before isOpen flips false.
   dismissKeyboardNonce?: number
   onVersionChange?: (versionId: number) => Promise<void>
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 type VersionPickerContentInternalProps = VersionPickerContentDOMProps &
@@ -46,7 +47,7 @@ export default function VersionPickerContentDOM({
   excludedVersionIds,
   permittedLanguageTags,
   locale,
-}: VersionPickerContentInternalProps) {
+}: VersionPickerContentInternalProps): ReactNode {
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
   useDismissKeyboardOnClose(isOpen)
@@ -92,7 +93,13 @@ export default function VersionPickerContentDOM({
         <BibleVersionPicker.Root
           key={resetKey}
           versionId={versionId}
-          onVersionChange={onVersionChange}
+          onVersionChange={
+            onVersionChange
+              ? (nextVersionId) => {
+                  void onVersionChange(nextVersionId)
+                }
+              : undefined
+          }
           background={theme}
           onVersionPickerPress={() => {}}
         >

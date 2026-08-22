@@ -1,4 +1,5 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -22,7 +23,7 @@ export function YouVersionAuthButton({
   mode = 'auto',
   size = 'default',
   text,
-}: YouVersionAuthButtonProps) {
+}: YouVersionAuthButtonProps): ReactNode {
   const auth = useYVAuth()
   const { isAuthenticated, signIn } = auth
   const guardedSignOut = useSignOutGuard(auth)
@@ -90,7 +91,9 @@ export function YouVersionAuthButton({
           : null,
         size === 'icon' && styles.iconButton,
       ]}
-      onPress={authFunction}
+      onPress={() => {
+        void authFunction()
+      }}
     >
       <BibleAppLogo style={size !== 'icon' && styles.bibleAppLogo} />
       {size !== 'icon'

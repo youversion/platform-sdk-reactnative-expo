@@ -34,10 +34,6 @@ type ReaderLocationState = {
   setLocation: (patch: ReaderLocationPatch) => void
 }
 
-type PersistedReaderLocationSlice = Partial<
-  Pick<ReaderLocationState, 'book' | 'chapter' | 'versionId'>
->
-
 /**
  * Internal persisted Reader Location for the native Bible reader.
  * Not part of the package public API.
@@ -77,12 +73,7 @@ export const useReaderLocationStore = create<ReaderLocationState>()(
         versionId: state.versionId,
       }),
       merge: (persistedState, currentState) => {
-        if (persistedState == null || typeof persistedState !== 'object') {
-          return currentState
-        }
-
-        const persistedSlice = persistedState as PersistedReaderLocationSlice
-        const parsed = parseStoredLocation(persistedSlice)
+        const parsed = parseStoredLocation(JSON.stringify(persistedState ?? null))
 
         return {
           book: parsed.book,

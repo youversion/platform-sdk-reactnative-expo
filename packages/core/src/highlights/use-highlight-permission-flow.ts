@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 
 import { useYVAuthOptional } from '../auth'
+import { useYouVersion } from '../use-youversion'
 import { NOT_SIGNED_IN_MESSAGE } from './constants'
 import {
   HIGHLIGHTS_PERMISSION,
@@ -105,7 +106,7 @@ function notSignedInOutcome(verses: number[]): HighlightWriteOutcome {
  * With no `auth` on `YouVersionProvider` this behaves exactly as signed out (and
  * says so once, in development).
  */
-export function useHighlightPermissionFlow(
+function useHighlightPermissionFlowImplementation(
   options: UseHighlightsOptions,
 ): UseHighlightPermissionFlowResult {
   const highlights = useHighlights(options)
@@ -585,4 +586,14 @@ export function useHighlightPermissionFlow(
     decline,
     flowError: renderedState.step === 'idle' ? renderedState.error : null,
   }
+}
+
+export function useHighlightPermissionFlow(
+  options: UseHighlightsOptions,
+): UseHighlightPermissionFlowResult {
+  const override = useYouVersion().hookOverrides?.useHighlightPermissionFlow
+  // Still mounts so hook order stays stable. Nested `useHighlights` sees this
+  // override and skips live fetch / drain / cache persist.
+  const real = useHighlightPermissionFlowImplementation(options)
+  return override?.(options) ?? real
 }

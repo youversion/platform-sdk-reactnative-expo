@@ -8,13 +8,14 @@
  * verse-action UI, no token in the WebView.
  */
 import { render } from '@testing-library/react-native'
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
+import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { ReactNode } from 'react'
+import { View } from 'react-native'
 
-import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
+import { emptyHighlights } from '../../test-utils/default-hook-overrides'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
 
 type CapturedDomProps = {
@@ -26,34 +27,10 @@ type CapturedDomProps = {
 /** Every render's props, so "always an array" can be checked, not just "eventually". */
 let mockDomPropsHistory: CapturedDomProps[] = []
 
-jest.mock('../../dom/bible-text-view', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: CapturedDomProps) {
-      mockDomPropsHistory.push(props)
-      return <View testID="mock-dom" />
-    },
-  }
-})
-
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, default: () => <View testID="mock-footnote" /> }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
+function MockDOM(props: CapturedDomProps) {
+  mockDomPropsHistory.push(props)
+  return <View testID="mock-dom" />
+}
 
 const YELLOW = 'fffe00'
 
@@ -61,19 +38,18 @@ function highlight(passageId: string, versionId = 111): Highlight {
   return { version_id: versionId, passage_id: passageId, color: YELLOW }
 }
 
-const useHighlightsSpy = jest.spyOn(core, 'useHighlights')
+const useHighlightsMock = jest.fn(emptyHighlights)
 
 function stubHighlights(highlights: Highlight[]) {
-  useHighlightsSpy.mockImplementation(({ versionId, book, chapter }) => ({
-    highlights,
-    scope: { versionId, book, chapter },
-    isRefreshing: false,
-    error: null,
-    refresh: jest.fn(async () => undefined),
-    apply: jest.fn(async () => ({ status: 'noop' }) as const),
-    remove: jest.fn(async () => ({ status: 'noop' }) as const),
+  useHighlightsMock.mockImplementation((options: UseHighlightsOptions) => ({
+    ...emptyHighlights(options),
+    highlights: options.enabled === false ? [] : highlights,
   }))
 }
+
+const wrapper = youVersionProviderWrapper('light', undefined, {
+  useHighlights: useHighlightsMock,
+})
 
 function lastDomProps(): CapturedDomProps {
   const props = mockDomPropsHistory.at(-1)
@@ -85,19 +61,22 @@ function lastDomProps(): CapturedDomProps {
 
 beforeEach(() => {
   mockDomPropsHistory = []
-  useHighlightsSpy.mockClear()
+  useHighlightsMock.mockClear()
   stubHighlights([])
+  stubImpl('FootnoteContent', 'mock-footnote')
+  stubImpl('NativeSheet')
+  setImpl('BibleTextViewDom', MockDOM)
 })
 
-afterAll(() => {
-  useHighlightsSpy.mockRestore()
+afterEach(() => {
+  resetImpls()
 })
 
 describe('the Controlled Highlights Latch', () => {
   it('hands the DOM component the hook’s cache snapshot on the very first render', () => {
     const data = [highlight('JHN.3.16')]
     stubHighlights(data)
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
@@ -105,7 +84,7 @@ describe('the Controlled Highlights Latch', () => {
 
   it('never renders with an undefined highlights prop, on any render', () => {
     stubHighlights([highlight('JHN.3.16')])
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
@@ -115,7 +94,7 @@ describe('the Controlled Highlights Latch', () => {
 
   it('sends no access token across the bridge, on any render', () => {
     stubHighlights([highlight('JHN.3.16')])
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
@@ -124,7 +103,7 @@ describe('the Controlled Highlights Latch', () => {
   })
 
   it('passes an empty hook result through as [], never undefined', () => {
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
     expect(lastDomProps().highlights).toEqual([])
   })
 
@@ -132,7 +111,7 @@ describe('the Controlled Highlights Latch', () => {
     const data = [highlight('JHN.3.16'), highlight('JHN.3.17-18')]
     stubHighlights(data)
 
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual(data)
   })
@@ -140,9 +119,9 @@ describe('the Controlled Highlights Latch', () => {
 
 describe('the highlights subscription scope', () => {
   it('subscribes at Highlight Scope for a verse USFM', () => {
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 111,
       book: 'JHN',
       chapter: '3',
@@ -151,9 +130,9 @@ describe('the highlights subscription scope', () => {
   })
 
   it('subscribes at Highlight Scope for a verse-range USFM', () => {
-    render(<BibleTextView reference="JHN.1.1-4" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.1.1-4" versionId={111} />, { wrapper })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 111,
       book: 'JHN',
       chapter: '1',
@@ -162,9 +141,9 @@ describe('the highlights subscription scope', () => {
   })
 
   it('subscribes at Highlight Scope for a chapter USFM', () => {
-    render(<BibleTextView reference="JHN.1" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.1" versionId={111} />, { wrapper })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 111,
       book: 'JHN',
       chapter: '1',
@@ -173,10 +152,10 @@ describe('the highlights subscription scope', () => {
   })
 
   it('passes [] and does not fetch when the USFM is invalid', () => {
-    render(<BibleTextView reference="not-usfm" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="not-usfm" versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual([])
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
@@ -187,7 +166,7 @@ describe('the highlights subscription scope', () => {
 
 describe('the verse-action event set', () => {
   it('sends no highlight-intent or copy/share handlers across the bridge', () => {
-    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper: wrapper() })
+    render(<BibleTextView reference="JHN.3.16" versionId={111} />, { wrapper })
 
     const props = lastDomProps()
     expect(props).not.toHaveProperty('onHighlightApply')

@@ -159,7 +159,9 @@ function buildAuthorizationUrl(args: {
     code_challenge_method: 'S256',
     state: args.state,
     nonce: args.nonce,
-    scope: [...new Set([...args.scopes, 'openid'])].sort().join(' '),
+    scope: [...new Set([...args.scopes, 'openid'])]
+      .sort((left, right) => left.localeCompare(right))
+      .join(' '),
     require_user_interaction: 'true',
     'x-yvp-installation-id': args.installationId,
   })
@@ -167,7 +169,9 @@ function buildAuthorizationUrl(args: {
   // Omit the param entirely when there are none — don't emit an empty one. On the
   // callback, absent `granted_permissions` means "none requested" while an empty
   // value means "requested and denied"; emitting an empty param blurs the two.
-  for (const permission of [...new Set(args.permissions ?? [])].sort()) {
+  for (const permission of [...new Set(args.permissions ?? [])].sort((left, right) =>
+    left.localeCompare(right),
+  )) {
     params.append('requested_permissions[]', permission)
   }
 

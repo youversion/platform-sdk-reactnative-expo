@@ -92,13 +92,17 @@ ${resourceEntries}
 
 export const supportedSdkLngs = Object.keys(localeResources)
 
-export function buildSdkResources() {
+export type SdkI18nResourceMap = {
+  [locale: string]: { [SDK_I18N_NAMESPACE]: Partial<SdkTranslationResources> }
+}
+
+export function buildSdkResources(): SdkI18nResourceMap {
   return Object.fromEntries(
     Object.entries(localeResources).map(([lng, translation]) => [
       lng,
       { [SDK_I18N_NAMESPACE]: translation },
     ]),
-  )
+  ) satisfies SdkI18nResourceMap
 }
 `
 }

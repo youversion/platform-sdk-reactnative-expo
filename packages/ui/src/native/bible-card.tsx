@@ -1,12 +1,11 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
-import BibleCardDOM from '../dom/bible-card'
-import FootnoteContent from '../dom/footnote-content'
+import { getImpl } from './component-impls'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
 import type { InternalLocaleProps } from '../lib/locale-props'
@@ -100,7 +99,10 @@ function BibleCardBody({
   onCloseFootnote,
   dom,
   ...props
-}: BibleCardBodyProps) {
+}: BibleCardBodyProps): ReactNode {
+  const BibleCardDOM = getImpl('BibleCardDom')
+  const FootnoteContent = getImpl('FootnoteContent')
+
   return (
     <>
       <BibleCardDOM
@@ -163,7 +165,7 @@ export function BibleCard({
   showVersionPicker = false,
   dom,
   ...props
-}: BibleCardProps) {
+}: BibleCardProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
   const resolvedTheme = useTheme(themeOverride)

@@ -2,17 +2,15 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { Platform, Share } from 'react-native'
+import { Platform, Pressable, Share, Text, View } from 'react-native'
 
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
-import { getDayOfYear, getVerseOfTheDayPassageId } from '../verse-of-the-day-api'
+import * as votdApi from '../verse-of-the-day-api'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('../verse-of-the-day-api', () => ({
-  ...jest.requireActual('../verse-of-the-day-api'),
-  getVerseOfTheDayPassageId: jest.fn(async () => null),
-}))
 
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
@@ -20,14 +18,7 @@ const sampleShareData: VerseOfTheDayShareData = {
   verseText: 'For God so loved the world...',
 }
 
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
-
-let latestDomProps: {
+type LatestDomProps = {
   appKey?: string
   versionId?: number
   dayOfYear?: number
@@ -38,60 +29,44 @@ let latestDomProps: {
   permittedLanguageTags?: string[]
   dom?: { matchContents?: boolean; containerStyle?: unknown }
   onShare?: (data: VerseOfTheDayShareData) => Promise<void>
-} = {}
+}
 
-jest.mock('../../dom/verse-of-the-day', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable, Text: RNText, View: RNView } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockVerseOfTheDayDOM(props: {
-      appKey: string
-      versionId?: number
-      dayOfYear?: number
-      theme?: string
-      locale?: string
-      permittedVersionIds?: number[]
-      excludedVersionIds?: number[]
-      permittedLanguageTags?: string[]
-      dom?: { matchContents?: boolean }
-      onShare?: (data: VerseOfTheDayShareData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <RNView testID="mock-votd-dom">
-          <RNText testID="mock-app-key">{props.appKey}</RNText>
-          <RNText testID="mock-version-id">{String(props.versionId ?? '')}</RNText>
-          <RNText testID="mock-theme">{props.theme ?? ''}</RNText>
-          <RNText testID="mock-dom-match-contents">
-            {props.dom?.matchContents === true ? '1' : '0'}
-          </RNText>
-          <RNText testID="mock-has-share-handler">{props.onShare ? 'yes' : 'no'}</RNText>
-          <Pressable
-            testID="mock-share-trigger"
-            onPress={() => {
-              void props.onShare?.(sampleShareData)
-            }}
-          >
-            <RNText>share</RNText>
-          </Pressable>
-        </RNView>
-      )
-    },
-  }
-})
+let latestDomProps: LatestDomProps = {}
+
+function MockVerseOfTheDayDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-votd-dom">
+      <Text testID="mock-app-key">{props.appKey}</Text>
+      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
+      <Text testID="mock-theme">{props.theme ?? ''}</Text>
+      <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
+      <Text testID="mock-has-share-handler">{props.onShare ? 'yes' : 'no'}</Text>
+      <Pressable
+        testID="mock-share-trigger"
+        onPress={() => {
+          void props.onShare?.(sampleShareData)
+        }}
+      >
+        <Text>share</Text>
+      </Pressable>
+    </View>
+  )
+}
 
 describe('VerseOfTheDay', () => {
   const originalOs = Platform.OS
 
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
+    setImpl('VerseOfTheDayDom', MockVerseOfTheDayDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
-    jest.mocked(getVerseOfTheDayPassageId).mockClear()
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
   })
 
   afterEach(() => {
+    resetImpls()
     jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
@@ -173,7 +148,7 @@ describe('VerseOfTheDay', () => {
 
   it('throws when YouVersionProvider is missing', () => {
     expect(() => render(<VerseOfTheDay versionId={3034} />)).toThrow(
-      'YouVersionProvider is required. Wrap your app with <YouVersionProvider appKey="...">.',
+      'useYouVersion must be used inside of YouVersionProvider',
     )
   })
 
@@ -249,8 +224,8 @@ describe('VerseOfTheDay', () => {
     try {
       render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
-      const dayOfYear = getDayOfYear(new Date())
-      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+      const dayOfYear = votdApi.getDayOfYear(new Date())
+      expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
         expect.objectContaining({ appKey: 'test-key' }),
         dayOfYear,
       )
@@ -266,7 +241,7 @@ describe('VerseOfTheDay', () => {
     try {
       render(<VerseOfTheDay versionId={3034} dayOfYear={1} />, { wrapper: wrapper() })
 
-      expect(getVerseOfTheDayPassageId).toHaveBeenCalledWith(
+      expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
         expect.objectContaining({ appKey: 'test-key' }),
         1,
       )
@@ -282,6 +257,7 @@ describe('VerseOfTheDay', () => {
         <YouVersionProvider
           appKey="test-key"
           theme="light"
+          hookOverrides={defaultHookOverrides}
           permittedVersionIds={[111]}
           excludedVersionIds={[3034]}
           permittedLanguageTags={['en']}
@@ -303,7 +279,7 @@ describe('VerseOfTheDay', () => {
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 

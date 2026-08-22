@@ -1,6 +1,7 @@
 import {
   YouVersionProvider as CoreYouVersionProvider,
   type AuthConfig,
+  type HookOverrides,
 } from '@youversion/platform-react-native-expo-core'
 import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
@@ -25,6 +26,8 @@ export type YouVersionProviderProps = {
   /** Version filter: BCP 47 language tags (e.g. `en`, `zh-Hans`). Forwarded to core. */
   permittedLanguageTags?: string[]
   fallback?: ReactNode
+  /** Test seam: skip live fetch and return stub hook results. */
+  hookOverrides?: HookOverrides
   children: ReactNode
 }
 
@@ -38,8 +41,9 @@ export function YouVersionProvider({
   excludedVersionIds,
   permittedLanguageTags,
   fallback,
+  hookOverrides,
   children,
-}: YouVersionProviderProps) {
+}: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
 
@@ -49,6 +53,7 @@ export function YouVersionProvider({
       apiHost={apiHost}
       auth={auth}
       fallback={fallback}
+      hookOverrides={hookOverrides}
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}

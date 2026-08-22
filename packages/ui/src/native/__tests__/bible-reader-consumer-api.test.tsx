@@ -1,14 +1,28 @@
 /**
  * Consumer-facing BibleReader seams: refreshHighlights ref handle and onHighlightError.
  */
+import type {
+  HighlightWriteOutcome,
+  HookOverrides,
+  UseHighlightsOptions,
+} from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { HighlightWriteOutcome } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
-import { createRef, type ReactNode } from 'react'
+import { createRef } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
+import {
+  defaultPermissionFlow,
+  emptyHighlights,
+  signedOutAuth,
+} from '../../test-utils/default-hook-overrides'
+import {
+  installBibleReaderTestImpls,
+  resetImpls,
+  setImpl,
+} from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader, type BibleReaderHandle } from '../bible-reader'
-import { YouVersionProvider } from '../youversion-provider'
 
 const VERSION_ID = 111
 
@@ -31,96 +45,57 @@ const rawRemove = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>(as
 }))
 const refreshHighlights = jest.fn(async () => undefined)
 
-function stubHighlightPermissionFlow() {
-  jest
-    .spyOn(core, 'useHighlightPermissionFlow')
-    .mockImplementation(({ versionId, book, chapter }) => ({
-      highlights: {
-        highlights: [],
-        scope: { versionId, book, chapter },
-        isRefreshing: false,
-        error: null,
-        refresh: refreshHighlights,
-        apply: jest.fn(),
-        remove: rawRemove,
-      },
-      isConfirming: false,
-      apply: highlightPermissionFlowApply,
-      confirm: jest.fn(),
-      decline: jest.fn(),
-      flowError: null,
-    }))
+function permissionFlow(options: UseHighlightsOptions) {
+  return {
+    ...defaultPermissionFlow(options),
+    highlights: {
+      ...emptyHighlights(options),
+      refresh: refreshHighlights,
+      remove: rawRemove,
+    },
+    apply: highlightPermissionFlowApply,
+  }
 }
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-    }) {
-      return (
-        <View testID="mock-dom">
-          <Pressable
-            testID="trigger-verse-select"
-            onPress={() => void props.onVerseSelect?.(SELECTION)}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+const hookOverrides: HookOverrides = {
+  useYVAuth: signedOutAuth({
+    isAuthenticated: true,
+    accessToken: 'token',
+    userInfo: { id: 'user-1' },
+    getAccessToken: async () => ({ status: 'ok', token: 'token', userId: 'user-1' }),
+    requestedPermissions: ['highlights'],
+    grantedPermissions: ['highlights'],
+    hasPermission: () => true,
+  }),
+  useHighlightPermissionFlow: permissionFlow,
+}
 
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, default: () => <View testID="mock-footnote" /> }
-})
+const wrapper = youVersionProviderWrapper('light', undefined, hookOverrides)
 
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
+function MockDOM(props: {
+  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
+}) {
+  return (
+    <View testID="mock-dom">
+      <Pressable
+        testID="trigger-verse-select"
+        onPress={() => void props.onVerseSelect?.(SELECTION)}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" /> }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
-
-jest.mock('../bible-verse-action-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Pressable, Text } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVerseActionSheet: (props: {
+beforeEach(() => {
+  highlightPermissionFlowApply.mockClear()
+  rawRemove.mockClear()
+  refreshHighlights.mockClear()
+  installBibleReaderTestImpls()
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl(
+    'BibleVerseActionSheet',
+    (props: {
       isOpen: boolean
       onSwatchPress: (swatch: { color: string; state: 'apply' | 'remove' }) => void
     }) =>
@@ -140,53 +115,11 @@ jest.mock('../bible-verse-action-sheet', () => {
           </Pressable>
         </View>
       ) : null,
-  }
-})
-
-jest.mock('../sign-in-with-youversion-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, SignInWithYouVersionSheet: () => <View testID="mock-sign-in-sheet" /> }
-})
-
-jest.mock('../highlight-consent-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return { __esModule: true, HighlightConsentSheet: () => <View testID="mock-consent-sheet" /> }
-})
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
-
-beforeEach(() => {
-  highlightPermissionFlowApply.mockClear()
-  rawRemove.mockClear()
-  refreshHighlights.mockClear()
-  stubHighlightPermissionFlow()
-  jest.spyOn(core, 'useYVAuthOptional').mockReturnValue({
-    isAuthenticated: true,
-    accessToken: 'token',
-    userInfo: { id: 'user-1' },
-    error: null,
-    signIn: jest.fn(async () => undefined),
-    signOut: jest.fn(async () => undefined),
-    refreshNow: jest.fn(async () => undefined),
-    getAccessToken: jest.fn(
-      async () => ({ status: 'ok', token: 'token', userId: 'user-1' }) as const,
-    ),
-    isLoading: false,
-    requestedPermissions: ['highlights'],
-    grantedPermissions: ['highlights'],
-    hasPermission: () => true,
-    invalidatePermissions: jest.fn(),
-    requestPermissions: jest.fn(async () => ({ status: 'cancel' }) as const),
-  })
+  )
 })
 
 afterEach(() => {
+  resetImpls()
   jest.restoreAllMocks()
 })
 

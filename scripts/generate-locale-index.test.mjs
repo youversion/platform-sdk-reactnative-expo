@@ -23,4 +23,7 @@ test('generateIndexContent types catalogs as Partial so untranslated keys can la
   const output = generateIndexContent(['en', 'fr'])
 
   assert.match(output, /satisfies Record<string, Partial<SdkTranslationResources>>/)
+  assert.match(output, /export type SdkI18nResourceMap =/)
+  assert.match(output, /export function buildSdkResources\(\): SdkI18nResourceMap/)
+  assert.match(output, /\) satisfies SdkI18nResourceMap/)
 })

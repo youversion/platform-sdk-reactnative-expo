@@ -25,17 +25,19 @@ export const SDK_VERSION: string = IS_PUBLISH_BUILD ? pkg.version : `${pkg.versi
 // different object key and `Headers` would combine both values.
 const SDK_HEADER_NAME = 'X-YVP-Sdk'
 
-export function getSdkHeaders(): Record<string, string> {
-  return { [SDK_HEADER_NAME]: `ReactNativeSDK=${SDK_VERSION}` }
+export type SdkHeaders = {
+  'X-YVP-Sdk': string
 }
 
-export function mergeSdkHeaders(
-  additionalHeaders?: Record<string, string>,
-): Record<string, string> {
+export function getSdkHeaders(): SdkHeaders {
+  return { [SDK_HEADER_NAME]: `ReactNativeSDK=${SDK_VERSION}` } satisfies SdkHeaders
+}
+
+export function mergeSdkHeaders(additionalHeaders?: Record<string, string>): SdkHeaders {
   const rest = Object.fromEntries(
     Object.entries(additionalHeaders ?? {}).filter(
       ([key]) => key.toLowerCase() !== SDK_HEADER_NAME.toLowerCase(),
     ),
   )
-  return { ...rest, ...getSdkHeaders() }
+  return { ...rest, ...getSdkHeaders() } satisfies SdkHeaders
 }

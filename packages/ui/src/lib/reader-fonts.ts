@@ -52,25 +52,51 @@ export type FontFamilyToken =
   | (typeof FONT_FAMILY_TOKEN)[keyof typeof FONT_FAMILY_TOKEN]
   | (string & {})
 
-const FONT_FAMILY_TO_TOKEN: Record<string, FontFamilyToken> = {
+const FONT_FAMILY_TO_TOKEN = {
   [INTER_FONT]: FONT_FAMILY_TOKEN.INTER,
   [UNTITLED_SERIF_FONT]: FONT_FAMILY_TOKEN.UNTITLED_SERIF,
   [SOURCE_SERIF_FONT]: FONT_FAMILY_TOKEN.SOURCE_SERIF,
-}
+} satisfies Record<string, FontFamilyToken>
 
-const TOKEN_TO_FONT_FAMILY: Record<string, FontFamily> = {
+const TOKEN_TO_FONT_FAMILY = {
   [FONT_FAMILY_TOKEN.INTER]: INTER_FONT,
   [FONT_FAMILY_TOKEN.UNTITLED_SERIF]: UNTITLED_SERIF_FONT,
   [FONT_FAMILY_TOKEN.SOURCE_SERIF]: SOURCE_SERIF_FONT,
-}
+} satisfies Record<string, FontFamily>
 
 /**
  * Encode a canonical font family into its bridge-safe token before it crosses
  * into an Expo DOM component's props. Unknown values (e.g. a consumer-supplied
  * custom stack) pass through unchanged.
  */
+function tokenForFontFamily(fontFamily: FontFamily): FontFamilyToken | undefined {
+  switch (fontFamily) {
+    case INTER_FONT:
+      return FONT_FAMILY_TO_TOKEN[INTER_FONT]
+    case UNTITLED_SERIF_FONT:
+      return FONT_FAMILY_TO_TOKEN[UNTITLED_SERIF_FONT]
+    case SOURCE_SERIF_FONT:
+      return FONT_FAMILY_TO_TOKEN[SOURCE_SERIF_FONT]
+    default:
+      return undefined
+  }
+}
+
+function fontFamilyForToken(token: FontFamilyToken): FontFamily | undefined {
+  switch (token) {
+    case FONT_FAMILY_TOKEN.INTER:
+      return TOKEN_TO_FONT_FAMILY[FONT_FAMILY_TOKEN.INTER]
+    case FONT_FAMILY_TOKEN.UNTITLED_SERIF:
+      return TOKEN_TO_FONT_FAMILY[FONT_FAMILY_TOKEN.UNTITLED_SERIF]
+    case FONT_FAMILY_TOKEN.SOURCE_SERIF:
+      return TOKEN_TO_FONT_FAMILY[FONT_FAMILY_TOKEN.SOURCE_SERIF]
+    default:
+      return undefined
+  }
+}
+
 export function encodeFontFamilyForDom(fontFamily: FontFamily): FontFamilyToken {
-  return FONT_FAMILY_TO_TOKEN[fontFamily] ?? fontFamily
+  return tokenForFontFamily(fontFamily) ?? fontFamily
 }
 
 /**
@@ -82,5 +108,5 @@ export function decodeFontFamilyFromDom(
   token: FontFamilyToken | undefined,
 ): FontFamily | undefined {
   if (token == null) return token
-  return TOKEN_TO_FONT_FAMILY[token] ?? token
+  return fontFamilyForToken(token) ?? token
 }

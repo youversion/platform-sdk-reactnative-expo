@@ -23,18 +23,6 @@ import {
   type OptimisticState,
 } from '../optimistic'
 
-// `optimistic.ts` is pure, but the round-trip assertions below reach for
-// `deriveServerColors`, and importing `cache.ts` boots the real MMKV native
-// module. Stub the storage boundary; nothing in this file touches it.
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn(),
-    getString: jest.fn(),
-    remove: jest.fn(),
-    getAllKeys: jest.fn(() => []),
-  },
-}))
-
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const YELLOW = 'fffe00'
 const GREEN = '5dff79'
