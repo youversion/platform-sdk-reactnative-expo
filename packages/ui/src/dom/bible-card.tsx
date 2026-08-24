@@ -43,7 +43,9 @@ type BibleCardBridgeProps = Omit<
   dom?: import('expo/dom').DOMProps
   /**
    * Local until `@youversion/platform-react-ui` publishes BibleCard `maxWidth`
-   * (platform-sdk-react#354). Web owns the cap; native only forwards it.
+   * (platform-sdk-react#354). Web owns the cap and the scripture fill
+   * (`--yv-reader-max-width: none` on the painted section). Native only
+   * forwards `maxWidth`; it does not copy that CSS.
    */
   maxWidth?: BibleCardMaxWidth
 }
