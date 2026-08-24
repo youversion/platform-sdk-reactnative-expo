@@ -12,7 +12,7 @@ import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
-import { Platform, Share } from 'react-native'
+import { Platform, Share, StyleSheet } from 'react-native'
 
 import {
   readerLocationStoreInitialState,
@@ -309,7 +309,8 @@ describe('BibleReader verse action sheet — visibility', () => {
   /**
    * A consumer with no `auth` config (a kids app, no sign-in) still gets Copy
    * and Share. Highlight colors would tap into a write that can only fail, and
-   * the sign-in prompt has nowhere to go, so the tray stays off.
+   * the sign-in prompt has nowhere to go, so the tray stays off. The two
+   * buttons split the row evenly instead of sitting compact on one edge.
    */
   it('omits highlight swatches when auth is unconfigured, and keeps Copy and Share', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -318,8 +319,12 @@ describe('BibleReader verse action sheet — visibility', () => {
 
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
     expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
-    expect(screen.getByTestId('bible-verse-action-copy')).toBeTruthy()
-    expect(screen.getByTestId('bible-verse-action-share')).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-verse-action-copy').props.style).flex).toBe(
+      1,
+    )
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-verse-action-share').props.style).flex,
+    ).toBe(1)
   })
 
   /**

@@ -104,6 +104,11 @@ export function BibleVerseActionSheet({
   theme,
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
+  const hasSwatches = swatches.length > 0
+  const actionStyle = [styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]
+  if (!hasSwatches) {
+    actionStyle.push(styles.actionFill)
+  }
 
   // Each edge shows its fade only while swatches are hidden under it. The
   // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
@@ -152,7 +157,7 @@ export function BibleVerseActionSheet({
         </Text>
 
         <View style={styles.row}>
-          {swatches.length > 0 && (
+          {hasSwatches && (
             <View
               testID="bible-verse-action-swatches"
               style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
@@ -218,7 +223,7 @@ export function BibleVerseActionSheet({
             testID="bible-verse-action-copy"
             accessibilityRole="button"
             onPress={onCopyPress}
-            style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
+            style={actionStyle}
           >
             <CopyIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
@@ -230,7 +235,7 @@ export function BibleVerseActionSheet({
             testID="bible-verse-action-share"
             accessibilityRole="button"
             onPress={onSharePress}
-            style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
+            style={actionStyle}
           >
             <ShareIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
@@ -301,9 +306,6 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     flexDirection: 'row',
     gap: 8,
-    // Without a tray (no `auth` config) Copy and Share stay on the trailing
-    // edge instead of collapsing to the leading edge of an empty row.
-    justifyContent: 'flex-end',
   },
   /**
    * A fixed-width window that clips a horizontally scrolling strip of swatches.
@@ -358,6 +360,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     paddingVertical: ACTION_PADDING_VERTICAL,
+  },
+  /** Equal half of the row when the tray is omitted. */
+  actionFill: {
+    flex: 1,
   },
   actionLabel: {
     fontSize: 13,
