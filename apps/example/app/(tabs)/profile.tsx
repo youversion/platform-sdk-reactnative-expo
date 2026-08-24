@@ -1,11 +1,23 @@
-import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import { useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
 import { Image, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
 export default function ProfileScreen() {
-  const { isAuthenticated, isLoading, userInfo } = useYVAuth()
+  const auth = useYVAuthOptional()
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light'
   const theme = colorTheme[colorScheme]
+
+  if (auth === null) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.bg }]}>
+        <Text style={[styles.muted, { color: theme.muted, textAlign: 'center' }]}>
+          Sign-in is not configured.
+        </Text>
+      </View>
+    )
+  }
+
+  const { isAuthenticated, isLoading, userInfo } = auth
 
   if (isLoading) {
     return (
