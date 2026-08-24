@@ -105,10 +105,6 @@ export function BibleVerseActionSheet({
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
   const hasSwatches = swatches.length > 0
-  const actionStyle = [styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]
-  if (!hasSwatches) {
-    actionStyle.push(styles.actionFill)
-  }
 
   // Each edge shows its fade only while swatches are hidden under it. The
   // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
@@ -223,7 +219,11 @@ export function BibleVerseActionSheet({
             testID="bible-verse-action-copy"
             accessibilityRole="button"
             onPress={onCopyPress}
-            style={actionStyle}
+            style={[
+              styles.action,
+              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
+              !hasSwatches && styles.actionFill,
+            ]}
           >
             <CopyIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
@@ -235,7 +235,11 @@ export function BibleVerseActionSheet({
             testID="bible-verse-action-share"
             accessibilityRole="button"
             onPress={onSharePress}
-            style={actionStyle}
+            style={[
+              styles.action,
+              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
+              !hasSwatches && styles.actionFill,
+            ]}
           >
             <ShareIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
