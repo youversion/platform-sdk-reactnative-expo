@@ -26,3 +26,5 @@ export type {
   YouVersionTheme,
 } from './native'
 export { useSignOutGuard } from './native'
+export { getTokens } from './theme'
+export type { Tokens } from './theme'

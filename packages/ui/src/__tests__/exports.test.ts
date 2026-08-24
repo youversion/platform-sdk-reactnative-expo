@@ -1,9 +1,10 @@
 /**
  * Guards the public API surface of the UI package, the way
  * `packages/core/src/highlights/__tests__/exports.test.ts` guards core's. The
- * nine components plus `useSignOutGuard` are the supported surface; the sheets
- * the SDK wires for itself stay off the package namespace, so a consumer cannot
- * couple to them and an accidental re-export from `index.ts` reds the suite.
+ * nine components plus `useSignOutGuard` and `getTokens` are the supported
+ * surface; the sheets the SDK wires for itself stay off the package namespace,
+ * so a consumer cannot couple to them and an accidental re-export from
+ * `index.ts` reds the suite.
  *
  * Only the namespace is inspected. Nothing renders, so the DOM components the
  * native wrappers import stay unmocked — importing them is safe, mounting them
@@ -27,7 +28,7 @@ describe('package exports', () => {
   // Named one by one rather than looped over `PUBLIC_COMPONENTS`: a computed
   // read off the namespace is something neither ESLint nor tsc can check, so
   // the loop would pass on a name no longer exported.
-  it('exposes the public components and the sign-out guard', () => {
+  it('exposes the public components, the sign-out guard, and getTokens', () => {
     expect(typeof ui.BibleCard).toBe('function')
     expect(typeof ui.BibleChapterPickerSheet).toBe('function')
     expect(typeof ui.BibleReader).toBe('function')
@@ -38,6 +39,7 @@ describe('package exports', () => {
     expect(typeof ui.YouVersionAuthButton).toBe('function')
     expect(typeof ui.YouVersionProvider).toBe('function')
     expect(typeof ui.useSignOutGuard).toBe('function')
+    expect(typeof ui.getTokens).toBe('function')
   })
 
   it('keeps the SDK-owned sheets internal', () => {
@@ -55,6 +57,8 @@ describe('package exports', () => {
   })
 
   it('exports nothing beyond the pinned list', () => {
-    expect(Object.keys(ui).sort()).toEqual([...PUBLIC_COMPONENTS, 'useSignOutGuard'].sort())
+    expect(Object.keys(ui).sort()).toEqual(
+      [...PUBLIC_COMPONENTS, 'getTokens', 'useSignOutGuard'].sort(),
+    )
   })
 })
