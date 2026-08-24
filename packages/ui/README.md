@@ -10,7 +10,7 @@ Use `@youversion/platform-react-native-expo-ui` when you need:
 
 - ✅ Pre-built Bible components for Expo: `BibleCard`, `BibleReader`, `BibleTextView`, `VerseOfTheDay`
 - ✅ Version/chapter picker and reader-settings bottom sheets, plus `YouVersionAuthButton`
-- ✅ Native verse actions in `BibleReader`: a bottom sheet with highlight colors, Copy, and Share, plus `onCopy` / `onShare` overrides
+- ✅ Native verse actions in `BibleReader`: a bottom sheet with Copy and Share (plus highlight colors when `auth` is configured), and `onCopy` / `onShare` overrides
 - ✅ Highlights the reader paints for you, including ones made offline — surface them with `onHighlightError`, refetch them with `refreshHighlights()` on the reader's ref
 - ✅ A native sign-out confirmation on `YouVersionAuthButton` and the reader, warning when unsent highlights would be lost (`useSignOutGuard` for your own UI)
 - ✅ Light/dark theming across every component, from one `YouVersionProvider` at your app root
