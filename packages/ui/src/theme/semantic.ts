@@ -35,7 +35,9 @@ const light = {
   sidebarRing: palette.blue30,
 }
 
-const dark: { [K in keyof typeof light]: string } = {
+export type SemanticColors = { [Key in keyof typeof light]: string }
+
+const dark: SemanticColors = {
   background: palette.gray50,
   foreground: palette.white,
   card: palette.gray45,
@@ -70,6 +72,5 @@ const dark: { [K in keyof typeof light]: string } = {
   sidebarRing: palette.blue30Dm,
 }
 
-export const semantic = { light, dark }
+export const semanticColors = { light, dark }
 
-export type SemanticColors = { [K in keyof typeof light]: string }
