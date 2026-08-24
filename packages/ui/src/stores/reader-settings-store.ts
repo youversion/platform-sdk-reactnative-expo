@@ -28,11 +28,15 @@ type ReaderSettingsState = {
   setLineSpacing: (size: number) => void
 }
 
-const persistedReaderSliceSchema = z.object({
-  fontSize: z.number().optional(),
-  fontFamily: z.string().optional(),
-  lineSpacing: z.number().optional(),
+const persistedReaderEnvelopeSchema = z.object({
+  fontSize: z.unknown().optional(),
+  fontFamily: z.unknown().optional(),
+  lineSpacing: z.unknown().optional(),
 })
+
+const storedFontSizeSchema = z.number()
+const storedFontFamilySchema = z.string()
+const storedLineSpacingSchema = z.number()
 
 const LINE_SPACING_VALUES = new Set<number>(Object.values(READER_LINE_SPACING))
 
@@ -76,20 +80,24 @@ export const useReaderSettingsStore = create<ReaderSettingsState>()(
         lineSpacing: state.lineSpacing,
       }),
       merge: (persistedState, currentState) => {
-        const persistedReaderSlice = persistedReaderSliceSchema.safeParse(persistedState)
-        if (!persistedReaderSlice.success) {
+        const envelope = persistedReaderEnvelopeSchema.safeParse(persistedState)
+        if (!envelope.success) {
           return currentState
         }
 
+        const fontSizeValue = storedFontSizeSchema.safeParse(envelope.data.fontSize)
+        const fontFamilyValue = storedFontFamilySchema.safeParse(envelope.data.fontFamily)
+        const lineSpacingValue = storedLineSpacingSchema.safeParse(envelope.data.lineSpacing)
+
         return {
           fontSize: clampBibleReaderFontSize(
-            persistedReaderSlice.data.fontSize ?? currentState.fontSize,
+            fontSizeValue.success ? fontSizeValue.data : currentState.fontSize,
           ),
           fontFamily: normalizeFontFamily(
-            persistedReaderSlice.data.fontFamily ?? currentState.fontFamily,
+            fontFamilyValue.success ? fontFamilyValue.data : currentState.fontFamily,
           ),
           lineSpacing: normalizeLineSpacing(
-            persistedReaderSlice.data.lineSpacing ?? currentState.lineSpacing,
+            lineSpacingValue.success ? lineSpacingValue.data : currentState.lineSpacing,
           ),
           setFontSize: currentState.setFontSize,
           setFontFamily: currentState.setFontFamily,

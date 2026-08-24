@@ -162,4 +162,24 @@ describe('useReaderSettingsStore', () => {
     const { result } = renderHook(() => useReaderSettingsSlice())
     expect(result.current.lineSpacing).toBe(READER_LINE_SPACING.DEFAULT)
   })
+
+  it('keeps valid stored fields when one field has the wrong type', async () => {
+    mmkvStorage.set(
+      READER_SETTINGS_PERSIST_KEY,
+      JSON.stringify({
+        state: {
+          fontSize: 18,
+          fontFamily: INTER_FONT,
+          lineSpacing: '1.5',
+        },
+        version: 0,
+      }),
+    )
+    await useReaderSettingsStore.persist.rehydrate()
+
+    const { result } = renderHook(() => useReaderSettingsSlice())
+    expect(result.current.fontSize).toBe(18)
+    expect(result.current.fontFamily).toBe(INTER_FONT)
+    expect(result.current.lineSpacing).toBe(READER_LINE_SPACING.DEFAULT)
+  })
 })
