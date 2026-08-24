@@ -2,7 +2,7 @@ import { fireEvent, render } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import * as ReactNative from 'react-native'
-import { Platform } from 'react-native'
+import { Platform, type StyleProp, type ViewStyle } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { BibleCard } from '../bible-card'
@@ -83,7 +83,7 @@ jest.mock('../../dom/footnote-content', () => {
 })
 
 let latestDomProps: {
-  dom?: { matchContents?: boolean; containerStyle?: unknown }
+  dom?: { matchContents?: boolean; containerStyle?: StyleProp<ViewStyle> }
   locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
@@ -103,7 +103,7 @@ jest.mock('../../dom/bible-card', () => {
       theme?: string
       locale?: string
       maxWidth?: number | '100%'
-      dom?: { matchContents?: boolean; containerStyle?: unknown }
+      dom?: { matchContents?: boolean; containerStyle?: StyleProp<ViewStyle> }
       onFootnotePress?: (data: FootnoteData) => Promise<void>
     }) {
       latestDomProps = props
@@ -131,9 +131,9 @@ jest.mock('../../dom/bible-card', () => {
   }
 })
 
-function styleHasMaxWidth(style: unknown): boolean {
-  if (style == null) return false
-  if (Array.isArray(style)) return style.some(styleHasMaxWidth)
+function styleHasMaxWidth(style: StyleProp<ViewStyle>): boolean {
+  if (style == null || style === false) return false
+  if (Array.isArray(style)) return unknownStyleHasMaxWidth(style)
   if (typeof style !== 'object') return false
   return 'maxWidth' in style
 }
@@ -142,8 +142,21 @@ function treeHasMaxWidthStyle(node: unknown): boolean {
   if (node == null || typeof node !== 'object') return false
   if (Array.isArray(node)) return node.some(treeHasMaxWidthStyle)
 
-  const record = node as { props?: { style?: unknown }; children?: unknown }
-  return styleHasMaxWidth(record.props?.style) || treeHasMaxWidthStyle(record.children)
+  if (!('props' in node) || node.props == null || typeof node.props !== 'object') {
+    return 'children' in node && treeHasMaxWidthStyle(node.children)
+  }
+
+  const style = 'style' in node.props ? node.props.style : undefined
+  return (
+    unknownStyleHasMaxWidth(style) || ('children' in node && treeHasMaxWidthStyle(node.children))
+  )
+}
+
+function unknownStyleHasMaxWidth(style: unknown): boolean {
+  if (style == null) return false
+  if (Array.isArray(style)) return style.some(unknownStyleHasMaxWidth)
+  if (typeof style !== 'object') return false
+  return 'maxWidth' in style
 }
 
 function containsReaderWidthToken(value: unknown): boolean {
