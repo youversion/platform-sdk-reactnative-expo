@@ -2,12 +2,13 @@
 
 Date: 2026-08-05
 Amended: 2026-08-12 — apply is palette-only. Remove follows the ANY rule for valid hex.
+Amended: 2026-08-24 — unconfigured auth omits the swatch tray. Copy and Share remain.
 
 ## Status
 
 Accepted
 
-Verse actions are the reference, the highlight swatches, Copy, and Share. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection and the selection payload. It renders controlled highlights. Native owns the paint data ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
+Verse actions are the reference, Copy, and Share, and the highlight swatches when `auth` is configured. A missing `auth` omits the tray so a color tap cannot no-op. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection and the selection payload. It renders controlled highlights. Native owns the paint data ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
 
 **Web keeps the popover.** `NativeSheet` renders nothing on web. Suppressing the popover there leaves no verse-action UI. The fork is `lib/resolve-verse-actions.ts`. The `'use dom'` file cannot read the host `Platform.OS`.
 
@@ -21,7 +22,7 @@ Verse actions are the reference, the highlight swatches, Copy, and Share. Swift 
 
 **Copy and Share stay native.** `onCopy` and `onShare` are native-only props. `shareData` rides in on `onVerseSelect`, so neither button crosses the bridge.
 
-**Writes go through `useHighlightPermissionFlow`.** A second gate in the UI layer gives a write two places to disagree. The reader adds only a sign-in prompt in front, because the flow calls `signIn()` with no UI of its own. A `null` auth is unconfigured, not signed out, and must not raise a prompt. The action sheet stays closed while a prompt is up, so displacement cannot clear a Pending Highlight.
+**Writes go through `useHighlightPermissionFlow`.** A second gate in the UI layer gives a write two places to disagree. The reader adds only a sign-in prompt in front, because the flow calls `signIn()` with no UI of its own. A `null` auth is unconfigured, not signed out, and must not raise a prompt. The swatch tray is omitted in that case — Copy and Share stay — so a color tap cannot no-op. The action sheet stays closed while a prompt is up, so displacement cannot clear a Pending Highlight.
 
 **The sheet stays internal.** A host that wants its own UI uses `onVerseSelect` plus `useHighlights`.
 

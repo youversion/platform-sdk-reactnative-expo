@@ -456,19 +456,23 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   /**
-   * No `auth` config is not "signed out" — there is nothing to sign in to, and
-   * the flow's own `apply` warns and falls through to the unguarded write. A
-   * prompt here would open a sheet whose only outcome is the one the user
-   * already had.
+   * No `auth` config is not "signed out" — there is nothing to sign in to.
+   * Highlight colors would tap into a write that can only fail, so the tray
+   * stays off. Copy and Share remain; a prompt would open a sheet whose only
+   * outcome is the one the user already had.
    */
-  it('does not prompt a consumer who configured no auth', async () => {
+  it('does not offer highlight swatches or a sign-in prompt when auth is unconfigured', async () => {
     render(<ReaderHarness auth={null} />)
 
     await selectVerses()
-    await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+    expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
+    expect(screen.getByTestId('bible-verse-action-copy')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-share')).toBeTruthy()
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+    expect(rawApply).not.toHaveBeenCalled()
   })
 })
 

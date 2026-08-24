@@ -6,18 +6,22 @@
  * the WebView, so every assertion here is on the native side of the bridge plus
  * the one value travelling back: the clear signal.
  */
-import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
+import type {
+  Highlight,
+  HookOverrides,
+  UseHighlightsOptions,
+} from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
-import { Platform, Pressable, Share, Text, View } from 'react-native'
+import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
-import { emptyHighlights } from '../../test-utils/default-hook-overrides'
+import { emptyHighlights, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
@@ -96,6 +100,28 @@ function useHighlightPermissionFlow({ versionId, book, chapter }: UseHighlightsO
     decline: jest.fn(),
     flowError: null,
   }
+}
+
+const signedInAuth = signedOutAuth({
+  isAuthenticated: true,
+  accessToken: 'test-token',
+  getAccessToken: async () => ({ status: 'ok', token: 'test-token', userId: null }),
+  requestedPermissions: ['highlights'],
+  grantedPermissions: ['highlights'],
+  hasPermission: () => true,
+})
+
+const testHookOverrides: HookOverrides = {
+  useYVAuth: null,
+  useHighlightPermissionFlow,
+}
+
+/**
+ * A consumer *with* `auth` configured. The default in these tests is `null` —
+ * no AuthProvider, the kids-app case: no sign-in, so no highlight swatches.
+ */
+function stubAuth() {
+  testHookOverrides.useYVAuth = signedInAuth
 }
 
 /** Which verse-selection payload the mocked DOM component emits on the next press. */
@@ -177,10 +203,7 @@ function MockNativeSheet({
   ) : null
 }
 
-const wrapper = youVersionProviderWrapper('light', undefined, {
-  useYVAuth: null,
-  useHighlightPermissionFlow,
-})
+const wrapper = youVersionProviderWrapper('light', undefined, testHookOverrides)
 
 const user = userEvent.setup()
 
@@ -198,6 +221,7 @@ beforeEach(() => {
   rawApply.mockClear()
   rawRemove.mockClear()
   stubHighlightPermissionFlow()
+  testHookOverrides.useYVAuth = null
   installBibleReaderTestImpls()
   setImpl('BibleReaderDom', MockDOM)
   setImpl('NativeSheet', MockNativeSheet)
@@ -226,6 +250,27 @@ describe('BibleReader verse action sheet — visibility', () => {
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
     // `John 1:1-2`, not `JHN 1:1-2` — the human-readable half of the 2.5.0 payload.
     expect(screen.getByTestId('bible-verse-action-reference').children).toContain('John 1:1-2')
+  })
+
+  /**
+   * A consumer with no `auth` config (a kids app, no sign-in) still gets Copy
+   * and Share. Highlight colors would tap into a write that can only fail, and
+   * the sign-in prompt has nowhere to go, so the tray stays off. The two
+   * buttons split the row evenly instead of sitting compact on one edge.
+   */
+  it('omits highlight swatches when auth is unconfigured, and keeps Copy and Share', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+    expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-verse-action-copy').props.style).flex).toBe(
+      1,
+    )
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-verse-action-share').props.style).flex,
+    ).toBe(1)
   })
 
   /**
@@ -337,6 +382,10 @@ describe('BibleReader verse action sheet — the bridge', () => {
 })
 
 describe('BibleReader verse action sheet — swatches', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   it('projects the swatch tray from the painted highlights', async () => {
     stubHighlightPermissionFlow([highlight(1, YELLOW)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -416,6 +465,10 @@ describe('BibleReader verse action sheet — swatches', () => {
  * layout pass, which never runs under jest.
  */
 describe('BibleReader verse action sheet — swatch tray overflow', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   // `fireEvent`, not `userEvent`, on purpose: `layout`, `contentSizeChange`, and
   // the scroll offset they feed are the layout pass standing in for itself, not
   // a gesture. `userEvent.scroll` would need the measurements this is supplying.
