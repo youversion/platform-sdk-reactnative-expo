@@ -88,6 +88,7 @@ let latestDomProps: {
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
+  maxWidth?: number | '100%'
 } = {}
 
 jest.mock('../../dom/bible-card', () => {
@@ -101,6 +102,7 @@ jest.mock('../../dom/bible-card', () => {
       versionId?: number
       theme?: string
       locale?: string
+      maxWidth?: number | '100%'
       dom?: { matchContents?: boolean; containerStyle?: unknown }
       onFootnotePress?: (data: FootnoteData) => Promise<void>
     }) {
@@ -128,6 +130,21 @@ jest.mock('../../dom/bible-card', () => {
     },
   }
 })
+
+function styleHasMaxWidth(style: unknown): boolean {
+  if (style == null) return false
+  if (Array.isArray(style)) return style.some(styleHasMaxWidth)
+  if (typeof style !== 'object') return false
+  return 'maxWidth' in style
+}
+
+function treeHasMaxWidthStyle(node: unknown): boolean {
+  if (node == null || typeof node !== 'object') return false
+  if (Array.isArray(node)) return node.some(treeHasMaxWidthStyle)
+
+  const record = node as { props?: { style?: unknown }; children?: unknown }
+  return styleHasMaxWidth(record.props?.style) || treeHasMaxWidthStyle(record.children)
+}
 
 describe('BibleCard', () => {
   const originalOs = Platform.OS
@@ -228,6 +245,26 @@ describe('BibleCard', () => {
     )
 
     expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
+  })
+
+  it('forwards maxWidth to the web card without applying it as a native wrapper style', () => {
+    const { toJSON } = render(<BibleCard reference="JHN.3.16" versionId={3034} maxWidth={480} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestDomProps.maxWidth).toBe(480)
+    expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
+    expect(treeHasMaxWidthStyle(toJSON())).toBe(false)
+  })
+
+  it('forwards maxWidth 100% to the web card without applying it as a native wrapper style', () => {
+    const { toJSON } = render(<BibleCard reference="JHN.3.16" versionId={3034} maxWidth="100%" />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestDomProps.maxWidth).toBe('100%')
+    expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
+    expect(treeHasMaxWidthStyle(toJSON())).toBe(false)
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {

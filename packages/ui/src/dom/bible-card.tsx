@@ -13,10 +13,13 @@ import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
+type BibleCardMaxWidth = number | '100%'
+
 type NativeActionBibleCardProps = WebBibleCardProps & {
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  maxWidth?: BibleCardMaxWidth
 }
 
 type BibleCardBridgeProps = Omit<
@@ -38,6 +41,11 @@ type BibleCardBridgeProps = Omit<
   installationId: string
   theme?: 'light' | 'dark'
   dom?: import('expo/dom').DOMProps
+  /**
+   * Local until `@youversion/platform-react-ui` publishes BibleCard `maxWidth`
+   * (platform-sdk-react#354). Web owns the cap; native only forwards it.
+   */
+  maxWidth?: BibleCardMaxWidth
 }
 
 export type BibleCardProps = BibleCardBridgeProps
