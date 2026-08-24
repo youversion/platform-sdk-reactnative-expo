@@ -101,6 +101,35 @@ function stubHighlightPermissionFlow(highlights: Highlight[] = []) {
     }))
 }
 
+type AuthValue = NonNullable<ReturnType<typeof core.useYVAuthOptional>>
+
+/**
+ * A consumer *with* `auth` configured. The default in these tests is `null` —
+ * the passthrough provider mounts no `AuthProvider` — which is the kids-app
+ * case: no sign-in, so no highlight swatches.
+ */
+function stubAuth() {
+  const value: AuthValue = {
+    isAuthenticated: true,
+    accessToken: 'test-token',
+    userInfo: null,
+    error: null,
+    signIn: jest.fn(async () => undefined),
+    signOut: jest.fn(async () => undefined),
+    refreshNow: jest.fn(async () => undefined),
+    getAccessToken: jest.fn(
+      async () => ({ status: 'ok', token: 'test-token', userId: null }) as const,
+    ),
+    isLoading: false,
+    requestedPermissions: ['highlights'],
+    grantedPermissions: ['highlights'],
+    hasPermission: () => true,
+    invalidatePermissions: jest.fn(),
+    requestPermissions: jest.fn(async () => ({ status: 'cancel' }) as const),
+  }
+  jest.spyOn(core, 'useYVAuthOptional').mockReturnValue(value)
+}
+
 /** Which verse-selection payload the mocked DOM component emits on the next press. */
 let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
@@ -278,6 +307,22 @@ describe('BibleReader verse action sheet — visibility', () => {
   })
 
   /**
+   * A consumer with no `auth` config (a kids app, no sign-in) still gets Copy
+   * and Share. Highlight colors would tap into a write that can only fail, and
+   * the sign-in prompt has nowhere to go, so the tray stays off.
+   */
+  it('omits highlight swatches when auth is unconfigured, and keeps Copy and Share', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+    expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
+    expect(screen.getByTestId('bible-verse-action-copy')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-share')).toBeTruthy()
+  })
+
+  /**
    * Regression guard. A modal sheet draws a backdrop over the passage that eats
    * the next tap and closes the sheet, so the user can never select a second
    * verse. The passage has to stay interactive while the selection is still
@@ -386,6 +431,10 @@ describe('BibleReader verse action sheet — the bridge', () => {
 })
 
 describe('BibleReader verse action sheet — swatches', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   it('projects the swatch tray from the painted highlights', async () => {
     stubHighlightPermissionFlow([highlight(1, YELLOW)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -465,6 +514,10 @@ describe('BibleReader verse action sheet — swatches', () => {
  * layout pass, which never runs under jest.
  */
 describe('BibleReader verse action sheet — swatch tray overflow', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   // `fireEvent`, not `userEvent`, on purpose: `layout`, `contentSizeChange`, and
   // the scroll offset they feed are the layout pass standing in for itself, not
   // a gesture. `userEvent.scroll` would need the measurements this is supplying.

@@ -89,8 +89,9 @@ export type BibleVerseActionSheetProps = {
  * highlight swatch tray, Copy, and Share.
  *
  * Presentational only. `lib/verse-action-swatches.ts` decides which swatches to
- * show. Acting on a press, which means writing the highlight and clearing the
- * selection, is the reader's job.
+ * show. An empty list omits the tray, so Copy and Share can stand alone when
+ * highlighting is not available. Acting on a press, which means writing the
+ * highlight and clearing the selection, is the reader's job.
  */
 export function BibleVerseActionSheet({
   isOpen,
@@ -151,65 +152,67 @@ export function BibleVerseActionSheet({
         </Text>
 
         <View style={styles.row}>
-          <View
-            testID="bible-verse-action-swatches"
-            style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
-          >
-            <ScrollView
-              testID="bible-verse-action-swatch-scroll"
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              onLayout={(event) => {
-                metricsRef.current.trayWidth = event.nativeEvent.layout.width
-                syncFadeGates()
-              }}
-              onContentSizeChange={(width) => {
-                metricsRef.current.contentWidth = width
-                syncFadeGates()
-              }}
-              onScroll={(event) => {
-                metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
-                syncFadeGates()
-              }}
-              scrollEventThrottle={16}
-              style={styles.swatchScroll}
-              contentContainerStyle={styles.swatchTrayContent}
+          {swatches.length > 0 && (
+            <View
+              testID="bible-verse-action-swatches"
+              style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
             >
-              {swatches.map((swatch) => (
-                <Pressable
-                  key={`${swatch.color}-${swatch.state}`}
-                  testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    swatch.state === 'remove'
-                      ? t('clearHighlightAriaLabel')
-                      : t('applyHighlightAriaLabel')
-                  }
-                  onPress={() => onSwatchPress(swatch)}
-                  style={[
-                    styles.swatch,
-                    {
-                      backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
-                      borderColor: SHEET_STROKE[theme],
-                    },
-                  ]}
-                >
-                  {/*
-                   * The check takes the on-surface foreground, not a contrast
-                   * pick against the fill. Light mode paints a full-strength
-                   * swatch in Text/Everdark, and dark mode fades the fill to
-                   * 30%. White reads on both.
-                   */}
-                  {swatch.state === 'remove' && (
-                    <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
+              <ScrollView
+                testID="bible-verse-action-swatch-scroll"
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onLayout={(event) => {
+                  metricsRef.current.trayWidth = event.nativeEvent.layout.width
+                  syncFadeGates()
+                }}
+                onContentSizeChange={(width) => {
+                  metricsRef.current.contentWidth = width
+                  syncFadeGates()
+                }}
+                onScroll={(event) => {
+                  metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
+                  syncFadeGates()
+                }}
+                scrollEventThrottle={16}
+                style={styles.swatchScroll}
+                contentContainerStyle={styles.swatchTrayContent}
+              >
+                {swatches.map((swatch) => (
+                  <Pressable
+                    key={`${swatch.color}-${swatch.state}`}
+                    testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      swatch.state === 'remove'
+                        ? t('clearHighlightAriaLabel')
+                        : t('applyHighlightAriaLabel')
+                    }
+                    onPress={() => onSwatchPress(swatch)}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
+                        borderColor: SHEET_STROKE[theme],
+                      },
+                    ]}
+                  >
+                    {/*
+                     * The check takes the on-surface foreground, not a contrast
+                     * pick against the fill. Light mode paints a full-strength
+                     * swatch in Text/Everdark, and dark mode fades the fill to
+                     * 30%. White reads on both.
+                     */}
+                    {swatch.state === 'remove' && (
+                      <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-            {hasScrolledPast && <SwatchTrayFade edge="leading" theme={theme} />}
-            {hasMoreToScroll && <SwatchTrayFade edge="trailing" theme={theme} />}
-          </View>
+              {hasScrolledPast && <SwatchTrayFade edge="leading" theme={theme} />}
+              {hasMoreToScroll && <SwatchTrayFade edge="trailing" theme={theme} />}
+            </View>
+          )}
 
           <Pressable
             testID="bible-verse-action-copy"
@@ -298,6 +301,9 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     flexDirection: 'row',
     gap: 8,
+    // Without a tray (no `auth` config) Copy and Share stay on the trailing
+    // edge instead of collapsing to the leading edge of an empty row.
+    justifyContent: 'flex-end',
   },
   /**
    * A fixed-width window that clips a horizontally scrolling strip of swatches.

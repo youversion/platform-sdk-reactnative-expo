@@ -152,11 +152,11 @@ function ReaderScreen() {
 
 #### Verse actions
 
-Tapping a verse opens a native bottom sheet with the reference, the highlight colors, Copy, and Share. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
+Tapping a verse opens a native bottom sheet with the reference, Copy, and Share. When `auth` is configured on `YouVersionProvider`, the sheet also shows the highlight colors. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
 
 The sheet has no backdrop, so a second verse tap reaches the passage and extends the selection. To dismiss the sheet, swipe down, deselect the verses, or act on the sheet.
 
-The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). The sheet asks a signed-out user, or one without the permission, for exactly what is missing. It then applies their color choice, with no reselecting of the verse.
+The highlight colors write through the same highlights service as `useHighlights`. They need an `auth` config that requests the `highlights` permission (see [Sign In](#sign-in)). Without that config the colors are omitted — there is no sign-in to offer, and a tap would do nothing. With `auth` configured, the sheet asks a signed-out user, or one without the permission, for exactly what is missing. It then applies their color choice, with no reselecting of the verse.
 
 Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To handle either one yourself, pass `onCopy` or `onShare`:
 

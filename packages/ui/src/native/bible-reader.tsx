@@ -341,19 +341,22 @@ export function BibleReader({
     setInternalClearCount((count) => count + 1)
   }
 
-  // Which circles the tray shows, projected from the same painted array the
-  // WebView renders. A swatch can never disagree with the passage behind it.
-  const swatches = useMemo(
-    () =>
-      buildVerseActionSwatches({
-        verses: verseSelection?.verses ?? [],
-        colors: deriveServerColors(highlights, highlightScope),
-      }),
-    [verseSelection, highlights, highlightScope],
-  )
-
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
+
+  // Which circles the tray shows, projected from the same painted array the
+  // WebView renders. A swatch can never disagree with the passage behind it.
+  // No `auth` config means highlighting cannot succeed and the sign-in prompt
+  // has nowhere to go, so the tray is empty — Copy and Share still render.
+  const swatches = useMemo(() => {
+    if (authGate === 'unconfigured') {
+      return []
+    }
+    return buildVerseActionSwatches({
+      verses: verseSelection?.verses ?? [],
+      colors: deriveServerColors(highlights, highlightScope),
+    })
+  }, [authGate, verseSelection, highlights, highlightScope])
 
   const replayPendingIntent = useCallback(() => {
     const pending = pendingIntentRef.current
