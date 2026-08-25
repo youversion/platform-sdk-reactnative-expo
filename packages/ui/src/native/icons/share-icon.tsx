@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
@@ -7,7 +8,11 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
  * Decorative, for the same reason as {@link CopyIcon}: the button around it
  * carries the localized label.
  */
-export function ShareIcon({ color, size = 20, ...props }: SvgProps & { size?: number }) {
+export function ShareIcon({
+  color,
+  size = 20,
+  ...props
+}: SvgProps & { size?: number }): ReactNode {
   return (
     <Svg
       width={size}

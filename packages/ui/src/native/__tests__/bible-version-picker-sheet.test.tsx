@@ -1,15 +1,13 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
 
 type MockDomProps = {
   appKey?: string
@@ -25,47 +23,25 @@ type MockDomProps = {
 
 let latestDomProps: MockDomProps = {}
 
-jest.mock('../../dom/bible-version-picker-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: MockDomProps) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="theme-value">{props.theme ?? 'none'}</Text>
-          <Text testID="version-value">{String(props.versionId ?? 'none')}</Text>
-          <Pressable
-            testID="trigger-select"
-            onPress={() => {
-              void props.onVersionChange?.(59)
-            }}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+function MockDOM(props: MockDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="theme-value">{props.theme ?? 'none'}</Text>
+      <Text testID="version-value">{String(props.versionId ?? 'none')}</Text>
+      <Pressable
+        testID="trigger-select"
+        onPress={() => {
+          void props.onVersionChange?.(59)
+        }}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 function versionFilterWrapper(lists: {
   permittedVersionIds?: number[]
@@ -74,7 +50,12 @@ function versionFilterWrapper(lists: {
 }) {
   return function FilterWrapper({ children }: { children: ReactNode }) {
     return (
-      <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={defaultHookOverrides}
+        {...lists}
+      >
         {children}
       </YouVersionProvider>
     )
@@ -84,7 +65,16 @@ function versionFilterWrapper(lists: {
 describe('BibleVersionPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
+    setImpl('BibleVersionPickerContent', MockDOM)
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
+    )
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('fires onSelect with versionId and closes the sheet', async () => {
@@ -155,7 +145,7 @@ describe('BibleVersionPickerSheet', () => {
   it('explicit theme overrides provider theme', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
       wrapper: ({ children }) => (
-        <YouVersionProvider appKey="test-key" theme="light">
+        <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
           {children}
         </YouVersionProvider>
       ),
@@ -225,18 +215,14 @@ describe('BibleVersionPickerSheet', () => {
 
   it('forwards resolved locale from YouVersionProvider to DOM content', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <YouVersionProvider appKey="test-key" theme="light" locale="es">
-          {children}
-        </YouVersionProvider>
-      ),
+      wrapper: youVersionProviderWrapper('light', 'es'),
     })
 
     expect(latestDomProps.locale).toBe('es')
   })
 
   it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 

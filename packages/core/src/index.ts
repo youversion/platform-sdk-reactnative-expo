@@ -1,10 +1,12 @@
 export { useYouVersion } from './use-youversion'
+export type { HookOverrides } from './hook-overrides'
 export type { YouVersionContextValue } from './youversion-context'
 export { default as YouVersionProvider } from './youversion-provider'
 
 export { useYVAuth, useYVAuthOptional } from './auth'
 export type {
   AccessTokenResult,
+  AuthContextValue,
   GetAccessTokenOptions,
   AuthConfig,
   AuthPermission,

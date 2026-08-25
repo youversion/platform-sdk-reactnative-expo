@@ -4,26 +4,17 @@
  */
 
 import { render, screen } from '@testing-library/react-native'
-import { addNetworkStateListener, type NetworkState } from 'expo-network'
+import * as Network from 'expo-network'
+import { type NetworkState } from 'expo-network'
 import { act } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 
-import { useYVAuthOptional } from '../../auth'
-import { useYouVersion } from '../../use-youversion'
+import type { AuthContextValue } from '../../auth/auth-context'
+import YouVersionProvider from '../../youversion-provider'
+import * as api from '../api'
 import { notifyDrain } from '../drain-signals'
-import { startHighlightQueueDrain } from '../drain'
-import HighlightQueueDrainHost from '../highlight-queue-drain-host'
-
-jest.mock('../../auth', () => ({ useYVAuthOptional: jest.fn() }))
-jest.mock('../../use-youversion', () => ({ useYouVersion: jest.fn() }))
-jest.mock('../api', () => ({ createHighlightsApi: jest.fn(() => ({})) }))
-jest.mock('../drain', () => ({ startHighlightQueueDrain: jest.fn() }))
-jest.mock('expo-network', () => ({ addNetworkStateListener: jest.fn() }))
-
-const mockUseAuth = useYVAuthOptional as jest.Mock
-const mockUseYouVersion = useYouVersion as jest.Mock
-const mockStartDrain = startHighlightQueueDrain as jest.Mock
-const mockAddNetworkStateListener = addNetworkStateListener as jest.Mock
+import * as drainModule from '../drain'
+import { HighlightQueueDrainHost } from '../highlight-queue-drain-host'
 
 const drain = {
   drainNow: jest.fn(),
@@ -34,49 +25,89 @@ const drain = {
 let networkListener: ((state: NetworkState) => void) | null = null
 let appStateListener: ((state: AppStateStatus) => void) | null = null
 
+function signedInAuth(overrides: Partial<AuthContextValue> = {}): AuthContextValue {
+  return {
+    isAuthenticated: true,
+    accessToken: 'token-1',
+    userInfo: { id: 'user-1' },
+    error: null,
+    signIn: jest.fn(async () => undefined),
+    signOut: jest.fn(async () => undefined),
+    refreshNow: jest.fn(async () => undefined),
+    getAccessToken: jest.fn(),
+    isLoading: false,
+    requestedPermissions: ['highlights'],
+    grantedPermissions: null,
+    hasPermission: jest.fn(() => false),
+    invalidatePermissions: jest.fn(),
+    requestPermissions: jest.fn(),
+    ...overrides,
+  }
+}
+
+let currentAuth: AuthContextValue | null = signedInAuth()
+
 function emitNetwork(isConnected: boolean | undefined) {
-  act(() => networkListener?.({ isConnected } as NetworkState))
+  const state: NetworkState = { isConnected }
+  act(() => networkListener?.(state))
+}
+
+function renderHost() {
+  return render(
+    <YouVersionProvider
+      appKey="appkey"
+      apiHost="api.youversion.com"
+      hookOverrides={{ useYVAuth: currentAuth }}
+    >
+      <HighlightQueueDrainHost />
+    </YouVersionProvider>,
+  )
 }
 
 beforeEach(() => {
-  jest.clearAllMocks()
   networkListener = null
   appStateListener = null
+  currentAuth = signedInAuth()
+  drain.drainNow.mockReset()
+  drain.noteParkedWrite.mockReset()
+  drain.stop.mockReset()
 
-  mockUseYouVersion.mockReturnValue({
-    appKey: 'appkey',
-    apiHost: 'api.youversion.com',
-    installationId: 'inst-1',
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: jest.fn(),
+    createHighlight: jest.fn(),
+    deleteHighlight: jest.fn(),
   })
-  mockUseAuth.mockReturnValue({
-    userInfo: { id: 'user-1' },
-    accessToken: 'token-1',
-    getAccessToken: jest.fn(),
-  })
-  mockStartDrain.mockReturnValue(drain)
-  mockAddNetworkStateListener.mockImplementation((listener) => {
+  jest.spyOn(drainModule, 'startHighlightQueueDrain').mockReturnValue(drain)
+  jest.spyOn(Network, 'addNetworkStateListener').mockImplementation((listener) => {
     networkListener = listener
     return { remove: jest.fn() }
   })
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
-    appStateListener = listener as (state: AppStateStatus) => void
+    appStateListener = listener
     return { remove: jest.fn() }
   })
 })
 
+afterEach(() => {
+  jest.restoreAllMocks()
+})
+
 describe('HighlightQueueDrainHost', () => {
   it('drains on mount and renders nothing', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
 
     expect(drain.drainNow).toHaveBeenCalledTimes(1)
     expect(screen.toJSON()).toBeNull()
   })
 
   it('reads auth through a ref that is current before the drain starts', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
 
-    const [{ getAuth }] = mockStartDrain.mock.calls[0]
-    expect(getAuth()).toEqual({
+    const firstCall = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected startHighlightQueueDrain to have been called')
+    }
+    expect(firstCall[0].getAuth()).toEqual({
       userId: 'user-1',
       accessToken: 'token-1',
       ensureFreshToken: expect.any(Function),
@@ -85,11 +116,14 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('reports no user when auth is not configured', () => {
-    mockUseAuth.mockReturnValue(null)
-    render(<HighlightQueueDrainHost />)
+    currentAuth = null
+    renderHost()
 
-    const [{ getAuth }] = mockStartDrain.mock.calls[0]
-    expect(getAuth()).toEqual({
+    const firstCall = jest.mocked(drainModule.startHighlightQueueDrain).mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected startHighlightQueueDrain to have been called')
+    }
+    expect(firstCall[0].getAuth()).toEqual({
       userId: null,
       accessToken: null,
       ensureFreshToken: null,
@@ -98,21 +132,25 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('drains again when the token changes — sign-in and refresh both land here', () => {
-    const { rerender } = render(<HighlightQueueDrainHost />)
+    const { rerender } = renderHost()
     drain.drainNow.mockClear()
 
-    mockUseAuth.mockReturnValue({
-      userInfo: { id: 'user-1' },
-      accessToken: 'token-2',
-      getAccessToken: jest.fn(),
-    })
-    rerender(<HighlightQueueDrainHost />)
+    currentAuth = signedInAuth({ accessToken: 'token-2' })
+    rerender(
+      <YouVersionProvider
+        appKey="appkey"
+        apiHost="api.youversion.com"
+        hookOverrides={{ useYVAuth: currentAuth }}
+      >
+        <HighlightQueueDrainHost />
+      </YouVersionProvider>,
+    )
 
     expect(drain.drainNow).toHaveBeenCalledTimes(1)
   })
 
   it('drains when the app returns to active, and not on the way out', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
     drain.drainNow.mockClear()
 
     act(() => appStateListener?.('background'))
@@ -123,7 +161,7 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('drains on a reached service, and only starts the clock on a parked write', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
     drain.drainNow.mockClear()
 
     act(() => notifyDrain('service-reached'))
@@ -136,7 +174,7 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('drains on the rising edge of connectivity only', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
     drain.drainNow.mockClear()
 
     // Seeded connected, so a redundant event on subscribe does not re-drain.
@@ -152,7 +190,7 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('ignores an unknown connectivity state rather than treating it as a change', () => {
-    render(<HighlightQueueDrainHost />)
+    renderHost()
     drain.drainNow.mockClear()
 
     emitNetwork(false)
@@ -164,7 +202,7 @@ describe('HighlightQueueDrainHost', () => {
   })
 
   it('stops the drain and its listeners on unmount', () => {
-    const { unmount } = render(<HighlightQueueDrainHost />)
+    const { unmount } = renderHost()
     unmount()
 
     expect(drain.stop).toHaveBeenCalledTimes(1)

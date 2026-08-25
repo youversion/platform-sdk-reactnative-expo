@@ -7,22 +7,14 @@ import {
   saveGrantedPermissions,
 } from '../granted-permissions-cache'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-  },
-}))
-
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  jest.spyOn(mmkvStorage, 'set')
+  jest.spyOn(mmkvStorage, 'getString')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('mergeGrantedPermissions', () => {
@@ -73,13 +65,13 @@ describe('granted permissions cache', () => {
   it('refuses to persist a grant for an unidentifiable user', () => {
     saveGrantedPermissions(null, ['highlights'])
     expect(mmkvStorage.set).not.toHaveBeenCalled()
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
   })
 
   it('reads a miss for a null user id rather than matching another unidentified user', () => {
     // A legacy entry from a build that did cache under a null id must not read
     // back as a hit for whichever unidentifiable user signs in next.
-    mockMmkv.set(
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: null, permissions: ['highlights'] }),
     )
@@ -98,24 +90,24 @@ describe('granted permissions cache', () => {
   })
 
   it('reads a miss for corrupt JSON without throwing', () => {
-    mockMmkv.set(MMKV_AUTH_KEYS.grantedPermissions, '{not json')
+    mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, '{not json')
     expect(() => loadCachedGrantedPermissions('u1')).not.toThrow()
     expect(loadCachedGrantedPermissions('u1')).toBeNull()
   })
 
   it('reads a miss for a schema mismatch (wrong-typed payload)', () => {
-    mockMmkv.set(
+    mmkvStorage.set(
       MMKV_AUTH_KEYS.grantedPermissions,
       JSON.stringify({ userId: 'u1', permissions: 'highlights' }),
     )
     expect(loadCachedGrantedPermissions('u1')).toBeNull()
 
-    mockMmkv.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify(null))
+    mmkvStorage.set(MMKV_AUTH_KEYS.grantedPermissions, JSON.stringify(null))
     expect(loadCachedGrantedPermissions('u1')).toBeNull()
   })
 
   it('reads a miss when the underlying storage read throws', () => {
-    ;(mmkvStorage.getString as jest.Mock).mockImplementationOnce(() => {
+    jest.mocked(mmkvStorage.getString).mockImplementationOnce(() => {
       throw new Error('storage offline')
     })
     expect(loadCachedGrantedPermissions('u1')).toBeNull()
@@ -123,11 +115,11 @@ describe('granted permissions cache', () => {
 
   it('clear removes only the granted-permissions key', () => {
     saveGrantedPermissions('u1', ['highlights'])
-    mockMmkv.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
+    mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'u1' }))
 
     clearGrantedPermissions()
 
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
-    expect(mockMmkv.has(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedPermissions)).toBe(false)
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.cachedUserInfo)).toBe(true)
   })
 })

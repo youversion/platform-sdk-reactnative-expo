@@ -8,17 +8,6 @@
 import type { AuthPermission } from '../../auth'
 import { shouldFetchHighlights } from '../use-highlights'
 
-// The module under test reaches MMKV through the cache; the predicate itself is
-// pure, so stub the native module rather than booting it.
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn(),
-    getString: jest.fn(),
-    remove: jest.fn(),
-    getAllKeys: jest.fn(() => []),
-  },
-}))
-
 describe('shouldFetchHighlights', () => {
   it('skips when no permissions were requested', () => {
     expect(shouldFetchHighlights([])).toBe(false)

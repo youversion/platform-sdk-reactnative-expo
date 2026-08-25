@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
@@ -5,7 +6,11 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
  *
  * Decorative: the swatch button around it carries the localized label.
  */
-export function CheckIcon({ color, size = 24, ...props }: SvgProps & { size?: number }) {
+export function CheckIcon({
+  color,
+  size = 24,
+  ...props
+}: SvgProps & { size?: number }): ReactNode {
   return (
     <Svg
       width={size}

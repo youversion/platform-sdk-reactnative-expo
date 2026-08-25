@@ -1,11 +1,13 @@
 /**
  * Vertical seam for the Highlight Write Queue drain: real queue, real cache,
- * real paint projection. Only MMKV and the API client are faked.
+ * real paint projection. The API client is faked; MMKV is the in-memory shim.
  *
  * No test pins a backoff interval. The growth test measures the gaps the drain
  * actually waits and asserts the shape of the sequence, so retuning the
  * constants cannot red this file.
  */
+
+import type { Highlight } from '@youversion/platform-core'
 
 import { claimWrites } from '../claims'
 import { getCachedHighlights, setCachedHighlights } from '../cache'
@@ -14,22 +16,9 @@ import { enqueueWrites, getQueuedWrites } from '../queue'
 import { err, ok } from '../../result'
 import type { HighlightsApi, HighlightsApiError } from '../api'
 import type { HighlightScope } from '../constants'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
+const EMPTY_CREATED: Highlight = { version_id: 0, passage_id: '', color: '' }
 
 const USER = 'user-1'
 const JHN3: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
@@ -60,19 +49,20 @@ function createApi({
   onCreate?: (data: CreateData) => CreateResult | Promise<CreateResult>
 } = {}) {
   const calls: Call[] = []
+  const createHighlight = jest.fn(async (_token: string, data: CreateData) => {
+    calls.push({ kind: 'create', passageId: data.passage_id, color: data.color })
+    return onCreate ? await onCreate(data) : ok(EMPTY_CREATED)
+  })
   const api: HighlightsApi = {
-    getHighlights: jest.fn(async () => ok({ data: [] }) as never),
-    createHighlight: jest.fn(async (_token, data) => {
-      calls.push({ kind: 'create', passageId: data.passage_id, color: data.color })
-      return onCreate ? await onCreate(data) : (ok({} as never) as CreateResult)
-    }),
+    getHighlights: jest.fn(async () => ok({ data: [], next_page_token: null })),
+    createHighlight,
     deleteHighlight: jest.fn(async (_token, passageId) => {
       calls.push({ kind: 'delete', passageId })
       return ok(undefined)
     }),
     ...overrides,
   }
-  return { api, calls }
+  return { api, calls, createHighlight }
 }
 
 function signedIn(overrides: Partial<DrainAuth> = {}): () => DrainAuth {
@@ -102,7 +92,7 @@ async function settle() {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
   jest.clearAllMocks()
 })
 
@@ -257,7 +247,7 @@ describe('startHighlightQueueDrain', () => {
 
   it('retires an entry the server already agrees with, without a request', async () => {
     // `local === server` — a reconcile caught up with it while it sat queued.
-    mockMmkv.set(
+    mmkvStorage.set(
       `yvp.highlightqueue.${USER}.111.JHN.3`,
       JSON.stringify({ 16: { local: YELLOW, server: YELLOW } }),
     )
@@ -304,7 +294,7 @@ describe('startHighlightQueueDrain', () => {
       queueApply(JHN3, [16], YELLOW)
       const getAccessToken = mintedToken('fresh')
       const { api, calls } = createApi({
-        onCreate: refusingOnce(() => ok({}) as CreateResult),
+        onCreate: refusingOnce(() => ok(EMPTY_CREATED)),
       })
 
       const drain = startHighlightQueueDrain({ api, getAuth: signedIn({ getAccessToken }) })
@@ -335,14 +325,16 @@ describe('startHighlightQueueDrain', () => {
           return { status: 'ok', token: 'fresh', userId: USER }
         },
       }
-      const { api } = createApi({ onCreate: refusingOnce(() => ok({}) as CreateResult) })
+      const { api, createHighlight } = createApi({
+        onCreate: refusingOnce(() => ok(EMPTY_CREATED)),
+      })
 
       const drain = startHighlightQueueDrain({ api, getAuth: () => auth })
       drain.drainNow()
       await settle()
       drain.stop()
 
-      const tokens = (api.createHighlight as jest.Mock).mock.calls.map(([token]) => token)
+      const tokens = createHighlight.mock.calls.map(([token]) => token)
       expect(tokens).toEqual(['stale', 'fresh'])
     })
 
@@ -652,7 +644,7 @@ describe('startHighlightQueueDrain', () => {
       ensureFreshToken: null,
       getAccessToken: null,
     }
-    const { api, calls } = createApi({
+    const { api, calls, createHighlight } = createApi({
       onCreate: () => {
         auth = {
           userId: 'user-2',
@@ -660,7 +652,7 @@ describe('startHighlightQueueDrain', () => {
           ensureFreshToken: null,
           getAccessToken: null,
         }
-        return ok({} as never) as CreateResult
+        return ok(EMPTY_CREATED)
       },
     })
 
@@ -670,7 +662,7 @@ describe('startHighlightQueueDrain', () => {
     drain.stop()
 
     expect(calls).toEqual([{ kind: 'create', passageId: 'JHN.3.16', color: YELLOW }])
-    expect((api.createHighlight as jest.Mock).mock.calls.map(([token]) => token)).toEqual([
+    expect(createHighlight.mock.calls.map(([token]) => token)).toEqual([
       'token-1',
     ])
     expect(getQueuedWrites(USER, JHN4)).toEqual({ 1: { local: YELLOW, server: null } })
@@ -706,7 +698,7 @@ describe('startHighlightQueueDrain', () => {
         await new Promise<void>((resolve) => {
           resolveCreate = resolve
         })
-        return ok({} as never) as CreateResult
+        return ok(EMPTY_CREATED)
       },
     })
 
@@ -782,7 +774,7 @@ describe('drain retries', () => {
     queueApply(JHN3, [16], YELLOW)
     let reachable = false
     const { api, calls } = createApi({
-      onCreate: () => (reachable ? (ok({} as never) as CreateResult) : err(UNREACHABLE)),
+      onCreate: () => (reachable ? ok(EMPTY_CREATED) : err(UNREACHABLE)),
     })
 
     const drain = startHighlightQueueDrain({ api, getAuth: signedIn() })

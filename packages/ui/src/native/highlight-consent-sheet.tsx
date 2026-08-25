@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { SHEET_FOREGROUND } from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
+import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
 import { PromptSheetButton, PromptSheetParagraph } from './prompt-sheet'
 
@@ -29,7 +31,7 @@ export type HighlightConsentSheetProps = {
  * `prompt-sheet.tsx`, shared with `SignInWithYouVersionSheet` so the two prompts
  * in the highlight flow read as one family.
  */
-export function HighlightConsentSheet({
+function HighlightConsentSheetImpl({
   isOpen,
   onConfirm,
   onDismiss,
@@ -71,6 +73,13 @@ export function HighlightConsentSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('HighlightConsentSheet', HighlightConsentSheetImpl)
+
+export function HighlightConsentSheet(props: HighlightConsentSheetProps): ReactNode {
+  const Impl = getImpl('HighlightConsentSheet')
+  return <Impl {...props} />
 }
 
 const styles = StyleSheet.create({

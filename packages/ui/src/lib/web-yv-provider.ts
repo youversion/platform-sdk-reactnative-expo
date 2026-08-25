@@ -3,7 +3,7 @@
 import { ensureDomLocalStorage } from './dom-local-storage'
 
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
-import { createElement, type ComponentProps, type ReactElement } from 'react'
+import { createElement, type ComponentProps, type ReactNode } from 'react'
 
 import { mergeSdkHeaders } from './sdk-version'
 
@@ -15,7 +15,7 @@ type ProviderProps = ComponentProps<typeof BaseYouVersionProvider>
 // `x-yvp-sdk` header onto every API call made from inside a DOM component.
 // SDK-attribution headers must always reach the data lake intact, so they
 // override any consumer-supplied entry on the same key.
-export function YouVersionProvider({ additionalHeaders, ...rest }: ProviderProps): ReactElement {
+export function YouVersionProvider({ additionalHeaders, ...rest }: ProviderProps): ReactNode {
   return createElement(BaseYouVersionProvider, {
     ...rest,
     additionalHeaders: mergeSdkHeaders(additionalHeaders),

@@ -5,19 +5,9 @@ import { type ReactElement } from 'react'
 import pkg from '../../../package.json'
 import { YouVersionProvider } from '../web-yv-provider'
 
-// `jest.mock` is hoisted above imports by babel-plugin-jest-hoist regardless of
-// source position, so keeping it below the imports satisfies `import/first`
-// without changing test semantics.
-jest.mock('@youversion/platform-react-ui', () => ({
-  YouVersionProvider: 'MockBaseProvider',
-}))
-
-// Tests run from source, so the build-channel flag is unstamped and the value
-// carries the `-dev` suffix. Derived, not hardcoded: a version bump must not
-// break these.
 const SDK_HEADER_VALUE = `ReactNativeSDK=${pkg.version}-dev`
 
-type RenderedProps = {
+type FilterProps = {
   additionalHeaders?: Record<string, string>
   locale?: string
   permittedVersionIds?: number[]
@@ -25,13 +15,14 @@ type RenderedProps = {
   permittedLanguageTags?: string[]
 }
 
-function renderShim(props: Record<string, unknown>): RenderedProps {
+function renderShim(props: FilterProps): FilterProps {
   const element = YouVersionProvider({
     appKey: 'test-key',
     children: null,
     ...props,
-  } as Parameters<typeof YouVersionProvider>[0]) as ReactElement<RenderedProps>
-  return element.props
+  })
+  // SAFETY: web YouVersionProvider is a function component; calling it returns the element we inspect.
+  return (element as ReactElement<FilterProps>).props
 }
 
 const VERSION_FILTER_DOM_ENTRIES = [

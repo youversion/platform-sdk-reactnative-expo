@@ -34,7 +34,7 @@ function createMemoryStorage(): Storage {
       map.clear()
     },
     getItem(key: string) {
-      return map.has(key) ? (map.get(key) as string) : null
+      return map.get(key) ?? null
     },
     key(index: number) {
       return Array.from(map.keys())[index] ?? null
@@ -56,10 +56,6 @@ function createMemoryStorage(): Storage {
  * DOM/browser context (e.g. native screen tests where `window` is undefined).
  */
 export function ensureDomLocalStorage(): void {
-  if (typeof window === 'undefined') {
-    return
-  }
-
   // Reading `localStorage` can itself throw in some sandboxed contexts; treat a
   // throw the same as "missing" and install the shim.
   let current: Storage | null = null
@@ -72,13 +68,17 @@ export function ensureDomLocalStorage(): void {
     return
   }
 
-  // `localStorage` is a getter-only accessor on `Window.prototype`, so it can't
-  // be assigned directly — define an own property on the instance to shadow it.
-  Object.defineProperty(window, 'localStorage', {
-    value: createMemoryStorage(),
-    configurable: true,
-    writable: false,
-  })
+  try {
+    // `localStorage` is a getter-only accessor on `Window.prototype`, so it can't
+    // be assigned directly — define an own property on the instance to shadow it.
+    Object.defineProperty(window, 'localStorage', {
+      value: createMemoryStorage(),
+      configurable: true,
+      writable: false,
+    })
+  } catch {
+    // No DOM window, localStorage locked, or defineProperty refused.
+  }
 }
 
 // Self-install on import so the shim is in place before any Web SDK code runs.

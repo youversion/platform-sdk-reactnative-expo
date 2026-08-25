@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
@@ -18,7 +19,12 @@ const FILL = {
 export const YOUVERSION_PLATFORM_LOGO_ASPECT_RATIO = 238 / 20
 
 /** Width-driven dimensions for the wordmark, preserving its aspect ratio. */
-export function youVersionPlatformLogoSize(width: number): { width: number; height: number } {
+export type YouVersionPlatformLogoSize = {
+  width: number
+  height: number
+}
+
+export function youVersionPlatformLogoSize(width: number): YouVersionPlatformLogoSize {
   return { width, height: width / YOUVERSION_PLATFORM_LOGO_ASPECT_RATIO }
 }
 
@@ -34,7 +40,10 @@ export type YouVersionPlatformLogoProps = SvgProps & {
   accessibilityLabel: string
 }
 
-export function YouVersionPlatformLogo({ theme = 'light', ...props }: YouVersionPlatformLogoProps) {
+export function YouVersionPlatformLogo({
+  theme = 'light',
+  ...props
+}: YouVersionPlatformLogoProps): ReactNode {
   return (
     <Svg viewBox="0 0 238 20" fill="none" accessibilityRole="image" {...props}>
       <Path d={WORDMARK_PATH} fill={FILL[theme]} />

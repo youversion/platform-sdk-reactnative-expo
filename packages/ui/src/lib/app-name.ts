@@ -1,4 +1,5 @@
 import * as Application from 'expo-application'
+import { z } from 'zod'
 
 /**
  * The integrating app's display name, interpolated into the sign-in sheet's
@@ -10,11 +11,9 @@ import * as Application from 'expo-application'
  * web. Callers interpolate an empty string instead of an untranslatable English
  * default.
  */
+const appNameSchema = z.string().trim().min(1)
+
 export function resolveAppName(): string | null {
-  const name = Application.applicationName
-  if (typeof name !== 'string') {
-    return null
-  }
-  const trimmed = name.trim()
-  return trimmed.length > 0 ? trimmed : null
+  const parsed = appNameSchema.safeParse(Application.applicationName)
+  return parsed.success ? parsed.data : null
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
@@ -7,6 +7,7 @@ import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/n
 import type { Theme } from '../lib/resolve-theme'
 import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
+import { getImpl, registerDefault } from './component-impls'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
@@ -14,7 +15,7 @@ import { NativeSheet } from './native-sheet'
  * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
  * previews at the alpha it paints, so the dark tray reads dimmer.
  */
-const FILL_OPACITY: Record<Theme, number> = { light: 1, dark: 0.3 }
+const FILL_OPACITY = { light: 1, dark: 0.3 } satisfies Record<Theme, number>
 
 /**
  * Row metrics. The swatch tray and both action tiles share one row height, and
@@ -93,7 +94,7 @@ export type BibleVerseActionSheetProps = {
  * highlighting is not available. Acting on a press, which means writing the
  * highlight and clearing the selection, is the reader's job.
  */
-export function BibleVerseActionSheet({
+function BibleVerseActionSheetImpl({
   isOpen,
   reference,
   swatches,
@@ -250,6 +251,13 @@ export function BibleVerseActionSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('BibleVerseActionSheet', BibleVerseActionSheetImpl)
+
+export function BibleVerseActionSheet(props: BibleVerseActionSheetProps): ReactNode {
+  const Impl = getImpl('BibleVerseActionSheet')
+  return <Impl {...props} />
 }
 
 /**

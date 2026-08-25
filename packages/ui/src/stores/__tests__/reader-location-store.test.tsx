@@ -80,6 +80,22 @@ describe('useReaderLocationStore', () => {
     expect(result.current.versionId).toBeNull()
   })
 
+  it('keeps valid stored fields when one field has the wrong type', async () => {
+    mmkvStorage.set(
+      READER_LOCATION_PERSIST_KEY,
+      JSON.stringify({
+        state: { book: 'JHN', chapter: '3', versionId: '111' },
+        version: 0,
+      }),
+    )
+    await useReaderLocationStore.persist.rehydrate()
+
+    const { result } = renderHook(() => useReaderLocationSlice())
+    expect(result.current.book).toBe('JHN')
+    expect(result.current.chapter).toBe('3')
+    expect(result.current.versionId).toBeNull()
+  })
+
   it('normalizes numeric chapter strings on setLocation', () => {
     const { result } = renderHook(() => useReaderLocationSlice())
 

@@ -8,35 +8,13 @@ import { act, renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
+import * as api from '../api'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import { useHighlightPaint } from '../use-highlight-paint'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
-
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: jest.fn(),
-    deleteHighlight: jest.fn(),
-  })),
-}))
 
 const YELLOW = 'fffe00'
 const GREEN = '5dff79'
@@ -84,13 +62,22 @@ function Wrapper({ children }: { children: ReactNode }) {
 }
 
 function seedCache(scope: HighlightScope, rows: Highlight[]) {
-  mockMmkv.set(highlightsCacheKey(userId, scope), JSON.stringify(rows))
+  mmkvStorage.set(highlightsCacheKey(userId, scope), JSON.stringify(rows))
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
+  mmkvStorage.clearAll()
   mockGetHighlights.mockReset()
   mockGetHighlights.mockResolvedValue({ ok: true, value: { data: [], next_page_token: null } })
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: jest.fn(),
+    deleteHighlight: jest.fn(),
+  })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('useHighlightPaint', () => {

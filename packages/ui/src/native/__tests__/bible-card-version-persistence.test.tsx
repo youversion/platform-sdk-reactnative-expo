@@ -1,90 +1,58 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
-
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
+import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
+
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
 import { YouVersionProvider } from '../youversion-provider'
-import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
 
-let latestDomProps: {
+type LatestDomProps = {
   versionId?: number
   onVersionChange?: (versionId: number) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-} = {}
+}
 
-jest.mock('../../dom/bible-card', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      versionId?: number
-      onVersionChange?: (versionId: number) => Promise<void>
-      onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Pressable
-            testID="trigger-version-picker"
-            onPress={() => {
-              props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
-            }}
-          >
-            <Text>VersionPicker</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+type PersistedCardVersion = {
+  state: { versionId?: number }
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: () => <View testID="mock-footnote-sheet-stub" />,
-  }
-})
+let latestDomProps: LatestDomProps = {}
 
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: ({
-      isOpen,
-      onSelect,
-    }: {
-      isOpen: boolean
-      onSelect?: (versionId: number) => Promise<void>
-    }) =>
-      isOpen ? (
-        <View testID="mock-version-picker-sheet">
-          <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      ) : null,
-  }
-})
+function MockDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
+      <Pressable
+        testID="trigger-version-picker"
+        onPress={() => {
+          props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
+        }}
+      >
+        <Text>VersionPicker</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light" permittedVersionIds={[]}>
+  <YouVersionProvider
+    appKey="test-key"
+    theme="light"
+    hookOverrides={defaultHookOverrides}
+    permittedVersionIds={[]}
+  >
     {children}
   </YouVersionProvider>
 )
@@ -109,7 +77,32 @@ async function seedBibleCardVersion(versionId: number) {
 describe('BibleCard version persistence', () => {
   beforeEach(async () => {
     latestDomProps = {}
+    stubImpl('FootnoteContent', 'mock-footnote')
+    setImpl('BibleCardDom', MockDOM)
+    setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
+    setImpl(
+      'BibleVersionPickerSheet',
+      ({
+        isOpen,
+        onSelect,
+      }: {
+        isOpen: boolean
+        onSelect?: (versionId: number) => Promise<void>
+      }) =>
+        isOpen ? (
+          <View testID="mock-version-picker-sheet">
+            <Pressable testID="select-version" onPress={() => onSelect?.(59)}>
+              <Text>Select</Text>
+            </Pressable>
+          </View>
+        ) : null,
+    )
     await resetBibleCardVersionStore()
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('hydrates uncontrolled state from MMKV on mount', async () => {
@@ -135,7 +128,7 @@ describe('BibleCard version persistence', () => {
 
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    const parsed: PersistedCardVersion = JSON.parse(raw!)
     expect(parsed.state.versionId).toBe(59)
   })
 
@@ -164,7 +157,7 @@ describe('BibleCard version persistence', () => {
     // Zustand persist may write the store key on hydrate; assert the picker did not overwrite MMKV.
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    const parsed: PersistedCardVersion = JSON.parse(raw!)
     expect(parsed.state.versionId).toBe(3034)
   })
 
@@ -185,7 +178,11 @@ describe('BibleCard version persistence', () => {
 
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    if (raw === undefined) {
+      throw new Error('expected persisted bible card version')
+    }
+    // SAFETY: zustand persist writes `{ state, version }`; this test seeded versionId.
+    const parsed = JSON.parse(raw) as { state: { versionId?: number } }
     expect(parsed.state.versionId).toBe(59)
   })
 

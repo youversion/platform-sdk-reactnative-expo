@@ -13,7 +13,7 @@ import BottomSheet, {
   type BottomSheetBackdropProps,
 } from '@gorhom/bottom-sheet'
 import { Portal, PortalHost } from '@rn-primitives/portal'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Platform,
@@ -32,6 +32,7 @@ import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../lib/native-sheet-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
+import { getImpl, registerDefault } from './component-impls'
 
 const HOST_NAME = 'native-sheet-host'
 let nextSheetId = 0
@@ -44,7 +45,7 @@ const useSheetStore = create<SheetState>(() => ({
   activeSheetId: null,
 }))
 
-type NativeSheetProps = {
+export type NativeSheetProps = {
   isOpen: boolean
   // Re-open signal for repeated actions while isOpen is already true.
   openKey?: number
@@ -79,7 +80,7 @@ type NativeSheetProps = {
   // the same symptom by removing swipe-down. Gorhom applies the value to the
   // handle pan as well as the content pan; both still open on a deliberate drag.
   panActiveOffsetY?: [number, number]
-  children: React.ReactNode
+  children: ReactNode
   // iOS pre-warms matchContents and ignores this flag.
   showAndroidLoader?: boolean
   loaderMinHeight?: number
@@ -96,7 +97,7 @@ type NativeSheetProps = {
 const DEFAULT_LOADER_MIN_HEIGHT = 180
 const CONTENT_READY_HEIGHT_THRESHOLD = 4
 
-export function NativeSheet({
+function NativeSheetImpl({
   isOpen,
   openKey,
   contentStyle,
@@ -196,7 +197,7 @@ function SheetHost({
   onDismissKeyboardStart?: () => void
   modal: boolean
   panActiveOffsetY?: [number, number]
-  children: React.ReactNode
+  children: ReactNode
   showAndroidLoader: boolean
   loaderMinHeight: number
   theme?: Theme
@@ -432,9 +433,16 @@ function SheetHost({
   )
 }
 
+registerDefault('NativeSheet', NativeSheetImpl)
+
+export function NativeSheet(props: NativeSheetProps): ReactNode {
+  const Impl = getImpl('NativeSheet')
+  return <Impl {...props} />
+}
+
 const renderNoBackdrop = () => null
 
-export function NativeSheetProvider({ children }: { children: React.ReactNode }) {
+export function NativeSheetProvider({ children }: { children: ReactNode }): ReactNode {
   if (Platform.OS === 'web') return <>{children}</>
   return (
     <>

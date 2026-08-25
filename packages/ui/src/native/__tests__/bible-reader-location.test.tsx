@@ -1,125 +1,62 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
-
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
+
 import { READER_LOCATION_PERSIST_KEY } from '../../lib/constants'
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import {
+  installBibleReaderTestImpls,
+  resetImpls,
+  setImpl,
+} from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 import { YouVersionProvider } from '../youversion-provider'
 
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
-
-let latestReaderDomProps: {
+type LatestReaderDomProps = {
+  book?: string
+  chapter?: string
+  versionId?: number
+  locale?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
-  locale?: string
-} = {}
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+}
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      book?: string
-      chapter?: string
-      versionId?: number
-      permittedVersionIds?: number[]
-      excludedVersionIds?: number[]
-      permittedLanguageTags?: string[]
-      locale?: string
-      onBookChange?: (book: string) => Promise<void>
-      onChapterChange?: (chapter: string) => Promise<void>
-      onVersionChange?: (versionId: number) => Promise<void>
-    }) {
-      latestReaderDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="book">{props.book ?? 'none'}</Text>
-          <Text testID="chapter">{props.chapter ?? 'none'}</Text>
-          <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-          <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('5')}>
-            <Text>Chapter</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+let latestReaderDomProps: LatestReaderDomProps = {}
 
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: () => <View testID="mock-footnote" />,
-  }
-})
+function MockDOM(props: LatestReaderDomProps) {
+  latestReaderDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="book">{props.book ?? 'none'}</Text>
+      <Text testID="chapter">{props.chapter ?? 'none'}</Text>
+      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
+      <Pressable testID="trigger-chapter-change" onPress={() => props.onChapterChange?.('5')}>
+        <Text>Chapter</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <View testID="sheet">{children}</View> : null,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" />,
-  }
-})
-
-jest.mock('../../stores/reader-settings-store', () => ({
-  useReaderSettingsStore: () => ({
-    fontSize: 16,
-    fontFamily: '"Inter", sans-serif',
-    setFontSize: jest.fn(),
-    setFontFamily: jest.fn(),
-  }),
-}))
-
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light" permittedVersionIds={[]}>
+  <YouVersionProvider
+    appKey="test-key"
+    theme="light"
+    permittedVersionIds={[]}
+    hookOverrides={defaultHookOverrides}
+  >
     {children}
   </YouVersionProvider>
 )
@@ -131,7 +68,12 @@ function versionFilterWrapper(lists: {
 }) {
   return function FilterWrapper({ children }: { children: ReactNode }) {
     return (
-      <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={defaultHookOverrides}
+        {...lists}
+      >
         {children}
       </YouVersionProvider>
     )
@@ -158,8 +100,15 @@ async function seedReaderLocation(location: { book: string; chapter: string; ver
 describe('BibleReader Reader Location persistence', () => {
   beforeEach(async () => {
     latestReaderDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
+    installBibleReaderTestImpls()
+    setImpl('BibleReaderDom', MockDOM)
     await resetReaderLocationStore()
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('hydrates uncontrolled state from MMKV on mount', async () => {
@@ -214,7 +163,8 @@ describe('BibleReader Reader Location persistence', () => {
 
     const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { chapter?: string } }
+    type PersistedLocation = { state: { chapter?: string } }
+    const parsed: PersistedLocation = JSON.parse(raw!)
     expect(parsed.state.chapter).toBe('5')
   })
 
@@ -227,7 +177,11 @@ describe('BibleReader Reader Location persistence', () => {
 
     const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)
     expect(raw).toBeTruthy()
-    const parsed = JSON.parse(raw!) as { state: { versionId?: number } }
+    if (raw === undefined) {
+      throw new Error('expected persisted reader location')
+    }
+    // SAFETY: zustand persist writes `{ state, version }`; this test seeded versionId.
+    const parsed = JSON.parse(raw) as { state: { versionId?: number } }
     expect(parsed.state.versionId).toBe(59)
   })
 
@@ -253,18 +207,14 @@ describe('BibleReader Reader Location persistence', () => {
 
   it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
     render(<BibleReader />, {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <YouVersionProvider appKey="test-key" theme="light" locale="es">
-          {children}
-        </YouVersionProvider>
-      ),
+      wrapper: youVersionProviderWrapper('light', 'es'),
     })
 
     expect(latestReaderDomProps.locale).toBe('es')
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<BibleReader />, { wrapper })
 

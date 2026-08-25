@@ -28,16 +28,16 @@ describe('package exports', () => {
   // read off the namespace is something neither ESLint nor tsc can check, so
   // the loop would pass on a name no longer exported.
   it('exposes the public components and the sign-out guard', () => {
-    expect(typeof ui.BibleCard).toBe('function')
-    expect(typeof ui.BibleChapterPickerSheet).toBe('function')
-    expect(typeof ui.BibleReader).toBe('function')
-    expect(typeof ui.BibleReaderSettingsSheet).toBe('function')
-    expect(typeof ui.BibleTextView).toBe('function')
-    expect(typeof ui.BibleVersionPickerSheet).toBe('function')
-    expect(typeof ui.VerseOfTheDay).toBe('function')
-    expect(typeof ui.YouVersionAuthButton).toBe('function')
-    expect(typeof ui.YouVersionProvider).toBe('function')
-    expect(typeof ui.useSignOutGuard).toBe('function')
+    expect(ui.BibleCard).toEqual(expect.any(Function))
+    expect(ui.BibleChapterPickerSheet).toEqual(expect.any(Function))
+    expect(ui.BibleReader).toEqual(expect.any(Function))
+    expect(ui.BibleReaderSettingsSheet).toEqual(expect.any(Function))
+    expect(ui.BibleTextView).toEqual(expect.any(Function))
+    expect(ui.BibleVersionPickerSheet).toEqual(expect.any(Function))
+    expect(ui.VerseOfTheDay).toEqual(expect.any(Function))
+    expect(ui.YouVersionAuthButton).toEqual(expect.any(Function))
+    expect(ui.YouVersionProvider).toEqual(expect.any(Function))
+    expect(ui.useSignOutGuard).toEqual(expect.any(Function))
   })
 
   it('keeps the SDK-owned sheets internal', () => {

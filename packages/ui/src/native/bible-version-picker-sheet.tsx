@@ -1,12 +1,13 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useState } from 'react'
+import type { DOMProps } from 'expo/dom'
+import { useState, type ReactNode } from 'react'
 import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import VersionPickerContentDOM from '../dom/bible-version-picker-content'
 import { useTheme } from '../hooks/use-theme'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
+import { getImpl, registerDefault } from './component-impls'
 import { NativeSheet } from './native-sheet'
 
 export type BibleVersionPickerSheetProps = {
@@ -15,10 +16,10 @@ export type BibleVersionPickerSheetProps = {
   versionId?: number
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (versionId: number) => void | Promise<void>
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
-export function BibleVersionPickerSheet({
+function BibleVersionPickerSheetImpl({
   isOpen,
   onClose,
   versionId = DEFAULT_BIBLE_VERSION_ID,
@@ -69,6 +70,8 @@ export function BibleVersionPickerSheet({
     onClose()
   }
 
+  const VersionPickerContentDOM = getImpl('BibleVersionPickerContent')
+
   return (
     <NativeSheet
       isOpen={isOpen}
@@ -99,6 +102,13 @@ export function BibleVersionPickerSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('BibleVersionPickerSheet', BibleVersionPickerSheetImpl)
+
+export function BibleVersionPickerSheet(props: BibleVersionPickerSheetProps): ReactNode {
+  const Impl = getImpl('BibleVersionPickerSheet')
+  return <Impl {...props} />
 }
 
 const styles = StyleSheet.create({
