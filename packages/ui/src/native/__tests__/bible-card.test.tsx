@@ -3,7 +3,15 @@ import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { Platform, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
@@ -80,44 +88,12 @@ function MockFootnoteContent(props: { data: FootnoteData; theme?: string; appKey
 }
 
 function styleHasMaxWidth(style: StyleProp<ViewStyle>): boolean {
-  if (style == null || style === false) return false
-  if (Array.isArray(style)) return unknownStyleHasMaxWidth(style)
-  if (typeof style !== 'object') return false
-  return 'maxWidth' in style
+  const flattened = StyleSheet.flatten(style) ?? {}
+  return flattened.maxWidth != null
 }
 
-function treeHasMaxWidthStyle(node: unknown): boolean {
-  if (node == null || typeof node !== 'object') return false
-  if (Array.isArray(node)) return node.some(treeHasMaxWidthStyle)
-
-  if (!('props' in node) || node.props == null || typeof node.props !== 'object') {
-    return 'children' in node && treeHasMaxWidthStyle(node.children)
-  }
-
-  const style = 'style' in node.props ? node.props.style : undefined
-  return (
-    unknownStyleHasMaxWidth(style) || ('children' in node && treeHasMaxWidthStyle(node.children))
-  )
-}
-
-function unknownStyleHasMaxWidth(style: unknown): boolean {
-  if (style == null) return false
-  if (Array.isArray(style)) return style.some(unknownStyleHasMaxWidth)
-  if (typeof style !== 'object') return false
-  return 'maxWidth' in style
-}
-
-function containsReaderWidthToken(value: unknown): boolean {
-  if (value == null) return false
-  if (typeof value === 'string') {
-    return value.includes('--yv-reader-max-width') || value.includes('65ch')
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') return false
-  if (Array.isArray(value)) return value.some(containsReaderWidthToken)
-  if (typeof value !== 'object') return false
-  return Object.entries(value).some(
-    ([key, nested]) => containsReaderWidthToken(key) || containsReaderWidthToken(nested),
-  )
+function snapshotHasReaderWidthToken(snapshot: string): boolean {
+  return snapshot.includes('--yv-reader-max-width') || snapshot.includes('65ch')
 }
 
 describe('BibleCard', () => {
@@ -258,9 +234,10 @@ describe('BibleCard', () => {
 
     expect(latestDomProps.maxWidth).toBe(480)
     expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
-    expect(treeHasMaxWidthStyle(toJSON())).toBe(false)
-    expect(containsReaderWidthToken(latestDomProps)).toBe(false)
-    expect(containsReaderWidthToken(toJSON())).toBe(false)
+    const treeSnapshot = JSON.stringify(toJSON())
+    expect(treeSnapshot).not.toContain('"maxWidth"')
+    expect(snapshotHasReaderWidthToken(JSON.stringify(latestDomProps))).toBe(false)
+    expect(snapshotHasReaderWidthToken(treeSnapshot)).toBe(false)
   })
 
   it('forwards maxWidth 100% to the web card without a native wrapper or reader-width style', () => {
@@ -270,9 +247,10 @@ describe('BibleCard', () => {
 
     expect(latestDomProps.maxWidth).toBe('100%')
     expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
-    expect(treeHasMaxWidthStyle(toJSON())).toBe(false)
-    expect(containsReaderWidthToken(latestDomProps)).toBe(false)
-    expect(containsReaderWidthToken(toJSON())).toBe(false)
+    const treeSnapshot = JSON.stringify(toJSON())
+    expect(treeSnapshot).not.toContain('"maxWidth"')
+    expect(snapshotHasReaderWidthToken(JSON.stringify(latestDomProps))).toBe(false)
+    expect(snapshotHasReaderWidthToken(treeSnapshot)).toBe(false)
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {
