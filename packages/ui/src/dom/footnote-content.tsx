@@ -2,6 +2,8 @@
 
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { FootnoteContent as WebFootnoteContent } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 
 import { applySDKConfig } from '../lib/dom-apply'
 import type { InternalLocaleProps } from '../lib/locale-props'
@@ -15,7 +17,7 @@ export type FootnoteContentDOMProps = {
   appKey: string
   apiHost: string
   installationId: string
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 } & InternalLocaleProps
 
 export default function FootnoteContentDOM({
@@ -26,7 +28,7 @@ export default function FootnoteContentDOM({
   apiHost,
   installationId,
   locale,
-}: FootnoteContentDOMProps) {
+}: FootnoteContentDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
   return (
     <YouVersionProvider appKey={appKey} theme={theme} locale={locale}>

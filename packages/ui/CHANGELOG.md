@@ -1,5 +1,13 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.3.1
+
+### Patch Changes
+
+- f5501f8: fix: omit verse-action highlight colors when `auth` is not configured, so a kids app without sign-in still gets Copy and Share instead of dead swatches.
+- 9d90e75: fix: forward resolved provider locale into DOM WebViews so in-WebView copy matches native SDK language.
+  - @youversion/platform-react-native-expo-core@1.3.1
+
 ## 1.3.0
 
 ### Minor Changes

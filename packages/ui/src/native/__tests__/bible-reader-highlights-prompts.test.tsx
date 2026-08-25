@@ -7,27 +7,33 @@
  * The invariant across both: exactly one sheet is active, so a prompt never
  * displaces the action sheet and fires `closeVerseActions` as a side effect.
  */
+import type {
+  AuthContextValue,
+  Highlight,
+  HookOverrides,
+  UseHighlightsOptions,
+} from '@youversion/platform-react-native-expo-core'
 import { act, render, screen, userEvent } from '@testing-library/react-native'
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
-import { BibleReader } from '../bible-reader'
+import {
+  defaultHookOverrides,
+  emptyHighlights,
+  signedOutAuth,
+} from '../../test-utils/default-hook-overrides'
+import {
+  resetImpls,
+  setImpl,
+  stubImpl,
+} from '../../test-utils/install-test-impls'
 import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: jest.fn(() => Promise.resolve(true)),
-}))
-
-// The sign-in sheet interpolates the host app's display name into its
-// paragraph. The real module reads a native constant that jest-expo does not
-// supply, and the copy is not what these tests are about.
-jest.mock('expo-application', () => ({ applicationName: 'Test App' }))
+import { BibleReader } from '../bible-reader'
 
 const VERSION_ID = 111
 
@@ -64,125 +70,67 @@ const highlightPermissionFlowDecline = jest.fn()
 const rawApply = jest.fn(async () => ({ status: 'noop' }) as const)
 const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
 
-/**
- * `jest.setup.js` stubs this hook globally (the real one needs core's own
- * provider, which UI tests replace). Steer it per test rather than re-mocking
- * the whole package and losing that passthrough provider.
- */
-function stubHighlightPermissionFlow({
-  highlights = [] as Highlight[],
-  isConfirming = false,
-} = {}) {
-  jest
-    .spyOn(core, 'useHighlightPermissionFlow')
-    .mockImplementation(({ versionId, book, chapter }) => ({
-      highlights: {
-        highlights,
-        scope: { versionId, book, chapter },
-        isRefreshing: false,
-        error: null,
-        refresh: jest.fn(async () => undefined),
-        apply: rawApply,
-        remove: rawRemove,
-      },
-      isConfirming,
-      apply: highlightPermissionFlowApply,
-      confirm: highlightPermissionFlowConfirm,
-      decline: highlightPermissionFlowDecline,
-      flowError: null,
-    }))
+let permissionHighlights: Highlight[] = []
+let permissionIsConfirming = false
+
+type PermissionFlowStub = {
+  highlights?: Highlight[]
+  isConfirming?: boolean
 }
 
-type AuthValue = NonNullable<ReturnType<typeof core.useYVAuthOptional>>
+function stubHighlightPermissionFlow({
+  highlights = [],
+  isConfirming = false,
+}: PermissionFlowStub = {}) {
+  permissionHighlights = highlights
+  permissionIsConfirming = isConfirming
+}
 
-/**
- * A consumer *with* `auth` configured. `null` — the default in UI tests, since
- * the passthrough provider mounts no `AuthProvider` — means something different
- * and is covered by its own case below.
- */
-function stubAuth(isAuthenticated: boolean, isLoading = false) {
-  const value: AuthValue = {
+function useHighlightPermissionFlow({ versionId, book, chapter }: UseHighlightsOptions) {
+  return {
+    highlights: {
+      ...emptyHighlights({ versionId, book, chapter }),
+      highlights: permissionHighlights,
+      apply: rawApply,
+      remove: rawRemove,
+    },
+    isConfirming: permissionIsConfirming,
+    apply: highlightPermissionFlowApply,
+    confirm: highlightPermissionFlowConfirm,
+    decline: highlightPermissionFlowDecline,
+    flowError: null,
+  }
+}
+
+function authValue(isAuthenticated: boolean, isLoading = false): AuthContextValue {
+  return signedOutAuth({
     isAuthenticated,
     accessToken: isAuthenticated ? 'test-token' : null,
-    userInfo: null,
-    error: null,
-    signIn: jest.fn(async () => undefined),
-    signOut: jest.fn(async () => undefined),
-    refreshNow: jest.fn(async () => undefined),
-    getAccessToken: jest.fn(async () =>
+    isLoading,
+    requestedPermissions: ['highlights'],
+    getAccessToken: async () =>
       isAuthenticated
         ? ({ status: 'ok', token: 'test-token', userId: null } as const)
         : ({ status: 'unavailable', reason: 'signed-out' } as const),
-    ),
-    isLoading,
-    requestedPermissions: ['highlights'],
-    grantedPermissions: null,
-    hasPermission: () => false,
-    invalidatePermissions: jest.fn(),
-    requestPermissions: jest.fn(async () => ({ status: 'cancel' }) as const),
-  }
-  jest.spyOn(core, 'useYVAuthOptional').mockReturnValue(value)
+  })
 }
 
 let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-    }) {
-      return (
-        <View testID="mock-dom">
-          <Pressable
-            testID="trigger-verse-select"
-            onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
-
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: () => <View testID="mock-footnote" />,
-  }
-})
-
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" />,
-  }
-})
+function MockDOM(props: {
+  onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
+}) {
+  return (
+    <View testID="mock-dom">
+      <Pressable
+        testID="trigger-verse-select"
+        onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
 /**
  * Same stand-in as the verse-action suite. `sheet-dismiss` is every
@@ -192,37 +140,50 @@ jest.mock('../bible-reader-settings-sheet', () => {
  * Because each open sheet renders one `sheet` testID, counting them is how these
  * tests assert "one sheet at a time".
  */
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      children: ReactNode
-    }) =>
-      isOpen ? (
-        <View testID="sheet">
-          <Pressable testID="sheet-dismiss" onPress={onClose}>
-            <Text>Dismiss</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null,
-  }
-})
+function MockNativeSheet({
+  isOpen,
+  onClose,
+  children,
+}: {
+  isOpen: boolean
+  onClose: () => void
+  children: ReactNode
+}) {
+  return isOpen ? (
+    <View testID="sheet">
+      <Pressable testID="sheet-dismiss" onPress={onClose}>
+        <Text>Dismiss</Text>
+      </Pressable>
+      {children}
+    </View>
+  ) : null
+}
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+function readerHookOverrides(auth: AuthContextValue | null): HookOverrides {
+  return {
+    ...defaultHookOverrides,
+    useYVAuth: auth,
+    useHighlightPermissionFlow,
+  }
+}
+
+function ReaderHarness({
+  auth,
+  book = 'JHN',
+  chapter = '1',
+  versionId = VERSION_ID,
+}: {
+  auth: AuthContextValue | null
+  book?: string
+  chapter?: string
+  versionId?: number
+}) {
+  return (
+    <YouVersionProvider appKey="test-key" theme="light" hookOverrides={readerHookOverrides(auth)}>
+      <BibleReader book={book} chapter={chapter} versionId={versionId} />
+    </YouVersionProvider>
+  )
+}
 
 const user = userEvent.setup()
 
@@ -247,17 +208,23 @@ beforeEach(() => {
   rawApply.mockClear()
   rawRemove.mockClear()
   stubHighlightPermissionFlow()
+  stubImpl('FootnoteContent', 'mock-footnote')
+  stubImpl('BibleChapterPickerSheet', 'mock-chapter-picker-sheet')
+  stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
+  stubImpl('BibleReaderSettingsSheet', 'mock-settings-sheet')
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
 })
 
 afterEach(() => {
+  resetImpls()
   jest.restoreAllMocks()
 })
 
 describe('BibleReader — the sign-in pre-step', () => {
   it('trades the action sheet for the sign-in sheet, one at a time', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
@@ -273,8 +240,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('writes nothing until the user says yes', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -284,8 +250,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('replays the stashed intent through the flow on confirm', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -297,8 +262,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('discards the intent on "No Thanks"', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -311,8 +275,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('discards the intent on a swipe-down or backdrop tap too', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -323,8 +286,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('leaves a dismissed intent behind — a later press starts over', async () => {
-    stubAuth(false)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -356,17 +318,21 @@ describe('BibleReader — the sign-in pre-step', () => {
     ['book', { book: 'LUK', chapter: '1', versionId: VERSION_ID }],
     ['versionId', { book: 'JHN', chapter: '1', versionId: 206 }],
   ])('discards the intent when %s changes while the prompt is up', async (_field, next) => {
-    stubAuth(false)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
     expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
 
     await act(async () => {
-      rerender(<BibleReader book={next.book} chapter={next.chapter} versionId={next.versionId} />)
+      rerender(
+        <ReaderHarness
+          auth={authValue(false)}
+          book={next.book}
+          chapter={next.chapter}
+          versionId={next.versionId}
+        />,
+      )
     })
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
@@ -375,10 +341,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('keeps the intent when the reader stays in the same passage', async () => {
-    stubAuth(false)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -386,7 +349,7 @@ describe('BibleReader — the sign-in pre-step', () => {
     // An unrelated re-render must not trip the discard — `NO_PROMPT`'s stable
     // identity is what keeps this from closing on every frame.
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+      rerender(<ReaderHarness auth={authValue(false)} />)
     })
 
     expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
@@ -395,9 +358,8 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('never prompts for a remove', async () => {
-    stubAuth(false)
     stubHighlightPermissionFlow({ highlights: [highlight(1, BLUE), highlight(2, BLUE)] })
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-remove-${BLUE}`)
@@ -410,8 +372,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('holds the tap while auth is still loading', async () => {
-    stubAuth(false, true)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(false, true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -421,17 +382,13 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('opens sign-in once bootstrap settles signed out', async () => {
-    stubAuth(false, true)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false, true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
-    stubAuth(false)
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+      rerender(<ReaderHarness auth={authValue(false)} />)
     })
 
     expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
@@ -439,17 +396,13 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('applies once bootstrap settles signed in', async () => {
-    stubAuth(false, true)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false, true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
-    stubAuth(true)
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+      rerender(<ReaderHarness auth={authValue(true)} />)
     })
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
@@ -457,10 +410,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('drops a held tap when the user selects different verses', async () => {
-    stubAuth(false, true)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false, true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -472,9 +422,8 @@ describe('BibleReader — the sign-in pre-step', () => {
       reference: 'John 1:3',
     })
 
-    stubAuth(false)
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+      rerender(<ReaderHarness auth={authValue(false)} />)
     })
 
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
@@ -482,18 +431,14 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('keeps a held tap when the action sheet clears the selection', async () => {
-    stubAuth(false, true)
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
-      wrapper,
-    })
+    const { rerender } = render(<ReaderHarness auth={authValue(false, true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
     await selectVerses({ ...SELECTION, verses: [], passageIds: [], reference: '' })
 
-    stubAuth(false)
     await act(async () => {
-      rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
+      rerender(<ReaderHarness auth={authValue(false)} />)
     })
 
     expect(screen.getByTestId('sign-in-with-youversion-sheet')).toBeTruthy()
@@ -501,8 +446,7 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   it('goes straight to the flow for a signed-in user', async () => {
-    stubAuth(true)
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(true)} />)
 
     await selectVerses()
     await press(`bible-verse-action-swatch-apply-${GREEN}`)
@@ -512,27 +456,30 @@ describe('BibleReader — the sign-in pre-step', () => {
   })
 
   /**
-   * No `auth` config is not "signed out" — there is nothing to sign in to, and
-   * the flow's own `apply` warns and falls through to the unguarded write. A
-   * prompt here would open a sheet whose only outcome is the one the user
-   * already had.
+   * No `auth` config is not "signed out" — there is nothing to sign in to.
+   * Highlight colors would tap into a write that can only fail, so the tray
+   * stays off. Copy and Share remain; a prompt would open a sheet whose only
+   * outcome is the one the user already had.
    */
-  it('does not prompt a consumer who configured no auth', async () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+  it('does not offer highlight swatches or a sign-in prompt when auth is unconfigured', async () => {
+    render(<ReaderHarness auth={null} />)
 
     await selectVerses()
-    await press(`bible-verse-action-swatch-apply-${GREEN}`)
 
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+    expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
+    expect(screen.getByTestId('bible-verse-action-copy')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-share')).toBeTruthy()
     expect(screen.queryByTestId('sign-in-with-youversion-sheet')).toBeNull()
-    expect(highlightPermissionFlowApply).toHaveBeenCalledWith(GREEN, [1, 2])
+    expect(highlightPermissionFlowApply).not.toHaveBeenCalled()
+    expect(rawApply).not.toHaveBeenCalled()
   })
 })
 
 describe('BibleReader — the consent step', () => {
   it('opens on isConfirming and closes the action sheet with it', async () => {
-    stubAuth(true)
     stubHighlightPermissionFlow({ isConfirming: true })
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(true)} />)
 
     await selectVerses()
 
@@ -542,9 +489,8 @@ describe('BibleReader — the consent step', () => {
   })
 
   it('hands Continue to confirm()', async () => {
-    stubAuth(true)
     stubHighlightPermissionFlow({ isConfirming: true })
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(true)} />)
 
     await press('highlight-consent-confirm')
 
@@ -553,9 +499,8 @@ describe('BibleReader — the consent step', () => {
   })
 
   it('hands Cancel to decline()', async () => {
-    stubAuth(true)
     stubHighlightPermissionFlow({ isConfirming: true })
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(true)} />)
 
     await press('highlight-consent-cancel')
 
@@ -569,9 +514,8 @@ describe('BibleReader — the consent step', () => {
    * flow with `isConfirming` still true and no sheet on screen.
    */
   it('hands the backdrop, pan-down and displacement paths to decline()', async () => {
-    stubAuth(true)
     stubHighlightPermissionFlow({ isConfirming: true })
-    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+    render(<ReaderHarness auth={authValue(true)} />)
 
     await press('sheet-dismiss')
 

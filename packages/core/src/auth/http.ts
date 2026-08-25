@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 import { getOrSetInstallationId } from '../installation-id'
 
 export class TokenEndpointError extends Error {
@@ -16,14 +18,16 @@ export class TokenEndpointError extends Error {
   }
 }
 
-export type TokenResponse = {
-  access_token: string
-  refresh_token: string
-  id_token?: string
-  expires_in: string
-  token_type: string
-  scope?: string
-}
+const tokenResponseSchema = z.object({
+  access_token: z.string(),
+  refresh_token: z.string(),
+  id_token: z.string().optional(),
+  expires_in: z.string(),
+  token_type: z.string(),
+  scope: z.string().optional(),
+})
+
+export type TokenResponse = z.infer<typeof tokenResponseSchema>
 
 export async function exchangeCodeForTokens(args: {
   apiHost: string
@@ -75,23 +79,10 @@ async function postTokenEndpoint(
     throw new TokenEndpointError(response.status, await response.text())
   }
 
-  const data: unknown = await response.json()
-  if (!isTokenResponse(data)) {
+  const parsed = tokenResponseSchema.safeParse(await response.json())
+  if (!parsed.success) {
     throw new Error('Token endpoint returned a malformed response')
   }
 
-  return data
-}
-
-function isTokenResponse(response: unknown): response is TokenResponse {
-  if (typeof response !== 'object' || response === null) {
-    return false
-  }
-  const object = response as Record<string, unknown>
-  return (
-    typeof object.access_token === 'string' &&
-    typeof object.refresh_token === 'string' &&
-    typeof object.expires_in === 'string' &&
-    typeof object.token_type === 'string'
-  )
+  return parsed.data
 }

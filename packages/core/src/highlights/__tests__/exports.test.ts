@@ -6,22 +6,13 @@
  */
 import * as core from '../../index'
 
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn(),
-    getString: jest.fn(),
-    remove: jest.fn(),
-    getAllKeys: jest.fn(() => []),
-  },
-}))
-
 describe('package exports', () => {
   it('exposes the highlights hook and the palette', () => {
-    expect(typeof core.useHighlights).toBe('function')
-    expect(typeof core.deriveServerColors).toBe('function')
-    expect(typeof core.parseChapterScopeFromUsfm).toBe('function')
-    expect(typeof core.useHighlightPaint).toBe('function')
-    expect(typeof core.isHighlightColor).toBe('function')
+    expect(core.useHighlights).toEqual(expect.any(Function))
+    expect(core.deriveServerColors).toEqual(expect.any(Function))
+    expect(core.parseChapterScopeFromUsfm).toEqual(expect.any(Function))
+    expect(core.useHighlightPaint).toEqual(expect.any(Function))
+    expect(core.isHighlightColor).toEqual(expect.any(Function))
     expect(core.HIGHLIGHT_COLORS).toEqual(['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'])
   })
 

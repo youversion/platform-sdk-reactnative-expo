@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
@@ -7,6 +7,7 @@ import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/n
 import type { Theme } from '../lib/resolve-theme'
 import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
+import { getImpl, registerDefault } from './component-impls'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
@@ -14,7 +15,7 @@ import { NativeSheet } from './native-sheet'
  * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
  * previews at the alpha it paints, so the dark tray reads dimmer.
  */
-const FILL_OPACITY: Record<Theme, number> = { light: 1, dark: 0.3 }
+const FILL_OPACITY = { light: 1, dark: 0.3 } satisfies Record<Theme, number>
 
 /**
  * Row metrics. The swatch tray and both action tiles share one row height, and
@@ -89,10 +90,11 @@ export type BibleVerseActionSheetProps = {
  * highlight swatch tray, Copy, and Share.
  *
  * Presentational only. `lib/verse-action-swatches.ts` decides which swatches to
- * show. Acting on a press, which means writing the highlight and clearing the
- * selection, is the reader's job.
+ * show. An empty list omits the tray, so Copy and Share can stand alone when
+ * highlighting is not available. Acting on a press, which means writing the
+ * highlight and clearing the selection, is the reader's job.
  */
-export function BibleVerseActionSheet({
+function BibleVerseActionSheetImpl({
   isOpen,
   reference,
   swatches,
@@ -103,6 +105,7 @@ export function BibleVerseActionSheet({
   theme,
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
+  const hasSwatches = swatches.length > 0
 
   // Each edge shows its fade only while swatches are hidden under it. The
   // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
@@ -151,71 +154,77 @@ export function BibleVerseActionSheet({
         </Text>
 
         <View style={styles.row}>
-          <View
-            testID="bible-verse-action-swatches"
-            style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
-          >
-            <ScrollView
-              testID="bible-verse-action-swatch-scroll"
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              onLayout={(event) => {
-                metricsRef.current.trayWidth = event.nativeEvent.layout.width
-                syncFadeGates()
-              }}
-              onContentSizeChange={(width) => {
-                metricsRef.current.contentWidth = width
-                syncFadeGates()
-              }}
-              onScroll={(event) => {
-                metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
-                syncFadeGates()
-              }}
-              scrollEventThrottle={16}
-              style={styles.swatchScroll}
-              contentContainerStyle={styles.swatchTrayContent}
+          {hasSwatches && (
+            <View
+              testID="bible-verse-action-swatches"
+              style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
             >
-              {swatches.map((swatch) => (
-                <Pressable
-                  key={`${swatch.color}-${swatch.state}`}
-                  testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    swatch.state === 'remove'
-                      ? t('clearHighlightAriaLabel')
-                      : t('applyHighlightAriaLabel')
-                  }
-                  onPress={() => onSwatchPress(swatch)}
-                  style={[
-                    styles.swatch,
-                    {
-                      backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
-                      borderColor: SHEET_STROKE[theme],
-                    },
-                  ]}
-                >
-                  {/*
-                   * The check takes the on-surface foreground, not a contrast
-                   * pick against the fill. Light mode paints a full-strength
-                   * swatch in Text/Everdark, and dark mode fades the fill to
-                   * 30%. White reads on both.
-                   */}
-                  {swatch.state === 'remove' && (
-                    <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
+              <ScrollView
+                testID="bible-verse-action-swatch-scroll"
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                onLayout={(event) => {
+                  metricsRef.current.trayWidth = event.nativeEvent.layout.width
+                  syncFadeGates()
+                }}
+                onContentSizeChange={(width) => {
+                  metricsRef.current.contentWidth = width
+                  syncFadeGates()
+                }}
+                onScroll={(event) => {
+                  metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
+                  syncFadeGates()
+                }}
+                scrollEventThrottle={16}
+                style={styles.swatchScroll}
+                contentContainerStyle={styles.swatchTrayContent}
+              >
+                {swatches.map((swatch) => (
+                  <Pressable
+                    key={`${swatch.color}-${swatch.state}`}
+                    testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      swatch.state === 'remove'
+                        ? t('clearHighlightAriaLabel')
+                        : t('applyHighlightAriaLabel')
+                    }
+                    onPress={() => onSwatchPress(swatch)}
+                    style={[
+                      styles.swatch,
+                      {
+                        backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
+                        borderColor: SHEET_STROKE[theme],
+                      },
+                    ]}
+                  >
+                    {/*
+                     * The check takes the on-surface foreground, not a contrast
+                     * pick against the fill. Light mode paints a full-strength
+                     * swatch in Text/Everdark, and dark mode fades the fill to
+                     * 30%. White reads on both.
+                     */}
+                    {swatch.state === 'remove' && (
+                      <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
+                    )}
+                  </Pressable>
+                ))}
+              </ScrollView>
 
-            {hasScrolledPast && <SwatchTrayFade edge="leading" theme={theme} />}
-            {hasMoreToScroll && <SwatchTrayFade edge="trailing" theme={theme} />}
-          </View>
+              {hasScrolledPast && <SwatchTrayFade edge="leading" theme={theme} />}
+              {hasMoreToScroll && <SwatchTrayFade edge="trailing" theme={theme} />}
+            </View>
+          )}
 
           <Pressable
             testID="bible-verse-action-copy"
             accessibilityRole="button"
             onPress={onCopyPress}
-            style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
+            style={[
+              styles.action,
+              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
+              !hasSwatches && styles.actionFill,
+            ]}
           >
             <CopyIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
@@ -227,7 +236,11 @@ export function BibleVerseActionSheet({
             testID="bible-verse-action-share"
             accessibilityRole="button"
             onPress={onSharePress}
-            style={[styles.action, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
+            style={[
+              styles.action,
+              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
+              !hasSwatches && styles.actionFill,
+            ]}
           >
             <ShareIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
             <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
@@ -238,6 +251,13 @@ export function BibleVerseActionSheet({
       </View>
     </NativeSheet>
   )
+}
+
+registerDefault('BibleVerseActionSheet', BibleVerseActionSheetImpl)
+
+export function BibleVerseActionSheet(props: BibleVerseActionSheetProps): ReactNode {
+  const Impl = getImpl('BibleVerseActionSheet')
+  return <Impl {...props} />
 }
 
 /**
@@ -352,6 +372,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     paddingVertical: ACTION_PADDING_VERTICAL,
+  },
+  /** Equal half of the row when the tray is omitted. */
+  actionFill: {
+    flex: 1,
   },
   actionLabel: {
     fontSize: 13,

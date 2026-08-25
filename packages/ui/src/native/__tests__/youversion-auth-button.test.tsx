@@ -1,9 +1,12 @@
 import type { ComponentProps } from 'react'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import * as core from '@youversion/platform-react-native-expo-core'
-import { Alert, Platform } from 'react-native'
+import { Alert, Platform, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
+import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
 
@@ -11,17 +14,26 @@ const mockSignIn = jest.fn(async () => undefined)
 const mockSignOut = jest.fn(async () => undefined)
 let mockIsAuthenticated = false
 
-jest.mock('../bible-app-logo', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    BibleAppLogo: (props: object) => <View testID="bible-app-logo" {...props} />,
-  }
-})
+function authValue() {
+  return signedOutAuth({
+    isAuthenticated: mockIsAuthenticated,
+    signIn: mockSignIn,
+    signOut: mockSignOut,
+    userInfo: mockIsAuthenticated ? { id: 'user-1' } : null,
+    accessToken: mockIsAuthenticated ? 'token' : null,
+    getAccessToken: async () =>
+      mockIsAuthenticated
+        ? ({ status: 'ok', token: 'token', userId: 'user-1' } as const)
+        : ({ status: 'unavailable', reason: 'signed-out' } as const),
+  })
+}
 
 function renderAuthButton(props: ComponentProps<typeof YouVersionAuthButton> = {}) {
   return render(
-    <YouVersionProvider appKey="test-key">
+    <YouVersionProvider
+      appKey="test-key"
+      hookOverrides={{ ...defaultHookOverrides, useYVAuth: authValue() }}
+    >
       <YouVersionAuthButton {...props} />
     </YouVersionProvider>,
   )
@@ -31,40 +43,20 @@ beforeEach(() => {
   mockSignIn.mockClear()
   mockSignOut.mockClear()
   mockIsAuthenticated = false
+  mmkvStorage.clearAll()
+  setImpl('BibleAppLogo', (props) => <View testID="bible-app-logo" {...props} />)
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
-  jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(false)
-  jest.spyOn(core, 'useYVAuth').mockImplementation(() => ({
-    isAuthenticated: mockIsAuthenticated,
-    signIn: mockSignIn,
-    signOut: mockSignOut,
-    userInfo: mockIsAuthenticated ? { id: 'user-1' } : null,
-    accessToken: mockIsAuthenticated ? 'token' : null,
-    error: null,
-    refreshNow: jest.fn(async () => undefined),
-    getAccessToken: jest.fn(async () =>
-      mockIsAuthenticated
-        ? ({ status: 'ok', token: 'token', userId: 'user-1' } as const)
-        : ({ status: 'unavailable', reason: 'signed-out' } as const),
-    ),
-    isLoading: false,
-    requestedPermissions: [],
-    grantedPermissions: null,
-    hasPermission: () => false,
-    invalidatePermissions: jest.fn(),
-    requestPermissions: jest.fn(async () => ({ status: 'cancel' }) as const),
-  }))
 })
 
 afterEach(() => {
+  resetImpls()
   jest.restoreAllMocks()
 })
 
-type AlertButton = { text?: string; onPress?: () => void }
-
 function pressAlertButton(text: string) {
-  const call = (Alert.alert as jest.Mock).mock.calls.at(-1)
-  const buttons = call?.[2] as AlertButton[] | undefined
-  const button = buttons?.find((candidate) => candidate.text === text)
+  const call = jest.mocked(Alert.alert).mock.calls.at(-1)
+  const buttons = call?.[2] ?? []
+  const button = buttons.find((candidate) => candidate.text === text)
   expect(button).toBeTruthy()
   button?.onPress?.()
 }
@@ -186,13 +178,13 @@ describe('YouVersionAuthButton press behavior', () => {
 
   it('escalates the alert when queued writes exist and signs out on confirm only', async () => {
     mockIsAuthenticated = true
-    jest.spyOn(core, 'hasQueuedHighlightWrites').mockReturnValue(true)
+    seedQueuedHighlightWrites('user-1')
     const user = userEvent.setup()
     renderAuthButton()
 
     await user.press(screen.getByText(/sign out of/i))
 
-    const call = (Alert.alert as jest.Mock).mock.calls[0]
+    const call = jest.mocked(Alert.alert).mock.calls[0]
     expect(call?.[0]).toBe(en.signOutPendingHighlightsQuestion)
     expect(mockSignOut).not.toHaveBeenCalled()
 

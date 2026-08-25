@@ -45,6 +45,15 @@ function run(
 const TAP_SIGN_IN: PermissionFlowEvent = { type: 'TAP', pending, branch: 'sign-in' }
 const TAP_CONSENT: PermissionFlowEvent = { type: 'TAP', pending, branch: 'consent' }
 
+type UnrecognizedFlowEvent = {
+  type: string
+}
+
+function unrecognizedEvent(event: UnrecognizedFlowEvent): PermissionFlowEvent {
+  // SAFETY: reducer default must ignore events that are not PermissionFlowEvent members.
+  return event as PermissionFlowEvent
+}
+
 // ── The two branches ─────────────────────────────────────────────────────────
 
 describe('the not-signed-in branch', () => {
@@ -223,9 +232,9 @@ describe('the stale-grant corrective path', () => {
     expect(state).toEqual({ step: 'idle', error: { reason: 'auth', message: 'unauthorized' } })
   })
 
-  it.each([
-    ['ok', { status: 'ok', verses: [16, 17] } as HighlightWriteOutcome],
-    ['noop', { status: 'noop' } as HighlightWriteOutcome],
+  const applyOutcomes: [string, HighlightWriteOutcome][] = [
+    ['ok', { status: 'ok', verses: [16, 17] }],
+    ['noop', { status: 'noop' }],
     [
       'a non-auth error',
       {
@@ -234,9 +243,10 @@ describe('the stale-grant corrective path', () => {
         message: 'boom',
         failedVerses: [16],
         succeededVerses: [],
-      } as HighlightWriteOutcome,
+      },
     ],
-  ])('ends the flow cleanly on %s, leaving the write to report itself', (_label, outcome) => {
+  ]
+  it.each(applyOutcomes)('ends the flow cleanly on %s, leaving the write to report itself', (_label, outcome) => {
     const state = permissionFlowReducer(
       { step: 'applying', pending, retried: false },
       { type: 'APPLY_RESULT', outcome },
@@ -305,17 +315,26 @@ describe('events invalid for the current step', () => {
   ]
 
   /** The only event each step is willing to hear (RESET aside, which is universal). */
-  const validFor: Record<PermissionFlowState['step'], PermissionFlowEvent['type'][]> = {
+  const validFor = {
     idle: ['TAP', 'AUTH_RETRY'],
     'signing-in': ['SIGN_IN_DONE'],
     confirming: ['CONFIRM', 'DECLINE'],
     granting: ['GRANT_RESULT'],
     applying: ['APPLY_RESULT'],
+  } satisfies {
+    [K in PermissionFlowState['step']]: readonly PermissionFlowEvent['type'][]
+  }
+
+  function allowsEvent(
+    allowed: readonly PermissionFlowEvent['type'][],
+    type: PermissionFlowEvent['type'],
+  ): boolean {
+    return allowed.includes(type)
   }
 
   for (const state of states) {
     for (const event of events) {
-      if (validFor[state.step].includes(event.type)) {
+      if (allowsEvent(validFor[state.step], event.type)) {
         continue
       }
       const label = event.type === 'TAP' ? `TAP(${event.branch})` : event.type
@@ -352,9 +371,7 @@ describe('events invalid for the current step', () => {
   it('ignores an event it does not recognise rather than corrupting the flow', () => {
     const state: PermissionFlowState = { step: 'granting', pending, retried: false }
     // Reachable from untyped callers and from a hot reload mid-flow.
-    const bogus = { type: 'SOMETHING_ELSE' } as unknown as PermissionFlowEvent
-
-    expect(permissionFlowReducer(state, bogus)).toBe(state)
+    expect(permissionFlowReducer(state, unrecognizedEvent({ type: 'SOMETHING_ELSE' }))).toBe(state)
   })
 })
 

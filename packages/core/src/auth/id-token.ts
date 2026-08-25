@@ -1,13 +1,18 @@
+import { z } from 'zod'
+
 import type { YVUserInfo } from './types'
 
-export type IdTokenPayload = {
-  sub?: string
-  name?: string
-  email?: string
-  profile_picture?: string
-  nonce?: string
-  [key: string]: unknown
-}
+const optionalJwtString = z.string().optional().catch(undefined)
+
+const idTokenPayloadSchema = z.object({
+  sub: optionalJwtString,
+  name: optionalJwtString,
+  email: optionalJwtString,
+  profile_picture: optionalJwtString,
+  nonce: optionalJwtString,
+})
+
+export type IdTokenPayload = z.infer<typeof idTokenPayloadSchema>
 
 // Decode a JWT's payload segment.
 export function decodeIdToken(jwt: string): IdTokenPayload {
@@ -17,17 +22,21 @@ export function decodeIdToken(jwt: string): IdTokenPayload {
     throw new Error("Invalid JWT: expected 3 segments separated by '.'")
   }
   const payloadJson = base64URLDecodeToString(payload)
-  return JSON.parse(payloadJson)
+  const parsed = idTokenPayloadSchema.safeParse(JSON.parse(payloadJson))
+  if (!parsed.success) {
+    throw new Error('Invalid JWT payload')
+  }
+  return parsed.data
 }
 
 // Convenience: produce the YVUserInfo shape our hook returns.
 export function deriveUserInfo(idToken: string): YVUserInfo {
   const p = decodeIdToken(idToken)
   return {
-    id: typeof p.sub === 'string' ? p.sub : undefined,
-    name: typeof p.name === 'string' ? p.name : undefined,
-    email: typeof p.email === 'string' ? p.email : undefined,
-    avatarUrl: sanitizeAvatarUrl(p.profile_picture),
+    id: p.sub,
+    name: p.name,
+    email: p.email,
+    avatarUrl: p.profile_picture === undefined ? undefined : sanitizeAvatarUrl(p.profile_picture),
   }
 }
 
@@ -37,31 +46,34 @@ export function deriveUserInfo(idToken: string): YVUserInfo {
 // URL that resolves to nothing. See docs/bug-reports/auth-website-issues.md.
 const AVATAR_SENTINELS = new Set(['', 'none', 'null', 'undefined', 'false'])
 
+const avatarUrlSchema = z.string().trim().min(1)
+
 // Return a usable avatar URL, or undefined when the claim is absent, a
 // sentinel, or not an https URL. https-only is deliberate: iOS ATS and Android
 // cleartext-traffic defaults both block http image loads in RN apps, so an http
 // avatar would fail to render anyway — dropping it yields the safe undefined
 // fallback. Defensive: the real fix is upstream (the backend should omit the
 // claim when there is no photo).
-export function sanitizeAvatarUrl(value: unknown): string | undefined {
-  if (typeof value !== 'string') {
+export function sanitizeAvatarUrl(raw: string): string | undefined {
+  const parsed = avatarUrlSchema.safeParse(raw)
+  if (!parsed.success) {
     return undefined
   }
-  const trimmed = value.trim()
+  const trimmed = parsed.data
   if (AVATAR_SENTINELS.has(trimmed.toLowerCase())) {
     return undefined
   }
 
-  let parsed: URL
+  let parsedUrl: URL
   try {
-    parsed = new URL(trimmed)
+    parsedUrl = new URL(trimmed)
   } catch {
     return undefined
   }
-  if (parsed.protocol !== 'https:') {
+  if (parsedUrl.protocol !== 'https:') {
     return undefined
   }
-  if (AVATAR_SENTINELS.has(parsed.hostname.toLowerCase())) {
+  if (AVATAR_SENTINELS.has(parsedUrl.hostname.toLowerCase())) {
     return undefined
   }
 

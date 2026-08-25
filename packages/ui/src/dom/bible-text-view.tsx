@@ -1,8 +1,13 @@
 'use dom'
 
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
-import { BibleTextView } from '@youversion/platform-react-ui'
+import {
+  BibleTextView,
+  type BibleTextViewProps as WebBibleTextViewProps,
+  type FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
@@ -11,7 +16,6 @@ import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
-type WebBibleTextViewProps = import('@youversion/platform-react-ui').BibleTextViewProps
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
 
 type DomPassageState = Omit<WebPassageState, 'error'> & {
@@ -38,7 +42,7 @@ export type BibleTextViewProps = Omit<
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   passageState?: DomPassageState
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 type BibleTextViewDOMProps = BibleTextViewProps & InternalVersionFilterProps & InternalLocaleProps
@@ -57,7 +61,7 @@ export default function BibleTextViewDOM({
   permittedLanguageTags,
   locale,
   ...props
-}: BibleTextViewDOMProps) {
+}: BibleTextViewDOMProps): ReactNode {
   applySDKConfig({ apiHost, appKey, installationId })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
@@ -98,8 +102,20 @@ export default function BibleTextViewDOM({
         {...props}
         highlights={safeHighlights}
         passageState={webPassageState}
-        onVerseSelect={onVerseSelect}
-        onFootnotePress={onFootnotePress}
+        onVerseSelect={
+          onVerseSelect
+            ? (verses) => {
+                void onVerseSelect(verses)
+              }
+            : undefined
+        }
+        onFootnotePress={
+          onFootnotePress
+            ? (data) => {
+                void onFootnotePress(data)
+              }
+            : undefined
+        }
       />
     </YouVersionProvider>
   )

@@ -4,9 +4,14 @@ import { AppState, Text, type AppStateStatus } from 'react-native'
 import type { ReactNode } from 'react'
 
 import { AuthContext, type AccessTokenResult, type AuthContextValue } from '../../auth/auth-context'
+import type { HookOverrides } from '../../hook-overrides'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
 import type { Result } from '../../result'
+import * as api from '../api'
 import type { HighlightsApiError } from '../api'
+import * as drainSignals from '../drain-signals'
+import { hasQueuedHighlightWrites } from '../queue'
 import { highlightsCacheKey, type HighlightScope } from '../constants'
 import {
   useHighlights,
@@ -17,33 +22,9 @@ import {
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
 const mockCreateHighlight = jest.fn()
 const mockDeleteHighlight = jest.fn()
-
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: mockCreateHighlight,
-    deleteHighlight: mockDeleteHighlight,
-  })),
-}))
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -67,8 +48,13 @@ function apiError(error: HighlightsApiError): Result<never, HighlightsApiError> 
   return { ok: false, error }
 }
 
-const transient = (status?: number, message = 'boom') =>
-  apiError({ kind: 'transient', ...(status === undefined ? {} : { status }), message })
+const transient = (status?: number, message = 'boom') => {
+  const error: HighlightsApiError =
+    status === undefined
+      ? { kind: 'transient', message }
+      : { kind: 'transient', status, message }
+  return apiError(error)
+}
 const authError = (status: 401 | 403 = 401) =>
   apiError({ kind: 'auth', status, message: 'unauthorized' })
 
@@ -82,16 +68,16 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve }
 }
 
-type AuthShape = Partial<AuthContextValue> | null
+type AuthOverrides = Partial<AuthContextValue> | null
 
-const signedIn: AuthShape = {
+const signedIn: AuthOverrides = {
   isAuthenticated: true,
   accessToken: 'token-1',
   userInfo: { id: userId },
   isLoading: false,
 }
 
-const signedOut: AuthShape = {
+const signedOut: AuthOverrides = {
   isAuthenticated: false,
   accessToken: null,
   userInfo: null,
@@ -99,7 +85,7 @@ const signedOut: AuthShape = {
 }
 
 /** Signed in, `userInfo` seeded from cache, but `loadTokens()` has not resolved. */
-const tokenLoading: AuthShape = {
+const tokenLoading: AuthOverrides = {
   isAuthenticated: false,
   accessToken: null,
   userInfo: { id: userId },
@@ -113,7 +99,7 @@ const refreshNow = jest.fn(async () => undefined)
  * learned either way. Either way the fetch is still mounted; see
  * `shouldFetchHighlights`.
  */
-const signedInWithoutPermission: AuthShape = {
+const signedInWithoutPermission: AuthOverrides = {
   ...signedIn,
   requestedPermissions: [],
 }
@@ -164,7 +150,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
 // wrapper, so auth-state transitions (the token-loading window, sign-out
 // mid-write) swap this value and re-render rather than remounting — a remount
 // would lose the in-flight write under test.
-let currentAuth: AuthShape = signedIn
+let currentAuth: AuthOverrides = signedIn
 
 function Wrapper({ children }: { children: ReactNode }) {
   const inner =
@@ -182,7 +168,10 @@ function Wrapper({ children }: { children: ReactNode }) {
   )
 }
 
-function renderUseHighlights(auth: AuthShape = signedIn, initialProps: UseHighlightsOptions = options) {
+function renderUseHighlights(
+  auth: AuthOverrides = signedIn,
+  initialProps: UseHighlightsOptions = options,
+) {
   currentAuth = auth
   return renderHook((props: UseHighlightsOptions) => useHighlights(props), {
     wrapper: Wrapper,
@@ -191,7 +180,7 @@ function renderUseHighlights(auth: AuthShape = signedIn, initialProps: UseHighli
 }
 
 /** Move to a new auth state without remounting the hook. */
-function setAuth(rerender: (props: typeof options) => void, auth: AuthShape): void {
+function setAuth(rerender: (props: typeof options) => void, auth: AuthOverrides): void {
   currentAuth = auth
   act(() => {
     rerender({ ...options })
@@ -199,7 +188,7 @@ function setAuth(rerender: (props: typeof options) => void, auth: AuthShape): vo
 }
 
 function seedCache(highlights: Highlight[], forUser = userId, forScope = scope) {
-  mockMmkv.set(highlightsCacheKey(forUser, forScope), JSON.stringify(highlights))
+  mmkvStorage.set(highlightsCacheKey(forUser, forScope), JSON.stringify(highlights))
 }
 
 /**
@@ -213,8 +202,10 @@ function seedServer(highlights: Highlight[]) {
 }
 
 function readCache(forUser = userId, forScope = scope): Highlight[] | null {
-  const raw = mockMmkv.get(highlightsCacheKey(forUser, forScope))
-  return raw === undefined ? null : (JSON.parse(raw) as Highlight[])
+  const raw = mmkvStorage.getString(highlightsCacheKey(forUser, forScope))
+  if (raw === undefined) return null
+  const parsed: Highlight[] = JSON.parse(raw)
+  return parsed
 }
 
 function colorsOf(result: UseHighlightsResult): Record<string, string> {
@@ -224,11 +215,7 @@ function colorsOf(result: UseHighlightsResult): Record<string, string> {
 let appStateListener: ((state: AppStateStatus) => void) | null = null
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
-  // `clearAllMocks` clears calls but NOT queued `mockResolvedValueOnce` values,
-  // so an unconsumed queue would leak into the next test. Reset these three
-  // explicitly rather than `resetAllMocks`, which would also wipe the MMKV fake.
+  mmkvStorage.clearAll()
   mockGetHighlights.mockReset()
   mockCreateHighlight.mockReset()
   mockDeleteHighlight.mockReset()
@@ -237,11 +224,20 @@ beforeEach(() => {
   mockGetHighlights.mockResolvedValue(collection([]))
   mockCreateHighlight.mockResolvedValue({ ok: true, value: highlight('JHN.3.16', YELLOW) })
   mockDeleteHighlight.mockResolvedValue({ ok: true, value: undefined })
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: mockCreateHighlight,
+    deleteHighlight: mockDeleteHighlight,
+  })
   appStateListener = null
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_event, listener) => {
-    appStateListener = listener as (state: AppStateStatus) => void
+    appStateListener = listener
     return { remove: jest.fn() }
   })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 // ── AC 1: instant mount ──────────────────────────────────────────────────────
@@ -269,8 +265,10 @@ describe('instant mount from cache', () => {
     )
 
     const first = renders[0]
-    expect(first).toBeDefined()
-    expect(colorsOf(first as UseHighlightsResult)).toEqual({
+    if (first === undefined) {
+      throw new Error('expected a first render')
+    }
+    expect(colorsOf(first)).toEqual({
       'JHN.3.16': YELLOW, // normalized to lowercase on projection
       'JHN.3.20': GREEN, // the cached range expands per verse
       'JHN.3.21': GREEN,
@@ -602,7 +600,7 @@ describe('Highlights Refresh on AppState', () => {
   it('registers a "change" listener on mount and removes it on unmount', async () => {
     const remove = jest.fn()
     jest.mocked(AppState.addEventListener).mockImplementation((_event, listener) => {
-      appStateListener = listener as (state: AppStateStatus) => void
+      appStateListener = listener
       return { remove }
     })
 
@@ -1487,7 +1485,7 @@ describe('auth states', () => {
     })
 
     // AuthProvider.clearAuthState() has just emptied the highlights cache.
-    mockMmkv.clear()
+    mmkvStorage.clearAll()
     setAuth(rerender, signedOut)
 
     mockGetHighlights.mockResolvedValue(collection([highlight('JHN.3.16', YELLOW)]))
@@ -1547,7 +1545,7 @@ describe('error surface', () => {
 describe('missing user id', () => {
   it('runs cache-less with a single dev warning', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
-    const noUserId: AuthShape = {
+    const noUserId: AuthOverrides = {
       isAuthenticated: true,
       accessToken: 'token-1',
       userInfo: { name: 'Someone' },
@@ -1562,7 +1560,7 @@ describe('missing user id', () => {
 
     // Network still paints; only the cache is disabled.
     expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': YELLOW })
-    expect(mockMmkv.size).toBe(0)
+    expect(mmkvStorage.getAllKeys()).toHaveLength(0)
     expect(warn).toHaveBeenCalledTimes(1)
 
     unmount()
@@ -1591,5 +1589,129 @@ describe('missing user id', () => {
     })
 
     expect(outcome).toMatchObject({ reason: 'not-signed-in' })
+  })
+})
+
+describe('hookOverrides skip live work', () => {
+  const stubResult: UseHighlightsResult = {
+    highlights: [],
+    scope,
+    isRefreshing: false,
+    error: null,
+    refresh: async () => undefined,
+    apply: async () => ({ status: 'noop' }),
+    remove: async () => ({ status: 'noop' }),
+  }
+
+  function OverrideWrapper({
+    children,
+    hookOverrides,
+  }: {
+    children: ReactNode
+    hookOverrides: HookOverrides
+  }) {
+    return (
+      <YouVersionContext.Provider
+        value={{
+          appKey: 'app-key',
+          apiHost: 'api.youversion.com',
+          installationId: 'install-1',
+          hookOverrides,
+        }}
+      >
+        <AuthContext.Provider value={authValue(signedIn ?? {})}>{children}</AuthContext.Provider>
+      </YouVersionContext.Provider>
+    )
+  }
+
+  it('does not fetch, notify the drain, or persist cache when useHighlights is overridden', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+    const notifyDrain = jest.spyOn(drainSignals, 'notifyDrain')
+
+    const { result } = renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper hookOverrides={{ useHighlights: () => stubResult }}>
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(result.current.highlights).toEqual([])
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(notifyDrain).not.toHaveBeenCalled()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
+  })
+
+  it('does not fetch when only the permission-flow override is set', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+
+    renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper
+          hookOverrides={{
+            useHighlightPermissionFlow: () => ({
+              highlights: stubResult,
+              isConfirming: false,
+              apply: async () => ({ status: 'noop' as const }),
+              confirm: () => undefined,
+              decline: () => undefined,
+              flowError: null,
+            }),
+          }}
+        >
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
+  })
+
+  it('does not enqueue or transmit apply/remove when only the permission-flow override is set', async () => {
+    seedCache([highlight('JHN.3.16', YELLOW)])
+
+    const { result } = renderHook(() => useHighlights(options), {
+      wrapper: ({ children }) => (
+        <OverrideWrapper
+          hookOverrides={{
+            useHighlightPermissionFlow: () => ({
+              highlights: stubResult,
+              isConfirming: false,
+              apply: async () => ({ status: 'noop' as const }),
+              confirm: () => undefined,
+              decline: () => undefined,
+              flowError: null,
+            }),
+          }}
+        >
+          {children}
+        </OverrideWrapper>
+      ),
+    })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(mockGetHighlights).not.toHaveBeenCalled()
+
+    await act(async () => {
+      await result.current.apply(YELLOW, [17])
+      await result.current.remove(YELLOW, [16])
+    })
+
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+    expect(mockDeleteHighlight).not.toHaveBeenCalled()
+    expect(hasQueuedHighlightWrites(userId)).toBe(false)
+    expect(readCache()).toEqual([highlight('JHN.3.16', YELLOW)])
   })
 })

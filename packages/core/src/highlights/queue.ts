@@ -181,7 +181,7 @@ export function dropWrites(input: {
   scope: HighlightScope
   verses: readonly number[]
   color: string | null
-}): { restored: ServerColors; cleared: number[] } {
+}): DroppedWriteSlice {
   const { userId, scope, verses, color } = input
   const local = normalizeColor(color)
   const queued: QueuedWrites = { ...getQueuedWrites(userId, scope) }
@@ -207,6 +207,11 @@ export function dropWrites(input: {
     persist(userId, scope, queued)
   }
   return { restored, cleared }
+}
+
+export type DroppedWriteSlice = {
+  restored: ServerColors
+  cleared: number[]
 }
 
 export type DroppedWrites = {
@@ -236,14 +241,14 @@ export function dropRejectedWrites(input: {
   scope: HighlightScope
   verses: readonly number[]
   color: string | null
-}): { restored: ServerColors; cleared: number[] } {
+}): DroppedWriteSlice {
   const dropped = dropWrites(input)
   if (Object.keys(dropped.restored).length === 0 && dropped.cleared.length === 0) {
     return dropped
   }
 
   const event: DroppedWrites = { userId: input.userId, scope: input.scope, ...dropped }
-  for (const listener of [...dropListeners]) {
+  for (const listener of dropListeners) {
     listener(event)
   }
   return dropped

@@ -1,4 +1,4 @@
-import en from './locales/en.json'
+import type en from './locales/en.json'
 
 /** Derived from the canonical English locale file — add keys in en.json only. */
 export type SdkTranslationResources = typeof en

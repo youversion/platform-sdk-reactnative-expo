@@ -8,13 +8,14 @@
  * that array is `[]` and `useHighlights` is called with `enabled: false`.
  */
 import { render } from '@testing-library/react-native'
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
+import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Platform, Share } from 'react-native'
+import { Platform, Share, View } from 'react-native'
 
-import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
+import { emptyHighlights } from '../../test-utils/default-hook-overrides'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 import * as votdPassage from '../use-verse-of-the-day-passage-id'
 
@@ -27,17 +28,10 @@ type CapturedDomProps = {
 /** Every render's props, so "always an array" can be checked, not just "eventually". */
 let mockDomPropsHistory: CapturedDomProps[] = []
 
-jest.mock('../../dom/verse-of-the-day', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: CapturedDomProps) {
-      mockDomPropsHistory.push(props)
-      return <View testID="mock-dom" />
-    },
-  }
-})
+function MockDOM(props: CapturedDomProps) {
+  mockDomPropsHistory.push(props)
+  return <View testID="mock-dom" />
+}
 
 const YELLOW = 'fffe00'
 
@@ -45,20 +39,19 @@ function highlight(passageId: string, versionId = 111): Highlight {
   return { version_id: versionId, passage_id: passageId, color: YELLOW }
 }
 
-const useHighlightsSpy = jest.spyOn(core, 'useHighlights')
+const useHighlightsMock = jest.fn(emptyHighlights)
 const useVerseOfTheDayPassageIdSpy = jest.spyOn(votdPassage, 'useVerseOfTheDayPassageId')
 
 function stubHighlights(highlights: Highlight[]) {
-  useHighlightsSpy.mockImplementation(({ versionId, book, chapter }) => ({
-    highlights,
-    scope: { versionId, book, chapter },
-    isRefreshing: false,
-    error: null,
-    refresh: jest.fn(async () => undefined),
-    apply: jest.fn(async () => ({ status: 'noop' }) as const),
-    remove: jest.fn(async () => ({ status: 'noop' }) as const),
+  useHighlightsMock.mockImplementation((options: UseHighlightsOptions) => ({
+    ...emptyHighlights(options),
+    highlights: options.enabled === false ? [] : highlights,
   }))
 }
+
+const wrapper = youVersionProviderWrapper('light', undefined, {
+  useHighlights: useHighlightsMock,
+})
 
 function lastDomProps(): CapturedDomProps {
   const props = mockDomPropsHistory.at(-1)
@@ -70,13 +63,15 @@ function lastDomProps(): CapturedDomProps {
 
 beforeEach(() => {
   mockDomPropsHistory = []
-  useHighlightsSpy.mockClear()
+  useHighlightsMock.mockClear()
   stubHighlights([])
+  setImpl('VerseOfTheDayDom', MockDOM)
   useVerseOfTheDayPassageIdSpy.mockReturnValue(null)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
 })
 
 afterEach(() => {
+  resetImpls()
   Object.defineProperty(Platform, 'OS', {
     configurable: true,
     enumerable: true,
@@ -85,13 +80,12 @@ afterEach(() => {
 })
 
 afterAll(() => {
-  useHighlightsSpy.mockRestore()
   useVerseOfTheDayPassageIdSpy.mockRestore()
 })
 
 describe('the Controlled Highlights Latch', () => {
   it('hands the DOM component an array on the very first render, including while loading', () => {
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     expect(Array.isArray(mockDomPropsHistory[0]?.highlights)).toBe(true)
@@ -102,7 +96,7 @@ describe('the Controlled Highlights Latch', () => {
     const data = [highlight('JHN.3.16')]
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
     stubHighlights(data)
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
@@ -111,7 +105,7 @@ describe('the Controlled Highlights Latch', () => {
   it('never renders with an undefined highlights prop, on any render', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
     stubHighlights([highlight('JHN.3.16')])
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
@@ -122,7 +116,7 @@ describe('the Controlled Highlights Latch', () => {
   it('sends no access token across the bridge, on any render', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
     stubHighlights([highlight('JHN.3.16')])
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
@@ -131,11 +125,11 @@ describe('the Controlled Highlights Latch', () => {
   })
 
   it('pins a dayOfYear on every DOM render so the WebView cannot sample a different day', () => {
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
-      expect(typeof props.dayOfYear).toBe('number')
+      expect(props.dayOfYear).toEqual(expect.any(Number))
     }
   })
 
@@ -144,7 +138,7 @@ describe('the Controlled Highlights Latch', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
     stubHighlights(data)
 
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual(data)
   })
@@ -152,10 +146,10 @@ describe('the Controlled Highlights Latch', () => {
 
 describe('the highlights subscription scope', () => {
   it('calls useHighlights with enabled: false until the passage_id is known', () => {
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual([])
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
@@ -165,10 +159,10 @@ describe('the highlights subscription scope', () => {
 
   it('passes [] while passage_id is unknown so other-scope rows cannot paint', () => {
     stubHighlights([highlight('JHN.3.16'), highlight('MAT.5.1')])
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory[0]?.highlights).toEqual([])
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
@@ -177,9 +171,9 @@ describe('the highlights subscription scope', () => {
   })
 
   it('subscribes at Highlight Scope from the passage_id once it is known', () => {
-    const { rerender } = render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    const { rerender } = render(<VerseOfTheDay versionId={111} />, { wrapper })
 
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
@@ -190,7 +184,7 @@ describe('the highlights subscription scope', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.1')
     rerender(<VerseOfTheDay versionId={111} />)
 
-    expect(useHighlightsSpy).toHaveBeenLastCalledWith({
+    expect(useHighlightsMock).toHaveBeenLastCalledWith({
       versionId: 111,
       book: 'JHN',
       chapter: '1',
@@ -201,10 +195,10 @@ describe('the highlights subscription scope', () => {
   it('passes [] and does not fetch when the passage_id is invalid USFM', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('not-usfm')
     stubHighlights([highlight('JHN.3.16')])
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual([])
-    expect(useHighlightsSpy).toHaveBeenCalledWith({
+    expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
@@ -216,7 +210,7 @@ describe('the highlights subscription scope', () => {
 describe('the verse-action event set', () => {
   it('sends no highlight-intent handlers across the bridge', () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
-    render(<VerseOfTheDay versionId={111} />, { wrapper: wrapper() })
+    render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     const props = lastDomProps()
     expect(props).not.toHaveProperty('onHighlightApply')

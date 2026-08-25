@@ -4,6 +4,7 @@ import { AppState } from 'react-native'
 
 import type { AccessTokenResult, AuthPermission } from '../auth'
 import { useYVAuthOptional } from '../auth'
+import type { HookOverrides } from '../hook-overrides'
 import { useYouVersion } from '../use-youversion'
 import { createHighlightsApi, type HighlightsApi, type HighlightsApiError } from './api'
 import {
@@ -126,12 +127,12 @@ const UNEXPECTED_WRITE_FAILURE_MESSAGE = 'The highlight write could not be compl
  * produced by {@link classifyApiError}, only constructed directly, so it can
  * never be one of several competing failures in a batch.
  */
-const REASON_RANK: Record<HighlightWriteReason, number> = {
+const REASON_RANK = {
   'not-signed-in': 4,
   auth: 3,
   invalid: 2,
   transient: 1,
-}
+} satisfies Record<HighlightWriteReason, number>
 
 /**
  * `api.ts` maps 401/403 to `auth` and everything else to `transient`, but
@@ -282,7 +283,16 @@ type AuthSettleOutcome = 'settled' | 'aborted'
  * that config's `permissions` — without it no GET is ever issued (see
  * {@link shouldFetchHighlights}), so `highlights` stays whatever the cache holds.
  */
-export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+function shouldRunLiveHighlightWork(overrides: HookOverrides | undefined): boolean {
+  return (
+    overrides?.useHighlights === undefined && overrides?.useHighlightPermissionFlow === undefined
+  )
+}
+
+function useHighlightsImplementation(
+  options: UseHighlightsOptions,
+  live: boolean,
+): UseHighlightsResult {
   const { versionId, book, chapter, enabled = true } = options
   const { appKey, apiHost, installationId } = useYouVersion()
   const auth = useYVAuthOptional()
@@ -292,8 +302,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   const userId = auth?.userInfo?.id ?? null
   // Config, not state: effectively constant for the life of the provider. Read
   // through the closure rather than a ref so a change still re-runs the fetch
-  // effect below (`runFetch` is one of its deps).
-  const canFetchHighlights = shouldFetchHighlights(auth?.requestedPermissions ?? [])
+  // effect below (`runFetch` is one of its deps). An override still mounts this
+  // hook (rules of hooks) but must not GET, write, notify the drain, or persist cache.
+  const canFetchHighlights =
+    live && enabled && shouldFetchHighlights(auth?.requestedPermissions ?? [])
   const getAccessToken = auth?.getAccessToken ?? null
 
   const scope = useMemo<HighlightScope>(
@@ -505,31 +517,35 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
   // refresh and the Highlight Write Queue drain. Do not clear inFlightRef:
   // foreground should join an in-flight GET, not abandon it.
   useEffect(() => {
+    if (!live) {
+      return
+    }
     const subscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void runFetch()
       }
     })
     return () => subscription.remove()
-  }, [runFetch])
+  }, [live, runFetch])
 
   // The drain gave up on a write this reader is still painting. Nothing remounts,
   // so the un-paint arrives here (ADR 0018).
-  useEffect(
-    () =>
-      onWritesDropped((dropped) => {
-        const captured = identityRef.current
-        if (identityKeyFor(dropped.userId, dropped.scope) !== captured.key) {
-          return
-        }
-        setState((prev) =>
-          sameIdentity(prev, captured)
-            ? restore(prev, { restored: dropped.restored, cleared: dropped.cleared })
-            : prev,
-        )
-      }),
-    [],
-  )
+  useEffect(() => {
+    if (!live) {
+      return
+    }
+    return onWritesDropped((dropped) => {
+      const captured = identityRef.current
+      if (identityKeyFor(dropped.userId, dropped.scope) !== captured.key) {
+        return
+      }
+      setState((prev) =>
+        sameIdentity(prev, captured)
+          ? restore(prev, { restored: dropped.restored, cleared: dropped.cleared })
+          : prev,
+      )
+    })
+  }, [live])
 
   // ── Writes ─────────────────────────────────────────────────────────────────
   // A promise chain, not a queue: the web machine needs an explicit queue only
@@ -759,6 +775,10 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   const startWrite = useCallback(
     (op: WriteOp, rawColor: string, rawVerses: number[]): Promise<HighlightWriteOutcome> => {
+      if (!live) {
+        return Promise.resolve({ status: 'noop' })
+      }
+
       const captured = identityRef.current
       const color = rawColor.toLowerCase()
 
@@ -872,7 +892,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
           )
       )
     },
-    [enqueue, runWrite],
+    [enqueue, live, runWrite],
   )
 
   const apply = useCallback(
@@ -889,7 +909,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
 
   // One place, so no write path can paint without persisting.
   useEffect(() => {
-    if (userId === null) {
+    if (!live || userId === null) {
       return
     }
     if (!enabled) {
@@ -902,7 +922,7 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
       // that refuses this write costs a slower next mount, and must not take the
       // component rendering the chapter down with it.
     }
-  }, [userId, scope, highlights, enabled])
+  }, [live, userId, scope, highlights, enabled])
 
   let paintedHighlights = highlights
   if (!enabled) {
@@ -918,4 +938,11 @@ export function useHighlights(options: UseHighlightsOptions): UseHighlightsResul
     apply,
     remove,
   }
+}
+
+export function useHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+  const overrides = useYouVersion().hookOverrides
+  const override = overrides?.useHighlights
+  const real = useHighlightsImplementation(options, shouldRunLiveHighlightWork(overrides))
+  return override?.(options) ?? real
 }

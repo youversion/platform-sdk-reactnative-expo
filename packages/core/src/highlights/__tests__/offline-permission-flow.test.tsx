@@ -11,7 +11,9 @@ import {
   saveGrantedPermissions,
 } from '../../auth/granted-permissions-cache'
 import type { Result } from '../../result'
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { YouVersionContext } from '../../youversion-context'
+import * as api from '../api'
 import type { HighlightsApiError } from '../api'
 import { highlightQueueKey, type HighlightScope, type QueuedWrites } from '../constants'
 import { hasQueuedHighlightWrites } from '../queue'
@@ -22,46 +24,18 @@ import {
 import type { HighlightWriteOutcome, UseHighlightsOptions } from '../use-highlights'
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
-// One vertical seam, faked at the external edges: MMKV, the highlights API
+// One vertical seam, faked at the external edges: the highlights API
 // client, the data-exchange mint, and the browser. The one internal double is
 // the auth context — a real `AuthProvider` would drag in secure storage and the
 // whole PKCE flow for nothing this suite asks about. See `hasPermission`.
 //
 // The whole suite runs offline: every network edge is unreachable.
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => {
-      mockMmkv.delete(k)
-    }),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-    has: jest.fn((k: string) => mockMmkv.has(k)),
-  },
-}))
-
 const mockGetHighlights = jest.fn()
 const mockCreateHighlight = jest.fn()
 const mockDeleteHighlight = jest.fn()
 
-jest.mock('../api', () => ({
-  createHighlightsApi: jest.fn(() => ({
-    getHighlights: mockGetHighlights,
-    createHighlight: mockCreateHighlight,
-    deleteHighlight: mockDeleteHighlight,
-  })),
-}))
-
-jest.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: jest.fn(),
-}))
-
-const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
+let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsync>
 
 /** The data-exchange mint. Offline, so it never gets an answer. */
 const mockMintToken = jest.fn<Promise<DataExchangeApiResult<string>>, [string, readonly string[]]>()
@@ -197,8 +171,10 @@ function paintedColors(result: FlowResult): Record<string, string> {
 }
 
 function queuedWrites(): QueuedWrites | null {
-  const raw = mockMmkv.get(highlightQueueKey(userId, scope))
-  return raw === undefined ? null : (JSON.parse(raw) as QueuedWrites)
+  const raw = mmkvStorage.getString(highlightQueueKey(userId, scope))
+  if (raw === undefined) return null
+  const parsed: QueuedWrites = JSON.parse(raw)
+  return parsed
 }
 
 /** Let the mount fetch (and anything else already queued) settle. */
@@ -209,9 +185,20 @@ async function flush() {
 }
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
   signedIn = true
+  mockGetHighlights.mockReset()
+  mockCreateHighlight.mockReset()
+  mockDeleteHighlight.mockReset()
+  mockMintToken.mockReset()
+  mockSignIn.mockReset()
+
+  mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    getHighlights: mockGetHighlights,
+    createHighlight: mockCreateHighlight,
+    deleteHighlight: mockDeleteHighlight,
+  })
 
   // Offline, everywhere.
   mockGetHighlights.mockResolvedValue(unreachable())
@@ -222,6 +209,10 @@ beforeEach(() => {
     error: { kind: 'transient', message: NETWORK_DOWN },
   })
   mockSignIn.mockResolvedValue(undefined)
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('offline, signed in, without the highlights grant', () => {

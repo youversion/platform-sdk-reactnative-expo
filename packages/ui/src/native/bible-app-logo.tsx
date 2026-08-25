@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Svg, {
   Defs,
   G,
@@ -8,12 +9,13 @@ import Svg, {
   Stop,
   type SvgProps,
 } from 'react-native-svg'
+import { getImpl, registerDefault } from './component-impls'
 
 export interface BibleAppLogoProps extends SvgProps {
   size?: number
 }
 
-export function BibleAppLogo({ size = 26, ...props }: BibleAppLogoProps) {
+function BibleAppLogoImpl({ size = 26, ...props }: BibleAppLogoProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 26 26" fill="none" {...props}>
       <Rect
@@ -115,4 +117,11 @@ export function BibleAppLogo({ size = 26, ...props }: BibleAppLogoProps) {
       </Defs>
     </Svg>
   )
+}
+
+registerDefault('BibleAppLogo', BibleAppLogoImpl)
+
+export function BibleAppLogo(props: BibleAppLogoProps): ReactNode {
+  const Impl = getImpl('BibleAppLogo')
+  return <Impl {...props} />
 }

@@ -17,13 +17,20 @@ import type {
 import * as Clipboard from 'expo-clipboard'
 import * as WebBrowser from 'expo-web-browser'
 import type { Ref } from 'react'
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
-import BibleReaderDOM from '../dom/bible-reader'
-import FootnoteContent from '../dom/footnote-content'
+import { getImpl } from './component-impls'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
@@ -215,7 +222,7 @@ export function BibleReader({
   foregroundColor,
   dom,
   ref,
-}: BibleReaderProps) {
+}: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
   // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
@@ -248,7 +255,7 @@ export function BibleReader({
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: (newBook) => {
       if (controlledBook === undefined) setLocation({ book: newBook })
-      onBookChange?.(newBook)
+      void onBookChange?.(newBook)
     },
   })
 
@@ -258,7 +265,7 @@ export function BibleReader({
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: (newChapter) => {
       if (controlledChapter === undefined) setLocation({ chapter: newChapter })
-      onChapterChange?.(newChapter)
+      void onChapterChange?.(newChapter)
     },
   })
 
@@ -268,7 +275,7 @@ export function BibleReader({
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: (newVersionId) => {
       if (controlledVersionId === undefined) setLocation({ versionId: newVersionId })
-      onVersionChange?.(newVersionId)
+      void onVersionChange?.(newVersionId)
     },
   })
 
@@ -341,19 +348,22 @@ export function BibleReader({
     setInternalClearCount((count) => count + 1)
   }
 
-  // Which circles the tray shows, projected from the same painted array the
-  // WebView renders. A swatch can never disagree with the passage behind it.
-  const swatches = useMemo(
-    () =>
-      buildVerseActionSwatches({
-        verses: verseSelection?.verses ?? [],
-        colors: deriveServerColors(highlights, highlightScope),
-      }),
-    [verseSelection, highlights, highlightScope],
-  )
-
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
+
+  // Which circles the tray shows, projected from the same painted array the
+  // WebView renders. A swatch can never disagree with the passage behind it.
+  // No `auth` config means highlighting cannot succeed and the sign-in prompt
+  // has nowhere to go, so the tray is empty — Copy and Share still render.
+  const swatches = useMemo(() => {
+    if (authGate === 'unconfigured') {
+      return []
+    }
+    return buildVerseActionSwatches({
+      verses: verseSelection?.verses ?? [],
+      colors: deriveServerColors(highlights, highlightScope),
+    })
+  }, [authGate, verseSelection, highlights, highlightScope])
 
   const replayPendingIntent = useCallback(() => {
     const pending = pendingIntentRef.current
@@ -561,6 +571,9 @@ export function BibleReader({
   // automatically, but the reader opts out — clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
+
+  const BibleReaderDOM = getImpl('BibleReaderDom')
+  const FootnoteContent = getImpl('FootnoteContent')
 
   const readerDom = useMemo(
     () => ({

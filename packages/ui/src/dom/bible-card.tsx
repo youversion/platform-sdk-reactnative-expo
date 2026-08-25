@@ -1,9 +1,14 @@
 'use dom'
 
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { BibleCard } from '@youversion/platform-react-ui'
-import type { ComponentType } from 'react'
+import {
+  BibleCard,
+  type BibleCardProps as WebBibleCardProps,
+  type BibleVersionPickerPressData,
+  type FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ComponentType, ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
@@ -11,8 +16,6 @@ import { ContentSizedBody } from '../lib/content-sized-body'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
-
-type WebBibleCardProps = import('@youversion/platform-react-ui').BibleCardProps
 
 type NativeActionBibleCardProps = WebBibleCardProps & {
   onVersionChange?: (versionId: number) => Promise<void>
@@ -38,7 +41,7 @@ type BibleCardBridgeProps = Omit<
   apiHost: string
   installationId: string
   theme?: 'light' | 'dark'
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 export type BibleCardProps = BibleCardBridgeProps
@@ -59,7 +62,7 @@ export default function BibleCardDOM({
   permittedLanguageTags,
   locale,
   ...props
-}: BibleCardDOMProps) {
+}: BibleCardDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
@@ -79,6 +82,7 @@ export default function BibleCardDOM({
     )
   }
 
+  // SAFETY: Expo DOM native actions are Promise-returning; Web SDK types them as void.
   const NativeActionBibleCard = BibleCard as ComponentType<NativeActionBibleCardProps>
 
   return (

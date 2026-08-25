@@ -1,6 +1,6 @@
 {
   "name": "example",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
@@ -51,7 +51,12 @@
   },
   "devDependencies": {
     "@types/react": "19.2.14",
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
+  },
+  "expo": {
+    "install": {
+      "exclude": ["typescript"]
+    }
   },
   "private": true
 }

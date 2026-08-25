@@ -20,9 +20,11 @@ export const HIGHLIGHT_COLORS = ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef
 
 export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]
 
+const HIGHLIGHT_COLOR_SET: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS)
+
 /** Case-insensitive membership test against {@link HIGHLIGHT_COLORS}. */
 export function isHighlightColor(color: string): color is HighlightColor {
-  return (HIGHLIGHT_COLORS as readonly string[]).includes(color.toLowerCase())
+  return HIGHLIGHT_COLOR_SET.has(color.toLowerCase())
 }
 
 export type HighlightScope = {

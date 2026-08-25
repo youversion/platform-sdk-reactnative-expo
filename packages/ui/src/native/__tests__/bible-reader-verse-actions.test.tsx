@@ -6,24 +6,29 @@
  * the WebView, so every assertion here is on the native side of the bridge plus
  * the one value travelling back: the clear signal.
  */
+import type {
+  Highlight,
+  HookOverrides,
+  UseHighlightsOptions,
+} from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
-import * as core from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
-import { Platform, Share } from 'react-native'
+import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 
 import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import { emptyHighlights, signedOutAuth } from '../../test-utils/default-hook-overrides'
+import {
+  installBibleReaderTestImpls,
+  resetImpls,
+  setImpl,
+} from '../../test-utils/install-test-impls'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
-import { YouVersionProvider } from '../youversion-provider'
-
-jest.mock('expo-clipboard', () => ({
-  setStringAsync: jest.fn(() => Promise.resolve(true)),
-}))
 
 const VERSION_ID = 111
 
@@ -75,100 +80,75 @@ const highlightPermissionFlowApply = jest.fn(async () => ({ status: 'noop' }) as
 const rawApply = jest.fn(async () => ({ status: 'noop' }) as const)
 const rawRemove = jest.fn(async () => ({ status: 'noop' }) as const)
 
-/**
- * `jest.setup.js` already stubs this hook globally (the real one needs core's own
- * provider, which UI tests replace). Steer it per test rather than re-mocking the
- * whole package and losing that passthrough provider.
- */
+let permissionHighlights: Highlight[] = []
+
 function stubHighlightPermissionFlow(highlights: Highlight[] = []) {
-  jest
-    .spyOn(core, 'useHighlightPermissionFlow')
-    .mockImplementation(({ versionId, book, chapter }) => ({
-      highlights: {
-        highlights,
-        scope: { versionId, book, chapter },
-        isRefreshing: false,
-        error: null,
-        refresh: jest.fn(async () => undefined),
-        apply: rawApply,
-        remove: rawRemove,
-      },
-      isConfirming: false,
-      apply: highlightPermissionFlowApply,
-      confirm: jest.fn(),
-      decline: jest.fn(),
-      flowError: null,
-    }))
+  permissionHighlights = highlights
+}
+
+function useHighlightPermissionFlow({ versionId, book, chapter }: UseHighlightsOptions) {
+  return {
+    highlights: {
+      ...emptyHighlights({ versionId, book, chapter }),
+      highlights: permissionHighlights,
+      apply: rawApply,
+      remove: rawRemove,
+    },
+    isConfirming: false,
+    apply: highlightPermissionFlowApply,
+    confirm: jest.fn(),
+    decline: jest.fn(),
+    flowError: null,
+  }
+}
+
+const signedInAuth = signedOutAuth({
+  isAuthenticated: true,
+  accessToken: 'test-token',
+  getAccessToken: async () => ({ status: 'ok', token: 'test-token', userId: null }),
+  requestedPermissions: ['highlights'],
+  grantedPermissions: ['highlights'],
+  hasPermission: () => true,
+})
+
+const testHookOverrides: HookOverrides = {
+  useYVAuth: null,
+  useHighlightPermissionFlow,
+}
+
+/**
+ * A consumer *with* `auth` configured. The default in these tests is `null` —
+ * no AuthProvider, the kids-app case: no sign-in, so no highlight swatches.
+ */
+function stubAuth() {
+  testHookOverrides.useYVAuth = signedInAuth
 }
 
 /** Which verse-selection payload the mocked DOM component emits on the next press. */
 let mockNextVerseSelection: BibleReaderVerseSelection = SELECTION
 
-let latestDomProps: {
+type LatestDomProps = {
   clearSelectionSignal?: number
-  onCopy?: unknown
-  onShare?: unknown
+  onCopy?: (data: BibleReaderShareData) => Promise<void>
+  onShare?: (data: BibleReaderShareData) => Promise<void>
   onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-} = {}
+}
 
-jest.mock('../../dom/bible-reader', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Pressable
-            testID="trigger-verse-select"
-            onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+let latestDomProps: LatestDomProps = {}
 
-jest.mock('../../dom/footnote-content', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    default: () => <View testID="mock-footnote" />,
-  }
-})
-
-jest.mock('../bible-chapter-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleChapterPickerSheet: () => <View testID="mock-chapter-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-version-picker-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleVersionPickerSheet: () => <View testID="mock-version-picker-sheet" />,
-  }
-})
-
-jest.mock('../bible-reader-settings-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-  return {
-    __esModule: true,
-    BibleReaderSettingsSheet: () => <View testID="mock-settings-sheet" />,
-  }
-})
+function MockDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Pressable
+        testID="trigger-verse-select"
+        onPress={() => void props.onVerseSelect?.(mockNextVerseSelection)}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
 /**
  * Real `NativeSheet` drives a Gorhom bottom sheet through a portal host; the
@@ -185,55 +165,45 @@ jest.mock('../bible-reader-settings-sheet', () => {
  * tray's horizontal scroll and the sheet's swipe-down both depend on how the
  * sheet's pan is configured, and only one configuration keeps both.
  */
-let latestSheetProps: {
+type LatestSheetProps = {
   enableContentPanningGesture?: boolean
   panActiveOffsetY?: [number, number]
-} = {}
+}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      modal,
-      enableContentPanningGesture,
-      panActiveOffsetY,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      modal?: boolean
-      enableContentPanningGesture?: boolean
-      panActiveOffsetY?: [number, number]
-      children: ReactNode
-    }) => {
-      if (isOpen) {
-        // Module-level capture cell for the open sheet's gesture props —
-        // intentional test infra, the same pattern as `latestDomProps` above.
-        latestSheetProps = { enableContentPanningGesture, panActiveOffsetY }
-      }
-      return isOpen ? (
-        <View testID="sheet">
-          <View testID={`sheet-modal-${modal !== false}`} />
-          <Pressable testID="sheet-dismiss" onPress={onClose}>
-            <Text>Dismiss</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null
-    },
+let latestSheetProps: LatestSheetProps = {}
+
+type MockNativeSheetProps = {
+  isOpen: boolean
+  onClose: () => void
+  modal?: boolean
+  enableContentPanningGesture?: boolean
+  panActiveOffsetY?: [number, number]
+  children: ReactNode
+}
+
+function MockNativeSheet({
+  isOpen,
+  onClose,
+  modal,
+  enableContentPanningGesture,
+  panActiveOffsetY,
+  children,
+}: MockNativeSheetProps) {
+  if (isOpen) {
+    latestSheetProps = { enableContentPanningGesture, panActiveOffsetY }
   }
-})
+  return isOpen ? (
+    <View testID="sheet">
+      <View testID={`sheet-modal-${modal !== false}`} />
+      <Pressable testID="sheet-dismiss" onPress={onClose}>
+        <Text>Dismiss</Text>
+      </Pressable>
+      {children}
+    </View>
+  ) : null
+}
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper('light', undefined, testHookOverrides)
 
 const user = userEvent.setup()
 
@@ -251,13 +221,18 @@ beforeEach(() => {
   rawApply.mockClear()
   rawRemove.mockClear()
   stubHighlightPermissionFlow()
+  testHookOverrides.useYVAuth = null
+  installBibleReaderTestImpls()
+  setImpl('BibleReaderDom', MockDOM)
+  setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
+  jest.spyOn(Clipboard, 'setStringAsync').mockResolvedValue(true)
 })
 
 afterEach(() => {
+  resetImpls()
   jest.restoreAllMocks()
-  ;(Clipboard.setStringAsync as jest.Mock).mockClear()
 })
 
 describe('BibleReader verse action sheet — visibility', () => {
@@ -275,6 +250,27 @@ describe('BibleReader verse action sheet — visibility', () => {
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
     // `John 1:1-2`, not `JHN 1:1-2` — the human-readable half of the 2.5.0 payload.
     expect(screen.getByTestId('bible-verse-action-reference').children).toContain('John 1:1-2')
+  })
+
+  /**
+   * A consumer with no `auth` config (a kids app, no sign-in) still gets Copy
+   * and Share. Highlight colors would tap into a write that can only fail, and
+   * the sign-in prompt has nowhere to go, so the tray stays off. The two
+   * buttons split the row evenly instead of sitting compact on one edge.
+   */
+  it('omits highlight swatches when auth is unconfigured, and keeps Copy and Share', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+    expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-verse-action-copy').props.style).flex).toBe(
+      1,
+    )
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-verse-action-share').props.style).flex,
+    ).toBe(1)
   })
 
   /**
@@ -386,6 +382,10 @@ describe('BibleReader verse action sheet — the bridge', () => {
 })
 
 describe('BibleReader verse action sheet — swatches', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   it('projects the swatch tray from the painted highlights', async () => {
     stubHighlightPermissionFlow([highlight(1, YELLOW)])
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -465,6 +465,10 @@ describe('BibleReader verse action sheet — swatches', () => {
  * layout pass, which never runs under jest.
  */
 describe('BibleReader verse action sheet — swatch tray overflow', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
   // `fireEvent`, not `userEvent`, on purpose: `layout`, `contentSizeChange`, and
   // the scroll offset they feed are the layout pass standing in for itself, not
   // a gesture. `userEvent.scroll` would need the measurements this is supplying.

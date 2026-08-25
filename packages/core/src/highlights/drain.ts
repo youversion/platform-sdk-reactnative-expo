@@ -283,7 +283,7 @@ export function startHighlightQueueDrain(deps: {
       }
     }
     // A record outlives its entry when a re-tap cancels the write it counted.
-    for (const key of [...backoff.keys()]) {
+    for (const key of backoff.keys()) {
       if (!live.has(key)) {
         backoff.delete(key)
       }

@@ -135,7 +135,7 @@ export async function requestDataExchange({
     return {
       status: 'failure',
       reason: 'transient',
-      message: toMessage(caught),
+      message: toMessage(caught instanceof Error ? caught : new Error(String(caught))),
     }
   }
 
