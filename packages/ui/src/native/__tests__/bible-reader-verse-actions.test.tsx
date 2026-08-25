@@ -60,10 +60,10 @@ const CLEARED_SELECTION: BibleReaderVerseSelection = {
   shareData: null,
 }
 
-const YELLOW = 'fffe00'
-const GREEN = '5dff79'
-const BLUE = '00d6ff'
-const PINK = 'ff95ef'
+const YELLOW = 'ffec5b'
+const GREEN = 'b4ffc1'
+const BLUE = 'bbf4ff'
+const PINK = 'ffcff8'
 
 function highlight(verse: number, color: string): Highlight {
   return { version_id: VERSION_ID, passage_id: `JHN.1.${verse}`, color }
@@ -460,8 +460,8 @@ describe('BibleReader verse action sheet — swatches', () => {
 
 /**
  * The tray is a fixed-width window over a horizontally scrolling strip: two
- * verses of different colors already produce seven circles (2 remove + 5
- * apply), and the palette's worst case is ten. `measureTray` stands in for the
+ * verses of different colors already produce eight circles (2 remove + 6
+ * apply), and the palette's worst case is twelve. `measureTray` stands in for the
  * layout pass, which never runs under jest.
  */
 describe('BibleReader verse action sheet — swatch tray overflow', () => {

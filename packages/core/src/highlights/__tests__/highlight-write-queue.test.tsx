@@ -38,9 +38,9 @@ const mockDeleteHighlight = jest.fn()
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const YELLOW = 'fffe00'
-const GREEN = '5dff79'
-const BLUE = '00d6ff'
+const YELLOW = 'ffec5b'
+const GREEN = 'b4ffc1'
+const BLUE = 'bbf4ff'
 
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const options = { versionId: 111, book: 'JHN', chapter: '3' }

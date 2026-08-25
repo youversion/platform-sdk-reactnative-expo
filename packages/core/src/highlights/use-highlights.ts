@@ -111,7 +111,7 @@ export type UseHighlightsResult = {
 }
 
 const INVALID_COLOR_MESSAGE =
-  'Unsupported highlight color. Use one of the five YouVersion highlight swatches.'
+  'Unsupported highlight color. Use one of the six YouVersion highlight swatches.'
 
 const TOKEN_REFRESH_FAILED_MESSAGE =
   'Could not refresh the session token. Retry when the network recovers.'

@@ -42,7 +42,7 @@ const mockMintToken = jest.fn<Promise<DataExchangeApiResult<string>>, [string, r
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const YELLOW = 'fffe00'
+const YELLOW = 'ffec5b'
 
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const options: UseHighlightsOptions = { versionId: 111, book: 'JHN', chapter: '3' }

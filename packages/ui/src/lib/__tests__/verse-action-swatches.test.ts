@@ -3,9 +3,9 @@ import { HIGHLIGHT_COLORS } from '@youversion/platform-react-native-expo-core'
 
 import { buildVerseActionSwatches } from '../verse-action-swatches'
 
-const [YELLOW, GREEN, BLUE, ORANGE, PINK] = HIGHLIGHT_COLORS
+const [YELLOW, GREEN, BLUE, ORANGE, PINK, PURPLE] = HIGHLIGHT_COLORS
 
-/** `['remove:fffe00', 'apply:5dff79', …]` — order matters, so assert it as a list. */
+/** `['remove:ffec5b', 'apply:b4ffc1', …]` — order matters, so assert it as a list. */
 function summarize(input: { verses: number[]; colors: ServerColors }): string[] {
   return buildVerseActionSwatches(input).map(({ state, color }) => `${state}:${color}`)
 }
@@ -18,24 +18,26 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
   it('offers the whole palette for an empty selection', () => {
     // The sheet never opens on an empty selection, but the projection must not
     // depend on that — a `verses: []` payload arrives on every clear.
-    expect(summarize({ verses: [], colors: {} })).toHaveLength(5)
+    expect(summarize({ verses: [], colors: {} })).toHaveLength(6)
   })
 
   it('drops the applied color from the apply row for one highlighted verse', () => {
     // One verse, one color, nothing bare: the only thing to offer is removing
-    // it, plus the four colors it could become.
+    // it, plus the five colors it could become.
     expect(summarize({ verses: [1], colors: { 1: YELLOW } })).toEqual([
       `remove:${YELLOW}`,
       `apply:${GREEN}`,
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
@@ -49,6 +51,7 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
@@ -63,6 +66,7 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
@@ -70,7 +74,7 @@ describe('buildVerseActionSwatches', () => {
     // Web `activeHighlights.size > 1` — all distinct valid colors, not palette-only.
     // with two colors in play, "make it all green" is a real action.
     const swatches = summarize({ verses: [1, 2], colors: { 1: YELLOW, 2: GREEN } })
-    expect(swatches.filter((s) => s.startsWith('apply:'))).toHaveLength(5)
+    expect(swatches.filter((s) => s.startsWith('apply:'))).toHaveLength(6)
   })
 
   it('re-offers the full apply row when palette and non-palette hex both appear', () => {
@@ -83,14 +87,15 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
-  it('shows only remove circles when all five colors are present', () => {
+  it('shows only remove circles when all six colors are present', () => {
     expect(
       summarize({
-        verses: [1, 2, 3, 4, 5],
-        colors: { 1: YELLOW, 2: GREEN, 3: BLUE, 4: ORANGE, 5: PINK },
+        verses: [1, 2, 3, 4, 5, 6],
+        colors: { 1: YELLOW, 2: GREEN, 3: BLUE, 4: ORANGE, 5: PINK, 6: PURPLE },
       }),
     ).toEqual([
       `remove:${YELLOW}`,
@@ -98,6 +103,7 @@ describe('buildVerseActionSwatches', () => {
       `remove:${BLUE}`,
       `remove:${ORANGE}`,
       `remove:${PINK}`,
+      `remove:${PURPLE}`,
     ])
   })
 
@@ -112,6 +118,7 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
@@ -123,6 +130,7 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 
@@ -135,7 +143,22 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
+  })
+
+  it('paints leftover fffe00 as remove only — no apply swatch, no remap', () => {
+    const leftover = 'fffe00'
+    expect(summarize({ verses: [1], colors: { 1: leftover } })).toEqual([
+      `remove:${leftover}`,
+      `apply:${YELLOW}`,
+      `apply:${GREEN}`,
+      `apply:${BLUE}`,
+      `apply:${ORANGE}`,
+      `apply:${PINK}`,
+      `apply:${PURPLE}`,
+    ])
+    expect(summarize({ verses: [1], colors: {} }).some((s) => s.endsWith(leftover))).toBe(false)
   })
 
   it('ignores colors on verses outside the selection', () => {
@@ -145,6 +168,7 @@ describe('buildVerseActionSwatches', () => {
       `apply:${BLUE}`,
       `apply:${ORANGE}`,
       `apply:${PINK}`,
+      `apply:${PURPLE}`,
     ])
   })
 })

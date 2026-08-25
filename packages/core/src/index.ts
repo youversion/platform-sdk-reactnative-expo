@@ -21,6 +21,7 @@ export {
   hasQueuedHighlightWrites,
   HIGHLIGHT_COLORS,
   isHighlightColor,
+  mixSrgb,
   parseChapterScopeFromUsfm,
   useHighlightPaint,
   useHighlightPermissionFlow,

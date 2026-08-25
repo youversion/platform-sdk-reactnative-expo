@@ -25,7 +25,7 @@ export {
   type ServerColors,
 } from './cache'
 
-export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
+export { HIGHLIGHT_COLORS, isHighlightColor, mixSrgb, type HighlightColor } from './constants'
 export { isValidHighlightHex } from './paint-projection'
 
 // `clearHighlightQueue` is sign-out's, and stays internal.

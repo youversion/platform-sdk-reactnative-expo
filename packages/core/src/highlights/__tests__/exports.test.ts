@@ -13,7 +13,15 @@ describe('package exports', () => {
     expect(core.parseChapterScopeFromUsfm).toEqual(expect.any(Function))
     expect(core.useHighlightPaint).toEqual(expect.any(Function))
     expect(core.isHighlightColor).toEqual(expect.any(Function))
-    expect(core.HIGHLIGHT_COLORS).toEqual(['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'])
+    expect(core.mixSrgb).toEqual(expect.any(Function))
+    expect(core.HIGHLIGHT_COLORS).toEqual([
+      'ffec5b',
+      'b4ffc1',
+      'bbf4ff',
+      'ffdca7',
+      'ffcff8',
+      'dfdcff',
+    ])
   })
 
   it('keeps the client wrapper, the cache, and the Result seam internal', () => {

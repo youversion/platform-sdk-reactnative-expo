@@ -3,6 +3,7 @@
 Date: 2026-08-05
 Amended: 2026-08-12 — apply is palette-only. Remove follows the ANY rule for valid hex.
 Amended: 2026-08-24 — unconfigured auth omits the swatch tray. Copy and Share remain.
+Amended: 2026-08-25 — apply palette is six hexes (YPE-5059). Native dots mix against SHEET_SURFACE.
 
 ## Status
 
@@ -26,4 +27,4 @@ Verse actions are the reference, Copy, and Share, and the highlight swatches whe
 
 **The sheet stays internal.** A host that wants its own UI uses `onVerseSelect` plus `useHighlights`.
 
-Apply offers only the five `HIGHLIGHT_COLORS`. Remove follows the ANY rule: every valid hex on any selected verse earns a remove circle, palette or not. Invalid hex is dropped. That matches web YPE-4494, Swift, and Kotlin on the remove list.
+Apply offers only the six `HIGHLIGHT_COLORS`. Remove follows the ANY rule: every valid hex on any selected verse earns a remove circle, palette or not. Invalid hex is dropped. That matches web YPE-4494, Swift, and Kotlin on the remove list. Native dots mix stored hex against `SHEET_SURFACE` with `mixSrgb` (light identity, dark `p = 0.20`).

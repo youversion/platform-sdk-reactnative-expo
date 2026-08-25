@@ -139,7 +139,7 @@ Branch on `reason`, not `message` — the message is generic outside development
 
 Requires an `auth` config on the provider plus the `highlights` permission. Signed out, `highlights` is empty and writes return `reason: 'not-signed-in'` without touching state.
 
-`apply` accepts only the five colors in `HIGHLIGHT_COLORS` and rejects anything else as `reason: 'invalid'` before painting or issuing a request. That bounds what you can create, not what you can see or clear: a valid non-palette hex already on the account paints normally, and `remove` clears by exact hex whether or not it is in the palette. Only an unparseable hex is dropped from what you see.
+`apply` accepts only the six colors in `HIGHLIGHT_COLORS` and rejects anything else as `reason: 'invalid'` before painting or issuing a request. That bounds what you can create, not what you can see or clear: a valid non-palette hex already on the account paints normally, and `remove` clears by exact hex whether or not it is in the palette. Only an unparseable hex is dropped from what you see.
 
 #### Highlights made offline
 

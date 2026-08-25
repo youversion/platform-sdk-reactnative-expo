@@ -4,7 +4,7 @@ export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
 
 /**
- * The five highlight swatches for apply. Partner apps may share a highlights DB
+ * The six highlight swatches for apply. Partner apps may share a highlights DB
  * with the main Bible app, which can paint valid non-palette hex from the API;
  * only apply is restricted to this list.
  *
@@ -16,7 +16,14 @@ export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
  * `@youversion/platform-core`, which both SDKs already depend on, and make this
  * a re-export.
  */
-export const HIGHLIGHT_COLORS = ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'] as const
+export const HIGHLIGHT_COLORS = [
+  'ffec5b',
+  'b4ffc1',
+  'bbf4ff',
+  'ffdca7',
+  'ffcff8',
+  'dfdcff',
+] as const
 
 export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]
 
@@ -25,6 +32,31 @@ const HIGHLIGHT_COLOR_SET: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS)
 /** Case-insensitive membership test against {@link HIGHLIGHT_COLORS}. */
 export function isHighlightColor(color: string): color is HighlightColor {
   return HIGHLIGHT_COLOR_SET.has(color.toLowerCase())
+}
+
+function stripHighlightHexPrefix(color: string): string {
+  return color.startsWith('#') ? color.slice(1) : color
+}
+
+function hexChannel(hex: string, offset: number): number {
+  return Number.parseInt(stripHighlightHexPrefix(hex).slice(offset, offset + 2), 16)
+}
+
+function byteToHex(value: number): string {
+  return Math.round(value).toString(16).padStart(2, '0')
+}
+
+/**
+ * `stored * p + surfaceBg * (1 - p)`. Duplicated from
+ * `@youversion/platform-react-ui` next to {@link HIGHLIGHT_COLORS} for the same
+ * peer-boundary reason. Returns lowercase hex, no `#`.
+ */
+export function mixSrgb(stored: string, surfaceBg: string, p: number): string {
+  const q = 1 - p
+  const r = hexChannel(stored, 0) * p + hexChannel(surfaceBg, 0) * q
+  const g = hexChannel(stored, 2) * p + hexChannel(surfaceBg, 2) * q
+  const b = hexChannel(stored, 4) * p + hexChannel(surfaceBg, 4) * q
+  return `${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`
 }
 
 export type HighlightScope = {
