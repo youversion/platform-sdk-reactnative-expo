@@ -242,7 +242,7 @@ afterEach(() => {
 
 describe('instant mount from cache', () => {
   it('returns cached highlights on the FIRST render, before any effect runs', async () => {
-    seedCache([highlight('JHN.3.16', 'FFFE00'), highlight('JHN.3.20-21', GREEN)])
+    seedCache([highlight('JHN.3.16', 'FFEC5B'), highlight('JHN.3.20-21', GREEN)])
 
     // renderHook wraps in act(), which flushes effects — so capture the value
     // during render instead. The first entry is what the reader would paint on
