@@ -1,5 +1,7 @@
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
 import { Stack } from 'expo-router'
+import { useLayoutEffect } from 'react'
+import { Platform } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import MissingAppKey from './_components/missing-app-key'
 
@@ -13,6 +15,16 @@ const REDIRECT_URI = 'youversionauth://callback'
 
 export default function RootLayout() {
   const appKey = process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY
+  // Metro web: html/body 100% computes to 0, so NativeTabs clip BibleCard.
+  useLayoutEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return
+    const root = document.getElementById('root')
+    if (!root) return
+    document.documentElement.style.height = '100%'
+    document.body.style.height = '100%'
+    root.style.minHeight = '100vh'
+    root.style.height = '100vh'
+  }, [])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
