@@ -3,7 +3,15 @@ import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { Platform, Pressable, Text, View } from 'react-native'
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
@@ -25,7 +33,7 @@ const sampleFootnote: FootnoteData = {
 
 type EmbedDomProps = {
   matchContents?: boolean
-  containerStyle?: object
+  containerStyle?: StyleProp<ViewStyle>
   scrollEnabled?: boolean
   bounces?: boolean
   overScrollMode?: string
@@ -42,6 +50,7 @@ type LatestDomProps = {
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
+  maxWidth?: number | '100%'
   dom?: EmbedDomProps
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
@@ -57,9 +66,7 @@ function MockBibleCardDOM(props: LatestDomProps) {
       <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
-      <Text testID="mock-has-footnote-handler">
-        {props.onFootnotePress ? 'yes' : 'no'}
-      </Text>
+      <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
       <Pressable
         testID="mock-footnote-trigger"
         onPress={() => void props.onFootnotePress?.(sampleFootnote)}
@@ -78,6 +85,15 @@ function MockFootnoteContent(props: { data: FootnoteData; theme?: string; appKey
       <Text testID="mock-footnote-app-key">{props.appKey}</Text>
     </View>
   )
+}
+
+function styleHasMaxWidth(style: StyleProp<ViewStyle>): boolean {
+  const flattened = StyleSheet.flatten(style) ?? {}
+  return flattened.maxWidth != null
+}
+
+function snapshotHasReaderWidthToken(snapshot: string): boolean {
+  return snapshot.includes('--yv-reader-max-width') || snapshot.includes('65ch')
 }
 
 describe('BibleCard', () => {
@@ -209,6 +225,32 @@ describe('BibleCard', () => {
     )
 
     expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
+  })
+
+  it('forwards maxWidth to the web card without a native wrapper or reader-width style', () => {
+    const { toJSON } = render(<BibleCard reference="JHN.3.16" versionId={3034} maxWidth={480} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestDomProps.maxWidth).toBe(480)
+    expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
+    const treeSnapshot = JSON.stringify(toJSON())
+    expect(treeSnapshot).not.toContain('"maxWidth"')
+    expect(snapshotHasReaderWidthToken(JSON.stringify(latestDomProps))).toBe(false)
+    expect(snapshotHasReaderWidthToken(treeSnapshot)).toBe(false)
+  })
+
+  it('forwards maxWidth 100% to the web card without a native wrapper or reader-width style', () => {
+    const { toJSON } = render(<BibleCard reference="JHN.3.16" versionId={3034} maxWidth="100%" />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestDomProps.maxWidth).toBe('100%')
+    expect(styleHasMaxWidth(latestDomProps.dom?.containerStyle)).toBe(false)
+    const treeSnapshot = JSON.stringify(toJSON())
+    expect(treeSnapshot).not.toContain('"maxWidth"')
+    expect(snapshotHasReaderWidthToken(JSON.stringify(latestDomProps))).toBe(false)
+    expect(snapshotHasReaderWidthToken(treeSnapshot)).toBe(false)
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {
