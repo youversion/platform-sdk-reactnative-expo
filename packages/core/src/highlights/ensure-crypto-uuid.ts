@@ -38,6 +38,7 @@ type CryptoLike = { randomUUID?: () => string }
  * Safe to call repeatedly and from any entry point.
  */
 export function ensureCryptoRandomUUID(): void {
+  // SAFETY: RN's TS lib omits `crypto`; we only add `randomUUID` when missing.
   const scope = globalThis as { crypto?: CryptoLike }
 
   // Defining/assigning a global can throw in locked-down runtimes. A failure
@@ -57,7 +58,7 @@ export function ensureCryptoRandomUUID(): void {
     // through `Object.defineProperty`. Dropping it needs a non-null assertion,
     // which is an ESLint error in source (see AGENTS.md, Code Style).
     const cryptoScope = scope.crypto
-    if (cryptoScope != null && typeof cryptoScope.randomUUID !== 'function') {
+    if (cryptoScope != null && cryptoScope.randomUUID == null) {
       cryptoScope.randomUUID = () => Crypto.randomUUID()
     }
   } catch {

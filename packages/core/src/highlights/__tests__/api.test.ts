@@ -3,25 +3,46 @@ import * as Crypto from 'expo-crypto'
 import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
-jest.mock('expo-crypto', () => ({ randomUUID: jest.fn() }))
-
-const mockRandomUUID = Crypto.randomUUID as jest.Mock
-const mockFetch = jest.fn()
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
+let mockRandomUUID: jest.SpiedFunction<typeof Crypto.randomUUID>
 
 beforeEach(() => {
   mockFetch.mockReset()
-  global.fetch = mockFetch as unknown as typeof fetch
+  global.fetch = mockFetch
+  mockRandomUUID = jest.spyOn(Crypto, 'randomUUID')
+  mockRandomUUID.mockClear()
 })
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return {
-    ok: status >= 200 && status < 300,
+afterEach(() => {
+  jest.restoreAllMocks()
+})
+
+type HighlightRecord = {
+  bible_id?: number
+  passage_id?: string
+  color?: string
+  unexpected_field?: boolean
+}
+
+type HighlightsJson = {
+  data?: HighlightRecord[]
+  next_page_token?: string | null
+  bible_id?: number
+  passage_id?: string
+  color?: string
+}
+
+type CreatedHighlightBody = {
+  request_id: string
+  highlight: { bible_id: number; passage_id: string; color: string }
+}
+
+function jsonResponse(body: HighlightsJson, status = 200): Response {
+  return new Response(JSON.stringify(body), {
     status,
     statusText: String(status),
-    headers: { get: (name: string) => (name === 'content-type' ? 'application/json' : null) },
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
-  } as unknown as Response
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
 function header(init: RequestInit, name: string): string | null {
@@ -29,14 +50,34 @@ function header(init: RequestInit, name: string): string | null {
 }
 
 function errorResponse(status: number, body = ''): Response {
-  return {
-    ok: false,
+  return new Response(body, {
     status,
     statusText: String(status),
-    headers: { get: () => null },
-    json: () => Promise.resolve(null),
-    text: () => Promise.resolve(body),
-  } as unknown as Response
+  })
+}
+
+type LastRequest = {
+  url: string
+  init: RequestInit
+}
+
+function requestBodyText(body: BodyInit | null | undefined): string {
+  if (body === undefined || body === null) return ''
+  if (body instanceof URLSearchParams) return body.toString()
+  if (body instanceof FormData) return ''
+  if (body instanceof Blob) return ''
+  if (body instanceof ArrayBuffer) return ''
+  if (ArrayBuffer.isView(body)) return ''
+  if (body instanceof ReadableStream) return ''
+  return body
+}
+
+function lastRequest(): LastRequest {
+  const call = mockFetch.mock.calls[0]
+  if (call === undefined) {
+    throw new Error('expected fetch to have been called')
+  }
+  return { url: String(call[0]), init: call[1] ?? {} }
 }
 
 const api = () =>
@@ -71,7 +112,7 @@ describe('createHighlightsApi', () => {
       })
 
       expect(mockFetch).toHaveBeenCalledTimes(1)
-      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+      const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights?bible_id=111&passage_id=JHN.3')
       expect(init.method).toBe('GET')
       expect(header(init, 'Authorization')).toBe('Bearer tok')
@@ -124,7 +165,7 @@ describe('createHighlightsApi', () => {
     })
 
     it('returns transient failure when the payload fails schema validation', async () => {
-      mockFetch.mockResolvedValue(jsonResponse({ data: [{ wrong_shape: true }] }))
+      mockFetch.mockResolvedValue(jsonResponse({ data: [{ unexpected_field: true }] }))
 
       const result = await api().getHighlights('tok', {
         version_id: 111,
@@ -155,16 +196,13 @@ describe('createHighlightsApi', () => {
         value: { version_id: 111, passage_id: 'JHN.3.16', color: 'fffe00' },
       })
 
-      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+      const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights')
       expect(init.method).toBe('POST')
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      const body = JSON.parse(init.body as string) as {
-        request_id: string
-        highlight: { bible_id: number; passage_id: string; color: string }
-      }
+      const body: CreatedHighlightBody = JSON.parse(requestBodyText(init.body))
       expect(body.highlight).toEqual({
         bible_id: 111,
         passage_id: 'JHN.3.16',
@@ -206,8 +244,8 @@ describe('createHighlightsApi', () => {
           color: 'fffe00',
         })
 
-        const [, init] = mockFetch.mock.calls[0] as [string, RequestInit]
-        const body = JSON.parse(init.body as string) as { request_id: string }
+        const { init } = lastRequest()
+        const body: { request_id: string } = JSON.parse(requestBodyText(init.body))
         expect(body.request_id).toBe(SHIM_UUID)
         expect(mockRandomUUID).toHaveBeenCalled()
       })
@@ -253,19 +291,12 @@ describe('createHighlightsApi', () => {
 
   describe('deleteHighlight', () => {
     it('DELETEs by passage and returns void on success', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 204,
-        statusText: 'No Content',
-        headers: { get: () => null },
-        json: () => Promise.resolve(null),
-        text: () => Promise.resolve(''),
-      } as unknown as Response)
+      mockFetch.mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }))
 
       const result = await api().deleteHighlight('tok', 'JHN.3.16', { version_id: 111 })
 
       expect(result).toEqual({ ok: true, value: undefined })
-      const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+      const { url, init } = lastRequest()
       expect(url).toBe('https://api.example.com/v1/highlights/JHN.3.16?bible_id=111')
       expect(init.method).toBe('DELETE')
       expect(header(init, 'Authorization')).toBe('Bearer tok')

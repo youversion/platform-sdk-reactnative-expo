@@ -3,6 +3,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 
 import type { AuthPermission, DataExchangeOutcome } from '../../auth'
 import { AuthContext, type AuthContextValue } from '../../auth/auth-context'
+import YouVersionProvider from '../../youversion-provider'
+import * as api from '../api'
 import {
   useHighlightPermissionFlow,
   type UseHighlightPermissionFlowResult,
@@ -14,32 +16,27 @@ import type {
 } from '../use-highlights'
 
 // ── Boundaries ───────────────────────────────────────────────────────────────
-// `useHighlights` is mocked wholesale: this hook composes it and must not change
-// it, so the only thing worth asserting is what crosses between them.
+// `useHighlights` is stubbed via hookOverrides: this hook composes it and must
+// not change it, so the only thing worth asserting is what crosses between them.
 
 const mockWriteApply = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>()
 const mockRemove = jest.fn<Promise<HighlightWriteOutcome>, [string, number[]]>()
 const mockRefresh = jest.fn<Promise<void>, []>()
 
-// Built inside the factory, and every name it closes over is `mock`-prefixed:
-// babel-plugin-jest-hoist lifts `jest.mock` above the module body, so an object
-// assembled at module scope would capture these before they are initialized.
-jest.mock('../use-highlights', () => ({
-  useHighlights: jest.fn(
-    (options: UseHighlightsOptions): UseHighlightsResult => ({
-      highlights: [],
-      // Follows the options it was rendered with, exactly as the real hook does.
-      // A fixed scope here would let a pending highlight replay into a chapter
-      // the reader has left without any test noticing.
-      scope: { versionId: options.versionId, book: options.book, chapter: options.chapter },
-      isRefreshing: false,
-      error: null,
-      refresh: mockRefresh,
-      apply: mockWriteApply,
-      remove: mockRemove,
-    }),
-  ),
-}))
+function stubHighlights(options: UseHighlightsOptions): UseHighlightsResult {
+  return {
+    highlights: [],
+    // Follows the options it was rendered with, exactly as the real hook does.
+    // A fixed scope here would let a pending highlight replay into a chapter
+    // the reader has left without any test noticing.
+    scope: { versionId: options.versionId, book: options.book, chapter: options.chapter },
+    isRefreshing: false,
+    error: null,
+    refresh: mockRefresh,
+    apply: mockWriteApply,
+    remove: mockRemove,
+  }
+}
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -119,9 +116,14 @@ function Wrapper({ children }: { children: ReactNode }) {
   // removing the element would remount the subtree — losing the flow under test
   // for reasons that have nothing to do with auth.
   return (
-    <AuthContext.Provider value={currentAuth === null ? null : authValue(currentAuth)}>
-      {children}
-    </AuthContext.Provider>
+    <YouVersionProvider
+      appKey="app-key"
+      hookOverrides={{ useHighlights: stubHighlights }}
+    >
+      <AuthContext.Provider value={currentAuth === null ? null : authValue(currentAuth)}>
+        {children}
+      </AuthContext.Provider>
+    </YouVersionProvider>
   )
 }
 
@@ -185,6 +187,13 @@ beforeEach(() => {
   mockWriteApply.mockReset()
   mockRequestPermissions.mockReset()
   mockSignIn.mockReset()
+  jest.spyOn(api, 'createHighlightsApi').mockReturnValue({
+    // Never settles: the real hook still runs for rules-of-hooks; a resolved
+    // GET would setState after the flow assertions and trip act() warnings.
+    getHighlights: jest.fn(() => new Promise(() => {})),
+    createHighlight: jest.fn(),
+    deleteHighlight: jest.fn(),
+  })
 
   calls = []
   currentAuth = signedInWithGrant
@@ -198,6 +207,10 @@ beforeEach(() => {
   // which is the whole reason the flow re-reads it.
   mockSignIn.mockImplementation(async () => undefined)
   mockRequestPermissions.mockResolvedValue({ status: 'cancel' })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 // ── The pre-flight ───────────────────────────────────────────────────────────

@@ -1,3 +1,7 @@
+import { ensureDomImpls } from './native/register-dom-impls'
+
+ensureDomImpls()
+
 export {
   BibleCard,
   BibleChapterPickerSheet,

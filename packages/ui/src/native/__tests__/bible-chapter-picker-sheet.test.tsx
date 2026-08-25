@@ -1,18 +1,16 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
+import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
 
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
-import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
-
-let latestDomProps: {
+type LatestDomProps = {
   theme?: string
   resetKey?: number
   locale?: string
@@ -20,75 +18,30 @@ let latestDomProps: {
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
   onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-} = {}
+}
 
-jest.mock('../../dom/chapter-picker-content', () => {
-  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Text, Pressable } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      theme?: string
-      resetKey?: number
-      permittedVersionIds?: number[]
-      excludedVersionIds?: number[]
-      permittedLanguageTags?: string[]
-      locale?: string
-      onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <View testID="mock-dom">
-          <Text testID="theme-value">{props.theme ?? 'none'}</Text>
-          <Pressable
-            testID="trigger-select"
-            onPress={() => {
-              if (props.onSelect) {
-                props.onSelect({ book: 'GEN', chapter: '3', versionId: 3034 })
-              }
-            }}
-          >
-            <Text>Select</Text>
-          </Pressable>
-        </View>
-      )
-    },
-  }
-})
+let latestDomProps: LatestDomProps = {}
 
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // require() is intentional: ESM imports cannot be used inside jest.mock() factories
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View, Pressable, Text } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({
-      isOpen,
-      onClose,
-      children,
-    }: {
-      isOpen: boolean
-      onClose: () => void
-      children: ReactNode
-    }) =>
-      isOpen ? (
-        <View testID="sheet">
-          <Pressable testID="trigger-close" onPress={onClose}>
-            <Text>Close</Text>
-          </Pressable>
-          {children}
-        </View>
-      ) : null,
-  }
-})
+function MockDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="theme-value">{props.theme ?? 'none'}</Text>
+      <Pressable
+        testID="trigger-select"
+        onPress={() => {
+          if (props.onSelect) {
+            props.onSelect({ book: 'GEN', chapter: '3', versionId: 3034 })
+          }
+        }}
+      >
+        <Text>Select</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 function versionFilterWrapper(lists: {
   permittedVersionIds?: number[]
@@ -97,7 +50,12 @@ function versionFilterWrapper(lists: {
 }) {
   return function FilterWrapper({ children }: { children: ReactNode }) {
     return (
-      <YouVersionProvider appKey="test-key" theme="light" {...lists}>
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={defaultHookOverrides}
+        {...lists}
+      >
         {children}
       </YouVersionProvider>
     )
@@ -113,7 +71,33 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
+    setImpl('ChapterPickerContent', MockDOM)
+    setImpl(
+      'NativeSheet',
+      ({
+        isOpen,
+        onClose,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? (
+          <View testID="sheet">
+            <Pressable testID="trigger-close" onPress={onClose}>
+              <Text>Close</Text>
+            </Pressable>
+            {children}
+          </View>
+        ) : null,
+    )
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('fires onSelect with picker selection data and closes the sheet', async () => {
@@ -168,7 +152,7 @@ describe('BibleChapterPickerSheet', () => {
   it('explicit theme overrides provider theme', () => {
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
       wrapper: ({ children }) => (
-        <YouVersionProvider appKey="test-key" theme="light">
+        <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
           {children}
         </YouVersionProvider>
       ),
@@ -235,18 +219,14 @@ describe('BibleChapterPickerSheet', () => {
 
   it('forwards resolved locale from YouVersionProvider to DOM content', () => {
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <YouVersionProvider appKey="test-key" theme="light" locale="es">
-          {children}
-        </YouVersionProvider>
-      ),
+      wrapper: youVersionProviderWrapper('light', 'es'),
     })
 
     expect(latestDomProps.locale).toBe('es')
   })
 
   it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 

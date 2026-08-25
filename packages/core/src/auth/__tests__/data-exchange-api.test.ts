@@ -2,37 +2,59 @@ import { DataExchangeClient } from '@youversion/platform-core'
 
 import { createDataExchangeApi } from '../data-exchange-api'
 
-const mockFetch = jest.fn()
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
 
 beforeEach(() => {
   mockFetch.mockReset()
-  global.fetch = mockFetch as unknown as typeof fetch
+  global.fetch = mockFetch
 })
+
+type TokenJson = {
+  token?: string
+  not_a_token?: boolean
+}
 
 function header(init: RequestInit, name: string): string | null {
   return new Headers(init.headers).get(name)
 }
 
-function jsonResponse(body: unknown, status = 201): Response {
-  return {
-    ok: status >= 200 && status < 300,
+function jsonResponse(body: TokenJson, status = 201): Response {
+  return new Response(JSON.stringify(body), {
     status,
     statusText: String(status),
-    headers: { get: (name: string) => (name === 'content-type' ? 'application/json' : null) },
-    json: () => Promise.resolve(body),
-    text: () => Promise.resolve(typeof body === 'string' ? body : JSON.stringify(body)),
-  } as unknown as Response
+    headers: { 'content-type': 'application/json' },
+  })
 }
 
 function errorResponse(status: number, body = ''): Response {
-  return {
-    ok: false,
+  return new Response(body, {
     status,
     statusText: String(status),
-    headers: { get: () => null },
-    json: () => Promise.resolve(null),
-    text: () => Promise.resolve(body),
-  } as unknown as Response
+  })
+}
+
+type LastRequest = {
+  url: string
+  init: RequestInit
+}
+
+function requestBodyText(body: BodyInit | null | undefined): string {
+  if (body === undefined || body === null) return ''
+  if (body instanceof URLSearchParams) return body.toString()
+  if (body instanceof FormData) return ''
+  if (body instanceof Blob) return ''
+  if (body instanceof ArrayBuffer) return ''
+  if (ArrayBuffer.isView(body)) return ''
+  if (body instanceof ReadableStream) return ''
+  return body
+}
+
+function lastRequest(): LastRequest {
+  const call = mockFetch.mock.calls[0]
+  if (call === undefined) {
+    throw new Error('expected fetch to have been called')
+  }
+  return { url: String(call[0]), init: call[1] ?? {} }
 }
 
 const api = () =>
@@ -51,10 +73,12 @@ describe('createDataExchangeApi — mintToken', () => {
     expect(result).toEqual({ ok: true, value: 'dx-token' })
 
     expect(mockFetch).toHaveBeenCalledTimes(1)
-    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit]
+    const { url, init } = lastRequest()
     expect(url).toBe('https://api.example.com/data-exchange/token?app-key=appkey')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body as string)).toEqual({ requested_permissions: ['highlights'] })
+    expect(JSON.parse(requestBodyText(init.body))).toEqual({
+      requested_permissions: ['highlights'],
+    })
     expect(header(init, 'Authorization')).toBe('Bearer tok')
     expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
     expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
@@ -67,7 +91,7 @@ describe('createDataExchangeApi — mintToken', () => {
       'highlights',
     ])
 
-    const [url] = mockFetch.mock.calls[0] as [string]
+    const { url } = lastRequest()
     expect(url).toBe('https://api.youversion.com/data-exchange/token?app-key=appkey')
   })
 

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 /**
@@ -6,7 +7,11 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
  * Decorative: it always sits inside a button that carries its own localized
  * label, so it is hidden from assistive tech instead of labeled twice.
  */
-export function CopyIcon({ color, size = 20, ...props }: SvgProps & { size?: number }) {
+export function CopyIcon({
+  color,
+  size = 20,
+  ...props
+}: SvgProps & { size?: number }): ReactNode {
   return (
     <Svg
       width={size}

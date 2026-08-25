@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
@@ -21,7 +22,9 @@ type BibleCardVersionState = {
   setVersionId: (versionId: number) => void
 }
 
-type PersistedBibleCardVersionSlice = Partial<Pick<BibleCardVersionState, 'versionId'>>
+const persistedBibleCardVersionSchema = z.object({
+  versionId: z.number().nullable().optional(),
+})
 
 /**
  * Internal persisted Bible Card version for uncontrolled native Bible cards.
@@ -44,15 +47,13 @@ export const useBibleCardVersionStore = create<BibleCardVersionState>()(
         versionId: state.versionId,
       }),
       merge: (persistedState, currentState) => {
-        if (persistedState == null || typeof persistedState !== 'object') {
+        const persistedSlice = persistedBibleCardVersionSchema.safeParse(persistedState)
+        if (!persistedSlice.success) {
           return currentState
         }
 
-        const persistedSlice = persistedState as PersistedBibleCardVersionSlice
-        const versionId = parseStoredVersionId(persistedSlice.versionId)
-
         return {
-          versionId,
+          versionId: parseStoredVersionId(persistedSlice.data.versionId ?? 0),
           setVersionId: currentState.setVersionId,
         }
       },

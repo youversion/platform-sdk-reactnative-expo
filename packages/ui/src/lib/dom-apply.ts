@@ -4,16 +4,15 @@ export function applySDKConfig(config: {
   appKey: string
   apiHost: string
   installationId: string
-}) {
+}): void {
   YouVersionPlatformConfiguration.appKey = config.appKey
   YouVersionPlatformConfiguration.apiHost = config.apiHost
   YouVersionPlatformConfiguration.installationId = config.installationId
 
-  // `typeof localStorage` is `'object'` when it is `null` (Android DOM WebView
-  // with DOM storage disabled), so the nullish check is required, not just the
-  // `typeof` guard. `dom-local-storage` normally shims this to a real object.
-  if (typeof localStorage !== 'undefined' && localStorage != null) {
+  try {
     localStorage.setItem('x-yvp-installation-id', config.installationId)
+  } catch {
+    // localStorage missing (Android DOM WebView) or blocked.
   }
 }
 
@@ -28,6 +27,6 @@ export function applySDKConfig(config: {
  * keys. Only `accessToken` was ever written by this SDK; the other two are
  * cleared for the same price.
  */
-export function clearAuthResidue() {
+export function clearAuthResidue(): void {
   YouVersionPlatformConfiguration.saveAuthData(null, null, null)
 }

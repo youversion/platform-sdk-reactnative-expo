@@ -4,31 +4,6 @@ import { secureStorage } from '../../storage/secure-storage'
 import { loadTokens, saveTokens, type StoredTokens } from '../token-storage'
 
 const mockSecureStore = new Map<string, string>()
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/secure-storage', () => ({
-  secureStorage: {
-    get: jest.fn((k: string) => Promise.resolve(mockSecureStore.get(k) ?? null)),
-    set: jest.fn((k: string, v: string) => {
-      mockSecureStore.set(k, v)
-      return Promise.resolve()
-    }),
-    remove: jest.fn((k: string) => {
-      mockSecureStore.delete(k)
-      return Promise.resolve()
-    }),
-  },
-}))
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-  },
-}))
 
 const fullTokens: StoredTokens = {
   accessToken: 'access',
@@ -38,8 +13,24 @@ const fullTokens: StoredTokens = {
 
 beforeEach(() => {
   mockSecureStore.clear()
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  jest.spyOn(secureStorage, 'get').mockImplementation((k) =>
+    Promise.resolve(mockSecureStore.get(k) ?? null),
+  )
+  jest.spyOn(secureStorage, 'set').mockImplementation((k, v) => {
+    mockSecureStore.set(k, v)
+    return Promise.resolve()
+  })
+  jest.spyOn(secureStorage, 'remove').mockImplementation((k) => {
+    mockSecureStore.delete(k)
+    return Promise.resolve()
+  })
+  jest.spyOn(mmkvStorage, 'set')
+  jest.spyOn(mmkvStorage, 'remove')
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 describe('saveTokens', () => {

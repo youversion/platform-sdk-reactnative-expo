@@ -15,7 +15,7 @@ export const SHIM_UUID = '11111111-1111-4111-8111-111111111111'
 
 /** Reads the current crypto global without repeating the cast in every suite. */
 export function cryptoGlobal(): CryptoLike | undefined {
-  return (globalThis as { crypto?: CryptoLike }).crypto
+  return globalThis.crypto
 }
 
 /**
@@ -42,7 +42,11 @@ export function stubCryptoGlobal(value: CryptoLike | undefined): () => void {
     if (original) {
       Object.defineProperty(globalThis, 'crypto', original)
     } else {
-      delete (globalThis as { crypto?: unknown }).crypto
+      Object.defineProperty(globalThis, 'crypto', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      })
     }
   }
 }

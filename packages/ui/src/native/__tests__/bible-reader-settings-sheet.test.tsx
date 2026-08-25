@@ -1,88 +1,55 @@
 import { fireEvent, render } from '@testing-library/react-native'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
-import { Text, View } from 'react-native'
 import type { ReactNode } from 'react'
-
+import { Pressable, Text, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { FONT_FAMILY_TOKEN, INTER_FONT, UNTITLED_SERIF_FONT } from '../../lib/reader-fonts'
 import { useReaderSettingsStore } from '../../stores/reader-settings-store'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
-import { YouVersionProvider } from '../youversion-provider'
 
-jest.mock('expo-localization', () => ({
-  getLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-  useLocales: jest.fn(() => [{ languageTag: 'xx-XX', languageCode: 'xx' }]),
-}))
-
-const useLocalesMock = jest.requireMock('expo-localization').useLocales as jest.Mock
-
-let latestDomProps: {
+type LatestDomProps = {
+  fontSize: number
+  fontFamily: string
+  lineSpacing: number
   locale?: string
-} = {}
+  onFontIncreased: () => Promise<void>
+  onFontDecreased: () => Promise<void>
+  onFontSelected: (next: string) => Promise<void>
+  onLineSpacingChange: () => Promise<void>
+}
 
-// Stub the Expo DOM wrapper so we can assert orchestration without spinning
-// up a WebView. The mock exposes the same handler props as testIDs so tests
-// can invoke them directly.
-jest.mock('../../dom/bible-reader-settings', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { Pressable: P, Text: T, View: V } = require('react-native')
-  return {
-    __esModule: true,
-    default: function MockDOM(props: {
-      fontSize: number
-      fontFamily: string
-      lineSpacing: number
-      locale?: string
-      onFontIncreased: () => Promise<void>
-      onFontDecreased: () => Promise<void>
-      onFontSelected: (next: string) => Promise<void>
-      onLineSpacingChange: () => Promise<void>
-    }) {
-      latestDomProps = props
-      return (
-        <V testID="mock-dom">
-          <T testID="font-size">{String(props.fontSize)}</T>
-          <T testID="font-family">{props.fontFamily}</T>
-          <T testID="line-spacing">{String(props.lineSpacing)}</T>
-          <P testID="increase" onPress={() => props.onFontIncreased()}>
-            <T>A+</T>
-          </P>
-          <P testID="decrease" onPress={() => props.onFontDecreased()}>
-            <T>A-</T>
-          </P>
-          <P testID="select-inter" onPress={() => props.onFontSelected('"Inter", sans-serif')}>
-            <T>Inter</T>
-          </P>
-          <P testID="cycle-line-spacing" onPress={() => props.onLineSpacingChange()}>
-            <T>Line spacing</T>
-          </P>
-        </V>
-      )
-    },
-  }
-})
+let latestDomProps: LatestDomProps | Record<string, never> = {}
 
-// Render the sheet inline so we don't depend on the portal/host machinery in
-// jest-expo and can observe the DOM stub's props directly.
-jest.mock('../native-sheet', () => {
-  const actual = jest.requireActual('../native-sheet')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View: V } = require('react-native')
-  return {
-    ...actual,
-    NativeSheet: ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
-      isOpen ? <V testID="sheet">{children}</V> : null,
-  }
-})
+function MockDOM(props: LatestDomProps) {
+  latestDomProps = props
+  return (
+    <View testID="mock-dom">
+      <Text testID="font-size">{String(props.fontSize)}</Text>
+      <Text testID="font-family">{props.fontFamily}</Text>
+      <Text testID="line-spacing">{String(props.lineSpacing)}</Text>
+      <Pressable testID="increase" onPress={() => props.onFontIncreased()}>
+        <Text>A+</Text>
+      </Pressable>
+      <Pressable testID="decrease" onPress={() => props.onFontDecreased()}>
+        <Text>A-</Text>
+      </Pressable>
+      <Pressable testID="select-inter" onPress={() => props.onFontSelected('"Inter", sans-serif')}>
+        <Text>Inter</Text>
+      </Pressable>
+      <Pressable testID="cycle-line-spacing" onPress={() => props.onLineSpacingChange()}>
+        <Text>Line spacing</Text>
+      </Pressable>
+    </View>
+  )
+}
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <YouVersionProvider appKey="test-key" theme="light">
-    {children}
-  </YouVersionProvider>
-)
+const wrapper = youVersionProviderWrapper()
 
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
   // Subscribe here so we can read the latest values back out via testIDs and
@@ -113,7 +80,11 @@ function SheetHarness({ isOpen }: { isOpen: boolean }) {
 describe('BibleReaderSettingsSheet', () => {
   beforeEach(() => {
     latestDomProps = {}
-    useLocalesMock.mockReturnValue([{ languageTag: 'xx-XX', languageCode: 'xx' }])
+    stubDeviceLocale('xx-XX', 'xx')
+    setImpl('BibleReaderSettings', MockDOM)
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="sheet">{children}</View> : null,
+    )
     mmkvStorage.clearAll()
     useReaderSettingsStore.setState({
       fontSize: BIBLE_READER_FONT.DEFAULT,
@@ -121,6 +92,11 @@ describe('BibleReaderSettingsSheet', () => {
       lineSpacing: READER_LINE_SPACING.DEFAULT,
     })
     return useReaderSettingsStore.persist.rehydrate()
+  })
+
+  afterEach(() => {
+    resetImpls()
+    jest.restoreAllMocks()
   })
 
   it('renders nothing when isOpen is false', () => {
@@ -185,18 +161,14 @@ describe('BibleReaderSettingsSheet', () => {
 
   it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
     render(<SheetHarness isOpen />, {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <YouVersionProvider appKey="test-key" theme="light" locale="es">
-          {children}
-        </YouVersionProvider>
-      ),
+      wrapper: youVersionProviderWrapper('light', 'es'),
     })
 
     expect(latestDomProps.locale).toBe('es')
   })
 
   it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    useLocalesMock.mockReturnValue([{ languageTag: 'es-MX', languageCode: 'es' }])
+    stubDeviceLocale('es-MX', 'es')
 
     render(<SheetHarness isOpen />, { wrapper })
 

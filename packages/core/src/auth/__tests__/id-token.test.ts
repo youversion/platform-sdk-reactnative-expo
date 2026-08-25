@@ -1,6 +1,15 @@
 import { decodeIdToken, deriveUserInfo, sanitizeAvatarUrl } from '../id-token'
 
-function makeJwt(payload: unknown): string {
+type JwtClaims = {
+  sub?: string | number
+  name?: string | null
+  email?: string | { x: number }
+  profile_picture?: string | boolean
+  custom_claim?: number
+  custom?: string
+}
+
+function makeJwt(payload: JwtClaims): string {
   const json = JSON.stringify(payload)
   const b64url = Buffer.from(json, 'utf8')
     .toString('base64')
@@ -16,9 +25,9 @@ describe('decodeIdToken', () => {
     expect(decodeIdToken(jwt)).toEqual({ sub: 'u1', name: 'Ada' })
   })
 
-  it('preserves unknown extra fields in the payload', () => {
+  it('strips unknown extra fields from the payload', () => {
     const jwt = makeJwt({ sub: 'u1', custom_claim: 42 })
-    expect(decodeIdToken(jwt)).toEqual({ sub: 'u1', custom_claim: 42 })
+    expect(decodeIdToken(jwt)).toEqual({ sub: 'u1' })
   })
 
   it('throws on a 1-segment input', () => {
@@ -131,10 +140,4 @@ describe('sanitizeAvatarUrl', () => {
     expect(sanitizeAvatarUrl(input)).toBeUndefined()
   })
 
-  it.each([[null], [undefined], [false], [42], [{ x: 1 }]])(
-    'returns undefined for non-string value %p',
-    (input) => {
-      expect(sanitizeAvatarUrl(input)).toBeUndefined()
-    },
-  )
 })

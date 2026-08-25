@@ -1,34 +1,28 @@
 import * as WebBrowser from 'expo-web-browser'
+import type { WebBrowserAuthSessionResult } from 'expo-web-browser'
 
+import { mmkvStorage } from '../../storage/mmkv-storage'
 import { MMKV_AUTH_KEYS } from '../constants'
 import { requestDataExchange, type RequestDataExchangeArgs } from '../data-exchange'
 import type { DataExchangeApi } from '../data-exchange-api'
 import { saveGrantedPermissions } from '../granted-permissions-cache'
 
-const mockMmkv = new Map<string, string>()
-
-jest.mock('../../storage/mmkv-storage', () => ({
-  mmkvStorage: {
-    set: jest.fn((k: string, v: string) => {
-      mockMmkv.set(k, v)
-    }),
-    getString: jest.fn((k: string) => mockMmkv.get(k)),
-    remove: jest.fn((k: string) => mockMmkv.delete(k)),
-    getAllKeys: jest.fn(() => Array.from(mockMmkv.keys())),
-  },
-}))
-
-jest.mock('expo-web-browser', () => ({
-  openAuthSessionAsync: jest.fn(),
-}))
-
-const mockOpenAuthSession = WebBrowser.openAuthSessionAsync as jest.Mock
-const mintToken = jest.fn<ReturnType<DataExchangeApi['mintToken']>, unknown[]>()
+const mintToken = jest.fn<
+  ReturnType<DataExchangeApi['mintToken']>,
+  Parameters<DataExchangeApi['mintToken']>
+>()
+let mockOpenAuthSession: jest.SpiedFunction<typeof WebBrowser.openAuthSessionAsync>
 
 beforeEach(() => {
-  mockMmkv.clear()
-  jest.clearAllMocks()
+  mmkvStorage.clearAll()
+  mockOpenAuthSession = jest.spyOn(WebBrowser, 'openAuthSessionAsync')
+  mockOpenAuthSession.mockReset()
+  mintToken.mockReset()
   mintToken.mockResolvedValue({ ok: true, value: 'dx-token' })
+})
+
+afterEach(() => {
+  jest.restoreAllMocks()
 })
 
 /** The app's registered callback URL, which the consent page returns to. */
@@ -36,7 +30,7 @@ const TEST_REDIRECT_URI = 'yvp-rn-example://callback'
 
 function run(overrides: Partial<RequestDataExchangeArgs> = {}) {
   return requestDataExchange({
-    api: { mintToken } as DataExchangeApi,
+    api: { mintToken },
     appKey: 'appkey',
     apiHost: 'api.example.com',
     accessToken: 'tok',
@@ -55,9 +49,22 @@ function arriveWith(search: string) {
   })
 }
 
-function cachedGrant(): unknown {
-  const raw = mockMmkv.get(MMKV_AUTH_KEYS.grantedPermissions)
-  return raw === undefined ? undefined : JSON.parse(raw)
+function dismissedAuthSession(): WebBrowserAuthSessionResult {
+  const result = { type: 'dismiss' }
+  // SAFETY: Jest's expo-web-browser mock does not export the string enum.
+  return result as WebBrowserAuthSessionResult
+}
+
+type CachedGrant = {
+  userId: string
+  permissions: string[]
+}
+
+function cachedGrant(): CachedGrant | undefined {
+  const raw = mmkvStorage.getString(MMKV_AUTH_KEYS.grantedPermissions)
+  if (raw === undefined) return undefined
+  const parsed: CachedGrant = JSON.parse(raw)
+  return parsed
 }
 
 describe('requestDataExchange — happy path', () => {
@@ -69,12 +76,15 @@ describe('requestDataExchange — happy path', () => {
     expect(outcome).toEqual({ status: 'granted', grantedPermissions: ['highlights'] })
     expect(mintToken).toHaveBeenCalledWith('tok', ['highlights'])
 
-    const [url, returnUrl] = mockOpenAuthSession.mock.calls[0] as [string, string]
+    const call = mockOpenAuthSession.mock.calls[0]
+    if (call === undefined) {
+      throw new Error('expected openAuthSessionAsync to have been called')
+    }
     // An app key has one callback URL and OAuth already owns it, so the auth
     // session must watch the app's `redirectUri`. Watching anything else means
     // the return never matches and real grants are discarded as `cancel`.
-    expect(returnUrl).toBe(TEST_REDIRECT_URI)
-    const parsed = new URL(url)
+    expect(call[1]).toBe(TEST_REDIRECT_URI)
+    const parsed = new URL(call[0])
     expect(parsed.origin + parsed.pathname).toBe('https://api.example.com/data-exchange')
     expect(parsed.searchParams.get('token')).toBe('dx-token')
     expect(parsed.searchParams.get('app_key')).toBe('appkey')
@@ -120,7 +130,7 @@ describe('requestDataExchange — cancel', () => {
     // This is also what Android reports when the return never matches
     // `redirectUri`: the session hangs, then reports `dismiss`.
     saveGrantedPermissions('u1', ['votd'])
-    mockOpenAuthSession.mockResolvedValue({ type: 'dismiss' })
+    mockOpenAuthSession.mockResolvedValue(dismissedAuthSession())
 
     expect(await run()).toEqual({ status: 'cancel' })
     expect(cachedGrant()).toEqual({ userId: 'u1', permissions: ['votd'] })

@@ -3,6 +3,8 @@
 import type { Highlight } from '@youversion/platform-react-native-expo-core'
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
+import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
@@ -23,7 +25,7 @@ export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
    */
   highlights: Highlight[]
   theme?: 'light' | 'dark' | 'system'
-  dom?: import('expo/dom').DOMProps
+  dom?: DOMProps
 }
 
 type VerseOfTheDayDOMProps = VerseOfTheDayProps & InternalVersionFilterProps & InternalLocaleProps
@@ -40,7 +42,7 @@ export default function VerseOfTheDayDOM({
   permittedLanguageTags,
   locale,
   ...props
-}: VerseOfTheDayDOMProps) {
+}: VerseOfTheDayDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
 
   // Once per mount, not per render: there is no token to keep in sync any more,

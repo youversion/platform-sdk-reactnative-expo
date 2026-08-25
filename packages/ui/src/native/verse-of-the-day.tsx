@@ -1,9 +1,9 @@
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Platform, Share } from 'react-native'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
-import VerseOfTheDayDOM from '../dom/verse-of-the-day'
+import { getImpl } from './component-impls'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
@@ -25,7 +25,7 @@ export function VerseOfTheDay({
   dayOfYear: dayOfYearProp,
   dom,
   ...props
-}: VerseOfTheDayProps) {
+}: VerseOfTheDayProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
   const themeContext = useTheme()
@@ -49,6 +49,7 @@ export function VerseOfTheDay({
   }
 
   const onShare = Platform.OS !== 'web' ? handleShare : undefined
+  const VerseOfTheDayDOM = getImpl('VerseOfTheDayDom')
 
   return (
     <HighlightsPaint scope={scope}>

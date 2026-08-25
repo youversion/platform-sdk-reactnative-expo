@@ -1,100 +1,43 @@
 import { act, render, userEvent } from '@testing-library/react-native'
-import type { ReactElement, ReactNode } from 'react'
-import { Platform, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import type { ReactNode } from 'react'
+import { Platform, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import {
+  latestBottomSheetProps,
+  resetLatestBottomSheetProps,
+} from '../../../jest.gorhom-mock'
+import {
+  mockWindowDimensions,
+  resetMockWindowDimensions,
+} from '../../../jest.window-dimensions-mock'
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { resetImpls } from '../../test-utils/install-test-impls'
 import { NativeSheet } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
-jest.mock('@youversion/platform-react-native-expo-core', () => ({
-  YouVersionProvider: ({ children }: { children: ReactNode }) => children,
-}))
-
-let latestBottomSheetProps: Record<string, unknown> = {}
 let mockBottomInset = 0
 let mockWindowWidth = 390
 
-jest.mock('react-native-safe-area-context', () => ({
-  useSafeAreaInsets: () => ({ bottom: mockBottomInset }),
-}))
-
-jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
-  __esModule: true,
-  default: () => ({ width: mockWindowWidth, height: 844, scale: 2, fontScale: 1 }),
-}))
-
-jest.mock('@rn-primitives/portal', () => ({
-  Portal: ({ children }: { children: ReactNode }) => <>{children}</>,
-  PortalHost: () => null,
-}))
-
-jest.mock('@gorhom/bottom-sheet', () => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const React = require('react')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { View } = require('react-native')
-
-  const MockBottomSheet = React.forwardRef(
-    (
-      {
-        children,
-        onChange,
-        onAnimate,
-        ...props
-      }: {
-        children: ReactNode
-        onChange?: (index: number) => void
-        onAnimate?: (fromIndex: number, toIndex: number) => void
-        [key: string]: unknown
-      },
-      ref: React.Ref<{ close: () => void; snapToIndex: (index: number) => void }>,
-    ) => {
-      // Module-level mutable capture cell for the latest render's props —
-      // intentional test infra, so the react-hooks/globals rule is scoped off
-      // for this assignment.
-      // eslint-disable-next-line react-hooks/globals
-      latestBottomSheetProps = { ...props, onChange, onAnimate }
-      React.useImperativeHandle(ref, () => ({
-        close: () => {
-          onAnimate?.(0, -1)
-          onChange?.(-1)
-        },
-        snapToIndex: (index: number) => onChange?.(index),
-      }))
-      return <View testID="bottom-sheet">{children}</View>
-    },
-  )
-  MockBottomSheet.displayName = 'MockBottomSheet'
-
-  return {
-    __esModule: true,
-    default: MockBottomSheet,
-    BottomSheetBackdrop: ({
-      onPress,
-      ...props
-    }: {
-      onPress?: () => void
-      [key: string]: unknown
-    }) => (
-      <View
-        testID="bottom-sheet-backdrop"
-        {...props}
-        onTouchEnd={() => {
-          onPress?.()
-        }}
-      />
-    ),
-    BottomSheetView: ({ children, ...props }: { children: ReactNode; [key: string]: unknown }) => (
-      <View testID="bottom-sheet-view" {...props}>
-        {children}
-      </View>
-    ),
-  }
-})
-
 function SheetProvider({ children }: { children: ReactNode }) {
-  return <YouVersionProvider appKey="test-key">{children}</YouVersionProvider>
+  mockWindowDimensions.width = mockWindowWidth
+  mockWindowDimensions.height = 844
+  mockWindowDimensions.scale = 2
+  mockWindowDimensions.fontScale = 1
+  return (
+    <SafeAreaProvider
+      initialMetrics={{
+        frame: { x: 0, y: 0, width: mockWindowWidth, height: 844 },
+        insets: { top: 0, right: 0, bottom: mockBottomInset, left: 0 },
+      }}
+    >
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        {children}
+      </YouVersionProvider>
+    </SafeAreaProvider>
+  )
 }
 
 function SheetHarness({ isOpen }: { isOpen: boolean }) {
@@ -138,16 +81,16 @@ describe('NativeSheet', () => {
   const originalOs = Platform.OS
   const originalVersion = Platform.Version
   const renderLatestBackdrop = () => {
-    const BackdropComponent = latestBottomSheetProps.backdropComponent as
-      | ((props: Record<string, unknown>) => ReactNode)
-      | undefined
-    return BackdropComponent?.({ animatedIndex: { value: 0 } })
+    return latestBottomSheetProps.backdropComponent?.({ animatedIndex: { value: 0 } })
   }
 
   afterEach(() => {
-    latestBottomSheetProps = {}
+    resetLatestBottomSheetProps()
+    resetMockWindowDimensions()
     mockBottomInset = 0
     mockWindowWidth = 390
+    resetImpls()
+    jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -193,7 +136,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.bottomInset).toBe(24)
     expect(latestBottomSheetProps.containerStyle).toEqual({ transform: [{ translateY: 1000 }] })
     expect(latestBottomSheetProps.handleComponent).toBeNull()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
     expect(latestBottomSheetProps.backgroundComponent).toBeNull()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(false)
@@ -240,7 +183,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.bottomInset).toBe(0)
     expect(latestBottomSheetProps.containerStyle).toBeUndefined()
     expect(latestBottomSheetProps.handleComponent).toBeUndefined()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeTruthy()
     expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
@@ -274,7 +217,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.detached).toBe(true)
     expect(latestBottomSheetProps.bottomInset).toBe(24)
     expect(latestBottomSheetProps.handleComponent).toBeNull()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
   })
 
@@ -308,7 +251,7 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.containerStyle).toBeUndefined()
     expect(latestBottomSheetProps.handleComponent).toBeUndefined()
     expect(latestBottomSheetProps.backgroundComponent).toBeUndefined()
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeTruthy()
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
     expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(true)
@@ -432,7 +375,7 @@ describe('NativeSheet', () => {
       </SheetProvider>,
     )
 
-    expect(typeof latestBottomSheetProps.backdropComponent).toBe('function')
+    expect(latestBottomSheetProps.backdropComponent).toEqual(expect.any(Function))
     expect(renderLatestBackdrop()).toBeNull()
   })
 
@@ -597,8 +540,12 @@ describe('NativeSheet', () => {
       )
     }
 
+    type ContentLayoutEvent = {
+      nativeEvent: { layout: { width: number; height: number; x: number; y: number } }
+    }
+
     const fireContentLayout = (
-      node: { props: { onLayout?: (e: unknown) => void } },
+      node: { props: { onLayout?: (e: ContentLayoutEvent) => void } },
       height: number,
     ) => {
       node.props.onLayout?.({ nativeEvent: { layout: { width: 320, height, x: 0, y: 0 } } })
@@ -901,7 +848,7 @@ describe('NativeSheet', () => {
     })
 
     const flattenedSheetStyle = () =>
-      StyleSheet.flatten(latestBottomSheetProps.style as StyleProp<ViewStyle>)
+      StyleSheet.flatten(latestBottomSheetProps.style)
 
     it('does not add horizontal margins on phone-width windows', () => {
       mockWindowWidth = 390
@@ -954,12 +901,12 @@ describe('NativeSheet', () => {
         </SheetProvider>,
       )
 
-      const backdrop = renderLatestBackdrop() as ReactElement<{ onPress?: () => void }>
-      expect(backdrop).toBeTruthy()
+      const backdrop = renderLatestBackdrop()
+      if (backdrop == null) {
+        throw new Error('expected a backdrop')
+      }
 
-      const onAnimate = latestBottomSheetProps.onAnimate as
-        | ((fromIndex: number, toIndex: number) => void)
-        | undefined
+      const onAnimate = latestBottomSheetProps.onAnimate
 
       // Backdrop press closes the sheet: pressBehavior="close" triggers onAnimate(0, -1).
       await act(async () => {
@@ -987,9 +934,7 @@ describe('NativeSheet', () => {
         </SheetProvider>,
       )
 
-      const onAnimate = latestBottomSheetProps.onAnimate as
-        | ((fromIndex: number, toIndex: number) => void)
-        | undefined
+      const onAnimate = latestBottomSheetProps.onAnimate
 
       await act(async () => {
         onAnimate?.(0, -1)

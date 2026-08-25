@@ -6,22 +6,33 @@ import {
   isPickerViewportHidden,
 } from '../picker-keyboard-viewport'
 
-function createMockRoot() {
-  const styles = new Map<string, string>()
+type MockStyleSheet = {
+  setProperty: (name: string, value: string) => void
+  removeProperty: (name: string) => void
+  getPropertyValue: (name: string) => string
+}
 
-  return {
+type MockPickerRoot = {
+  style: MockStyleSheet
+}
+
+function createMockRoot(): HTMLElement {
+  const styles = new Map<string, string>()
+  const root: MockPickerRoot = {
     style: {
-      setProperty(name: string, value: string) {
+      setProperty(name, value) {
         styles.set(name, value)
       },
-      removeProperty(name: string) {
+      removeProperty(name) {
         styles.delete(name)
       },
-      getPropertyValue(name: string) {
+      getPropertyValue(name) {
         return styles.get(name) ?? ''
       },
     },
-  } as HTMLElement
+  }
+  // SAFETY: RN Jest has no document; attach/resync only call these style methods.
+  return root as HTMLElement
 }
 
 function createMockVisualViewport(initial: { height: number; offsetTop: number }) {

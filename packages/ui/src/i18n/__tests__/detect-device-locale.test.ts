@@ -1,4 +1,25 @@
+import type { Locale } from 'expo-localization'
+
 import { detectDeviceLocale, resolveSdkLocale } from '../detect-device-locale'
+
+function deviceLocale(languageTag: string, languageCode: string): Locale {
+  return {
+    languageTag,
+    languageCode,
+    languageScriptCode: null,
+    regionCode: null,
+    languageRegionCode: null,
+    currencyCode: null,
+    currencySymbol: null,
+    languageCurrencyCode: null,
+    languageCurrencySymbol: null,
+    decimalSeparator: '.',
+    digitGroupingSeparator: ',',
+    textDirection: 'ltr',
+    measurementSystem: null,
+    temperatureUnit: null,
+  }
+}
 
 const supportedLngs = ['en', 'fr', 'es'] as const
 const fallbackLng = 'en'
@@ -39,12 +60,12 @@ describe('resolveSdkLocale', () => {
 
 describe('detectDeviceLocale', () => {
   it('resolves bundled locales from languageTag', () => {
-    expect(detectDeviceLocale({ languageTag: 'es-MX', languageCode: 'es' } as any)).toBe('es')
+    expect(detectDeviceLocale(deviceLocale('es-MX', 'es'))).toBe('es')
   })
 
   // `xx` is not a real language code, so it stays unbundled as locales are synced.
   it('falls back to en when languageCode locale is not bundled', () => {
-    expect(detectDeviceLocale({ languageCode: 'xx' } as any)).toBe('en')
+    expect(detectDeviceLocale(deviceLocale('xx', 'xx'))).toBe('en')
   })
 
   it('falls back to en when no locales are available', () => {
@@ -52,11 +73,11 @@ describe('detectDeviceLocale', () => {
   })
 
   it('resolves bundled locales from regional device tags', () => {
-    expect(detectDeviceLocale({ languageTag: 'de-DE', languageCode: 'de' } as any)).toBe('de')
+    expect(detectDeviceLocale(deviceLocale('de-DE', 'de'))).toBe('de')
   })
 
   it('resolves Norwegian device tags to no', () => {
-    expect(detectDeviceLocale({ languageTag: 'nb-NO', languageCode: 'nb' } as any)).toBe('no')
-    expect(detectDeviceLocale({ languageTag: 'nn-NO', languageCode: 'nn' } as any)).toBe('no')
+    expect(detectDeviceLocale(deviceLocale('nb-NO', 'nb'))).toBe('no')
+    expect(detectDeviceLocale(deviceLocale('nn-NO', 'nn'))).toBe('no')
   })
 })
