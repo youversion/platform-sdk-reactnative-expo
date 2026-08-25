@@ -20,6 +20,14 @@ describe('getTokens', () => {
     expect(getTokens('light')).not.toBe(getTokens('dark'))
   })
 
+  it('freezes the cached token objects so callers cannot rewrite colors', () => {
+    const tokens = getTokens('light')
+
+    expect(Object.isFrozen(tokens)).toBe(true)
+    expect(Object.isFrozen(tokens.radius)).toBe(true)
+    expect(Object.isFrozen(tokens.fontFamily)).toBe(true)
+  })
+
   it('maps light semantic colors from the web default theme', () => {
     const tokens = getTokens('light')
 

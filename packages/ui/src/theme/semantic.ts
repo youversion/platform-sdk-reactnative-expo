@@ -35,7 +35,7 @@ const light = {
   sidebarRing: palette.blue30,
 }
 
-export type SemanticColors = { [Key in keyof typeof light]: string }
+export type SemanticColors = { readonly [Key in keyof typeof light]: string }
 
 const dark: SemanticColors = {
   background: palette.gray50,
