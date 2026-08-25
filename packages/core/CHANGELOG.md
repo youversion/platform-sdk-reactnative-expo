@@ -1,5 +1,11 @@
 # @youversion/platform-react-native-expo-core
 
+## 1.4.0
+
+### Minor Changes
+
+- dd11c3f: Export `hookOverrides` on `YouVersionProvider` as a test seam, plus the `HookOverrides` and `AuthContextValue` types. Production apps leave `hookOverrides` unset.
+
 ## 1.3.1
 
 ## 1.3.0
