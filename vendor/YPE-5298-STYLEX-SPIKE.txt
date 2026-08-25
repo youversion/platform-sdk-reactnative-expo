@@ -1,0 +1,9 @@
+YPE-5298 Q7 pin — @youversion/platform-react-ui StyleX spike (dist-only).
+
+Source: youversion/platform-sdk-react#358
+Branch: cursor/cp/ype-5298-stylex-shadow-spike-b741
+Commit: 819c3a9a0a421768185f7fabec4e3bb969da207e
+Pack: pnpm --filter @youversion/platform-react-ui prove:stylex-metro
+Tarball: vendor/youversion-platform-react-ui-2.10.0-ype-5298-stylex-spike.tgz
+
+Spike only. Do not publish this pin.
