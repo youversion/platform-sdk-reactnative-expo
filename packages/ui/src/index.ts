@@ -30,5 +30,6 @@ export type {
   YouVersionTheme,
 } from './native'
 export { useSignOutGuard } from './native'
+export { useTokens } from './hooks'
 export { getTokens } from './theme'
 export type { Tokens } from './theme'
