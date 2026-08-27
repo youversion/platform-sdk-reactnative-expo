@@ -4,6 +4,8 @@ export const palette = {
   redDarkMode: '#f04c59',
   warmNeutral: '#f6efee',
   warmNeutralDm: '#373231',
+  wj: '#94000c',
+  wjDm: '#e4bfc2',
 
   // Expressive palette
   orange10: '#faeceb',

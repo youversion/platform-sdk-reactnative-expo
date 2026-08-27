@@ -37,6 +37,8 @@ describe('getTokens', () => {
     expect(tokens.primary).toBe('#121212')
     expect(tokens.mutedForeground).toBe(palette.gray30)
     expect(tokens.mutedForeground).toBe('#636161')
+    expect(tokens.wj).toBe(palette.wj)
+    expect(tokens.wj).toBe('#94000c')
   })
 
   it('maps dark semantic colors from the web dark theme', () => {
@@ -48,6 +50,8 @@ describe('getTokens', () => {
     expect(tokens.primary).toBe('#f04c59')
     expect(tokens.mutedForeground).toBe(palette.gray10)
     expect(tokens.mutedForeground).toBe('#edebeb')
+    expect(tokens.wj).toBe(palette.wjDm)
+    expect(tokens.wj).toBe('#e4bfc2')
   })
 
   it('keeps token module source free of CSS color functions and rem units', () => {
