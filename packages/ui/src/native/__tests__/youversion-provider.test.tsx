@@ -1,3 +1,13 @@
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter'
+import {
+  SourceSerif4_400Regular,
+  SourceSerif4_500Medium,
+  SourceSerif4_700Bold,
+} from '@expo-google-fonts/source-serif-4'
 import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import * as Font from 'expo-font'
@@ -9,6 +19,8 @@ import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { YouVersionProvider } from '../youversion-provider'
 
+const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf'
+
 const UNTITLED_SERIF_PAYLOAD = {
   id: 1,
   slug: 'untitled-serif',
@@ -17,11 +29,42 @@ const UNTITLED_SERIF_PAYLOAD = {
     {
       weight: 400,
       style: 'normal',
+      sources: [{ format: 'ttf', url: UNTITLED_SERIF_TTF_URI }],
+    },
+  ],
+}
+
+const WOFF2_ONLY_PAYLOAD = {
+  id: 1,
+  slug: 'untitled-serif',
+  family: 'Untitled Serif',
+  variants: [
+    {
+      weight: 400,
+      style: 'normal',
       sources: [
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+        {
+          format: 'woff2',
+          url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.woff2',
+        },
       ],
     },
   ],
+}
+
+const BUNDLED_SANS_AND_FALLBACK_SERIF = {
+  Inter: Inter_400Regular,
+  Inter_medium: Inter_500Medium,
+  Inter_bold: Inter_700Bold,
+  'Source Serif 4': SourceSerif4_400Regular,
+  'Source Serif 4_medium': SourceSerif4_500Medium,
+  'Source Serif 4_bold': SourceSerif4_700Bold,
+}
+
+const UNTITLED_SERIF_FALLBACK = {
+  'Untitled Serif': SourceSerif4_400Regular,
+  'Untitled Serif_medium': SourceSerif4_500Medium,
+  'Untitled Serif_bold': SourceSerif4_700Bold,
 }
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
@@ -62,16 +105,25 @@ function ContextProbe() {
   return <LocaleProbe />
 }
 
+function jsonResponse(body: object, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
 function stubFontsFetch(): void {
   mockFetch.mockReset()
-  mockFetch.mockResolvedValue(
-    new Response(JSON.stringify(UNTITLED_SERIF_PAYLOAD), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }),
-  )
+  mockFetch.mockResolvedValue(jsonResponse(UNTITLED_SERIF_PAYLOAD))
   global.fetch = mockFetch
   jest.mocked(Font.loadAsync).mockClear()
+}
+
+async function waitForFontMaps(count = 2): Promise<unknown[]> {
+  await waitFor(() => {
+    expect(jest.mocked(Font.loadAsync).mock.calls.length).toBeGreaterThanOrEqual(count)
+  })
+  return jest.mocked(Font.loadAsync).mock.calls.map((call) => call[0])
 }
 
 describe('YouVersionProvider locale', () => {
@@ -180,8 +232,10 @@ describe('YouVersionProvider brand fonts', () => {
 
     expect(getByTestId('locale-lng')).toBeTruthy()
 
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled()
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[1]).toEqual({
+      'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
     })
 
     const firstCall = mockFetch.mock.calls[0]
@@ -202,9 +256,54 @@ describe('YouVersionProvider brand fonts', () => {
       </YouVersionProvider>,
     )
 
-    await waitFor(() => {
-      expect(jest.mocked(Font.loadAsync).mock.calls.length).toBeGreaterThanOrEqual(2)
-    })
+    const maps = await waitForFontMaps()
     expect(mockFetch).not.toHaveBeenCalled()
+    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the payload has no TTF', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(WOFF2_ONLY_PAYLOAD))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(mockFetch).toHaveBeenCalled()
+    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the Fonts API is not ok', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'unauthorized' }, 401))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the Fonts API payload does not match', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockResolvedValue(jsonResponse({ id: 1 }))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
   })
 })

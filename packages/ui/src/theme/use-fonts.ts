@@ -39,8 +39,12 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
   try {
     await Font.loadAsync(bundledSansAndFallbackSerif)
     const font = await fetchUntitledSerifFont({ appKey, apiHost })
+    let untitledSerifFaces: ReturnType<typeof pickTtfSources> = []
     if (font) {
-      await Font.loadAsync(buildFontMap(pickTtfSources(font)))
+      untitledSerifFaces = pickTtfSources(font)
+    }
+    if (untitledSerifFaces.length > 0) {
+      await Font.loadAsync(buildFontMap(untitledSerifFaces))
     } else {
       await Font.loadAsync(untitledSerifFallback)
     }
