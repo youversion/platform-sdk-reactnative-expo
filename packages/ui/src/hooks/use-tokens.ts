@@ -3,7 +3,7 @@ import { useTheme } from './use-theme'
 
 /**
  * Design tokens for the scheme `YouVersionProvider` resolved.
- * Outside a provider, `ThemeContext` defaults to light.
+ * Outside a provider, defaults to light.
  */
 export function useTokens(): Tokens {
   const theme = useTheme()

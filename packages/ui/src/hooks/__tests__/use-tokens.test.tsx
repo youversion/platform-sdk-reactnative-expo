@@ -1,7 +1,6 @@
 import { renderHook } from '@testing-library/react-native'
 import * as ReactNative from 'react-native'
 
-import type { YouVersionTheme } from '../../native/youversion-provider'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { useTokens } from '../use-tokens'
@@ -36,12 +35,12 @@ describe('useTokens', () => {
   })
 
   it('updates tokens when the provider theme changes', () => {
-    let theme: YouVersionTheme = 'light'
-    const { result, rerender } = renderHook(() => useTokens(), { wrapper: wrapper(() => theme) })
+    const testWrapper = wrapper('light')
+    const { result, rerender } = renderHook(() => useTokens(), { wrapper: testWrapper })
 
     expect(result.current).toBe(getTokens('light'))
 
-    theme = 'dark'
+    testWrapper.setTheme('dark')
     rerender(undefined)
 
     expect(result.current).toBe(getTokens('dark'))
