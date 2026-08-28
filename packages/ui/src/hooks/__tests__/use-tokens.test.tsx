@@ -1,9 +1,7 @@
 import { renderHook } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
 
-import { YouVersionProvider, type YouVersionTheme } from '../../native/youversion-provider'
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import type { YouVersionTheme } from '../../native/youversion-provider'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { useTokens } from '../use-tokens'
@@ -39,15 +37,7 @@ describe('useTokens', () => {
 
   it('updates tokens when the provider theme changes', () => {
     let theme: YouVersionTheme = 'light'
-    function ThemeSwitchWrapper({ children }: { children: ReactNode }) {
-      return (
-        <YouVersionProvider appKey="test-key" theme={theme} hookOverrides={defaultHookOverrides}>
-          {children}
-        </YouVersionProvider>
-      )
-    }
-
-    const { result, rerender } = renderHook(() => useTokens(), { wrapper: ThemeSwitchWrapper })
+    const { result, rerender } = renderHook(() => useTokens(), { wrapper: wrapper(() => theme) })
 
     expect(result.current).toBe(getTokens('light'))
 
