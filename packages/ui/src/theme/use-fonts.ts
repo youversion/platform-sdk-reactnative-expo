@@ -36,11 +36,10 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
     if (font) {
       untitledSerifFaces = pickTtfSources(font)
     }
-    if (untitledSerifFaces.length > 0) {
-      await Font.loadAsync(buildFontMap(untitledSerifFaces))
-    } else {
-      await Font.loadAsync(untitledSerifFallback)
-    }
+    await Font.loadAsync({
+      ...untitledSerifFallback,
+      ...buildFontMap(untitledSerifFaces),
+    })
   } catch (cause) {
     const nextError = cause instanceof Error ? cause : new Error(String(cause))
     console.error('[YouVersion SDK] brand fonts failed to load:', nextError)

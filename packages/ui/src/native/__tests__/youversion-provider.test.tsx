@@ -239,6 +239,8 @@ describe('YouVersionProvider brand fonts', () => {
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
     expect(maps[1]).toEqual({
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
+      'Untitled Serif_medium': SourceSerif4_500Medium,
+      'Untitled Serif_bold': SourceSerif4_700Bold,
     })
 
     const firstCall = mockFetch.mock.calls[0]
@@ -263,6 +265,43 @@ describe('YouVersionProvider brand fonts', () => {
     expect(mockFetch).not.toHaveBeenCalled()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
     expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+  })
+
+  it('fills omitted Untitled Serif faces with Source Serif 4', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        slug: 'untitled-serif',
+        family: 'Untitled Serif',
+        variants: [
+          {
+            weight: 400,
+            style: 'normal',
+            sources: [{ format: 'ttf', url: UNTITLED_SERIF_TTF_URI }],
+          },
+          {
+            weight: 700,
+            style: 'normal',
+            sources: [
+              { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
+            ],
+          },
+        ],
+      }),
+    )
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[1]).toEqual({
+      'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
+      'Untitled Serif_medium': SourceSerif4_500Medium,
+      'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
+    })
   })
 
   it('loads Source Serif 4 as Untitled Serif when the payload has no TTF', async () => {
