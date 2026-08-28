@@ -5,8 +5,11 @@ import {
 } from '@expo-google-fonts/inter'
 import {
   SourceSerif4_400Regular,
+  SourceSerif4_400Regular_Italic,
   SourceSerif4_500Medium,
+  SourceSerif4_500Medium_Italic,
   SourceSerif4_700Bold,
+  SourceSerif4_700Bold_Italic,
 } from '@expo-google-fonts/source-serif-4'
 import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
@@ -64,8 +67,11 @@ const BUNDLED_SANS_AND_FALLBACK_SERIF = {
 
 const UNTITLED_SERIF_FALLBACK = {
   'Untitled Serif': SourceSerif4_400Regular,
+  'Untitled Serif_italic': SourceSerif4_400Regular_Italic,
   'Untitled Serif_medium': SourceSerif4_500Medium,
+  'Untitled Serif_medium_italic': SourceSerif4_500Medium_Italic,
   'Untitled Serif_bold': SourceSerif4_700Bold,
+  'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
@@ -238,9 +244,8 @@ describe('YouVersionProvider brand fonts', () => {
     const maps = await waitForFontMaps()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
     expect(maps[1]).toEqual({
+      ...UNTITLED_SERIF_FALLBACK,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
-      'Untitled Serif_medium': SourceSerif4_500Medium,
-      'Untitled Serif_bold': SourceSerif4_700Bold,
     })
 
     const firstCall = mockFetch.mock.calls[0]
@@ -298,8 +303,8 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(maps[1]).toEqual({
+      ...UNTITLED_SERIF_FALLBACK,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
-      'Untitled Serif_medium': SourceSerif4_500Medium,
       'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
     })
   })
