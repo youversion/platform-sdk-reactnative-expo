@@ -29,6 +29,7 @@ export function youVersionProviderWrapper(
     )
   }
 
+  /** Mutates the holder only. Tests must still call `rerender(undefined)` so RTL reads the wrapper again. */
   function setTheme(theme: YouVersionTheme) {
     themeHolder.current = theme
   }
