@@ -17,6 +17,7 @@ import { Text } from 'react-native'
 
 import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import type { UntitledSerifFont } from '../../theme/fonts'
 import { YouVersionProvider } from '../youversion-provider'
 
 const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf'
@@ -105,7 +106,9 @@ function ContextProbe() {
   return <LocaleProbe />
 }
 
-function jsonResponse(body: object, status = 200): Response {
+type FontsApiJson = UntitledSerifFont | { error: string } | { id: number }
+
+function jsonResponse(body: FontsApiJson, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'content-type': 'application/json' },
