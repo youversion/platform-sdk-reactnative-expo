@@ -1,5 +1,6 @@
-import { render } from '@testing-library/react-native'
+import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import * as Font from 'expo-font'
 import * as Localization from 'expo-localization'
 import type { Locale } from 'expo-localization'
 import { Text } from 'react-native'
@@ -7,6 +8,23 @@ import { Text } from 'react-native'
 import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { YouVersionProvider } from '../youversion-provider'
+
+const UNTITLED_SERIF_PAYLOAD = {
+  id: 1,
+  slug: 'untitled-serif',
+  family: 'Untitled Serif',
+  variants: [
+    {
+      weight: 400,
+      style: 'normal',
+      sources: [
+        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+      ],
+    },
+  ],
+}
+
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
 
 function deviceLocale(languageTag: string, languageCode: string): Locale {
   return {
@@ -44,9 +62,22 @@ function ContextProbe() {
   return <LocaleProbe />
 }
 
+function stubFontsFetch(): void {
+  mockFetch.mockReset()
+  mockFetch.mockResolvedValue(
+    new Response(JSON.stringify(UNTITLED_SERIF_PAYLOAD), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    }),
+  )
+  global.fetch = mockFetch
+  jest.mocked(Font.loadAsync).mockClear()
+}
+
 describe('YouVersionProvider locale', () => {
   beforeEach(() => {
     latestCoreContext = null
+    stubFontsFetch()
   })
 
   afterEach(() => {
@@ -128,5 +159,52 @@ describe('YouVersionProvider locale', () => {
     expect(latestCoreContext?.permittedVersionIds).toEqual([])
     expect(latestCoreContext?.excludedVersionIds).toEqual([])
     expect(latestCoreContext?.permittedLanguageTags).toEqual([])
+  })
+})
+
+describe('YouVersionProvider brand fonts', () => {
+  beforeEach(() => {
+    stubFontsFetch()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('commits children without waiting for fonts and fetches Untitled Serif with the app key', async () => {
+    const { getByTestId } = render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    expect(getByTestId('locale-lng')).toBeTruthy()
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalled()
+    })
+
+    const firstCall = mockFetch.mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected fetch to have been called')
+    }
+    const [url, init] = firstCall
+    expect(url).toBe('https://api.youversion.com/v1/fonts/1')
+    expect(String(url)).not.toContain('app_key')
+    expect(new Headers(init?.headers).get('X-YVP-App-Key')).toBe('test-key')
+    expect(new Headers(init?.headers).get('Accept')).toBe('application/json')
+  })
+
+  it('does not fetch Untitled Serif when the app key is whitespace', async () => {
+    render(
+      <YouVersionProvider appKey="   " hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    await waitFor(() => {
+      expect(jest.mocked(Font.loadAsync).mock.calls.length).toBeGreaterThanOrEqual(2)
+    })
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 })
