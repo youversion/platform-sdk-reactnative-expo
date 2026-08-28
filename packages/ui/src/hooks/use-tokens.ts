@@ -2,7 +2,7 @@ import { getTokens, type Tokens } from '../theme'
 import { useTheme } from './use-theme'
 
 /**
- * Design tokens for the scheme `YouVersionProvider` resolved.
+ * Design tokens for the color scheme resolved by `YouVersionProvider`.
  * Outside a provider, defaults to light.
  */
 export function useTokens(): Tokens {
