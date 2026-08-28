@@ -28,13 +28,6 @@ const untitledSerifFallback = {
   'Untitled Serif_bold': SourceSerif4_700Bold,
 }
 
-let lastBrandFontError: Error | null = null
-
-export type BrandFontsState = {
-  loaded: boolean
-  error: Error | null
-}
-
 async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
   try {
     await Font.loadAsync(bundledSansAndFallbackSerif)
@@ -48,10 +41,8 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
     } else {
       await Font.loadAsync(untitledSerifFallback)
     }
-    lastBrandFontError = null
   } catch (cause) {
     const nextError = cause instanceof Error ? cause : new Error(String(cause))
-    lastBrandFontError = nextError
     console.error('[YouVersion SDK] brand fonts failed to load:', nextError)
     try {
       await Font.loadAsync(untitledSerifFallback)
@@ -62,16 +53,11 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
 }
 
 /**
- * Loads Inter, Source Serif 4, and Untitled Serif in the background.
+ * Starts Inter, Source Serif 4, and Untitled Serif in the background.
+ * Does not report ready/error. Children still render while fonts load.
  */
-export function useBrandFonts(appKey: string, apiHost?: string): BrandFontsState {
+export function useBrandFonts(appKey: string, apiHost?: string): void {
   useEffect(() => {
     void loadBrandFonts(appKey, apiHost)
   }, [appKey, apiHost])
-
-  const isUntitledSerifLoaded = Font.isLoaded('Untitled Serif') || Font.isLoaded('Source Serif 4')
-  return {
-    loaded: Font.isLoaded('Inter') && isUntitledSerifLoaded,
-    error: lastBrandFontError,
-  }
 }

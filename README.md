@@ -93,7 +93,7 @@ export default function RootLayout() {
 
 `YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
 
-The provider also loads brand fonts in the background (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out and no extra setup beyond `appKey`. Untitled Serif comes from the YouVersion Fonts API at runtime — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If that request fails, native serif falls back to Source Serif 4. The provider does not wait for fonts before rendering children.
+The provider also loads brand fonts in the background (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Untitled Serif comes from the YouVersion Fonts API at runtime — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If that request fails, native serif falls back to Source Serif 4. The provider does not wait for fonts before rendering children.
 
 Reader appearance also maps to CSS custom properties on `[data-slot="yv-bible-renderer"]`: `--yv-reader-font-size`, `--yv-reader-font-family`, `--yv-reader-bg`, `--yv-reader-fg`.
 
