@@ -38,6 +38,10 @@ Auth, grants, or data exchange: `CONTEXT.md` and ADRs [0014](docs/adr/0014-cache
 
 Highlights, queue, drain, or permission flow: `CONTEXT.md` and ADRs [0013](docs/adr/0013-native-highlights-optimistic-layer.md), [0016](docs/adr/0016-highlight-permission-flow.md), [0017](docs/adr/0017-native-verse-action-sheet.md), [0018](docs/adr/0018-highlight-write-queue.md).
 
+## Bible Content Cache
+
+Content cache, `Cache-Control`, lifetime, or sweep: `CONTEXT.md` and [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
+
 ## Sheets
 
 NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md), [0006](docs/adr/0006-inactive-sheet-inertness.md), [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md), [0017](docs/adr/0017-native-verse-action-sheet.md).

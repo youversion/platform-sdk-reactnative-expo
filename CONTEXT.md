@@ -181,3 +181,31 @@ _Avoid_: **Pending Highlight** (an in-memory permission-flow intent, discarded r
 **Highlight Write Queue**:
 The durable store of **Queued Writes** and the drain over them, owned by core's `YouVersionProvider` rather than any one `useHighlights`. Connectivity is a trigger, never a gate. Unbounded — no size cap, no TTL, no attempt budget — with a single drop path: a 401/403 that survives a forced token refresh and one retry. Purged on sign-out. See [ADR 0018](docs/adr/0018-highlight-write-queue.md).
 _Avoid_: Offline queue (5xx entries park here too); a per-scope or per-hook queue; gating a drain attempt on the connectivity answer; treating a stuck entry as something the SDK will eventually clean up
+
+**Bible Content**:
+A response body from the `/v1/bibles/{versionId}` subtree — the version itself, its books, chapters, verses and passages. Public per app key, not per user, so it is never purged on sign-out. The `/v1/bibles` list and verse of the day are not Bible Content.
+_Avoid_: Chapter cache (the version and books count too); user data
+
+**Bible Content Cache**:
+The SDK-owned store of **Bible Content** that lets a reader mount without a network call while each entry's **Content Lifetime** is unexpired. Two tiers: a per-**Expo DOM Component** memory tier that dies with its WebView, and a native tier that survives WebView and app restarts. The native tier is the tier that matters — the memory tier only dedupes within one WebView's life. Mirrors the Swift and Kotlin SDKs' memory and disk caches; there is no downloads tier.
+_Avoid_: Offline Bibles / downloads (a user-owned, non-expiring thing this SDK does not have); HTTP cache (the WebView's own cache is not consulted); persisting the memory tier
+
+**Content Lifetime**:
+How long a **Bible Content** entry may be served without asking the server, taken from the response's `Cache-Control: max-age` less its `Age`, clamped at zero. A response with no usable `max-age` lives seven days. A response carrying `no-cache` or `no-store` never enters the native tier. `Expires` and `Date` are ignored. Same rules as Swift and Kotlin.
+_Avoid_: TTL (implies SDK-chosen); freshness (implies stale-while-revalidate — there is none)
+
+**Content Expiry**:
+What happens when a **Bible Content Cache** entry is read past its **Content Lifetime**: the entry is deleted and the read misses, so the caller refetches and waits. Nothing stale is ever shown.
+_Avoid_: Revalidation; stale-while-revalidate; background refresh
+
+**Content Sweep**:
+The pass over the whole native **Bible Content Cache** that deletes every entry past its **Content Lifetime**. Runs once per core `YouVersionProvider` mount, without waiting for auth or connectivity, and never blocks a render. Reclaims space for entries no reader will ask for again; **Content Expiry** already guarantees correctness without it.
+_Avoid_: Cache invalidation (nothing outside the lifetime rule triggers it); permission eviction (a separate, not-yet-built pass)
+
+**Bible Content Client**:
+The native-side owner of every **Bible Content** request. Composes the request headers from core's own configuration (app key, installation id, SDK stamp), reads the native **Bible Content Cache** first, fetches on a miss, stores the response by its **Content Lifetime**, and returns the status, body and content type. It is the piece that survives a native-only SDK unchanged; it never depends on anything a WebView sent.
+_Avoid_: Forwarding headers from the WebView (native is authoritative); `BibleClient` from platform-core (it hides response headers, so it cannot see `Cache-Control`)
+
+**Content Read-Through**:
+The interception of the Web SDK's `fetch` inside an **Expo DOM Component** that hands an eligible request's URL to the **Bible Content Client** through one **Native Action** and rebuilds a `Response` from what comes back. The WebView never performs an eligible request itself. The Web SDK and its query cache are unaware of it. Throwaway by design: it exists only while content renders in a WebView. See [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
+_Avoid_: Query persistence (the Web SDK's query client is private and its persister has no per-entry lifetime); a WebView-side network fallback; read/write cache actions (the bridge carries requests, not cache entries)
