@@ -25,7 +25,7 @@ const bundledSansAndFallbackSerif = {
   'Source Serif 4_bold': SourceSerif4_700Bold,
 }
 
-const untitledSerifFallback = {
+export const untitledSerifFallback = {
   'Untitled Serif': SourceSerif4_400Regular,
   'Untitled Serif_italic': SourceSerif4_400Regular_Italic,
   'Untitled Serif_medium': SourceSerif4_500Medium,

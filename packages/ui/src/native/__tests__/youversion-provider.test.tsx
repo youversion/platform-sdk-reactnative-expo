@@ -5,11 +5,8 @@ import {
 } from '@expo-google-fonts/inter'
 import {
   SourceSerif4_400Regular,
-  SourceSerif4_400Regular_Italic,
   SourceSerif4_500Medium,
-  SourceSerif4_500Medium_Italic,
   SourceSerif4_700Bold,
-  SourceSerif4_700Bold_Italic,
 } from '@expo-google-fonts/source-serif-4'
 import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
@@ -21,6 +18,7 @@ import { Text } from 'react-native'
 import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import type { UntitledSerifFont } from '../../theme/fonts'
+import { untitledSerifFallback } from '../../theme/use-fonts'
 import { YouVersionProvider } from '../youversion-provider'
 
 const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf'
@@ -63,15 +61,6 @@ const BUNDLED_SANS_AND_FALLBACK_SERIF = {
   'Source Serif 4': SourceSerif4_400Regular,
   'Source Serif 4_medium': SourceSerif4_500Medium,
   'Source Serif 4_bold': SourceSerif4_700Bold,
-}
-
-const UNTITLED_SERIF_FALLBACK = {
-  'Untitled Serif': SourceSerif4_400Regular,
-  'Untitled Serif_italic': SourceSerif4_400Regular_Italic,
-  'Untitled Serif_medium': SourceSerif4_500Medium,
-  'Untitled Serif_medium_italic': SourceSerif4_500Medium_Italic,
-  'Untitled Serif_bold': SourceSerif4_700Bold,
-  'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
@@ -244,7 +233,7 @@ describe('YouVersionProvider brand fonts', () => {
     const maps = await waitForFontMaps()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
     expect(maps[1]).toEqual({
-      ...UNTITLED_SERIF_FALLBACK,
+      ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
     })
 
@@ -269,7 +258,7 @@ describe('YouVersionProvider brand fonts', () => {
     const maps = await waitForFontMaps()
     expect(mockFetch).not.toHaveBeenCalled()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
-    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+    expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
   it('fills omitted Untitled Serif faces with Source Serif 4', async () => {
@@ -303,7 +292,7 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(maps[1]).toEqual({
-      ...UNTITLED_SERIF_FALLBACK,
+      ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
       'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
     })
@@ -321,7 +310,7 @@ describe('YouVersionProvider brand fonts', () => {
     const maps = await waitForFontMaps()
     expect(mockFetch).toHaveBeenCalled()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
-    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+    expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
   it('loads Source Serif 4 as Untitled Serif when the Fonts API is not ok', async () => {
@@ -336,7 +325,7 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
-    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+    expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
   it('loads Source Serif 4 as Untitled Serif when the Fonts API payload does not match', async () => {
@@ -351,6 +340,6 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
-    expect(maps[1]).toEqual(UNTITLED_SERIF_FALLBACK)
+    expect(maps[1]).toEqual(untitledSerifFallback)
   })
 })
