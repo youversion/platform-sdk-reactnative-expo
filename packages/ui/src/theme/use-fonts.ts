@@ -16,7 +16,7 @@ import { useEffect } from 'react'
 
 import { buildFontMap, fetchUntitledSerifFont, pickTtfSources } from './fonts'
 
-const bundledSans = {
+export const bundledSans = {
   Inter: Inter_400Regular,
   Inter_medium: Inter_500Medium,
   Inter_bold: Inter_700Bold,

@@ -1,8 +1,3 @@
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter'
 import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import * as Font from 'expo-font'
@@ -13,7 +8,7 @@ import { Text } from 'react-native'
 import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import type { UntitledSerifFont } from '../../theme/fonts'
-import { untitledSerifFallback } from '../../theme/use-fonts'
+import { bundledSans, untitledSerifFallback } from '../../theme/use-fonts'
 import { YouVersionProvider } from '../youversion-provider'
 
 const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/test-fixtures/regular.ttf'
@@ -47,12 +42,6 @@ const WOFF2_ONLY_PAYLOAD = {
       ],
     },
   ],
-}
-
-const BUNDLED_SANS_AND_FALLBACK_SERIF = {
-  Inter: Inter_400Regular,
-  Inter_medium: Inter_500Medium,
-  Inter_bold: Inter_700Bold,
 }
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
@@ -223,7 +212,7 @@ describe('YouVersionProvider brand fonts', () => {
     expect(getByTestId('locale-lng')).toBeTruthy()
 
     const maps = await waitForFontMaps()
-    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
@@ -249,7 +238,7 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(mockFetch).not.toHaveBeenCalled()
-    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
@@ -301,7 +290,7 @@ describe('YouVersionProvider brand fonts', () => {
 
     const maps = await waitForFontMaps()
     expect(mockFetch).toHaveBeenCalled()
-    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
@@ -316,7 +305,7 @@ describe('YouVersionProvider brand fonts', () => {
     )
 
     const maps = await waitForFontMaps()
-    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual(untitledSerifFallback)
   })
 
@@ -331,7 +320,7 @@ describe('YouVersionProvider brand fonts', () => {
     )
 
     const maps = await waitForFontMaps()
-    expect(maps[0]).toEqual(BUNDLED_SANS_AND_FALLBACK_SERIF)
+    expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual(untitledSerifFallback)
   })
 })
