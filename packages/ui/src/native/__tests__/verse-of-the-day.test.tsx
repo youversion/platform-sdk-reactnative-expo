@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, cleanup, fireEvent, render } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
@@ -33,6 +33,15 @@ type LatestDomProps = {
 
 let latestDomProps: LatestDomProps = {}
 
+// `useVerseOfTheDayPassageId` resolves its lookup in a microtask after mount, so
+// every render here settles it inside `act`. An update that lands after the test
+// body re-renders against the cleared impl registry and kills the Jest worker.
+async function renderAndSettle(...args: Parameters<typeof render>) {
+  const result = render(...args)
+  await act(async () => {})
+  return result
+}
+
 function MockVerseOfTheDayDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
@@ -66,6 +75,9 @@ describe('VerseOfTheDay', () => {
   })
 
   afterEach(() => {
+    // Unmount before clearing the registry — a stray re-render would throw out
+    // of `getImpl` with no `act` scope to catch it.
+    cleanup()
     resetImpls()
     jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
@@ -75,8 +87,8 @@ describe('VerseOfTheDay', () => {
     })
   })
 
-  it('forwards appKey from YouVersionProvider and consumer props to the DOM entry', () => {
-    const { getByTestId } = render(
+  it('forwards appKey from YouVersionProvider and consumer props to the DOM entry', async () => {
+    const { getByTestId } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />,
       { wrapper: wrapper() },
     )
@@ -86,8 +98,8 @@ describe('VerseOfTheDay', () => {
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
   })
 
-  it('applies the embed dom defaults when no dom prop is passed', () => {
-    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+  it('applies the embed dom defaults when no dom prop is passed', async () => {
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
     expect(latestDomProps.dom).toEqual({
       matchContents: true,
@@ -100,42 +112,48 @@ describe('VerseOfTheDay', () => {
     })
   })
 
-  it('merges a consumer containerStyle after the embed defaults', () => {
-    render(<VerseOfTheDay versionId={3034} dom={{ containerStyle: { width: 300 } }} />, {
-      wrapper: wrapper(),
-    })
+  it('merges a consumer containerStyle after the embed defaults', async () => {
+    await renderAndSettle(
+      <VerseOfTheDay versionId={3034} dom={{ containerStyle: { width: 300 } }} />,
+      {
+        wrapper: wrapper(),
+      },
+    )
 
     expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
   })
 
-  it('forwards a component-level theme override to the DOM entry', () => {
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} theme="dark" />, {
+  it('forwards a component-level theme override to the DOM entry', async () => {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} theme="dark" />, {
       wrapper: wrapper('light'),
     })
 
     expect(getByTestId('mock-theme').children).toContain('dark')
   })
 
-  it('forwards theme="system" from VerseOfTheDay props to the DOM entry', () => {
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} theme="system" />, {
-      wrapper: wrapper('light'),
-    })
+  it('forwards theme="system" from VerseOfTheDay props to the DOM entry', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} theme="system" />,
+      {
+        wrapper: wrapper('light'),
+      },
+    )
 
     expect(getByTestId('mock-theme').children).toContain('system')
   })
 
-  it('uses the provider-resolved theme when VerseOfTheDay does not set theme', () => {
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+  it('uses the provider-resolved theme when VerseOfTheDay does not set theme', async () => {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper('dark'),
     })
 
     expect(getByTestId('mock-theme').children).toContain('dark')
   })
 
-  it('uses provider-resolved theme when provider theme is system and color scheme is dark', () => {
+  it('uses provider-resolved theme when provider theme is system and color scheme is dark', async () => {
     const spy = jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark')
 
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper('system'),
     })
 
@@ -152,14 +170,14 @@ describe('VerseOfTheDay', () => {
     )
   })
 
-  it('wires onShare to the DOM entry on native platforms', () => {
-    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+  it('wires onShare to the DOM entry on native platforms', async () => {
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
     expect(latestDomProps.onShare).toBeDefined()
   })
 
   it('calls Share.share with verse text when DOM triggers onShare', async () => {
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper(),
     })
 
@@ -174,7 +192,7 @@ describe('VerseOfTheDay', () => {
   it('does not throw when Share.share rejects', async () => {
     jest.spyOn(Share, 'share').mockRejectedValue(new Error('Share unavailable'))
 
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper(),
     })
 
@@ -187,9 +205,12 @@ describe('VerseOfTheDay', () => {
 
   it('invokes consumer onShare and does not call Share.share', async () => {
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} onShare={consumerOnShare} />, {
-      wrapper: wrapper(),
-    })
+    const { getByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} onShare={consumerOnShare} />,
+      {
+        wrapper: wrapper(),
+      },
+    )
 
     await act(async () => {
       fireEvent.press(getByTestId('mock-share-trigger'))
@@ -207,7 +228,7 @@ describe('VerseOfTheDay', () => {
       value: 'web',
     })
 
-    const { getByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper(),
     })
 
@@ -218,11 +239,11 @@ describe('VerseOfTheDay', () => {
     expect(Share.share).not.toHaveBeenCalled()
   })
 
-  it('pins a sampled local calendar day on the lookup and the DOM', () => {
+  it('pins a sampled local calendar day on the lookup and the DOM', async () => {
     jest.useFakeTimers({ now: new Date(2026, 5, 20) })
 
     try {
-      render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+      await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
       const dayOfYear = votdApi.getDayOfYear(new Date())
       expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
@@ -235,11 +256,13 @@ describe('VerseOfTheDay', () => {
     }
   })
 
-  it('uses a consumer dayOfYear for both the lookup and the DOM', () => {
+  it('uses a consumer dayOfYear for both the lookup and the DOM', async () => {
     jest.useFakeTimers({ now: new Date(2026, 5, 20) })
 
     try {
-      render(<VerseOfTheDay versionId={3034} dayOfYear={1} />, { wrapper: wrapper() })
+      await renderAndSettle(<VerseOfTheDay versionId={3034} dayOfYear={1} />, {
+        wrapper: wrapper(),
+      })
 
       expect(votdApi.getVerseOfTheDayPassageId).toHaveBeenCalledWith(
         expect.objectContaining({ appKey: 'test-key' }),
@@ -251,8 +274,8 @@ describe('VerseOfTheDay', () => {
     }
   })
 
-  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
-    render(<VerseOfTheDay versionId={3034} />, {
+  it('forwards version filter lists from YouVersionProvider to the DOM entry', async () => {
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: ({ children }: { children: ReactNode }) => (
         <YouVersionProvider
           appKey="test-key"
@@ -272,16 +295,16 @@ describe('VerseOfTheDay', () => {
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
   })
 
-  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
-    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper('light', 'es') })
+  it('forwards resolved locale from YouVersionProvider to the DOM entry', async () => {
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper('light', 'es') })
 
     expect(latestDomProps.locale).toBe('es')
   })
 
-  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
+  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', async () => {
     stubDeviceLocale('es-MX', 'es')
 
-    render(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
 
     expect(latestDomProps.locale).toBe('es')
   })
