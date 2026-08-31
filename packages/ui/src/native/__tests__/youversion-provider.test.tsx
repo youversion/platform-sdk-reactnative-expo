@@ -21,7 +21,7 @@ import type { UntitledSerifFont } from '../../theme/fonts'
 import { untitledSerifFallback } from '../../theme/use-fonts'
 import { YouVersionProvider } from '../youversion-provider'
 
-const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf'
+const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/test-fixtures/regular.ttf'
 
 const UNTITLED_SERIF_PAYLOAD = {
   id: 1,
@@ -47,7 +47,7 @@ const WOFF2_ONLY_PAYLOAD = {
       sources: [
         {
           format: 'woff2',
-          url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.woff2',
+          url: 'https://cdn.youversion.com/test-fixtures/regular.woff2',
         },
       ],
     },
@@ -277,7 +277,7 @@ describe('YouVersionProvider brand fonts', () => {
             weight: 700,
             style: 'normal',
             sources: [
-              { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
+              { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
             ],
           },
         ],
@@ -294,7 +294,7 @@ describe('YouVersionProvider brand fonts', () => {
     expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
-      'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
+      'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
     })
   })
 

@@ -17,40 +17,40 @@ const UNTITLED_SERIF_FONT: UntitledSerifFont = {
       weight: 400,
       style: 'normal',
       sources: [
-        { format: 'woff2', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.woff2' },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+        { format: 'woff2', url: 'https://cdn.youversion.com/test-fixtures/regular.woff2' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
       ],
     },
     {
       weight: 400,
       style: 'italic',
       sources: [
-        { format: 'woff2', url: 'https://cdn.youversion.com/fonts/untitled-serif/italic.woff2' },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/italic.ttf' },
+        { format: 'woff2', url: 'https://cdn.youversion.com/test-fixtures/italic.woff2' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/italic.ttf' },
       ],
     },
     {
       weight: 500,
       style: 'normal',
       sources: [
-        { format: 'woff2', url: 'https://cdn.youversion.com/fonts/untitled-serif/medium.woff2' },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/medium.ttf' },
+        { format: 'woff2', url: 'https://cdn.youversion.com/test-fixtures/medium.woff2' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/medium.ttf' },
       ],
     },
     {
       weight: 500,
       style: 'italic',
       sources: [
-        { format: 'woff2', url: 'https://cdn.youversion.com/fonts/untitled-serif/medium-italic.woff2' },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/medium-italic.ttf' },
+        { format: 'woff2', url: 'https://cdn.youversion.com/test-fixtures/medium-italic.woff2' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/medium-italic.ttf' },
       ],
     },
     {
       weight: 700,
       style: 'normal',
       sources: [
-        { format: 'woff2', url: 'https://cdn.youversion.com/fonts/untitled-serif/bold.woff2' },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/bold.ttf' },
+        { format: 'woff2', url: 'https://cdn.youversion.com/test-fixtures/bold.woff2' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
       ],
     },
     {
@@ -59,9 +59,9 @@ const UNTITLED_SERIF_FONT: UntitledSerifFont = {
       sources: [
         {
           format: 'woff2',
-          url: 'https://cdn.youversion.com/fonts/untitled-serif/bold-italic.woff2',
+          url: 'https://cdn.youversion.com/test-fixtures/bold-italic.woff2',
         },
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/bold-italic.ttf' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/bold-italic.ttf' },
       ],
     },
   ],
@@ -131,7 +131,7 @@ describe('pickTtfSources', () => {
           sources: [
             {
               format: 'woff2',
-              url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.woff2',
+              url: 'https://cdn.youversion.com/test-fixtures/regular.woff2',
             },
           ],
         },
@@ -149,7 +149,7 @@ describe('pickTtfSources', () => {
           weight: 400,
           style: 'normal',
           sources: [
-            { format: 'ttf', url: 'http://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+            { format: 'ttf', url: 'http://cdn.youversion.com/test-fixtures/regular.ttf' },
           ],
         },
       ],
@@ -181,22 +181,22 @@ describe('pickTtfSources', () => {
           weight: 400,
           style: 'normal',
           sources: [
-            { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+            { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
           ],
         },
         {
           weight: 700,
           style: 'normal',
           sources: [
-            { format: 'ttf', url: 'https://api.youversion.com/fonts/untitled-serif/bold.ttf' },
+            { format: 'ttf', url: 'https://api.youversion.com/test-fixtures/bold.ttf' },
           ],
         },
       ],
     })
 
     expect(faces.map((face) => face.uri)).toEqual([
-      'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf',
-      'https://api.youversion.com/fonts/untitled-serif/bold.ttf',
+      'https://cdn.youversion.com/test-fixtures/regular.ttf',
+      'https://api.youversion.com/test-fixtures/bold.ttf',
     ])
   })
 
@@ -208,7 +208,7 @@ describe('pickTtfSources', () => {
           weight: 400,
           style: 'normal',
           sources: [
-            { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+            { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
           ],
         },
         {
@@ -224,7 +224,7 @@ describe('pickTtfSources', () => {
         family: 'Untitled Serif',
         weight: 400,
         style: 'normal',
-        uri: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf',
+        uri: 'https://cdn.youversion.com/test-fixtures/regular.ttf',
       },
     ])
   })
@@ -235,7 +235,7 @@ describe('buildFontMap', () => {
     const map = buildFontMap(pickTtfSources(UNTITLED_SERIF_FONT))
 
     expect(map['Untitled Serif']).toEqual({
-      uri: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf',
+      uri: 'https://cdn.youversion.com/test-fixtures/regular.ttf',
     })
     expect(map['Untitled Serif_italic']?.uri).toContain('italic.ttf')
     expect(map['Untitled Serif_medium']?.uri).toContain('medium.ttf')

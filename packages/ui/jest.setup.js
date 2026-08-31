@@ -149,7 +149,7 @@ const untitledSerifFetchPayload = {
       weight: 400,
       style: 'normal',
       sources: [
-        { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
       ],
     },
   ],
