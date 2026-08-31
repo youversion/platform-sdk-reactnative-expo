@@ -21,6 +21,10 @@ export function contentLifetimeMs(cacheControl: string | null, age: string | nul
   return Math.max(0, maxAgeSeconds - ageSeconds) * 1000
 }
 
+// RFC 9111 §5.2: accept the quoted-string argument form (`max-age="3600"`).
 function parseSeconds(value: string | undefined): number | null {
-  return value !== undefined && /^\d+$/.test(value) ? Number(value) : null
+  if (value === undefined) return null
+  const unquoted =
+    value.length >= 2 && value.startsWith('"') && value.endsWith('"') ? value.slice(1, -1) : value
+  return /^\d+$/.test(unquoted) ? Number(unquoted) : null
 }
