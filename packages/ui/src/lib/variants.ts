@@ -78,7 +78,9 @@ function registerSheet(config: VariantFactoryConfig<VariantGroupMap>): Registere
   return StyleSheet.create(pieces)
 }
 
-function asSelectionRecord(selection: VariantSelection<VariantGroupMap> | undefined): SelectionRecord | undefined {
+function asSelectionRecord(
+  selection: VariantSelection<VariantGroupMap> | undefined,
+): SelectionRecord | undefined {
   if (selection === undefined) {
     return undefined
   }

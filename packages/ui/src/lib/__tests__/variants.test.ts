@@ -36,9 +36,7 @@ describe('createVariants', () => {
   })
 
   it('lets explicit props override defaults', () => {
-    const style = StyleSheet.flatten(
-      button(lightTokens, { variant: 'outline', size: 'lg' }),
-    )
+    const style = StyleSheet.flatten(button(lightTokens, { variant: 'outline', size: 'lg' }))
 
     expect(style).toMatchObject({
       borderRadius: lightTokens.radius.md,
@@ -49,9 +47,7 @@ describe('createVariants', () => {
   })
 
   it('composes multiple variant groups', () => {
-    const style = StyleSheet.flatten(
-      button(lightTokens, { variant: 'outline', size: 'sm' }),
-    )
+    const style = StyleSheet.flatten(button(lightTokens, { variant: 'outline', size: 'sm' }))
 
     expect(style).toMatchObject({
       borderRadius: lightTokens.radius.md,
