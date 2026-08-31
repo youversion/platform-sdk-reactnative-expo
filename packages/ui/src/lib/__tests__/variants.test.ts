@@ -86,6 +86,19 @@ describe('createVariants', () => {
     expect(factoryCalls).toBe(2)
   })
 
+  it('lets a later variant group win on a shared style key', () => {
+    const box = createVariants(() => ({
+      variants: {
+        tone: { flat: { height: 10 } },
+        size: { tall: { height: 40 } },
+      },
+    }))
+
+    const style = StyleSheet.flatten(box(lightTokens, { tone: 'flat', size: 'tall' }))
+
+    expect(style.height).toBe(40)
+  })
+
   it('treats an omitted variant prop as the default for that group', () => {
     const style = StyleSheet.flatten(button(lightTokens, { size: 'lg' }))
 

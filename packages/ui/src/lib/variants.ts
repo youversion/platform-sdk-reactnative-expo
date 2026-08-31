@@ -89,7 +89,8 @@ function asSelectionRecord(selection: VariantSelection<VariantGroupMap> | undefi
 /**
  * Takes a factory that turns tokens into `base`, `variants`, and
  * `defaultVariants`. Returns a resolver that takes tokens plus variant props and
- * gives back a style array.
+ * gives back a style array. Groups apply in the order the factory declares them,
+ * so a later group wins a style key an earlier group also set.
  *
  * The resolver holds one built sheet per tokens object, so the factory runs once
  * per scheme and every call hands back the same style objects.
