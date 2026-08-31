@@ -66,6 +66,8 @@ export function createBibleContentClient({
         },
         signal: controller.signal,
       })
+      // Lifetime counts from header arrival, not body completion (ADR 0020).
+      const receivedAt = now()
       const body = await response.text()
       if (response.ok) {
         const lifetimeMs = contentLifetimeMs(
@@ -74,7 +76,7 @@ export function createBibleContentClient({
         )
         // null: `no-cache`/`no-store`; 0: already expired — neither is stored (ADR 0020).
         if (lifetimeMs !== null && lifetimeMs > 0) {
-          store.write(versionId, key, { body, expiresAt: now() + lifetimeMs })
+          store.write(versionId, key, { body, expiresAt: receivedAt + lifetimeMs })
         }
       }
       return { status: response.status, body, contentType: response.headers.get('content-type') }

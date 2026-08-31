@@ -179,6 +179,28 @@ describe('createBibleContentClient', () => {
     })
   })
 
+  it('counts the lifetime from header arrival, not body completion', async () => {
+    let now = NOW
+    const { client, fetchMock, store } = setup({ now: () => now })
+    // SAFETY: stub covers the only Response members the client touches (ok, status, headers, text).
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'cache-control': 'max-age=60' }),
+      text: async () => {
+        now += 5_000 // body takes 5s to consume
+        return '{"a":1}'
+      },
+    } as Response)
+
+    await client({ path: PATH })
+
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toEqual({
+      body: '{"a":1}',
+      expiresAt: NOW + 60_000,
+    })
+  })
+
   it.each(['no-store', 'no-cache'])('never writes a response carrying %s', async (directive) => {
     const { client, fetchMock, store } = setup()
     fetchMock.mockImplementation(
