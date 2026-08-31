@@ -87,13 +87,12 @@ function asSelectionRecord(selection: VariantSelection<VariantGroupMap> | undefi
 }
 
 /**
- * `createVariants` takes a factory function.
- * The factory receives `tokens`.
- * The factory returns `base`, `variants`, and `defaultVariants`.
- * Then `createVariants` returns a function that builds a style array from those values.
+ * Takes a factory that turns tokens into `base`, `variants`, and
+ * `defaultVariants`. Returns a resolver that takes tokens plus variant props and
+ * gives back a style array.
  *
- * `getTokens` gives one frozen object for light and one for dark.
- * `StyleSheet.create` runs once for each of those objects.
+ * The resolver holds one built sheet per tokens object, so the factory runs once
+ * per scheme and every call hands back the same style objects.
  */
 export function createVariants<Groups extends VariantGroupMap>(
   factory: (tokens: Tokens) => VariantFactoryConfig<Groups>,

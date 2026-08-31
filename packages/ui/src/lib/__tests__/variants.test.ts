@@ -66,22 +66,21 @@ describe('createVariants', () => {
     expect(light.backgroundColor).not.toBe(dark.backgroundColor)
   })
 
-  it('registers StyleSheet entries once per tokens object', () => {
-    const spy = jest.spyOn(StyleSheet, 'create')
-    const resolve = createVariants((tokens) => ({
-      base: { backgroundColor: tokens.background },
-    }))
+  it('runs the factory once per tokens object and reuses the style pieces', () => {
+    let factoryCalls = 0
+    const resolve = createVariants((tokens) => {
+      factoryCalls += 1
+      return { base: { backgroundColor: tokens.background } }
+    })
 
-    try {
-      resolve(getTokens('light'))
-      resolve(getTokens('light'))
-      expect(spy).toHaveBeenCalledTimes(1)
+    const first = resolve(getTokens('light'))
+    const second = resolve(getTokens('light'))
 
-      resolve(getTokens('dark'))
-      expect(spy).toHaveBeenCalledTimes(2)
-    } finally {
-      spy.mockRestore()
-    }
+    expect(factoryCalls).toBe(1)
+    expect(second[0]).toBe(first[0])
+
+    resolve(getTokens('dark'))
+    expect(factoryCalls).toBe(2)
   })
 
   it('treats an omitted variant prop as the default for that group', () => {
