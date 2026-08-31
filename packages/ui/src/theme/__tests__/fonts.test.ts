@@ -138,6 +138,94 @@ describe('pickTtfSources', () => {
 
     expect(faces).toEqual([])
   })
+
+  it('skips a ttf url that is not https', () => {
+    const faces = pickTtfSources({
+      ...UNTITLED_SERIF_FONT,
+      variants: [
+        {
+          weight: 400,
+          style: 'normal',
+          sources: [
+            { format: 'ttf', url: 'http://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+          ],
+        },
+      ],
+    })
+
+    expect(faces).toEqual([])
+  })
+
+  it('skips a ttf url whose host is not YouVersion', () => {
+    const faces = pickTtfSources({
+      ...UNTITLED_SERIF_FONT,
+      variants: [
+        {
+          weight: 400,
+          style: 'normal',
+          sources: [{ format: 'ttf', url: 'https://evil.example/untitled-serif.ttf' }],
+        },
+      ],
+    })
+
+    expect(faces).toEqual([])
+  })
+
+  it('keeps ttf urls from api.youversion.com and cdn.youversion.com', () => {
+    const faces = pickTtfSources({
+      ...UNTITLED_SERIF_FONT,
+      variants: [
+        {
+          weight: 400,
+          style: 'normal',
+          sources: [
+            { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+          ],
+        },
+        {
+          weight: 700,
+          style: 'normal',
+          sources: [
+            { format: 'ttf', url: 'https://api.youversion.com/fonts/untitled-serif/bold.ttf' },
+          ],
+        },
+      ],
+    })
+
+    expect(faces.map((face) => face.uri)).toEqual([
+      'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf',
+      'https://api.youversion.com/fonts/untitled-serif/bold.ttf',
+    ])
+  })
+
+  it('keeps allowed faces and drops the rest in a mixed payload', () => {
+    const faces = pickTtfSources({
+      ...UNTITLED_SERIF_FONT,
+      variants: [
+        {
+          weight: 400,
+          style: 'normal',
+          sources: [
+            { format: 'ttf', url: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf' },
+          ],
+        },
+        {
+          weight: 700,
+          style: 'normal',
+          sources: [{ format: 'ttf', url: 'https://evil.example/bold.ttf' }],
+        },
+      ],
+    })
+
+    expect(faces).toEqual([
+      {
+        family: 'Untitled Serif',
+        weight: 400,
+        style: 'normal',
+        uri: 'https://cdn.youversion.com/fonts/untitled-serif/regular.ttf',
+      },
+    ])
+  })
 })
 
 describe('buildFontMap', () => {

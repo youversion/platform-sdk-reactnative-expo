@@ -4,6 +4,9 @@ export const DEFAULT_API_HOST = 'api.youversion.com'
 
 export const UNTITLED_SERIF_FONT_ID = 1
 
+/** Hosts named in YPE-5266 / web ADR 0004. Font.loadAsync fetches whatever URI we pass. */
+const ALLOWED_FONT_FILE_HOSTS = new Set(['api.youversion.com', 'cdn.youversion.com'])
+
 const fontWeightSchema = z.union([z.literal(400), z.literal(500), z.literal(700)])
 const fontStyleSchema = z.enum(['normal', 'italic'])
 
@@ -65,11 +68,27 @@ export function fontMapKey(
   return parts.join('_')
 }
 
+function isAllowedFontFileUrl(url: string): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'https:') {
+    return false
+  }
+  return ALLOWED_FONT_FILE_HOSTS.has(parsed.hostname.toLowerCase())
+}
+
 export function pickTtfSources(font: UntitledSerifFont): FontFace[] {
   const faces: FontFace[] = []
   for (const variant of font.variants) {
     const ttf = variant.sources.find((source) => source.format === 'ttf')
     if (!ttf) {
+      continue
+    }
+    if (!isAllowedFontFileUrl(ttf.url)) {
       continue
     }
     faces.push({
