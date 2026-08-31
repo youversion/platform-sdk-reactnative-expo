@@ -51,7 +51,8 @@ type CachedSheet = {
 }
 
 function sheetKey(group: string, value: string): string {
-  return `${group}__${value}`
+  // JSON escaping keeps the two halves unambiguous, so distinct pairs never share a key.
+  return JSON.stringify([group, value])
 }
 
 function registerSheet(config: VariantFactoryConfig<VariantGroupMap>): RegisteredSheet {
