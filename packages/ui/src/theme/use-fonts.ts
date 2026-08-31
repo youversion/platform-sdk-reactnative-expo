@@ -16,13 +16,10 @@ import { useEffect } from 'react'
 
 import { buildFontMap, fetchUntitledSerifFont, pickTtfSources } from './fonts'
 
-const bundledSansAndFallbackSerif = {
+const bundledSans = {
   Inter: Inter_400Regular,
   Inter_medium: Inter_500Medium,
   Inter_bold: Inter_700Bold,
-  'Source Serif 4': SourceSerif4_400Regular,
-  'Source Serif 4_medium': SourceSerif4_500Medium,
-  'Source Serif 4_bold': SourceSerif4_700Bold,
 }
 
 export const untitledSerifFallback = {
@@ -36,7 +33,7 @@ export const untitledSerifFallback = {
 
 async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
   try {
-    await Font.loadAsync(bundledSansAndFallbackSerif)
+    await Font.loadAsync(bundledSans)
     const font = await fetchUntitledSerifFont({ appKey, apiHost })
     let untitledSerifFaces: ReturnType<typeof pickTtfSources> = []
     if (font) {
@@ -58,7 +55,8 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
 }
 
 /**
- * Starts Inter, Source Serif 4, and Untitled Serif in the background.
+ * Starts Inter and Untitled Serif in the background.
+ * Source Serif 4 is registered only as the Untitled Serif fallback.
  * Does not report ready/error. Children still render while fonts load.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): void {

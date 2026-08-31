@@ -3,11 +3,6 @@ import {
   Inter_500Medium,
   Inter_700Bold,
 } from '@expo-google-fonts/inter'
-import {
-  SourceSerif4_400Regular,
-  SourceSerif4_500Medium,
-  SourceSerif4_700Bold,
-} from '@expo-google-fonts/source-serif-4'
 import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import * as Font from 'expo-font'
@@ -58,9 +53,6 @@ const BUNDLED_SANS_AND_FALLBACK_SERIF = {
   Inter: Inter_400Regular,
   Inter_medium: Inter_500Medium,
   Inter_bold: Inter_700Bold,
-  'Source Serif 4': SourceSerif4_400Regular,
-  'Source Serif 4_medium': SourceSerif4_500Medium,
-  'Source Serif 4_bold': SourceSerif4_700Bold,
 }
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
