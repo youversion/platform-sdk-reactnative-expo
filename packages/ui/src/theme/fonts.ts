@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { fontFamily } from './scales'
+
 export const DEFAULT_API_HOST = 'api.youversion.com'
 
 export const UNTITLED_SERIF_FONT_ID = 1
@@ -24,7 +26,7 @@ const fontVariantSchema = z.object({
 const fontSchema = z.object({
   id: z.number().int(),
   slug: z.string(),
-  family: z.string().min(1),
+  family: z.literal(fontFamily.serif),
   variants: z.array(fontVariantSchema),
 })
 

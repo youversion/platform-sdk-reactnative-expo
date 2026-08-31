@@ -78,9 +78,7 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-type FontsApiJson = UntitledSerifFont | { error: string } | { id: number }
-
-function jsonResponse(body: FontsApiJson, status = 200): Response {
+function jsonResponse(body: object, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     statusText: String(status),
@@ -293,6 +291,14 @@ describe('fetchUntitledSerifFont', () => {
 
   it('throws when the payload does not match the font schema', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: 1 }))
+
+    await expect(fetchUntitledSerifFont({ appKey: 'test-key' })).rejects.toThrow(
+      'Fonts API returned an unexpected payload',
+    )
+  })
+
+  it('throws when the API family is not Untitled Serif', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse({ ...UNTITLED_SERIF_FONT, family: 'Inter' }))
 
     await expect(fetchUntitledSerifFont({ appKey: 'test-key' })).rejects.toThrow(
       'Fonts API returned an unexpected payload',
