@@ -15,6 +15,7 @@ describe('useYouVersion', () => {
       appKey: 'appkey',
       apiHost: 'api.example.com',
       installationId: 'inst-1',
+      fetchBibleContent: jest.fn(),
     }
     const wrapper = ({ children }: { children: ReactNode }) => (
       <YouVersionContext.Provider value={value}>{children}</YouVersionContext.Provider>

@@ -88,6 +88,8 @@ function BibleVersionPickerSheetImpl({
         <VersionPickerContentDOM
           dom={pickerDom}
           appKey={context.appKey}
+          apiHost={context.apiHost}
+          fetchBibleContent={context.fetchBibleContent}
           versionId={versionId}
           theme={resolvedTheme}
           resetKey={resetKey}

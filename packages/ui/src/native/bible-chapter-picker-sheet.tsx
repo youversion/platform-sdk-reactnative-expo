@@ -96,6 +96,8 @@ function BibleChapterPickerSheetImpl({
         <ChapterPickerContentDOM
           dom={pickerDom}
           appKey={context.appKey}
+          apiHost={context.apiHost}
+          fetchBibleContent={context.fetchBibleContent}
           book={book}
           chapter={chapter}
           versionId={versionId}

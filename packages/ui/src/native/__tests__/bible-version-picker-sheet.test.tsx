@@ -11,6 +11,8 @@ import { YouVersionProvider } from '../youversion-provider'
 
 type MockDomProps = {
   appKey?: string
+  apiHost?: string
+  fetchBibleContent?: unknown
   theme?: string
   versionId?: number
   resetKey?: number
@@ -166,10 +168,12 @@ describe('BibleVersionPickerSheet', () => {
     expect(latestDomProps.versionId).toBe(3034)
   })
 
-  it('passes appKey to DOM content', () => {
+  it('passes appKey, apiHost, and the content action to DOM content', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 
     expect(latestDomProps.appKey).toBe('test-key')
+    expect(latestDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 
   it('passes resetKey to DOM content', () => {

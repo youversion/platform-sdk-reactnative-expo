@@ -25,6 +25,10 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./sdk-version": {
+      "types": "./src/sdk-version.ts",
+      "default": "./src/sdk-version.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -40,6 +44,10 @@
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
       },
+      "./sdk-version": {
+        "types": "./build/sdk-version.d.ts",
+        "default": "./build/sdk-version.js"
+      },
       "./package.json": "./package.json"
     }
   },
@@ -50,7 +58,7 @@
     "test:watch": "jest --watchAll",
     "test:coverage": "jest --coverage",
     "typecheck": "tsc --noEmit -p tsconfig.test.json",
-    "prepublishOnly": "expo-module prepublishOnly"
+    "prepublishOnly": "expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs"
   },
   "jest": {
     "preset": "jest-expo",

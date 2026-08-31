@@ -4,16 +4,18 @@ Status: accepted
 
 # Suffix the `x-yvp-sdk` version with `-dev` in source; stamp the publish channel into the compiled build
 
-Every API call made from inside a DOM component carries an `x-yvp-sdk` header (`ReactNativeSDK=<version>`), stamped by our DOM-side `YouVersionProvider` wrapper (`lib/web-yv-provider.ts`) via `getSdkHeaders()` in `lib/sdk-version.ts`. YouVersion's data lake uses this header to tell **internal dev-time traffic** apart from **published-SDK (partner) traffic**.
+> Amended 2026-08-30 (ADR 0020): `sdk-version.ts` and the stamp moved from `packages/ui` to `packages/core` so the Bible Content Client can compose the header natively; `ui`'s `lib/sdk-version.ts` is now a re-export. Paths below reflect the move.
 
-`package.json` is the single source of the version. `lib/sdk-version.ts` varies only a suffix by build channel:
+Every API call made from inside a DOM component carries an `x-yvp-sdk` header (`ReactNativeSDK=<version>`), stamped by our DOM-side `YouVersionProvider` wrapper (`ui`'s `lib/web-yv-provider.ts`) via `getSdkHeaders()` in core's `src/sdk-version.ts`. YouVersion's data lake uses this header to tell **internal dev-time traffic** apart from **published-SDK (partner) traffic**.
+
+`package.json` is the single source of the version. `sdk-version.ts` varies only a suffix by build channel:
 
 - source / dev / test builds → `ReactNativeSDK={version}-dev`
 - published builds → `ReactNativeSDK={version}`
 
 The telemetry rule is `value.endsWith('-dev')`, identical to the Web SDK ([platform-sdk-react ADR 0002](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0002-sdk-version-dev-suffix-on-build.md)).
 
-On publish, `scripts/stamp-sdk-version.cjs` — wired as the last step of the UI package `prepublishOnly` (`expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs`) — flips `IS_PUBLISH_BUILD` from `false` to `true` in the **compiled** `build/lib/sdk-version.js`. Source is never touched.
+On publish, `scripts/stamp-sdk-version.cjs` — wired as the last step of the core package `prepublishOnly` (`expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs`) — flips `IS_PUBLISH_BUILD` from `false` to `true` in the **compiled** `build/sdk-version.js`. Source is never touched.
 
 ## Why the header was broken
 
@@ -27,10 +29,10 @@ An earlier revision of this ADR hardcoded `SDK_VERSION = 'Dev'` in source and ha
 
 ## Why importing `package.json` is fine here (reversing an earlier decision)
 
-The earlier revision rejected `import pkg from '../../package.json'` on two grounds. Both have since resolved:
+The earlier revision rejected importing `package.json` on two grounds. Both have since resolved:
 
 1. **"It has no dev sentinel — dev and partner builds report the same version."** The `-dev` suffix _is_ the sentinel. `{version}-dev` vs `{version}` separates the two channels cleanly, which is what made the import viable while keeping the split. This objection dissolves.
-2. **"`tsc` doesn't inline the JSON, so the import must resolve across the `src/` → `build/lib/` layout shift."** Measured, and it is a non-issue: `src/` and `build/` are siblings at equal depth, so `../../package.json` resolves to `packages/ui/package.json` from **both** `src/lib/` and `build/lib/` — the same path. `tsc` emits with no `rootDir` violation, does not copy `package.json` into `build/`, and leaves the import verbatim. npm always includes `package.json` in the tarball, so it is present at runtime for consumers.
+2. **"`tsc` doesn't inline the JSON, so the import must resolve across the `src/` → `build/` layout shift."** Measured, and it is a non-issue: `src/` and `build/` are siblings at equal depth, so the relative import resolves to the package's `package.json` from **both**. `tsc` emits with no `rootDir` violation, does not copy `package.json` into `build/`, and leaves the import verbatim. npm always includes `package.json` in the tarball, so it is present at runtime for consumers.
 
 So the version import stays live in the published artifact, and only the channel flag is stamped.
 
@@ -46,11 +48,11 @@ We land on the same **outcome** as the Web SDK via a different mechanism, becaus
 
 ## Mechanics
 
-- **One `.cjs` file** (`scripts/stamp-sdk-version.cjs`) holds both the pure transform and the file IO. The IO runs only under `require.main === module`. `packages/ui` has no `"type": "module"` yet emits ESM-syntax `build/` output, so a Node script cannot cleanly `import` the compiled file; a self-contained CJS script side-steps the module-system mismatch and runs natively at publish with no build step of its own.
+- **One `.cjs` file** (`scripts/stamp-sdk-version.cjs`) holds both the pure transform and the file IO. The IO runs only under `require.main === module`. `packages/core` has no `"type": "module"` yet emits ESM-syntax `build/` output, so a Node script cannot cleanly `import` the compiled file; a self-contained CJS script side-steps the module-system mismatch and runs natively at publish with no build step of its own.
 - **Wired into `prepublishOnly`, not `release.yml`.** Folding it into the build script gives deterministic build-then-stamp ordering (immune to npm/pnpm lifecycle-order quirks) and keeps the mechanism visible from `package.json` rather than buried in a workflow. A CI-only step would recreate the original failure mode: behavior hidden in the workflow, invisible from the source file.
 - **The guard asserts the positive stamp, and fails closed.** The transform throws unless it finds exactly one `IS_PUBLISH_BUILD = false` anchor, then asserts post-stamp that `= true` is present and `= false` is gone. It deliberately does **not** check that `-dev` is absent: the compiled ternary keeps the suffix in its dead else branch in _every_ build, published or not, so a `-dev` match would false-positive on every artifact. Checking only that `= false` disappeared would fail **open** — if tooling ever folded or minified the constant away, neither literal would survive and a dev build would sail through. Requiring the stamp means a build whose channel cannot be confirmed aborts the publish.
 - **Re-running the publish is safe, because the rebuild precedes the stamp.** `expo-module prepublishOnly` is `expo-module clean && expo-module build`, so `build/` is deleted and regenerated from source — anchor back at `= false` — before the stamp runs. A retried release (re-run from the Actions UI, or a second `pnpm publish`) therefore meets exactly one anchor again, not the `= true` file left behind by the previous attempt. The transform itself is deliberately **not** idempotent: `stampPublishBuild` on already-stamped input throws `found 0`, and `node scripts/stamp-sdk-version.cjs` run twice with no rebuild between fails the same way. That is the guard above doing its job, not a retry hazard — nothing on the publish path reaches the stamp without a rebuild in front of it.
-- **The anchor is checked against real `tsc` output in CI.** `SENTINEL` matches _compiled_ text, so it can drift away from source with every fixture-based unit test still green — and the first sign would be `changeset publish` throwing mid-release, after `packages/core` may already be on npm (a partial release). `src/lib/__tests__/sdk-version-stamp.test.ts` therefore transpiles the real `src/lib/sdk-version.ts` and asserts the anchor survives, moving that failure to the PR that causes it.
+- **The anchor is checked against real `tsc` output in CI.** `SENTINEL` matches _compiled_ text, so it can drift away from source with every fixture-based unit test still green — and the first sign would be `changeset publish` throwing mid-release (a partial release). `src/__tests__/sdk-version-stamp.test.ts` therefore transpiles the real `src/sdk-version.ts` and asserts the anchor survives, moving that failure to the PR that causes it.
 - **`pnpm pack` does not stamp.** `prepublishOnly` runs on `pnpm publish` only — `pnpm pack` runs neither the build nor the stamp, so a packed tarball reports `-dev` (or ships empty, if `build/` is absent). To reproduce a publish-identical tarball off-CI, run the publish steps by hand:
 
   ```bash
@@ -65,6 +67,6 @@ We land on the same **outcome** as the Web SDK via a different mechanism, becaus
 
 - Published packages report `ReactNativeSDK={version}`; dev/source builds report `ReactNativeSDK={version}-dev`. The data lake filters internal traffic with `endsWith('-dev')` — one rule for both SDKs — and still sees which version dev traffic came from.
 - The `IS_PUBLISH_BUILD = false` line is load-bearing: it must stay a lone `= false` assignment, or the publish fails loudly. Comments must not reproduce that exact text (it would inflate the anchor count).
-- Metro bundles `packages/ui/package.json` into consumer apps to resolve `pkg.version` (a few KB of already-public metadata, since Metro does not tree-shake by default). Accepted as the cost of keeping `package.json` the single version source.
+- Metro bundles `packages/core/package.json` into consumer apps to resolve `pkg.version` (a few KB of already-public metadata, since Metro does not tree-shake by default). Accepted as the cost of keeping `package.json` the single version source.
 - The publish path gains a small, tested script.
-- Only `packages/ui` is affected; `packages/core` has no such header.
+- The stamp lives in `packages/core`; `ui` re-exports the module and needs no stamp of its own — its compiled re-export resolves to core's stamped file at runtime, and the `fixed` changeset group keeps the two versions identical.

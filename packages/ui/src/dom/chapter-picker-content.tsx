@@ -7,7 +7,9 @@ import {
 import type { DOMProps } from 'expo/dom'
 import { useEffect, type ReactNode } from 'react'
 
+import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
@@ -18,6 +20,8 @@ import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type ChapterPickerContentDOMProps = {
   appKey: string
+  apiHost: string
+  fetchBibleContent: FetchBibleContent
   book?: string
   chapter?: string
   versionId?: number
@@ -37,6 +41,8 @@ type ChapterPickerContentInternalProps = ChapterPickerContentDOMProps &
 
 export default function ChapterPickerContentDOM({
   appKey,
+  apiHost,
+  fetchBibleContent,
   book,
   chapter,
   versionId = 3034,
@@ -50,6 +56,8 @@ export default function ChapterPickerContentDOM({
   permittedLanguageTags,
   locale,
 }: ChapterPickerContentInternalProps): ReactNode {
+  registerBibleContentAction({ apiHost, fetchBibleContent })
+
   useDismissKeyboardOnClose(isOpen)
   useDismissKeyboardOnSignal(dismissKeyboardNonce)
 

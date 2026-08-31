@@ -152,6 +152,7 @@ export type BibleReaderProps = Omit<
   | 'style'
   | 'apiHost'
   | 'installationId'
+  | 'fetchBibleContent'
   | 'onSignInPress'
   | 'onSignOutPress'
   | 'onExternalLinkPress'
@@ -594,6 +595,7 @@ export function BibleReader({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
+          fetchBibleContent={context.fetchBibleContent}
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}

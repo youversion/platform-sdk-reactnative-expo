@@ -43,6 +43,8 @@ type EmbedDomProps = {
 
 type LatestDomProps = {
   appKey?: string
+  apiHost?: string
+  fetchBibleContent?: unknown
   reference?: string
   versionId?: number
   theme?: string
@@ -150,6 +152,8 @@ describe('BibleCard', () => {
     expect(getByTestId('mock-reference').children).toContain('JHN.3.16')
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
+    expect(latestDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 
   function versionFilterWrapper(lists: {
