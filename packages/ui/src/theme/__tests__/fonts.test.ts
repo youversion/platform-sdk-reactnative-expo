@@ -78,7 +78,11 @@ afterEach(() => {
   jest.restoreAllMocks()
 })
 
-function jsonResponse(body: object, status = 200): Response {
+type WrongFamilyFont = Omit<UntitledSerifFont, 'family'> & { family: string }
+
+type FontsApiJson = UntitledSerifFont | WrongFamilyFont | { error: string } | { id: number }
+
+function jsonResponse(body: FontsApiJson, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     statusText: String(status),
