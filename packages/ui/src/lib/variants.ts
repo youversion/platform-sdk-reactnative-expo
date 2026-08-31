@@ -1,9 +1,9 @@
 import { StyleSheet } from 'react-native'
-import type { ImageStyle, TextStyle, ViewStyle } from 'react-native'
+import type { TextStyle, ViewStyle } from 'react-native'
 
 import type { Tokens } from '../theme'
 
-type StyleValue = ViewStyle | TextStyle | ImageStyle
+type StyleValue = ViewStyle | TextStyle
 
 type VariantGroupMap = {
   readonly [group: string]: {
