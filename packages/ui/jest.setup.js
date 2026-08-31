@@ -133,8 +133,11 @@ jest.mock('@expo-google-fonts/inter', () => ({
 
 jest.mock('@expo-google-fonts/source-serif-4', () => ({
   SourceSerif4_400Regular: 1400,
+  SourceSerif4_400Regular_Italic: 1401,
   SourceSerif4_500Medium: 1500,
+  SourceSerif4_500Medium_Italic: 1501,
   SourceSerif4_700Bold: 1700,
+  SourceSerif4_700Bold_Italic: 1701,
 }))
 
 const untitledSerifFetchPayload = {
