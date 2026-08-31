@@ -2,10 +2,10 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
