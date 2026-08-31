@@ -1,7 +1,8 @@
 // Bible Content Client (ADR 0020): native performs eligible Bible content
-// requests, reading the Content Store before the network and writing every
-// 2xx body back with a Content Expiry.
+// requests, reading the Content Store before the network and writing storable
+// 2xx bodies back with a Content Expiry from the response's Content Lifetime.
 import { getSdkHeaders } from '../sdk-version'
+import { contentLifetimeMs } from './content-lifetime'
 import { createBibleContentStore, type BibleContentStore } from './content-store'
 
 export type BibleContentRequest = { path: string }
@@ -24,9 +25,6 @@ type BibleContentClientDeps = {
   store?: BibleContentStore
   now?: () => number
 }
-
-/** Placeholder until the client obeys `Cache-Control` — real lifetimes and `no-store` (ADR 0020). */
-export const DEFAULT_CONTENT_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000
 
 const CONTENT_PATH = /^\/v1\/bibles\/(\d+)(\/|$)/
 
@@ -70,7 +68,14 @@ export function createBibleContentClient({
       })
       const body = await response.text()
       if (response.ok) {
-        store.write(versionId, key, { body, expiresAt: now() + DEFAULT_CONTENT_LIFETIME_MS })
+        const lifetimeMs = contentLifetimeMs(
+          response.headers.get('cache-control'),
+          response.headers.get('age'),
+        )
+        // null: `no-cache`/`no-store`; 0: already expired — neither is stored (ADR 0020).
+        if (lifetimeMs !== null && lifetimeMs > 0) {
+          store.write(versionId, key, { body, expiresAt: now() + lifetimeMs })
+        }
       }
       return { status: response.status, body, contentType: response.headers.get('content-type') }
     } finally {

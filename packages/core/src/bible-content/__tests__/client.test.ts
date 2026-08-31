@@ -3,7 +3,8 @@ import { createMMKV } from 'react-native-mmkv'
 import { MMKV_AUTH_KEYS } from '../../auth/constants'
 import { getSdkHeaders } from '../../sdk-version'
 import { mmkvStorage } from '../../storage/mmkv-storage'
-import { createBibleContentClient, DEFAULT_CONTENT_LIFETIME_MS } from '../client'
+import { createBibleContentClient } from '../client'
+import { DEFAULT_CONTENT_LIFETIME_MS } from '../content-lifetime'
 import { createBibleContentStore } from '../content-store'
 
 const PATH = '/v1/bibles/111/chapters/JHN.1'
@@ -148,7 +149,7 @@ describe('createBibleContentClient', () => {
     })
   })
 
-  it('writes a 2xx body with the placeholder lifetime', async () => {
+  it('writes a 2xx body with the seven-day default when Cache-Control is absent', async () => {
     const { client, fetchMock, store } = setup()
     fetchMock.mockImplementation(async () => new Response('{"a":1}', { status: 200 }))
 
@@ -158,6 +159,53 @@ describe('createBibleContentClient', () => {
       body: '{"a":1}',
       expiresAt: NOW + DEFAULT_CONTENT_LIFETIME_MS,
     })
+  })
+
+  it('derives the Content Expiry from max-age less Age', async () => {
+    const { client, fetchMock, store } = setup()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response('{"a":1}', {
+          status: 200,
+          headers: { 'cache-control': 'public, max-age=86400', age: '400' },
+        }),
+    )
+
+    await client({ path: PATH })
+
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toEqual({
+      body: '{"a":1}',
+      expiresAt: NOW + 86_000_000,
+    })
+  })
+
+  it.each(['no-store', 'no-cache'])('never writes a response carrying %s', async (directive) => {
+    const { client, fetchMock, store } = setup()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response('{"a":1}', { status: 200, headers: { 'cache-control': directive } }),
+    )
+
+    await client({ path: PATH })
+    await client({ path: PATH })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toBeNull()
+  })
+
+  it('never writes a response whose lifetime clamps to zero', async () => {
+    const { client, fetchMock, store } = setup()
+    fetchMock.mockImplementation(
+      async () =>
+        new Response('{"a":1}', {
+          status: 200,
+          headers: { 'cache-control': 'max-age=300', age: '300' },
+        }),
+    )
+
+    await client({ path: PATH })
+
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toBeNull()
   })
 
   it('never writes a non-2xx response', async () => {
