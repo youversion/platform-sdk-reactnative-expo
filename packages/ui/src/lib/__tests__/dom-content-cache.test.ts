@@ -37,6 +37,38 @@ describe('ensureDomContentCache', () => {
   })
 
   it.each([
+    ['an explicit default port', `${API_HOST}:443`],
+    ['uppercase', 'API.YouVersion.COM'],
+  ])(
+    'still intercepts when the registered apiHost carries %s (ADR 0020: no WebView bypass)',
+    async (_label, apiHost) => {
+      const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+      action.mockResolvedValue({ status: 200, body: '{}', contentType: 'application/json' })
+      registerBibleContentAction({ apiHost, fetchBibleContent: action })
+
+      const response = await globalThis.fetch(CONTENT_URL)
+
+      expect(response.status).toBe(200)
+      expect(action).toHaveBeenCalledWith({ path: '/v1/bibles/111/chapters/JHN.1?fields=content' })
+      expect(passthrough).not.toHaveBeenCalled()
+    },
+  )
+
+  it('matches a non-default port only when both sides carry it', async () => {
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    action.mockResolvedValue({ status: 200, body: '{}', contentType: 'application/json' })
+    registerBibleContentAction({ apiHost: `${API_HOST}:8443`, fetchBibleContent: action })
+    passthrough.mockResolvedValue(new Response('from network'))
+
+    await globalThis.fetch(`https://${API_HOST}:8443/v1/bibles/111/chapters/JHN.1`)
+    expect(action).toHaveBeenCalledTimes(1)
+
+    await globalThis.fetch(CONTENT_URL)
+    expect(action).toHaveBeenCalledTimes(1)
+    expect(passthrough).toHaveBeenCalledWith(CONTENT_URL, undefined)
+  })
+
+  it.each([
     ['a POST to a content path', CONTENT_URL, { method: 'POST' }],
     ['another host', 'https://other.example.com/v1/bibles/111/chapters/JHN.1', undefined],
     ['the versions list', `https://${API_HOST}/v1/bibles`, undefined],

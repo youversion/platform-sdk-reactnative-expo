@@ -12,7 +12,17 @@ let registration: BibleContentRegistration | null = null
 
 /** Called by DOM components on render; the latest registration wins. */
 export function registerBibleContentAction(next: BibleContentRegistration): void {
-  registration = next
+  registration = { ...next, apiHost: normalizeHost(next.apiHost) }
+}
+
+// Normalize like the URLs the Web SDK builds from the same string, so the
+// host compare below survives an explicit :443, uppercase, or IDN apiHost.
+function normalizeHost(apiHost: string): string {
+  try {
+    return new URL(`https://${apiHost}`).host
+  } catch {
+    return apiHost
+  }
 }
 
 const CONTENT_PATH = /^\/v1\/bibles\/\d+(\/|$)/
