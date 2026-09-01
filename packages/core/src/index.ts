@@ -43,3 +43,6 @@ export type {
 } from './highlights'
 
 export { mmkvStorage } from './storage'
+
+export type { BibleContentRequest, BibleContentResponse, FetchBibleContent } from './bible-content/client'
+

@@ -1,20 +1,26 @@
 import type { HookOverrides } from '@youversion/platform-react-native-expo-core'
 import type { ComponentType, ReactNode } from 'react'
 
-import { YouVersionProvider } from '../native/youversion-provider'
+import { YouVersionProvider, type YouVersionTheme } from '../native/youversion-provider'
 import { defaultHookOverrides } from './default-hook-overrides'
+
+type YouVersionTestWrapper = ComponentType<{ children: ReactNode }> & {
+  setTheme: (theme: YouVersionTheme) => void
+}
 
 /** RTL `wrapper` factory shared by native component tests that need `YouVersionProvider`. */
 export function youVersionProviderWrapper(
-  providerTheme: 'light' | 'dark' | 'system' = 'light',
+  providerTheme: YouVersionTheme = 'light',
   locale?: string,
   hookOverrides?: HookOverrides,
-): ComponentType<{ children: ReactNode }> {
+): YouVersionTestWrapper {
+  const themeHolder = { current: providerTheme }
+
   function YouVersionTestWrapper({ children }: { children: ReactNode }) {
     return (
       <YouVersionProvider
         appKey="test-key"
-        theme={providerTheme}
+        theme={themeHolder.current}
         locale={locale}
         hookOverrides={{ ...defaultHookOverrides, ...hookOverrides }}
       >
@@ -22,5 +28,11 @@ export function youVersionProviderWrapper(
       </YouVersionProvider>
     )
   }
-  return YouVersionTestWrapper
+
+  /** Mutates the holder only. Tests must still call `rerender(undefined)` so RTL reads the wrapper again. */
+  function setTheme(theme: YouVersionTheme) {
+    themeHolder.current = theme
+  }
+
+  return Object.assign(YouVersionTestWrapper, { setTheme })
 }

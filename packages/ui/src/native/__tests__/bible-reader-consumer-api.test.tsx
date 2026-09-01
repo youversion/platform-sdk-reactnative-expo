@@ -72,9 +72,16 @@ const hookOverrides: HookOverrides = {
 
 const wrapper = youVersionProviderWrapper('light', undefined, hookOverrides)
 
-function MockDOM(props: {
+type ReaderDomCapture = {
+  apiHost?: string
+  fetchBibleContent?: unknown
   onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
-}) {
+}
+
+let latestReaderDomProps: ReaderDomCapture = {}
+
+function MockDOM(props: ReaderDomCapture) {
+  latestReaderDomProps = props
   return (
     <View testID="mock-dom">
       <Pressable
@@ -91,6 +98,7 @@ beforeEach(() => {
   highlightPermissionFlowApply.mockClear()
   rawRemove.mockClear()
   refreshHighlights.mockClear()
+  latestReaderDomProps = {}
   installBibleReaderTestImpls()
   setImpl('BibleReaderDom', MockDOM)
   setImpl(
@@ -130,6 +138,13 @@ async function selectVerses(getByTestId: (id: string) => Parameters<typeof fireE
 }
 
 describe('BibleReader consumer API', () => {
+  it('passes apiHost and the content action to the DOM entry', () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    expect(latestReaderDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestReaderDomProps.fetchBibleContent).toEqual(expect.any(Function))
+  })
+
   it('refreshHighlights calls through to highlights.refresh', async () => {
     const reader = createRef<BibleReaderHandle>()
 

@@ -1,6 +1,6 @@
 'use dom'
 
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
+import type { FetchBibleContent, Highlight } from '@youversion/platform-react-native-expo-core'
 import { VerseOfTheDay } from '@youversion/platform-react-ui'
 import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
@@ -8,6 +8,7 @@ import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 import { ContentSizedBody } from '../lib/content-sized-body'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -17,6 +18,7 @@ export type VerseOfTheDayProps = WebVerseOfTheDayProps & {
   appKey: string
   apiHost: string
   installationId: string
+  fetchBibleContent: FetchBibleContent
   /**
    * Must be defined on the first render — its presence latches Controlled
    * Highlights Latch. `[]` means nothing highlighted. Omitting it latches
@@ -34,6 +36,7 @@ export default function VerseOfTheDayDOM({
   appKey,
   apiHost,
   installationId,
+  fetchBibleContent,
   highlights,
   theme = 'light',
   onShare,
@@ -44,6 +47,7 @@ export default function VerseOfTheDayDOM({
   ...props
 }: VerseOfTheDayDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
+  registerBibleContentAction({ apiHost, fetchBibleContent })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
   // only residue an older SDK version left in this WebView's `localStorage`.

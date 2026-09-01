@@ -1,4 +1,5 @@
 import { createContext } from 'react'
+import type { FetchBibleContent } from './bible-content/client'
 import type { HookOverrides } from './hook-overrides'
 
 /**
@@ -13,6 +14,8 @@ export type YouVersionContextValue = {
   appKey: string
   apiHost: string
   installationId: string
+  /** Performs Bible content requests natively (ADR 0020). */
+  fetchBibleContent: FetchBibleContent
   authRedirectUrl?: string
   /** Test seam: return stub hook results without fetching. */
   hookOverrides?: HookOverrides

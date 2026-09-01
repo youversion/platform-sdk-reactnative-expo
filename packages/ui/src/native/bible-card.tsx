@@ -1,5 +1,9 @@
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
-import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
+import {
+  useYouVersion,
+  type FetchBibleContent,
+  type Highlight,
+} from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
@@ -30,6 +34,7 @@ export type BibleCardProps = Omit<
   | 'appKey'
   | 'apiHost'
   | 'installationId'
+  | 'fetchBibleContent'
   | 'onVersionChange'
   | 'onVersionPickerPress'
   | 'theme'
@@ -60,6 +65,7 @@ type BibleCardBodyProps = Omit<
     appKey: string
     apiHost: string
     installationId: string
+    fetchBibleContent: FetchBibleContent
     resolvedTheme: Theme
     versionId: number | undefined
     onVersionChange: (newVersionId: number) => Promise<void>
@@ -80,6 +86,7 @@ function BibleCardBody({
   appKey,
   apiHost,
   installationId,
+  fetchBibleContent,
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
@@ -112,6 +119,7 @@ function BibleCardBody({
         appKey={appKey}
         apiHost={apiHost}
         installationId={installationId}
+        fetchBibleContent={fetchBibleContent}
         permittedVersionIds={permittedVersionIds}
         excludedVersionIds={excludedVersionIds}
         permittedLanguageTags={permittedLanguageTags}
@@ -232,6 +240,7 @@ export function BibleCard({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
+          fetchBibleContent={context.fetchBibleContent}
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}

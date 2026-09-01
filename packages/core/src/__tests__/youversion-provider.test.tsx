@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native'
+import { render, renderHook, screen } from '@testing-library/react-native'
 import { Text } from 'react-native'
 import type { ReactNode } from 'react'
 
@@ -105,6 +105,19 @@ describe('YouVersionProvider', () => {
         permittedLanguageTags: ['en', 'zh-Hans'],
       }),
     )
+  })
+
+  it('provides a memoized fetchBibleContent client on context', () => {
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <YouVersionProvider appKey="appkey">{children}</YouVersionProvider>
+    )
+    const { result, rerender } = renderHook(() => useYouVersion(), { wrapper })
+
+    const first = result.current.fetchBibleContent
+    expect(first).toEqual(expect.any(Function))
+
+    rerender(undefined)
+    expect(result.current.fetchBibleContent).toBe(first)
   })
 
   it('keeps unset version filter lists distinct from empty arrays on context', () => {

@@ -1,6 +1,6 @@
 'use dom'
 
-import type { Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type { FetchBibleContent, Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleReaderRootProps,
@@ -14,6 +14,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { useEffect } from 'react'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
@@ -35,6 +36,7 @@ type BibleReaderBaseProps = {
   appKey: string
   apiHost: string
   installationId: string
+  fetchBibleContent: FetchBibleContent
   // No `accessToken`. The reader is a pure view: highlights are controlled, auth
   // is native-owned, and nothing in the WebView has a use for the token. See
   // `clearAuthResidue` below for the upgrading-install cleanup.
@@ -106,6 +108,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
     appKey,
     apiHost,
     installationId,
+    fetchBibleContent,
     highlights,
     verseActions,
     onVerseSelect,
@@ -141,6 +144,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
     locale,
   } = props
   applySDKConfig({ appKey, apiHost, installationId })
+  registerBibleContentAction({ apiHost, fetchBibleContent })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
   // only residue an older SDK version left in this WebView's `localStorage`

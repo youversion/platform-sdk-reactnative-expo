@@ -1,12 +1,50 @@
-import { render } from '@testing-library/react-native'
+import { render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import * as Font from 'expo-font'
 import * as Localization from 'expo-localization'
 import type { Locale } from 'expo-localization'
 import { Text } from 'react-native'
 
 import { useLocale } from '../../i18n/locale-context'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import type { UntitledSerifFont } from '../../theme/fonts'
+import { bundledSans, untitledSerifFallback } from '../../theme/use-fonts'
 import { YouVersionProvider } from '../youversion-provider'
+
+const UNTITLED_SERIF_TTF_URI = 'https://cdn.youversion.com/test-fixtures/regular.ttf'
+
+const UNTITLED_SERIF_PAYLOAD = {
+  id: 1,
+  slug: 'untitled-serif',
+  family: 'Untitled Serif',
+  variants: [
+    {
+      weight: 400,
+      style: 'normal',
+      sources: [{ format: 'ttf', url: UNTITLED_SERIF_TTF_URI }],
+    },
+  ],
+}
+
+const WOFF2_ONLY_PAYLOAD = {
+  id: 1,
+  slug: 'untitled-serif',
+  family: 'Untitled Serif',
+  variants: [
+    {
+      weight: 400,
+      style: 'normal',
+      sources: [
+        {
+          format: 'woff2',
+          url: 'https://cdn.youversion.com/test-fixtures/regular.woff2',
+        },
+      ],
+    },
+  ],
+}
+
+const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
 
 function deviceLocale(languageTag: string, languageCode: string): Locale {
   return {
@@ -44,9 +82,33 @@ function ContextProbe() {
   return <LocaleProbe />
 }
 
+type FontsApiJson = UntitledSerifFont | { error: string } | { id: number }
+
+function jsonResponse(body: FontsApiJson, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+}
+
+function stubFontsFetch(): void {
+  mockFetch.mockReset()
+  mockFetch.mockResolvedValue(jsonResponse(UNTITLED_SERIF_PAYLOAD))
+  global.fetch = mockFetch
+  jest.mocked(Font.loadAsync).mockClear()
+}
+
+async function waitForFontMaps(count = 2): Promise<unknown[]> {
+  await waitFor(() => {
+    expect(jest.mocked(Font.loadAsync).mock.calls.length).toBeGreaterThanOrEqual(count)
+  })
+  return jest.mocked(Font.loadAsync).mock.calls.map((call) => call[0])
+}
+
 describe('YouVersionProvider locale', () => {
   beforeEach(() => {
     latestCoreContext = null
+    stubFontsFetch()
   })
 
   afterEach(() => {
@@ -128,5 +190,137 @@ describe('YouVersionProvider locale', () => {
     expect(latestCoreContext?.permittedVersionIds).toEqual([])
     expect(latestCoreContext?.excludedVersionIds).toEqual([])
     expect(latestCoreContext?.permittedLanguageTags).toEqual([])
+  })
+})
+
+describe('YouVersionProvider brand fonts', () => {
+  beforeEach(() => {
+    stubFontsFetch()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('commits children without waiting for fonts and fetches Untitled Serif with the app key', async () => {
+    const { getByTestId } = render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    expect(getByTestId('locale-lng')).toBeTruthy()
+
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(bundledSans)
+    expect(maps[1]).toEqual({
+      ...untitledSerifFallback,
+      'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
+    })
+
+    const firstCall = mockFetch.mock.calls[0]
+    if (firstCall === undefined) {
+      throw new Error('expected fetch to have been called')
+    }
+    const [url, init] = firstCall
+    expect(url).toBe('https://api.youversion.com/v1/fonts/1')
+    expect(String(url)).not.toContain('app_key')
+    expect(new Headers(init?.headers).get('X-YVP-App-Key')).toBe('test-key')
+    expect(new Headers(init?.headers).get('Accept')).toBe('application/json')
+  })
+
+  it('does not fetch Untitled Serif when the app key is whitespace', async () => {
+    render(
+      <YouVersionProvider appKey="   " hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(maps[0]).toEqual(bundledSans)
+    expect(maps[1]).toEqual(untitledSerifFallback)
+  })
+
+  it('fills omitted Untitled Serif faces with Source Serif 4', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        slug: 'untitled-serif',
+        family: 'Untitled Serif',
+        variants: [
+          {
+            weight: 400,
+            style: 'normal',
+            sources: [{ format: 'ttf', url: UNTITLED_SERIF_TTF_URI }],
+          },
+          {
+            weight: 700,
+            style: 'normal',
+            sources: [
+              { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
+            ],
+          },
+        ],
+      }),
+    )
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[1]).toEqual({
+      ...untitledSerifFallback,
+      'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
+      'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
+    })
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the payload has no TTF', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(WOFF2_ONLY_PAYLOAD))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(mockFetch).toHaveBeenCalled()
+    expect(maps[0]).toEqual(bundledSans)
+    expect(maps[1]).toEqual(untitledSerifFallback)
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the Fonts API is not ok', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockResolvedValue(jsonResponse({ error: 'unauthorized' }, 401))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(bundledSans)
+    expect(maps[1]).toEqual(untitledSerifFallback)
+  })
+
+  it('loads Source Serif 4 as Untitled Serif when the Fonts API payload does not match', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    mockFetch.mockResolvedValue(jsonResponse({ id: 1 }))
+
+    render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    const maps = await waitForFontMaps()
+    expect(maps[0]).toEqual(bundledSans)
+    expect(maps[1]).toEqual(untitledSerifFallback)
   })
 })

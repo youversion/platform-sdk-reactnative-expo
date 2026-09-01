@@ -18,6 +18,8 @@ const sampleFootnote: FootnoteData = {
 
 type BibleTextViewDomProps = {
   appKey: string
+  apiHost?: string
+  fetchBibleContent?: unknown
   reference?: string
   versionId?: number
   showVerseNumbers?: boolean
@@ -122,6 +124,8 @@ describe('BibleTextView', () => {
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-show-verse-numbers').children).toContain('1')
     expect(getByTestId('mock-font-size').children).toContain('18')
+    expect(latestTextViewDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestTextViewDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 
   it('forwards a component-level theme override to the DOM entry', () => {

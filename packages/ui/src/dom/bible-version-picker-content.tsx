@@ -8,7 +8,10 @@ import {
 import type { DOMProps } from 'expo/dom'
 import { useEffect, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 
+import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
+import { applySDKConfig } from '../lib/dom-apply'
 import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
@@ -20,6 +23,9 @@ import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VersionPickerContentDOMProps = {
   appKey: string
+  apiHost: string
+  installationId: string
+  fetchBibleContent: FetchBibleContent
   versionId?: number
   theme?: 'light' | 'dark'
   resetKey?: number
@@ -37,6 +43,9 @@ type VersionPickerContentInternalProps = VersionPickerContentDOMProps &
 
 export default function VersionPickerContentDOM({
   appKey,
+  apiHost,
+  installationId,
+  fetchBibleContent,
   versionId = 3034,
   theme = 'light',
   resetKey,
@@ -48,6 +57,10 @@ export default function VersionPickerContentDOM({
   permittedLanguageTags,
   locale,
 }: VersionPickerContentInternalProps): ReactNode {
+  // Keep the Web SDK on the native apiHost so the content intercept matches (ADR 0020).
+  applySDKConfig({ appKey, apiHost, installationId })
+  registerBibleContentAction({ apiHost, fetchBibleContent })
+
   const [showLanguagePicker, setShowLanguagePicker] = useState(false)
 
   useDismissKeyboardOnClose(isOpen)

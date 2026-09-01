@@ -64,6 +64,12 @@ if (typeof global.nativeModuleProxy === 'undefined') {
     },
   )
 }
+
+if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function') {
+  window.dispatchEvent = function dispatchEvent() {
+    return true
+  }
+}
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
@@ -107,6 +113,63 @@ jest.mock('react-native-safe-area-context', () => {
 jest.mock('expo/fetch', () => ({
   fetch: jest.fn(() => Promise.reject(new Error('expo/fetch is mocked in UI tests'))),
 }))
+
+/**
+ * `expo-font` talks to a native module that Jest cannot load. Brand-font tests
+ * assert fetch + map shape; loadAsync is a no-op here. Google Font packages
+ * `require()` ttf files, which the Jest transformer does not handle.
+ */
+jest.mock('expo-font', () => ({
+  loadAsync: jest.fn(() => Promise.resolve()),
+  useFonts: jest.fn(() => [true, null]),
+  isLoaded: jest.fn(() => true),
+}))
+
+jest.mock('@expo-google-fonts/inter', () => ({
+  Inter_400Regular: 400,
+  Inter_500Medium: 500,
+  Inter_700Bold: 700,
+}))
+
+jest.mock('@expo-google-fonts/source-serif-4', () => ({
+  SourceSerif4_400Regular: 1400,
+  SourceSerif4_400Regular_Italic: 1401,
+  SourceSerif4_500Medium: 1500,
+  SourceSerif4_500Medium_Italic: 1501,
+  SourceSerif4_700Bold: 1700,
+  SourceSerif4_700Bold_Italic: 1701,
+}))
+
+const untitledSerifFetchPayload = {
+  id: 1,
+  slug: 'untitled-serif',
+  family: 'Untitled Serif',
+  variants: [
+    {
+      weight: 400,
+      style: 'normal',
+      sources: [
+        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
+      ],
+    },
+  ],
+}
+
+const previousFetch = global.fetch
+global.fetch = jest.fn((input, init) => {
+  if (String(input).includes('/v1/fonts/')) {
+    return Promise.resolve(
+      new Response(JSON.stringify(untitledSerifFetchPayload), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+  }
+  if (typeof previousFetch === 'function') {
+    return previousFetch(input, init)
+  }
+  return Promise.reject(new Error(`unexpected fetch in UI tests: ${String(input)}`))
+})
 
 jest.mock('@rn-primitives/portal', () => ({
   Portal: ({ children }) => children,
@@ -210,3 +273,13 @@ jest.mock('react-native-mmkv', () => {
     useMMKVBoolean: (key, instance) => mockUseValue(key, instance, (mmkv, k) => mmkv.getBoolean(k)),
   }
 })
+
+/**
+ * expo-crypto's native module isn't available under jest-expo, so
+ * `Crypto.randomUUID()` returns undefined — leaving `installationId`
+ * undefined in every provider-backed test. Back it with node's crypto.
+ */
+jest.mock('expo-crypto', () => ({
+  ...jest.requireActual('expo-crypto'),
+  randomUUID: () => require('node:crypto').randomUUID(),
+}))
