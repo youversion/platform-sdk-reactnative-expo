@@ -1,5 +1,5 @@
 export { palette } from './palette'
 export { semanticColors } from './semantic'
-export { fontFamily, radius } from './scales'
+export { fontFamily, radius, typography } from './scales'
 export { getTokens } from './tokens'
 export type { Tokens } from './tokens'

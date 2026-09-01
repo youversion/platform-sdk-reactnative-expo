@@ -7,24 +7,20 @@ import { createVariants } from '../../lib/variants'
 import type { VariantProps } from '../../lib/variants'
 import { fontMapKey } from '../../theme/fonts'
 
-// Sizes are web text-sm/base/lg at 16dp per rem. Promote to a typography
-// token scale once a second component needs the steps.
 const textVariants = createVariants((tokens) => ({
   base: {
     color: tokens.foreground,
     fontFamily: tokens.fontFamily.sans,
-    fontSize: 16,
-    lineHeight: 24,
+    ...tokens.typography.base,
   },
   variants: {
     variant: {
       body: {},
-      muted: { color: tokens.mutedForeground, fontSize: 14, lineHeight: 20 },
+      muted: { color: tokens.mutedForeground, ...tokens.typography.sm },
       heading: {
         // Bold is a registered face, not a fontWeight — see AGENTS.md.
         fontFamily: fontMapKey(tokens.fontFamily.sans, 700, 'normal'),
-        fontSize: 18,
-        lineHeight: 28,
+        ...tokens.typography.lg,
       },
     },
   },
@@ -34,7 +30,7 @@ const textVariants = createVariants((tokens) => ({
 export type TextProps = RNTextProps & VariantProps<typeof textVariants>
 
 /** Themed text primitive. Internal — see UI Primitives in AGENTS.md. */
-export function Text({ variant, style, ...rest }: TextProps): ReactNode {
+export function Text({ variant, style, ...props }: TextProps): ReactNode {
   const tokens = useTokens()
-  return <RNText {...rest} style={[textVariants(tokens, { variant }), style]} />
+  return <RNText {...props} style={[textVariants(tokens, { variant }), style]} />
 }

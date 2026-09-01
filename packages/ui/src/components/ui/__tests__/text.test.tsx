@@ -27,11 +27,16 @@ describe('Text', () => {
     expect(flattenedStyle('Body copy')).toMatchObject({
       color: light.foreground,
       fontFamily: light.fontFamily.sans,
+      ...light.typography.base,
     })
-    expect(flattenedStyle('Muted copy')).toMatchObject({ color: light.mutedForeground })
+    expect(flattenedStyle('Muted copy')).toMatchObject({
+      color: light.mutedForeground,
+      ...light.typography.sm,
+    })
     expect(flattenedStyle('Heading copy')).toMatchObject({
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
+      ...light.typography.lg,
     })
   })
 
