@@ -22,9 +22,15 @@ function pinnedWebBundle(): string {
 }
 
 function cssTokenValues(css: string, name: string): string[] {
-  return [...css.matchAll(new RegExp(`${name}:([^;}{]+)`, 'g'))].map((match) =>
-    match[1].toLowerCase(),
-  )
+  const values: string[] = []
+  for (const match of css.matchAll(new RegExp(`${name}:([^;}{]+)`, 'g'))) {
+    const value = match[1]
+    if (value === undefined) {
+      continue
+    }
+    values.push(value.toLowerCase())
+  }
+  return values
 }
 
 describe('pinned platform-react-ui 2.12.0 (YPE-5058 / YPE-5059)', () => {
