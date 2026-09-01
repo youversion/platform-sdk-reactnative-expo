@@ -3,18 +3,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-// The publish stamp lives in scripts/ as a single `.cjs` so Node can run it at
-// publish time with no build step, while this test requires the same file and
-// exercises the pure transform. The file-IO block is guarded by
-// `require.main === module`, so requiring it here never touches the filesystem.
-// See docs/adr/0012-sdk-version-stamp-on-publish.md.
+// File IO in the script is guarded by `require.main === module`; requiring it
+// here only loads the pure transform.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { stampPublishBuild, SENTINEL, STAMPED } = require('../../../scripts/stamp-sdk-version.cjs')
+const { stampPublishBuild, SENTINEL, STAMPED } = require('../../scripts/stamp-sdk-version.cjs')
 
-// Mirrors the shape of the compiled build/lib/sdk-version.js: the flag, plus the
-// ternary whose dead else branch keeps `-dev` in every build.
+// Stand-in for the compiled build/sdk-version.js.
 const COMPILED = [
-  "import pkg from '../../package.json';",
+  "import pkg from '../package.json';",
   'const IS_PUBLISH_BUILD = false;',
   'export const SDK_VERSION = IS_PUBLISH_BUILD ? pkg.version : `${pkg.version}-dev`;',
   "const SDK_HEADER_NAME = 'X-YVP-Sdk';",
@@ -31,12 +27,10 @@ describe('stampPublishBuild', () => {
   it('leaves the surrounding lines untouched', () => {
     const out = stampPublishBuild(COMPILED)
     expect(out).toContain("const SDK_HEADER_NAME = 'X-YVP-Sdk';")
-    expect(out).toContain("import pkg from '../../package.json';")
+    expect(out).toContain("import pkg from '../package.json';")
   })
 
   it('throws if the anchor is missing (fails closed, never ships -dev)', () => {
-    // Stands in for tooling that folded or minified the constant away: neither
-    // literal survives, so the build channel cannot be confirmed.
     expect(() => stampPublishBuild('export const SDK_VERSION = pkg.version;')).toThrow(/found 0/)
   })
 
@@ -49,12 +43,9 @@ describe('stampPublishBuild', () => {
   })
 })
 
-// The tests above run against COMPILED, a hand-written stand-in. That leaves the
-// SENTINEL free to drift away from what tsc actually emits for sdk-version.ts —
-// and the first thing to notice would be `pnpm changeset publish` throwing
-// mid-release, after packages/core may already be on npm. These tests compile
-// the real source the way `expo-module build` does and assert the anchor
-// survives, so drift fails a PR instead of a publish.
+// SENTINEL matches compiled text, so it can drift from what tsc emits with the
+// fixture tests still green. Compile the real source and catch drift in the PR
+// instead of mid-publish.
 describe('stampPublishBuild against real tsc output', () => {
   function transpileSource(): string {
     const sourcePath = path.join(__dirname, '..', 'sdk-version.ts')
@@ -76,10 +67,10 @@ describe('stampPublishBuild against real tsc output', () => {
       ],
       { encoding: 'utf8' },
     )
-    return fs.readFileSync(path.join(outDir, 'src/lib/sdk-version.js'), 'utf8')
+    return fs.readFileSync(path.join(outDir, 'src/sdk-version.js'), 'utf8')
   }
 
-  it('emits exactly one anchor from src/lib/sdk-version.ts', () => {
+  it('emits exactly one anchor from src/sdk-version.ts', () => {
     expect(transpileSource().split(SENTINEL).length - 1).toBe(1)
   })
 
@@ -89,9 +80,6 @@ describe('stampPublishBuild against real tsc output', () => {
     expect(out).not.toContain(SENTINEL)
   })
 
-  // The reason the guard asserts the positive stamp instead of matching `-dev`:
-  // the suffix survives in the dead else branch even in a published build, so a
-  // `-dev` check would false-positive on every artifact.
   it('leaves -dev in the dead else branch after stamping, so -dev is not a usable signal', () => {
     expect(stampPublishBuild(transpileSource())).toContain('-dev')
   })

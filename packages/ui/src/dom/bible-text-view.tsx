@@ -1,6 +1,6 @@
 'use dom'
 
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
+import type { FetchBibleContent, Highlight } from '@youversion/platform-react-native-expo-core'
 import {
   BibleTextView,
   type BibleTextViewProps as WebBibleTextViewProps,
@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 import { toWebError, type DomError } from '../lib/dom-error'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -29,6 +30,7 @@ export type BibleTextViewProps = Omit<
   appKey: string
   apiHost: string
   installationId: string
+  fetchBibleContent: FetchBibleContent
   /**
    * Must be defined on the first render — its presence latches Controlled
    * Highlights Latch. `[]` means nothing highlighted. Omitting it latches
@@ -51,6 +53,7 @@ export default function BibleTextViewDOM({
   appKey,
   apiHost,
   installationId,
+  fetchBibleContent,
   highlights,
   theme = 'light',
   onVerseSelect,
@@ -63,6 +66,7 @@ export default function BibleTextViewDOM({
   ...props
 }: BibleTextViewDOMProps): ReactNode {
   applySDKConfig({ apiHost, appKey, installationId })
+  registerBibleContentAction({ apiHost, fetchBibleContent })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
   // only residue an older SDK version left in this WebView's `localStorage`.

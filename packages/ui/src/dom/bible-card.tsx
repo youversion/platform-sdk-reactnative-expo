@@ -1,6 +1,6 @@
 'use dom'
 
-import type { Highlight } from '@youversion/platform-react-native-expo-core'
+import type { FetchBibleContent, Highlight } from '@youversion/platform-react-native-expo-core'
 import {
   BibleCard,
   type BibleCardProps as WebBibleCardProps,
@@ -12,6 +12,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
+import { registerBibleContentAction } from '../lib/dom-content-cache'
 import { ContentSizedBody } from '../lib/content-sized-body'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -40,6 +41,7 @@ type BibleCardBridgeProps = Omit<
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   apiHost: string
   installationId: string
+  fetchBibleContent: FetchBibleContent
   theme?: 'light' | 'dark'
   dom?: DOMProps
 }
@@ -52,6 +54,7 @@ export default function BibleCardDOM({
   appKey,
   apiHost,
   installationId,
+  fetchBibleContent,
   highlights,
   theme = 'light',
   onVersionChange,
@@ -64,6 +67,7 @@ export default function BibleCardDOM({
   ...props
 }: BibleCardDOMProps): ReactNode {
   applySDKConfig({ appKey, apiHost, installationId })
+  registerBibleContentAction({ apiHost, fetchBibleContent })
 
   // Once per mount, not per render: there is no token to keep in sync any more,
   // only residue an older SDK version left in this WebView's `localStorage`.

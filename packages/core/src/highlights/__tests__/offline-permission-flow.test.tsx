@@ -133,7 +133,12 @@ function authValue(): AuthContextValue {
 function Wrapper({ children }: { children: ReactNode }) {
   return (
     <YouVersionContext.Provider
-      value={{ appKey: 'app-key', apiHost: 'api.youversion.com', installationId: 'install-1' }}
+      value={{
+        appKey: 'app-key',
+        apiHost: 'api.youversion.com',
+        installationId: 'install-1',
+        fetchBibleContent: jest.fn(),
+      }}
     >
       <AuthContext.Provider value={authValue()}>{children}</AuthContext.Provider>
     </YouVersionContext.Provider>

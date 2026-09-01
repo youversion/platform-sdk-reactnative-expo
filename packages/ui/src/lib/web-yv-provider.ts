@@ -5,16 +5,14 @@ import { ensureDomLocalStorage } from './dom-local-storage'
 import { YouVersionProvider as BaseYouVersionProvider } from '@youversion/platform-react-ui'
 import { createElement, type ComponentProps, type ReactNode } from 'react'
 
+import { ensureDomContentCache } from './dom-content-cache'
 import { mergeSdkHeaders } from './sdk-version'
 
 ensureDomLocalStorage()
+ensureDomContentCache()
 
 type ProviderProps = ComponentProps<typeof BaseYouVersionProvider>
 
-// DOM-side wrapper for the Web SDK's `YouVersionProvider`. Stamps the
-// `x-yvp-sdk` header onto every API call made from inside a DOM component.
-// SDK-attribution headers must always reach the data lake intact, so they
-// override any consumer-supplied entry on the same key.
 export function YouVersionProvider({ additionalHeaders, ...rest }: ProviderProps): ReactNode {
   return createElement(BaseYouVersionProvider, {
     ...rest,

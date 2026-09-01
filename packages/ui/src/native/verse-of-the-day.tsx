@@ -15,7 +15,7 @@ import { getDayOfYear } from './verse-of-the-day-api'
 
 export type VerseOfTheDayProps = Omit<
   VerseOfTheDayDOMProps,
-  'appKey' | 'apiHost' | 'installationId' | 'highlights'
+  'appKey' | 'apiHost' | 'installationId' | 'fetchBibleContent' | 'highlights'
 >
 
 export function VerseOfTheDay({
@@ -63,6 +63,7 @@ export function VerseOfTheDay({
           appKey={context.appKey}
           apiHost={context.apiHost}
           installationId={context.installationId}
+          fetchBibleContent={context.fetchBibleContent}
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}

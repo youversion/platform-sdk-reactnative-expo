@@ -11,6 +11,10 @@ import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
 type LatestDomProps = {
+  appKey?: string
+  apiHost?: string
+  installationId?: string
+  fetchBibleContent?: unknown
   theme?: string
   resetKey?: number
   locale?: string
@@ -165,6 +169,16 @@ describe('BibleChapterPickerSheet', () => {
     render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="system" />, { wrapper })
 
     expect(latestDomProps.theme).toBe('light')
+  })
+
+  it('passes appKey, apiHost, installationId, and the content action to DOM content', () => {
+    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+
+    expect(latestDomProps.appKey).toBe('test-key')
+    expect(latestDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestDomProps.installationId).toEqual(expect.any(String))
+    expect(latestDomProps.installationId).not.toBe('')
+    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 
   it('passes resetKey to DOM content', () => {

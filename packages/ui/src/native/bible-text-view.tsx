@@ -22,7 +22,7 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 export type BibleTextViewProps = Omit<
   BibleTextViewDOMProps,
-  'appKey' | 'apiHost' | 'installationId' | 'highlights'
+  'appKey' | 'apiHost' | 'installationId' | 'fetchBibleContent' | 'highlights'
 > & {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
@@ -65,6 +65,7 @@ export function BibleTextView({
             appKey={context.appKey}
             apiHost={context.apiHost}
             installationId={context.installationId}
+            fetchBibleContent={context.fetchBibleContent}
             permittedVersionIds={context.permittedVersionIds}
             excludedVersionIds={context.excludedVersionIds}
             permittedLanguageTags={context.permittedLanguageTags}

@@ -161,7 +161,12 @@ function Wrapper({ children }: { children: ReactNode }) {
     )
   return (
     <YouVersionContext.Provider
-      value={{ appKey: 'app-key', apiHost: 'api.youversion.com', installationId: 'install-1' }}
+      value={{
+        appKey: 'app-key',
+        apiHost: 'api.youversion.com',
+        installationId: 'install-1',
+        fetchBibleContent: jest.fn(),
+      }}
     >
       {inner}
     </YouVersionContext.Provider>
@@ -1616,6 +1621,7 @@ describe('hookOverrides skip live work', () => {
           appKey: 'app-key',
           apiHost: 'api.youversion.com',
           installationId: 'install-1',
+          fetchBibleContent: jest.fn(),
           hookOverrides,
         }}
       >

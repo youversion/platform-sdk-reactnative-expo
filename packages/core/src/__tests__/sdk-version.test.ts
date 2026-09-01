@@ -1,4 +1,4 @@
-import pkg from '../../../package.json'
+import pkg from '../../package.json'
 import { SDK_VERSION, getSdkHeaders, mergeSdkHeaders } from '../sdk-version'
 
 describe('sdk-version', () => {

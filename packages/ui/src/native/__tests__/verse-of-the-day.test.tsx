@@ -20,6 +20,8 @@ const sampleShareData: VerseOfTheDayShareData = {
 
 type LatestDomProps = {
   appKey?: string
+  apiHost?: string
+  fetchBibleContent?: unknown
   versionId?: number
   dayOfYear?: number
   theme?: string
@@ -84,6 +86,8 @@ describe('VerseOfTheDay', () => {
     expect(getByTestId('mock-app-key').children).toContain('test-key')
     expect(getByTestId('mock-version-id').children).toContain('3034')
     expect(getByTestId('mock-dom-match-contents').children).toContain('1')
+    expect(latestDomProps.apiHost).toBe('api.youversion.com')
+    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 
   it('applies the embed dom defaults when no dom prop is passed', () => {

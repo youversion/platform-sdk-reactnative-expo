@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { AuthProvider } from './auth/auth-provider'
 import type { AuthConfig } from './auth/types'
+import { createBibleContentClient } from './bible-content/client'
 import { DEFAULT_API_HOST } from './constants'
 import { HighlightQueueDrainHost } from './highlights/highlight-queue-drain-host'
 import { getOrSetInstallationId } from './installation-id'
@@ -40,11 +41,17 @@ export default function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const [installationId] = useState(getOrSetInstallationId)
 
+  const fetchBibleContent = useMemo(
+    () => createBibleContentClient({ appKey, apiHost, installationId }),
+    [appKey, apiHost, installationId],
+  )
+
   const config = useMemo(
     () => ({
       installationId,
       appKey,
       apiHost,
+      fetchBibleContent,
       authRedirectUrl: auth?.redirectUri,
       hookOverrides,
       permittedVersionIds,
@@ -55,6 +62,7 @@ export default function YouVersionProvider({
       installationId,
       appKey,
       apiHost,
+      fetchBibleContent,
       auth?.redirectUri,
       hookOverrides,
       permittedVersionIds,

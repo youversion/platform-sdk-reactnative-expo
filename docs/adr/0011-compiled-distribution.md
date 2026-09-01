@@ -61,3 +61,7 @@ Timing: loosening an `exports` map later (adding subpaths) is additive and non-b
 - Adds `expo-module-scripts` (and its dependency tree) as a dev dependency to both packages.
 - Locks the publish tool to pnpm. Raw `npm publish` is unsupported.
 - The publish mechanism is verified via `pnpm pack` (tarball ships `build/`, excludes `src/`, preserves `'use dom'`), but not yet validated end-to-end with an installed tarball rendering on device. PUBLISHING.md gates the first publish on that check.
+
+## Amendment (2026-08-31, YPE-5510)
+
+Core now exposes a second subpath, `./sdk-version` (mirrored in `publishConfig.exports`). The DOM bundle needs `getSdkHeaders` without pulling core's barrel — and its native modules — into the WebView, and ADR 0012's publish stamp targets that one compiled file. The seal otherwise stands: `.`, `./package.json`, and `./sdk-version` are the only entry points.
