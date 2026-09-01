@@ -36,6 +36,8 @@ let latestDomProps: LatestDomProps = {}
 // `useVerseOfTheDayPassageId` resolves its lookup in a microtask after mount, so
 // every render here settles it inside `act`. An update that lands after the test
 // body re-renders against the cleared impl registry and kills the Jest worker.
+// The empty flush is sufficient because `getVerseOfTheDayPassageId` returns null
+// on any failure and never rejects — do not stub it with `mockRejectedValue`.
 async function renderAndSettle(...args: Parameters<typeof render>) {
   const result = render(...args)
   await act(async () => {})
