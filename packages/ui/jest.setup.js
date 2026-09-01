@@ -210,3 +210,13 @@ jest.mock('react-native-mmkv', () => {
     useMMKVBoolean: (key, instance) => mockUseValue(key, instance, (mmkv, k) => mmkv.getBoolean(k)),
   }
 })
+
+/**
+ * expo-crypto's native module isn't available under jest-expo, so
+ * `Crypto.randomUUID()` returns undefined — leaving `installationId`
+ * undefined in every provider-backed test. Back it with node's crypto.
+ */
+jest.mock('expo-crypto', () => ({
+  ...jest.requireActual('expo-crypto'),
+  randomUUID: () => require('node:crypto').randomUUID(),
+}))

@@ -8,6 +8,7 @@ import type { DOMProps } from 'expo/dom'
 import { useEffect, type ReactNode } from 'react'
 
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
+import { applySDKConfig } from '../lib/dom-apply'
 import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
 import {
@@ -21,6 +22,7 @@ import { YouVersionProvider } from '../lib/web-yv-provider'
 export type ChapterPickerContentDOMProps = {
   appKey: string
   apiHost: string
+  installationId: string
   fetchBibleContent: FetchBibleContent
   book?: string
   chapter?: string
@@ -42,6 +44,7 @@ type ChapterPickerContentInternalProps = ChapterPickerContentDOMProps &
 export default function ChapterPickerContentDOM({
   appKey,
   apiHost,
+  installationId,
   fetchBibleContent,
   book,
   chapter,
@@ -56,6 +59,8 @@ export default function ChapterPickerContentDOM({
   permittedLanguageTags,
   locale,
 }: ChapterPickerContentInternalProps): ReactNode {
+  // Keep the Web SDK on the native apiHost so the content intercept matches (ADR 0020).
+  applySDKConfig({ appKey, apiHost, installationId })
   registerBibleContentAction({ apiHost, fetchBibleContent })
 
   useDismissKeyboardOnClose(isOpen)
