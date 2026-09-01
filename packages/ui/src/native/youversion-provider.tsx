@@ -8,6 +8,7 @@ import * as ReactNative from 'react-native'
 import { ThemeContext } from '../hooks/use-theme'
 import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
+import { useBrandFonts } from '../theme/use-fonts'
 import { NativeSheetProvider } from './native-sheet'
 
 export type YouVersionTheme = Theme | 'system'
@@ -46,6 +47,7 @@ export function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
+  useBrandFonts(appKey, apiHost)
 
   return (
     <CoreYouVersionProvider

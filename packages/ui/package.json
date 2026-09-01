@@ -53,6 +53,8 @@
     "prepublishOnly": "expo-module prepublishOnly && node scripts/stamp-sdk-version.cjs"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "0.4.2",
+    "@expo-google-fonts/source-serif-4": "0.4.1",
     "@radix-ui/react-use-controllable-state": "1.2.2",
     "@rn-primitives/portal": "1.4.0",
     "@youversion/platform-core": "2.9.0",
@@ -70,6 +72,7 @@
     "expo": ">=56.0.0 <57.0.0",
     "expo-application": ">=56.0.0 <57.0.0",
     "expo-clipboard": ">=56.0.0 <57.0.0",
+    "expo-font": ">=56.0.0 <57.0.0",
     "expo-web-browser": ">=56.0.0 <57.0.0",
     "react": ">=19.0.0 <20.0.0",
     "react-dom": ">=19.0.0 <20.0.0",
