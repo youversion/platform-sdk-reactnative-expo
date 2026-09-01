@@ -1,15 +1,58 @@
 /**
- * Seam 5 of YPE-5059: after Expo pins a published `@youversion/platform-react-ui`
- * that contains YPE-5058, reader paint and Words of Christ must match that
- * release (six hexes, mixSrgb fills, unmixed WOC `#94000C` / `#e4bfc2`).
- *
- * Skipped: YPE-5058 is not on npm. platform-sdk-react#359 is still open. Do not
- * git-pin that PR. Enable this once a published version contains 5058.
+ * Seam 5 of YPE-5059: the pinned `@youversion/platform-react-ui` owns reader
+ * fill and Words of Christ. Native HIGHLIGHT_COLORS must match that release.
+ * This file lives in ui so core never imports platform-react-ui (react-dom peer).
  */
-describe('reader paint after the YPE-5058 platform-react-ui pin', () => {
-  it.skip('reader paint and WOC match YPE-5058 once platform-react-ui publishes it', () => {
-    throw new Error(
-      'Enable after pinning a published @youversion/platform-react-ui that contains YPE-5058. Do not git-pin platform-sdk-react#359.',
-    )
+import { HIGHLIGHT_COLORS as nativeHighlightColors } from '@youversion/platform-react-native-expo-core'
+import { HIGHLIGHT_COLORS as webHighlightColors } from '@youversion/platform-react-ui'
+import { readFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
+
+const require = createRequire(__filename)
+
+const SIX = ['ffec5b', 'b4ffc1', 'bbf4ff', 'ffdca7', 'ffcff8', 'dfdcff'] as const
+const OLD_FIVE = ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'] as const
+
+function pinnedWebStyles(): string {
+  return readFileSync(require.resolve('@youversion/platform-react-ui/styles.css'), 'utf8')
+}
+
+function pinnedWebBundle(): string {
+  return readFileSync(require.resolve('@youversion/platform-react-ui'), 'utf8')
+}
+
+function cssTokenValues(css: string, name: string): string[] {
+  return [...css.matchAll(new RegExp(`${name}:([^;}{]+)`, 'g'))].map((match) =>
+    match[1].toLowerCase(),
+  )
+}
+
+describe('pinned platform-react-ui 2.12.0 (YPE-5058 / YPE-5059)', () => {
+  it('matches native HIGHLIGHT_COLORS to the six in 2.12.0', () => {
+    expect(webHighlightColors).toEqual([...SIX])
+    expect(nativeHighlightColors).toEqual([...webHighlightColors])
+  })
+
+  it('keeps the old five out of apply — they are leftover paint/clear only', () => {
+    for (const color of OLD_FIVE) {
+      expect(webHighlightColors).not.toContain(color)
+      expect(nativeHighlightColors).not.toContain(color)
+    }
+  })
+
+  it('mixes reader fills in sRGB at light p = 1.00 and dark p = 0.20', () => {
+    const css = pinnedWebStyles()
+    const bundle = pinnedWebBundle()
+
+    expect(cssTokenValues(css, '--yv-highlight-mix-p')).toEqual(['1', '.2'])
+    expect(bundle.includes('color-mix(in srgb')).toBe(true)
+    expect(bundle.includes('--yv-highlight-mix-p')).toBe(true)
+  })
+
+  it('paints Words of Christ unmixed on the mixed fill', () => {
+    const css = pinnedWebStyles()
+
+    expect(cssTokenValues(css, '--yv-wj')).toEqual(['#94000c', '#e4bfc2'])
+    expect(css.toLowerCase()).toMatch(/\.wj\{color:var\(--yv-wj\)\}/)
   })
 })
