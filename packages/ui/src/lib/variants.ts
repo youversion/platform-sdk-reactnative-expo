@@ -3,7 +3,7 @@ import type { TextStyle, ViewStyle } from 'react-native'
 
 import type { Tokens } from '../theme'
 
-type StyleValue = ViewStyle | TextStyle
+type StyleValue = ViewStyle & TextStyle
 
 type VariantGroupMap = {
   readonly [group: string]: {
