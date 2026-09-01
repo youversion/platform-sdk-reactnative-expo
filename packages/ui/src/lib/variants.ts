@@ -24,7 +24,7 @@ type VariantFactoryConfig<Groups extends VariantGroupMap> = {
 type VariantResolver<Groups extends VariantGroupMap> = (
   tokens: Tokens,
   props?: VariantSelection<Groups>,
-) => StyleValue[]
+) => Readonly<StyleValue>[]
 
 /**
  * Variant props accepted by a `createVariants` resolver.
@@ -32,7 +32,7 @@ type VariantResolver<Groups extends VariantGroupMap> = (
 export type VariantProps<Resolver> = Resolver extends (
   tokens: Tokens,
   props?: infer Props,
-) => StyleValue[]
+) => Readonly<StyleValue>[]
   ? NonNullable<Props>
   : never
 
@@ -92,7 +92,10 @@ export function createVariants<Groups extends VariantGroupMap>(
 ): VariantResolver<Groups> {
   const cache = new WeakMap<Tokens, CachedSheet>()
 
-  return function resolveVariants(tokens: Tokens, props?: VariantSelection<Groups>): StyleValue[] {
+  return function resolveVariants(
+    tokens: Tokens,
+    props?: VariantSelection<Groups>,
+  ): Readonly<StyleValue>[] {
     let cached = cache.get(tokens)
     if (cached === undefined) {
       const config = factory(tokens)
@@ -105,7 +108,7 @@ export function createVariants<Groups extends VariantGroupMap>(
       cache.set(tokens, cached)
     }
 
-    const styles: StyleValue[] = []
+    const styles: Readonly<StyleValue>[] = []
     if (cached.base !== undefined) {
       styles.push(cached.base)
     }
