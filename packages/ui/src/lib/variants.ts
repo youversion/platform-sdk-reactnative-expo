@@ -40,43 +40,33 @@ type SelectionRecord = {
   readonly [group: string]: string | undefined
 }
 
-type RegisteredSheet = {
-  readonly [key: string]: StyleValue | undefined
+type GroupSheet = {
+  readonly [value: string]: StyleValue | undefined
+}
+
+type CachedGroup = {
+  readonly name: string
+  readonly sheet: GroupSheet
 }
 
 type CachedSheet = {
-  readonly sheet: RegisteredSheet
-  readonly groups: readonly string[]
+  readonly base: StyleValue | undefined
+  readonly groups: readonly CachedGroup[]
   readonly defaults: SelectionRecord | undefined
 }
 
-function sheetKey(group: string, value: string): string {
-  // JSON escaping keeps the two halves unambiguous, so distinct pairs never share a key.
-  return JSON.stringify([group, value])
-}
-
-function registerSheet(config: VariantFactoryConfig<VariantGroupMap>): RegisteredSheet {
-  const pieces: { [key: string]: StyleValue } = {}
-  if (config.base !== undefined) {
-    pieces.base = config.base
+function buildGroups(variants: VariantGroupMap | undefined): readonly CachedGroup[] {
+  if (variants === undefined) {
+    return []
   }
-  const { variants } = config
-  if (variants !== undefined) {
-    for (const group of Object.keys(variants)) {
-      const values = variants[group]
-      if (values === undefined) {
-        continue
-      }
-      for (const value of Object.keys(values)) {
-        const piece = values[value]
-        if (piece === undefined) {
-          continue
-        }
-        pieces[sheetKey(group, value)] = piece
-      }
+  const groups: CachedGroup[] = []
+  for (const name of Object.keys(variants)) {
+    const values = variants[name]
+    if (values !== undefined) {
+      groups.push({ name, sheet: StyleSheet.create(values) })
     }
   }
-  return StyleSheet.create(pieces)
+  return groups
 }
 
 function asSelectionRecord(
@@ -106,28 +96,27 @@ export function createVariants<Groups extends VariantGroupMap>(
     let cached = cache.get(tokens)
     if (cached === undefined) {
       const config = factory(tokens)
-      const { variants } = config
+      const { base } = config
       cached = {
-        sheet: registerSheet(config),
-        groups: variants === undefined ? [] : Object.keys(variants),
+        base: base === undefined ? undefined : StyleSheet.create({ base }).base,
+        groups: buildGroups(config.variants),
         defaults: asSelectionRecord(config.defaultVariants),
       }
       cache.set(tokens, cached)
     }
 
     const styles: StyleValue[] = []
-    const { sheet } = cached
-    if (sheet.base !== undefined) {
-      styles.push(sheet.base)
+    if (cached.base !== undefined) {
+      styles.push(cached.base)
     }
 
     const selection = asSelectionRecord(props)
     for (const group of cached.groups) {
-      const value = selection?.[group] ?? cached.defaults?.[group]
-      if (value === undefined) {
+      const value = selection?.[group.name] ?? cached.defaults?.[group.name]
+      if (value === undefined || !Object.hasOwn(group.sheet, value)) {
         continue
       }
-      const piece = sheet[sheetKey(group, value)]
+      const piece = group.sheet[value]
       if (piece !== undefined) {
         styles.push(piece)
       }
