@@ -54,6 +54,41 @@ describe('ensureDomContentCache', () => {
     await expect(response.text()).resolves.toBe('from network')
   })
 
+  it('rejects with the abort reason without calling the native action when already aborted', async () => {
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+    const reason = new Error('caller gone')
+    const controller = new AbortController()
+    controller.abort(reason)
+
+    await expect(globalThis.fetch(CONTENT_URL, { signal: controller.signal })).rejects.toBe(reason)
+    expect(action).not.toHaveBeenCalled()
+  })
+
+  it('rejects with the abort reason, not a TypeError, when the signal aborts mid-flight', async () => {
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    action.mockReturnValue(new Promise(() => {}))
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+    const controller = new AbortController()
+
+    const pending = globalThis.fetch(CONTENT_URL, { signal: controller.signal })
+    const reason = new Error('timed out')
+    controller.abort(reason)
+
+    await expect(pending).rejects.toBe(reason)
+  })
+
+  it('resolves through the native action when a signal is present but never aborts', async () => {
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    action.mockResolvedValue({ status: 200, body: '{}', contentType: 'application/json' })
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+    const controller = new AbortController()
+
+    const response = await globalThis.fetch(CONTENT_URL, { signal: controller.signal })
+
+    expect(response.status).toBe(200)
+  })
+
   it('rejects with a TypeError when the native action throws, without falling back', async () => {
     const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
     action.mockRejectedValue(new Error('bridge died'))

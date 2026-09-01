@@ -22,6 +22,17 @@ const NULL_BODY_STATUSES = new Set([101, 204, 205, 304])
 
 const woven = new WeakSet<typeof globalThis.fetch>()
 
+// The caller's signal cannot cross the bridge, so race it against the bridge
+// call: the WebView side rejects on abort even though native runs to settle.
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) return promise
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason)
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort))
+  })
+}
+
 export function ensureDomContentCache(): void {
   const passthrough = globalThis.fetch
   if (!passthrough || woven.has(passthrough)) return
@@ -50,15 +61,21 @@ export function ensureDomContentCache(): void {
       throw new TypeError(`No native Bible content action registered for ${url.pathname}`)
     }
 
+    const signal = init?.signal ?? (input instanceof Request ? input.signal : undefined)
+    if (signal?.aborted) throw signal.reason
+
     try {
-      const { status, body, contentType } = await fetchBibleContent({
-        path: url.pathname + url.search,
-      })
+      const { status, body, contentType } = await raceAbort(
+        fetchBibleContent({ path: url.pathname + url.search }),
+        signal,
+      )
       return new Response(NULL_BODY_STATUSES.has(status) ? null : body, {
         status,
         headers: contentType === null ? undefined : { 'content-type': contentType },
       })
     } catch (error) {
+      // An abort surfaces as an abort, so ApiClient can tell timeout from network error.
+      if (signal?.aborted && error === signal.reason) throw error
       // ADR 0020: a native failure is a network error — no WebView fallback.
       throw new TypeError('Native Bible content request failed', { cause: error })
     }
