@@ -28,6 +28,8 @@ export type BibleContentStore = {
   write(versionId: number, key: string, entry: BibleContentEntry): void
   /** Ids of every version that has (or had) an instance. */
   listVersionIds(): number[]
+  /** Content Sweep (ADR 0020): delete every expired entry across all indexed versions. */
+  sweep(now: number): void
 }
 
 export type BibleContentStoreDeps = {
@@ -72,23 +74,34 @@ export function createBibleContentStore({
     return instance
   }
 
+  function readEntry(instance: MMKV, key: string, now: number): BibleContentEntry | null {
+    const raw = instance.getString(key)
+    if (raw === undefined) return null
+
+    const entry = parseStoredJson(raw, bibleContentEntrySchema)
+    if (entry === null || entry.expiresAt <= now) {
+      instance.remove(key)
+      return null
+    }
+    return entry
+  }
+
   return {
     read(versionId, key, now) {
-      const instance = instanceFor(versionId)
-      const raw = instance.getString(key)
-      if (raw === undefined) return null
-
-      const entry = parseStoredJson(raw, bibleContentEntrySchema)
-      if (entry === null || entry.expiresAt <= now) {
-        instance.remove(key)
-        return null
-      }
-      return entry
+      return readEntry(instanceFor(versionId), key, now)
     },
     write(versionId, key, entry) {
       rememberVersionId(versionId)
       instanceFor(versionId).set(key, JSON.stringify(entry))
     },
     listVersionIds,
+    sweep(now) {
+      for (const versionId of listVersionIds()) {
+        const instance = instanceFor(versionId)
+        for (const key of instance.getAllKeys()) {
+          readEntry(instance, key, now)
+        }
+      }
+    },
   }
 }

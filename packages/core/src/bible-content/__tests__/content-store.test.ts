@@ -88,4 +88,26 @@ describe('bible content store', () => {
     expect(store.read(111, KEY, 0)).toBeNull()
     expect(instance?.contains(KEY)).toBe(false)
   })
+
+  it('sweeps expired and corrupt entries across every indexed version, keeping live ones', () => {
+    const { store, opened } = setup()
+    store.write(111, KEY, { body: 'expired', expiresAt: 5_000 })
+    store.write(111, `${KEY}.2`, { body: 'live', expiresAt: 9_000 })
+    store.write(3034, KEY, { body: 'expired', expiresAt: 4_000 })
+    opened.get(bibleContentInstanceId(3034))?.set(`${KEY}.2`, 'not json')
+
+    store.sweep(5_000)
+
+    const niv = opened.get(bibleContentInstanceId(111))
+    const kjv = opened.get(bibleContentInstanceId(3034))
+    expect(niv?.contains(KEY)).toBe(false)
+    expect(niv?.contains(`${KEY}.2`)).toBe(true)
+    expect(kjv?.getAllKeys()).toEqual([])
+  })
+
+  it('sweeps to a no-op when no version was ever written', () => {
+    const { store, opened } = setup()
+    store.sweep(5_000)
+    expect(opened.size).toBe(0)
+  })
 })
