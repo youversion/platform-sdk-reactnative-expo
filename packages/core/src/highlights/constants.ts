@@ -1,3 +1,5 @@
+import { isValidHighlightHex } from './paint-projection'
+
 export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 
 /** Distinct from the cache prefix, so sign-out purges the queue by its own call, not by a prefix match. */
@@ -46,16 +48,30 @@ function byteToHex(value: number): string {
   return Math.round(value).toString(16).padStart(2, '0')
 }
 
+function requireMixHex(color: string): string {
+  const hex = stripHighlightHexPrefix(color)
+  if (!isValidHighlightHex(hex)) {
+    throw new Error(`mixSrgb: expected a 6-digit hex color, got ${JSON.stringify(color)}`)
+  }
+  return hex
+}
+
 /**
  * `stored * p + surfaceBg * (1 - p)`. Duplicated from
  * `@youversion/platform-react-ui` next to {@link HIGHLIGHT_COLORS} for the same
  * peer-boundary reason. Returns lowercase hex, no `#`.
+ * Invalid hex or `p` outside 0–1 throws.
  */
 export function mixSrgb(stored: string, surfaceBg: string, p: number): string {
+  if (!Number.isFinite(p) || p < 0 || p > 1) {
+    throw new Error(`mixSrgb: expected p in the range 0–1, got ${p}`)
+  }
+  const storedHex = requireMixHex(stored)
+  const surfaceHex = requireMixHex(surfaceBg)
   const q = 1 - p
-  const r = hexChannel(stored, 0) * p + hexChannel(surfaceBg, 0) * q
-  const g = hexChannel(stored, 2) * p + hexChannel(surfaceBg, 2) * q
-  const b = hexChannel(stored, 4) * p + hexChannel(surfaceBg, 4) * q
+  const r = hexChannel(storedHex, 0) * p + hexChannel(surfaceHex, 0) * q
+  const g = hexChannel(storedHex, 2) * p + hexChannel(surfaceHex, 2) * q
+  const b = hexChannel(storedHex, 4) * p + hexChannel(surfaceHex, 4) * q
   return `${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`
 }
 
