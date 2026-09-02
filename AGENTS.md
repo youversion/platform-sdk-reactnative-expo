@@ -49,9 +49,9 @@ NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-lang
 
 ## UI Primitives
 
-Internal design-system primitives (`Text`, and the compounds that follow) live in `packages/ui/src/components/ui/`, exported from that barrel only — never `src/index.ts` (pinned by `exports.test.ts`).
+Internal design-system primitives (`Text`, `Button`, …) live in `packages/ui/src/components/ui/`, exported from that barrel only — never `src/index.ts` (pinned by `exports.test.ts`).
 
-- **Compound pattern.** `Object.assign(Root, { Slot, … })`; a `useXContext()` that throws outside its root. RN inherits no text styles from parent views, so roots resolve foreground/size once and publish via context; slots consume it.
+- **Compound pattern.** `Object.assign(Root, { Slot, … })`; a `useXContext()` that throws outside its root. RN inherits no text styles from parent views, so roots resolve foreground/size once and publish via context; slots consume it. `Button` is the reference: root publishes `{ foreground, iconSize }`.
 - **Styling.** Tokens via `useTokens()`, variants via `createVariants` — import `lib/variants` directly, not the `lib` barrel (it drags the Web SDK into the native bundle). Caller `style` merges last.
 - **Gotchas.** Bare strings must sit inside `<Text>`. Bold is a registered face — `fontMapKey(family, 700, 'normal')`, never `fontWeight`. Alias RN's `Text` where both are imported.
 
