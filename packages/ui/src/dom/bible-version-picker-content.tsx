@@ -10,15 +10,15 @@ import { useEffect, useState, type MouseEvent, type ReactNode, type TouchEvent }
 
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { applySDKConfig } from '../lib/dom-apply'
-import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
+import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
-import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
-import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { getVersionPickerPanelClassName } from '../lib/version-picker-panels'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 export type VersionPickerContentDOMProps = {

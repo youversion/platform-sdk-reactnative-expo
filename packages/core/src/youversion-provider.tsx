@@ -1,7 +1,8 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { AuthProvider } from './auth/auth-provider'
 import type { AuthConfig } from './auth/types'
 import { createBibleContentClient } from './bible-content/client'
+import { createBibleContentStore } from './bible-content/content-store'
 import { DEFAULT_API_HOST } from './constants'
 import { HighlightQueueDrainHost } from './highlights/highlight-queue-drain-host'
 import { getOrSetInstallationId } from './installation-id'
@@ -40,11 +41,17 @@ export default function YouVersionProvider({
   children,
 }: YouVersionProviderProps): ReactNode {
   const [installationId] = useState(getOrSetInstallationId)
+  const [contentStore] = useState(createBibleContentStore)
 
   const fetchBibleContent = useMemo(
-    () => createBibleContentClient({ appKey, apiHost, installationId }),
-    [appKey, apiHost, installationId],
+    () => createBibleContentClient({ appKey, apiHost, installationId, store: contentStore }),
+    [appKey, apiHost, installationId, contentStore],
   )
+
+  // Content Sweep, once per mount and after first paint (ADR 0020).
+  useEffect(() => {
+    contentStore.sweep(Date.now())
+  }, [contentStore])
 
   const config = useMemo(
     () => ({

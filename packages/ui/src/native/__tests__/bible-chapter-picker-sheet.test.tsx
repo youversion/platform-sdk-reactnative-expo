@@ -3,10 +3,10 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
+import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 

@@ -9,13 +9,13 @@ import { useEffect, type ReactNode } from 'react'
 
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { applySDKConfig } from '../lib/dom-apply'
-import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
+import { useDismissKeyboardOnClose, useDismissKeyboardOnSignal } from '../lib/dom-dismiss-keyboard'
+import type { InternalLocaleProps } from '../lib/locale-props'
 import {
   attachPickerKeyboardViewportListeners,
   resyncPickerKeyboardViewport,
 } from '../lib/picker-keyboard-viewport'
-import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 

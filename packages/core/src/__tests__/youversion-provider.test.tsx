@@ -3,6 +3,7 @@ import { Text } from 'react-native'
 import type { ReactNode } from 'react'
 
 import * as AuthProviderModule from '../auth/auth-provider'
+import * as contentStoreModule from '../bible-content/content-store'
 import * as DrainHostModule from '../highlights/highlight-queue-drain-host'
 import * as installationId from '../installation-id'
 import { useYouVersion } from '../use-youversion'
@@ -105,6 +106,31 @@ describe('YouVersionProvider', () => {
         permittedLanguageTags: ['en', 'zh-Hans'],
       }),
     )
+  })
+
+  it('runs the Content Sweep once per mount, not on rerender', () => {
+    const sweep = jest.fn()
+    jest.spyOn(contentStoreModule, 'createBibleContentStore').mockReturnValue({
+      read: () => null,
+      write: () => {},
+      listVersionIds: () => [],
+      sweep,
+    })
+
+    const { rerender } = render(
+      <YouVersionProvider appKey="appkey">
+        <Text testID="content">Content</Text>
+      </YouVersionProvider>,
+    )
+    expect(sweep).toHaveBeenCalledTimes(1)
+    expect(sweep).toHaveBeenCalledWith(expect.any(Number))
+
+    rerender(
+      <YouVersionProvider appKey="appkey" apiHost="api.custom.com">
+        <Text testID="content">Content</Text>
+      </YouVersionProvider>,
+    )
+    expect(sweep).toHaveBeenCalledTimes(1)
   })
 
   it('provides a memoized fetchBibleContent client on context', () => {
