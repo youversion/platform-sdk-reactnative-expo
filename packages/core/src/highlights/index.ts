@@ -26,7 +26,7 @@ export {
 } from './cache'
 
 export { HIGHLIGHT_COLORS, isHighlightColor, type HighlightColor } from './constants'
-export { isValidHighlightHex } from './paint-projection'
+export { isValidHighlightHex, mixSrgb } from './paint-projection'
 
 // `clearHighlightQueue` is sign-out's, and stays internal.
 // `hasQueuedHighlightWrites` is public: the reader has to know whether signing

@@ -35,19 +35,27 @@ function stateWith(colors: Record<number, string> = {}): OptimisticState {
 }
 
 describe('the highlight palette', () => {
-  // Pinning test: these five values are a company-wide standard shared with the
-  // web SDK's HIGHLIGHT_COLORS. Changing them is a product decision, not a
-  // refactor.
-  it('pins the five company-standard swatches', () => {
-    expect(HIGHLIGHT_COLORS).toEqual(['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'])
+  // Pinning test: these six values are a company-wide standard shared with the
+  // web SDK's HIGHLIGHT_COLORS (YPE-5058). Changing them is a product decision,
+  // not a refactor.
+  it('pins the six company-standard apply swatches', () => {
+    expect(HIGHLIGHT_COLORS).toEqual(['ffec5b', 'b4ffc1', 'bbf4ff', 'ffdca7', 'ffcff8', 'dfdcff'])
   })
 
   it('matches swatches case-insensitively and rejects everything else', () => {
-    expect(isHighlightColor('FFFE00')).toBe(true)
-    expect(isHighlightColor(YELLOW)).toBe(true)
+    expect(isHighlightColor('FFEC5B')).toBe(true)
+    expect(isHighlightColor('ffec5b')).toBe(true)
     expect(isHighlightColor('ff0000')).toBe(false)
-    expect(isHighlightColor('#fffe00')).toBe(false)
+    expect(isHighlightColor('#ffec5b')).toBe(false)
     expect(isHighlightColor('')).toBe(false)
+  })
+
+  it('rejects the old five apply hexes', () => {
+    expect(isHighlightColor('fffe00')).toBe(false)
+    expect(isHighlightColor('5dff79')).toBe(false)
+    expect(isHighlightColor('00d6ff')).toBe(false)
+    expect(isHighlightColor('ffc66f')).toBe(false)
+    expect(isHighlightColor('ff95ef')).toBe(false)
   })
 })
 

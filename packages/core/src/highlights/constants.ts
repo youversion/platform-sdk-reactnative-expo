@@ -4,7 +4,7 @@ export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
 
 /**
- * The five highlight swatches for apply. Partner apps may share a highlights DB
+ * The six highlight swatches for apply. Partner apps may share a highlights DB
  * with the main Bible app, which can paint valid non-palette hex from the API;
  * only apply is restricted to this list.
  *
@@ -16,7 +16,14 @@ export const MMKV_HIGHLIGHT_QUEUE_KEY_PREFIX = 'yvp.highlightqueue.' as const
  * `@youversion/platform-core`, which both SDKs already depend on, and make this
  * a re-export.
  */
-export const HIGHLIGHT_COLORS = ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'] as const
+export const HIGHLIGHT_COLORS = [
+  'ffec5b',
+  'b4ffc1',
+  'bbf4ff',
+  'ffdca7',
+  'ffcff8',
+  'dfdcff',
+] as const
 
 export type HighlightColor = (typeof HIGHLIGHT_COLORS)[number]
 

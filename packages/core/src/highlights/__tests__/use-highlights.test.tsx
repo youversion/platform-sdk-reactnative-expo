@@ -28,9 +28,9 @@ const mockDeleteHighlight = jest.fn()
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const YELLOW = 'fffe00'
-const GREEN = '5dff79'
-const BLUE = '00d6ff'
+const YELLOW = 'ffec5b'
+const GREEN = 'b4ffc1'
+const BLUE = 'bbf4ff'
 
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const options = { versionId: 111, book: 'JHN', chapter: '3' }
@@ -50,9 +50,7 @@ function apiError(error: HighlightsApiError): Result<never, HighlightsApiError> 
 
 const transient = (status?: number, message = 'boom') => {
   const error: HighlightsApiError =
-    status === undefined
-      ? { kind: 'transient', message }
-      : { kind: 'transient', status, message }
+    status === undefined ? { kind: 'transient', message } : { kind: 'transient', status, message }
   return apiError(error)
 }
 const authError = (status: 401 | 403 = 401) =>
@@ -249,7 +247,7 @@ afterEach(() => {
 
 describe('instant mount from cache', () => {
   it('returns cached highlights on the FIRST render, before any effect runs', async () => {
-    seedCache([highlight('JHN.3.16', 'FFFE00'), highlight('JHN.3.20-21', GREEN)])
+    seedCache([highlight('JHN.3.16', 'FFEC5B'), highlight('JHN.3.20-21', GREEN)])
 
     // renderHook wraps in act(), which flushes effects — so capture the value
     // during render instead. The first entry is what the reader would paint on
@@ -1152,6 +1150,44 @@ describe('color validation', () => {
     expect(mockCreateHighlight).not.toHaveBeenCalled()
   })
 
+  it('rejects the old five apply hexes with no paint and no request', async () => {
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    for (const color of ['fffe00', '5dff79', '00d6ff', 'ffc66f', 'ff95ef'] as const) {
+      let outcome: HighlightWriteOutcome | undefined
+      await act(async () => {
+        outcome = await result.current.apply(color, [16])
+      })
+
+      expect(outcome).toMatchObject({ status: 'error', reason: 'invalid', failedVerses: [16] })
+    }
+
+    expect(result.current.highlights).toEqual([])
+    expect(mockCreateHighlight).not.toHaveBeenCalled()
+  })
+
+  it('paints leftover fffe00 from the server and clears it by exact hex', async () => {
+    seedServer([highlight('JHN.3.16', 'fffe00')])
+    const { result } = renderUseHighlights()
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(colorsOf(result.current)).toEqual({ 'JHN.3.16': 'fffe00' })
+
+    let outcome: HighlightWriteOutcome | undefined
+    await act(async () => {
+      outcome = await result.current.remove('fffe00', [16])
+    })
+
+    expect(outcome).toMatchObject({ status: 'ok', verses: [16] })
+    expect(mockDeleteHighlight).toHaveBeenCalled()
+    expect(colorsOf(result.current)).toEqual({})
+  })
+
   it('clears valid non-palette hex from remove', async () => {
     seedServer([highlight('JHN.3.16', 'ff0000')])
     const { result } = renderUseHighlights()
@@ -1188,7 +1224,7 @@ describe('color validation', () => {
   it('accepts a swatch given in uppercase', async () => {
     const { result } = renderUseHighlights()
     await act(async () => {
-      await result.current.apply('FFFE00', [16])
+      await result.current.apply('FFEC5B', [16])
     })
 
     expect(mockCreateHighlight).toHaveBeenCalledWith('token-1', {

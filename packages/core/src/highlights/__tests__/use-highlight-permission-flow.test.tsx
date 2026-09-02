@@ -40,8 +40,8 @@ function stubHighlights(options: UseHighlightsOptions): UseHighlightsResult {
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
-const YELLOW = 'fffe00'
-const GREEN = '5dff79'
+const YELLOW = 'ffec5b'
+const GREEN = 'b4ffc1'
 const options: UseHighlightsOptions = { versionId: 111, book: 'JHN', chapter: '3' }
 
 /** Ordered log of the pre-flight, so "before" can be asserted rather than assumed. */
@@ -116,10 +116,7 @@ function Wrapper({ children }: { children: ReactNode }) {
   // removing the element would remount the subtree — losing the flow under test
   // for reasons that have nothing to do with auth.
   return (
-    <YouVersionProvider
-      appKey="app-key"
-      hookOverrides={{ useHighlights: stubHighlights }}
-    >
+    <YouVersionProvider appKey="app-key" hookOverrides={{ useHighlights: stubHighlights }}>
       <AuthContext.Provider value={currentAuth === null ? null : authValue(currentAuth)}>
         {children}
       </AuthContext.Provider>

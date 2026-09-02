@@ -224,8 +224,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@youversion/platform-react-ui':
-        specifier: 2.10.0
-        version: 2.10.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
+        specifier: 2.12.0
+        version: 2.12.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
       expo:
         specifier: '>=56.0.0 <57.0.0'
         version: 56.0.12(@babel/core@7.29.0)(@expo/dom-webview@56.0.5)(@expo/metro-runtime@56.0.15)(expo-router@56.2.11)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
@@ -2844,6 +2844,14 @@ packages:
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==}
 
+  '@tanstack/query-core@5.101.4':
+    resolution: {integrity: sha512-gNwcvOJcRbLWPOLG/2OBm+zM+Yv+MKsXKEOWC57USuZDEsI71hEErQsiEGx5wX9rzWWkfwM0fVSPoiIFSsxfiw==}
+
+  '@tanstack/react-query@5.101.4':
+    resolution: {integrity: sha512-yRg2pfOCxIs4ZJW3XYYHU/WgtD04FHSnfHlpRT7h7pR77hwkdRG4wxbKe4aq6P0RvXUTBSQpQeadS1SUYUe+KA==}
+    peerDependencies:
+      react: ^18 || ^19
+
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
     engines: {node: '>=18'}
@@ -3175,8 +3183,8 @@ packages:
       xstate:
         optional: true
 
-  '@youversion/platform-core@2.10.0':
-    resolution: {integrity: sha512-jH6HDV09qy4r8PmuMnozC7BnjHzs8fAshwXu7SsjT8TyRkVagI7qlX3K/EaJGVfd4lWLatJB2tLUJRguDHd5MA==}
+  '@youversion/platform-core@2.12.0':
+    resolution: {integrity: sha512-tYCxXZcdmLFRVRD8eSbYWDv2sXs3yXlA8ZajTNH1GU0o7linHbFCvL1z6bOEqchjtN6Z6cQe24i0Ap1uSFXHsA==}
     peerDependencies:
       jsdom: ^24.0.0 || ^28.0.0
     peerDependenciesMeta:
@@ -3191,13 +3199,13 @@ packages:
       jsdom:
         optional: true
 
-  '@youversion/platform-react-hooks@2.10.0':
-    resolution: {integrity: sha512-STt3RlLk74er6voAsUBTznrRBVaBedJN7Vc3U7TDBEiFW2PmNNFA17ZZ4UA3EpepRHe3NDiC8GVc0eps9Tw0+g==}
+  '@youversion/platform-react-hooks@2.12.0':
+    resolution: {integrity: sha512-pCaJ5CEoehYq3e2VnanlzQYB6pCEOHnJ/vU2ybrCX8lDK6nnyMiL+of4vbink64sEHlsX5vHnT3Sl+MrzL8JqQ==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
 
-  '@youversion/platform-react-ui@2.10.0':
-    resolution: {integrity: sha512-iId8YV/nRRi+ErEth49VTHXjF1+d7Y9XJJplmIKjln2Wsiyr1I8EFIt4dSzqXyWVDkh4gkXMimyaLSwSk/IJSQ==}
+  '@youversion/platform-react-ui@2.12.0':
+    resolution: {integrity: sha512-9zyNlKZSXAk9EUUX8FfbEbJJHj8mUgl/WsqPOerQEuBbceua4qLfLJ4skwx07LGdQ+kSAvKI+zP9T8gItohjZg==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
       react-dom: '>=19.1.0 <20.0.0'
@@ -10519,6 +10527,13 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
+  '@tanstack/query-core@5.101.4': {}
+
+  '@tanstack/react-query@5.101.4(react@19.2.5)':
+    dependencies:
+      '@tanstack/query-core': 5.101.4
+      react: 19.2.5
+
   '@testing-library/dom@10.4.1':
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -10835,7 +10850,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@youversion/platform-core@2.10.0':
+  '@youversion/platform-core@2.12.0':
     dependencies:
       zod: 4.1.12
 
@@ -10843,14 +10858,15 @@ snapshots:
     dependencies:
       zod: 4.1.12
 
-  '@youversion/platform-react-hooks@2.10.0(react@19.2.5)':
+  '@youversion/platform-react-hooks@2.12.0(react@19.2.5)':
     dependencies:
-      '@youversion/platform-core': 2.10.0
+      '@tanstack/react-query': 5.101.4(react@19.2.5)
+      '@youversion/platform-core': 2.12.0
       react: 19.2.5
     transitivePeerDependencies:
       - jsdom
 
-  '@youversion/platform-react-ui@2.10.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)':
+  '@youversion/platform-react-ui@2.12.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/jest-preset@0.85.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)':
     dependencies:
       '@radix-ui/react-accordion': 1.2.12(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-dialog': 1.1.15(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -10860,8 +10876,8 @@ snapshots:
       '@radix-ui/react-tabs': 1.1.13(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-use-controllable-state': 1.2.2(@types/react@19.2.14)(react@19.2.5)
       '@xstate/react': 6.1.0(@types/react@19.2.14)(react@19.2.5)(xstate@5.32.4)
-      '@youversion/platform-core': 2.10.0
-      '@youversion/platform-react-hooks': 2.10.0(react@19.2.5)
+      '@youversion/platform-core': 2.12.0
+      '@youversion/platform-react-hooks': 2.12.0(react@19.2.5)
       better-result: 2.9.2
       class-variance-authority: 0.7.1
       clsx: 2.1.1

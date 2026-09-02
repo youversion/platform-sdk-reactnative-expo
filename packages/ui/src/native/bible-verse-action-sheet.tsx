@@ -1,9 +1,15 @@
+import { mixSrgb } from '@youversion/platform-react-native-expo-core'
 import { useRef, useState, type ReactNode } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg'
 
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { SHEET_FOREGROUND, SHEET_MUTED_BACKGROUND, SHEET_STROKE } from '../lib/native-sheet-theme'
+import {
+  SHEET_FOREGROUND,
+  SHEET_MUTED_BACKGROUND,
+  SHEET_STROKE,
+  SHEET_SURFACE,
+} from '../lib/native-sheet-theme'
 import type { Theme } from '../lib/resolve-theme'
 import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
@@ -12,10 +18,10 @@ import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
 /**
- * Highlight fill alpha: full strength in light mode, faded in dark. Each swatch
- * previews at the alpha it paints, so the dark tray reads dimmer.
+ * Light identity. Dark `p = 0.20` against {@link SHEET_SURFACE}, same mix as
+ * web YPE-5058. Not a second dark, and not the tray muted fill.
  */
-const FILL_OPACITY = { light: 1, dark: 0.3 } satisfies Record<Theme, number>
+const HIGHLIGHT_MIX_P = { light: 1, dark: 0.2 } satisfies Record<Theme, number>
 
 /**
  * Row metrics. The swatch tray and both action tiles share one row height, and
@@ -66,10 +72,15 @@ const SWATCH_GAP = 8
  */
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 
-/** `fffe00` → `rgba(255, 254, 0, 0.3)`. Input is always 6-char hex, no `#`. */
-function hexToRgba(hex: string, alpha: number): string {
-  const value = Number.parseInt(hex, 16)
-  return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`
+/** Stored hex mixed against {@link SHEET_SURFACE}. Input is 6-char hex, no `#`. */
+function swatchFillHex(stored: string, theme: Theme): string {
+  try {
+    return `#${mixSrgb(stored, SHEET_SURFACE[theme], HIGHLIGHT_MIX_P[theme])}`
+  } catch {
+    // Same silent degrade as the old hexToRgba path: a bad hex must not crash
+    // the sheet. The builder already drops invalid hex; this is the last gate.
+    return SHEET_SURFACE[theme]
+  }
 }
 
 export type BibleVerseActionSheetProps = {
@@ -193,16 +204,15 @@ function BibleVerseActionSheetImpl({
                     style={[
                       styles.swatch,
                       {
-                        backgroundColor: hexToRgba(swatch.color, FILL_OPACITY[theme]),
+                        backgroundColor: swatchFillHex(swatch.color, theme),
                         borderColor: SHEET_STROKE[theme],
                       },
                     ]}
                   >
                     {/*
                      * The check takes the on-surface foreground, not a contrast
-                     * pick against the fill. Light mode paints a full-strength
-                     * swatch in Text/Everdark, and dark mode fades the fill to
-                     * 30%. White reads on both.
+                     * pick against the fill. Light paints the stored hex; dark
+                     * mixes it at 20% over the sheet surface. White reads on both.
                      */}
                     {swatch.state === 'remove' && (
                       <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />

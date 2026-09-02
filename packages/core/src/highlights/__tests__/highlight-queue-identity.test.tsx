@@ -32,8 +32,8 @@ const mockDeleteHighlight = jest.fn()
 let mockLoadTokens: jest.SpiedFunction<typeof tokenStorage.loadTokens>
 let mockSignInWithPKCE: jest.SpiedFunction<typeof pkceFlow.signInWithPKCE>
 
-const YELLOW = 'fffe00'
-const GREEN = '5dff79'
+const YELLOW = 'ffec5b'
+const GREEN = 'b4ffc1'
 const scope: HighlightScope = { versionId: 111, book: 'JHN', chapter: '3' }
 const authConfig = { redirectUri: 'https://app/cb', permissions: ['highlights' as const] }
 

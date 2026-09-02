@@ -27,11 +27,7 @@ import {
   emptyHighlights,
   signedOutAuth,
 } from '../../test-utils/default-hook-overrides'
-import {
-  resetImpls,
-  setImpl,
-  stubImpl,
-} from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { YouVersionProvider } from '../youversion-provider'
 import { BibleReader } from '../bible-reader'
 
@@ -57,8 +53,8 @@ const SELECTION: BibleReaderVerseSelection = {
   shareData: SHARE_DATA,
 }
 
-const GREEN = '5dff79'
-const BLUE = '00d6ff'
+const GREEN = 'b4ffc1'
+const BLUE = 'bbf4ff'
 
 function highlight(verse: number, color: string): Highlight {
   return { version_id: VERSION_ID, passage_id: `JHN.1.${verse}`, color }
