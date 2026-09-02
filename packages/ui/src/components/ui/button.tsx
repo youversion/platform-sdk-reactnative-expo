@@ -136,6 +136,8 @@ function ButtonRoot({ variant, size, style, disabled, ...props }: ButtonProps): 
         style={({ pressed }) => [
           buttonVariants(tokens, { variant: resolvedVariant, size, scheme }),
           style,
+          // State styles outrank `style`, as web's `disabled:`/`hover:` variants
+          // do: a caller overriding these leaves a dead control looking live.
           pressed && styles.pressed,
           disabled === true && styles.disabled,
         ]}
