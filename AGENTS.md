@@ -47,6 +47,14 @@ Content cache, `Cache-Control`, lifetime, or sweep: `CONTEXT.md` and [ADR 0020](
 
 NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md), [0006](docs/adr/0006-inactive-sheet-inertness.md), [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md), [0017](docs/adr/0017-native-verse-action-sheet.md).
 
+## UI Primitives
+
+Internal design-system primitives (`Text`, and the compounds that follow) live in `packages/ui/src/components/ui/`, exported from that barrel only — never `src/index.ts` (pinned by `exports.test.ts`).
+
+- **Compound pattern.** `Object.assign(Root, { Slot, … })`; a `useXContext()` that throws outside its root. RN inherits no text styles from parent views, so roots resolve foreground/size once and publish via context; slots consume it.
+- **Styling.** Tokens via `useTokens()`, variants via `createVariants` — import `lib/variants` directly, not the `lib` barrel (it drags the Web SDK into the native bundle). Caller `style` merges last.
+- **Gotchas.** Bare strings must sit inside `<Text>`. Bold is a registered face — `fontMapKey(family, 700, 'normal')`, never `fontWeight`. Alias RN's `Text` where both are imported.
+
 ## Localization
 
 Native copy or locale keys: `docs/contributing/native-i18n.md`.

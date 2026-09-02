@@ -14,6 +14,14 @@ describe('getTokens', () => {
     expect(radius.xl).toBe(36)
   })
 
+  it('uses the web type ramp in density-independent pixels', () => {
+    const { typography } = getTokens('light')
+
+    expect(typography.sm).toEqual({ fontSize: 14, lineHeight: 20 })
+    expect(typography.base).toEqual({ fontSize: 16, lineHeight: 24 })
+    expect(typography.lg).toEqual({ fontSize: 18, lineHeight: 28 })
+  })
+
   it('returns the same object for repeat calls of a scheme', () => {
     expect(getTokens('light')).toBe(getTokens('light'))
     expect(getTokens('dark')).toBe(getTokens('dark'))
@@ -26,6 +34,8 @@ describe('getTokens', () => {
     expect(Object.isFrozen(tokens)).toBe(true)
     expect(Object.isFrozen(tokens.radius)).toBe(true)
     expect(Object.isFrozen(tokens.fontFamily)).toBe(true)
+    expect(Object.isFrozen(tokens.typography)).toBe(true)
+    expect(Object.isFrozen(tokens.typography.base)).toBe(true)
   })
 
   it('maps light semantic colors from the web default theme', () => {
