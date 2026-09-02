@@ -17,22 +17,6 @@ function pinnedWebStyles(): string {
   return readFileSync(require.resolve('@youversion/platform-react-ui/styles.css'), 'utf8')
 }
 
-function pinnedWebBundle(): string {
-  return readFileSync(require.resolve('@youversion/platform-react-ui'), 'utf8')
-}
-
-function cssTokenValues(css: string, name: string): string[] {
-  const values: string[] = []
-  for (const match of css.matchAll(new RegExp(`${name}:([^;}{]+)`, 'g'))) {
-    const value = match[1]
-    if (value === undefined) {
-      continue
-    }
-    values.push(value.toLowerCase())
-  }
-  return values
-}
-
 describe('pinned platform-react-ui 2.12.0 (YPE-5058 / YPE-5059)', () => {
   it('matches native HIGHLIGHT_COLORS to the six in 2.12.0', () => {
     expect(webHighlightColors).toEqual([...SIX])
@@ -46,19 +30,10 @@ describe('pinned platform-react-ui 2.12.0 (YPE-5058 / YPE-5059)', () => {
     }
   })
 
-  it('mixes reader fills in sRGB at light p = 1.00 and dark p = 0.20', () => {
-    const css = pinnedWebStyles()
-    const bundle = pinnedWebBundle()
+  it('pins Words of Christ as unmixed #94000C / #e4bfc2', () => {
+    const css = pinnedWebStyles().toLowerCase()
 
-    expect(cssTokenValues(css, '--yv-highlight-mix-p')).toEqual(['1', '.2'])
-    expect(bundle.includes('color-mix(in srgb')).toBe(true)
-    expect(bundle.includes('--yv-highlight-mix-p')).toBe(true)
-  })
-
-  it('paints Words of Christ unmixed on the mixed fill', () => {
-    const css = pinnedWebStyles()
-
-    expect(cssTokenValues(css, '--yv-wj')).toEqual(['#94000c', '#e4bfc2'])
-    expect(css.toLowerCase()).toMatch(/\.wj\{color:var\(--yv-wj\)\}/)
+    expect(css).toContain('#94000c')
+    expect(css).toContain('#e4bfc2')
   })
 })

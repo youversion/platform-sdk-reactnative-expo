@@ -1,4 +1,4 @@
-import { mixSrgb } from '../constants'
+import { mixSrgb } from '../paint-projection'
 
 describe('mixSrgb', () => {
   it('is identity in light (p = 1.00)', () => {

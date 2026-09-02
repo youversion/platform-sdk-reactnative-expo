@@ -1,5 +1,3 @@
-import { isValidHighlightHex } from './paint-projection'
-
 export const MMKV_HIGHLIGHTS_KEY_PREFIX = 'yvp.highlights.' as const
 
 /** Distinct from the cache prefix, so sign-out purges the queue by its own call, not by a prefix match. */
@@ -34,45 +32,6 @@ const HIGHLIGHT_COLOR_SET: ReadonlySet<string> = new Set(HIGHLIGHT_COLORS)
 /** Case-insensitive membership test against {@link HIGHLIGHT_COLORS}. */
 export function isHighlightColor(color: string): color is HighlightColor {
   return HIGHLIGHT_COLOR_SET.has(color.toLowerCase())
-}
-
-function stripHighlightHexPrefix(color: string): string {
-  return color.startsWith('#') ? color.slice(1) : color
-}
-
-function hexChannel(hex: string, offset: number): number {
-  return Number.parseInt(stripHighlightHexPrefix(hex).slice(offset, offset + 2), 16)
-}
-
-function byteToHex(value: number): string {
-  return Math.round(value).toString(16).padStart(2, '0')
-}
-
-function requireMixHex(color: string): string {
-  const hex = stripHighlightHexPrefix(color)
-  if (!isValidHighlightHex(hex)) {
-    throw new Error(`mixSrgb: expected a 6-digit hex color, got ${JSON.stringify(color)}`)
-  }
-  return hex
-}
-
-/**
- * `stored * p + surfaceBg * (1 - p)`. Duplicated from
- * `@youversion/platform-react-ui` next to {@link HIGHLIGHT_COLORS} for the same
- * peer-boundary reason. Returns lowercase hex, no `#`.
- * Invalid hex or `p` outside 0–1 throws.
- */
-export function mixSrgb(stored: string, surfaceBg: string, p: number): string {
-  if (!Number.isFinite(p) || p < 0 || p > 1) {
-    throw new Error(`mixSrgb: expected p in the range 0–1, got ${p}`)
-  }
-  const storedHex = requireMixHex(stored)
-  const surfaceHex = requireMixHex(surfaceBg)
-  const q = 1 - p
-  const r = hexChannel(storedHex, 0) * p + hexChannel(surfaceHex, 0) * q
-  const g = hexChannel(storedHex, 2) * p + hexChannel(surfaceHex, 2) * q
-  const b = hexChannel(storedHex, 4) * p + hexChannel(surfaceHex, 4) * q
-  return `${byteToHex(r)}${byteToHex(g)}${byteToHex(b)}`
 }
 
 export type HighlightScope = {

@@ -74,7 +74,13 @@ const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 
 /** Stored hex mixed against {@link SHEET_SURFACE}. Input is 6-char hex, no `#`. */
 function swatchFillHex(stored: string, theme: Theme): string {
-  return `#${mixSrgb(stored, SHEET_SURFACE[theme], HIGHLIGHT_MIX_P[theme])}`
+  try {
+    return `#${mixSrgb(stored, SHEET_SURFACE[theme], HIGHLIGHT_MIX_P[theme])}`
+  } catch {
+    // Same silent degrade as the old hexToRgba path: a bad hex must not crash
+    // the sheet. The builder already drops invalid hex; this is the last gate.
+    return SHEET_SURFACE[theme]
+  }
 }
 
 export type BibleVerseActionSheetProps = {
