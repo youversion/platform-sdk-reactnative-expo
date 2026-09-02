@@ -224,4 +224,15 @@ describe('Button', () => {
 
     expect(buttonStyle('Styled')).toMatchObject({ backgroundColor: light.card })
   })
+
+  it('keeps the state styles out of reach of a caller style', () => {
+    render(
+      <Button disabled style={{ opacity: 1 }}>
+        <Button.Text>Pinned</Button.Text>
+      </Button>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(buttonStyle('Pinned')).toMatchObject({ opacity: 0.5 })
+  })
 })

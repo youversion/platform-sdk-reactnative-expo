@@ -115,7 +115,7 @@ function useButtonContext(): ButtonContextValue {
 
 export type ButtonProps = Omit<PressableProps, 'style'> &
   Omit<ButtonVariantProps, 'scheme'> & {
-    /** Merged last, after the variant styles. Pressable's style-function form is not supported. */
+    /** Merged after the variant styles, but not over the pressed and disabled ones. Pressable's style-function form is not supported. */
     style?: StyleProp<ViewStyle>
   }
 
@@ -135,9 +135,9 @@ function ButtonRoot({ variant, size, style, disabled, ...props }: ButtonProps): 
         {...props}
         style={({ pressed }) => [
           buttonVariants(tokens, { variant: resolvedVariant, size, scheme }),
+          style,
           pressed && styles.pressed,
           disabled === true && styles.disabled,
-          style,
         ]}
       />
     </ButtonContext.Provider>
