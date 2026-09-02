@@ -242,14 +242,11 @@ describe('Button', () => {
   })
 
   it('does not let a caller restyle the label through a Text variant', () => {
-    render(
-      <Button>
-        {/* @ts-expect-error — `variant` is omitted from ButtonTextProps; the root
-            owns the label color. This asserts the omission is real, not just documented. */}
-        <Button.Text variant="heading">Labeled</Button.Text>
-      </Button>,
-      { wrapper: youVersionProviderWrapper() },
-    )
+    // @ts-expect-error — `variant` is omitted from ButtonTextProps; the root owns
+    // the label color. This asserts the omission is real, not just documented.
+    const label = <Button.Text variant="heading">Labeled</Button.Text>
+
+    render(<Button>{label}</Button>, { wrapper: youVersionProviderWrapper() })
 
     expect(labelStyle('Labeled')).toMatchObject({
       color: light.primaryForeground,
