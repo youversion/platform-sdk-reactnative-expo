@@ -235,4 +235,21 @@ describe('Button', () => {
 
     expect(buttonStyle('Pinned')).toMatchObject({ opacity: 0.5 })
   })
+
+  it('does not let a caller restyle the label through a Text variant', () => {
+    render(
+      <Button>
+        {/* @ts-expect-error — `variant` is omitted from ButtonTextProps; the root
+            owns the label color. This asserts the omission is real, not just documented. */}
+        <Button.Text variant="heading">Labeled</Button.Text>
+      </Button>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(labelStyle('Labeled')).toMatchObject({
+      color: light.primaryForeground,
+      fontFamily: fontMapKey(light.fontFamily.sans, 500, 'normal'),
+      ...light.typography.sm,
+    })
+  })
 })
