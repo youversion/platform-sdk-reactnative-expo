@@ -74,7 +74,10 @@ describe('Button', () => {
     expect(buttonStyle('link')).toMatchObject({ backgroundColor: 'transparent' })
   })
 
-  it('applies the dark-only alpha fills web writes under `dark:`', () => {
+  // The alpha fills read through `withAlpha` rather than a literal: the exact
+  // string is pinned against hex in `lib/__tests__/color.test.ts`, so this pins
+  // the token and opacity each variant reaches for.
+  it('reaches for the dark-only alpha fills web writes under `dark:`', () => {
     renderEveryVariant('dark')
 
     expect(buttonStyle('default')).toMatchObject({ backgroundColor: dark.primary })
@@ -86,6 +89,8 @@ describe('Button', () => {
       backgroundColor: withAlpha(dark.input, 0.3),
     })
     expect(buttonStyle('secondary')).toMatchObject({ backgroundColor: dark.muted })
+    expect(buttonStyle('ghost')).toMatchObject({ backgroundColor: 'transparent' })
+    expect(buttonStyle('link')).toMatchObject({ backgroundColor: 'transparent' })
   })
 
   it('publishes the variant foreground to Button.Text', () => {
