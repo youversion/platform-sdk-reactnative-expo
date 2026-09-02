@@ -2,7 +2,7 @@
  * Native verse-action dots mix stored hex against SHEET_SURFACE via mixSrgb
  * (YPE-5059). Light is identity. Dark is p = 0.20 against #121212.
  */
-import { mixSrgb } from '@youversion/platform-react-native-expo-core'
+import { HIGHLIGHT_COLORS, mixSrgb } from '@youversion/platform-react-native-expo-core'
 import { render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
@@ -85,5 +85,20 @@ describe('BibleVerseActionSheet swatch fill', () => {
     render(<SheetHarness theme="light" swatches={[{ color: 'nothex', state: 'remove' }]} />)
 
     expect(swatchFill('remove', 'nothex')).toBe(SHEET_SURFACE.light)
+  })
+
+  it('keeps a 16px gap so six apply dots do not sit edge-to-edge', () => {
+    render(
+      <SheetHarness
+        theme="light"
+        swatches={HIGHLIGHT_COLORS.map((color) => ({ color, state: 'apply' as const }))}
+      />,
+    )
+
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('bible-verse-action-swatch-scroll').props.contentContainerStyle,
+      ).gap,
+    ).toBe(16)
   })
 })

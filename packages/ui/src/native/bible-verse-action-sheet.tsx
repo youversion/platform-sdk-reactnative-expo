@@ -47,8 +47,8 @@ const CHECK_ICON_SIZE = 18
  */
 const FADE_WIDTH = SWATCH_SIZE
 
-/** Minimum spacing between swatches once the tray overflows and `space-evenly` has no slack left. */
-const SWATCH_GAP = 8
+/** Visible space between swatches. Six dots plus this gap outgrow a phone tray and scroll. */
+const SWATCH_GAP = 16
 
 /**
  * Vertical travel, in points, before the sheet's pan gesture may take over.
