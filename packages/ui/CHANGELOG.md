@@ -1,5 +1,35 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.5.0
+
+### Minor Changes
+
+- 553757e: Native owns Bible content requests (YPE-5510). Core exposes a Bible Content Client and a required `fetchBibleContent` action on the provider context; the UI package weaves it under each DOM component's `fetch`, so eligible `/v1/bibles/*` requests cross the bridge and run natively with `X-YVP-Sdk: ReactNativeSDK=<version>` headers. The SDK version stamp moves from ui to core (`@youversion/platform-react-native-expo-core/sdk-version`).
+- 5805e95: feat: replace the native highlight apply palette with the six YPE-5058 hexes, mix verse-action dots against `SHEET_SURFACE` via `mixSrgb`, and pin `@youversion/platform-react-ui` to 2.12.0 so reader fill and Words of Christ match that release (YPE-5059). Apply stays palette-only. Leftover `fffe00` still paints and clears. WOC stays unmixed `#94000C` / `#e4bfc2`.
+- a1f5751: feat: export `getTokens` with locally owned light/dark design tokens ported from the web theme (YPE-5264). Palette and semantic maps stay internal. Does not change live sheet or auth-button colors.
+- 3758182: feat: export `useTokens` from YouVersionProvider theme context (YPE-5265).
+- 3dfe296: feat: load Inter, Untitled Serif, and Source Serif 4 from `YouVersionProvider` (YPE-5266)
+
+  `YouVersionProvider` registers brand fonts in the background with `expo-font`. Untitled Serif is fetched from the Fonts API (`GET /v1/fonts/1` with `X-YVP-App-Key`). Inter and Source Serif 4 come from Google Font packages. There is no opt-out and no public fonts-ready hook. Children still render while fonts load. If Untitled Serif cannot load, native serif falls back to Source Serif 4.
+
+  ## Action required
+
+  Install the new `expo-font` peer and rebuild the dev client. A JS-only reload shows `Cannot find native module`.
+
+  ```bash
+  npx expo install expo-font
+  ```
+
+- 9c8003b: feat: expose `typography` size scale on `Tokens` via `useTokens` (YPE-5268).
+
+### Patch Changes
+
+- Updated dependencies [80d3718]
+- Updated dependencies [553757e]
+- Updated dependencies [5805e95]
+- Updated dependencies [3dfe296]
+  - @youversion/platform-react-native-expo-core@1.5.0
+
 ## 1.4.0
 
 ### Minor Changes
