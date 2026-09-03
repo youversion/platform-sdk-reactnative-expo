@@ -3,7 +3,5 @@
  * from this barrel; never re-export from `src/index.ts` — the public surface
  * is pinned by `src/__tests__/exports.test.ts`.
  */
-export { Text } from './text'
-export type { TextProps } from './text'
-export { Button } from './button'
-export type { ButtonProps } from './button'
+export { Text, type TextProps } from './text'
+export { Button, type ButtonIconProps, type ButtonProps, type ButtonTextProps } from './button'

@@ -161,8 +161,8 @@ function ButtonIcon({ as: As, color, size }: ButtonIconProps): ReactNode {
   return <As color={color ?? context.foreground} size={size ?? context.iconSize} />
 }
 
-/** `variant` is omitted: the root owns the label color, and Button.Text overwrites
- * every property the Text variants set, so the prop would type-check and do nothing. */
+/** `variant` is omitted: the root owns the label color, and the label pins the
+ * `body` variant below so a forwarded value cannot restyle it at runtime either. */
 export type ButtonTextProps = Omit<TextProps, 'variant'>
 
 /** The label. `numberOfLines` is the RN analog of web `whitespace-nowrap`; */
@@ -173,6 +173,7 @@ function ButtonText({ style, ...props }: ButtonTextProps): ReactNode {
     <Text
       numberOfLines={1}
       {...props}
+      variant="body"
       style={[
         {
           flexShrink: 1,

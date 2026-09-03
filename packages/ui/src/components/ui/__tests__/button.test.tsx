@@ -270,7 +270,8 @@ describe('Button', () => {
 
   it('does not let a caller restyle the label through a Text variant', () => {
     // @ts-expect-error — `variant` is omitted from ButtonTextProps; the root owns
-    // the label color. This asserts the omission is real, not just documented.
+    // the label color. The label also pins `body` after the spread, so the
+    // forwarded value is dropped at runtime, not merely overwritten.
     const label = <Button.Text variant="heading">Labeled</Button.Text>
 
     render(<Button>{label}</Button>, { wrapper: youVersionProviderWrapper() })
