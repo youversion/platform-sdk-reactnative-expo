@@ -16,8 +16,9 @@ import type { TextProps } from './text'
 /** Web `[&_svg]:size-6` does not vary by size, so one number covers every step. */
 const ICON_SIZE = 24
 
-// Web only defines hover states, which have no touch analog. One opacity for
-// every variant keeps the pressed feedback cross-platform and testable.
+// Web only defines hover states, which have no touch analog. Variants fade
+// while pressed, except `ghost`, which fills with `accent` (web `hover:bg-accent`):
+// an icon-only ghost has nothing to fade, so it would read as unresponsive.
 const PRESSED_OPACITY = 0.8
 const DISABLED_OPACITY = 0.5
 
@@ -138,7 +139,8 @@ function ButtonRoot({ variant, size, style, disabled, ...props }: ButtonProps): 
           style,
           // State styles outrank `style`, as web's `disabled:`/`hover:` variants
           // do: a caller overriding these leaves a dead control looking live.
-          pressed && styles.pressed,
+          pressed &&
+            (resolvedVariant === 'ghost' ? { backgroundColor: tokens.accent } : styles.pressed),
           disabled === true && styles.disabled,
         ]}
       />

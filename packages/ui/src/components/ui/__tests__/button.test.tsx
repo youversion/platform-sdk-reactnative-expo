@@ -194,6 +194,33 @@ describe('Button', () => {
     expect(onPress).toHaveBeenCalledTimes(1)
   })
 
+  it('fills ghost with accent while pressed instead of fading it', async () => {
+    render(
+      <>
+        <Button variant="ghost">
+          <Button.Text>ghost</Button.Text>
+        </Button>
+        <Button variant="link">
+          <Button.Text>link</Button.Text>
+        </Button>
+      </>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    const ghost = screen.getByRole('button', { name: 'ghost' })
+    fireEvent(ghost, 'responderGrant', touchEvent())
+    expect(buttonStyle('ghost')).toMatchObject({ backgroundColor: light.accent })
+    expect(buttonStyle('ghost').opacity).toBeUndefined()
+    fireEvent(ghost, 'responderRelease', touchEvent())
+    await waitFor(() => {
+      expect(buttonStyle('ghost')).toMatchObject({ backgroundColor: 'transparent' })
+    })
+
+    // Link keeps the fade: web gives it an underline on hover, not a fill.
+    fireEvent(screen.getByRole('button', { name: 'link' }), 'responderGrant', touchEvent())
+    expect(buttonStyle('link')).toMatchObject({ backgroundColor: 'transparent', opacity: 0.8 })
+  })
+
   it('dims when disabled and swallows the press', () => {
     const onPress = jest.fn()
     render(
