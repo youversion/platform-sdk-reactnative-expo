@@ -163,7 +163,7 @@ function ButtonIcon({ as: As, color, size }: ButtonIconProps): ReactNode {
  * every property the Text variants set, so the prop would type-check and do nothing. */
 export type ButtonTextProps = Omit<TextProps, 'variant'>
 
-/** The label. `numberOfLines` is the RN analog of web `whitespace-nowrap`. */
+/** The label. `numberOfLines` is the RN analog of web `whitespace-nowrap`; */
 function ButtonText({ style, ...props }: ButtonTextProps): ReactNode {
   const context = useButtonContext()
   const tokens = useTokens()
@@ -173,6 +173,7 @@ function ButtonText({ style, ...props }: ButtonTextProps): ReactNode {
       {...props}
       style={[
         {
+          flexShrink: 1,
           color: context.foreground,
           fontFamily: fontMapKey(tokens.fontFamily.sans, 500, 'normal'),
           ...tokens.typography.sm,
