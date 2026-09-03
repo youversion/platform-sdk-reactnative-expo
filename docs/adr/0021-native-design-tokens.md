@@ -36,7 +36,9 @@ DS-1 through DS-7 built the layer: tokens (YPE-5264), `useTokens` (YPE-5265), br
 
 **Pragmatic scales only — radius, type, font family. No spacing scale.** The radius and type ramps came over because web has a real ramp for both. Spacing did not: the numbers in use are a handful of paddings and gaps that do not form a ladder yet. A step is added with the component that needs it, not ahead of it.
 
-**`fontFamily` tokens are family names; weight is a registered face.** Brand faces load through the Fonts API inside `YouVersionProvider`, so bold is `fontMapKey(family, 700, 'normal')`, never `fontWeight: '700'`. These tokens do not cross the DOM bridge — reader fonts do, as quote-free encoded tokens, for the unrelated reason in [ADR 0009](0009-bridge-safe-font-tokens.md).
+**`fontFamily` tokens are family names; weight is a registered face.** Brand faces load through the Fonts API inside `YouVersionProvider`, and each one registers under its own mapped name — `fontMapKey` builds `Untitled Serif_bold`, `Inter_medium`, and so on. RN selects those by naming the face, so a token-styled primitive reaches bold through `fontMapKey(family, 700, 'normal')` and never through `fontWeight: '700'`, which cannot address a face that is a separate family to the platform.
+
+**That rule is scoped to the primitives.** Native sheet typography predates this layer and still sets `fontWeight` directly — `prompt-sheet.tsx`, `bible-verse-action-sheet.tsx`, `highlight-consent-sheet.tsx`, and the sheets beside them. It is correct there: none of them sets a `fontFamily`, so the text renders in the platform system face, which `fontWeight` does address. They move to `fontMapKey` when a sheet is rebuilt on the primitives, not before. These tokens do not cross the DOM bridge — reader fonts do, as quote-free encoded tokens, for the unrelated reason in [ADR 0009](0009-bridge-safe-font-tokens.md).
 
 ## Consequences
 
