@@ -7,7 +7,7 @@ const lightTokens = getTokens('light')
 const darkTokens = getTokens('dark')
 
 const button = createVariants((tokens) => ({
-  base: { borderRadius: tokens.radius.md },
+  base: { borderRadius: tokens.radius.full },
   variants: {
     variant: {
       default: { backgroundColor: tokens.primary },
@@ -29,7 +29,7 @@ describe('createVariants', () => {
     const style = StyleSheet.flatten(button(lightTokens))
 
     expect(style).toMatchObject({
-      borderRadius: lightTokens.radius.md,
+      borderRadius: lightTokens.radius.full,
       backgroundColor: lightTokens.primary,
       height: 32,
     })
@@ -39,7 +39,7 @@ describe('createVariants', () => {
     const style = StyleSheet.flatten(button(lightTokens, { variant: 'outline', size: 'lg' }))
 
     expect(style).toMatchObject({
-      borderRadius: lightTokens.radius.md,
+      borderRadius: lightTokens.radius.full,
       borderColor: lightTokens.border,
       height: 44,
     })
@@ -50,7 +50,7 @@ describe('createVariants', () => {
     const style = StyleSheet.flatten(button(lightTokens, { variant: 'outline', size: 'sm' }))
 
     expect(style).toMatchObject({
-      borderRadius: lightTokens.radius.md,
+      borderRadius: lightTokens.radius.full,
       borderColor: lightTokens.border,
       height: 32,
     })
@@ -123,7 +123,7 @@ describe('VariantProps', () => {
     const style = StyleSheet.flatten(button(lightTokens, { variant: 'ghost' }))
 
     expect(style).toMatchObject({
-      borderRadius: lightTokens.radius.md,
+      borderRadius: lightTokens.radius.full,
       height: 32,
     })
     expect(style).not.toHaveProperty('backgroundColor')
