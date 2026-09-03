@@ -53,7 +53,7 @@ Internal design-system primitives (`Text`, `Button`, …) live in `packages/ui/s
 
 - **Compound pattern.** `Object.assign(Root, { Slot, … })`; a `useXContext()` that throws outside its root. RN inherits no text styles from parent views, so roots resolve foreground/size once and publish via context; slots consume it. `Button` is the reference: root publishes `{ foreground, iconSize }`.
 - **Styling.** Tokens via `useTokens()`, variants via `createVariants` — import `lib/variants` directly, not the `lib` barrel (it drags the Web SDK into the native bundle). Caller `style` merges after the variant styles, but state styles (pressed, disabled) merge last so a caller cannot leave a dead control looking live.
-- **Gotchas.** Bare strings must sit inside `<Text>`. Bold is a registered face — `fontMapKey(family, 700, 'normal')`, never `fontWeight`. Alias RN's `Text` where both are imported.
+- **Gotchas.** Bare strings must sit inside `<Text>`. Faces go through `sansFace(family, weight, ready)` with `useBrandFontsReady()` — never a hand-written `fontFamily` or `fontWeight`: text draws the system font until the brand faces register, then swaps family so native re-measures. Alias RN's `Text` where both are imported.
 
 ## Localization
 

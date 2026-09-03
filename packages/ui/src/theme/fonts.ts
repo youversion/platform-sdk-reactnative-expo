@@ -1,3 +1,4 @@
+import type { TextStyle } from 'react-native'
 import { z } from 'zod'
 
 import { fontFamily } from './scales'
@@ -68,6 +69,19 @@ export function fontMapKey(
     return family
   }
   return parts.join('_')
+}
+
+/**
+ * Text style for a sans weight. Until the faces register, native draws an
+ * unknown family as the system font but keeps that text size once the face
+ * lands, clipping labels. So draw the system font on purpose, then switch
+ * `fontFamily` (a layout attribute) to force a fresh layout pass.
+ */
+export function sansFace(family: string, weight: FontFace['weight'], ready: boolean): TextStyle {
+  if (!ready) {
+    return { fontWeight: `${weight}` }
+  }
+  return { fontFamily: fontMapKey(family, weight, 'normal') }
 }
 
 function isAllowedFontFileUrl(url: string): boolean {
