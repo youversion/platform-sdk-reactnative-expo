@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react-native'
-import * as Font from 'expo-font'
 import { StyleSheet } from 'react-native'
 
+import { holdSansRegistration } from '../../../test-utils/hold-sans-registration'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { fontMapKey } from '../../../theme/fonts'
@@ -63,16 +63,7 @@ describe('Text', () => {
   })
 
   it('draws the system font until the sans faces register, then swaps family', async () => {
-    const isLoaded = jest.mocked(Font.isLoaded)
-    const loadAsync = jest.mocked(Font.loadAsync)
-    let registerSans: () => void = () => {}
-    isLoaded.mockReturnValue(false)
-    loadAsync.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          registerSans = resolve
-        }),
-    )
+    const { register, restore } = holdSansRegistration()
 
     try {
       render(<Text variant="heading">Heading copy</Text>, { wrapper: youVersionProviderWrapper() })
@@ -81,7 +72,7 @@ describe('Text', () => {
       expect(flattenedStyle('Heading copy').fontFamily).toBeUndefined()
 
       await act(async () => {
-        registerSans()
+        register()
       })
 
       expect(flattenedStyle('Heading copy')).toMatchObject({
@@ -89,7 +80,7 @@ describe('Text', () => {
       })
       expect(flattenedStyle('Heading copy').fontWeight).toBeUndefined()
     } finally {
-      isLoaded.mockReturnValue(true)
+      restore()
     }
   })
 })
