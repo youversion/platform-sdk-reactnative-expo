@@ -31,7 +31,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
 - **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
-- **Theming**: `light` / `dark` / `system` themes, with per-component overrides
+- **Theming**: `light` / `dark` / `system` themes, with per-component overrides and `useTokens()` for the SDK's own color tokens
 - **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
@@ -92,6 +92,8 @@ export default function RootLayout() {
 `GestureHandlerRootView` must wrap `YouVersionProvider` — the provider includes internal bottom-sheet support that depends on React Native Gesture Handler.
 
 `YouVersionProvider` accepts `theme="light" | "dark" | "system"` and defaults to `"system"`, which follows the device color scheme (falling back to `"light"` when the device scheme is unavailable). Components below can override the provider theme for that instance.
+
+The same resolved scheme drives the SDK's own native chrome through design tokens. `useTokens()` returns the token set for the active scheme (`getTokens("light" | "dark")` outside a component), so an app can paint its own screens in the colors the SDK is using. Contributors: [ADR 0021](./docs/adr/0021-native-design-tokens.md) covers the token architecture.
 
 The provider also loads brand fonts in the background (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Untitled Serif comes from the YouVersion Fonts API at runtime — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, or that request fails, native serif falls back to Source Serif 4. The provider does not wait for fonts before rendering children.
 
