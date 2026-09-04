@@ -18,6 +18,14 @@ function textStyle(text: string) {
   return StyleSheet.flatten(screen.getByText(text).props.style)
 }
 
+// Only the layer Card.Title itself contributes. `Text` renders `[variants, style]`
+// and the title passes its context color as that `style`, so flattening the whole
+// array would pass on `Text`'s own `foreground` — the same hex as `cardForeground`
+// in both schemes, which would leave the wiring untested.
+function titleOwnStyle(text: string) {
+  return StyleSheet.flatten(screen.getByText(text).props.style[1])
+}
+
 function renderFullCard(theme: 'light' | 'dark') {
   render(
     <Card testID="card">
@@ -58,14 +66,14 @@ describe('Card', () => {
       backgroundColor: dark.card,
       borderColor: dark.border,
     })
-    expect(textStyle('Title')).toMatchObject({ color: dark.cardForeground })
+    expect(titleOwnStyle('Title')).toMatchObject({ color: dark.cardForeground })
   })
 
   it('publishes cardForeground to Card.Title and sets the heading face and role', () => {
     renderFullCard('light')
 
+    expect(titleOwnStyle('Title')).toMatchObject({ color: light.cardForeground })
     expect(textStyle('Title')).toMatchObject({
-      color: light.cardForeground,
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       ...light.typography.lg,
     })
@@ -121,8 +129,8 @@ describe('Card', () => {
 
     render(<Card>{title}</Card>, { wrapper: youVersionProviderWrapper() })
 
+    expect(titleOwnStyle('Pinned')).toMatchObject({ color: light.cardForeground })
     expect(textStyle('Pinned')).toMatchObject({
-      color: light.cardForeground,
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       ...light.typography.lg,
     })
