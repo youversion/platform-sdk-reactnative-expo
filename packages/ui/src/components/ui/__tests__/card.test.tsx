@@ -136,6 +136,23 @@ describe('Card', () => {
     expect(viewStyle('bleed')).toMatchObject({ paddingHorizontal: 0 })
   })
 
+  // The one non-vacuous colour assertion here. The checks above read `style[1]`
+  // because `cardForeground` and `foreground` share a hex, so they pass whether
+  // or not the context is wired; `destructive` shares one with neither — and
+  // `primary` would not work, it is `foreground`'s hex — so this fails for real
+  // if the title stops merging caller `style` after the context colour.
+  it('lets a caller style win on the title', () => {
+    render(
+      <Card>
+        <Card.Title style={{ color: light.destructive }}>Recoloured</Card.Title>
+      </Card>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(light.destructive).not.toBe(light.cardForeground)
+    expect(textStyle('Recoloured')).toMatchObject({ color: light.destructive })
+  })
+
   it('does not let a caller restyle the title through a Text variant', () => {
     // @ts-expect-error — `variant` is omitted from CardTitleProps; the root owns
     // the color and the title pins `heading` after the spread, so the forwarded

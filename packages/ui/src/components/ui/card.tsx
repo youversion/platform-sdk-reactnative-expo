@@ -39,6 +39,13 @@ const styles = StyleSheet.create({
   },
 })
 
+// Kept for parity with Button and the compound pattern in AGENTS.md, not because
+// it earns its keep yet: `cardForeground` equals `foreground` in both schemes and
+// is a fixed token lookup, so Card.Title could read `useTokens()` itself and get
+// the same color. Unlike Button, whose context carries values that vary with the
+// root's props, this one is uniform-by-choice. Should `card` ever need its own
+// foreground, wire it through Card.Content's body text at the same time — a
+// title-only hedge would leave the two out of step.
 type CardContextValue = {
   readonly foreground: string
 }
