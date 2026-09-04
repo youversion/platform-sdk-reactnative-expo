@@ -45,18 +45,17 @@ function renderFullCard(theme: 'light' | 'dark') {
 }
 
 describe('Card', () => {
-  it('paints the surface from the light card, border, and surface radius tokens', () => {
+  it('paints a borderless surface from the light card and surface radius tokens', () => {
     renderFullCard('light')
 
     expect(viewStyle('card')).toMatchObject({
       backgroundColor: light.card,
-      borderWidth: 1,
-      borderColor: light.border,
       borderRadius: light.radius.surface,
       paddingVertical: 24,
       gap: 24,
     })
     expect(viewStyle('card').borderRadius).toBe(16)
+    expect(viewStyle('card').borderWidth).toBeUndefined()
   })
 
   it('resolves the surface and title from the dark tokens under a dark provider', () => {
@@ -64,7 +63,6 @@ describe('Card', () => {
 
     expect(viewStyle('card')).toMatchObject({
       backgroundColor: dark.card,
-      borderColor: dark.border,
     })
     expect(titleOwnStyle('Title')).toMatchObject({ color: dark.cardForeground })
   })
@@ -117,7 +115,7 @@ describe('Card', () => {
 
     expect(viewStyle('card')).toMatchObject({
       backgroundColor: light.muted,
-      borderColor: light.border,
+      borderRadius: light.radius.surface,
     })
     expect(viewStyle('bleed')).toMatchObject({ paddingHorizontal: 0 })
   })

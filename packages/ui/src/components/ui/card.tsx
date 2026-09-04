@@ -15,11 +15,11 @@ const GAP = 24
 const HEADER_GAP = 2
 const FOOTER_GAP = 8
 
+// No border: web's BibleCard and VerseOfTheDay surfaces separate from the page
+// by the `card` fill alone. Borders are for inset or interactive surfaces.
 const cardVariants = createVariants((tokens) => ({
   base: {
     backgroundColor: tokens.card,
-    borderWidth: 1,
-    borderColor: tokens.border,
     borderRadius: tokens.radius.surface,
     paddingVertical: PADDING,
     gap: GAP,
@@ -36,7 +36,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: FOOTER_GAP,
     paddingHorizontal: PADDING,
-
   },
 })
 
