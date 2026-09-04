@@ -5,3 +5,11 @@
  */
 export { Text, type TextProps } from './text'
 export { Button, type ButtonIconProps, type ButtonProps, type ButtonTextProps } from './button'
+export {
+  Card,
+  type CardContentProps,
+  type CardFooterProps,
+  type CardHeaderProps,
+  type CardProps,
+  type CardTitleProps,
+} from './card'

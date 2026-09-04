@@ -36,7 +36,7 @@ const buttonVariants = createVariants((tokens) => ({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: tokens.radius.md,
+    borderRadius: tokens.radius.full,
   },
   variants: {
     variant: {
