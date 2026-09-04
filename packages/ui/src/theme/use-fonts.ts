@@ -1,8 +1,4 @@
-import {
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_700Bold,
-} from '@expo-google-fonts/inter'
+import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter'
 import {
   SourceSerif4_400Regular,
   SourceSerif4_400Regular_Italic,
@@ -12,7 +8,7 @@ import {
   SourceSerif4_700Bold_Italic,
 } from '@expo-google-fonts/source-serif-4'
 import * as Font from 'expo-font'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { buildFontMap, fetchUntitledSerifFont, pickTtfSources } from './fonts'
 
@@ -31,9 +27,8 @@ export const untitledSerifFallback = {
   'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
-async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
+async function loadUntitledSerif(appKey: string, apiHost?: string): Promise<void> {
   try {
-    await Font.loadAsync(bundledSans)
     const font = await fetchUntitledSerifFont({ appKey, apiHost })
     let untitledSerifFaces: ReturnType<typeof pickTtfSources> = []
     if (font) {
@@ -54,13 +49,36 @@ async function loadBrandFonts(appKey: string, apiHost?: string): Promise<void> {
   }
 }
 
+function sansIsRegistered(): boolean {
+  return Object.keys(bundledSans).every((face) => Font.isLoaded(face))
+}
+
 /**
- * Starts Inter and Untitled Serif in the background.
- * Source Serif 4 is registered only as the Untitled Serif fallback.
- * Does not report ready/error. Children still render while fonts load.
+ * Registers Inter and Untitled Serif in the background; children render
+ * meanwhile. Returns true once the sans faces are usable so text can switch
+ * from the system font (see `sansFace`). Serif is never awaited: its network
+ * fetch must not hold the sans swap. Source Serif 4 is the serif fallback.
  */
-export function useBrandFonts(appKey: string, apiHost?: string): void {
+export function useBrandFonts(appKey: string, apiHost?: string): boolean {
+  const [sansReady, setSansReady] = useState(sansIsRegistered)
+
   useEffect(() => {
-    void loadBrandFonts(appKey, apiHost)
+    let cancelled = false
+    Font.loadAsync(bundledSans).then(
+      () => {
+        if (!cancelled) {
+          setSansReady(true)
+        }
+      },
+      (cause: unknown) => {
+        console.error('[YouVersion SDK] sans faces failed to load:', cause)
+      },
+    )
+    void loadUntitledSerif(appKey, apiHost)
+    return () => {
+      cancelled = true
+    }
   }, [appKey, apiHost])
+
+  return sansReady
 }

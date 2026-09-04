@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { withAlpha } from '../../../lib/color'
+import { holdSansRegistration } from '../../../test-utils/hold-sans-registration'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { fontMapKey } from '../../../theme/fonts'
@@ -106,6 +107,33 @@ describe('Button', () => {
     expect(labelStyle('secondary')).toMatchObject({ color: light.foreground })
     expect(labelStyle('ghost')).toMatchObject({ color: light.foreground })
     expect(labelStyle('link')).toMatchObject({ color: light.primary })
+  })
+
+  it('draws the system font until the sans faces register, then swaps family', async () => {
+    const { register, restore } = holdSansRegistration()
+
+    try {
+      render(
+        <Button>
+          <Button.Text>Label</Button.Text>
+        </Button>,
+        { wrapper: youVersionProviderWrapper() },
+      )
+
+      expect(labelStyle('Label')).toMatchObject({ fontWeight: '500' })
+      expect(labelStyle('Label').fontFamily).toBeUndefined()
+
+      await act(async () => {
+        register()
+      })
+
+      expect(labelStyle('Label')).toMatchObject({
+        fontFamily: fontMapKey(light.fontFamily.sans, 500, 'normal'),
+      })
+      expect(labelStyle('Label').fontWeight).toBeUndefined()
+    } finally {
+      restore()
+    }
   })
 
   it('publishes the dark foreground to Button.Text', () => {

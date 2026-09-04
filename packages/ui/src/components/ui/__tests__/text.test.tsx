@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react-native'
+import { act, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
+import { holdSansRegistration } from '../../../test-utils/hold-sans-registration'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { fontMapKey } from '../../../theme/fonts'
@@ -59,5 +60,27 @@ describe('Text', () => {
     })
 
     expect(flattenedStyle('Styled copy')).toMatchObject({ color: light.primary })
+  })
+
+  it('draws the system font until the sans faces register, then swaps family', async () => {
+    const { register, restore } = holdSansRegistration()
+
+    try {
+      render(<Text variant="heading">Heading copy</Text>, { wrapper: youVersionProviderWrapper() })
+
+      expect(flattenedStyle('Heading copy')).toMatchObject({ fontWeight: '700' })
+      expect(flattenedStyle('Heading copy').fontFamily).toBeUndefined()
+
+      await act(async () => {
+        register()
+      })
+
+      expect(flattenedStyle('Heading copy')).toMatchObject({
+        fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
+      })
+      expect(flattenedStyle('Heading copy').fontWeight).toBeUndefined()
+    } finally {
+      restore()
+    }
   })
 })
