@@ -45,12 +45,13 @@ type CardContextValue = {
 
 const CardContext = createContext<CardContextValue | null>(null)
 
+// Only Card.Title reads the context, so only Card.Title guards. The layout
+// slots are plain Views; making them throw would turn a re-parented slot into a
+// crashed tree for no styling benefit.
 function useCardContext(): CardContextValue {
   const context = use(CardContext)
   if (context === null) {
-    throw new Error(
-      'Card.Header, Card.Title, Card.Content and Card.Footer must be rendered inside <Card>',
-    )
+    throw new Error('Card.Title must be rendered inside <Card>')
   }
   return context
 }
@@ -72,7 +73,6 @@ function CardRoot({ style, ...props }: CardProps): ReactNode {
 export type CardHeaderProps = ViewProps
 
 function CardHeader({ style, ...props }: CardHeaderProps): ReactNode {
-  useCardContext()
   return <View {...props} style={[styles.header, style]} />
 }
 
@@ -95,14 +95,12 @@ function CardTitle({ style, ...props }: CardTitleProps): ReactNode {
 export type CardContentProps = ViewProps
 
 function CardContent({ style, ...props }: CardContentProps): ReactNode {
-  useCardContext()
   return <View {...props} style={[styles.content, style]} />
 }
 
 export type CardFooterProps = ViewProps
 
 function CardFooter({ style, ...props }: CardFooterProps): ReactNode {
-  useCardContext()
   return <View {...props} style={[styles.footer, style]} />
 }
 

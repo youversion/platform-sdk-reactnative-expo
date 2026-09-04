@@ -91,16 +91,32 @@ describe('Card', () => {
     })
   })
 
-  it('throws when a slot renders outside a Card root', () => {
+  it('throws when Card.Title renders outside a Card root', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
     const wrapper = youVersionProviderWrapper()
 
-    expect(() => render(<Card.Header />, { wrapper })).toThrow(/inside <Card>/)
     expect(() => render(<Card.Title>Orphan</Card.Title>, { wrapper })).toThrow(/inside <Card>/)
-    expect(() => render(<Card.Content />, { wrapper })).toThrow(/inside <Card>/)
-    expect(() => render(<Card.Footer />, { wrapper })).toThrow(/inside <Card>/)
 
     consoleError.mockRestore()
+  })
+
+  // The layout slots read no context, so they degrade to plain padded Views
+  // rather than crashing a tree that re-parents one out of its root.
+  it('renders the layout slots outside a Card root', () => {
+    const wrapper = youVersionProviderWrapper()
+
+    render(
+      <>
+        <Card.Header testID="header" />
+        <Card.Content testID="content" />
+        <Card.Footer testID="footer" />
+      </>,
+      { wrapper },
+    )
+
+    expect(viewStyle('header')).toMatchObject({ paddingHorizontal: 24, gap: 2 })
+    expect(viewStyle('content')).toMatchObject({ paddingHorizontal: 24 })
+    expect(viewStyle('footer')).toMatchObject({ paddingHorizontal: 24 })
   })
 
   it('lets a caller style win on the root and on a slot', () => {
