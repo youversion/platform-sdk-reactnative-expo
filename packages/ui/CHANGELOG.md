@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.5.1
+
+### Patch Changes
+
+- 2dc28cc: fix: derive native sheet chrome from design tokens (YPE-5271). Handle, muted labels, stroke, and shadows now resolve from palette / semantic tokens instead of copied hex. A small shift on the handle and supporting labels is expected where the old hex sat off-palette.
+  - @youversion/platform-react-native-expo-core@1.5.1
+
 ## 1.5.0
 
 ### Minor Changes
