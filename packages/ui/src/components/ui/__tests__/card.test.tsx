@@ -80,14 +80,15 @@ describe('Card', () => {
     expect(screen.getByRole('header', { name: 'Title' })).toBeTruthy()
   })
 
-  it('lays the slots out on the shadcn ramp', () => {
+  it('lays the slots out on the shadcn padding, with local header and footer gaps', () => {
     renderFullCard('light')
 
-    expect(viewStyle('header')).toMatchObject({ paddingHorizontal: 24, gap: 6 })
+    expect(viewStyle('header')).toMatchObject({ paddingHorizontal: 24, gap: 2 })
     expect(viewStyle('content')).toMatchObject({ paddingHorizontal: 24 })
     expect(viewStyle('footer')).toMatchObject({
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
       paddingHorizontal: 24,
     })
   })

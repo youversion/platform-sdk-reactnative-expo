@@ -8,12 +8,12 @@ import { createVariants } from '../../lib/variants'
 import { Text } from './text'
 import type { TextProps } from './text'
 
-// shadcn `py-6 gap-6` / `px-6` / header `gap-1.5` at 4dp per spacing unit;
-// the web SDK's own card surfaces sit on the same `p-6`. Local to Card, as
-// Button's SIZES are to Button.
+// HEADER_GAP is tightened from shadcn's `gap-1.5` (6). FOOTER_GAP follows web's
+// dialog action row (`flex justify-end gap-2`) — shadcn's card footer has none.
 const PADDING = 24
 const GAP = 24
-const HEADER_GAP = 6
+const HEADER_GAP = 2
+const FOOTER_GAP = 8
 
 const cardVariants = createVariants((tokens) => ({
   base: {
@@ -31,7 +31,13 @@ const cardVariants = createVariants((tokens) => ({
 const styles = StyleSheet.create({
   header: { paddingHorizontal: PADDING, gap: HEADER_GAP },
   content: { paddingHorizontal: PADDING },
-  footer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: PADDING },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: FOOTER_GAP,
+    paddingHorizontal: PADDING,
+
+  },
 })
 
 type CardContextValue = {
