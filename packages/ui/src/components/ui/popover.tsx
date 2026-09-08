@@ -11,14 +11,13 @@ import type { TextProps } from './text'
 
 const CONTENT_WIDTH = 288
 const CONTENT_PADDING = 16
-const CONTENT_RADIUS = 6
 const CONTENT_SIDE_OFFSET = 4
 
 const popoverContentVariants = createVariants((tokens) => ({
   base: {
     width: CONTENT_WIDTH,
     padding: CONTENT_PADDING,
-    borderRadius: CONTENT_RADIUS,
+    borderRadius: tokens.radius.surface,
     borderWidth: 1,
     borderColor: tokens.border,
     backgroundColor: tokens.popover,

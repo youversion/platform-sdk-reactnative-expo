@@ -280,7 +280,7 @@ describe('Popover', () => {
       backgroundColor: light.popover,
       borderColor: light.border,
       borderWidth: 1,
-      borderRadius: 6,
+      borderRadius: light.radius.surface,
       width: 288,
       padding: 16,
     })
