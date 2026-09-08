@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { fontMapKey } from '../../../theme/fonts'
+import * as tokenSource from '../../../theme/tokens'
 import { Card } from '../card'
 import { Text } from '../text'
 
@@ -78,6 +79,32 @@ describe('Card', () => {
     expect(screen.getByRole('header', { name: 'Title' })).toBeTruthy()
   })
 
+  // `cardForeground` and `foreground` share a hex, so the checks above pass
+  // whether or not Title reads context. A diverged mock is the wiring proof.
+  it('paints the title from cardForeground when it diverges from foreground', () => {
+    const distinct = light.destructive
+    expect(distinct).not.toBe(light.foreground)
+    expect(distinct).not.toBe(light.cardForeground)
+
+    const spy = jest.spyOn(tokenSource, 'getTokens').mockReturnValue({
+      ...light,
+      cardForeground: distinct,
+    })
+
+    try {
+      render(
+        <Card>
+          <Card.Title>Wired</Card.Title>
+        </Card>,
+        { wrapper: youVersionProviderWrapper() },
+      )
+
+      expect(titleOwnStyle('Wired')).toMatchObject({ color: distinct })
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('lays the slots out on the shadcn padding, with local header and footer gaps', () => {
     renderFullCard('light')
 
@@ -136,10 +163,8 @@ describe('Card', () => {
     expect(viewStyle('bleed')).toMatchObject({ paddingHorizontal: 0 })
   })
 
-  // The one non-vacuous colour assertion here. The checks above read `style[1]`
-  // because `cardForeground` and `foreground` share a hex, so they pass whether
-  // or not the context is wired; `destructive` shares one with neither — and
-  // `primary` would not work, it is `foreground`'s hex — so this fails for real
+  // `destructive` shares a hex with neither `cardForeground` nor `foreground` —
+  // and `primary` would not work, it is `foreground`'s hex — so this fails for real
   // if the title stops merging caller `style` after the context colour.
   it('lets a caller style win on the title', () => {
     render(
