@@ -268,7 +268,9 @@ describe('Accordion', () => {
     )
 
     expect(viewStyle('trigger-genesis')).toMatchObject({ opacity: 0.5 })
-    expect(screen.getByTestId('trigger-genesis').props.disabled).toBe(true)
+    expect(screen.getByTestId('trigger-genesis').props.accessibilityState).toMatchObject({
+      disabled: true,
+    })
 
     fireEvent.press(screen.getByTestId('trigger-genesis'))
 
@@ -291,7 +293,9 @@ describe('Accordion', () => {
     )
 
     expect(viewStyle('trigger-genesis')).toMatchObject({ opacity: 0.5 })
-    expect(screen.getByTestId('trigger-genesis').props.disabled).toBe(true)
+    expect(screen.getByTestId('trigger-genesis').props.accessibilityState).toMatchObject({
+      disabled: true,
+    })
   })
 })
 
@@ -350,9 +354,11 @@ describe('Popover', () => {
       ...sansFace(light.fontFamily.sans, 500),
       ...light.typography.sm,
     })
-    expect(screen.getByTestId('rn-primitives-portal').props.accessibilityLabel).toBe(
-      SDK_POPOVER_HOST_NAME,
-    )
+    expect(
+      screen.getByTestId('rn-primitives-portal', { includeHiddenElements: true }).props
+        .accessibilityLabel,
+    ).toBe(SDK_POPOVER_HOST_NAME)
+    expect(screen.getByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeTruthy()
 
     fireEvent.press(screen.getByText('Done'))
 
