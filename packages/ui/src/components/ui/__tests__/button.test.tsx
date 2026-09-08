@@ -61,7 +61,7 @@ describe('Button', () => {
 
     expect(buttonStyle('default')).toMatchObject({
       backgroundColor: light.primary,
-      borderRadius: light.radius.md,
+      borderRadius: light.radius.full,
     })
     expect(buttonStyle('destructive')).toMatchObject({ backgroundColor: light.destructive })
     expect(buttonStyle('outline')).toMatchObject({

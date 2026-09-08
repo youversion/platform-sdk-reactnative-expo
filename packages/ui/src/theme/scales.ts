@@ -1,8 +1,9 @@
+// Named by role, not size: every SDK draws the same few shapes (web
+// `rounded-2xl` surfaces, pill controls) and none of them thinks in
+// Tailwind steps. Add a role only with the component that needs it.
 export const radius = Object.freeze({
-  sm: 28,
-  md: 30,
-  lg: 32,
-  xl: 36,
+  surface: 16,
+  full: 9999,
 } as const)
 
 export const fontFamily = Object.freeze({

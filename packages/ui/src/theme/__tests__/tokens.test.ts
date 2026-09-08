@@ -5,13 +5,11 @@ import { palette } from '../palette'
 import { getTokens } from '../tokens'
 
 describe('getTokens', () => {
-  it('uses the web radius ramp in density-independent pixels', () => {
+  it('names radius by role: web rounded-2xl surfaces and pill controls', () => {
     const { radius } = getTokens('light')
 
-    expect(radius.sm).toBe(28)
-    expect(radius.md).toBe(30)
-    expect(radius.lg).toBe(32)
-    expect(radius.xl).toBe(36)
+    expect(radius.surface).toBe(16)
+    expect(radius.full).toBe(9999)
   })
 
   it('uses the web type ramp in density-independent pixels', () => {
