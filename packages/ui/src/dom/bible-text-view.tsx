@@ -16,7 +16,6 @@ import { ContentSizedBody } from '../lib/content-sized-body'
 import { toWebError, type DomError } from '../lib/dom-error'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import { decodeFontFamilyFromDom, type FontFamilyToken } from '../lib/reader-fonts'
-import { readerRendererCss } from '../lib/reader-css-overrides'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -41,17 +40,8 @@ export type BibleTextViewProps = Omit<
    * stays native.
    */
   highlights: Highlight[]
+  /** Resolved on native. Light/dark for the in-WebView provider — not `system`. */
   theme?: 'light' | 'dark'
-  /**
-   * Ported token hex for `--yv-reader-bg`. Native always supplies
-   * `getTokens(scheme).background` — not a consumer color picker.
-   */
-  backgroundColor?: string
-  /**
-   * Ported token hex for `--yv-reader-fg`. Native always supplies
-   * `getTokens(scheme).foreground`.
-   */
-  foregroundColor?: string
   // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
   fontFamily?: FontFamilyToken
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
@@ -71,8 +61,6 @@ export default function BibleTextViewDOM({
   fetchBibleContent,
   highlights,
   theme = 'light',
-  backgroundColor,
-  foregroundColor,
   fontFamily,
   fontSize,
   onVerseSelect,
@@ -115,12 +103,6 @@ export default function BibleTextViewDOM({
   // fontFamily crosses the bridge as a quote-free token; resolve it back to the
   // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
   const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
-  const readerCss = readerRendererCss({
-    backgroundColor,
-    foregroundColor,
-    fontSize,
-    fontFamily: resolvedFontFamily,
-  })
 
   return (
     <YouVersionProvider
@@ -132,11 +114,6 @@ export default function BibleTextViewDOM({
       locale={locale}
     >
       <ContentSizedBody />
-      {readerCss ? (
-        <style href="yv-bible-text-view-overrides" precedence="medium">
-          {readerCss}
-        </style>
-      ) : null}
       <BibleTextView
         {...props}
         highlights={safeHighlights}

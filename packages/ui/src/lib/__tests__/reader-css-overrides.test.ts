@@ -7,40 +7,38 @@ describe('sanitizeCssValue', () => {
 })
 
 describe('readerRendererCss', () => {
-  it('maps token hex onto --yv-reader-bg and --yv-reader-fg', () => {
+  it('maps consumer hex onto --yv-background and --yv-foreground', () => {
     const css = readerRendererCss({
       backgroundColor: '#ffffff',
       foregroundColor: '#121212',
     })
 
     expect(css).toContain('[data-slot="yv-bible-renderer"]')
-    expect(css).toContain('--yv-reader-bg: #ffffff !important;')
-    expect(css).toContain('--yv-reader-fg: #121212 !important;')
+    expect(css).toContain('--yv-background: #ffffff !important;')
+    expect(css).toContain('--yv-foreground: #121212 !important;')
+    expect(css).not.toContain('--yv-reader-bg')
+    expect(css).not.toContain('--yv-reader-fg')
   })
 
-  it('maps font size and family onto --yv-reader-font-size and --yv-reader-font-family', () => {
+  it('does not emit font CSS — fonts are Web SDK props', () => {
     const css = readerRendererCss({
-      fontSize: 18,
-      fontFamily: '"Inter", sans-serif',
+      backgroundColor: '#ffffff',
     })
 
-    expect(css).toContain('--yv-reader-font-size: 18px !important;')
-    expect(css).toContain('--yv-reader-font-family: "Inter", sans-serif !important;')
+    expect(css).not.toContain('--yv-reader-font-size')
+    expect(css).not.toContain('--yv-reader-font-family')
   })
 
   it('returns an empty string when there is nothing to override', () => {
     expect(readerRendererCss({})).toBe('')
   })
 
-  it('sanitizes color and family values before interpolating them', () => {
+  it('sanitizes color values before interpolating them', () => {
     const css = readerRendererCss({
       backgroundColor: '#fff; } body { color: red',
-      fontFamily: 'Inter; } html {',
     })
 
-    expect(css).toContain('--yv-reader-bg: #fff  body  color: red !important;')
-    expect(css).toContain('--yv-reader-font-family: Inter  html !important;')
+    expect(css).toContain('--yv-background: #fff  body  color: red !important;')
     expect(css).not.toContain('body {')
-    expect(css).not.toContain('html {')
   })
 })

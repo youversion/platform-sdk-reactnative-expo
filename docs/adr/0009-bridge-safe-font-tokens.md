@@ -37,7 +37,7 @@ The reader's default font family is the CSS stack `"Source Serif 4", serif`, whi
 Cross the native ↔ DOM bridge with **quote-free font tokens** instead of the canonical CSS stacks, and resolve back to the canonical string inside the DOM component.
 
 - `lib/reader-fonts.ts` defines `FONT_FAMILY_TOKEN` (`'inter'`, `'source-serif'`) plus `encodeFontFamilyForDom` / `decodeFontFamilyFromDom`.
-- Native wrappers encode at the two crossings that carry the font: `native/bible-reader.tsx` → `dom/bible-reader.tsx` and `native/bible-reader-settings-sheet.tsx` → `dom/bible-reader-settings.tsx`.
+- Native wrappers encode at the three crossings that carry the font: `native/bible-reader.tsx` → `dom/bible-reader.tsx`, `native/bible-reader-settings-sheet.tsx` → `dom/bible-reader-settings.tsx`, and `native/bible-text-view.tsx` → `dom/bible-text-view.tsx`.
 - Each DOM component decodes on receipt before handing the value to the Web SDK, so the value it sees is the exact `"Source Serif 4", serif` constant — preserving the byte-for-byte parity `BibleThemeSettingsContent` needs to highlight the active font (see the note in `reader-fonts.ts`).
 - Unknown values (a consumer-supplied custom stack) pass through unchanged; encoding runs on both platforms for a single code path.
 

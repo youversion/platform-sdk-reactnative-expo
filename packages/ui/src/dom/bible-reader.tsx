@@ -209,9 +209,11 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
-  // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
+  // fontSize/fontFamily use controlled props (not CSS overrides)
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
+  // Consumer backgroundColor/foregroundColor write --yv-background/--yv-foreground,
+  // the names the Web SDK actually reads.
   const readerCss = readerRendererCss({ backgroundColor, foregroundColor })
   const providerContent = (
     <>

@@ -1,14 +1,14 @@
 /**
- * Reader appearance the Web SDK paints from CSS custom properties on
- * `[data-slot="yv-bible-renderer"]`. Hex colors come from the ported token
- * set; font size/family are consumer overrides. Nothing here is a hardcoded
- * reader palette.
+ * Optional reader color overrides the Web SDK actually consumes.
+ * Ink and surface read `--yv-foreground` / `--yv-background` — not
+ * `--yv-reader-bg` / `--yv-reader-fg` (those names are unused in
+ * `@youversion/platform-react-ui` 2.12.0).
+ *
+ * Font size and family are Web SDK props, not stylesheet overrides.
  */
 export type ReaderCssOverrides = {
   backgroundColor?: string
   foregroundColor?: string
-  fontSize?: number
-  fontFamily?: string
 }
 
 /** Strip CSS-breaking characters before interpolating a value into a declaration. */
@@ -17,25 +17,17 @@ export function sanitizeCssValue(value: string): string {
 }
 
 /**
- * Builds the `--yv-reader-*` rule block the DOM scripture surface injects.
- * Empty when nothing to override, so the caller can skip the `<style>` tag.
+ * Builds the `--yv-background` / `--yv-foreground` rule block for a consumer
+ * color override (BibleReader). Empty when nothing to override.
  */
 export function readerRendererCss(overrides: ReaderCssOverrides): string {
   const declarations: string[] = []
 
   if (overrides.backgroundColor) {
-    declarations.push(`--yv-reader-bg: ${sanitizeCssValue(overrides.backgroundColor)} !important;`)
+    declarations.push(`--yv-background: ${sanitizeCssValue(overrides.backgroundColor)} !important;`)
   }
   if (overrides.foregroundColor) {
-    declarations.push(`--yv-reader-fg: ${sanitizeCssValue(overrides.foregroundColor)} !important;`)
-  }
-  if (overrides.fontSize != null) {
-    declarations.push(`--yv-reader-font-size: ${overrides.fontSize}px !important;`)
-  }
-  if (overrides.fontFamily) {
-    declarations.push(
-      `--yv-reader-font-family: ${sanitizeCssValue(overrides.fontFamily)} !important;`,
-    )
+    declarations.push(`--yv-foreground: ${sanitizeCssValue(overrides.foregroundColor)} !important;`)
   }
 
   if (declarations.length === 0) {

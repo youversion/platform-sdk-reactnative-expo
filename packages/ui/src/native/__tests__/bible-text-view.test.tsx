@@ -10,9 +10,18 @@ import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
-import { getTokens } from '../../theme'
 import { BibleTextView } from '../bible-text-view'
 import { YouVersionProvider } from '../youversion-provider'
+
+const EMBED_DEFAULTS = {
+  matchContents: true,
+  containerStyle: { flex: 0, width: '100%' },
+  scrollEnabled: false,
+  bounces: false,
+  overScrollMode: 'never',
+  showsVerticalScrollIndicator: false,
+  showsHorizontalScrollIndicator: false,
+} as const
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -29,14 +38,20 @@ type BibleTextViewDomProps = {
   showVerseNumbers?: boolean
   fontSize?: number
   fontFamily?: string
-  backgroundColor?: string
-  foregroundColor?: string
   theme?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
   locale?: string
-  dom?: { matchContents?: boolean }
+  dom?: {
+    matchContents?: boolean
+    containerStyle?: unknown
+    scrollEnabled?: boolean
+    bounces?: boolean
+    overScrollMode?: string
+    showsVerticalScrollIndicator?: boolean
+    showsHorizontalScrollIndicator?: boolean
+  }
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
@@ -52,8 +67,6 @@ function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
       <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
       <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
       <Text testID="mock-font-family">{props.fontFamily ?? ''}</Text>
-      <Text testID="mock-background-color">{props.backgroundColor ?? ''}</Text>
-      <Text testID="mock-foreground-color">{props.foregroundColor ?? ''}</Text>
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
       <Pressable
@@ -146,7 +159,7 @@ describe('BibleTextView', () => {
     expect(getByTestId('mock-theme').children).toContain('dark')
   })
 
-  it('resolves system theme to the provider scheme before it crosses the bridge', () => {
+  it('resolves system theme to light or dark before it crosses the bridge', () => {
     render(<BibleTextView reference="GEN.1.1" versionId={1} theme="system" />, {
       wrapper: wrapper('light'),
     })
@@ -154,49 +167,52 @@ describe('BibleTextView', () => {
     expect(latestTextViewDomProps.theme).toBe('light')
   })
 
-  it('passes ported token colors for the resolved scheme across the bridge', () => {
-    const light = getTokens('light')
-    const { getByTestId } = render(<BibleTextView reference="GEN.1.1" versionId={1} />, {
-      wrapper: wrapper('light'),
-    })
-
-    expect(getByTestId('mock-background-color').children).toContain(light.background)
-    expect(getByTestId('mock-foreground-color').children).toContain(light.foreground)
-    expect(latestTextViewDomProps.backgroundColor).toBe(light.background)
-    expect(latestTextViewDomProps.foregroundColor).toBe(light.foreground)
-  })
-
-  it('passes dark token colors when the component theme is dark', () => {
-    const dark = getTokens('dark')
-
-    render(<BibleTextView reference="GEN.1.1" versionId={1} theme="dark" />, {
-      wrapper: wrapper('light'),
+  it('forwards the provider scheme when the component does not override theme', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} />, {
+      wrapper: wrapper('dark'),
     })
 
     expect(latestTextViewDomProps.theme).toBe('dark')
-    expect(latestTextViewDomProps.backgroundColor).toBe(dark.background)
-    expect(latestTextViewDomProps.foregroundColor).toBe(dark.foreground)
+    expect(latestTextViewDomProps).not.toHaveProperty('backgroundColor')
+    expect(latestTextViewDomProps).not.toHaveProperty('foregroundColor')
   })
 
-  it('encodes fontFamily as a quote-free token before it crosses the bridge', () => {
+  it('encodes fontFamily as a quote-free token and forwards fontSize as a prop', () => {
     const { getByTestId } = render(
-      <BibleTextView reference="GEN.1.1" versionId={1} fontFamily={INTER_FONT} />,
+      <BibleTextView reference="GEN.1.1" versionId={1} fontSize={18} fontFamily={INTER_FONT} />,
       { wrapper: wrapper() },
     )
 
+    expect(getByTestId('mock-font-size').children).toContain('18')
     expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.INTER)
     expect(latestTextViewDomProps.fontFamily).toBe(FONT_FAMILY_TOKEN.INTER)
     expect(latestTextViewDomProps.fontFamily).not.toContain('"')
   })
 
-  it('applies embed DOM defaults so the scripture WebView sizes to its content', () => {
+  it('applies the embed dom defaults when no dom prop is passed', () => {
     render(<BibleTextView reference="GEN.1.1" versionId={1} />, { wrapper: wrapper() })
 
-    expect(latestTextViewDomProps.dom).toEqual(
-      expect.objectContaining({
-        matchContents: true,
-      }),
+    expect(latestTextViewDomProps.dom).toEqual(EMBED_DEFAULTS)
+  })
+
+  it('merges a consumer containerStyle after the embed defaults', () => {
+    render(
+      <BibleTextView reference="GEN.1.1" versionId={1} dom={{ containerStyle: { width: 300 } }} />,
+      { wrapper: wrapper() },
     )
+
+    expect(latestTextViewDomProps.dom?.containerStyle).toEqual([
+      { flex: 0, width: '100%' },
+      { width: 300 },
+    ])
+  })
+
+  it('restores plain flex sizing when the consumer opts out of matchContents', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} dom={{ matchContents: false }} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestTextViewDomProps.dom).toEqual({ matchContents: false })
   })
 
   it('opens the native footnote sheet with footnote data when no consumer handler is provided', () => {
@@ -316,11 +332,21 @@ describe('BibleTextView', () => {
 describe('the DOM scripture surface (unobservable from layer 3)', () => {
   const source = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
 
-  it('injects --yv-reader-* overrides from the bridged token colors and font props', () => {
-    expect(source).toContain('readerRendererCss')
-    expect(source).toContain('backgroundColor')
-    expect(source).toContain('foregroundColor')
+  it('passes resolved theme into the in-WebView YouVersionProvider', () => {
+    expect(source).toMatch(/^\s*theme=\{theme\}$/m)
+  })
+
+  it('applies fonts as Web SDK props only — no --yv-reader-* stylesheet', () => {
     expect(source).toContain('decodeFontFamilyFromDom')
+    expect(source).toMatch(/fontSize=\{fontSize\}/)
+    expect(source).toMatch(/fontFamily=\{resolvedFontFamily\}/)
+    expect(source).not.toContain('readerRendererCss')
+    expect(source).not.toContain('--yv-reader-')
+    expect(source).not.toContain('!important')
+  })
+
+  it('keeps the embed content-sized so matchContents can measure scripture', () => {
+    expect(source).toContain('ContentSizedBody')
   })
 
   it('keeps content fetches on the native Bible Content Client', () => {
