@@ -55,9 +55,7 @@ function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
       <Text testID="mock-background-color">{props.backgroundColor ?? ''}</Text>
       <Text testID="mock-foreground-color">{props.foregroundColor ?? ''}</Text>
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-has-footnote-handler">
-        {props.onFootnotePress ? 'yes' : 'no'}
-      </Text>
+      <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
       <Pressable
         testID="mock-footnote-trigger"
         onPress={() => void props.onFootnotePress?.(sampleFootnote)}
@@ -331,4 +329,3 @@ describe('the DOM scripture surface (unobservable from layer 3)', () => {
     expect(source).not.toMatch(/BibleClient/)
   })
 })
-

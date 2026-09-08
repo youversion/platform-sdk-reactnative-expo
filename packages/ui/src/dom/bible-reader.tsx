@@ -1,6 +1,10 @@
 'use dom'
 
-import type { FetchBibleContent, Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type {
+  FetchBibleContent,
+  Highlight,
+  YVUserInfo,
+} from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleReaderRootProps,
@@ -24,14 +28,14 @@ import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps = Omit<
-    BibleReaderRootProps,
-    'onVersionPickerPress' | 'onSignInPress' | 'onSignOutPress'
-  > & {
-    onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-    onSignInPress?: () => Promise<void>
-    onSignOutPress?: () => Promise<void>
-    children?: ReactNode
-  }
+  BibleReaderRootProps,
+  'onVersionPickerPress' | 'onSignInPress' | 'onSignOutPress'
+> & {
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  onSignInPress?: () => Promise<void>
+  onSignOutPress?: () => Promise<void>
+  children?: ReactNode
+}
 
 type BibleReaderBaseProps = {
   appKey: string
