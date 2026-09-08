@@ -1,6 +1,16 @@
 import type { BoxShadowValue } from 'react-native'
 
+import { getTokens, palette } from '../theme'
+import { withAlpha } from './color'
 import type { Theme } from './resolve-theme'
+
+const light = getTokens('light')
+const dark = getTokens('dark')
+
+/** Elevation shadow color. Dark uses black; a near-black surface has no luminance to spend. */
+function blackAt(alpha: number): string {
+  return `rgba(0, 0, 0, ${alpha})`
+}
 
 /**
  * Colors for the native bottom-sheet chrome rendered by @gorhom/bottom-sheet
@@ -9,42 +19,41 @@ import type { Theme } from './resolve-theme'
  * Web SDK theme the DOM content uses — they must be themed explicitly.
  *
  * Sheet Surface Parity: the native chrome and the DOM WebView render the same
- * visual surface in two different engines, so these tokens MUST track the Web
- * SDK's CSS tokens or a seam appears where chrome meets WebView:
- *   - SHEET_SURFACE         === --yv-background (--yv-white / --yv-gray-50)
- *   - SHEET_MUTED_BACKGROUND === --yv-muted      (--yv-gray-5 / --yv-gray-40)
- * If the Web SDK changes those values, update these to match.
+ * visual surface in two different engines, so these values are derived from
+ * the ported tokens rather than copied hex:
+ *   - SHEET_SURFACE         === background
+ *   - SHEET_MUTED_BACKGROUND === muted
+ * Gorhom-only chrome (handle, stroke, shadows) maps onto the existing palette
+ * / semantic tokens. No sheet-specific token names.
  */
 
-/** Background surface behind the sheet chrome (handle area, rounded top corners). Mirrors --yv-background. */
+/** Background surface behind the sheet chrome (handle area, rounded top corners). */
 export const SHEET_SURFACE = {
-  light: '#ffffff',
-  dark: '#121212',
+  light: light.background,
+  dark: dark.background,
 } satisfies Record<Theme, string>
 
-/** Drag-handle indicator color. */
+/** Drag-handle indicator. Nearest palette steps to the old off-palette chrome hex. */
 export const SHEET_HANDLE = {
-  light: '#cccccc',
-  dark: '#5a5757',
+  light: palette.gray20,
+  dark: palette.gray30,
 } satisfies Record<Theme, string>
 
 /**
- * Muted surface used behind a search bar at the bottom of picker sheets. Mirrors
- * the Web SDK --yv-muted so the native footer inset meets the DOM search section
- * with no seam.
+ * Muted surface used behind a search bar at the bottom of picker sheets. The
+ * native footer inset meets the DOM search section with no seam.
  */
 export const SHEET_MUTED_BACKGROUND = {
-  light: '#f6f4f4',
-  dark: '#353333',
+  light: light.muted,
+  dark: dark.muted,
 } satisfies Record<Theme, string>
 
 /**
  * Primary on-surface color: body text, icons, and the fill of a solid button.
- * Mirrors the Web SDK --yv-foreground.
  */
 export const SHEET_FOREGROUND = {
-  light: '#121212',
-  dark: '#ffffff',
+  light: light.foreground,
+  dark: dark.foreground,
 } satisfies Record<Theme, string>
 
 /**
@@ -52,20 +61,20 @@ export const SHEET_FOREGROUND = {
  * the surface and so needs the surface's own color back for its text.
  */
 export const SHEET_INVERSE_FOREGROUND = {
-  light: '#ffffff',
-  dark: '#121212',
+  light: light.background,
+  dark: dark.background,
 } satisfies Record<Theme, string>
 
-/** Secondary on-surface color: supporting paragraphs and eyebrow labels. Mirrors --yv-muted-foreground. */
+/** Secondary on-surface color: supporting paragraphs and eyebrow labels. */
 export const SHEET_MUTED_FOREGROUND = {
-  light: '#6b6a6a',
-  dark: '#a8a5a5',
+  light: light.mutedForeground,
+  dark: dark.mutedForeground,
 } satisfies Record<Theme, string>
 
-/** Hairline border on an outlined control drawn over the sheet surface. {@link SHEET_FOREGROUND} at 20%. */
+/** Hairline border on an outlined control drawn over the sheet surface. */
 export const SHEET_STROKE = {
-  light: 'rgba(18, 18, 18, 0.2)',
-  dark: 'rgba(255, 255, 255, 0.2)',
+  light: withAlpha(light.foreground, 0.2),
+  dark: withAlpha(dark.foreground, 0.2),
 } satisfies Record<Theme, string>
 
 /**
@@ -83,11 +92,11 @@ export const SHEET_STROKE = {
  */
 export const SHEET_TOP_SHADOW = {
   light: [
-    { offsetX: 0, offsetY: -2, blurRadius: 4, color: 'rgba(18, 18, 18, 0.06)' },
-    { offsetX: 0, offsetY: -16, blurRadius: 32, color: 'rgba(18, 18, 18, 0.14)' },
+    { offsetX: 0, offsetY: -2, blurRadius: 4, color: withAlpha(light.foreground, 0.06) },
+    { offsetX: 0, offsetY: -16, blurRadius: 32, color: withAlpha(light.foreground, 0.14) },
   ],
   dark: [
-    { offsetX: 0, offsetY: -2, blurRadius: 4, color: 'rgba(0, 0, 0, 0.5)' },
-    { offsetX: 0, offsetY: -16, blurRadius: 32, color: 'rgba(0, 0, 0, 0.7)' },
+    { offsetX: 0, offsetY: -2, blurRadius: 4, color: blackAt(0.5) },
+    { offsetX: 0, offsetY: -16, blurRadius: 32, color: blackAt(0.7) },
   ],
 } satisfies Record<Theme, readonly BoxShadowValue[]>

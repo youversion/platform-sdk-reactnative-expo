@@ -286,12 +286,12 @@ describe('NativeSheet', () => {
     )
 
     expect(latestBottomSheetProps.backgroundStyle).toEqual({
-      backgroundColor: '#121212',
+      backgroundColor: SHEET_SURFACE.dark,
       boxShadow: SHEET_TOP_SHADOW.dark,
     })
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
       { backgroundColor: '#ccc' },
-      { backgroundColor: '#5a5757' },
+      { backgroundColor: SHEET_HANDLE.dark },
     ])
   })
 

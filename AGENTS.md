@@ -47,6 +47,14 @@ Content cache, `Cache-Control`, lifetime, or sweep: `CONTEXT.md` and [ADR 0020](
 
 NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md), [0006](docs/adr/0006-inactive-sheet-inertness.md), [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md), [0017](docs/adr/0017-native-verse-action-sheet.md).
 
+## Design Tokens
+
+Tokens, color scheme, or palette: [ADR 0021](docs/adr/0021-native-design-tokens.md). Values live in `packages/ui/src/theme/` — `palette.ts` (named hex) feeds `semantic.ts` (a role per scheme), and `getTokens(scheme)` returns one frozen object per scheme, by identity. The hook is `packages/ui/src/hooks/use-tokens.ts`; scheme comes from `YouVersionProvider`, and there is no second theme provider.
+
+- **Hex only.** `theme/__tests__/tokens.test.ts` scans the directory and fails on `oklch(`, `rgb(`, or `rem`. Alpha fills go through `withAlpha` at the call site.
+- **Public, unlike the primitives.** `getTokens` and `useTokens` are on the package namespace (pinned by `exports.test.ts`); the components that consume them are not.
+- **No spacing scale.** Radius, type, and font family only. Add a step with the component that needs it.
+
 ## UI Primitives
 
 Internal design-system primitives (`Text`, `Button`, …) live in `packages/ui/src/components/ui/`, exported from that barrel only — never `src/index.ts` (pinned by `exports.test.ts`).
