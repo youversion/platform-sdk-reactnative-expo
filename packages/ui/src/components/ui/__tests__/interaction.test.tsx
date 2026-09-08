@@ -234,10 +234,23 @@ describe('Accordion', () => {
   })
 })
 
+function patchMeasureOnNode(
+  node: {
+    measure: (callback: (...args: number[]) => void) => void
+  } | null,
+) {
+  if (node === null) {
+    return
+  }
+  node.measure = (callback) => {
+    callback(0, 0, 80, 40, 12, 80)
+  }
+}
+
 function PopoverHarness() {
   return (
     <Popover>
-      <Popover.Trigger testID="popover-trigger">
+      <Popover.Trigger testID="popover-trigger" ref={patchMeasureOnNode}>
         <Text>Open filter</Text>
       </Popover.Trigger>
       <Popover.Content testID="popover-content">
@@ -250,13 +263,6 @@ function PopoverHarness() {
   )
 }
 
-function patchTriggerMeasure() {
-  const trigger = screen.getByTestId('popover-trigger')
-  trigger.instance.measure = (callback: (...args: number[]) => void) => {
-    callback(0, 0, 80, 40, 12, 80)
-  }
-}
-
 describe('Popover', () => {
   it('keeps content closed until the trigger is pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
@@ -267,8 +273,6 @@ describe('Popover', () => {
 
   it('opens token-styled content on trigger press and closes from Close', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
-    patchTriggerMeasure()
-
     fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
 
     expect(screen.getByText('Filter options')).toBeTruthy()
@@ -292,8 +296,6 @@ describe('Popover', () => {
 
   it('paints content from the dark popover tokens', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper('dark') })
-    patchTriggerMeasure()
-
     fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
 
     expect(viewStyle('popover-content')).toMatchObject({
@@ -305,12 +307,10 @@ describe('Popover', () => {
 
   it('dismisses when the overlay is pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
-    patchTriggerMeasure()
-
     fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
     expect(screen.getByText('Filter options')).toBeTruthy()
 
-    fireEvent.press(screen.getByTestId('popover-overlay'))
+    fireEvent.press(screen.getByTestId('popover-overlay', { includeHiddenElements: true }))
 
     expect(screen.queryByText('Filter options')).toBeNull()
   })
