@@ -3,7 +3,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { Pressable, StyleSheet } from 'react-native'
 import type { PressableProps, StyleProp, ViewStyle } from 'react-native'
 
-import { useBrandFontsReady, useTheme, useTokens } from '../../hooks'
+import { useTheme, useTokens } from '../../hooks'
 import type { Theme } from '../../hooks'
 import { withAlpha } from '../../lib/color'
 import { createVariants } from '../../lib/variants'
@@ -169,7 +169,6 @@ export type ButtonTextProps = Omit<TextProps, 'variant'>
 function ButtonText({ style, ...props }: ButtonTextProps): ReactNode {
   const context = useButtonContext()
   const tokens = useTokens()
-  const ready = useBrandFontsReady()
   return (
     <Text
       numberOfLines={1}
@@ -179,7 +178,7 @@ function ButtonText({ style, ...props }: ButtonTextProps): ReactNode {
         {
           flexShrink: 1,
           color: context.foreground,
-          ...sansFace(tokens.fontFamily.sans, 500, ready),
+          ...sansFace(tokens.fontFamily.sans, 500),
           ...tokens.typography.sm,
         },
         style,

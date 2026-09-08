@@ -54,10 +54,9 @@ function sansIsRegistered(): boolean {
 }
 
 /**
- * Registers Inter and Untitled Serif in the background; children render
- * meanwhile. Returns true once the sans faces are usable so text can switch
- * from the system font (see `sansFace`). Serif is never awaited: its network
- * fetch must not hold the sans swap. Source Serif 4 is the serif fallback.
+ * Returns true once the bundled Inter faces are registered so the provider
+ * can open children. Serif is never awaited: its network fetch must not hold
+ * first paint. Source Serif 4 is the serif fallback.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): boolean {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
@@ -72,6 +71,9 @@ export function useBrandFonts(appKey: string, apiHost?: string): boolean {
       },
       (cause: unknown) => {
         console.error('[YouVersion SDK] sans faces failed to load:', cause)
+        if (!cancelled) {
+          setSansReady(true)
+        }
       },
     )
     void loadUntitledSerif(appKey, apiHost)

@@ -72,15 +72,11 @@ export function fontMapKey(
 }
 
 /**
- * Text style for a sans weight. Until the faces register, native draws an
- * unknown family as the system font but keeps that text size once the face
- * lands, clipping labels. So draw the system font on purpose, then switch
- * `fontFamily` (a layout attribute) to force a fresh layout pass.
+ * Text style for a sans weight. The provider holds children until these
+ * faces register, so this always names the mapped Inter face — never a
+ * `fontWeight` on the system font, and never a PostScript name plus weight.
  */
-export function sansFace(family: string, weight: FontFace['weight'], ready: boolean): TextStyle {
-  if (!ready) {
-    return { fontWeight: `${weight}` }
-  }
+export function sansFace(family: string, weight: FontFace['weight']): TextStyle {
   return { fontFamily: fontMapKey(family, weight, 'normal') }
 }
 

@@ -5,7 +5,6 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 import { type ReactNode } from 'react'
 import * as ReactNative from 'react-native'
-import { BrandFontsContext } from '../hooks/use-brand-fonts'
 import { ThemeContext } from '../hooks/use-theme'
 import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
@@ -61,13 +60,13 @@ export function YouVersionProvider({
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
     >
-      <LocaleProvider locale={locale}>
-        <ThemeContext.Provider value={resolvedTheme}>
-          <BrandFontsContext.Provider value={fontsReady}>
+      {fontsReady ? (
+        <LocaleProvider locale={locale}>
+          <ThemeContext.Provider value={resolvedTheme}>
             <NativeSheetProvider>{children}</NativeSheetProvider>
-          </BrandFontsContext.Provider>
-        </ThemeContext.Provider>
-      </LocaleProvider>
+          </ThemeContext.Provider>
+        </LocaleProvider>
+      ) : null}
     </CoreYouVersionProvider>
   )
 }

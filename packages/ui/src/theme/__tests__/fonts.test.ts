@@ -304,14 +304,9 @@ describe('fetchUntitledSerifFont', () => {
 })
 
 describe('sansFace', () => {
-  it('draws the system font at the requested weight until the faces register', () => {
-    expect(sansFace('Inter', 700, false)).toEqual({ fontWeight: '700' })
-    expect(sansFace('Inter', 400, false)).toEqual({ fontWeight: '400' })
-  })
-
-  it('switches to the registered face once ready, without a fontWeight', () => {
-    expect(sansFace('Inter', 700, true)).toEqual({ fontFamily: 'Inter_bold' })
-    expect(sansFace('Inter', 500, true)).toEqual({ fontFamily: 'Inter_medium' })
-    expect(sansFace('Inter', 400, true)).toEqual({ fontFamily: 'Inter' })
+  it('names the mapped face without a fontWeight', () => {
+    expect(sansFace('Inter', 700)).toEqual({ fontFamily: 'Inter_bold' })
+    expect(sansFace('Inter', 500)).toEqual({ fontFamily: 'Inter_medium' })
+    expect(sansFace('Inter', 400)).toEqual({ fontFamily: 'Inter' })
   })
 })
