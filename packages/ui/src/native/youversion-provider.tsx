@@ -47,7 +47,7 @@ export function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
-  useBrandFonts(appKey, apiHost)
+  const fontsReady = useBrandFonts(appKey, apiHost)
 
   return (
     <CoreYouVersionProvider
@@ -60,11 +60,13 @@ export function YouVersionProvider({
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
     >
-      <LocaleProvider locale={locale}>
-        <ThemeContext.Provider value={resolvedTheme}>
-          <NativeSheetProvider>{children}</NativeSheetProvider>
-        </ThemeContext.Provider>
-      </LocaleProvider>
+      {fontsReady ? (
+        <LocaleProvider locale={locale}>
+          <ThemeContext.Provider value={resolvedTheme}>
+            <NativeSheetProvider>{children}</NativeSheetProvider>
+          </ThemeContext.Provider>
+        </LocaleProvider>
+      ) : null}
     </CoreYouVersionProvider>
   )
 }

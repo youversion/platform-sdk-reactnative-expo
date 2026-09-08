@@ -1,3 +1,4 @@
+import type { TextStyle } from 'react-native'
 import { z } from 'zod'
 
 import { fontFamily } from './scales'
@@ -68,6 +69,15 @@ export function fontMapKey(
     return family
   }
   return parts.join('_')
+}
+
+/**
+ * Text style for a sans weight. The provider holds children until these
+ * faces register, so this always names the mapped Inter face — never a
+ * `fontWeight` on the system font, and never a PostScript name plus weight.
+ */
+export function sansFace(family: string, weight: FontFace['weight']): TextStyle {
+  return { fontFamily: fontMapKey(family, weight, 'normal') }
 }
 
 function isAllowedFontFileUrl(url: string): boolean {
