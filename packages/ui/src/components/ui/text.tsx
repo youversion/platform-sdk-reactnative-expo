@@ -39,8 +39,7 @@ export function Text({ variant, style, ...props }: TextProps): ReactNode {
     <RNText
       {...props}
       style={[
-        textVariants(tokens, { variant }),
-        sansFace(tokens.fontFamily.sans, weight),
+        [textVariants(tokens, { variant }), sansFace(tokens.fontFamily.sans, weight)],
         style,
       ]}
     />
