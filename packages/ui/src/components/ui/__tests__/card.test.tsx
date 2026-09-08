@@ -35,7 +35,7 @@ function renderFullCard(theme: 'light' | 'dark') {
         <Text variant="muted">Description</Text>
       </Card.Header>
       <Card.Content testID="content">
-        <Text>Body</Text>
+        <Card.Text>Body</Card.Text>
       </Card.Content>
       <Card.Footer testID="footer">
         <Text>Footer</Text>
@@ -82,7 +82,7 @@ describe('Card', () => {
 
   // `cardForeground` and `foreground` share a hex, so the checks above pass
   // whether or not Title reads context. A diverged mock is the wiring proof.
-  it('paints the title from cardForeground when it diverges from foreground', () => {
+  it('paints title and body from cardForeground when it diverges from foreground', () => {
     const distinct = light.destructive
     expect(distinct).not.toBe(light.foreground)
     expect(distinct).not.toBe(light.cardForeground)
@@ -96,11 +96,15 @@ describe('Card', () => {
       render(
         <Card>
           <Card.Title>Wired</Card.Title>
+          <Card.Content>
+            <Card.Text>Body</Card.Text>
+          </Card.Content>
         </Card>,
         { wrapper: youVersionProviderWrapper() },
       )
 
       expect(titleOwnStyle('Wired')).toMatchObject({ color: distinct })
+      expect(titleOwnStyle('Body')).toMatchObject({ color: distinct })
     } finally {
       spy.mockRestore()
     }
@@ -119,11 +123,12 @@ describe('Card', () => {
     })
   })
 
-  it('throws when Card.Title renders outside a Card root', () => {
+  it('throws when Card.Title or Card.Text renders outside a Card root', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
     const wrapper = youVersionProviderWrapper()
 
     expect(() => render(<Card.Title>Orphan</Card.Title>, { wrapper })).toThrow(/inside <Card>/)
+    expect(() => render(<Card.Text>Orphan</Card.Text>, { wrapper })).toThrow(/inside <Card>/)
 
     consoleError.mockRestore()
   })
@@ -202,6 +207,20 @@ describe('Card', () => {
     expect(textStyle('Pinned')).toMatchObject({
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       ...light.typography.lg,
+    })
+  })
+
+  it('does not let a caller restyle Card.Text through a Text variant', () => {
+    // @ts-expect-error — `variant` is omitted from CardTextProps; the root owns
+    // the color and the body pins `body` after the spread.
+    const body = <Card.Text variant="muted">Pinned body</Card.Text>
+
+    render(<Card>{body}</Card>, { wrapper: youVersionProviderWrapper() })
+
+    expect(titleOwnStyle('Pinned body')).toMatchObject({ color: light.cardForeground })
+    expect(textStyle('Pinned body')).toMatchObject({
+      fontFamily: light.fontFamily.sans,
+      ...light.typography.base,
     })
   })
 

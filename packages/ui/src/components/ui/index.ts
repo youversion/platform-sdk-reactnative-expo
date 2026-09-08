@@ -11,5 +11,6 @@ export {
   type CardFooterProps,
   type CardHeaderProps,
   type CardProps,
+  type CardTextProps,
   type CardTitleProps,
 } from './card'

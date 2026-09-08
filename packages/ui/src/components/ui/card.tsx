@@ -41,21 +41,21 @@ const styles = StyleSheet.create({
 })
 
 // `cardForeground` equals `foreground` today, so this publishes no visible color.
-// Kept for parity with Button and the AGENTS.md compound pattern. If `card` ever
-// needs its own foreground, wire Card.Content's body text at the same time.
+// Kept for parity with Button and the AGENTS.md compound pattern. Title and
+// Text consume it so they stay in sync if the tokens ever diverge.
 type CardContextValue = {
   readonly foreground: string
 }
 
 const CardContext = createContext<CardContextValue | null>(null)
 
-// Only Card.Title reads the context, so only Card.Title guards. The layout
-// slots are plain Views; making them throw would turn a re-parented slot into a
+// Only Title and Text read the context, so only they guard. The layout slots
+// are plain Views; making them throw would turn a re-parented slot into a
 // crashed tree for no styling benefit.
 function useCardContext(): CardContextValue {
   const context = use(CardContext)
   if (context === null) {
-    throw new Error('Card.Title must be rendered inside <Card>')
+    throw new Error('Card.Title and Card.Text must be rendered inside <Card>')
   }
   return context
 }
@@ -102,6 +102,15 @@ function CardContent({ style, ...props }: CardContentProps): ReactNode {
   return <View {...props} style={[styles.content, style]} />
 }
 
+/** `variant` is omitted: the root owns the color and the body pins `body`
+ * below, so a forwarded value cannot restyle it at runtime either. */
+export type CardTextProps = Omit<TextProps, 'variant'>
+
+function CardText({ style, ...props }: CardTextProps): ReactNode {
+  const context = useCardContext()
+  return <Text {...props} variant="body" style={[{ color: context.foreground }, style]} />
+}
+
 export type CardFooterProps = ViewProps
 
 function CardFooter({ style, ...props }: CardFooterProps): ReactNode {
@@ -113,5 +122,6 @@ export const Card = Object.assign(CardRoot, {
   Header: CardHeader,
   Title: CardTitle,
   Content: CardContent,
+  Text: CardText,
   Footer: CardFooter,
 })
