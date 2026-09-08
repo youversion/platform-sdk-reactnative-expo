@@ -58,6 +58,8 @@ describe('package exports', () => {
     expect(names).not.toContain('useVerseOfTheDayPassageId')
     expect(names).not.toContain('getVerseOfTheDayPassageId')
     expect(names).not.toContain('getDayOfYear')
+    expect(names).not.toContain('BibleReaderSearchSheet')
+    expect(names).not.toContain('Input')
   })
 
   it('exports nothing beyond the pinned list', () => {

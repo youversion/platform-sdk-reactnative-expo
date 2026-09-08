@@ -4,6 +4,7 @@ import type {
   UseHighlightPermissionFlowResult,
   UseHighlightsOptions,
   UseHighlightsResult,
+  UseSearchResult,
 } from '@youversion/platform-react-native-expo-core'
 
 export function emptyHighlights(options: UseHighlightsOptions): UseHighlightsResult {
@@ -55,8 +56,18 @@ export function defaultPermissionFlow(
   }
 }
 
+export function emptySearch(): UseSearchResult {
+  return {
+    suggestedQueries: async () => ({ ok: true, value: [] }),
+    trendingQueries: async () => ({ ok: true, value: [] }),
+    verses: async () => ({ ok: true, value: { verses: [], didYouMean: [] } }),
+    topics: async () => ({ ok: true, value: { topics: [], didYouMean: [], totalSize: 0 } }),
+  }
+}
+
 export const defaultHookOverrides: HookOverrides = {
   useYVAuth: signedOutAuth(),
   useHighlights: emptyHighlights,
   useHighlightPermissionFlow: defaultPermissionFlow,
+  useSearch: emptySearch,
 }

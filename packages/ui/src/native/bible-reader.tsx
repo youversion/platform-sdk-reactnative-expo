@@ -30,9 +30,12 @@ import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
+import { Button } from '../components/ui/button'
 import { getImpl } from './component-impls'
 import { useTheme } from '../hooks/use-theme'
+import { useTokens } from '../hooks/use-tokens'
 import { useLocale } from '../i18n/locale-context'
+import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -45,9 +48,15 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  useConsumedNavigationRequest,
+  type BibleReaderNavigation,
+} from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { SearchIcon } from './icons'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
@@ -237,6 +246,8 @@ export function BibleReader({
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
+  const { t } = useSdkTranslation()
+  const tokens = useTokens()
   // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
   // deliberately not read here: it never crosses into the WebView.
   const auth = useYVAuthOptional()
@@ -244,6 +255,8 @@ export function BibleReader({
   const signIn = auth?.signIn
   const guardedSignOut = useSignOutGuard(auth)
   const resolvedTheme = useTheme(theme)
+  const fallbackNavigation = useMemo(() => createBibleReaderNavigation(), [])
+  const resolvedNavigation = navigation ?? fallbackNavigation
 
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
@@ -291,7 +304,7 @@ export function BibleReader({
     },
   })
 
-  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -347,6 +360,7 @@ export function BibleReader({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // ── Verse actions ────────────────────────────────────────────────────────
   // The reader owns the committed selection so it can raise a native sheet over
@@ -620,6 +634,7 @@ export function BibleReader({
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
+  const showSearchChrome = Platform.OS !== 'web' && showToolbar
 
   const authProps = context.authRedirectUrl
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
@@ -628,7 +643,7 @@ export function BibleReader({
   // Pad scroll content inside the WebView so the closing copyright clears the
   // native tab bar overlay and home indicator. NativeTabs adjusts ScrollViews
   // automatically, but the reader opts out — clearance is owned here.
-  const { bottom: bottomSafeArea } = useSafeAreaInsets()
+  const { bottom: bottomSafeArea, top: topSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
   const BibleReaderDOM = getImpl('BibleReaderDom')
@@ -648,6 +663,28 @@ export function BibleReader({
   return (
     <>
       <View style={{ flex: 1 }}>
+        {showSearchChrome && (
+          <View
+            style={[
+              readerStyles.searchBar,
+              {
+                paddingTop: topSafeArea,
+                backgroundColor: tokens.background,
+                borderBottomColor: tokens.border,
+              },
+            ]}
+          >
+            <Button
+              testID="bible-reader-search-button"
+              variant="ghost"
+              size="icon"
+              accessibilityLabel={t('search')}
+              onPress={() => setIsSearchOpen(true)}
+            >
+              <Button.Icon as={SearchIcon} />
+            </Button>
+          </View>
+        )}
         <BibleReaderDOM
           {...authProps}
           appKey={context.appKey}
@@ -779,6 +816,30 @@ export function BibleReader({
           }}
         />
       )}
+      {showSearchChrome && (
+        <BibleReaderSearchSheet
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          versionId={appliedVersionId}
+          theme={resolvedTheme}
+          fetchBibleContent={context.fetchBibleContent}
+          onSelectReference={(reference) => {
+            setIsSearchOpen(false)
+            resolvedNavigation.request(reference)
+          }}
+        />
+      )}
     </>
   )
 }
+
+const readerStyles = StyleSheet.create({
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 8,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+})

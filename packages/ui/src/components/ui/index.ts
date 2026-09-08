@@ -5,6 +5,7 @@
  */
 export { Text, type TextProps } from './text'
 export { Button, type ButtonIconProps, type ButtonProps, type ButtonTextProps } from './button'
+export { Input, type InputClearProps, type InputFieldProps, type InputProps } from './input'
 export {
   Card,
   type CardContentProps,
