@@ -87,8 +87,8 @@ function CardTitle({ style, ...props }: CardTitleProps): ReactNode {
   const context = useCardContext()
   return (
     <Text
-      accessibilityRole="header"
       {...props}
+      accessibilityRole="header"
       variant="heading"
       style={[{ color: context.foreground }, style]}
     />

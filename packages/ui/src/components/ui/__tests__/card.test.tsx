@@ -153,6 +153,17 @@ describe('Card', () => {
     expect(textStyle('Recoloured')).toMatchObject({ color: light.destructive })
   })
 
+  it('does not let a caller override the title header role', () => {
+    render(
+      <Card>
+        <Card.Title accessibilityRole="button">Pinned role</Card.Title>
+      </Card>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(screen.getByRole('header', { name: 'Pinned role' })).toBeTruthy()
+  })
+
   it('does not let a caller restyle the title through a Text variant', () => {
     // @ts-expect-error — `variant` is omitted from CardTitleProps; the root owns
     // the color and the title pins `heading` after the spread, so the forwarded
