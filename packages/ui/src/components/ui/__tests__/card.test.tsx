@@ -52,6 +52,7 @@ describe('Card', () => {
     expect(viewStyle('card')).toMatchObject({
       backgroundColor: light.card,
       borderRadius: light.radius.surface,
+      overflow: 'hidden',
       paddingVertical: 24,
       gap: 24,
     })

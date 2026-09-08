@@ -21,6 +21,7 @@ const cardVariants = createVariants((tokens) => ({
   base: {
     backgroundColor: tokens.card,
     borderRadius: tokens.radius.surface,
+    overflow: 'hidden',
     paddingVertical: PADDING,
     gap: GAP,
   },
