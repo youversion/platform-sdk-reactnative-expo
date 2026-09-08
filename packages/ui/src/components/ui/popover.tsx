@@ -1,5 +1,5 @@
 import { createContext, use, useMemo } from 'react'
-import type { ReactNode } from 'react'
+import type { ComponentProps, ReactNode } from 'react'
 import * as PopoverPrimitive from '@rn-primitives/popover'
 import { StyleSheet } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
@@ -52,7 +52,7 @@ function PopoverRoot({ style, ...props }: PopoverProps): ReactNode {
   return <PopoverPrimitive.Root {...props} style={style} />
 }
 
-export type PopoverTriggerProps = Omit<PopoverPrimitive.TriggerProps, 'style'> & {
+export type PopoverTriggerProps = Omit<ComponentProps<typeof PopoverPrimitive.Trigger>, 'style'> & {
   style?: StyleProp<ViewStyle>
 }
 
@@ -86,7 +86,7 @@ function PopoverContent({
           align={align}
           sideOffset={sideOffset}
           {...props}
-          style={[popoverContentVariants(tokens), style]}
+          style={StyleSheet.flatten([popoverContentVariants(tokens), style])}
         />
       </PopoverContentContext.Provider>
     </PopoverPrimitive.Portal>

@@ -25,8 +25,8 @@ const accordionItemVariants = createVariants((tokens) => ({
   },
 }))
 
-const accordionTriggerVariants = createVariants((tokens) => ({
-  base: {
+const styles = StyleSheet.create({
+  trigger: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -34,9 +34,6 @@ const accordionTriggerVariants = createVariants((tokens) => ({
     paddingVertical: TRIGGER_PADDING_VERTICAL,
     backgroundColor: 'transparent',
   },
-}))
-
-const styles = StyleSheet.create({
   content: { paddingBottom: CONTENT_PADDING_BOTTOM, overflow: 'hidden' },
   disabled: { opacity: DISABLED_OPACITY },
   chevronCollapsed: { transform: [{ rotate: '0deg' }] },
@@ -83,12 +80,10 @@ function ChevronDownIcon({
   )
 }
 
-export type AccordionProps = Omit<AccordionPrimitive.RootProps, 'style'> & {
-  style?: StyleProp<ViewStyle>
-}
+export type AccordionProps = AccordionPrimitive.RootProps
 
-function AccordionRoot({ style, ...props }: AccordionProps): ReactNode {
-  return <AccordionPrimitive.Root {...props} style={style} />
+function AccordionRoot(props: AccordionProps): ReactNode {
+  return <AccordionPrimitive.Root {...props} />
 }
 
 export type AccordionItemProps = Omit<AccordionPrimitive.ItemProps, 'style'> & {
@@ -100,8 +95,12 @@ function AccordionItem({ style, ...props }: AccordionItemProps): ReactNode {
   return <AccordionPrimitive.Item {...props} style={[accordionItemVariants(tokens), style]} />
 }
 
-export type AccordionTriggerProps = Omit<AccordionPrimitive.TriggerProps, 'asChild' | 'style'> & {
+export type AccordionTriggerProps = Omit<
+  AccordionPrimitive.TriggerProps,
+  'asChild' | 'style' | 'children'
+> & {
   style?: StyleProp<ViewStyle>
+  children?: ReactNode
 }
 
 function AccordionTrigger({
@@ -122,7 +121,7 @@ function AccordionTrigger({
         <AccordionPrimitive.Trigger
           disabled={disabled}
           {...props}
-          style={[accordionTriggerVariants(tokens), style, isDisabled && styles.disabled]}
+          style={[styles.trigger, style, isDisabled && styles.disabled]}
         >
           {children}
           <View style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}>
