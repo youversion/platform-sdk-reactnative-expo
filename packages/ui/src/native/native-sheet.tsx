@@ -448,6 +448,8 @@ export function NativeSheetProvider({ children }: { children: ReactNode }): Reac
     <>
       {children}
       <PortalHost name={HOST_NAME} />
+      {/* Default host for @rn-primitives popovers. Sheets keep the named host above. */}
+      <PortalHost />
     </>
   )
 }
