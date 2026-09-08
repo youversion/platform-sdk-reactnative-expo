@@ -14,3 +14,27 @@ export {
   type CardTextProps,
   type CardTitleProps,
 } from './card'
+export {
+  Tabs,
+  type TabsContentProps,
+  type TabsListProps,
+  type TabsProps,
+  type TabsTextProps,
+  type TabsTriggerProps,
+} from './tabs'
+export {
+  Accordion,
+  type AccordionContentProps,
+  type AccordionItemProps,
+  type AccordionProps,
+  type AccordionTextProps,
+  type AccordionTriggerProps,
+} from './accordion'
+export {
+  Popover,
+  type PopoverCloseProps,
+  type PopoverContentProps,
+  type PopoverProps,
+  type PopoverTextProps,
+  type PopoverTriggerProps,
+} from './popover'
