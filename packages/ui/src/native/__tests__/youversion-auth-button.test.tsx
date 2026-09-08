@@ -1,14 +1,21 @@
 import type { ComponentProps } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import { Alert, Platform, View } from 'react-native'
+import { Alert, Platform, StyleSheet, View } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
 import en from '../../i18n/locales/en.json'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
+import { getTokens } from '../../theme'
 import { YouVersionAuthButton } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
+
+const light = getTokens('light')
+const dark = getTokens('dark')
 
 const mockSignIn = jest.fn(async () => undefined)
 const mockSignOut = jest.fn(async () => undefined)
@@ -59,6 +66,18 @@ function pressAlertButton(text: string) {
   const button = buttons.find((candidate) => candidate.text === text)
   expect(button).toBeTruthy()
   button?.onPress?.()
+}
+
+function containerStyle() {
+  let node: ReactTestInstance | null = screen.getByTestId('bible-app-logo')
+  while (node) {
+    const style = StyleSheet.flatten(node.props.style)
+    if (style && 'backgroundColor' in style) {
+      return style
+    }
+    node = node.parent
+  }
+  throw new Error('Pressable container not found')
 }
 
 describe('YouVersionAuthButton labels', () => {
@@ -115,20 +134,71 @@ describe('YouVersionAuthButton labels', () => {
   it('applies white text color on dark background for sign-in label', () => {
     renderAuthButton({ background: 'dark' })
     const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: '#fff' })
+    expect(label.props.style).toMatchObject({ color: dark.foreground })
   })
 
   it('applies white text color on dark background for sign-out label', () => {
     mockIsAuthenticated = true
     renderAuthButton({ background: 'dark' })
     const label = screen.getByText(/sign out of/i)
-    expect(label.props.style).toMatchObject({ color: '#fff' })
+    expect(label.props.style).toMatchObject({ color: dark.foreground })
   })
 
   it('applies black text color on light background for sign-in label', () => {
     renderAuthButton({ background: 'light' })
     const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: '#000' })
+    expect(label.props.style).toMatchObject({ color: light.foreground })
+  })
+})
+
+describe('YouVersionAuthButton container tokens', () => {
+  it('maps outline light to border and fill tokens', () => {
+    renderAuthButton({ background: 'light', outline: true })
+
+    expect(containerStyle()).toMatchObject({
+      borderColor: light.border,
+      borderWidth: 1,
+      backgroundColor: light.background,
+    })
+  })
+
+  it('maps outline dark to border and fill tokens', () => {
+    renderAuthButton({ background: 'dark', outline: true })
+
+    expect(containerStyle()).toMatchObject({
+      borderColor: dark.border,
+      borderWidth: 2,
+      backgroundColor: dark.background,
+    })
+  })
+
+  it('maps non-outline light to fill without a border', () => {
+    renderAuthButton({ background: 'light', outline: false })
+
+    const style = containerStyle()
+    expect(style).toMatchObject({ backgroundColor: light.background })
+    expect(style.borderColor).toBeUndefined()
+    expect(style.borderWidth).toBeUndefined()
+  })
+
+  it('maps non-outline dark to fill without a border', () => {
+    renderAuthButton({ background: 'dark', outline: false })
+
+    const style = containerStyle()
+    expect(style).toMatchObject({ backgroundColor: dark.background })
+    expect(style.borderColor).toBeUndefined()
+    expect(style.borderWidth).toBeUndefined()
+  })
+})
+
+describe('youversion-auth-button source', () => {
+  it('keeps youversion-auth-button.tsx free of copied hex literals', () => {
+    const source = readFileSync(
+      join(__dirname, '..', 'youversion-auth-button.tsx'),
+      'utf8',
+    )
+
+    expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
 })
 
