@@ -5,13 +5,16 @@ import { StyleSheet } from 'react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 import { useTokens } from '../../hooks'
+import { SDK_POPOVER_HOST_NAME } from '../../lib/sdk-portal-hosts'
 import { createVariants } from '../../lib/variants'
+import { sansFace } from '../../theme/fonts'
 import { Text } from './text'
 import type { TextProps } from './text'
 
 const CONTENT_WIDTH = 288
 const CONTENT_PADDING = 16
 const CONTENT_SIDE_OFFSET = 4
+const DISABLED_OPACITY = 0.5
 
 const popoverContentVariants = createVariants((tokens) => ({
   base: {
@@ -28,6 +31,10 @@ const popoverContentVariants = createVariants((tokens) => ({
     elevation: 3,
   },
 }))
+
+const styles = StyleSheet.create({
+  disabled: { opacity: DISABLED_OPACITY },
+})
 
 type PopoverContentContextValue = {
   readonly foreground: string
@@ -55,18 +62,26 @@ export type PopoverTriggerProps = Omit<ComponentProps<typeof PopoverPrimitive.Tr
   style?: StyleProp<ViewStyle>
 }
 
-function PopoverTrigger({ style, ...props }: PopoverTriggerProps): ReactNode {
-  return <PopoverPrimitive.Trigger {...props} style={style} />
+function PopoverTrigger({ style, disabled, ...props }: PopoverTriggerProps): ReactNode {
+  return (
+    <PopoverPrimitive.Trigger
+      disabled={disabled}
+      {...props}
+      style={[style, disabled === true && styles.disabled]}
+    />
+  )
 }
 
 export type PopoverContentProps = Omit<PopoverPrimitive.ContentProps, 'style'> & {
   style?: StyleProp<ViewStyle>
   hostName?: string
+  overlayTestID?: string
 }
 
 function PopoverContent({
   style,
-  hostName,
+  hostName = SDK_POPOVER_HOST_NAME,
+  overlayTestID,
   align = 'center',
   sideOffset = CONTENT_SIDE_OFFSET,
   ...props
@@ -79,7 +94,7 @@ function PopoverContent({
 
   return (
     <PopoverPrimitive.Portal hostName={hostName}>
-      <PopoverPrimitive.Overlay style={StyleSheet.absoluteFill} testID="popover-overlay" />
+      <PopoverPrimitive.Overlay style={StyleSheet.absoluteFill} testID={overlayTestID} />
       <PopoverContentContext.Provider value={context}>
         <PopoverPrimitive.Content
           align={align}
@@ -104,7 +119,7 @@ function PopoverText({ style, ...props }: PopoverTextProps): ReactNode {
       style={[
         {
           color: context.foreground,
-          fontFamily: tokens.fontFamily.sans,
+          ...sansFace(tokens.fontFamily.sans, 500),
           ...tokens.typography.sm,
         },
         style,
@@ -117,8 +132,14 @@ export type PopoverCloseProps = Omit<PopoverPrimitive.CloseProps, 'style'> & {
   style?: StyleProp<ViewStyle>
 }
 
-function PopoverClose({ style, ...props }: PopoverCloseProps): ReactNode {
-  return <PopoverPrimitive.Close {...props} style={style} />
+function PopoverClose({ style, disabled, ...props }: PopoverCloseProps): ReactNode {
+  return (
+    <PopoverPrimitive.Close
+      disabled={disabled}
+      {...props}
+      style={[style, disabled === true && styles.disabled]}
+    />
+  )
 }
 
 /** Themed popover primitive. Internal — see UI Primitives in AGENTS.md. */

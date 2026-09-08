@@ -171,11 +171,27 @@ global.fetch = jest.fn((input, init) => {
   return Promise.reject(new Error(`unexpected fetch in UI tests: ${String(input)}`))
 })
 
-jest.mock('@rn-primitives/portal', () => ({
-  Portal: ({ children }) => children,
-  PortalHost: () => null,
-  PortalProvider: ({ children }) => children,
-}))
+jest.mock('@rn-primitives/portal', () => {
+  const React = require('react')
+  const { View } = require('react-native')
+  return {
+    Portal: ({ children, hostName }) =>
+      React.createElement(
+        React.Fragment,
+        null,
+        React.createElement(View, {
+          testID: 'rn-primitives-portal',
+          accessibilityLabel: hostName,
+        }),
+        children,
+      ),
+    PortalHost: ({ name }) =>
+      React.createElement(View, {
+        testID: name == null || name === '' ? 'portal-host-default' : `portal-host-${name}`,
+      }),
+    PortalProvider: ({ children }) => children,
+  }
+})
 
 /**
  * react-native-mmkv v4 ships on top of NitroModules, whose native turbo module

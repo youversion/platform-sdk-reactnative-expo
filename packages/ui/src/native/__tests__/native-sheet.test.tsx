@@ -1,4 +1,4 @@
-import { act, render, userEvent } from '@testing-library/react-native'
+import { act, render, screen, userEvent } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
@@ -13,9 +13,10 @@ import {
 } from '../../../jest.window-dimensions-mock'
 import { SHEET_MAX_WIDTH } from '../../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../../lib/native-sheet-theme'
+import { SDK_POPOVER_HOST_NAME } from '../../lib/sdk-portal-hosts'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls } from '../../test-utils/install-test-impls'
-import { NativeSheet } from '../native-sheet'
+import { NativeSheet, NativeSheetProvider } from '../native-sheet'
 import { YouVersionProvider } from '../youversion-provider'
 
 let mockBottomInset = 0
@@ -76,6 +77,36 @@ function TwoSheetHarness({
     </SheetProvider>
   )
 }
+
+describe('NativeSheetProvider', () => {
+  const originalOs = Platform.OS
+
+  afterEach(() => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: originalOs,
+    })
+  })
+
+  it('mounts the named popover host and not an unnamed default', () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    render(
+      <NativeSheetProvider>
+        <Text>child</Text>
+      </NativeSheetProvider>,
+    )
+
+    expect(screen.getByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeTruthy()
+    expect(screen.getByTestId('portal-host-native-sheet-host')).toBeTruthy()
+    expect(screen.queryByTestId('portal-host-default')).toBeNull()
+  })
+})
 
 describe('NativeSheet', () => {
   const originalOs = Platform.OS
