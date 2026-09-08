@@ -209,3 +209,7 @@ _Avoid_: Forwarding headers from the WebView (native is authoritative); `BibleCl
 **Content Read-Through**:
 The interception of the Web SDK's `fetch` inside an **Expo DOM Component** that hands an eligible request's URL to the **Bible Content Client** through one **Native Action** and rebuilds a `Response` from what comes back. The WebView never performs an eligible request itself. The Web SDK and its query cache are unaware of it. Throwaway by design: it exists only while content renders in a WebView. See [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
 _Avoid_: Query persistence (the Web SDK's query client is private and its persister has no per-entry lifetime); a WebView-side network fallback; read/write cache actions (the bridge carries requests, not cache entries)
+
+**Search**:
+Placeholder client in expo-core until `@youversion/platform-core` ships `SearchClient` (YPE-5622). Public operations: `suggestedQueries`, `trendingQueries`, `verses`, `topics`. The HTTP wrapper stays internal; replace it by wrapping the shared client the way highlights wraps `HighlightsClient`. Search is a normal JSON API, not **Bible Content Cache** / [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
+_Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; depending on a platform-core `SearchClient` that does not exist yet
