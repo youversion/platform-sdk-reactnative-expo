@@ -3,6 +3,8 @@ import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text } from 'react-native'
 import { Trans } from 'react-i18next'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import type { Theme } from '../lib/resolve-theme'
+import { getTokens } from '../theme'
 import { BibleAppLogo } from './bible-app-logo'
 import { useSignOutGuard } from './use-sign-out-guard'
 
@@ -16,6 +18,28 @@ export type YouVersionAuthButtonProps = {
   text?: string
 }
 
+const light = getTokens('light')
+const dark = getTokens('dark')
+
+type AuthButtonScheme = {
+  readonly fill: { readonly backgroundColor: string }
+  readonly label: { readonly color: string }
+  readonly outline: { readonly borderColor: string; readonly borderWidth: number }
+}
+
+const SCHEME = {
+  light: StyleSheet.create({
+    fill: { backgroundColor: light.background },
+    label: { color: light.foreground },
+    outline: { borderColor: light.border, borderWidth: 1 },
+  }),
+  dark: StyleSheet.create({
+    fill: { backgroundColor: dark.background },
+    label: { color: dark.foreground },
+    outline: { borderColor: dark.border, borderWidth: 2 },
+  }),
+} satisfies Record<Theme, AuthButtonScheme>
+
 export function YouVersionAuthButton({
   background = 'light',
   radius = 'rounded',
@@ -28,6 +52,10 @@ export function YouVersionAuthButton({
   const { isAuthenticated, signIn } = auth
   const guardedSignOut = useSignOutGuard(auth)
   const { t, i18n } = useSdkTranslation()
+
+  const scheme = SCHEME[background]
+  const textStyle = scheme.label
+  const boldComponent = <Text style={{ fontWeight: 'bold' }} />
 
   const authFunction = async () => {
     try {
@@ -46,9 +74,6 @@ export function YouVersionAuthButton({
       console.error(error)
     }
   }
-
-  const textStyle = background === 'dark' ? styles.buttonTextDark : styles.buttonTextLight
-  const boldComponent = <Text style={{ fontWeight: 'bold' }} />
 
   const unauthedButtonText = text ? (
     <Text style={textStyle}>{text}</Text>
@@ -82,13 +107,9 @@ export function YouVersionAuthButton({
     <Pressable
       style={[
         styles.buttonContainer,
-        background === 'dark' ? styles.buttonDark : styles.buttonLight,
+        scheme.fill,
         radius === 'rounded' ? styles.buttonRound : styles.buttonRectangle,
-        outline
-          ? background === 'light'
-            ? styles.buttonOutlineLight
-            : styles.buttonOutlineDark
-          : null,
+        outline ? scheme.outline : null,
         size === 'icon' && styles.iconButton,
       ]}
       onPress={() => {
@@ -119,30 +140,10 @@ const styles = StyleSheet.create({
   bibleAppLogo: {
     marginEnd: 16,
   },
-  buttonOutlineLight: {
-    borderColor: '#dddbdb',
-    borderWidth: 1,
-  },
-  buttonOutlineDark: {
-    borderColor: '#474545',
-    borderWidth: 2,
-  },
-  buttonLight: {
-    backgroundColor: '#fff',
-  },
-  buttonDark: {
-    backgroundColor: '#000',
-  },
   buttonRound: {
     borderRadius: 40,
   },
   buttonRectangle: {
     borderRadius: 8,
-  },
-  buttonTextDark: {
-    color: '#fff',
-  },
-  buttonTextLight: {
-    color: '#000',
   },
 })
