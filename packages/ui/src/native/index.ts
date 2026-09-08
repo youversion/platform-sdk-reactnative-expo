@@ -10,6 +10,8 @@ export type {
   BibleReaderVerseSelection,
   HighlightWriteError,
 } from './bible-reader'
+export { BibleReaderNavigation, createBibleReaderNavigation } from './bible-reader-navigation'
+export type { BibleReaderNavigationRequest } from './bible-reader-navigation'
 export { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 export type { BibleReaderSettingsSheetProps } from './bible-reader-settings-sheet'
 export { BibleTextView } from './bible-text-view'
