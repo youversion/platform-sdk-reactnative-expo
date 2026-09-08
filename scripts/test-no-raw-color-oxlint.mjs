@@ -3,7 +3,8 @@
  * Regression tests for design-tokens/no-raw-color oxlint rule.
  *
  * Violation fixtures live under scripts/eslint-fixtures/no-raw-color/.
- * The scripts directory is ignored by product oxlint.
+ * The outside-ui-src-scope fixture lives under packages/ui so product oxlint
+ * inspects it. The scripts directory is ignored.
  */
 
 import assert from 'node:assert/strict'
@@ -82,6 +83,14 @@ test('no-raw-color oxlint ignores __tests__ and *.test.tsx under ui scope', () =
     'scripts/eslint-fixtures/no-raw-color/simulated-ui',
   ])
 
+  assert.ok(
+    report.number_of_files > 0,
+    'oxlint must inspect the simulated-ui fixtures; an ignored directory hides an exclusion regression',
+  )
+  assert.ok(
+    rawColorDiagnostics(report, 'in-scope.tsx').length > 0,
+    'in-scope fixture must be flagged so exclusion assertions exercise the same run',
+  )
   assert.equal(
     rawColorDiagnostics(report, 'excluded.tsx').length,
     0,
@@ -98,10 +107,14 @@ test('no-raw-color oxlint does not apply outside packages/ui/src', () => {
   const report = runOxlint([
     '--config',
     'oxlint.config.ts',
-    'scripts/eslint-fixtures/no-raw-color/violations.tsx',
+    'packages/ui/outside-ui-src-scope.fixture.tsx',
   ])
+  assert.ok(
+    report.number_of_files > 0,
+    'oxlint must inspect the outside-ui-src-scope fixture; an ignored file hides a scope regression',
+  )
   assert.equal(
-    rawColorDiagnostics(report, 'violations.tsx').length,
+    rawColorDiagnostics(report, 'outside-ui-src-scope.fixture.tsx').length,
     0,
     'files outside packages/ui/src must not be flagged by no-raw-color oxlint',
   )
