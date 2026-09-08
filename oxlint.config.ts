@@ -50,6 +50,7 @@ export default defineConfig({
     '**/*.d.ts',
     '**/scripts/**',
     'tools/oxlint/anti-slop/**',
+    'tools/oxlint/design-tokens/**',
     '**/*.config.js',
     '**/*.config.cjs',
     '**/*.config.mjs',
@@ -57,6 +58,7 @@ export default defineConfig({
   ],
   jsPlugins: [
     { name: 'anti-slop', specifier: './tools/oxlint/anti-slop/index.ts' },
+    { name: 'design-tokens', specifier: './tools/oxlint/design-tokens/index.ts' },
     { name: 'i18next', specifier: 'eslint-plugin-i18next' },
     { name: 'expo', specifier: 'eslint-plugin-expo' },
   ],
@@ -118,6 +120,20 @@ export default defineConfig({
               'Use useSdkTranslation() with t() or <Trans i18nKey> for user-visible native strings. See docs/contributing/native-i18n.md.',
           },
         ],
+      },
+    },
+    {
+      files: ['packages/ui/src/**/*.{ts,tsx}'],
+      excludeFiles: [
+        'packages/ui/src/theme/**',
+        'packages/ui/src/native/bible-app-logo.tsx',
+        'packages/ui/src/native/youversion-platform-logo.tsx',
+        '**/__tests__/**',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+      ],
+      rules: {
+        'design-tokens/no-raw-color': 'error',
       },
     },
   ],

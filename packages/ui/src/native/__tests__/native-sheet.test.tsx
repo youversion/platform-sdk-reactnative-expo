@@ -290,7 +290,7 @@ describe('NativeSheet', () => {
       boxShadow: SHEET_TOP_SHADOW.dark,
     })
     expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
-      { backgroundColor: '#ccc' },
+      { backgroundColor: SHEET_HANDLE.light },
       { backgroundColor: SHEET_HANDLE.dark },
     ])
   })
@@ -348,7 +348,9 @@ describe('NativeSheet', () => {
     render(<SheetHarness isOpen={true} />)
 
     expect(latestBottomSheetProps.backgroundStyle).toBeUndefined()
-    expect(latestBottomSheetProps.handleIndicatorStyle).toEqual({ backgroundColor: '#ccc' })
+    expect(latestBottomSheetProps.handleIndicatorStyle).toEqual({
+      backgroundColor: SHEET_HANDLE.light,
+    })
   })
 
   /**
@@ -663,7 +665,7 @@ describe('NativeSheet', () => {
         boxShadow: SHEET_TOP_SHADOW[theme],
       })
       expect(latestBottomSheetProps.handleIndicatorStyle).toEqual([
-        { backgroundColor: '#ccc' },
+        { backgroundColor: SHEET_HANDLE.light },
         { backgroundColor: SHEET_HANDLE[theme] },
       ])
     })

@@ -150,6 +150,8 @@ pnpm typecheck      # turbo typecheck
 pnpm test           # turbo test
 pnpm lint           # oxlint (type-aware TypeScript, Expo DOM, i18n, anti-slop)
 pnpm lint:fix       # oxlint --fix
+pnpm lint:native-i18n   # regression harness for native i18n rule
+pnpm lint:no-raw-color  # regression harness for design-tokens/no-raw-color
 pnpm format:check   # prettier check
 pnpm format         # prettier write
 ```
@@ -171,6 +173,31 @@ pnpm test           # jest
 pnpm test:watch     # jest --watchAll
 pnpm test:coverage  # jest --coverage
 ```
+
+### Design token colors (`design-tokens/no-raw-color`)
+
+`pnpm lint` runs **oxlint** (not ESLint). Under `packages/ui/src/**`, raw color literals are banned outside the token allow-list.
+
+**Banned** (string literals and static JSX attribute strings):
+
+- Hex: `#rgb`, `#rrggbb`, `#rgba`, `#rrggbbaa`
+- `oklch(...)`
+- `rgb(...)` — but **not** `rgba(...)`
+
+**Allowed instead:**
+
+- Tokens from `packages/ui/src/theme/` (`palette`, `getTokens`, `useTokens`, sheet theme helpers like `SHEET_HANDLE`)
+- Alpha fills via `withAlpha()` in `packages/ui/src/lib/color.ts`
+- Template-interpolated hex such as `` `#${mixSrgb(...)}` `` (expressions are skipped)
+
+**Allow-list** (hex literals permitted):
+
+- `packages/ui/src/theme/**`
+- `packages/ui/src/native/bible-app-logo.tsx`
+- `packages/ui/src/native/youversion-platform-logo.tsx`
+- `**/__tests__/**`, `**/*.test.ts`, `**/*.test.tsx`
+
+Run `pnpm lint:no-raw-color` to exercise the fixture harness that proves the rule flags intentional violations.
 
 ## Repo Structure
 

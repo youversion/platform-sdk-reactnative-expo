@@ -460,7 +460,7 @@ const styles = StyleSheet.create({
     transform: [{ translateY: 1000 }],
   },
   handle: {
-    backgroundColor: '#ccc',
+    backgroundColor: SHEET_HANDLE.light,
   },
   content: {
     paddingHorizontal: 8,

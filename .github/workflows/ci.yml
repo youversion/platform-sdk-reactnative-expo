@@ -21,6 +21,8 @@ jobs:
         run: pnpm lint --max-warnings=0
       - name: Run native i18n oxlint regression tests
         run: pnpm lint:native-i18n
+      - name: Run no-raw-color oxlint regression tests
+        run: pnpm lint:no-raw-color
 
   typecheck:
     name: Typecheck
