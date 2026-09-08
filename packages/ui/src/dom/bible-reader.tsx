@@ -18,6 +18,7 @@ import { registerBibleContentAction } from '../lib/dom-content-cache'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
+import { readerRendererCss } from '../lib/reader-css-overrides'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
@@ -100,8 +101,6 @@ export type BibleReaderProps = BibleReaderBaseProps &
   )
 
 type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
-
-const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
 export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const {
@@ -209,6 +208,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
+  const readerCss = readerRendererCss({ backgroundColor, foregroundColor })
   const providerContent = (
     <>
       {/*
@@ -223,12 +223,11 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
         {`html, body, #root { height: 100%; }`}
       </style>
 
-      <style href="yv-bible-reader-overrides" precedence="medium">
-        {`[data-slot="yv-bible-renderer"] {
-          ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
-          ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
-        }`}
-      </style>
+      {readerCss ? (
+        <style href="yv-bible-reader-overrides" precedence="medium">
+          {readerCss}
+        </style>
+      ) : null}
 
       {bottomScrollPadding > 0 && (
         <style href="yv-bible-reader-scroll-padding" precedence="medium">

@@ -12,8 +12,11 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
+import { ContentSizedBody } from '../lib/content-sized-body'
 import { toWebError, type DomError } from '../lib/dom-error'
 import type { InternalLocaleProps } from '../lib/locale-props'
+import { decodeFontFamilyFromDom, type FontFamilyToken } from '../lib/reader-fonts'
+import { readerRendererCss } from '../lib/reader-css-overrides'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -25,7 +28,7 @@ type DomPassageState = Omit<WebPassageState, 'error'> & {
 
 export type BibleTextViewProps = Omit<
   WebBibleTextViewProps,
-  'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
+  'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState' | 'fontFamily'
 > & {
   appKey: string
   apiHost: string
@@ -38,7 +41,19 @@ export type BibleTextViewProps = Omit<
    * stays native.
    */
   highlights: Highlight[]
-  theme?: 'light' | 'dark' | 'system'
+  theme?: 'light' | 'dark'
+  /**
+   * Ported token hex for `--yv-reader-bg`. Native always supplies
+   * `getTokens(scheme).background` — not a consumer color picker.
+   */
+  backgroundColor?: string
+  /**
+   * Ported token hex for `--yv-reader-fg`. Native always supplies
+   * `getTokens(scheme).foreground`.
+   */
+  foregroundColor?: string
+  // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
+  fontFamily?: FontFamilyToken
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onVerseSelect?: (verses: number[]) => Promise<void>
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
@@ -56,6 +71,10 @@ export default function BibleTextViewDOM({
   fetchBibleContent,
   highlights,
   theme = 'light',
+  backgroundColor,
+  foregroundColor,
+  fontFamily,
+  fontSize,
   onVerseSelect,
   onFootnotePress,
   passageState,
@@ -93,6 +112,16 @@ export default function BibleTextViewDOM({
         }
       : undefined
 
+  // fontFamily crosses the bridge as a quote-free token; resolve it back to the
+  // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
+  const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+  const readerCss = readerRendererCss({
+    backgroundColor,
+    foregroundColor,
+    fontSize,
+    fontFamily: resolvedFontFamily,
+  })
+
   return (
     <YouVersionProvider
       appKey={appKey}
@@ -102,9 +131,17 @@ export default function BibleTextViewDOM({
       permittedLanguageTags={permittedLanguageTags}
       locale={locale}
     >
+      <ContentSizedBody />
+      {readerCss ? (
+        <style href="yv-bible-text-view-overrides" precedence="medium">
+          {readerCss}
+        </style>
+      ) : null}
       <BibleTextView
         {...props}
         highlights={safeHighlights}
+        fontSize={fontSize}
+        fontFamily={resolvedFontFamily}
         passageState={webPassageState}
         onVerseSelect={
           onVerseSelect
