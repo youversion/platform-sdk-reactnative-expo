@@ -24,6 +24,49 @@ function bindPopoverAnchor(
   }
 }
 
+function ToolbarAuthItem({
+  showAuth,
+  signedIn,
+  onSignInPress,
+  onSignOutPress,
+}: {
+  showAuth: boolean
+  signedIn: boolean
+  onSignInPress?: () => void
+  onSignOutPress?: () => void
+}): ReactNode {
+  const tokens = useTokens()
+  const { t } = useSdkTranslation()
+
+  if (!showAuth) {
+    return null
+  }
+
+  if (signedIn) {
+    return (
+      <Popover.Close
+        onPress={onSignOutPress}
+        testID="reader-toolbar-sign-out"
+        style={styles.menuItem}
+      >
+        <PersonIcon color={tokens.foreground} size={20} />
+        <Popover.Text>{t('signOut')}</Popover.Text>
+      </Popover.Close>
+    )
+  }
+
+  return (
+    <Popover.Close
+      onPress={onSignInPress}
+      testID="reader-toolbar-sign-in"
+      style={styles.menuItem}
+    >
+      <PersonIcon color={tokens.foreground} size={20} />
+      <Popover.Text>{t('signIn')}</Popover.Text>
+    </Popover.Close>
+  )
+}
+
 function pillStyle(tokens: Tokens): ViewStyle {
   return {
     backgroundColor: tokens.background,
@@ -76,33 +119,6 @@ export function BibleReaderToolbar({
   let chapterLabel = chapter
   if (bookLabel.length > 0) {
     chapterLabel = `${bookLabel} ${chapter}`
-  }
-
-  let authItem = null
-  if (showAuth) {
-    if (signedIn) {
-      authItem = (
-        <Popover.Close
-          onPress={onSignOutPress}
-          testID="reader-toolbar-sign-out"
-          style={styles.menuItem}
-        >
-          <PersonIcon color={tokens.foreground} size={20} />
-          <Popover.Text>{t('signOut')}</Popover.Text>
-        </Popover.Close>
-      )
-    } else {
-      authItem = (
-        <Popover.Close
-          onPress={onSignInPress}
-          testID="reader-toolbar-sign-in"
-          style={styles.menuItem}
-        >
-          <PersonIcon color={tokens.foreground} size={20} />
-          <Popover.Text>{t('signIn')}</Popover.Text>
-        </Popover.Close>
-      )
-    }
   }
 
   return (
@@ -164,7 +180,12 @@ export function BibleReaderToolbar({
             <FontSettingsIcon color={tokens.foreground} size={20} />
             <Popover.Text>{t('fontAndSettings')}</Popover.Text>
           </Popover.Close>
-          {authItem}
+          <ToolbarAuthItem
+            showAuth={showAuth}
+            signedIn={signedIn}
+            onSignInPress={onSignInPress}
+            onSignOutPress={onSignOutPress}
+          />
         </Popover.Content>
       </Popover>
     </View>
