@@ -89,7 +89,7 @@ describe('NativeSheetProvider', () => {
     })
   })
 
-  it('mounts the named popover host and not an unnamed default', () => {
+  it('mounts the named sheet host and not the popover host', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -102,8 +102,8 @@ describe('NativeSheetProvider', () => {
       </NativeSheetProvider>,
     )
 
-    expect(screen.getByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeTruthy()
     expect(screen.getByTestId('portal-host-native-sheet-host')).toBeTruthy()
+    expect(screen.queryByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeNull()
     expect(screen.queryByTestId('portal-host-default')).toBeNull()
   })
 })
