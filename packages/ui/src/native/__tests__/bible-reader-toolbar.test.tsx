@@ -363,6 +363,8 @@ describe('BibleReader native toolbar', () => {
   })
 
   it('keeps next off until the book list says how many chapters', async () => {
+    installToolbarFetches({ books: [] })
+
     render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
     })
@@ -371,7 +373,7 @@ describe('BibleReader native toolbar', () => {
       { disabled: true },
     )
     await waitFor(() => {
-      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+      expect(screen.getByText('1')).toBeTruthy()
     })
     expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
       { disabled: true },
