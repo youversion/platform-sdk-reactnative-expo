@@ -34,17 +34,23 @@ describe('reader-fonts bridge tokens', () => {
     }
   })
 
-  it('passes unquoted unknown values through unchanged in both directions', () => {
-    expect(encodeFontFamilyForDom('Comic Sans MS, cursive')).toBe('Comic Sans MS, cursive')
-    expect(decodeFontFamilyFromDom('Comic Sans MS, cursive')).toBe('Comic Sans MS, cursive')
-  })
+  it('encodes every unknown stack so template-literal hazards cannot cross the bridge', () => {
+    const stacks = [
+      'Comic Sans MS, cursive',
+      '"Comic Sans MS", cursive',
+      'Foo `bar` ${baz}, sans-serif',
+      'quoted:already',
+    ]
 
-  it('encodes unknown stacks that contain double quotes into a quote-free bridge value', () => {
-    const custom = '"Comic Sans MS", cursive'
-    const encoded = encodeFontFamilyForDom(custom)
+    for (const custom of stacks) {
+      const encoded = encodeFontFamilyForDom(custom)
 
-    expect(encoded).not.toContain('"')
-    expect(decodeFontFamilyFromDom(encoded)).toBe(custom)
+      expect(encoded).not.toBe(custom)
+      expect(encoded).not.toContain('"')
+      expect(encoded).not.toContain('`')
+      expect(encoded).not.toContain('${')
+      expect(decodeFontFamilyFromDom(encoded)).toBe(custom)
+    }
   })
 
   it('decodes undefined to undefined (DOM reader fontFamily is optional)', () => {
