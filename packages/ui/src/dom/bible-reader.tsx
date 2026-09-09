@@ -1,6 +1,10 @@
 'use dom'
 
-import type { FetchBibleContent, Highlight, YVUserInfo } from '@youversion/platform-react-native-expo-core'
+import type {
+  FetchBibleContent,
+  Highlight,
+  YVUserInfo,
+} from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleReaderRootProps,
@@ -18,19 +22,20 @@ import { registerBibleContentAction } from '../lib/dom-content-cache'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
+import { readerRendererCss } from '../lib/reader-css-overrides'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
 type NativeActionBibleReaderRootProps = Omit<
-    BibleReaderRootProps,
-    'onVersionPickerPress' | 'onSignInPress' | 'onSignOutPress'
-  > & {
-    onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
-    onSignInPress?: () => Promise<void>
-    onSignOutPress?: () => Promise<void>
-    children?: ReactNode
-  }
+  BibleReaderRootProps,
+  'onVersionPickerPress' | 'onSignInPress' | 'onSignOutPress'
+> & {
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  onSignInPress?: () => Promise<void>
+  onSignOutPress?: () => Promise<void>
+  children?: ReactNode
+}
 
 type BibleReaderBaseProps = {
   appKey: string
@@ -100,8 +105,6 @@ export type BibleReaderProps = BibleReaderBaseProps &
   )
 
 type BibleReaderDOMProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
-
-const sanitizeCssValue = (value: string | undefined) => value?.replace(/[{};]/g, '').trim()
 
 export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const {
@@ -206,9 +209,12 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const NativeActionBibleReaderRoot =
     BibleReader.Root as ComponentType<NativeActionBibleReaderRootProps>
 
-  // fontSize/fontFamily use controlled props (not CSS overrides like bg/fg)
+  // fontSize/fontFamily use controlled props (not CSS overrides)
   // because the in-WebView toolbar also mutates them — controlled props keep
   // MMKV and the Web SDK's internal state in sync bidirectionally.
+  // Consumer backgroundColor/foregroundColor write --yv-background/--yv-foreground,
+  // the names the Web SDK actually reads.
+  const readerCss = readerRendererCss({ backgroundColor, foregroundColor })
   const providerContent = (
     <>
       {/*
@@ -223,12 +229,11 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
         {`html, body, #root { height: 100%; }`}
       </style>
 
-      <style href="yv-bible-reader-overrides" precedence="medium">
-        {`[data-slot="yv-bible-renderer"] {
-          ${backgroundColor ? `--yv-reader-bg: ${sanitizeCssValue(backgroundColor)} !important;` : ''}
-          ${foregroundColor ? `--yv-reader-fg: ${sanitizeCssValue(foregroundColor)} !important;` : ''}
-        }`}
-      </style>
+      {readerCss ? (
+        <style href="yv-bible-reader-overrides" precedence="medium">
+          {readerCss}
+        </style>
+      ) : null}
 
       {bottomScrollPadding > 0 && (
         <style href="yv-bible-reader-scroll-padding" precedence="medium">

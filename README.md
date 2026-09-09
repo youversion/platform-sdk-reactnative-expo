@@ -97,7 +97,7 @@ The same resolved scheme drives the SDK's own native chrome through design token
 
 The provider also loads brand fonts (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Children wait for bundled Inter; Untitled Serif still loads in the background from the YouVersion Fonts API — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, or that request fails, native serif falls back to Source Serif 4.
 
-Reader appearance also maps to CSS custom properties on `[data-slot="yv-bible-renderer"]`: `--yv-reader-font-size`, `--yv-reader-font-family`, `--yv-reader-bg`, `--yv-reader-fg`.
+Light and dark inside a WebView follow the resolved `theme` on that WebView's `YouVersionProvider`. Reader font size and family are Web SDK props — `fontFamily` crosses the native bridge as a quote-free token ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
 
 Native and in-WebView SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 
@@ -120,7 +120,7 @@ function VerseScreen() {
 }
 ```
 
-`showVerseNumbers` (default `true`) controls whether verse numbers render inline.
+`showVerseNumbers` (default `true`) controls whether verse numbers render inline. Like `BibleCard` and `VerseOfTheDay`, a standalone `BibleTextView` sizes to its scripture by default (`matchContents`). Pass `dom={{ matchContents: false }}` to opt out and size with flex styles.
 
 Display a Bible card with a verse and reader controls:
 

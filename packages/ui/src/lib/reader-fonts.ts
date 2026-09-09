@@ -35,11 +35,11 @@ export type FontFamily =
  * containing a `"` arrives as malformed JSON. The dev HTML wrapper's
  * `JSON.parse` then throws before it can set `window.$$EXPO_DOM_HOST_OS`, and
  * the component dies with "Top OS ($$EXPO_DOM_HOST_OS) is not defined" — i.e.
- * it renders blank. The CSS font stacks above are the only SDK props that
- * contain a `"`, so we cross the bridge as these tokens and resolve back to the
- * canonical string (which must byte-match the Web SDK) inside the DOM
- * component. Android is unaffected (its bridge returns the raw string), but we
- * encode on both platforms for a single code path. See
+ * it renders blank. Known SDK stacks cross as these tokens. Every other stack
+ * is URI-encoded so `"`, backticks, and `${` cannot break that injection. Both
+ * resolve back inside the DOM component so the Web SDK still sees the original
+ * CSS. Android is unaffected (its bridge returns the raw string), but we encode
+ * on both platforms for a single code path. See
  * `docs/adr/0009-bridge-safe-font-tokens.md`.
  */
 export const FONT_FAMILY_TOKEN = {
@@ -65,10 +65,25 @@ const TOKEN_TO_FONT_FAMILY = {
 } satisfies Record<string, FontFamily>
 
 /**
- * Encode a canonical font family into its bridge-safe token before it crosses
- * into an Expo DOM component's props. Unknown values (e.g. a consumer-supplied
- * custom stack) pass through unchanged.
+ * Prefix for a URI-encoded custom stack. `encodeURIComponent` turns `"`,
+ * backticks, and `${` into percent-escapes, which are safe in the iOS
+ * template-literal injection.
  */
+const QUOTED_FONT_PREFIX = 'quoted:'
+
+function encodeQuotedFontFamily(fontFamily: string): FontFamilyToken {
+  return `${QUOTED_FONT_PREFIX}${encodeURIComponent(fontFamily)}`
+}
+
+function decodeQuotedFontFamily(token: string): FontFamily | undefined {
+  if (!token.startsWith(QUOTED_FONT_PREFIX)) return undefined
+  try {
+    return decodeURIComponent(token.slice(QUOTED_FONT_PREFIX.length))
+  } catch {
+    return undefined
+  }
+}
+
 function tokenForFontFamily(fontFamily: FontFamily): FontFamilyToken | undefined {
   switch (fontFamily) {
     case INTER_FONT:
@@ -95,18 +110,24 @@ function fontFamilyForToken(token: FontFamilyToken): FontFamily | undefined {
   }
 }
 
+/**
+ * Encode a font family into a bridge-safe value before it crosses into an Expo
+ * DOM component's props. Known SDK stacks become tokens. Every other stack is
+ * URI-encoded so template-literal hazards cannot reach the iOS injection.
+ */
 export function encodeFontFamilyForDom(fontFamily: FontFamily): FontFamilyToken {
-  return tokenForFontFamily(fontFamily) ?? fontFamily
+  return tokenForFontFamily(fontFamily) ?? encodeQuotedFontFamily(fontFamily)
 }
 
 /**
  * Decode a bridge token received inside an Expo DOM component back into the
- * canonical font family the Web SDK expects. Inverse of
- * {@link encodeFontFamilyForDom}; unknown values pass through unchanged.
+ * font family the Web SDK expects. Inverse of {@link encodeFontFamilyForDom}.
+ * Known tokens become canonical stacks. Quoted custom encodings restore the
+ * original stack. Other unknown values pass through unchanged.
  */
 export function decodeFontFamilyFromDom(
   token: FontFamilyToken | undefined,
 ): FontFamily | undefined {
   if (token == null) return token
-  return fontFamilyForToken(token) ?? token
+  return fontFamilyForToken(token) ?? decodeQuotedFontFamily(token) ?? token
 }

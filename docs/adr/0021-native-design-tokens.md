@@ -4,6 +4,7 @@ Date: 2026-09-03
 
 Amended: 2026-09-08 — primitives go through `sansFace` (YPE-5637).
 Amended: 2026-09-08 — `YouVersionProvider` holds children until Inter registers; `sansFace` always names the mapped face.
+Amended: 2026-09-08 — hex tokens stay native; only resolved `theme` and ADR 0009 font tokens cross the DOM bridge (YPE-5442).
 
 ## Status
 
@@ -45,7 +46,7 @@ DS-1 through DS-7 built the layer: tokens (YPE-5264), `useTokens` (YPE-5265), br
 
 Until those faces register, native draws an unknown family as the system font and keeps that text size once the face lands, which clips labels (YPE-5637). `YouVersionProvider` holds children until bundled Inter registers. Primitives then go through `sansFace(family, weight)`, which always names the mapped face. A primitive does not set `fontFamily` or `fontWeight` by hand.
 
-**That rule is scoped to the primitives.** Native sheet typography predates this layer and still sets `fontWeight` directly — `prompt-sheet.tsx`, `bible-verse-action-sheet.tsx`, `highlight-consent-sheet.tsx`, and the sheets beside them. It is correct there: none of them sets a `fontFamily`, so the text renders in the platform system face, which `fontWeight` does address. They move to `sansFace` when a sheet is rebuilt on the primitives, not before. These tokens do not cross the DOM bridge — reader fonts do, as quote-free encoded tokens, for the unrelated reason in [ADR 0009](0009-bridge-safe-font-tokens.md).
+**That rule is scoped to the primitives.** Native sheet typography predates this layer and still sets `fontWeight` directly — `prompt-sheet.tsx`, `bible-verse-action-sheet.tsx`, `highlight-consent-sheet.tsx`, and the sheets beside them. It is correct there: none of them sets a `fontFamily`, so the text renders in the platform system face, which `fontWeight` does address. They move to `sansFace` when a sheet is rebuilt on the primitives, not before. Hex token values do not cross the DOM bridge. What does cross is the resolved scheme name (`light | dark`) so each WebView `YouVersionProvider` matches native chrome, and reader `fontFamily` as quote-free encoded tokens for the unrelated reason in [ADR 0009](0009-bridge-safe-font-tokens.md). The Web SDK then paints from its own theme.css — not from ported hex injected as CSS variables.
 
 ## Consequences
 

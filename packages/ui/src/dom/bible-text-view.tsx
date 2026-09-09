@@ -12,8 +12,11 @@ import { useEffect } from 'react'
 
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
+import { ContentSizedBody } from '../lib/content-sized-body'
 import { toWebError, type DomError } from '../lib/dom-error'
 import type { InternalLocaleProps } from '../lib/locale-props'
+import { bibleTextViewDomSurface } from '../lib/bible-text-view-dom-surface'
+import type { FontFamilyToken } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -25,7 +28,7 @@ type DomPassageState = Omit<WebPassageState, 'error'> & {
 
 export type BibleTextViewProps = Omit<
   WebBibleTextViewProps,
-  'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState'
+  'onVerseSelect' | 'onFootnotePress' | 'theme' | 'passageState' | 'fontFamily'
 > & {
   appKey: string
   apiHost: string
@@ -38,7 +41,10 @@ export type BibleTextViewProps = Omit<
    * stays native.
    */
   highlights: Highlight[]
-  theme?: 'light' | 'dark' | 'system'
+  /** Resolved on native. Light/dark for the in-WebView provider — not `system`. */
+  theme?: 'light' | 'dark'
+  // Crosses the bridge as a token, not the canonical CSS stack — see reader-fonts.ts.
+  fontFamily?: FontFamilyToken
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
   onVerseSelect?: (verses: number[]) => Promise<void>
   // Expo DOM calls cross a runtime boundary (native <-> WebView), so function props are always async “native actions”.
@@ -55,7 +61,9 @@ export default function BibleTextViewDOM({
   installationId,
   fetchBibleContent,
   highlights,
-  theme = 'light',
+  theme,
+  fontFamily,
+  fontSize,
   onVerseSelect,
   onFootnotePress,
   passageState,
@@ -93,18 +101,23 @@ export default function BibleTextViewDOM({
         }
       : undefined
 
+  const surface = bibleTextViewDomSurface({ theme, fontFamily, fontSize })
+
   return (
     <YouVersionProvider
       appKey={appKey}
-      theme={theme}
+      theme={surface.theme}
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
       locale={locale}
     >
+      <ContentSizedBody />
       <BibleTextView
         {...props}
         highlights={safeHighlights}
+        fontSize={surface.fontSize}
+        fontFamily={surface.fontFamily}
         passageState={webPassageState}
         onVerseSelect={
           onVerseSelect
