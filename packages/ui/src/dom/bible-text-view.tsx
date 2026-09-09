@@ -15,7 +15,8 @@ import { registerBibleContentAction } from '../lib/dom-content-cache'
 import { ContentSizedBody } from '../lib/content-sized-body'
 import { toWebError, type DomError } from '../lib/dom-error'
 import type { InternalLocaleProps } from '../lib/locale-props'
-import { decodeFontFamilyFromDom, type FontFamilyToken } from '../lib/reader-fonts'
+import { bibleTextViewDomSurface } from '../lib/bible-text-view-dom-surface'
+import type { FontFamilyToken } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { YouVersionProvider } from '../lib/web-yv-provider'
 
@@ -60,7 +61,7 @@ export default function BibleTextViewDOM({
   installationId,
   fetchBibleContent,
   highlights,
-  theme = 'light',
+  theme,
   fontFamily,
   fontSize,
   onVerseSelect,
@@ -100,14 +101,12 @@ export default function BibleTextViewDOM({
         }
       : undefined
 
-  // fontFamily crosses the bridge as a quote-free token; resolve it back to the
-  // canonical CSS stack the Web SDK expects. See lib/reader-fonts.ts.
-  const resolvedFontFamily = decodeFontFamilyFromDom(fontFamily)
+  const surface = bibleTextViewDomSurface({ theme, fontFamily, fontSize })
 
   return (
     <YouVersionProvider
       appKey={appKey}
-      theme={theme}
+      theme={surface.theme}
       permittedVersionIds={permittedVersionIds}
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
@@ -117,8 +116,8 @@ export default function BibleTextViewDOM({
       <BibleTextView
         {...props}
         highlights={safeHighlights}
-        fontSize={fontSize}
-        fontFamily={resolvedFontFamily}
+        fontSize={surface.fontSize}
+        fontFamily={surface.fontFamily}
         passageState={webPassageState}
         onVerseSelect={
           onVerseSelect

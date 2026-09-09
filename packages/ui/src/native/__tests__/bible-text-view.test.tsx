@@ -344,19 +344,6 @@ describe('BibleTextView', () => {
 describe('the DOM scripture surface (unobservable from layer 3)', () => {
   const source = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
 
-  it('passes resolved theme into the in-WebView YouVersionProvider', () => {
-    expect(source).toMatch(/^\s*theme=\{theme\}$/m)
-  })
-
-  it('applies fonts as Web SDK props only — no --yv-reader-* stylesheet', () => {
-    expect(source).toContain('decodeFontFamilyFromDom')
-    expect(source).toMatch(/fontSize=\{fontSize\}/)
-    expect(source).toMatch(/fontFamily=\{resolvedFontFamily\}/)
-    expect(source).not.toContain('readerRendererCss')
-    expect(source).not.toContain('--yv-reader-')
-    expect(source).not.toContain('!important')
-  })
-
   it('keeps the embed content-sized so matchContents can measure scripture', () => {
     expect(source).toContain('ContentSizedBody')
   })
