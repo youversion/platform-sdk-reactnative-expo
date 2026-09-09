@@ -39,7 +39,7 @@ Cross the native ↔ DOM bridge with **quote-free font tokens** instead of the c
 - `lib/reader-fonts.ts` defines `FONT_FAMILY_TOKEN` (`'inter'`, `'source-serif'`) plus `encodeFontFamilyForDom` / `decodeFontFamilyFromDom`.
 - Native wrappers encode at the three crossings that carry the font: `native/bible-reader.tsx` → `dom/bible-reader.tsx`, `native/bible-reader-settings-sheet.tsx` → `dom/bible-reader-settings.tsx`, and `native/bible-text-view.tsx` → `dom/bible-text-view.tsx`.
 - Each DOM component decodes on receipt before handing the value to the Web SDK, so the value it sees is the exact `"Source Serif 4", serif` constant — preserving the byte-for-byte parity `BibleThemeSettingsContent` needs to highlight the active font (see the note in `reader-fonts.ts`).
-- Unknown values (a consumer-supplied custom stack) pass through unchanged; encoding runs on both platforms for a single code path.
+- Unknown values without `"` pass through unchanged. A consumer-supplied stack that contains `"` is URI-encoded so it can cross the iOS bridge; encoding runs on both platforms for a single code path.
 
 Only the initial-props injection (native → DOM) is corrupted. The reverse direction (DOM → native callbacks such as `onFontSelected`) is a plain JSON round-trip over `postMessage`, so font selections still carry — and the store still persists — the canonical string. The token lives **only** on the bridge; the store, the persisted MMKV value, and the Web SDK all stay canonical, so there is no persistence migration.
 

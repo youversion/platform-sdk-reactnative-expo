@@ -189,6 +189,16 @@ describe('BibleTextView', () => {
     expect(latestTextViewDomProps.fontFamily).not.toContain('"')
   })
 
+  it('encodes a quoted custom fontFamily so the bridge value has no double quotes', () => {
+    const custom = '"Comic Sans MS", cursive'
+    render(<BibleTextView reference="GEN.1.1" versionId={1} fontFamily={custom} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestTextViewDomProps.fontFamily).not.toContain('"')
+    expect(latestTextViewDomProps.fontFamily).not.toBe(custom)
+  })
+
   it('applies the embed dom defaults when no dom prop is passed', () => {
     render(<BibleTextView reference="GEN.1.1" versionId={1} />, { wrapper: wrapper() })
 
