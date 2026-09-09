@@ -180,12 +180,24 @@ global.fetch = jest.fn((input, init) => {
       }),
     )
   }
-  // Version and book metadata for the native toolbar. Chapter paths keep falling through.
+  // Version and book metadata for the native toolbar. Empty + no-store so
+  // suites that never stub these still settle, and the content cache does not
+  // keep the empty body. Chapter paths keep falling through.
   if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url)) {
-    return Promise.reject(new Error(`bible version metadata not stubbed in UI tests: ${url}`))
+    return Promise.resolve(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      }),
+    )
   }
   if (/\/v1\/bibles\/\d+\/books(?:\/[^/?]+)?(?:\?|$)/.test(url)) {
-    return Promise.reject(new Error(`bible book metadata not stubbed in UI tests: ${url}`))
+    return Promise.resolve(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      }),
+    )
   }
   if (typeof previousFetch === 'function') {
     return previousFetch(input, init)

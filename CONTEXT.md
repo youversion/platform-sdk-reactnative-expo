@@ -99,7 +99,7 @@ The visible controls around reader content, including chapter navigation, versio
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Native Reader Toolbar**:
-The native row of Reader triggers on iOS and Android — chapter with prev/next chevrons, version abbreviation, and a more menu for settings and sign-in / sign-out. Presses open the existing sheets (or the sign-out guard). The chapter button shows a spinner until the book name lands, then the full book name and chapter. That list loads once per version. The version button shows the short name once it loads, and the id until then. Next stays off until that list lands, then it stops at the book's last chapter. The version press sends `language_tag` as `languageId`. The Web SDK `BibleReader.Toolbar` stays on web only.
+The native row of Reader triggers on iOS and Android — chapter with prev/next chevrons, version abbreviation, and a more menu for settings and sign-in / sign-out. Presses open the existing sheets (or the sign-out guard). The chapter button shows a spinner until the book name lands, then the full book name and chapter. That list loads once per version. The version button shows the short name once it loads, and the id until then. Next stays off until that list lands, then it stops at the book's last chapter. A title with no chapter list leaves Next off. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands. The Web SDK `BibleReader.Toolbar` stays on web only.
 _Avoid_: In-WebView toolbar on iOS/Android; an avatar in this row; treating Search as shipped (YPE-5708)
 
 **Compiled Distribution**:

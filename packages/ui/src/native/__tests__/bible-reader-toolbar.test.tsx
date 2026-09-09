@@ -282,6 +282,69 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
   })
 
+  it('does not call onVersionPickerPress until the language tag lands', async () => {
+    let releaseVersion: ((response: Response) => void) | undefined
+    const versionPending = new Promise<Response>((resolve) => {
+      releaseVersion = resolve
+    })
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/3034')) {
+        return versionPending
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/3034/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ data: [{ id: 'JHN', title: 'John', chapters: [{ id: '1' }] }] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+          }),
+        )
+      }
+      if (url.includes('/v1/fonts/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        )
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={3034}
+        onVersionPickerPress={onVersionPickerPress}
+      />,
+      { wrapper: defaultWrapper },
+    )
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    })
+    expect(onVersionPickerPress).not.toHaveBeenCalled()
+
+    await act(async () => {
+      releaseVersion?.(
+        new Response(JSON.stringify({ abbreviation: 'NIV', language_tag: 'en' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+    })
+    await waitFor(() => {
+      expect(screen.getByText('NIV')).toBeTruthy()
+    })
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    })
+    expect(onVersionPickerPress).toHaveBeenCalledWith({ versionId: 3034, languageId: 'en' })
+  })
+
   it('omits the row and built-in sheets when showToolbar is false', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} showToolbar={false} />, {
       wrapper: defaultWrapper,
@@ -307,9 +370,27 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
       { disabled: true },
     )
-    await act(async () => {
-      await Promise.resolve()
+    await waitFor(() => {
+      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
     })
+    expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
+      { disabled: true },
+    )
+  })
+
+  it('keeps next off when the book list has a title but no chapters', async () => {
+    installToolbarFetches({ books: [{ id: 'JHN', title: 'John' }] })
+
+    render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('John 1')).toBeTruthy()
+    })
+    expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
+      { disabled: true },
+    )
   })
 
   it('steps chapter with chevrons in the current book and stops at the last chapter', async () => {

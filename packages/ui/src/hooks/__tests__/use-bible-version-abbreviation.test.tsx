@@ -74,9 +74,9 @@ describe('useBibleVersionAbbreviation', () => {
 
     const { result } = renderHook(() => useBibleVersionAbbreviation(111), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null })
+    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en' })
+      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
     })
   })
 
@@ -105,9 +105,9 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     rerender({ versionId: 128 })
-    expect(result.current).toEqual({ abbreviation: null, languageId: null })
+    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es' })
+      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false })
     })
   })
 
@@ -116,7 +116,7 @@ describe('useBibleVersionAbbreviation', () => {
       wrapper: wrapper(),
     })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null })
+    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
     expect(fetchMock.mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input)))).toBe(
       false,
     )
@@ -133,13 +133,10 @@ describe('useBibleVersionAbbreviation', () => {
 
     const { result } = renderHook(() => useBibleVersionAbbreviation(3034), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null })
+    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
     await waitFor(() => {
-      const fetchedVersion = fetchMock.mock.calls.some(([input]) =>
-        isVersionUrl(urlFromFetchInput(input)),
-      )
-      expect(fetchedVersion).toBe(true)
+      expect(result.current.isLoading).toBe(false)
     })
-    expect(result.current).toEqual({ abbreviation: null, languageId: null })
+    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
   })
 })

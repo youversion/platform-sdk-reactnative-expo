@@ -299,8 +299,11 @@ export function BibleReader({
   const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = book ?? DEFAULT_BOOK
   const showNativeToolbar = Platform.OS !== 'web' && showToolbar
-  const { abbreviation: versionAbbreviation, languageId: versionLanguageId } =
-    useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
+  const {
+    abbreviation: versionAbbreviation,
+    languageId: versionLanguageId,
+    isLoading: isVersionMetaLoading,
+  } = useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
   const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
   const {
     title: bookTitle,
@@ -652,6 +655,9 @@ export function BibleReader({
               setChapter(String(chapterNumber + 1))
             }}
             onVersionPress={() => {
+              if (consumerOnVersionPickerPress && isVersionMetaLoading && versionLanguageId === null) {
+                return
+              }
               void handleVersionPickerPress({
                 versionId: resolvedVersionId,
                 languageId: versionLanguageId ?? '',
