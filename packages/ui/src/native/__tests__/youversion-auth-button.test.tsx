@@ -78,10 +78,10 @@ describe('YouVersionAuthButton labels', () => {
     expect(screen.getByText(/sign out of/i)).toBeTruthy()
   })
 
-  it('shows "Sign Out" when authenticated and size="short"', () => {
+  it('shows the short sign-out label when authenticated and size="short"', () => {
     mockIsAuthenticated = true
     renderAuthButton({ size: 'short' })
-    expect(screen.getByText('Sign Out')).toBeTruthy()
+    expect(screen.getByText(en.signOut)).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when mode="signOut" even if unauthenticated', () => {
@@ -89,9 +89,9 @@ describe('YouVersionAuthButton labels', () => {
     expect(screen.getByText(/sign out of/i)).toBeTruthy()
   })
 
-  it('shows "Sign Out" when mode="signOut" and size="short"', () => {
+  it('shows the short sign-out label when mode="signOut" and size="short"', () => {
     renderAuthButton({ mode: 'signOut', size: 'short' })
-    expect(screen.getByText('Sign Out')).toBeTruthy()
+    expect(screen.getByText(en.signOut)).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" and unauthenticated', () => {

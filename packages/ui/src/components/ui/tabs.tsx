@@ -9,12 +9,14 @@ import type { Theme } from '../../hooks'
 import { withAlpha } from '../../lib/color'
 import { createVariants } from '../../lib/variants'
 import type { VariantProps } from '../../lib/variants'
-import { fontMapKey } from '../../theme/fonts'
+import { sansFace } from '../../theme/fonts'
 import { Text } from './text'
 import type { TextProps } from './text'
 
 const LIST_HEIGHT = 36
 const LIST_PADDING = 3
+// Web tab list is rounded-lg (8) and triggers rounded-md (6). Local
+// because only Tabs uses these numbers.
 const LIST_RADIUS = 8
 const TRIGGER_RADIUS = 6
 const TRIGGER_PADDING_HORIZONTAL = 8
@@ -153,7 +155,7 @@ function TabsText({ style, ...props }: TabsTextProps): ReactNode {
       style={[
         {
           color: context.foreground,
-          fontFamily: fontMapKey(tokens.fontFamily.sans, 500, 'normal'),
+          ...sansFace(tokens.fontFamily.sans, 500),
           ...tokens.typography.sm,
         },
         style,

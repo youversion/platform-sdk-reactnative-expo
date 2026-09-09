@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native'
+import { act, render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import * as Font from 'expo-font'
 import * as Localization from 'expo-localization'
@@ -95,7 +95,9 @@ function stubFontsFetch(): void {
   mockFetch.mockReset()
   mockFetch.mockResolvedValue(jsonResponse(UNTITLED_SERIF_PAYLOAD))
   global.fetch = mockFetch
-  jest.mocked(Font.loadAsync).mockClear()
+  jest.mocked(Font.isLoaded).mockReturnValue(true)
+  jest.mocked(Font.loadAsync).mockReset()
+  jest.mocked(Font.loadAsync).mockResolvedValue(undefined)
 }
 
 async function waitForFontMaps(count = 2): Promise<unknown[]> {
@@ -202,12 +204,29 @@ describe('YouVersionProvider brand fonts', () => {
     jest.restoreAllMocks()
   })
 
-  it('commits children without waiting for fonts and fetches Untitled Serif with the app key', async () => {
-    const { getByTestId } = render(
+  it('holds children until Inter registers, then fetches Untitled Serif with the app key', async () => {
+    jest.mocked(Font.isLoaded).mockReturnValue(false)
+    let resolveSans: () => void = () => {}
+    jest.mocked(Font.loadAsync).mockImplementation((map) => {
+      if (map === bundledSans) {
+        return new Promise<void>((resolve) => {
+          resolveSans = resolve
+        })
+      }
+      return Promise.resolve()
+    })
+
+    const { queryByTestId, getByTestId } = render(
       <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
         <LocaleProbe />
       </YouVersionProvider>,
     )
+
+    expect(queryByTestId('locale-lng')).toBeNull()
+
+    await act(async () => {
+      resolveSans()
+    })
 
     expect(getByTestId('locale-lng')).toBeTruthy()
 

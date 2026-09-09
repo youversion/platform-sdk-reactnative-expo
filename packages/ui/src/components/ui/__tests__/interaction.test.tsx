@@ -3,9 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
 import { withAlpha } from '../../../lib/color'
+import { SDK_POPOVER_HOST_NAME } from '../../../lib/sdk-portal-hosts'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
-import { fontMapKey } from '../../../theme/fonts'
+import { sansFace } from '../../../theme/fonts'
 import { Accordion } from '../accordion'
 import { Popover } from '../popover'
 import { Tabs } from '../tabs'
@@ -67,7 +68,7 @@ describe('Tabs', () => {
     })
     expect(textStyle('Versions')).toMatchObject({
       color: light.foreground,
-      fontFamily: fontMapKey(light.fontFamily.sans, 500, 'normal'),
+      ...sansFace(light.fontFamily.sans, 500),
       ...light.typography.sm,
     })
   })
@@ -120,6 +121,24 @@ describe('Tabs', () => {
 
     expect(viewStyle('tabs-list')).toMatchObject({ backgroundColor: light.card })
   })
+
+  it('dims a disabled trigger and a caller opacity cannot win', () => {
+    render(
+      <Tabs value="versions" onValueChange={() => {}}>
+        <Tabs.List>
+          <Tabs.Trigger value="versions" disabled style={{ opacity: 1 }} testID="tab-versions">
+            <Tabs.Text>Versions</Tabs.Text>
+          </Tabs.Trigger>
+        </Tabs.List>
+      </Tabs>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(viewStyle('tab-versions')).toMatchObject({ opacity: 0.5 })
+    expect(screen.getByTestId('tab-versions').props.accessibilityState).toMatchObject({
+      disabled: true,
+    })
+  })
 })
 
 function BookAccordionItems() {
@@ -171,7 +190,7 @@ describe('Accordion', () => {
     })
     expect(textStyle('Genesis')).toMatchObject({
       color: light.foreground,
-      fontFamily: fontMapKey(light.fontFamily.sans, 500, 'normal'),
+      ...sansFace(light.fontFamily.sans, 500),
       ...light.typography.sm,
     })
   })
@@ -232,6 +251,52 @@ describe('Accordion', () => {
 
     consoleError.mockRestore()
   })
+
+  it('forwards the combined disabled flag and a caller opacity cannot win', () => {
+    render(
+      <Accordion type="single" collapsible disabled>
+        <Accordion.Item value="genesis">
+          <Accordion.Trigger testID="trigger-genesis" style={{ opacity: 1 }}>
+            <Accordion.Text>Genesis</Accordion.Text>
+          </Accordion.Trigger>
+          <Accordion.Content>
+            <Text>Genesis chapters</Text>
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(viewStyle('trigger-genesis')).toMatchObject({ opacity: 0.5 })
+    expect(screen.getByTestId('trigger-genesis').props.accessibilityState).toMatchObject({
+      disabled: true,
+    })
+
+    fireEvent.press(screen.getByTestId('trigger-genesis'))
+
+    expect(screen.queryByText('Genesis chapters')).toBeNull()
+  })
+
+  it('dims when the item is disabled without a local trigger flag', () => {
+    render(
+      <Accordion type="single" collapsible>
+        <Accordion.Item value="genesis" disabled>
+          <Accordion.Trigger testID="trigger-genesis" style={{ opacity: 1 }}>
+            <Accordion.Text>Genesis</Accordion.Text>
+          </Accordion.Trigger>
+          <Accordion.Content>
+            <Text>Genesis chapters</Text>
+          </Accordion.Content>
+        </Accordion.Item>
+      </Accordion>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(viewStyle('trigger-genesis')).toMatchObject({ opacity: 0.5 })
+    expect(screen.getByTestId('trigger-genesis').props.accessibilityState).toMatchObject({
+      disabled: true,
+    })
+  })
 })
 
 function patchMeasureOnNode(
@@ -253,7 +318,7 @@ function PopoverHarness() {
       <Popover.Trigger testID="popover-trigger" ref={patchMeasureOnNode}>
         <Text>Open filter</Text>
       </Popover.Trigger>
-      <Popover.Content testID="popover-content">
+      <Popover.Content testID="popover-content" overlayTestID="popover-overlay">
         <Popover.Text>Filter options</Popover.Text>
         <Popover.Close testID="popover-close">
           <Text>Done</Text>
@@ -286,8 +351,14 @@ describe('Popover', () => {
     })
     expect(textStyle('Filter options')).toMatchObject({
       color: light.popoverForeground,
+      ...sansFace(light.fontFamily.sans, 500),
       ...light.typography.sm,
     })
+    expect(
+      screen.getByTestId('rn-primitives-portal', { includeHiddenElements: true }).props
+        .accessibilityLabel,
+    ).toBe(SDK_POPOVER_HOST_NAME)
+    expect(screen.getByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeTruthy()
 
     fireEvent.press(screen.getByText('Done'))
 
@@ -321,5 +392,23 @@ describe('Popover', () => {
     expect(() => render(<Popover.Text>Orphan</Popover.Text>)).toThrow(/inside <Popover.Content>/)
 
     consoleError.mockRestore()
+  })
+
+  it('dims a disabled trigger and a caller opacity cannot win', () => {
+    render(
+      <Popover>
+        <Popover.Trigger disabled style={{ opacity: 1 }} testID="popover-trigger">
+          <Text>Open filter</Text>
+        </Popover.Trigger>
+        <Popover.Content>
+          <Popover.Text>Filter options</Popover.Text>
+        </Popover.Content>
+      </Popover>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(viewStyle('popover-trigger')).toMatchObject({ opacity: 0.5 })
+    fireEvent.press(screen.getByTestId('popover-trigger'))
+    expect(screen.queryByText('Filter options')).toBeNull()
   })
 })

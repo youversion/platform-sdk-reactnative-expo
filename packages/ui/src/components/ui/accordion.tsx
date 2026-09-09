@@ -7,7 +7,7 @@ import Svg, { Path, type SvgProps } from 'react-native-svg'
 
 import { useTokens } from '../../hooks'
 import { createVariants } from '../../lib/variants'
-import { fontMapKey } from '../../theme/fonts'
+import { sansFace } from '../../theme/fonts'
 import { Text } from './text'
 import type { TextProps } from './text'
 
@@ -119,7 +119,7 @@ function AccordionTrigger({
     <AccordionTriggerContext.Provider value={context}>
       <AccordionPrimitive.Header>
         <AccordionPrimitive.Trigger
-          disabled={disabled}
+          disabled={isDisabled}
           {...props}
           style={[styles.trigger, style, isDisabled && styles.disabled]}
         >
@@ -146,7 +146,7 @@ function AccordionText({ style, ...props }: AccordionTextProps): ReactNode {
         {
           flexShrink: 1,
           color: context.foreground,
-          fontFamily: fontMapKey(tokens.fontFamily.sans, 500, 'normal'),
+          ...sansFace(tokens.fontFamily.sans, 500),
           ...tokens.typography.sm,
         },
         style,

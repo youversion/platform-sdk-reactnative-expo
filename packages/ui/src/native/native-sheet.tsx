@@ -30,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { create } from 'zustand'
 import { sheetHorizontalMargin } from '../lib/native-sheet-max-width'
 import { SHEET_HANDLE, SHEET_SURFACE, SHEET_TOP_SHADOW } from '../lib/native-sheet-theme'
+import { SDK_POPOVER_HOST_NAME } from '../lib/sdk-portal-hosts'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Theme } from '../lib/resolve-theme'
 import { getImpl, registerDefault } from './component-impls'
@@ -448,8 +449,7 @@ export function NativeSheetProvider({ children }: { children: ReactNode }): Reac
     <>
       {children}
       <PortalHost name={HOST_NAME} />
-      {/* Default host for @rn-primitives popovers. Sheets keep the named host above. */}
-      <PortalHost />
+      <PortalHost name={SDK_POPOVER_HOST_NAME} />
     </>
   )
 }

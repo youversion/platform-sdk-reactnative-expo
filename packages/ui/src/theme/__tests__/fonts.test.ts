@@ -4,6 +4,7 @@ import {
   fetchUntitledSerifFont,
   fontMapKey,
   pickTtfSources,
+  sansFace,
   UNTITLED_SERIF_FONT_ID,
   type UntitledSerifFont,
 } from '../fonts'
@@ -148,9 +149,7 @@ describe('pickTtfSources', () => {
         {
           weight: 400,
           style: 'normal',
-          sources: [
-            { format: 'ttf', url: 'http://cdn.youversion.com/test-fixtures/regular.ttf' },
-          ],
+          sources: [{ format: 'ttf', url: 'http://cdn.youversion.com/test-fixtures/regular.ttf' }],
         },
       ],
     })
@@ -180,16 +179,12 @@ describe('pickTtfSources', () => {
         {
           weight: 400,
           style: 'normal',
-          sources: [
-            { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
-          ],
+          sources: [{ format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' }],
         },
         {
           weight: 700,
           style: 'normal',
-          sources: [
-            { format: 'ttf', url: 'https://api.youversion.com/test-fixtures/bold.ttf' },
-          ],
+          sources: [{ format: 'ttf', url: 'https://api.youversion.com/test-fixtures/bold.ttf' }],
         },
       ],
     })
@@ -207,9 +202,7 @@ describe('pickTtfSources', () => {
         {
           weight: 400,
           style: 'normal',
-          sources: [
-            { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
-          ],
+          sources: [{ format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' }],
         },
         {
           weight: 700,
@@ -307,5 +300,13 @@ describe('fetchUntitledSerifFont', () => {
     await expect(fetchUntitledSerifFont({ appKey: 'test-key' })).rejects.toThrow(
       'Fonts API returned an unexpected payload',
     )
+  })
+})
+
+describe('sansFace', () => {
+  it('names the mapped face without a fontWeight', () => {
+    expect(sansFace('Inter', 700)).toEqual({ fontFamily: 'Inter_bold' })
+    expect(sansFace('Inter', 500)).toEqual({ fontFamily: 'Inter_medium' })
+    expect(sansFace('Inter', 400)).toEqual({ fontFamily: 'Inter' })
   })
 })

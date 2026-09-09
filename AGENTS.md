@@ -12,7 +12,7 @@ Consumer API: `README.md`.
 - **Worktree.** `pnpm install` at the worktree root first — iOS pods resolve via `:path:` into that worktree's `node_modules`. Copy `apps/example/.env`.
 - **Metro cache.** Shared at `$TMPDIR/metro-cache`. A DOM bundling error that names another worktree: `cd apps/example && pnpm exec expo start --dev-client -c`.
 - **Android `localStorage`.** Keep `ensureDomLocalStorage()`. `@expo/dom-webview` leaves `localStorage` null; the Web SDK throws and the component paints blank.
-- **Fonts.** Brand fonts are SDK-owned via the Fonts API inside `YouVersionProvider`. Children render while fonts load. There is no public ready API. Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, serif falls back to Source Serif 4. Same path as web [ADR 0004](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). After adding the `expo-font` peer, rebuild the dev client.
+- **Fonts.** Brand fonts are SDK-owned via the Fonts API inside `YouVersionProvider`. Children wait for bundled Inter; serif still loads in the background. There is no public ready API. Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, serif falls back to Source Serif 4. Same path as web [ADR 0004](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). After adding the `expo-font` peer, rebuild the dev client.
 - **Tests.** Layers 1 (pure) and 3 (native). Do not mount `'use dom'` in RNTL — swap DOM / NativeSheet / sibling sheets through `component-impls` and assert the bridge with `latestDomProps`. Steer hooks through `hookOverrides`. Do not `jest.mock` app modules. `jest.setup.js` may shim native runtimes that cannot load in Jest.
 - **Lint.** `pnpm lint` is type-aware oxlint (Expo DOM, native i18n, anti-slop). Do not suppress anti-slop rules. How to run: `CONTRIBUTING.md`.
 
@@ -61,7 +61,7 @@ Internal design-system primitives (`Text`, `Button`, …) live in `packages/ui/s
 
 - **Compound pattern.** `Object.assign(Root, { Slot, … })`; a `useXContext()` that throws outside its root. RN inherits no text styles from parent views, so roots resolve foreground/size once and publish via context; slots consume it. `Button` is the reference: root publishes `{ foreground, iconSize }`.
 - **Styling.** Tokens via `useTokens()`, variants via `createVariants` — import `lib/variants` directly, not the `lib` barrel (it drags the Web SDK into the native bundle). Caller `style` merges after the variant styles, but state styles (pressed, disabled) merge last so a caller cannot leave a dead control looking live.
-- **Gotchas.** Bare strings must sit inside `<Text>`. Bold is a registered face — `fontMapKey(family, 700, 'normal')`, never `fontWeight`. Alias RN's `Text` where both are imported.
+- **Gotchas.** Bare strings must sit inside `<Text>`. Faces go through `sansFace(family, weight)` — never a hand-written `fontFamily` or `fontWeight`. The provider holds children until Inter registers, so primitives always name the mapped face. Alias RN's `Text` where both are imported.
 
 ## Localization
 
