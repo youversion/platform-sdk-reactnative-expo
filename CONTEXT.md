@@ -95,8 +95,12 @@ The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the
 _Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex context
 
 **Reader Controls**:
-The visible controls around reader content, including chapter navigation, version selection, and settings. `showToolbar: false` also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
+The visible controls around reader content, including chapter navigation, version selection, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, and settings sheet.
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
+
+**Native Reader Toolbar**:
+The native row of Reader triggers on iOS and Android — chapter with prev/next chevrons, version abbreviation, and a more menu for settings and sign-in / sign-out. Presses open the existing sheets (or the sign-out guard). The chapter button shows the full book name from the version's book list. That list loads once per version. The version button shows the short name once it loads, and the id until then. Chevrons stay in the current book until the catalog lands. The Web SDK `BibleReader.Toolbar` stays on web only.
+_Avoid_: In-WebView toolbar on iOS/Android; an avatar in this row; treating Search as shipped (YPE-5708)
 
 **Compiled Distribution**:
 Published packages ship compiled `build/` (`tsc` preserves `'use dom'`). Dev resolves `src/`; `publishConfig` swaps at `pnpm publish`. See [ADR 0011](docs/adr/0011-compiled-distribution.md).

@@ -31,6 +31,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import { getImpl } from './component-impls'
+import { useBibleBookTitle } from '../hooks/use-bible-book-title'
+import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
@@ -47,6 +49,7 @@ import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
@@ -63,6 +66,17 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
+
+function parseChapterNumber(value: string | undefined): number | null {
+  if (value === undefined) {
+    return null
+  }
+  const chapterNumber = Number.parseInt(value, 10)
+  if (!Number.isFinite(chapterNumber) || chapterNumber < 1) {
+    return null
+  }
+  return chapterNumber
+}
 
 // Computed once: `Platform.OS` cannot change at runtime.
 const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
@@ -270,6 +284,8 @@ export function BibleReader({
     },
   })
 
+  const chapterNumber = parseChapterNumber(chapter)
+
   const [versionId, setVersionId] = useControllableState({
     prop: controlledVersionId,
     defaultProp:
@@ -279,6 +295,13 @@ export function BibleReader({
       void onVersionChange?.(newVersionId)
     },
   })
+
+  const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
+  const resolvedBook = book ?? DEFAULT_BOOK
+  const versionAbbreviation = useBibleVersionAbbreviation(resolvedVersionId)
+  const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
+  const bookTitle = useBibleBookTitle(resolvedVersionId, resolvedBook)
+  const bookLabel = bookTitle ?? ''
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
   const {
@@ -558,10 +581,12 @@ export function BibleReader({
     }
   }
 
+  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
+  const showSettingsSheet = Platform.OS !== 'web' && showToolbar
 
   const authProps = context.authRedirectUrl
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
@@ -590,6 +615,47 @@ export function BibleReader({
   return (
     <>
       <View style={{ flex: 1 }}>
+        {showNativeToolbar && (
+          <BibleReaderToolbar
+            bookLabel={bookLabel}
+            chapter={chapter ?? DEFAULT_CHAPTER}
+            versionLabel={versionLabel}
+            canGoPrevious={chapterNumber !== null && chapterNumber > 1}
+            canGoNext={chapterNumber !== null}
+            showAuth={auth !== null}
+            signedIn={auth?.isAuthenticated === true}
+            onChapterPress={() => {
+              void handleChapterPickerPress({
+                book: resolvedBook,
+                chapter: chapter ?? DEFAULT_CHAPTER,
+                versionId: resolvedVersionId,
+              })
+            }}
+            onPreviousChapterPress={() => {
+              if (chapterNumber === null || chapterNumber <= 1) return
+              setChapter(String(chapterNumber - 1))
+            }}
+            onNextChapterPress={() => {
+              // Same-book only until the catalog lands (RNV2-8).
+              if (chapterNumber === null) return
+              setChapter(String(chapterNumber + 1))
+            }}
+            onVersionPress={() => {
+              // Native has no catalog yet (RNV2-7); built-in sheet only needs versionId.
+              void handleVersionPickerPress({
+                versionId: resolvedVersionId,
+                languageId: '',
+              })
+            }}
+            onSettingsPress={handleOpenBibleThemeSettings}
+            onSignInPress={() => {
+              void signIn?.()
+            }}
+            onSignOutPress={() => {
+              void guardedSignOut?.()
+            }}
+          />
+        )}
         <BibleReaderDOM
           {...authProps}
           appKey={context.appKey}
@@ -623,7 +689,7 @@ export function BibleReader({
           onBookChange={handleBookChange}
           onChapterChange={handleChapterChange}
           onVersionChange={handleVersionChange}
-          showToolbar={showToolbar}
+          showToolbar={Platform.OS === 'web' && showToolbar}
           onChapterPickerPress={handleChapterPickerPress}
           onVersionPickerPress={handleVersionPickerPress}
           onFootnotePress={onFootnotePress}
@@ -634,7 +700,7 @@ export function BibleReader({
           dom={readerDom}
         />
       </View>
-      {Platform.OS !== 'web' && (
+      {showSettingsSheet && (
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}

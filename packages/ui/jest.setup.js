@@ -157,7 +157,8 @@ const untitledSerifFetchPayload = {
 
 const previousFetch = global.fetch
 global.fetch = jest.fn((input, init) => {
-  if (String(input).includes('/v1/fonts/')) {
+  const url = String(input)
+  if (url.includes('/v1/fonts/')) {
     return Promise.resolve(
       new Response(JSON.stringify(untitledSerifFetchPayload), {
         status: 200,
@@ -165,10 +166,17 @@ global.fetch = jest.fn((input, init) => {
       }),
     )
   }
+  // Version and book metadata for the native toolbar. Chapter paths keep falling through.
+  if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url)) {
+    return Promise.reject(new Error(`bible version metadata not stubbed in UI tests: ${url}`))
+  }
+  if (/\/v1\/bibles\/\d+\/books(?:\/[^/?]+)?(?:\?|$)/.test(url)) {
+    return Promise.reject(new Error(`bible book metadata not stubbed in UI tests: ${url}`))
+  }
   if (typeof previousFetch === 'function') {
     return previousFetch(input, init)
   }
-  return Promise.reject(new Error(`unexpected fetch in UI tests: ${String(input)}`))
+  return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
 })
 
 jest.mock('@rn-primitives/portal', () => {
