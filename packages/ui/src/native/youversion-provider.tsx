@@ -1,3 +1,4 @@
+import { PortalHost } from '@rn-primitives/portal'
 import {
   YouVersionProvider as CoreYouVersionProvider,
   type AuthConfig,
@@ -8,6 +9,7 @@ import * as ReactNative from 'react-native'
 import { ThemeContext } from '../hooks/use-theme'
 import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
+import { SDK_POPOVER_HOST_NAME } from '../lib/sdk-portal-hosts'
 import { useBrandFonts } from '../theme/use-fonts'
 import { NativeSheetProvider } from './native-sheet'
 
@@ -64,6 +66,9 @@ export function YouVersionProvider({
         <LocaleProvider locale={locale}>
           <ThemeContext.Provider value={resolvedTheme}>
             <NativeSheetProvider>{children}</NativeSheetProvider>
+            {ReactNative.Platform.OS === 'web' ? null : (
+              <PortalHost name={SDK_POPOVER_HOST_NAME} />
+            )}
           </ThemeContext.Provider>
         </LocaleProvider>
       ) : null}

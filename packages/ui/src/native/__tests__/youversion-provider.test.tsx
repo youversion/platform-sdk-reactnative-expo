@@ -6,6 +6,7 @@ import type { Locale } from 'expo-localization'
 import { Text } from 'react-native'
 
 import { useLocale } from '../../i18n/locale-context'
+import { SDK_POPOVER_HOST_NAME } from '../../lib/sdk-portal-hosts'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import type { UntitledSerifFont } from '../../theme/fonts'
 import { bundledSans, untitledSerifFallback } from '../../theme/use-fonts'
@@ -341,5 +342,26 @@ describe('YouVersionProvider brand fonts', () => {
     const maps = await waitForFontMaps()
     expect(maps[0]).toEqual(bundledSans)
     expect(maps[1]).toEqual(untitledSerifFallback)
+  })
+})
+
+describe('YouVersionProvider portal host', () => {
+  beforeEach(() => {
+    stubFontsFetch()
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it('mounts the named popover host and not an unnamed default', () => {
+    const { getByTestId, queryByTestId } = render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <LocaleProbe />
+      </YouVersionProvider>,
+    )
+
+    expect(getByTestId(`portal-host-${SDK_POPOVER_HOST_NAME}`)).toBeTruthy()
+    expect(queryByTestId('portal-host-default')).toBeNull()
   })
 })
