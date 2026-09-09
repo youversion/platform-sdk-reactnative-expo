@@ -13,17 +13,6 @@ import { FontSettingsIcon } from './icons/font-settings-icon'
 import { MoreIcon } from './icons/more-icon'
 import { PersonIcon } from './icons/person-icon'
 
-function bindPopoverAnchor(
-  node: { measure?: (callback: (...args: number[]) => void) => void } | null,
-): void {
-  if (node === null || process.env.NODE_ENV !== 'test') {
-    return
-  }
-  node.measure = (callback) => {
-    callback(0, 0, 40, 40, 12, 80)
-  }
-}
-
 function ToolbarAuthItem({
   showAuth,
   signedIn,
@@ -164,11 +153,7 @@ export function BibleReaderToolbar({
         <Button.Text>{versionLabel}</Button.Text>
       </Button>
       <Popover>
-        <Popover.Trigger
-          testID="reader-toolbar-more"
-          accessibilityRole="button"
-          ref={bindPopoverAnchor}
-        >
+        <Popover.Trigger testID="reader-toolbar-more" accessibilityRole="button">
           <MoreIcon color={tokens.foreground} size={24} />
         </Popover.Trigger>
         <Popover.Content align="end">

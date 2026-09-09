@@ -317,23 +317,10 @@ describe('Accordion', () => {
   })
 })
 
-function patchMeasureOnNode(
-  node: {
-    measure: (callback: (...args: number[]) => void) => void
-  } | null,
-) {
-  if (node === null) {
-    return
-  }
-  node.measure = (callback) => {
-    callback(0, 0, 80, 40, 12, 80)
-  }
-}
-
 function PopoverHarness() {
   return (
     <Popover>
-      <Popover.Trigger testID="popover-trigger" ref={patchMeasureOnNode}>
+      <Popover.Trigger testID="popover-trigger">
         <Text>Open filter</Text>
       </Popover.Trigger>
       <Popover.Content testID="popover-content">
