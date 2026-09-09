@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import type { ViewStyle } from 'react-native'
 
 import { Button } from '../components/ui/button'
@@ -56,6 +56,36 @@ function ToolbarAuthItem({
   )
 }
 
+function ChapterContent({
+  bookLabel,
+  isBookTitleLoading,
+  chapter,
+}: {
+  bookLabel: string
+  isBookTitleLoading: boolean
+  chapter: string
+}): ReactNode {
+  const tokens = useTokens()
+  const { t } = useSdkTranslation()
+
+  if (isBookTitleLoading) {
+    return (
+      <ActivityIndicator
+        size="small"
+        color={tokens.foreground}
+        accessibilityLabel={t('loading')}
+        testID="reader-toolbar-chapter-loading"
+      />
+    )
+  }
+
+  if (bookLabel.length > 0) {
+    return <Button.Text>{`${bookLabel} ${chapter}`}</Button.Text>
+  }
+
+  return <Button.Text>{chapter}</Button.Text>
+}
+
 function pillStyle(tokens: Tokens): ViewStyle {
   return {
     backgroundColor: tokens.background,
@@ -70,6 +100,7 @@ function pillStyle(tokens: Tokens): ViewStyle {
 
 export type BibleReaderToolbarProps = {
   bookLabel: string
+  isBookTitleLoading: boolean
   chapter: string
   versionLabel: string
   canGoPrevious: boolean
@@ -88,6 +119,7 @@ export type BibleReaderToolbarProps = {
 /** Native row of Reader triggers. Opens the existing sheets. Not a public export. */
 export function BibleReaderToolbar({
   bookLabel,
+  isBookTitleLoading,
   chapter,
   versionLabel,
   canGoPrevious,
@@ -105,10 +137,6 @@ export function BibleReaderToolbar({
   const tokens = useTokens()
   const { t } = useSdkTranslation()
   const pill = pillStyle(tokens)
-  let chapterLabel = chapter
-  if (bookLabel.length > 0) {
-    chapterLabel = `${bookLabel} ${chapter}`
-  }
 
   return (
     <View testID="reader-toolbar" style={[styles.row, { backgroundColor: tokens.background }]}>
@@ -130,7 +158,11 @@ export function BibleReaderToolbar({
           testID="reader-toolbar-chapter"
           style={styles.chapter}
         >
-          <Button.Text>{chapterLabel}</Button.Text>
+          <ChapterContent
+            bookLabel={bookLabel}
+            isBookTitleLoading={isBookTitleLoading}
+            chapter={chapter}
+          />
         </Button>
         <Button
           variant="ghost"

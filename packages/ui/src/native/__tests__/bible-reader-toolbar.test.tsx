@@ -170,13 +170,16 @@ describe('BibleReader native toolbar', () => {
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
   })
 
-  afterEach(() => {
+  afterEach(async () => {
+    await act(async () => {
+      await Promise.resolve()
+    })
     resetImpls()
     jest.restoreAllMocks()
     restoreDefaultFetch()
   })
 
-  it('renders the native row and hides the in-WebView toolbar', () => {
+  it('renders the native row and hides the in-WebView toolbar', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
     expect(screen.getByTestId('reader-toolbar')).toBeTruthy()
@@ -184,6 +187,9 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByLabelText(en.moreMenuAriaLabel)).toBeTruthy()
     expect(latestDomProps.showToolbar).toBe(false)
+    await waitFor(() => {
+      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+    })
   })
 
   it('shows the version abbreviation on the version button', async () => {
@@ -202,10 +208,12 @@ describe('BibleReader native toolbar', () => {
 
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
-    expect(screen.getByText('1')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter-loading')).toBeTruthy()
+    expect(screen.queryByText('1')).toBeNull()
     await waitFor(() => {
       expect(screen.getByText('John 1')).toBeTruthy()
     })
+    expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
   })
 
   it('opens the chapter and version sheets from the native row', async () => {
@@ -291,7 +299,7 @@ describe('BibleReader native toolbar', () => {
     ).toBe(false)
   })
 
-  it('keeps next off until the book list says how many chapters', () => {
+  it('keeps next off until the book list says how many chapters', async () => {
     render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
     })
@@ -299,6 +307,9 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
       { disabled: true },
     )
+    await act(async () => {
+      await Promise.resolve()
+    })
   })
 
   it('steps chapter with chevrons in the current book and stops at the last chapter', async () => {

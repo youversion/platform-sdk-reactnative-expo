@@ -302,7 +302,11 @@ export function BibleReader({
   const { abbreviation: versionAbbreviation, languageId: versionLanguageId } =
     useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
   const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
-  const { title: bookTitle, chapterCount } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
+  const {
+    title: bookTitle,
+    chapterCount,
+    isLoading: isBookTitleLoading,
+  } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
     enabled: showNativeToolbar,
   })
   const bookLabel = bookTitle ?? ''
@@ -621,6 +625,7 @@ export function BibleReader({
         {showNativeToolbar && (
           <BibleReaderToolbar
             bookLabel={bookLabel}
+            isBookTitleLoading={isBookTitleLoading}
             chapter={chapter ?? DEFAULT_CHAPTER}
             versionLabel={versionLabel}
             canGoPrevious={chapterNumber !== null && chapterNumber > 1}

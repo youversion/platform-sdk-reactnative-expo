@@ -6,6 +6,7 @@ import { catalogFromBooksBody, entryFromBooksCatalog, type BookCatalogEntry } fr
 export type BibleBookTitle = {
   title: string | null
   chapterCount: number | null
+  isLoading: boolean
 }
 
 /** Loads the version's book list once, then looks up the selected book's name and chapter count. */
@@ -18,10 +19,12 @@ export function useBibleBookTitle(
   const { fetchBibleContent } = useYouVersion()
   const [versionIdForState, setVersionIdForState] = useState(versionId)
   const [catalog, setCatalog] = useState<ReadonlyMap<string, BookCatalogEntry> | null>(null)
+  const [settled, setSettled] = useState(false)
 
   if (versionIdForState !== versionId) {
     setVersionIdForState(versionId)
     setCatalog(null)
+    setSettled(false)
   }
 
   useEffect(() => {
@@ -44,6 +47,11 @@ export function useBibleBookTitle(
       .catch(() => {
         // Keep the chapter number on the button. A failed lookup is not worth a blank control.
       })
+      .finally(() => {
+        if (!cancelled) {
+          setSettled(true)
+        }
+      })
 
     return () => {
       cancelled = true
@@ -54,5 +62,6 @@ export function useBibleBookTitle(
   return {
     title: entry?.title ?? null,
     chapterCount: entry?.chapterCount ?? null,
+    isLoading: enabled && !settled,
   }
 }
