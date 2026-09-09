@@ -1,14 +1,27 @@
 import { fireEvent, render } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Text, View } from 'react-native'
 
+import { FONT_FAMILY_TOKEN, INTER_FONT } from '../../lib/reader-fonts'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
 import { YouVersionProvider } from '../youversion-provider'
+
+const EMBED_DEFAULTS = {
+  matchContents: true,
+  containerStyle: { flex: 0, width: '100%' },
+  scrollEnabled: false,
+  bounces: false,
+  overScrollMode: 'never',
+  showsVerticalScrollIndicator: false,
+  showsHorizontalScrollIndicator: false,
+} as const
 
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
@@ -24,11 +37,21 @@ type BibleTextViewDomProps = {
   versionId?: number
   showVerseNumbers?: boolean
   fontSize?: number
+  fontFamily?: string
   theme?: string
   permittedVersionIds?: number[]
   excludedVersionIds?: number[]
   permittedLanguageTags?: string[]
   locale?: string
+  dom?: {
+    matchContents?: boolean
+    containerStyle?: unknown
+    scrollEnabled?: boolean
+    bounces?: boolean
+    overScrollMode?: string
+    showsVerticalScrollIndicator?: boolean
+    showsHorizontalScrollIndicator?: boolean
+  }
   onFootnotePress?: (data: FootnoteData) => Promise<void>
 }
 
@@ -43,10 +66,9 @@ function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
       <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
       <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
       <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
+      <Text testID="mock-font-family">{props.fontFamily ?? ''}</Text>
       <Text testID="mock-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-has-footnote-handler">
-        {props.onFootnotePress ? 'yes' : 'no'}
-      </Text>
+      <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
       <Pressable
         testID="mock-footnote-trigger"
         onPress={() => void props.onFootnotePress?.(sampleFootnote)}
@@ -135,6 +157,74 @@ describe('BibleTextView', () => {
     )
 
     expect(getByTestId('mock-theme').children).toContain('dark')
+  })
+
+  it('resolves system theme to light or dark before it crosses the bridge', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} theme="system" />, {
+      wrapper: wrapper('light'),
+    })
+
+    expect(latestTextViewDomProps.theme).toBe('light')
+  })
+
+  it('forwards the provider scheme when the component does not override theme', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} />, {
+      wrapper: wrapper('dark'),
+    })
+
+    expect(latestTextViewDomProps.theme).toBe('dark')
+    expect(latestTextViewDomProps).not.toHaveProperty('backgroundColor')
+    expect(latestTextViewDomProps).not.toHaveProperty('foregroundColor')
+  })
+
+  it('encodes fontFamily as a quote-free token and forwards fontSize as a prop', () => {
+    const { getByTestId } = render(
+      <BibleTextView reference="GEN.1.1" versionId={1} fontSize={18} fontFamily={INTER_FONT} />,
+      { wrapper: wrapper() },
+    )
+
+    expect(getByTestId('mock-font-size').children).toContain('18')
+    expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.INTER)
+    expect(latestTextViewDomProps.fontFamily).toBe(FONT_FAMILY_TOKEN.INTER)
+    expect(latestTextViewDomProps.fontFamily).not.toContain('"')
+  })
+
+  it('encodes a custom fontFamily so the bridge value has no template-literal hazards', () => {
+    const custom = 'Foo `bar` ${baz}, sans-serif'
+    render(<BibleTextView reference="GEN.1.1" versionId={1} fontFamily={custom} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestTextViewDomProps.fontFamily).not.toBe(custom)
+    expect(latestTextViewDomProps.fontFamily).not.toContain('"')
+    expect(latestTextViewDomProps.fontFamily).not.toContain('`')
+    expect(latestTextViewDomProps.fontFamily).not.toContain('${')
+  })
+
+  it('applies the embed dom defaults when no dom prop is passed', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} />, { wrapper: wrapper() })
+
+    expect(latestTextViewDomProps.dom).toEqual(EMBED_DEFAULTS)
+  })
+
+  it('merges a consumer containerStyle after the embed defaults', () => {
+    render(
+      <BibleTextView reference="GEN.1.1" versionId={1} dom={{ containerStyle: { width: 300 } }} />,
+      { wrapper: wrapper() },
+    )
+
+    expect(latestTextViewDomProps.dom?.containerStyle).toEqual([
+      { flex: 0, width: '100%' },
+      { width: 300 },
+    ])
+  })
+
+  it('restores plain flex sizing when the consumer opts out of matchContents', () => {
+    render(<BibleTextView reference="GEN.1.1" versionId={1} dom={{ matchContents: false }} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(latestTextViewDomProps.dom).toEqual({ matchContents: false })
   })
 
   it('opens the native footnote sheet with footnote data when no consumer handler is provided', () => {
@@ -248,5 +338,19 @@ describe('BibleTextView', () => {
     render(<BibleTextView reference="JHN.1.1" versionId={3034} />, { wrapper: wrapper() })
 
     expect(latestTextViewDomProps.locale).toBe('es')
+  })
+})
+
+describe('the DOM scripture surface (unobservable from layer 3)', () => {
+  const source = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
+
+  it('keeps the embed content-sized so matchContents can measure scripture', () => {
+    expect(source).toContain('ContentSizedBody')
+  })
+
+  it('keeps content fetches on the native Bible Content Client', () => {
+    expect(source).toContain('registerBibleContentAction')
+    expect(source).toContain('fetchBibleContent')
+    expect(source).not.toMatch(/BibleClient/)
   })
 })
