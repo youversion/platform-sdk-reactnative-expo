@@ -20,6 +20,7 @@
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "lint:native-i18n": "node scripts/test-native-i18n-oxlint.mjs",
+    "lint:no-raw-color": "node scripts/test-no-raw-color-oxlint.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "check:locale-parity": "node scripts/check-locale-parity.mjs",
