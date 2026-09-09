@@ -318,7 +318,7 @@ function PopoverHarness() {
       <Popover.Trigger testID="popover-trigger" ref={patchMeasureOnNode}>
         <Text>Open filter</Text>
       </Popover.Trigger>
-      <Popover.Content testID="popover-content" overlayTestID="popover-overlay">
+      <Popover.Content testID="popover-content">
         <Popover.Text>Filter options</Popover.Text>
         <Popover.Close testID="popover-close">
           <Text>Done</Text>

@@ -74,14 +74,10 @@ function PopoverTrigger({ style, disabled, ...props }: PopoverTriggerProps): Rea
 
 export type PopoverContentProps = Omit<PopoverPrimitive.ContentProps, 'style'> & {
   style?: StyleProp<ViewStyle>
-  hostName?: string
-  overlayTestID?: string
 }
 
 function PopoverContent({
   style,
-  hostName = SDK_POPOVER_HOST_NAME,
-  overlayTestID,
   align = 'center',
   sideOffset = CONTENT_SIDE_OFFSET,
   ...props
@@ -93,8 +89,8 @@ function PopoverContent({
   )
 
   return (
-    <PopoverPrimitive.Portal hostName={hostName}>
-      <PopoverPrimitive.Overlay style={StyleSheet.absoluteFill} testID={overlayTestID} />
+    <PopoverPrimitive.Portal hostName={SDK_POPOVER_HOST_NAME}>
+      <PopoverPrimitive.Overlay style={StyleSheet.absoluteFill} testID="popover-overlay" />
       <PopoverContentContext.Provider value={context}>
         <PopoverPrimitive.Content
           align={align}
