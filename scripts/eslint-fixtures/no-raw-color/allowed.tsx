@@ -12,6 +12,8 @@ export function NoRawColorAllowedFixture() {
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         borderColor: dynamicHex(255),
       }}
+      accessibilityLabel="Documented example: rgb(255, 0, 0) in docs"
+      accessibilityHint="oklch(0.5 0.2 30) mentioned in copy"
     />
   )
 }

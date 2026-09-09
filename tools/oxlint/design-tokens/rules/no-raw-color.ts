@@ -4,21 +4,11 @@ import type { ESTree } from "@oxlint/plugins";
 
 const HEX_PATTERN =
 	/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const OKLCH_PATTERN = /^oklch\s*\([\s\S]*\)$/i;
+const RGB_PATTERN = /^rgb\s*\([\s\S]*\)$/i;
 
 function isRawColorLiteral(value: string): boolean {
-	if (HEX_PATTERN.test(value)) {
-		return true;
-	}
-	if (/oklch\s*\(/i.test(value)) {
-		return true;
-	}
-	if (/\brgba\s*\(/i.test(value)) {
-		return false;
-	}
-	if (/\brgb\s*\(/i.test(value)) {
-		return true;
-	}
-	return false;
+	return HEX_PATTERN.test(value) || OKLCH_PATTERN.test(value) || RGB_PATTERN.test(value);
 }
 
 function templateStaticValue(node: ESTree.TemplateLiteral): string | null {
