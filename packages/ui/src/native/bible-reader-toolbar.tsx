@@ -153,7 +153,12 @@ export function BibleReaderToolbar({
         <Button.Text>{versionLabel}</Button.Text>
       </Button>
       <Popover>
-        <Popover.Trigger testID="reader-toolbar-more" accessibilityRole="button">
+        <Popover.Trigger
+          testID="reader-toolbar-more"
+          accessibilityRole="button"
+          // Staged in en.json until https://github.com/youversion/platform-localization/pull/69 syncs.
+          accessibilityLabel={t('moreMenuAriaLabel')}
+        >
           <MoreIcon color={tokens.foreground} size={24} />
         </Popover.Trigger>
         <Popover.Content align="end">

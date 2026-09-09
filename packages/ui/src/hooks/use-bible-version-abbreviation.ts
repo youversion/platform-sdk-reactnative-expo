@@ -1,25 +1,48 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useState } from 'react'
 
-import { abbreviationFromVersionBody } from '../lib/bible-version-abbreviation'
+import { versionMetaFromBody } from '../lib/bible-version-abbreviation'
 
-/** Loads the short version name for the toolbar. Falls back to nothing on a miss. */
-export function useBibleVersionAbbreviation(versionId: number): string | null {
+export type BibleVersionAbbreviation = {
+  abbreviation: string | null
+  languageId: string | null
+}
+
+/** Loads the short version name and language for the toolbar. Falls back to nothing on a miss. */
+export function useBibleVersionAbbreviation(
+  versionId: number,
+  options?: { enabled?: boolean },
+): BibleVersionAbbreviation {
+  const enabled = options?.enabled ?? true
   const { fetchBibleContent } = useYouVersion()
+  const [versionIdForState, setVersionIdForState] = useState(versionId)
   const [abbreviation, setAbbreviation] = useState<string | null>(null)
+  const [languageId, setLanguageId] = useState<string | null>(null)
+
+  if (versionIdForState !== versionId) {
+    setVersionIdForState(versionId)
+    setAbbreviation(null)
+    setLanguageId(null)
+  }
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     let cancelled = false
-    setAbbreviation(null)
 
     void fetchBibleContent({ path: `/v1/bibles/${versionId}` })
       .then((response) => {
         if (cancelled || response.status !== 200) {
           return
         }
-        const next = abbreviationFromVersionBody(response.body)
-        if (next !== null) {
-          setAbbreviation(next)
+        const next = versionMetaFromBody(response.body)
+        if (next.abbreviation !== null) {
+          setAbbreviation(next.abbreviation)
+        }
+        if (next.languageId !== null) {
+          setLanguageId(next.languageId)
         }
       })
       .catch(() => {
@@ -29,7 +52,7 @@ export function useBibleVersionAbbreviation(versionId: number): string | null {
     return () => {
       cancelled = true
     }
-  }, [fetchBibleContent, versionId])
+  }, [enabled, fetchBibleContent, versionId])
 
-  return abbreviation
+  return { abbreviation, languageId }
 }

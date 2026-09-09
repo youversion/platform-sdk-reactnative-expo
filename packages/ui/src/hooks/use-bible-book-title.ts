@@ -1,14 +1,34 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useState } from 'react'
 
-import { titleFromBooksCatalog, titlesFromBooksBody } from '../lib/bible-book-title'
+import { catalogFromBooksBody, entryFromBooksCatalog, type BookCatalogEntry } from '../lib/bible-book-title'
 
-/** Loads the version's book list once, then looks up the selected book's name. */
-export function useBibleBookTitle(versionId: number, book: string): string | null {
+export type BibleBookTitle = {
+  title: string | null
+  chapterCount: number | null
+}
+
+/** Loads the version's book list once, then looks up the selected book's name and chapter count. */
+export function useBibleBookTitle(
+  versionId: number,
+  book: string,
+  options?: { enabled?: boolean },
+): BibleBookTitle {
+  const enabled = options?.enabled ?? true
   const { fetchBibleContent } = useYouVersion()
-  const [titles, setTitles] = useState<ReadonlyMap<string, string> | null>(null)
+  const [versionIdForState, setVersionIdForState] = useState(versionId)
+  const [catalog, setCatalog] = useState<ReadonlyMap<string, BookCatalogEntry> | null>(null)
+
+  if (versionIdForState !== versionId) {
+    setVersionIdForState(versionId)
+    setCatalog(null)
+  }
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     let cancelled = false
 
     void fetchBibleContent({ path: `/v1/bibles/${versionId}/books` })
@@ -16,19 +36,23 @@ export function useBibleBookTitle(versionId: number, book: string): string | nul
         if (cancelled || response.status !== 200) {
           return
         }
-        const next = titlesFromBooksBody(response.body)
+        const next = catalogFromBooksBody(response.body)
         if (next !== null) {
-          setTitles(next)
+          setCatalog(next)
         }
       })
       .catch(() => {
-        // Keep the last catalog. A failed lookup is not worth a blank control.
+        // Keep the chapter number on the button. A failed lookup is not worth a blank control.
       })
 
     return () => {
       cancelled = true
     }
-  }, [fetchBibleContent, versionId])
+  }, [enabled, fetchBibleContent, versionId])
 
-  return titleFromBooksCatalog(titles, book)
+  const entry = entryFromBooksCatalog(catalog, book)
+  return {
+    title: entry?.title ?? null,
+    chapterCount: entry?.chapterCount ?? null,
+  }
 }

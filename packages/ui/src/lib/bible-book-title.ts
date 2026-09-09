@@ -6,42 +6,57 @@ const bookEntrySchema = z.object({
   id: z.unknown().optional(),
   usfm: z.unknown().optional(),
   title: z.unknown().optional(),
+  chapters: z.unknown().optional(),
 })
 const booksBodySchema = z.object({
   data: z.unknown().optional(),
 })
 
-function titleForEntry(entry: z.infer<typeof bookEntrySchema>): { id: string; title: string } | null {
+export type BookCatalogEntry = {
+  title: string
+  chapterCount: number | null
+}
+
+function chapterCountForEntry(entry: z.infer<typeof bookEntrySchema>): number | null {
+  const chapters = z.array(z.unknown()).safeParse(entry.chapters)
+  if (!chapters.success) {
+    return null
+  }
+  return chapters.data.length
+}
+
+function entryForBook(entry: z.infer<typeof bookEntrySchema>): { id: string; title: string; chapterCount: number | null } | null {
   const title = titleSchema.safeParse(entry.title)
   if (!title.success) {
     return null
   }
+  const chapterCount = chapterCountForEntry(entry)
   const id = bookIdSchema.safeParse(entry.id)
   if (id.success) {
-    return { id: id.data, title: title.data }
+    return { id: id.data, title: title.data, chapterCount }
   }
   const usfm = bookIdSchema.safeParse(entry.usfm)
   if (usfm.success) {
-    return { id: usfm.data, title: title.data }
+    return { id: usfm.data, title: title.data, chapterCount }
   }
   return null
 }
 
 const bookListSchema = z.array(bookEntrySchema)
 
-function titlesFromEntries(entries: z.infer<typeof bookListSchema>): Map<string, string> {
-  const titles = new Map<string, string>()
+function catalogFromEntries(entries: z.infer<typeof bookListSchema>): Map<string, BookCatalogEntry> {
+  const catalog = new Map<string, BookCatalogEntry>()
   for (const entry of entries) {
-    const parsed = titleForEntry(entry)
+    const parsed = entryForBook(entry)
     if (parsed !== null) {
-      titles.set(parsed.id, parsed.title)
+      catalog.set(parsed.id, { title: parsed.title, chapterCount: parsed.chapterCount })
     }
   }
-  return titles
+  return catalog
 }
 
-/** Reads book id → title from a `/v1/bibles/{id}/books` body. */
-export function titlesFromBooksBody(body: string): ReadonlyMap<string, string> | null {
+/** Reads book id → title and chapter count from a `/v1/bibles/{id}/books` body. */
+export function catalogFromBooksBody(body: string): ReadonlyMap<string, BookCatalogEntry> | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(body)
@@ -51,7 +66,7 @@ export function titlesFromBooksBody(body: string): ReadonlyMap<string, string> |
 
   const asList = bookListSchema.safeParse(parsed)
   if (asList.success) {
-    return titlesFromEntries(asList.data)
+    return catalogFromEntries(asList.data)
   }
 
   const envelope = booksBodySchema.safeParse(parsed)
@@ -62,19 +77,19 @@ export function titlesFromBooksBody(body: string): ReadonlyMap<string, string> |
   if (!fromData.success) {
     return null
   }
-  return titlesFromEntries(fromData.data)
+  return catalogFromEntries(fromData.data)
 }
 
-export function titleFromBooksCatalog(
-  titles: ReadonlyMap<string, string> | null,
+export function entryFromBooksCatalog(
+  catalog: ReadonlyMap<string, BookCatalogEntry> | null,
   book: string,
-): string | null {
-  if (titles === null) {
+): BookCatalogEntry | null {
+  if (catalog === null) {
     return null
   }
-  const exact = titles.get(book)
+  const exact = catalog.get(book)
   if (exact !== undefined) {
     return exact
   }
-  return titles.get(book.toUpperCase()) ?? null
+  return catalog.get(book.toUpperCase()) ?? null
 }

@@ -298,9 +298,13 @@ export function BibleReader({
 
   const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = book ?? DEFAULT_BOOK
-  const versionAbbreviation = useBibleVersionAbbreviation(resolvedVersionId)
+  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
+  const { abbreviation: versionAbbreviation, languageId: versionLanguageId } =
+    useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
   const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
-  const bookTitle = useBibleBookTitle(resolvedVersionId, resolvedBook)
+  const { title: bookTitle, chapterCount } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
+    enabled: showNativeToolbar,
+  })
   const bookLabel = bookTitle ?? ''
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
@@ -581,7 +585,6 @@ export function BibleReader({
     }
   }
 
-  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
   const showFootnoteSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
@@ -621,7 +624,9 @@ export function BibleReader({
             chapter={chapter ?? DEFAULT_CHAPTER}
             versionLabel={versionLabel}
             canGoPrevious={chapterNumber !== null && chapterNumber > 1}
-            canGoNext={chapterNumber !== null}
+            canGoNext={
+              chapterNumber !== null && chapterCount !== null && chapterNumber < chapterCount
+            }
             showAuth={auth !== null}
             signedIn={auth?.isAuthenticated === true}
             onChapterPress={() => {
@@ -636,15 +641,15 @@ export function BibleReader({
               setChapter(String(chapterNumber - 1))
             }}
             onNextChapterPress={() => {
-              // Same-book only until the catalog lands (RNV2-8).
-              if (chapterNumber === null) return
+              if (chapterNumber === null || chapterCount === null || chapterNumber >= chapterCount) {
+                return
+              }
               setChapter(String(chapterNumber + 1))
             }}
             onVersionPress={() => {
-              // Native has no catalog yet (RNV2-7); built-in sheet only needs versionId.
               void handleVersionPickerPress({
                 versionId: resolvedVersionId,
-                languageId: '',
+                languageId: versionLanguageId ?? '',
               })
             }}
             onSettingsPress={handleOpenBibleThemeSettings}

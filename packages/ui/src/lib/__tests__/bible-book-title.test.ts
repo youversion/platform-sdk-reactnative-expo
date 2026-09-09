@@ -1,46 +1,46 @@
-import { titleFromBooksCatalog, titlesFromBooksBody } from '../bible-book-title'
+import { catalogFromBooksBody, entryFromBooksCatalog } from '../bible-book-title'
 
-describe('titlesFromBooksBody', () => {
+describe('catalogFromBooksBody', () => {
   it('reads a data array', () => {
-    const titles = titlesFromBooksBody(
+    const catalog = catalogFromBooksBody(
       JSON.stringify({
         data: [
-          { id: 'JHN', title: 'John' },
+          { id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] },
           { id: 'HEB', title: 'Hebrews' },
         ],
       }),
     )
 
-    expect(titles?.get('JHN')).toBe('John')
-    expect(titles?.get('HEB')).toBe('Hebrews')
+    expect(catalog?.get('JHN')).toEqual({ title: 'John', chapterCount: 2 })
+    expect(catalog?.get('HEB')).toEqual({ title: 'Hebrews', chapterCount: null })
   })
 
   it('reads a bare array and usfm keys', () => {
-    const titles = titlesFromBooksBody(JSON.stringify([{ usfm: 'GEN', title: 'Genesis' }]))
+    const catalog = catalogFromBooksBody(JSON.stringify([{ usfm: 'GEN', title: 'Genesis' }]))
 
-    expect(titles?.get('GEN')).toBe('Genesis')
+    expect(catalog?.get('GEN')).toEqual({ title: 'Genesis', chapterCount: null })
   })
 
   it('returns null for junk', () => {
-    expect(titlesFromBooksBody('not-json')).toBeNull()
-    expect(titlesFromBooksBody('{}')).toBeNull()
-    expect(titlesFromBooksBody(JSON.stringify({ data: { title: 'John' } }))).toBeNull()
+    expect(catalogFromBooksBody('not-json')).toBeNull()
+    expect(catalogFromBooksBody('{}')).toBeNull()
+    expect(catalogFromBooksBody(JSON.stringify({ data: { title: 'John' } }))).toBeNull()
   })
 })
 
-describe('titleFromBooksCatalog', () => {
-  const titles = new Map([
-    ['JHN', 'John'],
-    ['HEB', 'Hebrews'],
+describe('entryFromBooksCatalog', () => {
+  const catalog = new Map([
+    ['JHN', { title: 'John', chapterCount: 21 }],
+    ['HEB', { title: 'Hebrews', chapterCount: 13 }],
   ])
 
   it('finds the selected book', () => {
-    expect(titleFromBooksCatalog(titles, 'JHN')).toBe('John')
-    expect(titleFromBooksCatalog(titles, 'jhn')).toBe('John')
+    expect(entryFromBooksCatalog(catalog, 'JHN')).toEqual({ title: 'John', chapterCount: 21 })
+    expect(entryFromBooksCatalog(catalog, 'jhn')).toEqual({ title: 'John', chapterCount: 21 })
   })
 
   it('returns null when the book is missing', () => {
-    expect(titleFromBooksCatalog(titles, 'REV')).toBeNull()
-    expect(titleFromBooksCatalog(null, 'JHN')).toBeNull()
+    expect(entryFromBooksCatalog(catalog, 'REV')).toBeNull()
+    expect(entryFromBooksCatalog(null, 'JHN')).toBeNull()
   })
 })
