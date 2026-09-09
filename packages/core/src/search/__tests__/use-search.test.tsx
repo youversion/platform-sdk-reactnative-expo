@@ -36,6 +36,12 @@ function Wrapper({
 }
 
 describe('useSearch', () => {
+  it('throws when used outside YouVersionProvider', () => {
+    expect(() => renderHook(() => useSearch())).toThrow(
+      /useYouVersion must be used inside of YouVersionProvider/,
+    )
+  })
+
   it('reads provider config and returns the four operations', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
