@@ -72,8 +72,15 @@ const signedOutWrapper = youVersionProviderWrapper('light', undefined, {
 const unconfiguredWrapper = youVersionProviderWrapper('light', undefined, { useYVAuth: null })
 
 const user = userEvent.setup()
-const fetchMock = jest.mocked(global.fetch)
-const defaultFetchImpl = fetchMock.getMockImplementation()
+const setupFetch = global.fetch as jest.MockedFunction<typeof fetch>
+const defaultFetchImpl = setupFetch.getMockImplementation()
+
+function ensureSetupFetch(): jest.MockedFunction<typeof fetch> {
+  if (global.fetch !== setupFetch) {
+    global.fetch = setupFetch
+  }
+  return setupFetch
+}
 
 function urlFromFetchInput(input: RequestInfo | URL): string {
   if (input instanceof Request) {
@@ -86,6 +93,7 @@ function urlFromFetchInput(input: RequestInfo | URL): string {
 }
 
 function restoreDefaultFetch() {
+  const fetchMock = ensureSetupFetch()
   if (defaultFetchImpl) {
     fetchMock.mockImplementation(defaultFetchImpl)
   }
@@ -108,7 +116,7 @@ function installToolbarFetches({
   languageTag?: string
   books?: unknown[]
 } = {}) {
-  fetchMock.mockImplementation((input: RequestInfo | URL) => {
+  ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
     const url = urlFromFetchInput(input)
     if (isVersionUrl(url) && url.includes('/3034')) {
       return Promise.resolve(
@@ -170,7 +178,8 @@ describe('BibleReader native toolbar', () => {
     signIn.mockClear()
     installOpenAwareSheets()
     mmkvStorage.clearAll()
-    fetchMock.mockClear()
+    restoreDefaultFetch()
+    ensureSetupFetch().mockClear()
     useReaderLocationStore.setState(readerLocationStoreInitialState)
     await useReaderLocationStore.persist.rehydrate()
     jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
@@ -233,7 +242,7 @@ describe('BibleReader native toolbar', () => {
     const versionPending = new Promise<Response>((resolve) => {
       releaseVersion = resolve
     })
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+    ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isVersionUrl(url) && url.includes('/3034')) {
         return Promise.resolve(
@@ -324,8 +333,8 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
 
     await waitFor(() => {
-      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
-      expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+      expect(screen.getByText('John 1')).toBeTruthy()
+      expect(screen.getByText('NIV')).toBeTruthy()
     })
 
     await act(async () => {
@@ -392,7 +401,7 @@ describe('BibleReader native toolbar', () => {
     const versionPending = new Promise<Response>((resolve) => {
       releaseVersion = resolve
     })
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+    ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isVersionUrl(url) && url.includes('/3034')) {
         return versionPending
@@ -463,10 +472,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
     expect(
-      fetchMock.mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input))),
+      ensureSetupFetch().mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input))),
     ).toBe(false)
     expect(
-      fetchMock.mock.calls.some(([input]) => isBooksCatalogUrl(urlFromFetchInput(input))),
+      ensureSetupFetch().mock.calls.some(([input]) =>
+        isBooksCatalogUrl(urlFromFetchInput(input)),
+      ),
     ).toBe(false)
   })
 
