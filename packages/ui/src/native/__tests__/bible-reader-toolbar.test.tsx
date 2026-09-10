@@ -316,6 +316,8 @@ describe('BibleReader native toolbar', () => {
   })
 
   it('opens the chapter and version sheets from the native row', async () => {
+    installToolbarFetches()
+
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
