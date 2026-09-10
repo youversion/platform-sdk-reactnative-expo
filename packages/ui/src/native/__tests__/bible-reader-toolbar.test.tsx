@@ -72,7 +72,7 @@ const signedOutWrapper = youVersionProviderWrapper('light', undefined, {
 const unconfiguredWrapper = youVersionProviderWrapper('light', undefined, { useYVAuth: null })
 
 const user = userEvent.setup()
-const setupFetch = global.fetch as jest.MockedFunction<typeof fetch>
+const setupFetch = jest.mocked(global.fetch)
 const defaultFetchImpl = setupFetch.getMockImplementation()
 
 function ensureSetupFetch(): jest.MockedFunction<typeof fetch> {
