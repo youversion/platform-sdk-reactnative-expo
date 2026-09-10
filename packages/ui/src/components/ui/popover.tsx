@@ -129,11 +129,23 @@ export type PopoverCloseProps = Omit<PopoverPrimitive.CloseProps, 'style'> & {
 }
 
 function PopoverClose({ style, disabled, ...props }: PopoverCloseProps): ReactNode {
+  const tokens = useTokens()
   return (
     <PopoverPrimitive.Close
+      accessibilityRole="button"
       disabled={disabled}
       {...props}
-      style={[style, disabled === true && styles.disabled]}
+      style={({ pressed }) => [
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          borderRadius: tokens.radius.full,
+        },
+        style,
+        // Ghost Button: fill with accent while pressed so a menu row looks live.
+        pressed && { backgroundColor: tokens.accent },
+        disabled === true && styles.disabled,
+      ]}
     />
   )
 }
