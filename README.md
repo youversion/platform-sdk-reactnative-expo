@@ -152,7 +152,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, chapter (with prev/next), version, and a more menu for settings and sign-in / sign-out live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that row and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
+On iOS and Android, avatar, chapter (with prev/next), version, and settings live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that row and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 
@@ -360,7 +360,7 @@ It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles bas
 
 #### Signing out
 
-Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s more menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s avatar menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
 
 On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
 

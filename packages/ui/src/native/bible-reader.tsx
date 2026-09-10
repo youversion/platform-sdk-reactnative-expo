@@ -637,6 +637,8 @@ export function BibleReader({
             }
             showAuth={auth !== null}
             signedIn={auth?.isAuthenticated === true}
+            avatarUrl={userInfo?.avatarUrl}
+            name={userInfo?.name}
             onChapterPress={() => {
               void handleChapterPickerPress({
                 book: resolvedBook,

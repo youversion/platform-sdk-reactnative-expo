@@ -153,8 +153,13 @@ function installOpenAwareSheets() {
   )
 }
 
-async function openMoreMenu() {
-  await user.press(screen.getByTestId('reader-toolbar-more'))
+async function openUserMenu() {
+  const avatar = screen.queryByTestId('reader-toolbar-avatar')
+  if (avatar) {
+    await user.press(avatar)
+    return
+  }
+  await user.press(screen.getByTestId('reader-toolbar-user'))
 }
 
 describe('BibleReader native toolbar', () => {
@@ -185,7 +190,7 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
-    expect(screen.getByLabelText(en.moreMenuAriaLabel)).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-settings')).toBeTruthy()
     expect(latestDomProps.showToolbar).toBe(false)
     await waitFor(() => {
       expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
@@ -233,14 +238,13 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('mock-version-picker-sheet')).toBeTruthy()
   })
 
-  it('opens settings from the more menu', async () => {
+  it('opens settings from the gear', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
 
-    await openMoreMenu()
     await act(async () => {
-      fireEvent.press(screen.getByTestId('reader-toolbar-settings', { includeHiddenElements: true }))
+      fireEvent.press(screen.getByTestId('reader-toolbar-settings'))
     })
     expect(screen.getByTestId('mock-settings-sheet')).toBeTruthy()
   })
@@ -428,12 +432,13 @@ describe('BibleReader native toolbar', () => {
     expect(latestDomProps.chapter).toBe('1')
   })
 
-  it('shows Sign out in the more menu when signed in and routes press through the sign-out guard', async () => {
+  it('shows Avatar when signed in and routes press through the sign-out guard', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedInWrapper })
 
-    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-avatar')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
 
-    await openMoreMenu()
+    await openUserMenu()
     expect(screen.getByText(en.signOut, { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(en.signIn, { includeHiddenElements: true })).toBeNull()
 
@@ -444,10 +449,13 @@ describe('BibleReader native toolbar', () => {
     expect(signOut).not.toHaveBeenCalled()
   })
 
-  it('shows Sign in in the more menu when signed out with auth configured', async () => {
+  it('shows the person control when signed out with auth configured and calls signIn', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedOutWrapper })
 
-    await openMoreMenu()
+    expect(screen.getByTestId('reader-toolbar-user')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+
+    await openUserMenu()
     expect(screen.getByText(en.signIn, { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(en.signOut, { includeHiddenElements: true })).toBeNull()
 
@@ -457,14 +465,15 @@ describe('BibleReader native toolbar', () => {
     expect(signIn).toHaveBeenCalledTimes(1)
   })
 
-  it('hides sign-in and sign-out in the more menu when auth is unconfigured', async () => {
+  it('hides the avatar and sign-in control when auth is unconfigured', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
       wrapper: unconfiguredWrapper,
     })
 
-    await openMoreMenu()
-    expect(screen.getByTestId('reader-toolbar-settings', { includeHiddenElements: true })).toBeTruthy()
-    expect(screen.queryByText(en.signIn, { includeHiddenElements: true })).toBeNull()
-    expect(screen.queryByText(en.signOut, { includeHiddenElements: true })).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-settings')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
+    expect(screen.queryByText(en.signIn)).toBeNull()
+    expect(screen.queryByText(en.signOut)).toBeNull()
   })
 })
