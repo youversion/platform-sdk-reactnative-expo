@@ -596,6 +596,28 @@ describe('BibleReader native toolbar', () => {
     ).toBe(false)
   })
 
+  it('does not reopen a built-in sheet when the toolbar is hidden and shown again', async () => {
+    installToolbarFetches()
+
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('John 1')).toBeTruthy()
+    })
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
+    })
+    expect(screen.getByTestId('mock-chapter-picker-sheet')).toBeTruthy()
+
+    rerender(<BibleReader book="JHN" chapter="1" versionId={3034} showToolbar={false} />)
+    expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
+
+    rerender(<BibleReader book="JHN" chapter="1" versionId={3034} />)
+    expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
+  })
+
   it('keeps next off until the book list says how many chapters', async () => {
     installToolbarFetches({ books: [] })
 

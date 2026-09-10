@@ -371,6 +371,15 @@ export function BibleReader({
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
 
+  // Hiding the toolbar unmounts the built-in sheets. Clear the open flags on
+  // the same render so showing the toolbar again cannot remount a sheet the
+  // user already left. An effect would leave one frame with the old flags.
+  if (!showToolbar && (isPickerOpen || isVersionPickerOpen || isSettingsSheetOpen)) {
+    setIsPickerOpen(false)
+    setIsVersionPickerOpen(false)
+    setIsSettingsSheetOpen(false)
+  }
+
   // ── Verse actions ────────────────────────────────────────────────────────
   // The reader owns the committed selection so it can raise a native sheet over
   // it. The Web SDK still owns selection *state*. This is a mirror of what the
