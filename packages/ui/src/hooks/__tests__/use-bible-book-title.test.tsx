@@ -144,7 +144,7 @@ describe('useBibleBookTitle', () => {
     ).toBe(catalogCalls)
   })
 
-  it('keeps the previous catalog, with loading true, while the new version fetches', async () => {
+  it('keeps the previous title and drops the catalog while the new version fetches', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -173,7 +173,7 @@ describe('useBibleBookTitle', () => {
       title: 'John',
       entry: JOHN_ENTRY,
       isLoading: true,
-      catalog: expect.any(Map),
+      catalog: null,
     })
     await waitFor(() => {
       expect(result.current).toEqual({
@@ -225,7 +225,7 @@ describe('useBibleBookTitle', () => {
     })
   })
 
-  it('keeps the previous catalog when a version switch refetch fails', async () => {
+  it('keeps the previous title and drops the catalog when a version switch refetch fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -251,7 +251,7 @@ describe('useBibleBookTitle', () => {
       title: 'John',
       entry: JOHN_ENTRY,
       isLoading: true,
-      catalog: expect.any(Map),
+      catalog: null,
     })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
@@ -260,7 +260,7 @@ describe('useBibleBookTitle', () => {
       title: 'John',
       entry: JOHN_ENTRY,
       isLoading: false,
-      catalog: expect.any(Map),
+      catalog: null,
     })
   })
 

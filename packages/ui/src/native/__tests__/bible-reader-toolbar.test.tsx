@@ -309,6 +309,10 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.queryByText('128')).toBeNull()
+    // The last title can stay on the button. Next cannot keep walking NIV's chapters.
+    expect(
+      screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
+    ).toMatchObject({ disabled: true })
 
     await act(async () => {
       releaseVersion?.(
@@ -340,6 +344,9 @@ describe('BibleReader native toolbar', () => {
       expect(screen.getByText('Juan 1')).toBeTruthy()
       expect(screen.getByText('NVI')).toBeTruthy()
     })
+    expect(
+      screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
+    ).not.toMatchObject({ disabled: true })
 
     rerender(<BibleReader book="JHN" chapter="1" versionId={3034} />)
     expect(screen.getByText('John 1')).toBeTruthy()
