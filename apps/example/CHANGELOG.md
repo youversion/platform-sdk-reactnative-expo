@@ -1,5 +1,13 @@
 # example
 
+## 1.0.10
+
+### Patch Changes
+
+- Updated dependencies [6fd7a23]
+  - @youversion/platform-react-native-expo-ui@1.6.1
+  - @youversion/platform-react-native-expo-core@1.6.1
+
 ## 1.0.9
 
 ### Patch Changes
