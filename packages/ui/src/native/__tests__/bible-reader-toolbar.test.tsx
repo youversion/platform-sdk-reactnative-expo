@@ -442,6 +442,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityState).toMatchObject({
       disabled: true,
     })
+
+    // The disabled trigger is what holds the callback back, so press it mid-flight: a consumer
+    // must never be handed a half-loaded selection.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    })
     expect(onVersionPickerPress).not.toHaveBeenCalled()
 
     await act(async () => {
@@ -513,8 +519,8 @@ describe('BibleReader native toolbar', () => {
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
 
-    // The button re-enables on failure, so the consumer is handed an empty language. README.md
-    // promises the real tag; pin the gap here until we settle what a failed lookup should send.
+    // The trigger re-enables once the lookup settles, failed or not. `BibleVersionPickerPressData`
+    // types `languageId` as a string for Web SDK parity, so a failed lookup sends it empty.
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
     })

@@ -125,6 +125,35 @@ describe('useBibleVersionAbbreviation', () => {
     })
   })
 
+  it('drops the previous short name when the new version lookup fails', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionResponse('NIV', 'en')
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error('network down'))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId }: { versionId: number }) => useBibleVersionAbbreviation(versionId),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
+    })
+
+    // Holding NIV here would name version 128 after the one before it, and hand the consumer
+    // its language too. Once the lookup settles empty, the caller falls back to the id.
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+    })
+  })
+
   it('paints a seen version from cache without a loading flash', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)

@@ -663,9 +663,9 @@ export function BibleReader({
               setChapter(nextChapter.chapterId)
             }}
             onVersionPress={() => {
-              if (consumerOnVersionPickerPress && isVersionMetaLoading && versionLanguageId === null) {
-                return
-              }
+              // The button is disabled while the tag loads, so a press here means the lookup
+              // settled. An empty tag is a lookup that failed, not one still in flight —
+              // `languageId` stays a string for Web SDK parity, so empty carries "unknown".
               void handleVersionPickerPress({
                 versionId: resolvedVersionId,
                 languageId: versionLanguageId ?? '',

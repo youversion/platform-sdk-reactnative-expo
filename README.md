@@ -248,7 +248,7 @@ Clearing the selection also closes the verse action sheet. Clears arrive on `onV
 
 #### Custom picker flows
 
-To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the callback waits until that tag lands.
+To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the trigger stays disabled until the version lookup settles, so the callback never fires mid-flight; if that lookup fails, `languageId` arrives as an empty string rather than a guess.
 
 ```tsx
 <BibleReader
