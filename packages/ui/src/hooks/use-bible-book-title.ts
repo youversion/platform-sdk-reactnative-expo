@@ -7,6 +7,7 @@ export type BibleBookTitle = {
   title: string | null
   chapterCount: number | null
   isLoading: boolean
+  catalog: ReadonlyMap<string, BookCatalogEntry> | null
 }
 
 /** Loads the version's book list once, then looks up the selected book's name and chapter count. */
@@ -63,5 +64,6 @@ export function useBibleBookTitle(
     title: entry?.title ?? null,
     chapterCount: entry?.chapterCount ?? null,
     isLoading: enabled && !settled,
+    catalog,
   }
 }

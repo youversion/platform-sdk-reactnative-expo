@@ -35,6 +35,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
+import { adjacentBookChapter } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -66,17 +67,6 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
-
-function parseChapterNumber(value: string | undefined): number | null {
-  if (value === undefined) {
-    return null
-  }
-  const chapterNumber = Number.parseInt(value, 10)
-  if (!Number.isFinite(chapterNumber) || chapterNumber < 1) {
-    return null
-  }
-  return chapterNumber
-}
 
 // Computed once: `Platform.OS` cannot change at runtime.
 const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
@@ -284,8 +274,6 @@ export function BibleReader({
     },
   })
 
-  const chapterNumber = parseChapterNumber(chapter)
-
   const [versionId, setVersionId] = useControllableState({
     prop: controlledVersionId,
     defaultProp:
@@ -307,12 +295,20 @@ export function BibleReader({
   const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
   const {
     title: bookTitle,
-    chapterCount,
     isLoading: isBookTitleLoading,
+    catalog: bookCatalog,
   } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
     enabled: showNativeToolbar,
   })
   const bookLabel = bookTitle ?? ''
+  const resolvedChapter = chapter ?? DEFAULT_CHAPTER
+  const previousChapter = adjacentBookChapter(
+    bookCatalog,
+    resolvedBook,
+    resolvedChapter,
+    'previous',
+  )
+  const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
   const {
@@ -629,12 +625,10 @@ export function BibleReader({
           <BibleReaderToolbar
             bookLabel={bookLabel}
             isBookTitleLoading={isBookTitleLoading}
-            chapter={chapter ?? DEFAULT_CHAPTER}
+            chapter={resolvedChapter}
             versionLabel={versionLabel}
-            canGoPrevious={chapterNumber !== null && chapterNumber > 1}
-            canGoNext={
-              chapterNumber !== null && chapterCount !== null && chapterNumber < chapterCount
-            }
+            canGoPrevious={previousChapter !== null}
+            canGoNext={nextChapter !== null}
             showAuth={auth !== null}
             signedIn={auth?.isAuthenticated === true}
             avatarUrl={userInfo?.avatarUrl}
@@ -647,14 +641,22 @@ export function BibleReader({
               })
             }}
             onPreviousChapterPress={() => {
-              if (chapterNumber === null || chapterNumber <= 1) return
-              setChapter(String(chapterNumber - 1))
-            }}
-            onNextChapterPress={() => {
-              if (chapterNumber === null || chapterCount === null || chapterNumber >= chapterCount) {
+              if (previousChapter === null) {
                 return
               }
-              setChapter(String(chapterNumber + 1))
+              if (previousChapter.bookId !== resolvedBook) {
+                setBook(previousChapter.bookId)
+              }
+              setChapter(previousChapter.chapterId)
+            }}
+            onNextChapterPress={() => {
+              if (nextChapter === null) {
+                return
+              }
+              if (nextChapter.bookId !== resolvedBook) {
+                setBook(nextChapter.bookId)
+              }
+              setChapter(nextChapter.chapterId)
             }}
             onVersionPress={() => {
               if (consumerOnVersionPickerPress && isVersionMetaLoading && versionLanguageId === null) {

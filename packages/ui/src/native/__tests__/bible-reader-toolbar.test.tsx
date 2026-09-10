@@ -22,6 +22,7 @@ import { BibleReader } from '../bible-reader'
 
 type LatestDomProps = {
   showToolbar?: boolean
+  book?: string
   chapter?: string
   versionId?: number
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
@@ -399,8 +400,13 @@ describe('BibleReader native toolbar', () => {
     )
   })
 
-  it('steps chapter with chevrons in the current book and stops at the last chapter', async () => {
-    installToolbarFetches()
+  it('steps chapter with chevrons and opens the next book at the last chapter', async () => {
+    installToolbarFetches({
+      books: [
+        { id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] },
+        { id: 'ACT', title: 'Acts', chapters: [{ id: '1' }] },
+      ],
+    })
 
     render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
@@ -420,8 +426,16 @@ describe('BibleReader native toolbar', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
     })
+    expect(latestDomProps.book).toBe('JHN')
     expect(latestDomProps.chapter).toBe('2')
     expect(screen.getByText('John 2')).toBeTruthy()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
+    })
+    expect(latestDomProps.book).toBe('ACT')
+    expect(latestDomProps.chapter).toBe('1')
+    expect(screen.getByText('Acts 1')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState).toMatchObject(
       { disabled: true },
     )
@@ -429,7 +443,9 @@ describe('BibleReader native toolbar', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-previous-chapter'))
     })
-    expect(latestDomProps.chapter).toBe('1')
+    expect(latestDomProps.book).toBe('JHN')
+    expect(latestDomProps.chapter).toBe('2')
+    expect(screen.getByText('John 2')).toBeTruthy()
   })
 
   it('shows Avatar when signed in and routes press through the sign-out guard', async () => {

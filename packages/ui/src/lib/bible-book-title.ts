@@ -93,3 +93,88 @@ export function entryFromBooksCatalog(
   }
   return catalog.get(book.toUpperCase()) ?? null
 }
+
+export type AdjacentBookChapter = {
+  bookId: string
+  chapterId: string
+}
+
+function parseChapterNumber(value: string): number | null {
+  const chapterNumber = Number.parseInt(value, 10)
+  if (!Number.isFinite(chapterNumber) || chapterNumber < 1) {
+    return null
+  }
+  return chapterNumber
+}
+
+function bookIndexInCatalog(
+  books: readonly { id: string }[],
+  book: string,
+): number {
+  const exact = books.findIndex((entry) => entry.id === book)
+  if (exact !== -1) {
+    return exact
+  }
+  const upper = book.toUpperCase()
+  return books.findIndex((entry) => entry.id === upper)
+}
+
+/**
+ * Next or previous chapter, including the first/last chapter of the next/previous book.
+ * Same idea as web `getAdjacentChapter`. Null at the ends of the list, or when
+ * the catalog has not said how many chapters a book has.
+ */
+export function adjacentBookChapter(
+  catalog: ReadonlyMap<string, BookCatalogEntry> | null,
+  book: string,
+  chapter: string,
+  direction: 'next' | 'previous',
+): AdjacentBookChapter | null {
+  const chapterNumber = parseChapterNumber(chapter)
+  if (chapterNumber === null) {
+    return null
+  }
+
+  if (direction === 'previous' && chapterNumber > 1) {
+    return { bookId: book, chapterId: String(chapterNumber - 1) }
+  }
+
+  if (catalog === null) {
+    return null
+  }
+
+  const books = [...catalog.entries()].map(([id, entry]) => ({
+    id,
+    chapterCount: entry.chapterCount,
+  }))
+  const index = bookIndexInCatalog(books, book)
+  if (index === -1) {
+    return null
+  }
+
+  const current = books[index]
+  if (current === undefined) {
+    return null
+  }
+
+  if (direction === 'next') {
+    if (current.chapterCount !== null && chapterNumber < current.chapterCount) {
+      return { bookId: current.id, chapterId: String(chapterNumber + 1) }
+    }
+    const nextBook = books[index + 1]
+    if (nextBook === undefined || nextBook.chapterCount === null || nextBook.chapterCount < 1) {
+      return null
+    }
+    return { bookId: nextBook.id, chapterId: '1' }
+  }
+
+  const previousBook = books[index - 1]
+  if (
+    previousBook === undefined ||
+    previousBook.chapterCount === null ||
+    previousBook.chapterCount < 1
+  ) {
+    return null
+  }
+  return { bookId: previousBook.id, chapterId: String(previousBook.chapterCount) }
+}

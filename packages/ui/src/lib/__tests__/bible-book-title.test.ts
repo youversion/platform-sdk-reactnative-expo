@@ -1,4 +1,4 @@
-import { catalogFromBooksBody, entryFromBooksCatalog } from '../bible-book-title'
+import { adjacentBookChapter, catalogFromBooksBody, entryFromBooksCatalog } from '../bible-book-title'
 
 describe('catalogFromBooksBody', () => {
   it('reads a data array', () => {
@@ -42,5 +42,61 @@ describe('entryFromBooksCatalog', () => {
   it('returns null when the book is missing', () => {
     expect(entryFromBooksCatalog(catalog, 'REV')).toBeNull()
     expect(entryFromBooksCatalog(null, 'JHN')).toBeNull()
+  })
+})
+
+describe('adjacentBookChapter', () => {
+  const catalog = new Map([
+    ['JHN', { title: 'John', chapterCount: 2 }],
+    ['ACT', { title: 'Acts', chapterCount: 3 }],
+    ['ROM', { title: 'Romans', chapterCount: 1 }],
+  ])
+
+  it('steps within the current book', () => {
+    expect(adjacentBookChapter(catalog, 'JHN', '1', 'next')).toEqual({
+      bookId: 'JHN',
+      chapterId: '2',
+    })
+    expect(adjacentBookChapter(catalog, 'ACT', '3', 'previous')).toEqual({
+      bookId: 'ACT',
+      chapterId: '2',
+    })
+  })
+
+  it('opens the next book from the last chapter', () => {
+    expect(adjacentBookChapter(catalog, 'JHN', '2', 'next')).toEqual({
+      bookId: 'ACT',
+      chapterId: '1',
+    })
+  })
+
+  it('opens the previous book from chapter 1', () => {
+    expect(adjacentBookChapter(catalog, 'ACT', '1', 'previous')).toEqual({
+      bookId: 'JHN',
+      chapterId: '2',
+    })
+  })
+
+  it('stays off at the ends of the list', () => {
+    expect(adjacentBookChapter(catalog, 'JHN', '1', 'previous')).toBeNull()
+    expect(adjacentBookChapter(catalog, 'ROM', '1', 'next')).toBeNull()
+  })
+
+  it('still steps back a chapter before the catalog lands', () => {
+    expect(adjacentBookChapter(null, 'JHN', '3', 'previous')).toEqual({
+      bookId: 'JHN',
+      chapterId: '2',
+    })
+    expect(adjacentBookChapter(null, 'JHN', '1', 'previous')).toBeNull()
+    expect(adjacentBookChapter(null, 'JHN', '1', 'next')).toBeNull()
+  })
+
+  it('does not cross into a book with no chapter list', () => {
+    const withGap = new Map([
+      ['JHN', { title: 'John', chapterCount: 2 }],
+      ['HEB', { title: 'Hebrews', chapterCount: null }],
+    ])
+
+    expect(adjacentBookChapter(withGap, 'JHN', '2', 'next')).toBeNull()
   })
 })

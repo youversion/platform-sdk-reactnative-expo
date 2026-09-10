@@ -81,9 +81,19 @@ describe('useBibleBookTitle', () => {
 
     const { result } = renderHook(() => useBibleBookTitle(111, 'JHN'), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: true })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: true,
+      catalog: null,
+    })
     await waitFor(() => {
-      expect(result.current).toEqual({ title: 'John', chapterCount: 2, isLoading: false })
+      expect(result.current).toEqual({
+        title: 'John',
+        chapterCount: 2,
+        isLoading: false,
+        catalog: expect.any(Map),
+      })
     })
   })
 
@@ -112,7 +122,12 @@ describe('useBibleBookTitle', () => {
     ).length
 
     rerender({ book: 'HEB' })
-    expect(result.current).toEqual({ title: 'Hebrews', chapterCount: 1, isLoading: false })
+    expect(result.current).toEqual({
+      title: 'Hebrews',
+      chapterCount: 1,
+      isLoading: false,
+      catalog: expect.any(Map),
+    })
     expect(
       fetchMock.mock.calls.filter(([input]) => isBooksCatalogUrl(urlFromFetchInput(input))).length,
     ).toBe(catalogCalls)
@@ -143,9 +158,19 @@ describe('useBibleBookTitle', () => {
     })
 
     rerender({ versionId: 128 })
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: true })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: true,
+      catalog: null,
+    })
     await waitFor(() => {
-      expect(result.current).toEqual({ title: 'Juan', chapterCount: 2, isLoading: false })
+      expect(result.current).toEqual({
+        title: 'Juan',
+        chapterCount: 2,
+        isLoading: false,
+        catalog: expect.any(Map),
+      })
     })
   })
 
@@ -171,11 +196,21 @@ describe('useBibleBookTitle', () => {
     })
 
     rerender({ versionId: 999 })
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: true })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: true,
+      catalog: null,
+    })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: false })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: false,
+      catalog: null,
+    })
   })
 
   it('does not fetch when disabled', () => {
@@ -183,7 +218,12 @@ describe('useBibleBookTitle', () => {
       wrapper: wrapper(),
     })
 
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: false })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: false,
+      catalog: null,
+    })
     expect(
       fetchMock.mock.calls.some(([input]) => isBooksCatalogUrl(urlFromFetchInput(input))),
     ).toBe(false)
@@ -200,10 +240,20 @@ describe('useBibleBookTitle', () => {
 
     const { result } = renderHook(() => useBibleBookTitle(3034, 'JHN'), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: true })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: true,
+      catalog: null,
+    })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
-    expect(result.current).toEqual({ title: null, chapterCount: null, isLoading: false })
+    expect(result.current).toEqual({
+      title: null,
+      chapterCount: null,
+      isLoading: false,
+      catalog: null,
+    })
   })
 })
