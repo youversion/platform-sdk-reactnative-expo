@@ -49,6 +49,20 @@ function versionResponse(abbreviation: string, languageTag: string, localizedAbb
   )
 }
 
+/** A `/v1/bibles/{id}` body exactly as written, so a test can omit a field the API may omit. */
+function versionBodyResponse(payload: {
+  abbreviation?: string
+  localized_abbreviation?: string
+  language_tag?: string
+}) {
+  return Promise.resolve(
+    new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+    }),
+  )
+}
+
 describe('useBibleVersionAbbreviation', () => {
   beforeEach(() => {
     mmkvStorage.clearAll()
@@ -144,6 +158,44 @@ describe('useBibleVersionAbbreviation', () => {
     await waitFor(() => {
       expect(result.current.abbreviation).toBe('NIV')
     })
+  })
+
+  it('does not pair a new short name with the last version language', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionResponse('NIV', 'en')
+      }
+      if (isVersionUrl(url) && url.includes('/128')) {
+        return versionBodyResponse({ abbreviation: 'NVI' })
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId }: { versionId: number }) => useBibleVersionAbbreviation(versionId),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.languageId).toBe('en')
+    })
+
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false })
+    })
+
+    // The cache has to agree with the live lookup: same version, same pair.
+    rerender({ versionId: 111 })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
+    })
+    rerender({ versionId: 128 })
+    expect(result.current).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false })
   })
 
   it('does not fetch when disabled', () => {

@@ -9,6 +9,8 @@ export type BibleVersionAbbreviation = {
   isLoading: boolean
 }
 
+const EMPTY_META: VersionMeta = { abbreviation: null, languageId: null }
+
 /** Loads the short version name and language for the toolbar. Falls back to nothing on a miss. */
 export function useBibleVersionAbbreviation(
   versionId: number,
@@ -18,16 +20,16 @@ export function useBibleVersionAbbreviation(
   const { fetchBibleContent } = useYouVersion()
   const cacheRef = useRef(new Map<number, VersionMeta>())
   const [versionIdForState, setVersionIdForState] = useState(versionId)
-  const [abbreviation, setAbbreviation] = useState<string | null>(null)
-  const [languageId, setLanguageId] = useState<string | null>(null)
+  // One version's short name and language move together: a mix of two versions would hand the
+  // consumer this version's name with the last one's language.
+  const [meta, setMeta] = useState<VersionMeta>(EMPTY_META)
   const [settled, setSettled] = useState(false)
 
   if (versionIdForState !== versionId) {
     setVersionIdForState(versionId)
     const cached = cacheRef.current.get(versionId)
     if (cached !== undefined) {
-      setAbbreviation(cached.abbreviation)
-      setLanguageId(cached.languageId)
+      setMeta(cached)
       setSettled(true)
     } else {
       setSettled(false)
@@ -51,14 +53,8 @@ export function useBibleVersionAbbreviation(
           return
         }
         cacheRef.current.set(versionId, next)
-        if (cancelled) {
-          return
-        }
-        if (next.abbreviation !== null) {
-          setAbbreviation(next.abbreviation)
-        }
-        if (next.languageId !== null) {
-          setLanguageId(next.languageId)
+        if (!cancelled) {
+          setMeta(next)
         }
       })
       .catch(() => {
@@ -75,5 +71,5 @@ export function useBibleVersionAbbreviation(
     }
   }, [enabled, fetchBibleContent, versionId])
 
-  return { abbreviation, languageId, isLoading: enabled && !settled }
+  return { ...meta, isLoading: enabled && !settled }
 }

@@ -4,7 +4,7 @@ import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
 } from '@youversion/platform-react-ui'
-import { Alert, Pressable, Text, View } from 'react-native'
+import { Alert, Image, Pressable, Text, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import {
@@ -462,6 +462,65 @@ describe('BibleReader native toolbar', () => {
     expect(onVersionPickerPress).toHaveBeenCalledWith({ versionId: 3034, languageId: 'en' })
   })
 
+  it('clears both spinners when the toolbar lookups fail', async () => {
+    ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (url.includes('/v1/fonts/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 1,
+              slug: 'untitled-serif',
+              family: 'Untitled Serif',
+              variants: [],
+            }),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+        )
+      }
+      return Promise.reject(new Error('network down'))
+    })
+
+    const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={3034}
+        onVersionPickerPress={onVersionPickerPress}
+      />,
+      { wrapper: defaultWrapper },
+    )
+
+    // Both lookups reject and the spinners keep animating meanwhile, so this settles slower
+    // than the happy paths above — the default one-second window is tight under a full run.
+    await waitFor(
+      () => {
+        expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+        expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+      },
+      { timeout: 3000 },
+    )
+    // No catalog and no version meta: the pills fall back to the raw ids they were given.
+    expect(screen.getByText('3034')).toBeTruthy()
+    expect(screen.getByText('1')).toBeTruthy()
+
+    // Both chevrons stay off without a catalog to walk.
+    expect(
+      screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,
+    ).toMatchObject({ disabled: true })
+    expect(
+      screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
+    ).toMatchObject({ disabled: true })
+
+    // The button re-enables on failure, so the consumer is handed an empty language. README.md
+    // promises the real tag; pin the gap here until we settle what a failed lookup should send.
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    })
+    expect(onVersionPickerPress).toHaveBeenCalledWith({ versionId: 3034, languageId: '' })
+  })
+
   it('omits the row and built-in sheets when showToolbar is false', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} showToolbar={false} />, {
       wrapper: defaultWrapper,
@@ -567,6 +626,13 @@ describe('BibleReader native toolbar', () => {
 
     expect(screen.getByTestId('reader-toolbar-avatar')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
+
+    // The photo layers over the initials rather than replacing them, so a slow or broken
+    // avatar url still paints a face instead of an empty circle.
+    expect(screen.getByText('JD')).toBeTruthy()
+    const photos = screen.getByTestId('reader-toolbar-avatar').findAllByType(Image)
+    expect(photos).toHaveLength(1)
+    expect(photos[0]?.props.source).toEqual({ uri: 'https://cdn.example.com/a.png' })
 
     await openUserMenu()
     expect(screen.getByText(en.signOut, { includeHiddenElements: true })).toBeTruthy()
