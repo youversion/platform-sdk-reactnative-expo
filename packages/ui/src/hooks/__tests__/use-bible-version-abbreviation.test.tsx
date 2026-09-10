@@ -29,14 +29,21 @@ function restoreDefaultFetch() {
 
 function fontResponse() {
   return Promise.resolve(
-    new Response(JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }),
+    new Response(
+      JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    ),
   )
 }
 
-function versionResponse(abbreviation: string, languageTag: string, localizedAbbreviation?: string) {
+function versionResponse(
+  abbreviation: string,
+  languageTag: string,
+  localizedAbbreviation?: string,
+) {
   const payload =
     localizedAbbreviation === undefined
       ? { abbreviation, language_tag: languageTag }
@@ -147,7 +154,7 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     // Holding NIV here would name version 128 after the one before it, and hand the consumer
-    // its language too. Once the lookup settles empty, the caller falls back to the id.
+    // its language too. Once the lookup settles empty, the caller leaves the pill blank.
     rerender({ versionId: 128 })
     await waitFor(() => {
       expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })

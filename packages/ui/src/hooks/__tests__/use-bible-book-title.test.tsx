@@ -29,10 +29,13 @@ function restoreDefaultFetch() {
 
 function fontResponse() {
   return Promise.resolve(
-    new Response(JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }),
+    new Response(
+      JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    ),
   )
 }
 

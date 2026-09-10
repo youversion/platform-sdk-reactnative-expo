@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native'
 
 import { withAlpha } from '../../../lib/color'
 import { SDK_POPOVER_HOST_NAME } from '../../../lib/sdk-portal-hosts'
+import { restoreViewMeasure, stubViewMeasure } from '../../../test-utils/stub-view-measure'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { sansFace } from '../../../theme/fonts'
@@ -334,6 +335,14 @@ function PopoverHarness() {
 }
 
 describe('Popover', () => {
+  beforeEach(() => {
+    stubViewMeasure()
+  })
+
+  afterEach(() => {
+    restoreViewMeasure()
+  })
+
   it('keeps content closed until the trigger is pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
 

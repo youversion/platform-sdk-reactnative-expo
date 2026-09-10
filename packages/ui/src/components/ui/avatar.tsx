@@ -4,8 +4,8 @@ import { Image, StyleSheet, View } from 'react-native'
 import type { ImageProps, ViewProps } from 'react-native'
 
 import { useTokens } from '../../hooks'
-import { PersonIcon } from '../../native/icons/person-icon'
 import { sansFace } from '../../theme/fonts'
+import { PersonIcon } from './person-icon'
 import { Text } from './text'
 
 /** Fits inside the 32px avatar with the 2px fallback border. */
@@ -30,7 +30,10 @@ function useAvatarContext(): AvatarContextValue {
 
 /** "Cam Anderson" → "CA", "Cher" → "C". Same rule as the web ProfileAvatar. */
 function initialsFromName(name: string): string {
-  const words = name.trim().split(/\s+/).filter((part) => part.length > 0)
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
   const first = words[0]
   if (first === undefined) {
     return ''

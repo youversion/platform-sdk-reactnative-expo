@@ -161,7 +161,43 @@ export type AdjacentBookChapter = {
   chapterId: string
 }
 
-type AdjacentChapterBooks = Parameters<typeof getAdjacentChapter>[0]
+/** The fields `getAdjacentChapter` actually reads. Not a `BibleBook`. */
+type AdjacentChapterBook = {
+  id: string
+  chapters?: readonly { id: string }[]
+  intro?: { id: string }
+}
+
+const adjacentBooksCache = new WeakMap<
+  ReadonlyMap<string, BookCatalogEntry>,
+  readonly AdjacentChapterBook[]
+>()
+
+function adjacentBooksFromCatalog(
+  catalog: ReadonlyMap<string, BookCatalogEntry>,
+): readonly AdjacentChapterBook[] {
+  const cached = adjacentBooksCache.get(catalog)
+  if (cached !== undefined) {
+    return cached
+  }
+  const books = [...catalog.entries()].map(([id, entry]) => ({
+    id,
+    chapters: entry.chapters === null ? undefined : entry.chapters.map((c) => ({ id: c.id })),
+    intro: entry.intro === null ? undefined : { id: entry.intro.id },
+  }))
+  adjacentBooksCache.set(catalog, books)
+  return books
+}
+
+// SAFETY: `getAdjacentChapter` is typed on `BibleBook[]` but reads only `id`,
+// `chapters[].id`, and `intro.id`. Widening the parameter here keeps that
+// contract checkable instead of inventing the rest of `BibleBook`.
+const getAdjacentChapterFromCatalog = getAdjacentChapter as (
+  books: readonly AdjacentChapterBook[],
+  currentBookId: string,
+  currentChapterId: string,
+  direction: 'next' | 'previous',
+) => AdjacentBookChapter | null
 
 function parseChapterNumber(value: string): number | null {
   const chapterNumber = Number.parseInt(value, 10)
@@ -195,14 +231,5 @@ export function adjacentBookChapter(
     return null
   }
 
-  const books = [...catalog.entries()].map(([id, entry]) => ({
-    id,
-    chapters: entry.chapters === null ? undefined : entry.chapters.map((c) => ({ id: c.id })),
-    intro: entry.intro === null ? undefined : { id: entry.intro.id },
-  }))
-
-  // SAFETY: `getAdjacentChapter` reads only `id`, `chapters[].id` and `intro.id`, all of which
-  // these rows carry. The rest of `BibleBook` (`full_title`, `canon`, `passage_id`) is data the
-  // books endpoint need not send, and inventing it would put fake values in a real shape.
-  return getAdjacentChapter(books as AdjacentChapterBooks, key, chapter, direction)
+  return getAdjacentChapterFromCatalog(adjacentBooksFromCatalog(catalog), key, chapter, direction)
 }

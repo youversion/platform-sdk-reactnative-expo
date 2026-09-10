@@ -241,6 +241,8 @@ export function BibleReader({
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
 
+  const deferStorePersistRef = useRef(false)
+
   const {
     book: storedBook,
     chapter: storedChapter,
@@ -259,7 +261,9 @@ export function BibleReader({
     prop: controlledBook,
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: (newBook) => {
-      if (controlledBook === undefined) setLocation({ book: newBook })
+      if (controlledBook === undefined && !deferStorePersistRef.current) {
+        setLocation({ book: newBook })
+      }
       void onBookChange?.(newBook)
     },
   })
@@ -269,7 +273,9 @@ export function BibleReader({
     defaultProp:
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: (newChapter) => {
-      if (controlledChapter === undefined) setLocation({ chapter: newChapter })
+      if (controlledChapter === undefined && !deferStorePersistRef.current) {
+        setLocation({ chapter: newChapter })
+      }
       void onChapterChange?.(newChapter)
     },
   })
@@ -279,7 +285,9 @@ export function BibleReader({
     defaultProp:
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: (newVersionId) => {
-      if (controlledVersionId === undefined) setLocation({ versionId: newVersionId })
+      if (controlledVersionId === undefined && !deferStorePersistRef.current) {
+        setLocation({ versionId: newVersionId })
+      }
       void onVersionChange?.(newVersionId)
     },
   })
@@ -292,7 +300,7 @@ export function BibleReader({
     languageId: versionLanguageId,
     isLoading: isVersionMetaLoading,
   } = useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
-  const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
+  const versionLabel = versionAbbreviation ?? ''
   const {
     title: bookTitle,
     entry: bookEntry,
@@ -312,6 +320,39 @@ export function BibleReader({
     'previous',
   )
   const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
+
+  type LocationPatch = Parameters<typeof setLocation>[0]
+
+  const applyReaderLocation = (next: LocationPatch) => {
+    deferStorePersistRef.current = true
+    const storePatch: LocationPatch = {}
+    if (controlledBook === undefined && next.book !== undefined) {
+      storePatch.book = next.book
+    }
+    if (controlledChapter === undefined && next.chapter !== undefined) {
+      storePatch.chapter = next.chapter
+    }
+    if (controlledVersionId === undefined && next.versionId !== undefined) {
+      storePatch.versionId = next.versionId
+    }
+    if (
+      storePatch.book !== undefined ||
+      storePatch.chapter !== undefined ||
+      storePatch.versionId !== undefined
+    ) {
+      setLocation(storePatch)
+    }
+    if (next.book !== undefined && next.book !== resolvedBook) {
+      setBook(next.book)
+    }
+    if (next.chapter !== undefined && next.chapter !== resolvedChapter) {
+      setChapter(next.chapter)
+    }
+    if (next.versionId !== undefined && next.versionId !== resolvedVersionId) {
+      setVersionId(next.versionId)
+    }
+    deferStorePersistRef.current = false
+  }
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
   const {
@@ -648,19 +689,19 @@ export function BibleReader({
               if (previousChapter === null) {
                 return
               }
-              if (previousChapter.bookId !== resolvedBook) {
-                setBook(previousChapter.bookId)
-              }
-              setChapter(previousChapter.chapterId)
+              applyReaderLocation({
+                book: previousChapter.bookId,
+                chapter: previousChapter.chapterId,
+              })
             }}
             onNextChapterPress={() => {
               if (nextChapter === null) {
                 return
               }
-              if (nextChapter.bookId !== resolvedBook) {
-                setBook(nextChapter.bookId)
-              }
-              setChapter(nextChapter.chapterId)
+              applyReaderLocation({
+                book: nextChapter.bookId,
+                chapter: nextChapter.chapterId,
+              })
             }}
             onVersionPress={() => {
               // The button is disabled while the tag loads, so a press here means the lookup
@@ -794,9 +835,11 @@ export function BibleReader({
           versionId={versionId}
           theme={resolvedTheme}
           onSelect={async (data) => {
-            setBook(data.book)
-            setChapter(data.chapter)
-            setVersionId(data.versionId)
+            applyReaderLocation({
+              book: data.book,
+              chapter: data.chapter,
+              versionId: data.versionId,
+            })
           }}
         />
       )}

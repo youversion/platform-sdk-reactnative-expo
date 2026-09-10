@@ -3,9 +3,7 @@ import { versionMetaFromBody } from '../bible-version-abbreviation'
 describe('versionMetaFromBody', () => {
   it('prefers localized_abbreviation', () => {
     expect(
-      versionMetaFromBody(
-        JSON.stringify({ abbreviation: 'NIV', localized_abbreviation: 'NVI' }),
-      ),
+      versionMetaFromBody(JSON.stringify({ abbreviation: 'NIV', localized_abbreviation: 'NVI' })),
     ).toEqual({ abbreviation: 'NVI', languageId: null })
   })
 

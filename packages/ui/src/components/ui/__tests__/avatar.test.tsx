@@ -78,7 +78,9 @@ describe('Avatar', () => {
       { wrapper },
     )
 
-    expect(screen.getByTestId('avatar-fallback-person', { includeHiddenElements: true })).toBeTruthy()
+    expect(
+      screen.getByTestId('avatar-fallback-person', { includeHiddenElements: true }),
+    ).toBeTruthy()
     expect(screen.queryByText(/./)).toBeNull()
     expect(viewStyle('avatar-fallback')).toMatchObject({ backgroundColor: light.background })
   })

@@ -70,20 +70,6 @@ if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function')
     return true
   }
 }
-/**
- * `@rn-primitives/popover` places the menu by calling `measure()` on the
- * trigger. Jest's React Native mock never runs that callback, so the menu
- * stays closed. A fake box is enough for tests that press More or Open.
- */
-{
-  const { View } = require('react-native')
-  View.prototype.measure = function measure(callback) {
-    if (typeof callback === 'function') {
-      callback(0, 0, 40, 40, 12, 80)
-    }
-  }
-}
-
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
@@ -162,9 +148,7 @@ const untitledSerifFetchPayload = {
     {
       weight: 400,
       style: 'normal',
-      sources: [
-        { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
-      ],
+      sources: [{ format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' }],
     },
   ],
 }

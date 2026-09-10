@@ -18,6 +18,9 @@ function boldLabelStyle(tokens: Tokens): TextStyle {
   return sansFace(tokens.fontFamily.sans, 700)
 }
 
+/** 36pt visual + 4pt each side = 44pt iOS minimum. */
+const ICON_HIT_SLOP = 4
+
 function iconHitStyle(tokens: Tokens): ViewStyle {
   return {
     height: 36,
@@ -66,6 +69,7 @@ function ToolbarUserMenu({
       <Popover>
         <Popover.Trigger
           testID="reader-toolbar-avatar"
+          hitSlop={ICON_HIT_SLOP}
           accessibilityLabel={name?.trim() || t('signOut')}
           style={[
             iconHitStyle(tokens),
@@ -95,6 +99,7 @@ function ToolbarUserMenu({
     <Popover>
       <Popover.Trigger
         testID="reader-toolbar-user"
+        hitSlop={ICON_HIT_SLOP}
         accessibilityLabel={t('signIn')}
         style={[iconHitStyle(tokens), { backgroundColor: tokens.muted }]}
       >
@@ -214,10 +219,7 @@ export function BibleReaderToolbar({
   return (
     <View
       testID="reader-toolbar"
-      style={[
-        styles.row,
-        { backgroundColor: tokens.background, borderBottomColor: tokens.border },
-      ]}
+      style={[styles.row, { backgroundColor: tokens.background, borderBottomColor: tokens.border }]}
     >
       <ToolbarUserMenu
         showAuth={showAuth}
@@ -236,6 +238,7 @@ export function BibleReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
+          hitSlop={ICON_HIT_SLOP}
           disabled={!canGoPrevious}
           onPress={onPreviousChapterPress}
           accessibilityLabel={t('previousChapterAriaLabel')}
@@ -260,6 +263,7 @@ export function BibleReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
+          hitSlop={ICON_HIT_SLOP}
           disabled={!canGoNext}
           onPress={onNextChapterPress}
           accessibilityLabel={t('nextChapterAriaLabel')}
@@ -283,6 +287,7 @@ export function BibleReaderToolbar({
       <Button
         variant="secondary"
         size="icon"
+        hitSlop={ICON_HIT_SLOP}
         onPress={onSettingsPress}
         accessibilityLabel={t('fontAndSettings')}
         testID="reader-toolbar-settings"
@@ -323,7 +328,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   userMenu: {
-    width: 120,
+    minWidth: 120,
     padding: 4,
   },
   menuItem: {
