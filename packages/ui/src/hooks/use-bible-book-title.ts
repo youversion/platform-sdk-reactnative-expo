@@ -9,7 +9,7 @@ import {
 
 export type BibleBookTitle = {
   title: string | null
-  /** The selected book's catalog row, for chapter labels. May still be the last version's. */
+  /** The selected book's catalog row, for chapter labels. */
   entry: BookCatalogEntry | null
   isLoading: boolean
   catalog: ReadonlyMap<string, BookCatalogEntry> | null
@@ -69,9 +69,8 @@ export function useBibleBookTitle(
         }
       })
       .catch(() => {
-        // Keep the last title on the button. A failed lookup is not worth a blank control.
-        // `catalog` below only returns a list that belongs to this version, so next/previous
-        // cannot walk the previous Bible.
+        // The miss is reported by leaving `owned` on the version it came from, which `isStale`
+        // below then drops. Painting the last version's book name would misname this one.
       })
       .finally(() => {
         if (!cancelled) {
@@ -84,13 +83,17 @@ export function useBibleBookTitle(
     }
   }, [enabled, fetchBibleContent, versionId])
 
-  const displayCatalog = owned?.value ?? null
+  const isLoading = enabled && !settled
+  // While the new version loads, its predecessor's title holds the button steady behind the
+  // spinner. Once the lookup settles without one, it is gone: a wrong book name is worse than none.
+  const isStale = owned === null || (owned.versionId !== versionId && !isLoading)
+  const displayCatalog = isStale ? null : owned.value
   const entry = entryFromBooksCatalog(displayCatalog, book)
   const catalog = owned !== null && owned.versionId === versionId ? owned.value : null
   return {
     title: entry?.title ?? null,
     entry,
-    isLoading: enabled && !settled,
+    isLoading,
     catalog,
   }
 }

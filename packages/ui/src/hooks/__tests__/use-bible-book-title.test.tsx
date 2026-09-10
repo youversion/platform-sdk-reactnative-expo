@@ -225,7 +225,7 @@ describe('useBibleBookTitle', () => {
     })
   })
 
-  it('keeps the previous title and drops the catalog when a version switch refetch fails', async () => {
+  it('drops the previous title and catalog when a version switch refetch fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -257,8 +257,8 @@ describe('useBibleBookTitle', () => {
       expect(result.current.isLoading).toBe(false)
     })
     expect(result.current).toEqual({
-      title: 'John',
-      entry: JOHN_ENTRY,
+      title: null,
+      entry: null,
       isLoading: false,
       catalog: null,
     })
