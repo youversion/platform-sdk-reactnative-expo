@@ -1,3 +1,8 @@
 export { CheckIcon } from './check-icon'
+export { ChevronLeftIcon } from './chevron-left-icon'
+export { ChevronRightIcon } from './chevron-right-icon'
 export { CopyIcon } from './copy-icon'
+export { FontSettingsIcon } from './font-settings-icon'
+export { GearIcon } from './gear-icon'
+export { PersonIcon } from './person-icon'
 export { ShareIcon } from './share-icon'

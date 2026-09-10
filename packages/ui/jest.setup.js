@@ -70,6 +70,20 @@ if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function')
     return true
   }
 }
+/**
+ * `@rn-primitives/popover` places the menu by calling `measure()` on the
+ * trigger. Jest's React Native mock never runs that callback, so the menu
+ * stays closed. A fake box is enough for tests that press More or Open.
+ */
+{
+  const { View } = require('react-native')
+  View.prototype.measure = function measure(callback) {
+    if (typeof callback === 'function') {
+      callback(0, 0, 40, 40, 12, 80)
+    }
+  }
+}
+
 jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
 jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
@@ -157,7 +171,8 @@ const untitledSerifFetchPayload = {
 
 const previousFetch = global.fetch
 global.fetch = jest.fn((input, init) => {
-  if (String(input).includes('/v1/fonts/')) {
+  const url = String(input)
+  if (url.includes('/v1/fonts/')) {
     return Promise.resolve(
       new Response(JSON.stringify(untitledSerifFetchPayload), {
         status: 200,
@@ -165,10 +180,29 @@ global.fetch = jest.fn((input, init) => {
       }),
     )
   }
+  // Version and book metadata for the native toolbar. Empty + no-store so
+  // suites that never stub these still settle, and the content cache does not
+  // keep the empty body. Chapter paths keep falling through.
+  if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url)) {
+    return Promise.resolve(
+      new Response('{}', {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      }),
+    )
+  }
+  if (/\/v1\/bibles\/\d+\/books(?:\/[^/?]+)?(?:\?|$)/.test(url)) {
+    return Promise.resolve(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      }),
+    )
+  }
   if (typeof previousFetch === 'function') {
     return previousFetch(input, init)
   }
-  return Promise.reject(new Error(`unexpected fetch in UI tests: ${String(input)}`))
+  return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
 })
 
 jest.mock('@rn-primitives/portal', () => {
