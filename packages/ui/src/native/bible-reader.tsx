@@ -48,8 +48,13 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  useConsumedNavigationRequest,
+  type BibleReaderNavigation,
+} from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
@@ -295,7 +300,9 @@ export function BibleReader({
     },
   })
 
-  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  const fallbackNavigation = useMemo(() => createBibleReaderNavigation(), [])
+  const resolvedNavigation = navigation ?? fallbackNavigation
+  const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -377,6 +384,7 @@ export function BibleReader({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // ── Verse actions ────────────────────────────────────────────────────────
   // The reader owns the committed selection so it can raise a native sheet over
@@ -718,7 +726,11 @@ export function BibleReader({
               setChapter(nextChapter.chapterId)
             }}
             onVersionPress={() => {
-              if (consumerOnVersionPickerPress && isVersionMetaLoading && versionLanguageId === null) {
+              if (
+                consumerOnVersionPickerPress &&
+                isVersionMetaLoading &&
+                versionLanguageId === null
+              ) {
                 return
               }
               void handleVersionPickerPress({
@@ -726,6 +738,7 @@ export function BibleReader({
                 languageId: versionLanguageId ?? '',
               })
             }}
+            onSearchPress={() => setIsSearchOpen(true)}
             onSettingsPress={handleOpenBibleThemeSettings}
             onSignInPress={() => {
               void signIn?.()
@@ -783,6 +796,19 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {showNativeToolbar && (
+        <BibleReaderSearchSheet
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          versionId={resolvedVersionId}
+          theme={resolvedTheme}
+          fetchBibleContent={context.fetchBibleContent}
+          onSelectReference={(reference) => {
+            setIsSearchOpen(false)
+            resolvedNavigation.request(reference)
+          }}
         />
       )}
       {Platform.OS !== 'web' && (
