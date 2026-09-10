@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.6.1
+
+### Patch Changes
+
+- 6fd7a23: Sync localization from platform-localization (e4c7700): update 3 keys in en.
+  - @youversion/platform-react-native-expo-core@1.6.1
+
 ## 1.6.0
 
 ### Minor Changes
