@@ -13,6 +13,7 @@ import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { GearIcon } from './icons/gear-icon'
 import { PersonIcon } from './icons/person-icon'
+import { SearchIcon } from './icons/search-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return sansFace(tokens.fontFamily.sans, 700)
@@ -182,6 +183,7 @@ export type BibleReaderToolbarProps = {
   onPreviousChapterPress: () => void
   onNextChapterPress: () => void
   onVersionPress: () => void
+  onSearchPress: () => void
   onSettingsPress: () => void
   onSignInPress?: () => void
   onSignOutPress?: () => void
@@ -204,6 +206,7 @@ export function BibleReaderToolbar({
   onPreviousChapterPress,
   onNextChapterPress,
   onVersionPress,
+  onSearchPress,
   onSettingsPress,
   onSignInPress,
   onSignOutPress,
@@ -214,10 +217,7 @@ export function BibleReaderToolbar({
   return (
     <View
       testID="reader-toolbar"
-      style={[
-        styles.row,
-        { backgroundColor: tokens.background, borderBottomColor: tokens.border },
-      ]}
+      style={[styles.row, { backgroundColor: tokens.background, borderBottomColor: tokens.border }]}
     >
       <ToolbarUserMenu
         showAuth={showAuth}
@@ -279,6 +279,15 @@ export function BibleReaderToolbar({
         <View style={styles.versionLabel}>
           <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
         </View>
+      </Button>
+      <Button
+        variant="secondary"
+        size="icon"
+        onPress={onSearchPress}
+        accessibilityLabel={t('search')}
+        testID="reader-toolbar-search"
+      >
+        <Button.Icon as={SearchIcon} />
       </Button>
       <Button
         variant="secondary"
