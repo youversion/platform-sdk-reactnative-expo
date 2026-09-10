@@ -55,6 +55,8 @@ describe('package exports', () => {
     expect(names).not.toContain('useVerseOfTheDayPassageId')
     expect(names).not.toContain('getVerseOfTheDayPassageId')
     expect(names).not.toContain('getDayOfYear')
+    expect(names).not.toContain('useVerseOfTheDayShareSource')
+    expect(names).not.toContain('getVerseOfTheDayShareSource')
     expect(names).not.toContain('Tabs')
     expect(names).not.toContain('Accordion')
     expect(names).not.toContain('Popover')
