@@ -1,18 +1,23 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useRef, useState } from 'react'
 
-import { catalogFromBooksBody, entryFromBooksCatalog, type BookCatalogEntry } from '../lib/bible-book-title'
+import {
+  catalogFromBooksBody,
+  entryFromBooksCatalog,
+  type BookCatalogEntry,
+} from '../lib/bible-book-title'
 
 export type BibleBookTitle = {
   title: string | null
-  chapterCount: number | null
+  /** The selected book's catalog row, for chapter labels and adjacency. */
+  entry: BookCatalogEntry | null
   isLoading: boolean
   catalog: ReadonlyMap<string, BookCatalogEntry> | null
 }
 
 type Catalog = ReadonlyMap<string, BookCatalogEntry>
 
-/** Loads the version's book list once, then looks up the selected book's name and chapter count. */
+/** Loads the version's book list once, then looks up the selected book's name and chapters. */
 export function useBibleBookTitle(
   versionId: number,
   book: string,
@@ -74,7 +79,7 @@ export function useBibleBookTitle(
   const entry = entryFromBooksCatalog(catalog, book)
   return {
     title: entry?.title ?? null,
-    chapterCount: entry?.chapterCount ?? null,
+    entry,
     isLoading: enabled && !settled,
     catalog,
   }

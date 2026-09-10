@@ -35,7 +35,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
-import { adjacentBookChapter } from '../lib/bible-book-title'
+import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -295,6 +295,7 @@ export function BibleReader({
   const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
   const {
     title: bookTitle,
+    entry: bookEntry,
     isLoading: isBookTitleLoading,
     catalog: bookCatalog,
   } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
@@ -302,6 +303,8 @@ export function BibleReader({
   })
   const bookLabel = bookTitle ?? ''
   const resolvedChapter = chapter ?? DEFAULT_CHAPTER
+  // Intro chapters carry a non-numeric id ("INTRO"); show the catalog's title, not the id.
+  const chapterLabel = chapterLabelForBook(bookEntry, resolvedChapter)
   const previousChapter = adjacentBookChapter(
     bookCatalog,
     resolvedBook,
@@ -625,7 +628,7 @@ export function BibleReader({
           <BibleReaderToolbar
             bookLabel={bookLabel}
             isBookTitleLoading={isBookTitleLoading}
-            chapter={resolvedChapter}
+            chapter={chapterLabel}
             versionLabel={versionLabel}
             isVersionLoading={isVersionMetaLoading}
             canGoPrevious={previousChapter !== null}

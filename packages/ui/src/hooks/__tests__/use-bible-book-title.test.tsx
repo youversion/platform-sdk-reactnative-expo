@@ -47,6 +47,14 @@ const SPANISH_BOOKS_BODY = JSON.stringify({
   data: [{ id: 'JHN', title: 'Juan', chapters: [{ id: '1' }, { id: '2' }] }],
 })
 
+const CHAPTERS_1_2 = [
+  { id: '1', title: '1' },
+  { id: '2', title: '2' },
+]
+const JOHN_ENTRY = { title: 'John', chapters: CHAPTERS_1_2, intro: null }
+const JUAN_ENTRY = { title: 'Juan', chapters: CHAPTERS_1_2, intro: null }
+const HEBREWS_ENTRY = { title: 'Hebrews', chapters: [{ id: '1', title: '1' }], intro: null }
+
 function booksResponse(body: string) {
   return Promise.resolve(
     new Response(body, {
@@ -83,14 +91,14 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: true,
       catalog: null,
     })
     await waitFor(() => {
       expect(result.current).toEqual({
         title: 'John',
-        chapterCount: 2,
+        entry: JOHN_ENTRY,
         isLoading: false,
         catalog: expect.any(Map),
       })
@@ -124,7 +132,7 @@ describe('useBibleBookTitle', () => {
     rerender({ book: 'HEB' })
     expect(result.current).toEqual({
       title: 'Hebrews',
-      chapterCount: 1,
+      entry: HEBREWS_ENTRY,
       isLoading: false,
       catalog: expect.any(Map),
     })
@@ -160,14 +168,14 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 128 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: true,
       catalog: expect.any(Map),
     })
     await waitFor(() => {
       expect(result.current).toEqual({
         title: 'Juan',
-        chapterCount: 2,
+        entry: JUAN_ENTRY,
         isLoading: false,
         catalog: expect.any(Map),
       })
@@ -205,7 +213,7 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 111 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: false,
       catalog: expect.any(Map),
     })
@@ -238,7 +246,7 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 999 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: true,
       catalog: expect.any(Map),
     })
@@ -247,7 +255,7 @@ describe('useBibleBookTitle', () => {
     })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: false,
       catalog: expect.any(Map),
     })
@@ -260,7 +268,7 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: false,
       catalog: null,
     })
@@ -282,7 +290,7 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: true,
       catalog: null,
     })
@@ -291,7 +299,7 @@ describe('useBibleBookTitle', () => {
     })
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: false,
       catalog: null,
     })
