@@ -1,5 +1,35 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.6.0
+
+### Minor Changes
+
+- 040d231: feat: name `tokens.radius` by role — `surface` (16, web `rounded-2xl`) and `full` (pill) — and drop the `sm`/`md`/`lg`/`xl` steps ported from web's shadcn calc ramp, which only Button read and which rendered as a pill anyway. Adds the internal `Card` compound primitive on `radius.surface`.
+
+  ## Migration
+
+  `tokens.radius.md` (and `sm` / `lg` / `xl`) maps to `tokens.radius.full`. Surfaces use `tokens.radius.surface`.
+
+  ## Released as minor, not major
+
+  `radius` reaches consumers through the public `getTokens` / `useTokens` / `Tokens`
+  surface, so dropping the size keys is technically a breaking type change. It ships
+  as `minor` deliberately: the ramp went public one release ago in 1.5.0, the design
+  system is still being built out, and no consumer reads `tokens.radius` yet.
+
+### Patch Changes
+
+- 233dc86: fix: YouVersionProvider holds children until bundled Inter registers, then native text always draws Inter. First paint waits on that local load. Theme toggles must not ellipsize button labels or drop a line from multi-line text.
+- a32975d: Sync localization from platform-localization (0ae8cca): update 29 keys in en.
+- cd9b2ff: Sync localization from platform-localization (5225dbc): update 1 keys in en.
+- 2dc28cc: fix: derive native sheet chrome from design tokens (YPE-5271). Handle, muted labels, stroke, and shadows now resolve from palette / semantic tokens instead of copied hex. A small shift on the handle and supporting labels is expected where the old hex sat off-palette.
+- b57174d: Replace auth-button hex with design tokens (YPE-5272). Border, fill, and label colors resolve from border/background/foreground for the background prop's scheme. Borders and white surfaces stay byte-identical; pure-black values move to #121212.
+- 52b742e: feat: add internal Tabs, Accordion, and Popover primitives (YPE-5439 / RNV2-1). Token-styled wrappers around `@rn-primitives` 1.4.0 (same line as the existing portal). Picker/chrome use only; not public API.
+- 3247134: fix: resolve BibleTextView light/dark on native and pass that scheme into the in-WebView provider (YPE-5442 / RNV2-4). Font size and family stay consumer props; `fontFamily` still crosses as an ADR 0009 token, not a `getTokens` value.
+
+  Standalone `BibleTextView` now uses the same content-sized embed defaults as `BibleCard` / `VerseOfTheDay` (`matchContents`, `flex: 0`, scroll off). Pass `dom={{ matchContents: false }}` to opt out and size with flex styles.
+  - @youversion/platform-react-native-expo-core@1.6.0
+
 ## 1.5.0
 
 ### Minor Changes
