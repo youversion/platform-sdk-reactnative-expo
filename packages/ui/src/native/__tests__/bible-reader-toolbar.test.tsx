@@ -207,6 +207,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-settings')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityLabel).toBe(
+      en.changeBibleBookAndChapterAriaLabel,
+    )
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
+      en.changeBibleVersionAriaLabel,
+    )
     expect(latestDomProps.showToolbar).toBe(false)
     await waitFor(() => {
       expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
@@ -676,6 +682,7 @@ describe('BibleReader native toolbar', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedInWrapper })
 
     expect(screen.getByTestId('reader-toolbar-avatar')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-avatar').props.accessibilityLabel).toBe('Jane Doe')
     expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
 
     // The photo layers over the initials rather than replacing them, so a slow or broken
@@ -694,6 +701,28 @@ describe('BibleReader native toolbar', () => {
     const call = jest.mocked(Alert.alert).mock.calls[0]
     expect(call?.[0]).toBe(en.signOutQuestion)
     expect(signOut).not.toHaveBeenCalled()
+  })
+
+  it('labels an unnamed signed-in avatar as the user avatar, not sign out', () => {
+    const unnamedWrapper = youVersionProviderWrapper('light', undefined, {
+      useYVAuth: signedOutAuth({
+        isAuthenticated: true,
+        accessToken: 'test-token',
+        userInfo: { id: 'user-1' },
+        signIn,
+        signOut,
+        getAccessToken: async () => ({ status: 'ok', token: 'test-token', userId: 'user-1' }),
+        requestedPermissions: ['highlights'],
+        grantedPermissions: ['highlights'],
+        hasPermission: () => true,
+      }),
+    })
+
+    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: unnamedWrapper })
+
+    expect(screen.getByTestId('reader-toolbar-avatar').props.accessibilityLabel).toBe(
+      en.userAvatarAlt,
+    )
   })
 
   it('shows the person control when signed out with auth configured and calls signIn', async () => {

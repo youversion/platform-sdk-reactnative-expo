@@ -70,7 +70,7 @@ function ToolbarUserMenu({
         <Popover.Trigger
           testID="reader-toolbar-avatar"
           hitSlop={ICON_HIT_SLOP}
-          accessibilityLabel={name?.trim() || t('signOut')}
+          accessibilityLabel={name?.trim() || t('userAvatarAlt')}
           style={[
             iconHitStyle(tokens),
             {
@@ -251,6 +251,7 @@ export function BibleReaderToolbar({
           size="lg"
           disabled={isBookTitleLoading}
           onPress={onChapterPress}
+          accessibilityLabel={t('changeBibleBookAndChapterAriaLabel')}
           testID="reader-toolbar-chapter"
           style={styles.chapter}
         >
@@ -277,6 +278,7 @@ export function BibleReaderToolbar({
         size="lg"
         disabled={isVersionLoading}
         onPress={onVersionPress}
+        accessibilityLabel={t('changeBibleVersionAriaLabel')}
         testID="reader-toolbar-version"
         style={styles.version}
       >
