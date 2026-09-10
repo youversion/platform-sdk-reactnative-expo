@@ -1,7 +1,7 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-import { versionMetaFromBody } from '../lib/bible-version-abbreviation'
+import { versionMetaFromBody, type VersionMeta } from '../lib/bible-version-abbreviation'
 
 export type BibleVersionAbbreviation = {
   abbreviation: string | null
@@ -16,6 +16,7 @@ export function useBibleVersionAbbreviation(
 ): BibleVersionAbbreviation {
   const enabled = options?.enabled ?? true
   const { fetchBibleContent } = useYouVersion()
+  const cacheRef = useRef(new Map<number, VersionMeta>())
   const [versionIdForState, setVersionIdForState] = useState(versionId)
   const [abbreviation, setAbbreviation] = useState<string | null>(null)
   const [languageId, setLanguageId] = useState<string | null>(null)
@@ -23,9 +24,14 @@ export function useBibleVersionAbbreviation(
 
   if (versionIdForState !== versionId) {
     setVersionIdForState(versionId)
-    setAbbreviation(null)
-    setLanguageId(null)
-    setSettled(false)
+    const cached = cacheRef.current.get(versionId)
+    if (cached !== undefined) {
+      setAbbreviation(cached.abbreviation)
+      setLanguageId(cached.languageId)
+      setSettled(true)
+    } else {
+      setSettled(false)
+    }
   }
 
   useEffect(() => {
@@ -37,10 +43,17 @@ export function useBibleVersionAbbreviation(
 
     void fetchBibleContent({ path: `/v1/bibles/${versionId}` })
       .then((response) => {
-        if (cancelled || response.status !== 200) {
+        if (response.status !== 200) {
           return
         }
         const next = versionMetaFromBody(response.body)
+        if (next.abbreviation === null && next.languageId === null) {
+          return
+        }
+        cacheRef.current.set(versionId, next)
+        if (cancelled) {
+          return
+        }
         if (next.abbreviation !== null) {
           setAbbreviation(next.abbreviation)
         }
@@ -49,7 +62,7 @@ export function useBibleVersionAbbreviation(
         }
       })
       .catch(() => {
-        // Keep the id on the button. A failed lookup is not worth a blank control.
+        // Keep the last short name on the button. A failed lookup is not worth a blank control.
       })
       .finally(() => {
         if (!cancelled) {

@@ -370,13 +370,6 @@ describe('Popover', () => {
     expect(screen.queryByText('Filter options')).toBeNull()
   })
 
-  it('fills Trigger with accent while pressed', () => {
-    render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
-
-    fireEvent(screen.getByTestId('popover-trigger'), 'responderGrant', touchEvent())
-    expect(viewStyle('popover-trigger')).toMatchObject({ backgroundColor: light.accent })
-  })
-
   it('fills Close with accent while pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
     fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))

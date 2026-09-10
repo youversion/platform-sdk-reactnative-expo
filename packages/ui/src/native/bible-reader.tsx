@@ -627,6 +627,7 @@ export function BibleReader({
             isBookTitleLoading={isBookTitleLoading}
             chapter={resolvedChapter}
             versionLabel={versionLabel}
+            isVersionLoading={isVersionMetaLoading}
             canGoPrevious={previousChapter !== null}
             canGoNext={nextChapter !== null}
             showAuth={auth !== null}

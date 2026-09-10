@@ -4,8 +4,12 @@ import { Image, StyleSheet, View } from 'react-native'
 import type { ImageProps, ViewProps } from 'react-native'
 
 import { useTokens } from '../../hooks'
+import { PersonIcon } from '../../native/icons/person-icon'
 import { sansFace } from '../../theme/fonts'
 import { Text } from './text'
+
+/** Fits inside the 32px avatar with the 2px fallback border. */
+const FALLBACK_PERSON_ICON_SIZE = 20
 
 /** Web `size-8`. The signed-in toolbar button is 36 and centers this. */
 const AVATAR_SIZE = 32
@@ -112,6 +116,14 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
       >
         {initials}
       </Text>
+    )
+  } else {
+    label = (
+      <PersonIcon
+        color={tokens.foreground}
+        size={FALLBACK_PERSON_ICON_SIZE}
+        testID="avatar-fallback-person"
+      />
     )
   }
 

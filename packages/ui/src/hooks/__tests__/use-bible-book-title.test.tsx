@@ -133,7 +133,7 @@ describe('useBibleBookTitle', () => {
     ).toBe(catalogCalls)
   })
 
-  it('clears the previous catalog as soon as the version changes', async () => {
+  it('keeps the previous catalog, with loading true, while the new version fetches', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -159,10 +159,10 @@ describe('useBibleBookTitle', () => {
 
     rerender({ versionId: 128 })
     expect(result.current).toEqual({
-      title: null,
-      chapterCount: null,
+      title: 'John',
+      chapterCount: 2,
       isLoading: true,
-      catalog: null,
+      catalog: expect.any(Map),
     })
     await waitFor(() => {
       expect(result.current).toEqual({
@@ -174,7 +174,47 @@ describe('useBibleBookTitle', () => {
     })
   })
 
-  it('stays null when a version switch refetch fails', async () => {
+  it('paints a seen version from cache without a loading flash', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        return booksResponse(BOOKS_BODY)
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/128/')) {
+        return booksResponse(SPANISH_BOOKS_BODY)
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId }: { versionId: number }) => useBibleBookTitle(versionId, 'JHN'),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('Juan')
+    })
+
+    rerender({ versionId: 111 })
+    expect(result.current).toEqual({
+      title: 'John',
+      chapterCount: 2,
+      isLoading: false,
+      catalog: expect.any(Map),
+    })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+  })
+
+  it('keeps the previous catalog when a version switch refetch fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -197,19 +237,19 @@ describe('useBibleBookTitle', () => {
 
     rerender({ versionId: 999 })
     expect(result.current).toEqual({
-      title: null,
-      chapterCount: null,
+      title: 'John',
+      chapterCount: 2,
       isLoading: true,
-      catalog: null,
+      catalog: expect.any(Map),
     })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
     expect(result.current).toEqual({
-      title: null,
-      chapterCount: null,
+      title: 'John',
+      chapterCount: 2,
       isLoading: false,
-      catalog: null,
+      catalog: expect.any(Map),
     })
   })
 

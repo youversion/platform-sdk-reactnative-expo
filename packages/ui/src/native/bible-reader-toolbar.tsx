@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import type { TextStyle } from 'react-native'
+import type { TextStyle, ViewStyle } from 'react-native'
 
 import { Avatar } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
@@ -16,6 +16,17 @@ import { PersonIcon } from './icons/person-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return sansFace(tokens.fontFamily.sans, 700)
+}
+
+function iconHitStyle(tokens: Tokens): ViewStyle {
+  return {
+    height: 36,
+    width: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.radius.full,
+    overflow: 'hidden',
+  }
 }
 
 function ToolbarUserMenu({
@@ -57,7 +68,7 @@ function ToolbarUserMenu({
           testID="reader-toolbar-avatar"
           accessibilityLabel={name?.trim() || t('signOut')}
           style={[
-            styles.iconHit,
+            iconHitStyle(tokens),
             {
               borderWidth: 1,
               borderColor: tokens.border,
@@ -85,7 +96,7 @@ function ToolbarUserMenu({
       <Popover.Trigger
         testID="reader-toolbar-user"
         accessibilityLabel={t('signIn')}
-        style={[styles.iconHit, { backgroundColor: tokens.muted }]}
+        style={[iconHitStyle(tokens), { backgroundColor: tokens.muted }]}
       >
         <PersonIcon color={tokens.foreground} size={24} />
       </Popover.Trigger>
@@ -102,6 +113,20 @@ function ToolbarUserMenu({
   )
 }
 
+function ToolbarSpinner({ testID }: { testID: string }): ReactNode {
+  const tokens = useTokens()
+  const { t } = useSdkTranslation()
+
+  return (
+    <ActivityIndicator
+      size="small"
+      color={tokens.mutedForeground}
+      accessibilityLabel={t('loading')}
+      testID={testID}
+    />
+  )
+}
+
 function ChapterContent({
   bookLabel,
   isBookTitleLoading,
@@ -112,18 +137,10 @@ function ChapterContent({
   chapter: string
 }): ReactNode {
   const tokens = useTokens()
-  const { t } = useSdkTranslation()
   const bold = boldLabelStyle(tokens)
 
   if (isBookTitleLoading) {
-    return (
-      <ActivityIndicator
-        size="small"
-        color={tokens.foreground}
-        accessibilityLabel={t('loading')}
-        testID="reader-toolbar-chapter-loading"
-      />
-    )
+    return <ToolbarSpinner testID="reader-toolbar-chapter-loading" />
   }
 
   if (bookLabel.length > 0) {
@@ -133,11 +150,28 @@ function ChapterContent({
   return <Button.Text style={bold}>{chapter}</Button.Text>
 }
 
+function VersionContent({
+  versionLabel,
+  isVersionLoading,
+}: {
+  versionLabel: string
+  isVersionLoading: boolean
+}): ReactNode {
+  const tokens = useTokens()
+
+  if (isVersionLoading) {
+    return <ToolbarSpinner testID="reader-toolbar-version-loading" />
+  }
+
+  return <Button.Text style={boldLabelStyle(tokens)}>{versionLabel}</Button.Text>
+}
+
 export type BibleReaderToolbarProps = {
   bookLabel: string
   isBookTitleLoading: boolean
   chapter: string
   versionLabel: string
+  isVersionLoading: boolean
   canGoPrevious: boolean
   canGoNext: boolean
   showAuth: boolean
@@ -159,6 +193,7 @@ export function BibleReaderToolbar({
   isBookTitleLoading,
   chapter,
   versionLabel,
+  isVersionLoading,
   canGoPrevious,
   canGoNext,
   showAuth,
@@ -211,6 +246,7 @@ export function BibleReaderToolbar({
         <Button
           variant="secondary"
           size="lg"
+          disabled={isBookTitleLoading}
           onPress={onChapterPress}
           testID="reader-toolbar-chapter"
           style={styles.chapter}
@@ -235,11 +271,14 @@ export function BibleReaderToolbar({
       <Button
         variant="secondary"
         size="lg"
+        disabled={isVersionLoading}
         onPress={onVersionPress}
         testID="reader-toolbar-version"
         style={styles.version}
       >
-        <Button.Text style={boldLabelStyle(tokens)}>{versionLabel}</Button.Text>
+        <View style={styles.versionLabel}>
+          <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
+        </View>
       </Button>
       <Button
         variant="secondary"
@@ -278,20 +317,21 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     paddingHorizontal: 16,
   },
-  iconHit: {
-    height: 36,
-    width: 36,
+  versionLabel: {
+    minWidth: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   userMenu: {
-    width: 160,
-    padding: 8,
+    width: 120,
+    padding: 4,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
 })

@@ -80,7 +80,7 @@ describe('useBibleVersionAbbreviation', () => {
     })
   })
 
-  it('clears the previous short name as soon as the version changes', async () => {
+  it('keeps the previous short name, with loading true, while the new version fetches', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isVersionUrl(url) && url.includes('/111')) {
@@ -105,9 +105,44 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     rerender({ versionId: 128 })
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
+    expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: true })
     await waitFor(() => {
       expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false })
+    })
+  })
+
+  it('paints a seen version from cache without a loading flash', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionResponse('NIV', 'en')
+      }
+      if (isVersionUrl(url) && url.includes('/128')) {
+        return versionResponse('NIV', 'es', 'NVI')
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId }: { versionId: number }) => useBibleVersionAbbreviation(versionId),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
+    })
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NVI')
+    })
+
+    rerender({ versionId: 111 })
+    expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
     })
   })
 

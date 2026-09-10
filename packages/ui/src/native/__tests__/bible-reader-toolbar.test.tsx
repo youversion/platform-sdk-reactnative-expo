@@ -203,10 +203,12 @@ describe('BibleReader native toolbar', () => {
 
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
-    expect(screen.getByText('3034')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
+    expect(screen.queryByText('3034')).toBeNull()
     await waitFor(() => {
       expect(screen.getByText('NIV')).toBeTruthy()
     })
+    expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
   })
 
   it('shows the full book name on the chapter button', async () => {
@@ -222,11 +224,107 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
   })
 
+  it('spins the chapter and version buttons until the new version labels land', async () => {
+    let releaseBooks: ((response: Response) => void) | undefined
+    let releaseVersion: ((response: Response) => void) | undefined
+    const booksPending = new Promise<Response>((resolve) => {
+      releaseBooks = resolve
+    })
+    const versionPending = new Promise<Response>((resolve) => {
+      releaseVersion = resolve
+    })
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/3034')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ abbreviation: 'NIV', language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+          }),
+        )
+      }
+      if (isVersionUrl(url) && url.includes('/128')) {
+        return versionPending
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/3034/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ data: [{ id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] }] }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+            },
+          ),
+        )
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/128/')) {
+        return booksPending
+      }
+      if (url.includes('/v1/fonts/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }),
+        )
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+    await waitFor(() => {
+      expect(screen.getByText('John 1')).toBeTruthy()
+      expect(screen.getByText('NIV')).toBeTruthy()
+    })
+
+    rerender(<BibleReader book="JHN" chapter="1" versionId={128} />)
+    expect(screen.getByTestId('reader-toolbar-chapter-loading')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
+    expect(screen.queryByText('3034')).toBeNull()
+    expect(screen.queryByText('128')).toBeNull()
+
+    await act(async () => {
+      releaseVersion?.(
+        new Response(JSON.stringify({ abbreviation: 'NIV', localized_abbreviation: 'NVI', language_tag: 'es' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      releaseBooks?.(
+        new Response(JSON.stringify({ data: [{ id: 'JHN', title: 'Juan', chapters: [{ id: '1' }, { id: '2' }] }] }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Juan 1')).toBeTruthy()
+      expect(screen.getByText('NVI')).toBeTruthy()
+    })
+
+    rerender(<BibleReader book="JHN" chapter="1" versionId={3034} />)
+    expect(screen.getByText('John 1')).toBeTruthy()
+    expect(screen.getByText('NIV')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText('John 1')).toBeTruthy()
+      expect(screen.getByText('NIV')).toBeTruthy()
+    })
+  })
+
   it('opens the chapter and version sheets from the native row', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+      expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+    })
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
@@ -327,8 +425,11 @@ describe('BibleReader native toolbar', () => {
       { wrapper: defaultWrapper },
     )
 
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    await waitFor(() => {
+      expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
+    })
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityState).toMatchObject({
+      disabled: true,
     })
     expect(onVersionPickerPress).not.toHaveBeenCalled()
 

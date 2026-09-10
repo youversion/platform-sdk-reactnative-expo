@@ -70,7 +70,7 @@ describe('Avatar', () => {
     expect(screen.getByText('C')).toBeTruthy()
   })
 
-  it('paints an empty circle when the fallback has no name', () => {
+  it('paints the person icon when the fallback has no name', () => {
     render(
       <Avatar>
         <Avatar.Fallback testID="avatar-fallback" />
@@ -78,6 +78,7 @@ describe('Avatar', () => {
       { wrapper },
     )
 
+    expect(screen.getByTestId('avatar-fallback-person', { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(/./)).toBeNull()
     expect(viewStyle('avatar-fallback')).toMatchObject({ backgroundColor: light.background })
   })
