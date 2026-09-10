@@ -63,11 +63,23 @@ export type PopoverTriggerProps = Omit<ComponentProps<typeof PopoverPrimitive.Tr
 }
 
 function PopoverTrigger({ style, disabled, ...props }: PopoverTriggerProps): ReactNode {
+  const tokens = useTokens()
   return (
     <PopoverPrimitive.Trigger
+      accessibilityRole="button"
       disabled={disabled}
       {...props}
-      style={[style, disabled === true && styles.disabled]}
+      style={({ pressed }) => [
+        {
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: tokens.radius.full,
+        },
+        style,
+        // Ghost Button: fill with accent while pressed so an icon-only trigger looks live.
+        pressed && { backgroundColor: tokens.accent },
+        disabled === true && styles.disabled,
+      ]}
     />
   )
 }

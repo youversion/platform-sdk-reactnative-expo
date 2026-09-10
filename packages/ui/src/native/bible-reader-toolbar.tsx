@@ -187,8 +187,8 @@ export function BibleReaderToolbar({
       <Popover>
         <Popover.Trigger
           testID="reader-toolbar-more"
-          accessibilityRole="button"
           accessibilityLabel={t('moreMenuAriaLabel')}
+          style={styles.more}
         >
           <MoreIcon color={tokens.foreground} size={24} />
         </Popover.Trigger>
@@ -233,6 +233,10 @@ const styles = StyleSheet.create({
   },
   version: {
     flexShrink: 0,
+  },
+  more: {
+    height: 36,
+    width: 36,
   },
   menuItem: {
     flexDirection: 'row',
