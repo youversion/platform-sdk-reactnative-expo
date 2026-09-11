@@ -158,7 +158,12 @@ export function adjacentBookChapter(
   }
 
   if (direction === 'next') {
-    if (current.chapterCount !== null && chapterNumber < current.chapterCount) {
+    // Without a chapter count there is no way to know whether the book ends
+    // here, and rolling to the next book would skip the rest of this one.
+    if (current.chapterCount === null) {
+      return null
+    }
+    if (chapterNumber < current.chapterCount) {
       return { bookId: current.id, chapterId: String(chapterNumber + 1) }
     }
     const nextBook = books[index + 1]

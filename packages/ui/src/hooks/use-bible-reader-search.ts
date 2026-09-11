@@ -57,6 +57,12 @@ function toRows(verses: readonly YouVersionVerseSearchResult[]): BibleReaderSear
   }))
 }
 
+/** A rejected call never reaches the Result type, so it needs an error of its own. */
+const TRANSPORT_ERROR: SearchApiError = {
+  kind: 'transient',
+  message: 'Search request failed',
+}
+
 export function useBibleReaderSearch(
   options: UseBibleReaderSearchOptions,
 ): UseBibleReaderSearchResult {
@@ -146,25 +152,9 @@ export function useBibleReaderSearch(
     const requestId = suggestionIdRef.current + 1
     suggestionIdRef.current = requestId
     setIsLoadingSuggestions(true)
-    void search.trendingQueries({ languageRanges: ranges }).then((result) => {
-      if (requestId !== suggestionIdRef.current) {
-        return
-      }
-      setIsLoadingSuggestions(false)
-      if (result.ok) {
-        setSuggestions(result.value)
-        return
-      }
-      setSuggestions([])
-    })
-  }, [cancelDebounce, ranges, search])
-
-  const loadSuggestions = useCallback(
-    (text: string) => {
-      const requestId = suggestionIdRef.current + 1
-      suggestionIdRef.current = requestId
-      setIsLoadingSuggestions(true)
-      void search.suggestedQueries({ query: text, languageRanges: ranges }).then((result) => {
+    void search
+      .trendingQueries({ languageRanges: ranges })
+      .then((result) => {
         if (requestId !== suggestionIdRef.current) {
           return
         }
@@ -175,6 +165,42 @@ export function useBibleReaderSearch(
         }
         setSuggestions([])
       })
+      .catch(() => {
+        // A rejection is a transport failure below the Result type. Clear the
+        // spinner so the sheet does not sit on it forever.
+        if (requestId !== suggestionIdRef.current) {
+          return
+        }
+        setIsLoadingSuggestions(false)
+        setSuggestions([])
+      })
+  }, [cancelDebounce, ranges, search])
+
+  const loadSuggestions = useCallback(
+    (text: string) => {
+      const requestId = suggestionIdRef.current + 1
+      suggestionIdRef.current = requestId
+      setIsLoadingSuggestions(true)
+      void search
+        .suggestedQueries({ query: text, languageRanges: ranges })
+        .then((result) => {
+          if (requestId !== suggestionIdRef.current) {
+            return
+          }
+          setIsLoadingSuggestions(false)
+          if (result.ok) {
+            setSuggestions(result.value)
+            return
+          }
+          setSuggestions([])
+        })
+        .catch(() => {
+          if (requestId !== suggestionIdRef.current) {
+            return
+          }
+          setIsLoadingSuggestions(false)
+          setSuggestions([])
+        })
     },
     [ranges, search],
   )
@@ -224,6 +250,13 @@ export function useBibleReaderSearch(
             rows.map((row) => row.usfm),
             enrichId,
           )
+        })
+        .catch(() => {
+          if (requestId !== searchIdRef.current) {
+            return
+          }
+          setIsLoadingSearch(false)
+          setSearchError(TRANSPORT_ERROR)
         })
     },
     [cancelDebounce, enrichRows, search, versionId],
@@ -373,6 +406,14 @@ export function useBibleReaderSearch(
         setNextPageToken(result.value.nextPageToken)
         nextPageTokenRef.current = result.value.nextPageToken
         void enrichRows(addedUsfms, enrichId)
+      })
+      .catch(() => {
+        if (requestId !== pageIdRef.current) {
+          return
+        }
+        pageInFlightRef.current = false
+        setIsLoadingPage(false)
+        setPageError(TRANSPORT_ERROR)
       })
   }, [enrichRows, search, versionId])
 
