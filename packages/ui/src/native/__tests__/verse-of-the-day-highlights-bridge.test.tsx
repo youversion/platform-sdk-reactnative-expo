@@ -3,9 +3,10 @@
  * VerseOfTheDay.
  *
  * Native looks up today's passage_id (never in the WebView), parses Highlight
- * Scope from it, and always hands the DOM component a `Highlight[]` so the
+ * Scope from it, and always hands BibleTextView a `Highlight[]` so the
  * Web SDK can latch Controlled Highlights Latch. Until the passage is known,
- * that array is `[]` and `useHighlights` is called with `enabled: false`.
+ * the scripture surface stays unmounted and `useHighlights` is called with
+ * `enabled: false`.
  */
 import { render } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
@@ -18,10 +19,12 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { VerseOfTheDay } from '../verse-of-the-day'
 import * as votdPassage from '../use-verse-of-the-day-passage-id'
+import * as votdShare from '../use-verse-of-the-day-share-source'
 
 type CapturedDomProps = {
   highlights?: unknown
   versionId?: number
+  reference?: string
   dayOfYear?: number
 }
 
@@ -41,6 +44,17 @@ function highlight(passageId: string, versionId = 111): Highlight {
 
 const useHighlightsMock = jest.fn(emptyHighlights)
 const useVerseOfTheDayPassageIdSpy = jest.spyOn(votdPassage, 'useVerseOfTheDayPassageId')
+const useVerseOfTheDayShareSourceSpy = jest.spyOn(votdShare, 'useVerseOfTheDayShareSource')
+const idleRetry = jest.fn()
+
+function passageLookup(
+  passageId: string | null,
+): ReturnType<typeof votdPassage.useVerseOfTheDayPassageId> {
+  if (passageId == null) {
+    return { passageId: null, status: 'loading', retry: idleRetry }
+  }
+  return { passageId, status: 'ready', retry: idleRetry }
+}
 
 function stubHighlights(highlights: Highlight[]) {
   useHighlightsMock.mockImplementation((options: UseHighlightsOptions) => ({
@@ -65,8 +79,13 @@ beforeEach(() => {
   mockDomPropsHistory = []
   useHighlightsMock.mockClear()
   stubHighlights([])
-  setImpl('VerseOfTheDayDom', MockDOM)
-  useVerseOfTheDayPassageIdSpy.mockReturnValue(null)
+  setImpl('BibleTextViewDom', MockDOM)
+  setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
+  useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup(null))
+  useVerseOfTheDayShareSourceSpy.mockReturnValue({
+    shareSource: null,
+    loadShareSource: () => Promise.resolve(null),
+  })
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
 })
 
@@ -81,29 +100,29 @@ afterEach(() => {
 
 afterAll(() => {
   useVerseOfTheDayPassageIdSpy.mockRestore()
+  useVerseOfTheDayShareSourceSpy.mockRestore()
 })
 
 describe('the Controlled Highlights Latch', () => {
-  it('hands the DOM component an array on the very first render, including while loading', () => {
+  it('does not mount the scripture surface until the passage_id is known', () => {
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
-    expect(mockDomPropsHistory.length).toBeGreaterThan(0)
-    expect(Array.isArray(mockDomPropsHistory[0]?.highlights)).toBe(true)
-    expect(mockDomPropsHistory[0]?.highlights).toEqual([])
+    expect(mockDomPropsHistory).toEqual([])
   })
 
-  it('hands the DOM component the hook’s cache snapshot on the very first render when passage_id is known', () => {
+  it('hands BibleTextView an array on the very first scripture render', () => {
     const data = [highlight('JHN.3.16')]
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     stubHighlights(data)
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
+    expect(Array.isArray(mockDomPropsHistory[0]?.highlights)).toBe(true)
     expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
   })
 
   it('never renders with an undefined highlights prop, on any render', () => {
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     stubHighlights([highlight('JHN.3.16')])
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
@@ -114,7 +133,7 @@ describe('the Controlled Highlights Latch', () => {
   })
 
   it('sends no access token across the bridge, on any render', () => {
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     stubHighlights([highlight('JHN.3.16')])
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
@@ -124,18 +143,20 @@ describe('the Controlled Highlights Latch', () => {
     }
   })
 
-  it('pins a dayOfYear on every DOM render so the WebView cannot sample a different day', () => {
+  it('passes the looked-up passage as reference so the WebView cannot sample a different day', () => {
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(0)
     for (const props of mockDomPropsHistory) {
-      expect(props.dayOfYear).toEqual(expect.any(Number))
+      expect(props.reference).toBe('JHN.3.16')
+      expect(props).not.toHaveProperty('dayOfYear')
     }
   })
 
   it('forwards the hook’s highlights verbatim once the passage is known', () => {
     const data = [highlight('JHN.3.16')]
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     stubHighlights(data)
 
     render(<VerseOfTheDay versionId={111} />, { wrapper })
@@ -148,7 +169,7 @@ describe('the highlights subscription scope', () => {
   it('calls useHighlights with enabled: false until the passage_id is known', () => {
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
-    expect(lastDomProps().highlights).toEqual([])
+    expect(mockDomPropsHistory).toEqual([])
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
@@ -157,11 +178,11 @@ describe('the highlights subscription scope', () => {
     })
   })
 
-  it('passes [] while passage_id is unknown so other-scope rows cannot paint', () => {
+  it('does not mount scripture while passage_id is unknown so other-scope rows cannot paint', () => {
     stubHighlights([highlight('JHN.3.16'), highlight('MAT.5.1')])
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
-    expect(mockDomPropsHistory[0]?.highlights).toEqual([])
+    expect(mockDomPropsHistory).toEqual([])
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
@@ -179,9 +200,9 @@ describe('the highlights subscription scope', () => {
       chapter: '0',
       enabled: false,
     })
-    expect(lastDomProps().highlights).toEqual([])
+    expect(mockDomPropsHistory).toEqual([])
 
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.1')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.1'))
     rerender(<VerseOfTheDay versionId={111} />)
 
     expect(useHighlightsMock).toHaveBeenLastCalledWith({
@@ -190,14 +211,16 @@ describe('the highlights subscription scope', () => {
       chapter: '1',
       enabled: true,
     })
+    expect(lastDomProps().reference).toBe('JHN.1')
   })
 
   it('passes [] and does not fetch when the passage_id is invalid USFM', () => {
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('not-usfm')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('not-usfm'))
     stubHighlights([highlight('JHN.3.16')])
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     expect(lastDomProps().highlights).toEqual([])
+    expect(lastDomProps().reference).toBe('not-usfm')
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
@@ -209,7 +232,7 @@ describe('the highlights subscription scope', () => {
 
 describe('the verse-action event set', () => {
   it('sends no highlight-intent handlers across the bridge', () => {
-    useVerseOfTheDayPassageIdSpy.mockReturnValue('JHN.3.16')
+    useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     const props = lastDomProps()
@@ -218,15 +241,25 @@ describe('the verse-action event set', () => {
   })
 })
 
-describe('the DOM component source (unobservable from layer 3)', () => {
-  const source = readFileSync(join(__dirname, '../../dom/verse-of-the-day.tsx'), 'utf8')
+describe('the DOM scripture surface (unobservable from layer 3)', () => {
+  const votdSource = readFileSync(join(__dirname, '../verse-of-the-day.tsx'), 'utf8')
+  const textViewSource = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
+  const legacyDomSource = readFileSync(join(__dirname, '../../dom/verse-of-the-day.tsx'), 'utf8')
 
-  it('neither declares nor applies an accessToken prop', () => {
-    expect(source).not.toMatch(/^\s*accessToken\b/m)
-    expect(source).not.toContain('applyAuthToken')
+  it('embeds BibleTextView instead of the full-component VOTD wrapper', () => {
+    expect(votdSource).toContain("getImpl('BibleTextViewDom')")
+    expect(votdSource).not.toContain("getImpl('VerseOfTheDayDom')")
   })
 
-  it('still clears the residue prior versions left in WebView storage', () => {
-    expect(source).toMatch(/^\s*clearAuthResidue\(\)$/m)
+  it('keeps the unused full-component DOM wrapper for RNV2-10', () => {
+    expect(legacyDomSource).toContain('VerseOfTheDay')
+    expect(legacyDomSource).not.toMatch(/^\s*accessToken\b/m)
+    expect(legacyDomSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
+  })
+
+  it('keeps content fetches on the native Bible Content Client', () => {
+    expect(textViewSource).toContain('registerBibleContentAction')
+    expect(textViewSource).toContain('fetchBibleContent')
+    expect(textViewSource).not.toMatch(/BibleClient/)
   })
 })
