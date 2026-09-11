@@ -636,8 +636,13 @@ describe('BibleReader native toolbar', () => {
     ).toMatchObject({ disabled: true })
   })
 
-  it('keeps next off when the book list has a title but no chapters', async () => {
-    installToolbarFetches({ books: [{ id: 'JHN', title: 'John' }] })
+  it('opens the next book when the current title has no chapter list', async () => {
+    installToolbarFetches({
+      books: [
+        { id: 'JHN', title: 'John' },
+        { id: 'ACT', title: 'Acts', chapters: [{ id: '1' }] },
+      ],
+    })
 
     render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
@@ -648,7 +653,14 @@ describe('BibleReader native toolbar', () => {
     })
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
-    ).toMatchObject({ disabled: true })
+    ).not.toMatchObject({ disabled: true })
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
+    })
+    expect(latestDomProps.book).toBe('ACT')
+    expect(latestDomProps.chapter).toBe('1')
+    expect(screen.getByText('Acts 1')).toBeTruthy()
   })
 
   it('steps chapter with chevrons and opens the next book at the last chapter', async () => {

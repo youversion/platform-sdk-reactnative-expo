@@ -182,6 +182,18 @@ describe('adjacentBookChapter', () => {
     expect(adjacentBookChapter(withGap, 'JHN', '2', 'next')).toBeNull()
   })
 
+  it('opens the next book when the current title has no chapter list', () => {
+    const withGap = new Map([
+      ['JHN', { title: 'John', chapters: null, intro: null }],
+      ['ACT', book('Acts', 1)],
+    ])
+
+    expect(adjacentBookChapter(withGap, 'JHN', '1', 'next')).toEqual({
+      bookId: 'ACT',
+      chapterId: '1',
+    })
+  })
+
   describe('intro chapters', () => {
     const withIntros = new Map([
       ['JHN', book('John', 2, { intro: true })],
