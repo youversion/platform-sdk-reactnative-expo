@@ -712,6 +712,44 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByText('John 2')).toBeTruthy()
   })
 
+  it('saves book and chapter together when next opens the next book', async () => {
+    const originalSetLocation = useReaderLocationStore.getState().setLocation
+    const patches: { book?: string; chapter?: string; versionId?: number }[] = []
+    useReaderLocationStore.setState({
+      setLocation: (patch) => {
+        patches.push(patch)
+        originalSetLocation(patch)
+      },
+    })
+
+    try {
+      installToolbarFetches({
+        books: [
+          { id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] },
+          { id: 'ACT', title: 'Acts', chapters: [{ id: '1' }] },
+        ],
+      })
+
+      render(<BibleReader defaultBook="JHN" defaultChapter="2" defaultVersionId={3034} />, {
+        wrapper: defaultWrapper,
+      })
+
+      await waitFor(() => {
+        expect(screen.getByText('John 2')).toBeTruthy()
+      })
+      patches.length = 0
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
+      })
+
+      expect(patches).toEqual([{ book: 'ACT', chapter: '1' }])
+      expect(useReaderLocationStore.getState()).toMatchObject({ book: 'ACT', chapter: '1' })
+    } finally {
+      useReaderLocationStore.setState({ setLocation: originalSetLocation })
+    }
+  })
+
   it('shows Avatar when signed in and routes press through the sign-out guard', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedInWrapper })
 

@@ -292,6 +292,11 @@ export function BibleReader({
     },
   })
 
+  // Uncontrolled onChange runs in an effect. Leave the skip flag on through that, then clear it.
+  useEffect(() => {
+    deferStorePersistRef.current = false
+  })
+
   const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = book ?? DEFAULT_BOOK
   const showNativeToolbar = Platform.OS !== 'web' && showToolbar
@@ -351,7 +356,6 @@ export function BibleReader({
     if (next.versionId !== undefined && next.versionId !== resolvedVersionId) {
       setVersionId(next.versionId)
     }
-    deferStorePersistRef.current = false
   }
 
   const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
