@@ -48,7 +48,11 @@ _Avoid_: Passage id, USFM ref
 
 **Reader Location**:
 The last committed Bible location (`book`, `chapter`, `versionId`) a **Native Wrapper** restores on launch for uncontrolled readers. Same shape as **Picker Selection**, but names the persisted snapshot rather than the commit event. Controlled `book` / `chapter` / `versionId` win and are not overwritten by the snapshot. Uncontrolled **BibleCard** persists committed `versionId` in MMKV, separate from this snapshot.
-_Avoid_: Reader navigation, passage state
+_Avoid_: **Reader Navigation** (the pending-request object); passage state
+
+**Reader Navigation**:
+The public pending-request object (`BibleReaderNavigation`) a host creates and passes into `BibleReader`. `request` and `focusReference` queue one jump to a version / book / chapter; a newer call replaces an older one; the Reader consumes it once, including when submitted before mount. Verse scroll and focus fields are stored for a later release and do not move or dim the chapter today. Goes through the existing `book` / `chapter` / `versionId` setters, so controlled props still notify the host and uncontrolled readers still persist **Reader Location**.
+_Avoid_: Adding methods to **BibleReaderHandle**; new DOM / WebView props; treating this as **Reader Location** (that is the MMKV snapshot)
 
 **Picker Press**:
 The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.

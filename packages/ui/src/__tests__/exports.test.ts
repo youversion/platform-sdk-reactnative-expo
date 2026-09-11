@@ -1,8 +1,9 @@
 /**
  * Guards the public API surface of the UI package, the way
  * `packages/core/src/highlights/__tests__/exports.test.ts` guards core's. The
- * nine components plus `useSignOutGuard`, `getTokens`, and `useTokens` are the supported
- * surface; the sheets the SDK wires for itself stay off the package namespace,
+ * nine components plus `BibleReaderNavigation`, `createBibleReaderNavigation`,
+ * `useSignOutGuard`, `getTokens`, and `useTokens` are the supported surface;
+ * the sheets the SDK wires for itself stay off the package namespace,
  * so a consumer cannot couple to them and an accidental re-export from
  * `index.ts` reds the suite.
  *
@@ -28,7 +29,7 @@ describe('package exports', () => {
   // Named one by one rather than looped over `PUBLIC_COMPONENTS`: a computed
   // read off the namespace is something neither ESLint nor tsc can check, so
   // the loop would pass on a name no longer exported.
-  it('exposes the public components, the sign-out guard, getTokens, and useTokens', () => {
+  it('exposes the public components, reader navigation, the sign-out guard, getTokens, and useTokens', () => {
     expect(ui.BibleCard).toEqual(expect.any(Function))
     expect(ui.BibleChapterPickerSheet).toEqual(expect.any(Function))
     expect(ui.BibleReader).toEqual(expect.any(Function))
@@ -38,6 +39,8 @@ describe('package exports', () => {
     expect(ui.VerseOfTheDay).toEqual(expect.any(Function))
     expect(ui.YouVersionAuthButton).toEqual(expect.any(Function))
     expect(ui.YouVersionProvider).toEqual(expect.any(Function))
+    expect(ui.BibleReaderNavigation).toEqual(expect.any(Function))
+    expect(ui.createBibleReaderNavigation).toEqual(expect.any(Function))
     expect(ui.useSignOutGuard).toEqual(expect.any(Function))
     expect(ui.getTokens).toEqual(expect.any(Function))
     expect(ui.useTokens).toEqual(expect.any(Function))
@@ -55,6 +58,7 @@ describe('package exports', () => {
     expect(names).not.toContain('useVerseOfTheDayPassageId')
     expect(names).not.toContain('getVerseOfTheDayPassageId')
     expect(names).not.toContain('getDayOfYear')
+    expect(names).not.toContain('useConsumedNavigationRequest')
     expect(names).not.toContain('Tabs')
     expect(names).not.toContain('Accordion')
     expect(names).not.toContain('Popover')
@@ -65,7 +69,14 @@ describe('package exports', () => {
 
   it('exports nothing beyond the pinned list', () => {
     expect(Object.keys(ui).sort()).toEqual(
-      [...PUBLIC_COMPONENTS, 'getTokens', 'useSignOutGuard', 'useTokens'].sort(),
+      [
+        ...PUBLIC_COMPONENTS,
+        'BibleReaderNavigation',
+        'createBibleReaderNavigation',
+        'getTokens',
+        'useSignOutGuard',
+        'useTokens',
+      ].sort(),
     )
   })
 })
