@@ -703,7 +703,7 @@ export function BibleReader({
             onChapterPress={() => {
               void handleChapterPickerPress({
                 book: resolvedBook,
-                chapter: chapter ?? DEFAULT_CHAPTER,
+                chapter: resolvedChapter,
                 versionId: resolvedVersionId,
               })
             }}
@@ -726,11 +726,10 @@ export function BibleReader({
               setChapter(nextChapter.chapterId)
             }}
             onVersionPress={() => {
-              if (
-                consumerOnVersionPickerPress &&
-                isVersionMetaLoading &&
-                versionLanguageId === null
-              ) {
+              // Both the built-in sheet and a consumer handler need a language
+              // to open on. Swallow the press only while the lookup is in
+              // flight; a settled miss still opens, with no language.
+              if (isVersionMetaLoading && versionLanguageId === null) {
                 return
               }
               void handleVersionPickerPress({
