@@ -1,6 +1,6 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { useState, type ReactNode } from 'react'
-import { ActivityIndicator, Platform, Share, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from '../components/ui'
 import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
@@ -48,7 +48,7 @@ export function VerseOfTheDay({
   // Pin the calendar day on native so paint and share cannot resolve "today"
   // on opposite sides of midnight.
   const dayOfYear = dayOfYearProp ?? sampledDayOfYear
-  const passageId = useVerseOfTheDayPassageId(dayOfYear)
+  const { passageId, status, retry } = useVerseOfTheDayPassageId(dayOfYear)
   const { shareSource, loadShareSource } = useVerseOfTheDayShareSource(versionId, passageId)
   const scope = highlightScopeFor(passageId, versionId)
   const fontFamily = size === 'lg' ? UNTITLED_SERIF_FONT : INTER_FONT
@@ -81,64 +81,81 @@ export function VerseOfTheDay({
   return (
     <ThemeContext.Provider value={resolvedTheme}>
       <HighlightsPaint scope={scope}>
-        {(highlights) => (
-          <Card testID="verse-of-the-day">
-            <VerseOfTheDayHeader
-              showSunIcon={showSunIcon}
-              showShareButton={showShareButton}
-              title={t('verseOfTheDay')}
-              reference={shareSource?.reference}
-              shareLabel={t('share')}
-              shareDisabled={passageId == null}
-              onSharePress={() => {
-                void handleShare()
-              }}
-            />
-            <Card.Content>
-              {passageId == null ? (
-                <View style={styles.loader} accessibilityRole="progressbar">
-                  <ActivityIndicator
-                    accessibilityLabel={t('loading')}
-                    color={getTokens(resolvedTheme).mutedForeground}
-                    testID="verse-of-the-day-loading"
-                  />
-                </View>
-              ) : (
-                <BibleTextViewDOM
-                  reference={passageId}
-                  versionId={versionId}
-                  showVerseNumbers={false}
-                  fontSize={fontSize}
-                  fontFamily={encodeFontFamilyForDom(fontFamily)}
-                  highlights={highlights}
-                  appKey={context.appKey}
-                  apiHost={context.apiHost}
-                  installationId={context.installationId}
-                  fetchBibleContent={context.fetchBibleContent}
-                  permittedVersionIds={context.permittedVersionIds}
-                  excludedVersionIds={context.excludedVersionIds}
-                  permittedLanguageTags={context.permittedLanguageTags}
-                  locale={lng}
-                  theme={resolvedTheme}
-                  dom={withEmbedDomDefaults(dom)}
-                />
-              )}
-            </Card.Content>
-            {showBibleAppAttribution ? (
-              <Card.Footer style={styles.footer}>
-                <View
-                  accessibilityRole="image"
-                  accessibilityLabel={t('bibleApp')}
-                  style={styles.attribution}
-                  testID="verse-of-the-day-attribution"
-                >
-                  <BibleAppLogo size={24} />
-                  <Text variant="muted">{t('bibleApp')}</Text>
-                </View>
-              </Card.Footer>
-            ) : null}
-          </Card>
-        )}
+        {(highlights) => {
+          let body: ReactNode = (
+            <View style={styles.loader} accessibilityRole="progressbar">
+              <ActivityIndicator
+                accessibilityLabel={t('loading')}
+                color={getTokens(resolvedTheme).mutedForeground}
+                testID="verse-of-the-day-loading"
+              />
+            </View>
+          )
+          if (status === 'failed') {
+            body = (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('offlineConnectionLostMessage')}
+                onPress={retry}
+                style={styles.retry}
+                testID="verse-of-the-day-retry"
+              >
+                <Text variant="muted">{t('offlineConnectionLostMessage')}</Text>
+              </Pressable>
+            )
+          } else if (passageId != null) {
+            body = (
+              <BibleTextViewDOM
+                reference={passageId}
+                versionId={versionId}
+                showVerseNumbers={false}
+                fontSize={fontSize}
+                fontFamily={encodeFontFamilyForDom(fontFamily)}
+                highlights={highlights}
+                appKey={context.appKey}
+                apiHost={context.apiHost}
+                installationId={context.installationId}
+                fetchBibleContent={context.fetchBibleContent}
+                permittedVersionIds={context.permittedVersionIds}
+                excludedVersionIds={context.excludedVersionIds}
+                permittedLanguageTags={context.permittedLanguageTags}
+                locale={lng}
+                theme={resolvedTheme}
+                dom={withEmbedDomDefaults(dom)}
+              />
+            )
+          }
+
+          return (
+            <Card testID="verse-of-the-day">
+              <VerseOfTheDayHeader
+                showSunIcon={showSunIcon}
+                showShareButton={showShareButton}
+                title={t('verseOfTheDay')}
+                reference={shareSource?.reference}
+                shareLabel={t('share')}
+                shareDisabled={passageId == null}
+                onSharePress={() => {
+                  void handleShare()
+                }}
+              />
+              <Card.Content>{body}</Card.Content>
+              {showBibleAppAttribution ? (
+                <Card.Footer style={styles.footer}>
+                  <View
+                    accessibilityRole="image"
+                    accessibilityLabel={t('bibleApp')}
+                    style={styles.attribution}
+                    testID="verse-of-the-day-attribution"
+                  >
+                    <BibleAppLogo size={24} />
+                    <Text variant="muted">{t('bibleApp')}</Text>
+                  </View>
+                </Card.Footer>
+              ) : null}
+            </Card>
+          )
+        }}
       </HighlightsPaint>
     </ThemeContext.Provider>
   )
@@ -214,6 +231,9 @@ const styles = StyleSheet.create({
   },
   loader: {
     alignItems: 'center',
+    paddingVertical: 8,
+  },
+  retry: {
     paddingVertical: 8,
   },
   footer: {

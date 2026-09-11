@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render } from '@testing-library/react-native'
+import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import * as ReactNative from 'react-native'
@@ -353,18 +353,56 @@ describe('VerseOfTheDay', () => {
     expect(queryByTestId('verse-of-the-day-attribution')).toBeNull()
   })
 
-  it('shows a loading state until the passage_id is known', async () => {
+  it('shows a loading state until the passage_id is known', () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockReturnValue(new Promise(() => undefined))
+
+    const { getByTestId, queryByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+
+    expect(getByTestId('verse-of-the-day-loading')).toBeTruthy()
+    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
+  })
+
+  it('shows a retry control when the passage lookup fails', async () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
 
-    const { getByTestId, queryByTestId } = await renderAndSettle(
+    const { getByTestId, getByLabelText, queryByTestId } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
       {
         wrapper: wrapper(),
       },
     )
 
-    expect(getByTestId('verse-of-the-day-loading')).toBeTruthy()
+    expect(getByTestId('verse-of-the-day-retry')).toBeTruthy()
+    expect(getByLabelText('We’re having difficulties with your connection.')).toBeTruthy()
+    expect(queryByTestId('verse-of-the-day-loading')).toBeNull()
     expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
+  })
+
+  it('recovers from a failed passage lookup when retry is pressed', async () => {
+    jest
+      .spyOn(votdApi, 'getVerseOfTheDayPassageId')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue('JHN.3.16')
+
+    const { getByTestId, queryByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} />,
+      { wrapper: wrapper() },
+    )
+
+    expect(queryByTestId('mock-btv-dom')).toBeNull()
+
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-retry'))
+    })
+    await waitFor(() => {
+      expect(getByTestId('mock-btv-dom')).toBeTruthy()
+    })
+    expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
   })
 
   it('pins a sampled local calendar day on the lookup and the scripture reference', async () => {
