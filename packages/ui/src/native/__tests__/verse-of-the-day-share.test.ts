@@ -71,6 +71,54 @@ describe('getVerseOfTheDayShareSource', () => {
     })
   })
 
+  it('uses the passage reference alone when the version lookup throws', async () => {
+    const fetchMock: FetchBibleContent = async ({ path }) => {
+      if (path === VERSION_PATH) {
+        throw new Error('timeout')
+      }
+      return fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+      })({ path })
+    }
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16')
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16',
+      text: 'For God so loved the world...\n\nJohn 3:16',
+    })
+  })
+
+  it('uses the passage reference alone when the version body is not JSON', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: { status: 200, body: '<html>' },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16',
+      text: 'For God so loved the world...\n\nJohn 3:16',
+    })
+  })
+
   it('returns null when the passage lookup is not ok', async () => {
     const source = await getVerseOfTheDayShareSource(
       fetchBibleContent({
