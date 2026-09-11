@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native'
 
 import { withAlpha } from '../../../lib/color'
 import { SDK_POPOVER_HOST_NAME } from '../../../lib/sdk-portal-hosts'
+import { restoreViewMeasure, stubViewMeasure } from '../../../test-utils/stub-view-measure'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { sansFace } from '../../../theme/fonts'
@@ -21,6 +22,24 @@ function viewStyle(testID: string) {
 
 function textStyle(text: string) {
   return StyleSheet.flatten(screen.getByText(text).props.style)
+}
+
+function touchEvent() {
+  return {
+    persist: () => {},
+    nativeEvent: {
+      changedTouches: [],
+      identifier: 0,
+      locationX: 0,
+      locationY: 0,
+      pageX: 0,
+      pageY: 0,
+      target: 0,
+      timestamp: Date.now(),
+      touches: [],
+    },
+    currentTarget: { measure: () => {} },
+  }
 }
 
 function TabsHarness() {
@@ -299,23 +318,10 @@ describe('Accordion', () => {
   })
 })
 
-function patchMeasureOnNode(
-  node: {
-    measure: (callback: (...args: number[]) => void) => void
-  } | null,
-) {
-  if (node === null) {
-    return
-  }
-  node.measure = (callback) => {
-    callback(0, 0, 80, 40, 12, 80)
-  }
-}
-
 function PopoverHarness() {
   return (
     <Popover>
-      <Popover.Trigger testID="popover-trigger" ref={patchMeasureOnNode}>
+      <Popover.Trigger testID="popover-trigger">
         <Text>Open filter</Text>
       </Popover.Trigger>
       <Popover.Content testID="popover-content">
@@ -329,6 +335,14 @@ function PopoverHarness() {
 }
 
 describe('Popover', () => {
+  beforeEach(() => {
+    stubViewMeasure()
+  })
+
+  afterEach(() => {
+    restoreViewMeasure()
+  })
+
   it('keeps content closed until the trigger is pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
 
@@ -363,6 +377,14 @@ describe('Popover', () => {
     fireEvent.press(screen.getByText('Done'))
 
     expect(screen.queryByText('Filter options')).toBeNull()
+  })
+
+  it('fills Close with accent while pressed', () => {
+    render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
+    fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
+
+    fireEvent(screen.getByTestId('popover-close'), 'responderGrant', touchEvent())
+    expect(viewStyle('popover-close')).toMatchObject({ backgroundColor: light.accent })
   })
 
   it('paints content from the dark popover tokens', () => {

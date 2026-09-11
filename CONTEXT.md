@@ -95,8 +95,12 @@ The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the
 _Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex context
 
 **Reader Controls**:
-The visible controls around reader content, including chapter navigation, version selection, and settings. `showToolbar: false` also hides the built-in **Chapter Picker Sheet** and **Version Picker Sheet**.
+The visible controls around reader content, including chapter navigation, version selection, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, and settings sheet.
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
+
+**Native Reader Toolbar**:
+The native row of Reader triggers on iOS and Android — avatar when auth is on, chapter with prev/next chevrons, version abbreviation, and a settings gear. Layout and sizes follow the Web SDK `BibleReader.Toolbar`. Presses open the existing sheets (or the sign-in / sign-out popover). Changing books looks up the new name at once. Changing versions keeps the last list and short name, and the buttons show a small spinner until the new ones land — same as the Web SDK toolbar. A version seen before paints at once. When the short name never arrives, the version button stays empty rather than showing the id. Next stays off until that list lands. At the last chapter of a book it opens chapter 1 of the next book. Previous from chapter 1 opens the last chapter of the previous book. Both stay off at the ends of the list. A title with no chapter list still opens the next book on Next. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands, and gets an empty string when the lookup fails. The Web SDK `BibleReader.Toolbar` stays on web only.
+_Avoid_: In-WebView toolbar on iOS/Android; treating Search as shipped (YPE-5708)
 
 **Compiled Distribution**:
 Published packages ship compiled `build/` (`tsc` preserves `'use dom'`). Dev resolves `src/`; `publishConfig` swaps at `pnpm publish`. See [ADR 0011](docs/adr/0011-compiled-distribution.md).
