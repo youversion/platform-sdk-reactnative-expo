@@ -26,7 +26,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 ## Features
 
 - **Scripture display**: React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- **Bible Reader**: a complete reading experience with `BibleReader`, including built-in chapter and version pickers
+- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android and built-in chapter, version, and settings sheets
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
@@ -152,6 +152,8 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
+On iOS and Android, avatar, chapter (with prev/next), version, Search, and settings live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. Search opens a native sheet. A result tap loads that chapter. It does not scroll to the verse in this release. `showToolbar={false}` hides that row and the built-in chapter, version, Search, and settings sheets. On web, the Web SDK toolbar is unchanged. There is no native Search chrome on web.
+
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 
 #### Jumping to a passage
@@ -265,7 +267,7 @@ Clearing the selection also closes the verse action sheet. Clears arrive on `onV
 
 #### Custom picker flows
 
-To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection:
+To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the callback waits until that tag lands.
 
 ```tsx
 <BibleReader
@@ -377,7 +379,7 @@ It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles bas
 
 #### Signing out
 
-Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s user menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s avatar menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
 
 On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
 

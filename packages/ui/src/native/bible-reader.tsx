@@ -31,8 +31,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import { getImpl } from './component-impls'
+import { useBibleBookTitle } from '../hooks/use-bible-book-title'
+import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
+import { adjacentBookChapter } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
@@ -45,9 +48,15 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  useConsumedNavigationRequest,
+  type BibleReaderNavigation,
+} from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
+import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
@@ -291,7 +300,9 @@ export function BibleReader({
     },
   })
 
-  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  const fallbackNavigation = useMemo(() => createBibleReaderNavigation(), [])
+  const resolvedNavigation = navigation ?? fallbackNavigation
+  const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -327,6 +338,32 @@ export function BibleReader({
     }
   }
 
+  const resolvedVersionId = appliedVersionId ?? DEFAULT_BIBLE_VERSION_ID
+  const resolvedBook = appliedBook ?? DEFAULT_BOOK
+  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
+  const {
+    abbreviation: versionAbbreviation,
+    languageId: versionLanguageId,
+    isLoading: isVersionMetaLoading,
+  } = useBibleVersionAbbreviation(resolvedVersionId, { enabled: showNativeToolbar })
+  const versionLabel = versionAbbreviation ?? String(resolvedVersionId)
+  const {
+    title: bookTitle,
+    isLoading: isBookTitleLoading,
+    catalog: bookCatalog,
+  } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
+    enabled: showNativeToolbar,
+  })
+  const bookLabel = bookTitle ?? ''
+  const resolvedChapter = appliedChapter ?? DEFAULT_CHAPTER
+  const previousChapter = adjacentBookChapter(
+    bookCatalog,
+    resolvedBook,
+    resolvedChapter,
+    'previous',
+  )
+  const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
+
   const highlightPermissionFlow = useHighlightPermissionFlow({
     versionId: appliedVersionId,
     book: appliedBook,
@@ -347,6 +384,7 @@ export function BibleReader({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // ── Verse actions ────────────────────────────────────────────────────────
   // The reader owns the committed selection so it can raise a native sheet over
@@ -620,6 +658,7 @@ export function BibleReader({
   const showPickerSheet = Platform.OS !== 'web' && showToolbar && !consumerOnChapterPickerPress
   const showVersionPickerSheet =
     Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
+  const showSettingsSheet = Platform.OS !== 'web' && showToolbar
 
   const authProps = context.authRedirectUrl
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
@@ -648,6 +687,66 @@ export function BibleReader({
   return (
     <>
       <View style={{ flex: 1 }}>
+        {showNativeToolbar && (
+          <BibleReaderToolbar
+            bookLabel={bookLabel}
+            isBookTitleLoading={isBookTitleLoading}
+            chapter={resolvedChapter}
+            versionLabel={versionLabel}
+            isVersionLoading={isVersionMetaLoading}
+            canGoPrevious={previousChapter !== null}
+            canGoNext={nextChapter !== null}
+            showAuth={auth !== null}
+            signedIn={auth?.isAuthenticated === true}
+            avatarUrl={userInfo?.avatarUrl}
+            name={userInfo?.name}
+            onChapterPress={() => {
+              void handleChapterPickerPress({
+                book: resolvedBook,
+                chapter: resolvedChapter,
+                versionId: resolvedVersionId,
+              })
+            }}
+            onPreviousChapterPress={() => {
+              if (previousChapter === null) {
+                return
+              }
+              if (previousChapter.bookId !== resolvedBook) {
+                setBook(previousChapter.bookId)
+              }
+              setChapter(previousChapter.chapterId)
+            }}
+            onNextChapterPress={() => {
+              if (nextChapter === null) {
+                return
+              }
+              if (nextChapter.bookId !== resolvedBook) {
+                setBook(nextChapter.bookId)
+              }
+              setChapter(nextChapter.chapterId)
+            }}
+            onVersionPress={() => {
+              // Both the built-in sheet and a consumer handler need a language
+              // to open on. Swallow the press only while the lookup is in
+              // flight; a settled miss still opens, with no language.
+              if (isVersionMetaLoading && versionLanguageId === null) {
+                return
+              }
+              void handleVersionPickerPress({
+                versionId: resolvedVersionId,
+                languageId: versionLanguageId ?? '',
+              })
+            }}
+            onSearchPress={() => setIsSearchOpen(true)}
+            onSettingsPress={handleOpenBibleThemeSettings}
+            onSignInPress={() => {
+              void signIn?.()
+            }}
+            onSignOutPress={() => {
+              void guardedSignOut?.()
+            }}
+          />
+        )}
         <BibleReaderDOM
           {...authProps}
           appKey={context.appKey}
@@ -681,7 +780,7 @@ export function BibleReader({
           onBookChange={handleBookChange}
           onChapterChange={handleChapterChange}
           onVersionChange={handleVersionChange}
-          showToolbar={showToolbar}
+          showToolbar={Platform.OS === 'web' && showToolbar}
           onChapterPickerPress={handleChapterPickerPress}
           onVersionPickerPress={handleVersionPickerPress}
           onFootnotePress={onFootnotePress}
@@ -692,10 +791,23 @@ export function BibleReader({
           dom={readerDom}
         />
       </View>
-      {Platform.OS !== 'web' && (
+      {showSettingsSheet && (
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {showNativeToolbar && (
+        <BibleReaderSearchSheet
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          versionId={resolvedVersionId}
+          theme={resolvedTheme}
+          fetchBibleContent={context.fetchBibleContent}
+          onSelectReference={(reference) => {
+            setIsSearchOpen(false)
+            resolvedNavigation.request(reference)
+          }}
         />
       )}
       {Platform.OS !== 'web' && (
