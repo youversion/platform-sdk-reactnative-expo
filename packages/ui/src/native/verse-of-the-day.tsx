@@ -169,9 +169,7 @@ function VerseOfTheDayHeader({
         </View>
       ) : null}
       <View style={styles.titleBlock}>
-        <Text variant="muted" style={styles.eyebrow}>
-          {title}
-        </Text>
+        <Text variant="eyebrow">{title}</Text>
         {reference ? (
           <Text
             style={[
@@ -209,9 +207,6 @@ const styles = StyleSheet.create({
   titleBlock: {
     flex: 1,
     flexShrink: 1,
-  },
-  eyebrow: {
-    textTransform: 'uppercase',
   },
   loader: {
     alignItems: 'center',

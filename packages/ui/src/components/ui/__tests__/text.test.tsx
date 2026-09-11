@@ -20,6 +20,7 @@ describe('Text', () => {
         <Text>Body copy</Text>
         <Text variant="muted">Muted copy</Text>
         <Text variant="heading">Heading copy</Text>
+        <Text variant="eyebrow">Eyebrow copy</Text>
       </>,
       { wrapper: youVersionProviderWrapper() },
     )
@@ -37,6 +38,11 @@ describe('Text', () => {
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       ...light.typography.lg,
+    })
+    expect(flattenedStyle('Eyebrow copy')).toMatchObject({
+      color: light.mutedForeground,
+      ...light.typography.sm,
+      textTransform: 'uppercase',
     })
   })
 
