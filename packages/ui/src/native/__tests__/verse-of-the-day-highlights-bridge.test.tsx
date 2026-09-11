@@ -72,7 +72,10 @@ beforeEach(() => {
   setImpl('BibleTextViewDom', MockDOM)
   setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
   useVerseOfTheDayPassageIdSpy.mockReturnValue(null)
-  useVerseOfTheDayShareSourceSpy.mockReturnValue(null)
+  useVerseOfTheDayShareSourceSpy.mockReturnValue({
+    shareSource: null,
+    loadShareSource: () => Promise.resolve(null),
+  })
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
 })
 

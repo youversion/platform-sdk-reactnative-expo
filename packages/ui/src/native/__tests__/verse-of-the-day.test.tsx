@@ -272,6 +272,36 @@ describe('VerseOfTheDay', () => {
     expect(Share.share).toHaveBeenCalledTimes(1)
   })
 
+  it('retries the share-source fetch on press after the background fetch failed', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const shareSourceSpy = jest
+      .spyOn(votdShare, 'getVerseOfTheDayShareSource')
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(sampleShareData)
+
+    const { getByTestId, queryByText } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} />,
+      { wrapper: wrapper() },
+    )
+    expect(queryByText(sampleShareData.reference)).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
+
+    // First press: the retry also fails, so nothing is shared.
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-share'))
+    })
+    expect(Share.share).not.toHaveBeenCalled()
+
+    // Second press: the retry succeeds, shares, and the reference line appears.
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-share'))
+    })
+    expect(shareSourceSpy).toHaveBeenCalledTimes(3)
+    expect(Share.share).toHaveBeenCalledWith({ message: sampleShareData.text })
+    expect(queryByText(sampleShareData.reference)).toBeTruthy()
+  })
+
   it('invokes consumer onShare and does not call Share.share', async () => {
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
     const { getByTestId } = await renderAndSettle(

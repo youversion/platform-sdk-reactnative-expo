@@ -49,24 +49,28 @@ export function VerseOfTheDay({
   // on opposite sides of midnight.
   const dayOfYear = dayOfYearProp ?? sampledDayOfYear
   const passageId = useVerseOfTheDayPassageId(dayOfYear)
-  const shareSource = useVerseOfTheDayShareSource(versionId, passageId)
+  const { shareSource, loadShareSource } = useVerseOfTheDayShareSource(versionId, passageId)
   const scope = highlightScopeFor(passageId, versionId)
   const fontFamily = size === 'lg' ? UNTITLED_SERIF_FONT : INTER_FONT
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
 
   const handleShare = async () => {
-    if (shareSource == null) {
-      return
-    }
     try {
+      // The background fetch can fail while the DOM view still paints the
+      // verse, so a press retries instead of staying dead for the mount.
+      const source = shareSource ?? (await loadShareSource())
+      if (source == null) {
+        console.warn('VerseOfTheDay share unavailable: passage text could not be loaded')
+        return
+      }
       if (consumerOnShare) {
-        await consumerOnShare(shareSource)
+        await consumerOnShare(source)
         return
       }
       if (Platform.OS === 'web') {
         return
       }
-      await Share.share({ message: shareSource.text })
+      await Share.share({ message: source.text })
     } catch (error) {
       console.error('VerseOfTheDay share failed:', error)
     }
@@ -85,7 +89,7 @@ export function VerseOfTheDay({
               title={t('verseOfTheDay')}
               reference={shareSource?.reference}
               shareLabel={t('share')}
-              shareDisabled={shareSource == null}
+              shareDisabled={passageId == null}
               onSharePress={() => {
                 void handleShare()
               }}

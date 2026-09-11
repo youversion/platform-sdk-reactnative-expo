@@ -16,7 +16,6 @@ export type ImplKey =
   | 'HighlightConsentSheet'
   | 'NativeSheet'
   | 'SignInWithYouVersionSheet'
-  | 'VerseOfTheDayDom'
 
 // Heterogeneous registry: each key has its own props. Callers pass the matching key.
 export type ImplComponent = ComponentType<any>
