@@ -5,28 +5,70 @@ import type {
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { z } from 'zod'
 
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+
 const passageShareSchema = z.object({
   content: z.string(),
   reference: z.string(),
 })
 
-const versionAbbreviationSchema = z.object({
+const versionShareSchema = z.object({
   localized_abbreviation: z.string().optional(),
+  language_tag: z.string().optional(),
 })
 
-function abbreviationFromVersion(response: BibleContentResponse | null): string | undefined {
+type ParsedVersion = {
+  abbreviation: string | undefined
+  languageTag: string | undefined
+}
+
+function versionFromResponse(response: BibleContentResponse | null): ParsedVersion | null {
   if (response == null || response.status < 200 || response.status >= 300) {
-    return undefined
+    return null
   }
   try {
-    const version = versionAbbreviationSchema.safeParse(JSON.parse(response.body))
+    const version = versionShareSchema.safeParse(JSON.parse(response.body))
     if (!version.success) {
-      return undefined
+      return null
     }
-    return version.data.localized_abbreviation
+    return {
+      abbreviation: version.data.localized_abbreviation,
+      languageTag: version.data.language_tag,
+    }
   } catch {
-    return undefined
+    return null
   }
+}
+
+// Same permit/exclude/language rules as `@youversion/platform-core` version-filters.
+// Those functions read `YouVersionPlatformConfiguration`, which this provider
+// does not write.
+function isVersionIdDecidablyUnusable(
+  versionId: number,
+  filters: InternalVersionFilterProps,
+): boolean {
+  const { excludedVersionIds, permittedVersionIds } = filters
+  if (excludedVersionIds?.includes(versionId)) {
+    return true
+  }
+  return permittedVersionIds !== undefined && !permittedVersionIds.includes(versionId)
+}
+
+function isUsableBibleVersion(
+  candidate: { id: number; languageTag?: string },
+  filters: InternalVersionFilterProps,
+): boolean {
+  if (isVersionIdDecidablyUnusable(candidate.id, filters)) {
+    return false
+  }
+  const { permittedLanguageTags } = filters
+  if (permittedLanguageTags === undefined) {
+    return true
+  }
+  if (candidate.languageTag === undefined) {
+    return false
+  }
+  return permittedLanguageTags.includes(candidate.languageTag)
 }
 
 /**
@@ -40,7 +82,11 @@ export async function getVerseOfTheDayShareSource(
   fetchBibleContent: FetchBibleContent,
   versionId: number,
   passageId: string,
+  filters: InternalVersionFilterProps = {},
 ): Promise<VerseOfTheDayShareData | null> {
+  if (isVersionIdDecidablyUnusable(versionId, filters)) {
+    return null
+  }
   try {
     const passagePath = `/v1/bibles/${versionId}/passages/${encodeURIComponent(passageId)}?format=text`
     const versionPath = `/v1/bibles/${versionId}`
@@ -55,9 +101,15 @@ export async function getVerseOfTheDayShareSource(
     if (!passage.success) {
       return null
     }
+    const parsedVersion = versionFromResponse(versionResponse)
+    if (
+      !isUsableBibleVersion({ id: versionId, languageTag: parsedVersion?.languageTag }, filters)
+    ) {
+      return null
+    }
     const { content, reference } = passage.data
     const verseText = content.trim()
-    const abbreviation = abbreviationFromVersion(versionResponse)
+    const abbreviation = parsedVersion?.abbreviation
     const referenceText = abbreviation ? `${reference} ${abbreviation}` : reference
     const text = referenceText === '' ? verseText : `${verseText}\n\n${referenceText}`
     return { text, reference: referenceText, verseText }

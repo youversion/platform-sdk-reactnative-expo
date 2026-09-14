@@ -230,4 +230,34 @@ describe('getVerseOfTheDayShareSource', () => {
 
     expect(source).toBeNull()
   })
+
+  it('still shares when the version language is permitted', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: '  For God so loved the world...  ',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            localized_abbreviation: 'NIV',
+            language_tag: 'en',
+          }),
+        },
+      }),
+      3034,
+      'JHN.3.16',
+      { permittedLanguageTags: ['en'] },
+    )
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16 NIV',
+      text: 'For God so loved the world...\n\nJohn 3:16 NIV',
+    })
+  })
 })

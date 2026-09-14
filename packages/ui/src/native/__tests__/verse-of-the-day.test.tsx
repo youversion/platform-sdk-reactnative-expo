@@ -460,6 +460,34 @@ describe('VerseOfTheDay', () => {
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
   })
 
+  it('passes provider version filter lists into the share source fetch', async () => {
+    await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedVersionIds={[111]}
+          excludedVersionIds={[3034]}
+          permittedLanguageTags={['en']}
+        >
+          {children}
+        </YouVersionProvider>
+      ),
+    })
+
+    expect(votdShare.getVerseOfTheDayShareSource).toHaveBeenCalledWith(
+      expect.any(Function),
+      3034,
+      'JHN.3.16',
+      {
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      },
+    )
+  })
+
   it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {
     await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper('light', 'es') })
 

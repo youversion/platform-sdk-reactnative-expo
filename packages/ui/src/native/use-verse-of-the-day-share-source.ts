@@ -30,7 +30,8 @@ export function useVerseOfTheDayShareSource(
   versionId: number,
   passageId: string | null,
 ): VerseOfTheDayShareSource {
-  const { fetchBibleContent } = useYouVersion()
+  const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
+    useYouVersion()
   const [result, setResult] = useState<ShareSourceForPassage | null>(null)
   // Latest requested passage, so a slow fetch for an old one cannot land on
   // top of a newer result. Cleared on unmount.
@@ -47,13 +48,24 @@ export function useVerseOfTheDayShareSource(
     if (passageId == null) {
       return null
     }
-    const data = await getVerseOfTheDayShareSource(fetchBibleContent, versionId, passageId)
+    const data = await getVerseOfTheDayShareSource(fetchBibleContent, versionId, passageId, {
+      permittedVersionIds,
+      excludedVersionIds,
+      permittedLanguageTags,
+    })
     const current = currentRef.current
     if (current !== null && current.passageId === passageId && current.versionId === versionId) {
       setResult({ passageId, versionId, data })
     }
     return data
-  }, [fetchBibleContent, versionId, passageId])
+  }, [
+    fetchBibleContent,
+    versionId,
+    passageId,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  ])
 
   useEffect(() => {
     void loadShareSource()
