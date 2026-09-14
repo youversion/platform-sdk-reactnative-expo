@@ -55,6 +55,9 @@ export function VerseOfTheDay({
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
 
   const handleShare = async () => {
+    if (Platform.OS === 'web') {
+      return
+    }
     try {
       // The background fetch can fail while the DOM view still paints the
       // verse, so a press retries instead of staying dead for the mount.
@@ -65,9 +68,6 @@ export function VerseOfTheDay({
       }
       if (consumerOnShare) {
         await consumerOnShare(source)
-        return
-      }
-      if (Platform.OS === 'web') {
         return
       }
       await Share.share({ message: source.text })
