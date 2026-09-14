@@ -159,4 +159,75 @@ describe('getVerseOfTheDayShareSource', () => {
       path: '/v1/bibles/111/passages/JHN.3.16-18?format=text',
     })
   })
+
+  it('returns null and does not fetch when the version is excluded', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16', {
+      excludedVersionIds: [3034],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null and does not fetch when the version is not in the permit list', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16', {
+      permittedVersionIds: [111],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null when the version language is not permitted', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            localized_abbreviation: 'NVI',
+            language_tag: 'es',
+          }),
+        },
+      }),
+      3034,
+      'JHN.3.16',
+      { permittedLanguageTags: ['en'] },
+    )
+
+    expect(source).toBeNull()
+  })
+
+  it('returns null when a language allowlist is set and the version tag is missing', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: {
+          status: 200,
+          body: JSON.stringify({ localized_abbreviation: 'NIV' }),
+        },
+      }),
+      3034,
+      'JHN.3.16',
+      { permittedLanguageTags: ['en'] },
+    )
+
+    expect(source).toBeNull()
+  })
 })
