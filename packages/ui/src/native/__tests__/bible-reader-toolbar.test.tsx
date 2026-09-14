@@ -750,6 +750,57 @@ describe('BibleReader native toolbar', () => {
     }
   })
 
+  it('asks the host to change book and chapter when next crosses a book', async () => {
+    const onBookChange = jest.fn()
+    const onChapterChange = jest.fn()
+    installToolbarFetches({
+      books: [
+        { id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] },
+        { id: 'ACT', title: 'Acts', chapters: [{ id: '1' }] },
+      ],
+    })
+
+    const { rerender } = render(
+      <BibleReader
+        book="JHN"
+        chapter="2"
+        versionId={3034}
+        onBookChange={onBookChange}
+        onChapterChange={onChapterChange}
+      />,
+      { wrapper: defaultWrapper },
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('John 2')).toBeTruthy()
+    })
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
+    })
+
+    expect(onBookChange).toHaveBeenCalledWith('ACT')
+    expect(onChapterChange).toHaveBeenCalledWith('1')
+    expect(useReaderLocationStore.getState()).toMatchObject({ book: null, chapter: null })
+    expect(latestDomProps).toMatchObject({ book: 'JHN', chapter: '2' })
+    expect(screen.getByText('John 2')).toBeTruthy()
+
+    rerender(
+      <BibleReader
+        book="ACT"
+        chapter="1"
+        versionId={3034}
+        onBookChange={onBookChange}
+        onChapterChange={onChapterChange}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('Acts 1')).toBeTruthy()
+    })
+    expect(useReaderLocationStore.getState()).toMatchObject({ book: null, chapter: null })
+  })
+
   it('shows Avatar when signed in and routes press through the sign-out guard', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedInWrapper })
 
