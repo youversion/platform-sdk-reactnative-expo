@@ -16,6 +16,7 @@ const AVATAR_SIZE = 32
 
 type AvatarContextValue = {
   readonly size: number
+  readonly foreground: string
 }
 
 const AvatarContext = createContext<AvatarContextValue | null>(null)
@@ -49,7 +50,10 @@ export type AvatarProps = ViewProps
 
 function AvatarRoot({ style, ...props }: AvatarProps): ReactNode {
   const tokens = useTokens()
-  const context = useMemo(() => ({ size: AVATAR_SIZE }), [])
+  const context = useMemo(
+    () => ({ size: AVATAR_SIZE, foreground: tokens.foreground }),
+    [tokens.foreground],
+  )
 
   return (
     <AvatarContext.Provider value={context}>
@@ -96,7 +100,7 @@ export type AvatarFallbackProps = ViewProps & {
 }
 
 function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNode {
-  useAvatarContext()
+  const { foreground } = useAvatarContext()
   const tokens = useTokens()
   const trimmed = name?.trim() ?? ''
   let initials = ''
@@ -112,7 +116,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
         style={[
           styles.initials,
           {
-            color: tokens.foreground,
+            color: foreground,
             ...sansFace(tokens.fontFamily.sans, 700),
           },
         ]}
@@ -123,7 +127,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
   } else {
     label = (
       <PersonIcon
-        color={tokens.foreground}
+        color={foreground}
         size={FALLBACK_PERSON_ICON_SIZE}
         testID="avatar-fallback-person"
       />
@@ -139,7 +143,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
         {
           backgroundColor: tokens.background,
           borderWidth: 2,
-          borderColor: tokens.foreground,
+          borderColor: foreground,
           borderRadius: tokens.radius.full,
         },
         style,
