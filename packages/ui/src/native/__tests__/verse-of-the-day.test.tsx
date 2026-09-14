@@ -337,6 +337,27 @@ describe('VerseOfTheDay', () => {
     expect(Share.share).not.toHaveBeenCalled()
   })
 
+  it('does not invoke consumer onShare on web', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'web',
+    })
+
+    const consumerOnShare = jest.fn().mockResolvedValue(undefined)
+    const { getByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} onShare={consumerOnShare} />,
+      { wrapper: wrapper() },
+    )
+
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-share'))
+    })
+
+    expect(consumerOnShare).not.toHaveBeenCalled()
+    expect(Share.share).not.toHaveBeenCalled()
+  })
+
   it('hides optional chrome when the public flags are false', async () => {
     const { queryByTestId, queryByLabelText } = await renderAndSettle(
       <VerseOfTheDay
