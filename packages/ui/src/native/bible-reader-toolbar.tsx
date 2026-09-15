@@ -82,7 +82,7 @@ function ToolbarUserMenu({
         >
           <Avatar>{portrait}</Avatar>
         </Popover.Trigger>
-        <Popover.Content align="start" style={styles.userMenu}>
+        <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
           <Popover.Close
             onPress={onSignOutPress}
             testID="reader-toolbar-sign-out"
@@ -105,7 +105,7 @@ function ToolbarUserMenu({
       >
         <PersonIcon color={tokens.foreground} size={24} />
       </Popover.Trigger>
-      <Popover.Content align="start" style={styles.userMenu}>
+      <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
         <Popover.Close
           onPress={onSignInPress}
           testID="reader-toolbar-sign-in"
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   userMenu: {
-    minWidth: 120,
+    width: 160,
     padding: 4,
   },
   menuItem: {

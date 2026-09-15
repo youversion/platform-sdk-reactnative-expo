@@ -897,6 +897,11 @@ describe('BibleReader native toolbar', () => {
     await openUserMenu()
     expect(screen.getByText(en.signIn, { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(en.signOut, { includeHiddenElements: true })).toBeNull()
+    expect(
+      StyleSheet.flatten(
+        screen.getByTestId('reader-toolbar-user-menu', { includeHiddenElements: true }).props.style,
+      ),
+    ).toMatchObject({ width: 160 })
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-sign-in', { includeHiddenElements: true }))
