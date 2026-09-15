@@ -12,7 +12,7 @@ import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
 } from '@youversion/platform-react-ui'
-import { Alert, Image, Pressable, Text, View } from 'react-native'
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import {
@@ -34,6 +34,7 @@ type LatestDomProps = {
   book?: string
   chapter?: string
   versionId?: number
+  theme?: 'light' | 'dark'
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
 }
@@ -253,6 +254,19 @@ describe('BibleReader native toolbar', () => {
       en.changeBibleVersionAriaLabel,
     )
     expect(latestDomProps.showToolbar).toBe(false)
+  })
+
+  it('paints the native toolbar with the Reader theme when the provider is light', async () => {
+    installToolbarFetches()
+    await renderToolbar(
+      <BibleReader theme="dark" book="JHN" chapter="1" versionId={3034} />,
+      { wrapper: defaultWrapper },
+    )
+
+    expect(latestDomProps.theme).toBe('dark')
+    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)).toMatchObject({
+      backgroundColor: '#121212',
+    })
   })
 
   it('shows the version abbreviation on the version button', async () => {
