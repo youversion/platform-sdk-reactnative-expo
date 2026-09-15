@@ -18,6 +18,11 @@ type ShareRequest = {
   filters: InternalVersionFilterProps
 }
 
+type InFlightShareLoad = {
+  request: ShareRequest
+  promise: Promise<VerseOfTheDayShareData | null>
+}
+
 function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
   if (a === b) {
     return true
@@ -61,6 +66,7 @@ export function useVerseOfTheDayShareSource(
     useYouVersion()
   const [result, setResult] = useState<ShareSourceForPassage | null>(null)
   const currentRef = useRef<ShareRequest | null>(null)
+  const inFlightRef = useRef<InFlightShareLoad | null>(null)
 
   useEffect(() => {
     currentRef.current = {
@@ -82,17 +88,31 @@ export function useVerseOfTheDayShareSource(
       passageId,
       filters: { permittedVersionIds, excludedVersionIds, permittedLanguageTags },
     }
-    const data = await getVerseOfTheDayShareSource(
-      fetchBibleContent,
-      versionId,
-      passageId,
-      request.filters,
-    )
-    if (!sameShareRequest(currentRef.current, request)) {
-      return null
+    const inFlight = inFlightRef.current
+    if (inFlight !== null && sameShareRequest(inFlight.request, request)) {
+      return inFlight.promise
     }
-    setResult({ passageId, versionId, filters: request.filters, data })
-    return data
+    const promise = (async () => {
+      const data = await getVerseOfTheDayShareSource(
+        fetchBibleContent,
+        versionId,
+        passageId,
+        request.filters,
+      )
+      if (!sameShareRequest(currentRef.current, request)) {
+        return null
+      }
+      setResult({ passageId, versionId, filters: request.filters, data })
+      return data
+    })()
+    inFlightRef.current = { request, promise }
+    try {
+      return await promise
+    } finally {
+      if (inFlightRef.current?.promise === promise) {
+        inFlightRef.current = null
+      }
+    }
   }, [
     fetchBibleContent,
     versionId,
