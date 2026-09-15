@@ -39,13 +39,23 @@ function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProp
   )
 }
 
+function sameShareRequest(a: ShareRequest | null, b: ShareRequest): boolean {
+  return (
+    a !== null &&
+    a.passageId === b.passageId &&
+    a.versionId === b.versionId &&
+    sameFilters(a.filters, b.filters)
+  )
+}
+
 export type VerseOfTheDayShareSource = {
   /** `null` while loading, on failure, and while the resolved passage does not match. */
   shareSource: VerseOfTheDayShareData | null
   /**
    * Fetches again for the current passage and returns the result. A share
    * press uses this as its retry path so a failed background fetch does not
-   * leave share dead for the life of the mount.
+   * leave share dead for the life of the mount. Returns `null` when provider
+   * filters change before the fetch settles.
    */
   loadShareSource: () => Promise<VerseOfTheDayShareData | null>
 }
@@ -81,22 +91,21 @@ export function useVerseOfTheDayShareSource(
     if (passageId == null) {
       return null
     }
-    const filters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
+    const request: ShareRequest = {
+      versionId,
+      passageId,
+      filters: { permittedVersionIds, excludedVersionIds, permittedLanguageTags },
+    }
     const data = await getVerseOfTheDayShareSource(
       fetchBibleContent,
       versionId,
       passageId,
-      filters,
+      request.filters,
     )
-    const current = currentRef.current
-    if (
-      current !== null &&
-      current.passageId === passageId &&
-      current.versionId === versionId &&
-      sameFilters(current.filters, filters)
-    ) {
-      setResult({ passageId, versionId, filters, data })
+    if (!sameShareRequest(currentRef.current, request)) {
+      return null
     }
+    setResult({ passageId, versionId, filters: request.filters, data })
     return data
   }, [
     fetchBibleContent,
@@ -111,12 +120,11 @@ export function useVerseOfTheDayShareSource(
     void loadShareSource()
   }, [loadShareSource])
 
-  const shareSource =
-    result === null ||
-    result.passageId !== passageId ||
-    result.versionId !== versionId ||
-    !sameFilters(result.filters, { permittedVersionIds, excludedVersionIds, permittedLanguageTags })
-      ? null
-      : result.data
+  const live: ShareRequest = {
+    versionId,
+    passageId,
+    filters: { permittedVersionIds, excludedVersionIds, permittedLanguageTags },
+  }
+  const shareSource = result !== null && sameShareRequest(live, result) ? result.data : null
   return { shareSource, loadShareSource }
 }
