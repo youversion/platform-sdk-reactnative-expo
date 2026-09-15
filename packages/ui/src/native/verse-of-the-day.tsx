@@ -28,6 +28,19 @@ export type VerseOfTheDayProps = Omit<
 const DEFAULT_FONT_SIZE = 16
 const LARGE_FONT_SIZE = 20
 
+async function shareInBrowser(text: string): Promise<void> {
+  const { navigator } = globalThis
+  if (navigator.share != null) {
+    try {
+      await navigator.share({ text })
+    } catch {
+      // User dismissed the share sheet.
+    }
+    return
+  }
+  await navigator.clipboard.writeText(text)
+}
+
 export function VerseOfTheDay({
   theme,
   background,
@@ -55,9 +68,6 @@ export function VerseOfTheDay({
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
 
   const handleShare = async () => {
-    if (Platform.OS === 'web') {
-      return
-    }
     try {
       // The background fetch can fail while the DOM view still paints the
       // verse, so a press retries instead of staying dead for the mount.
@@ -66,8 +76,12 @@ export function VerseOfTheDay({
         console.warn('VerseOfTheDay share unavailable: passage text could not be loaded')
         return
       }
-      if (consumerOnShare) {
+      if (consumerOnShare != null && Platform.OS !== 'web') {
         await consumerOnShare(source)
+        return
+      }
+      if (Platform.OS === 'web') {
+        await shareInBrowser(source.text)
         return
       }
       await Share.share({ message: source.text })

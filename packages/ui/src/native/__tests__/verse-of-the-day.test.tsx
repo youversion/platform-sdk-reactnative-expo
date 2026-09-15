@@ -79,6 +79,8 @@ function MockBibleTextViewDOM(props: LatestDomProps) {
 
 describe('VerseOfTheDay', () => {
   const originalOs = Platform.OS
+  const originalShare = globalThis.navigator.share
+  const originalClipboard = globalThis.navigator.clipboard
 
   beforeEach(() => {
     latestDomProps = {}
@@ -98,6 +100,14 @@ describe('VerseOfTheDay', () => {
       configurable: true,
       enumerable: true,
       value: originalOs,
+    })
+    Object.defineProperty(globalThis.navigator, 'share', {
+      configurable: true,
+      value: originalShare,
+    })
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: originalClipboard,
     })
   })
 
@@ -320,11 +330,16 @@ describe('VerseOfTheDay', () => {
     expect(Share.share).not.toHaveBeenCalled()
   })
 
-  it('does not call Share.share on web', async () => {
+  it('shares through the browser on web and does not call Share.share', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
       value: 'web',
+    })
+    const share = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(globalThis.navigator, 'share', {
+      configurable: true,
+      value: share,
     })
 
     const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
@@ -334,14 +349,47 @@ describe('VerseOfTheDay', () => {
     await act(async () => {
       fireEvent.press(getByTestId('verse-of-the-day-share'))
     })
+    expect(share).toHaveBeenCalledWith({ text: sampleShareData.text })
     expect(Share.share).not.toHaveBeenCalled()
   })
 
-  it('does not invoke consumer onShare on web', async () => {
+  it('copies share text when the browser has no Web Share API', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
       value: 'web',
+    })
+    Object.defineProperty(globalThis.navigator, 'share', {
+      configurable: true,
+      value: undefined,
+    })
+    const writeText = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(globalThis.navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    })
+
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-share'))
+    })
+    expect(writeText).toHaveBeenCalledWith(sampleShareData.text)
+    expect(Share.share).not.toHaveBeenCalled()
+  })
+
+  it('does not invoke consumer onShare on web and still uses the browser path', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'web',
+    })
+    const share = jest.fn().mockResolvedValue(undefined)
+    Object.defineProperty(globalThis.navigator, 'share', {
+      configurable: true,
+      value: share,
     })
 
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
@@ -355,6 +403,7 @@ describe('VerseOfTheDay', () => {
     })
 
     expect(consumerOnShare).not.toHaveBeenCalled()
+    expect(share).toHaveBeenCalledWith({ text: sampleShareData.text })
     expect(Share.share).not.toHaveBeenCalled()
   })
 
