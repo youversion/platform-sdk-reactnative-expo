@@ -33,7 +33,7 @@ import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reade
 import { getImpl } from './component-impls'
 import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
-import { useTheme } from '../hooks/use-theme'
+import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
@@ -679,60 +679,62 @@ export function BibleReader({
     <>
       <View style={{ flex: 1 }}>
         {showNativeToolbar && (
-          <BibleReaderToolbar
-            bookLabel={bookLabel}
-            isBookTitleLoading={isBookTitleLoading}
-            chapter={chapterLabel}
-            versionLabel={versionLabel}
-            isVersionLoading={isVersionMetaLoading}
-            canGoPrevious={previousChapter !== null}
-            canGoNext={nextChapter !== null}
-            showAuth={auth !== null}
-            signedIn={auth?.isAuthenticated === true}
-            avatarUrl={userInfo?.avatarUrl}
-            name={userInfo?.name}
-            onChapterPress={() => {
-              void handleChapterPickerPress({
-                book: resolvedBook,
-                chapter: chapter ?? DEFAULT_CHAPTER,
-                versionId: resolvedVersionId,
-              })
-            }}
-            onPreviousChapterPress={() => {
-              if (previousChapter === null) {
-                return
-              }
-              applyReaderLocation({
-                book: previousChapter.bookId,
-                chapter: previousChapter.chapterId,
-              })
-            }}
-            onNextChapterPress={() => {
-              if (nextChapter === null) {
-                return
-              }
-              applyReaderLocation({
-                book: nextChapter.bookId,
-                chapter: nextChapter.chapterId,
-              })
-            }}
-            onVersionPress={() => {
-              // The button is disabled while the tag loads, so a press here means the lookup
-              // settled. An empty tag is a lookup that failed, not one still in flight —
-              // `languageId` stays a string for Web SDK parity, so empty carries "unknown".
-              void handleVersionPickerPress({
-                versionId: resolvedVersionId,
-                languageId: versionLanguageId ?? '',
-              })
-            }}
-            onSettingsPress={handleOpenBibleThemeSettings}
-            onSignInPress={() => {
-              void signIn?.()
-            }}
-            onSignOutPress={() => {
-              void guardedSignOut?.()
-            }}
-          />
+          <ThemeContext.Provider value={resolvedTheme}>
+            <BibleReaderToolbar
+              bookLabel={bookLabel}
+              isBookTitleLoading={isBookTitleLoading}
+              chapter={chapterLabel}
+              versionLabel={versionLabel}
+              isVersionLoading={isVersionMetaLoading}
+              canGoPrevious={previousChapter !== null}
+              canGoNext={nextChapter !== null}
+              showAuth={auth !== null}
+              signedIn={auth?.isAuthenticated === true}
+              avatarUrl={userInfo?.avatarUrl}
+              name={userInfo?.name}
+              onChapterPress={() => {
+                void handleChapterPickerPress({
+                  book: resolvedBook,
+                  chapter: chapter ?? DEFAULT_CHAPTER,
+                  versionId: resolvedVersionId,
+                })
+              }}
+              onPreviousChapterPress={() => {
+                if (previousChapter === null) {
+                  return
+                }
+                applyReaderLocation({
+                  book: previousChapter.bookId,
+                  chapter: previousChapter.chapterId,
+                })
+              }}
+              onNextChapterPress={() => {
+                if (nextChapter === null) {
+                  return
+                }
+                applyReaderLocation({
+                  book: nextChapter.bookId,
+                  chapter: nextChapter.chapterId,
+                })
+              }}
+              onVersionPress={() => {
+                // The button is disabled while the tag loads, so a press here means the lookup
+                // settled. An empty tag is a lookup that failed, not one still in flight —
+                // `languageId` stays a string for Web SDK parity, so empty carries "unknown".
+                void handleVersionPickerPress({
+                  versionId: resolvedVersionId,
+                  languageId: versionLanguageId ?? '',
+                })
+              }}
+              onSettingsPress={handleOpenBibleThemeSettings}
+              onSignInPress={() => {
+                void signIn?.()
+              }}
+              onSignOutPress={() => {
+                void guardedSignOut?.()
+              }}
+            />
+          </ThemeContext.Provider>
         )}
         <BibleReaderDOM
           {...authProps}
