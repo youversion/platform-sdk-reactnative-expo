@@ -143,4 +143,35 @@ describe('useVerseOfTheDayShareSource', () => {
 
     expect(await inFlight).toBeNull()
   })
+
+  it('returns the in-flight verse when Share is pressed before preload settles', async () => {
+    let resolvePreload: (value: VerseOfTheDayShareData | null) => void
+    getShare.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePreload = resolve
+        }),
+    )
+    getShare.mockResolvedValueOnce(null)
+
+    const { result } = renderHook(() => useVerseOfTheDayShareSource(3034, 'JHN.3.16'), {
+      wrapper: filterWrapper(),
+    })
+
+    await waitFor(() => {
+      expect(getShare).toHaveBeenCalledTimes(1)
+    })
+
+    let inFlight!: Promise<VerseOfTheDayShareData | null>
+    await act(async () => {
+      inFlight = result.current.loadShareSource()
+    })
+
+    await act(async () => {
+      resolvePreload(sampleShareData)
+    })
+
+    expect(await inFlight).toEqual(sampleShareData)
+    expect(result.current.shareSource).toEqual(sampleShareData)
+  })
 })
