@@ -5,7 +5,6 @@ import BibleTextViewDom from '../dom/bible-text-view'
 import BibleVersionPickerContent from '../dom/bible-version-picker-content'
 import ChapterPickerContent from '../dom/chapter-picker-content'
 import FootnoteContent from '../dom/footnote-content'
-import VerseOfTheDayDom from '../dom/verse-of-the-day'
 import { registerDefault } from './component-impls'
 
 let registered = false
@@ -21,5 +20,4 @@ export function ensureDomImpls(): void {
   registerDefault('BibleVersionPickerContent', BibleVersionPickerContent)
   registerDefault('ChapterPickerContent', ChapterPickerContent)
   registerDefault('FootnoteContent', FootnoteContent)
-  registerDefault('VerseOfTheDayDom', VerseOfTheDayDom)
 }
