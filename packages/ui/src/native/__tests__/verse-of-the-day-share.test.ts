@@ -20,6 +20,24 @@ function fetchBibleContent(
   }
 }
 
+type RecordingFetch = {
+  fetch: FetchBibleContent
+  paths: string[]
+}
+
+function recordingFetch(
+  responses: Record<string, { status: number; body: string }>,
+): RecordingFetch {
+  const paths: string[] = []
+  return {
+    paths,
+    fetch: async ({ path }) => {
+      paths.push(path)
+      return fetchBibleContent(responses)({ path })
+    },
+  }
+}
+
 describe('getVerseOfTheDayShareSource', () => {
   it('builds share data from the text passage and version abbreviation', async () => {
     const source = await getVerseOfTheDayShareSource(
@@ -183,81 +201,67 @@ describe('getVerseOfTheDayShareSource', () => {
   })
 
   it('returns null when the version language is not permitted', async () => {
-    const source = await getVerseOfTheDayShareSource(
-      fetchBibleContent({
-        [PASSAGE_PATH]: {
-          status: 200,
-          body: JSON.stringify({
-            content: 'For God so loved the world...',
-            reference: 'John 3:16',
-          }),
-        },
-        [VERSION_PATH]: {
-          status: 200,
-          body: JSON.stringify({
-            localized_abbreviation: 'NVI',
-            language_tag: 'es',
-          }),
-        },
-      }),
-      3034,
-      'JHN.3.16',
-      { permittedLanguageTags: ['en'] },
-    )
+    const { fetch, paths } = recordingFetch({
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          localized_abbreviation: 'NVI',
+          language_tag: 'es',
+        }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
 
     expect(source).toBeNull()
+    expect(paths).toEqual([VERSION_PATH])
   })
 
   it('returns null when a language allowlist is set and the version tag is missing', async () => {
-    const source = await getVerseOfTheDayShareSource(
-      fetchBibleContent({
-        [PASSAGE_PATH]: {
-          status: 200,
-          body: JSON.stringify({
-            content: 'For God so loved the world...',
-            reference: 'John 3:16',
-          }),
-        },
-        [VERSION_PATH]: {
-          status: 200,
-          body: JSON.stringify({ localized_abbreviation: 'NIV' }),
-        },
-      }),
-      3034,
-      'JHN.3.16',
-      { permittedLanguageTags: ['en'] },
-    )
+    const { fetch, paths } = recordingFetch({
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({ localized_abbreviation: 'NIV' }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
 
     expect(source).toBeNull()
+    expect(paths).toEqual([VERSION_PATH])
   })
 
   it('still shares when the version language is permitted', async () => {
-    const source = await getVerseOfTheDayShareSource(
-      fetchBibleContent({
-        [PASSAGE_PATH]: {
-          status: 200,
-          body: JSON.stringify({
-            content: '  For God so loved the world...  ',
-            reference: 'John 3:16',
-          }),
-        },
-        [VERSION_PATH]: {
-          status: 200,
-          body: JSON.stringify({
-            localized_abbreviation: 'NIV',
-            language_tag: 'en',
-          }),
-        },
-      }),
-      3034,
-      'JHN.3.16',
-      { permittedLanguageTags: ['en'] },
-    )
+    const { fetch, paths } = recordingFetch({
+      [PASSAGE_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          content: '  For God so loved the world...  ',
+          reference: 'John 3:16',
+        }),
+      },
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          localized_abbreviation: 'NIV',
+          language_tag: 'en',
+        }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
 
     expect(source).toEqual({
       verseText: 'For God so loved the world...',
       reference: 'John 3:16 NIV',
       text: 'For God so loved the world...\n\nJohn 3:16 NIV',
     })
+    expect(paths).toEqual([VERSION_PATH, PASSAGE_PATH])
   })
 })

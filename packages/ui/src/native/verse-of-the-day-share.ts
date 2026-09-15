@@ -71,6 +71,25 @@ function isUsableBibleVersion(
   return permittedLanguageTags.includes(candidate.languageTag)
 }
 
+function shareFromPassage(
+  passageResponse: BibleContentResponse,
+  parsedVersion: ParsedVersion | null,
+): VerseOfTheDayShareData | null {
+  if (passageResponse.status < 200 || passageResponse.status >= 300) {
+    return null
+  }
+  const passage = passageShareSchema.safeParse(JSON.parse(passageResponse.body))
+  if (!passage.success) {
+    return null
+  }
+  const { content, reference } = passage.data
+  const verseText = content.trim()
+  const abbreviation = parsedVersion?.abbreviation
+  const referenceText = abbreviation ? `${reference} ${abbreviation}` : reference
+  const text = referenceText === '' ? verseText : `${verseText}\n\n${referenceText}`
+  return { text, reference: referenceText, verseText }
+}
+
 /**
  * Plain-text passage + version abbreviation for native VOTD chrome and Share.
  * Uses the Bible Content Client (ADR 0020) — not platform-core's BibleClient.
@@ -90,29 +109,22 @@ export async function getVerseOfTheDayShareSource(
   try {
     const passagePath = `/v1/bibles/${versionId}/passages/${encodeURIComponent(passageId)}?format=text`
     const versionPath = `/v1/bibles/${versionId}`
+    if (filters.permittedLanguageTags !== undefined) {
+      const versionResponse = await fetchBibleContent({ path: versionPath }).catch(() => null)
+      const parsedVersion = versionFromResponse(versionResponse)
+      if (
+        !isUsableBibleVersion({ id: versionId, languageTag: parsedVersion?.languageTag }, filters)
+      ) {
+        return null
+      }
+      const passageResponse = await fetchBibleContent({ path: passagePath })
+      return shareFromPassage(passageResponse, parsedVersion)
+    }
     const [passageResponse, versionResponse] = await Promise.all([
       fetchBibleContent({ path: passagePath }),
       fetchBibleContent({ path: versionPath }).catch(() => null),
     ])
-    if (passageResponse.status < 200 || passageResponse.status >= 300) {
-      return null
-    }
-    const passage = passageShareSchema.safeParse(JSON.parse(passageResponse.body))
-    if (!passage.success) {
-      return null
-    }
-    const parsedVersion = versionFromResponse(versionResponse)
-    if (
-      !isUsableBibleVersion({ id: versionId, languageTag: parsedVersion?.languageTag }, filters)
-    ) {
-      return null
-    }
-    const { content, reference } = passage.data
-    const verseText = content.trim()
-    const abbreviation = parsedVersion?.abbreviation
-    const referenceText = abbreviation ? `${reference} ${abbreviation}` : reference
-    const text = referenceText === '' ? verseText : `${verseText}\n\n${referenceText}`
-    return { text, reference: referenceText, verseText }
+    return shareFromPassage(passageResponse, versionFromResponse(versionResponse))
   } catch {
     return null
   }
