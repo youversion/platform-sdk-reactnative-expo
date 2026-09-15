@@ -1,10 +1,5 @@
 import type { BibleReference } from './types'
 
-/**
- * Parses a verse USFM (`BOOK.CHAPTER.VERSE`) into a Bible reference.
- * Invalid input — wrong segment count, empty book, or non-positive chapter /
- * verse — returns `null`. Reader will drop those later.
- */
 export function bibleReferenceFromUsfm(usfm: string, versionId: number): BibleReference | null {
   const parts = usfm.split('.')
   if (parts.length !== 3) {
