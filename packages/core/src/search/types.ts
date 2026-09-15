@@ -1,3 +1,12 @@
+import type {
+  SearchQueries,
+  SearchQuery,
+  SearchTopic,
+  SearchTopicsResponse,
+  SearchVerseHit,
+  SearchVersesResponse,
+} from '@youversion/platform-core'
+
 import type { Result } from '../result'
 
 /**
@@ -13,35 +22,12 @@ export const SEARCH_USER_INTENT = {
   unknown: 'unknown',
 } as const
 
-export type YouVersionSearchQuery = {
-  text: string
-  source?: string
-}
-
-export type YouVersionVerseSearchResult = {
-  reference: string
-}
-
-export type YouVersionVerseSearchResults = {
-  verses: YouVersionVerseSearchResult[]
-  userIntent?: YouVersionSearchUserIntent
-  didYouMean: string[]
-  searchInsteadFor?: string
-  nextPageToken?: string
-}
-
-export type YouVersionSearchTopic = {
-  id?: number
-  text: string
-  subtopics: string[]
-}
-
-export type YouVersionTopicSearchResults = {
-  topics: YouVersionSearchTopic[]
-  didYouMean: string[]
-  searchInsteadFor?: string
-  totalSize: number
-}
+export type YouVersionSearchQuery = SearchQuery
+export type YouVersionSearchQueries = SearchQueries
+export type YouVersionVerseSearchResult = SearchVerseHit
+export type YouVersionVerseSearchResults = SearchVersesResponse
+export type YouVersionSearchTopic = SearchTopic
+export type YouVersionTopicSearchResults = SearchTopicsResponse
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }

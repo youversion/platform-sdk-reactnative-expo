@@ -8,6 +8,7 @@ export {
   type SearchVersesParams,
   type SuggestedQueriesParams,
   type TrendingQueriesParams,
+  type YouVersionSearchQueries,
   type YouVersionSearchQuery,
   type YouVersionSearchTopic,
   type YouVersionSearchUserIntent,

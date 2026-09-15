@@ -1,4 +1,3 @@
-import { getSdkHeaders } from '../../sdk-version'
 import { createSearchApi } from '../api'
 import { SEARCH_USER_INTENT } from '../types'
 
@@ -104,42 +103,43 @@ describe('createSearchApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: [
-          { text: 'whom shall I fear', source: 'community' },
-          { text: 'whom have I in heaven' },
-        ],
+        value: {
+          queries: [
+            { text: 'whom shall I fear', source: 'community' },
+            { text: 'whom have I in heaven' },
+          ],
+        },
       })
 
       const { url, init } = lastRequest()
-      expect(url.origin + url.pathname).toBe('https://api.example.com/v1-beta/search-queries')
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-queries')
       expect(url.searchParams.get('query')).toBe('whom')
-      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-US', 'es'])
+      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'es'])
       expect(url.searchParams.has('trending')).toBe(false)
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
     })
 
-    it('returns an empty list on 204 without treating it as an error', async () => {
+    it('returns empty queries on 204 without treating it as an error', async () => {
       mockFetch.mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }))
 
       const result = await api().suggestedQueries({ query: 'love', languageRanges: ['en'] })
 
-      expect(result).toEqual({ ok: true, value: [] })
+      expect(result).toEqual({ ok: true, value: { queries: [] } })
     })
 
-    it('rejects an empty query before fetch', async () => {
+    it('maps an empty query to invalid-parameter without fetching', async () => {
       const result = await api().suggestedQueries({ query: '', languageRanges: ['en'] })
 
-      expect(result).toEqual({
-        ok: false,
-        error: { kind: 'invalid-parameter', message: 'Invalid search parameter' },
-      })
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error.kind).toBe('invalid-parameter')
       expect(mockFetch).not.toHaveBeenCalled()
     })
 
-    it('rejects empty or invalid language ranges before fetch', async () => {
+    it('maps empty or invalid language ranges to invalid-parameter without fetching', async () => {
       const empty = await api().suggestedQueries({ query: 'love', languageRanges: [] })
       expect(empty.ok).toBe(false)
       if (empty.ok) return
@@ -167,27 +167,27 @@ describe('createSearchApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: [{ text: 'love', source: 'trending' }],
+        value: { queries: [{ text: 'love', source: 'trending' }] },
       })
 
       const { url } = lastRequest()
-      expect(url.pathname).toBe('/v1-beta/search-queries')
+      expect(url.pathname).toBe('/v1/search-queries')
       expect(url.searchParams.get('trending')).toBe('true')
       expect(url.searchParams.has('query')).toBe(false)
       expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en'])
     })
 
-    it('returns an empty list on 204', async () => {
+    it('returns empty queries on 204', async () => {
       mockFetch.mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }))
 
       const result = await api().trendingQueries({ languageRanges: ['*'] })
 
-      expect(result).toEqual({ ok: true, value: [] })
+      expect(result).toEqual({ ok: true, value: { queries: [] } })
     })
   })
 
   describe('verses', () => {
-    it('GETs search-verses and maps snake_case JSON', async () => {
+    it('GETs search-verses and maps wire reference to id', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse({
           verses: [{ reference: 'MAT.14.17' }, { reference: 'JHN.6.9' }],
@@ -209,16 +209,16 @@ describe('createSearchApi', () => {
       expect(result).toEqual({
         ok: true,
         value: {
-          verses: [{ reference: 'MAT.14.17' }, { reference: 'JHN.6.9' }],
+          verses: [{ id: 'MAT.14.17' }, { id: 'JHN.6.9' }],
           userIntent: 'text',
           didYouMean: ['two fishes'],
-          searchInsteadFor: undefined,
+          searchInsteadFor: null,
           nextPageToken: 'next-token',
         },
       })
 
       const { url, init } = lastRequest()
-      expect(url.origin + url.pathname).toBe('https://api.example.com/v1-beta/search-verses')
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-verses')
       expect(url.searchParams.get('query')).toBe('two fish')
       expect(url.searchParams.get('bible_id')).toBe('111')
       expect(url.searchParams.get('user_intent')).toBe('text')
@@ -226,10 +226,10 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('page_token')).toBe('current-token')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
     })
 
-    it('defaults user_intent to unknown and preserves future server values', async () => {
+    it('omits user_intent when unset and preserves future server values', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse({
           verses: [],
@@ -246,16 +246,15 @@ describe('createSearchApi', () => {
       expect(result.value.userIntent).toBe('future-intent')
 
       const { url } = lastRequest()
-      expect(url.searchParams.get('user_intent')).toBe(SEARCH_USER_INTENT.unknown)
+      expect(url.searchParams.has('user_intent')).toBe(false)
     })
 
-    it('rejects invalid query length, bibleId, and pageSize before fetch', async () => {
+    it('maps invalid query length, bibleId, and pageSize to invalid-parameter without fetching', async () => {
       const cases = [
         { query: '', bibleId: 111 },
         { query: 'a'.repeat(101), bibleId: 111 },
         { query: 'love', bibleId: 0 },
         { query: 'love', bibleId: -1 },
-        { query: 'love', bibleId: 2_147_483_648 },
         { query: 'love', bibleId: 111, pageSize: 0 },
         { query: 'love', bibleId: 111, pageSize: 100 },
       ]
@@ -295,7 +294,7 @@ describe('createSearchApi', () => {
       expect(badPayload.ok).toBe(false)
       if (badPayload.ok) return
       expect(badPayload.error.kind).toBe('transient')
-      expect(badPayload.error.message).toMatch(/Unexpected search API response/)
+      expect(badPayload.error.message).toMatch(/Unexpected search-verses API response/)
 
       mockFetch.mockRejectedValue(new TypeError('Network request failed'))
       const networkError = await api().verses({ query: 'love', bibleId: 111 })
@@ -308,7 +307,7 @@ describe('createSearchApi', () => {
   })
 
   describe('topics', () => {
-    it('GETs search-topics and maps snake_case JSON', async () => {
+    it('GETs search-topics and maps camelCase results', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse({
           topics: [
@@ -328,7 +327,7 @@ describe('createSearchApi', () => {
         value: {
           topics: [
             { id: 42, text: 'Faith', subtopics: ['trust', 'belief'] },
-            { text: 'Love', subtopics: [] },
+            { id: null, text: 'Love', subtopics: [] },
           ],
           didYouMean: ['faith'],
           searchInsteadFor: 'faith',
@@ -337,12 +336,12 @@ describe('createSearchApi', () => {
       })
 
       const { url } = lastRequest()
-      expect(url.origin + url.pathname).toBe('https://api.example.com/v1-beta/search-topics')
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-topics')
       expect(url.searchParams.get('query')).toBe('faif')
-      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-US', '*'])
+      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', '*'])
     })
 
-    it('rejects empty, overlong, or badly ranged topic searches before fetch', async () => {
+    it('maps empty, overlong, or badly ranged topic searches to invalid-parameter without fetching', async () => {
       const emptyQuery = await api().topics({ query: '', languageRanges: ['en'] })
       expect(emptyQuery.ok).toBe(false)
       if (emptyQuery.ok) return

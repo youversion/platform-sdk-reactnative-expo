@@ -62,15 +62,18 @@ describe('useSearch', () => {
     const trending = await result.current.trendingQueries({ languageRanges: ['en'] })
     expect(trending).toEqual({
       ok: true,
-      value: [{ text: 'love', source: 'trending' }],
+      value: { queries: [{ text: 'love', source: 'trending' }] },
     })
-    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1-beta/search-queries')
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/search-queries')
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
     const stub: UseSearchResult = {
-      suggestedQueries: jest.fn(async () => ({ ok: true as const, value: [{ text: 'stub' }] })),
-      trendingQueries: jest.fn(async () => ({ ok: true as const, value: [] })),
+      suggestedQueries: jest.fn(async () => ({
+        ok: true as const,
+        value: { queries: [{ text: 'stub' }] },
+      })),
+      trendingQueries: jest.fn(async () => ({ ok: true as const, value: { queries: [] } })),
       verses: jest.fn(async () => ({
         ok: true as const,
         value: { verses: [], didYouMean: [] },
@@ -87,7 +90,7 @@ describe('useSearch', () => {
 
     expect(result.current).toBe(stub)
     const suggested = await result.current.suggestedQueries({ query: 'love', languageRanges: ['en'] })
-    expect(suggested).toEqual({ ok: true, value: [{ text: 'stub' }] })
+    expect(suggested).toEqual({ ok: true, value: { queries: [{ text: 'stub' }] } })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 })
