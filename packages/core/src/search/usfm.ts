@@ -25,7 +25,7 @@ function parsePositiveInt(value: string): number | null {
     return null
   }
   const parsed = Number.parseInt(value, 10)
-  if (parsed < 1) {
+  if (!Number.isSafeInteger(parsed) || parsed < 1) {
     return null
   }
   return parsed

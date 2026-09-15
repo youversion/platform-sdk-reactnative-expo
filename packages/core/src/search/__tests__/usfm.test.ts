@@ -19,4 +19,11 @@ describe('bibleReferenceFromUsfm', () => {
     expect(bibleReferenceFromUsfm('JHN.3.16-18', 111)).toBeNull()
     expect(bibleReferenceFromUsfm('', 111)).toBeNull()
   })
+
+  it('returns null when a chapter or verse is not a safe integer', () => {
+    const tooManyDigits = '1'.repeat(20)
+    expect(bibleReferenceFromUsfm(`JHN.${tooManyDigits}.16`, 111)).toBeNull()
+    expect(bibleReferenceFromUsfm(`JHN.3.${tooManyDigits}`, 111)).toBeNull()
+    expect(bibleReferenceFromUsfm('JHN.9007199254740992.16', 111)).toBeNull()
+  })
 })
