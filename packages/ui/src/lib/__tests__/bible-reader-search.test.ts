@@ -2,7 +2,7 @@ import {
   clipSearchQuery,
   dedupeVerseUsfms,
   formatUsfmLabel,
-  languageRangesForLocale,
+  languageRangesForVersionLanguage,
   parsePassageSnippet,
   SEARCH_QUERY_MAX_LENGTH,
   shouldRequestNextPage,
@@ -11,10 +11,11 @@ import {
 } from '../bible-reader-search'
 
 describe('bible reader search helpers', () => {
-  it('uses the provider locale, or * when it is missing', () => {
-    expect(languageRangesForLocale('es')).toEqual(['es'])
-    expect(languageRangesForLocale(undefined)).toEqual(['*'])
-    expect(languageRangesForLocale('')).toEqual(['*'])
+  it('uses the Bible version language tag, or * when it is missing', () => {
+    expect(languageRangesForVersionLanguage('es')).toEqual(['es'])
+    expect(languageRangesForVersionLanguage(undefined)).toEqual(['*'])
+    expect(languageRangesForVersionLanguage(null)).toEqual(['*'])
+    expect(languageRangesForVersionLanguage('')).toEqual(['*'])
   })
 
   it('clips the query at 100 characters', () => {

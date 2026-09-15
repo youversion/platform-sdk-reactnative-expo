@@ -11,11 +11,11 @@ const passageSchema = z.object({
   reference: z.string(),
 })
 
-export function languageRangesForLocale(locale: string | undefined): string[] {
-  if (locale === undefined || locale === '') {
+export function languageRangesForVersionLanguage(languageTag: string | null | undefined): string[] {
+  if (languageTag === undefined || languageTag === null || languageTag === '') {
     return ['*']
   }
-  return [locale]
+  return [languageTag]
 }
 
 export function clipSearchQuery(text: string): string {

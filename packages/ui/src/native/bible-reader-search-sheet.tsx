@@ -20,16 +20,17 @@ import { Input } from '../components/ui/input'
 import { Text } from '../components/ui/text'
 import { useBibleReaderSearch } from '../hooks/use-bible-reader-search'
 import { useTokens } from '../hooks/use-tokens'
-import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import {
-  languageRangesForLocale,
+  languageRangesForVersionLanguage,
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_SNIPPET_LINE_COUNT,
   shouldRequestNextPage,
 } from '../lib/bible-reader-search'
 import type { Theme } from '../lib/resolve-theme'
+import { sansFace } from '../theme/fonts'
 import { getImpl, registerDefault } from './component-impls'
+import { SearchIcon } from './icons/search-icon'
 import { NativeSheet } from './native-sheet'
 
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
@@ -38,6 +39,7 @@ export type BibleReaderSearchSheetProps = {
   isOpen: boolean
   onClose: () => void
   versionId: number
+  languageTag?: string | null
   theme: Theme
   fetchBibleContent: FetchBibleContent
   onSelectReference: (reference: BibleReference) => void
@@ -63,15 +65,15 @@ function BibleReaderSearchSheetImpl({
   isOpen,
   onClose,
   versionId,
+  languageTag,
   theme,
   fetchBibleContent,
   onSelectReference,
 }: BibleReaderSearchSheetProps): ReactNode {
   const { t } = useSdkTranslation()
-  const { lng } = useLocale()
   const tokens = useTokens()
   const { height } = useWindowDimensions()
-  const languageRanges = useMemo(() => languageRangesForLocale(lng), [lng])
+  const languageRanges = useMemo(() => languageRangesForVersionLanguage(languageTag), [languageTag])
   const search = useBibleReaderSearch({
     versionId,
     isOpen,
@@ -126,15 +128,25 @@ function BibleReaderSearchSheetImpl({
         testID={`bible-reader-search-result-${item.usfm}`}
         accessibilityRole="button"
         onPress={() => handleSelectVerse(item.usfm)}
-        style={styles.row}
+        style={styles.resultPress}
       >
-        <Text style={{ color: tokens.primary }}>{item.title}</Text>
-        {item.snippet !== null && (
-          <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
-            {item.snippet}
+        <View style={[styles.accent, { backgroundColor: tokens.foreground }]} />
+        <View style={styles.resultCopy}>
+          {item.snippet !== null && (
+            <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
+              {item.snippet}
+            </Text>
+          )}
+          <Text
+            variant="muted"
+            style={{
+              textTransform: 'uppercase',
+              ...sansFace(tokens.fontFamily.sans, 700),
+            }}
+          >
+            {item.title}
           </Text>
-        )}
-        <Text variant="muted">{item.usfm}</Text>
+        </View>
       </Pressable>
     )
   }
@@ -160,47 +172,84 @@ function BibleReaderSearchSheetImpl({
     [search],
   )
 
-  const showLoading =
+  const showQuerySpinner =
     (search.showingResults && search.isLoadingSearch) ||
     (!search.showingResults && search.isLoadingSuggestions)
   const showSearchError = search.showingResults && search.searchError !== null
   const showPageError = search.showingResults && search.pageError !== null
   const showEmpty = search.hasNoResults
+  const showList = !showSearchError && !showEmpty
+
+  const listFooter = () => {
+    if (!search.showingResults) {
+      return null
+    }
+    if (search.isLoadingPage) {
+      return (
+        <View style={styles.status} testID="bible-reader-search-page-loading">
+          <ActivityIndicator color={tokens.foreground} accessibilityLabel={t('loading')} />
+        </View>
+      )
+    }
+    if (showPageError) {
+      return (
+        <Pressable
+          testID="bible-reader-search-page-error"
+          accessibilityRole="button"
+          onPress={search.retryPage}
+          style={styles.status}
+        >
+          <Text style={{ color: tokens.destructive }}>{t('error')}</Text>
+        </Pressable>
+      )
+    }
+    return null
+  }
 
   return (
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
       theme={theme}
-      showHeader
-      headerTitle={t('search')}
       enableContentPanningGesture
       panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
       contentStyle={styles.sheetContent}
     >
       <View style={styles.body}>
-        <Input>
-          <Input.Field
-            testID="bible-reader-search-field"
-            value={search.query}
-            onChangeText={search.setQuery}
-            onSubmitEditing={() => search.submit(search.query)}
-            maxLength={SEARCH_QUERY_MAX_LENGTH}
-            autoCorrect={false}
-            autoCapitalize="none"
-            returnKeyType="search"
-            placeholder={t('search')}
-            accessibilityLabel={t('search')}
-          />
-          {showClear && (
-            <Input.Clear
-              testID="bible-reader-search-clear"
-              accessibilityLabel={t('cancel')}
-              onPress={() => search.setQuery('')}
+        <View style={styles.header}>
+          <Input style={styles.field}>
+            <SearchIcon color={tokens.mutedForeground} size={16} />
+            <Input.Field
+              testID="bible-reader-search-field"
+              value={search.query}
+              onChangeText={search.setQuery}
+              onSubmitEditing={() => search.submit(search.query)}
+              maxLength={SEARCH_QUERY_MAX_LENGTH}
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              placeholder={t('search')}
+              accessibilityLabel={t('search')}
             />
-          )}
-        </Input>
-        {showLoading && (
+            {showClear && (
+              <Input.Clear
+                testID="bible-reader-search-clear"
+                accessibilityLabel={t('cancel')}
+                onPress={() => search.setQuery('')}
+              />
+            )}
+          </Input>
+          <Button
+            testID="bible-reader-search-done"
+            variant="ghost"
+            onPress={onClose}
+            accessibilityLabel={t('ok')}
+          >
+            <Button.Text>{t('ok')}</Button.Text>
+          </Button>
+        </View>
+        <View style={[styles.divider, { backgroundColor: tokens.border }]} />
+        {showQuerySpinner && (
           <View style={styles.status} testID="bible-reader-search-loading">
             <ActivityIndicator color={tokens.foreground} accessibilityLabel={t('loading')} />
           </View>
@@ -210,44 +259,33 @@ function BibleReaderSearchSheetImpl({
             testID="bible-reader-search-error"
             accessibilityRole="button"
             onPress={search.retrySearch}
-            style={styles.status}
+            style={[styles.statusFill, { height: listHeight }]}
           >
             <Text style={{ color: tokens.destructive }}>{t('error')}</Text>
           </Pressable>
         )}
         {showEmpty && (
-          <View style={styles.status} testID="bible-reader-search-empty">
+          <View
+            style={[styles.statusFill, { height: listHeight }]}
+            testID="bible-reader-search-empty"
+          >
             <Text variant="muted">{t('noBibleSearchResults')}</Text>
           </View>
         )}
-        <FlatList
-          key={search.scrollGeneration}
-          data={rows}
-          keyExtractor={(item) => item.key}
-          renderItem={renderItem}
-          style={{ height: listHeight }}
-          keyboardShouldPersistTaps="handled"
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={VIEWABILITY}
-        />
-        {search.isLoadingPage && (
-          <View style={styles.status} testID="bible-reader-search-page-loading">
-            <ActivityIndicator color={tokens.foreground} accessibilityLabel={t('loading')} />
-          </View>
+        {showList && (
+          <FlatList
+            key={search.scrollGeneration}
+            data={rows}
+            keyExtractor={(item) => item.key}
+            renderItem={renderItem}
+            style={{ height: listHeight }}
+            contentContainerStyle={styles.listContent}
+            keyboardShouldPersistTaps="handled"
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={VIEWABILITY}
+            ListFooterComponent={listFooter()}
+          />
         )}
-        {showPageError && (
-          <Pressable
-            testID="bible-reader-search-page-error"
-            accessibilityRole="button"
-            onPress={search.retryPage}
-            style={styles.status}
-          >
-            <Text style={{ color: tokens.destructive }}>{t('error')}</Text>
-          </Pressable>
-        )}
-        <Button variant="ghost" onPress={onClose} style={styles.done}>
-          <Button.Text>{t('ok')}</Button.Text>
-        </Button>
       </View>
     </NativeSheet>
   )
@@ -264,22 +302,54 @@ export function BibleReaderSearchSheet(props: BibleReaderSearchSheetProps): Reac
 
 const styles = StyleSheet.create({
   sheetContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
   },
   body: {
-    gap: 12,
     paddingBottom: 8,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  field: {
+    flex: 1,
+    borderWidth: 0,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
   row: {
+    paddingVertical: 14,
+  },
+  resultPress: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 12,
     paddingVertical: 12,
-    gap: 4,
+  },
+  accent: {
+    width: 3,
+    borderRadius: 2,
+  },
+  resultCopy: {
+    flex: 1,
+    gap: 7,
   },
   status: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
   },
-  done: {
-    alignSelf: 'flex-end',
+  statusFill: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
   },
 })

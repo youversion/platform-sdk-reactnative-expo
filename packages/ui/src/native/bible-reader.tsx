@@ -802,6 +802,7 @@ export function BibleReader({
           isOpen={isSearchOpen}
           onClose={() => setIsSearchOpen(false)}
           versionId={resolvedVersionId}
+          languageTag={versionLanguageId}
           theme={resolvedTheme}
           fetchBibleContent={context.fetchBibleContent}
           onSelectReference={(reference) => {

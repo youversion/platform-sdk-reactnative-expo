@@ -293,6 +293,26 @@ export function useBibleReaderSearch(
     wasOpenRef.current = isOpen
   }, [isOpen, resetForOpen])
 
+  const languageRangeKeyRef = useRef(languageRangeKey)
+  useEffect(() => {
+    if (languageRangeKeyRef.current === languageRangeKey) {
+      return
+    }
+    languageRangeKeyRef.current = languageRangeKey
+    if (!isOpen) {
+      return
+    }
+    if (submittedQueryRef.current !== null) {
+      return
+    }
+    const trimmed = query.trim()
+    if (trimmed === '') {
+      loadTrending()
+      return
+    }
+    loadSuggestions(trimmed)
+  }, [isOpen, languageRangeKey, loadSuggestions, loadTrending, query])
+
   useEffect(() => {
     return () => {
       cancelDebounce()
@@ -328,6 +348,7 @@ export function useBibleReaderSearch(
         cancelDebounce()
         return
       }
+      setSuggestions([])
       searchIdRef.current += 1
       pageIdRef.current += 1
       enrichIdRef.current += 1

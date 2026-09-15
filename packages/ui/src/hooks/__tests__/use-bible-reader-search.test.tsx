@@ -148,6 +148,50 @@ describe('useBibleReaderSearch', () => {
     expect(result.current.isLoadingSuggestions).toBe(false)
   })
 
+  it('clears trending as soon as the query changes', async () => {
+    const stub = searchStub()
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+    expect(result.current.suggestions).toEqual([{ text: 'faith' }])
+
+    act(() => {
+      result.current.setQuery('love')
+    })
+
+    expect(result.current.suggestions).toEqual([])
+    expect(stub.suggestedQueries).not.toHaveBeenCalled()
+  })
+
+  it('reloads trending when the version language arrives after open', async () => {
+    const stub = searchStub()
+    const { rerender } = renderHook(
+      ({ languageRanges }: { languageRanges: readonly string[] }) =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges,
+        }),
+      { wrapper: wrapperFor(stub), initialProps: { languageRanges: ['*'] } },
+    )
+    await flush()
+    expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['*'] })
+
+    rerender({ languageRanges: ['es'] })
+    await flush()
+
+    expect(stub.trendingQueries).toHaveBeenLastCalledWith({ languageRanges: ['es'] })
+  })
+
   it('skips suggestions for the query that was just submitted', async () => {
     jest.useFakeTimers()
     const stub = searchStub({
