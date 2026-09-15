@@ -323,7 +323,8 @@ describe('VerseOfTheDay', () => {
       )
       .mockResolvedValue(null)
 
-    const holder: { current: string[] | undefined } = { current: undefined }
+    type LanguageFilterHolder = { current: string[] | undefined }
+    const holder: LanguageFilterHolder = { current: undefined }
     function FilterWrapper({ children }: { children: ReactNode }) {
       return (
         <YouVersionProvider
