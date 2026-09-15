@@ -17,6 +17,11 @@ const textVariants = createVariants((tokens) => ({
       body: {},
       muted: { color: tokens.mutedForeground, ...tokens.typography.sm },
       heading: { ...tokens.typography.lg },
+      eyebrow: {
+        color: tokens.mutedForeground,
+        ...tokens.typography.sm,
+        textTransform: 'uppercase',
+      },
     },
   },
   defaultVariants: { variant: 'body' },
@@ -26,7 +31,7 @@ export type TextProps = RNTextProps & VariantProps<typeof textVariants>
 
 type TextVariant = NonNullable<TextProps['variant']>
 
-const WEIGHT_BY_VARIANT = { body: 400, muted: 400, heading: 700 } satisfies Record<
+const WEIGHT_BY_VARIANT = { body: 400, muted: 400, heading: 700, eyebrow: 400 } satisfies Record<
   TextVariant,
   400 | 700
 >

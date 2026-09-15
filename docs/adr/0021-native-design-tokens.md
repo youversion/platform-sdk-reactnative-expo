@@ -5,6 +5,7 @@ Date: 2026-09-03
 Amended: 2026-09-08 — primitives go through `sansFace` (YPE-5637).
 Amended: 2026-09-08 — `YouVersionProvider` holds children until Inter registers; `sansFace` always names the mapped face.
 Amended: 2026-09-08 — hex tokens stay native; only resolved `theme` and ADR 0009 font tokens cross the DOM bridge (YPE-5442).
+Amended: 2026-09-14 — `VerseOfTheDay` resolves through `useTheme` like its siblings (YPE-5440).
 
 ## Status
 
@@ -28,9 +29,7 @@ DS-1 through DS-7 built the layer: tokens (YPE-5264), `useTokens` (YPE-5265), br
 
 **Tokens resolve at JS runtime through `getTokens(scheme)`.** Two frozen `Tokens` objects are built at module load and returned by identity — `getTokens('light') === getTokens('light')`. Identity is a contract, not an optimization: `createVariants` caches its `StyleSheet` pieces in a `WeakMap` keyed on the tokens object, so a fresh object per call would rebuild every sheet on every render.
 
-**One provider owns the scheme.** `YouVersionProvider` resolves `light | dark | system` against `useColorScheme` and publishes the result on `ThemeContext`; `useTokens()` is `getTokens(useTheme())`. There is no separate `ThemeProvider`. The resolved scheme already feeds the DOM bridge and `NativeSheet`, and a second provider is a second place for those three to disagree. Outside a provider the context default is light, so a primitive rendered in isolation — a test, a Storybook-style harness — paints rather than throws.
-
-**`VerseOfTheDay` is the one surface that resolves on its own.** Every other native wrapper collapses a component-level override through `useTheme(override)`, so `system` becomes the provider's resolved value before it crosses the bridge, and the DOM entries type the prop as `light | dark` to keep it that way. VOTD forwards the raw prop and its DOM entry accepts `system`, so `<VerseOfTheDay theme="system" />` is resolved inside the WebView against that WebView's own `prefers-color-scheme` — which can disagree with the provider. This is an inconsistency, not a decision. It is recorded here so a contributor reading "one provider owns the scheme" is not surprised by the exception, and the fix is to route VOTD through `useTheme` like its siblings.
+**One provider owns the scheme.** `YouVersionProvider` resolves `light | dark | system` against `useColorScheme` and publishes the result on `ThemeContext`; `useTokens()` is `getTokens(useTheme())`. There is no separate `ThemeProvider`. Native wrappers, including `VerseOfTheDay`, collapse a component-level override through `useTheme(override)`, so `system` becomes the provider's resolved value before it crosses the bridge. DOM scripture entries type that prop as `light | dark`. The resolved scheme already feeds the DOM bridge and `NativeSheet`, and a second provider is a second place for those three to disagree. Outside a provider the context default is light, so a primitive rendered in isolation — a test, a Storybook-style harness — paints rather than throws.
 
 **`getTokens` and `useTokens` are public. The primitives are not.** A consumer styling their own chrome to sit next to ours needs the values, so both are on the package namespace. `Text`, `Button`, and the rest export only from the `components/ui/` barrel; `src/__tests__/exports.test.ts` pins the whole namespace, so an accidental re-export from `src/index.ts` reds the suite instead of silently becoming API.
 

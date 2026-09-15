@@ -62,7 +62,7 @@ Optional lists on `YouVersionProvider` restrict which Bible versions and languag
 - `excludedVersionIds?: number[]` — exclusion wins over permits
 - `permittedLanguageTags?: string[]` — BCP 47 tags (e.g. `en`, `zh-Hans`)
 
-Native chrome does not auto-pick another version or rewrite persisted reader location when a stored or host `versionId` is refused. The id is still passed into the WebView; the web SDK handles version refuse. First-open defaults when there is no stored or host id are unchanged.
+Native chrome does not auto-pick another version or rewrite persisted reader location when a stored or host `versionId` is refused. The id is still passed into the WebView; the web SDK handles version refuse. Native Verse of the Day share and the header reference also refuse, so a restricted version cannot leak through Share. First-open defaults when there is no stored or host id are unchanged.
 
 ```tsx
 <YouVersionProvider

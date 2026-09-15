@@ -1,0 +1,267 @@
+/**
+ * Layer 1 — native VOTD chrome/share payload from the Bible Content Client.
+ */
+import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
+
+import { getVerseOfTheDayShareSource } from '../verse-of-the-day-share'
+
+const PASSAGE_PATH = '/v1/bibles/3034/passages/JHN.3.16?format=text'
+const VERSION_PATH = '/v1/bibles/3034'
+
+function fetchBibleContent(
+  responses: Record<string, { status: number; body: string }>,
+): FetchBibleContent {
+  return async ({ path }) => {
+    const response = responses[path]
+    if (response === undefined) {
+      throw new Error(`Unexpected Bible Content path: ${path}`)
+    }
+    return { ...response, contentType: 'application/json' }
+  }
+}
+
+type RecordingFetch = {
+  fetch: FetchBibleContent
+  paths: string[]
+}
+
+function recordingFetch(
+  responses: Record<string, { status: number; body: string }>,
+): RecordingFetch {
+  const paths: string[] = []
+  return {
+    paths,
+    fetch: async ({ path }) => {
+      paths.push(path)
+      return fetchBibleContent(responses)({ path })
+    },
+  }
+}
+
+describe('getVerseOfTheDayShareSource', () => {
+  it('builds share data from the text passage and version abbreviation', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            id: 'JHN.3.16',
+            content: '  For God so loved the world...  ',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: {
+          status: 200,
+          body: JSON.stringify({ localized_abbreviation: 'NIV' }),
+        },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16 NIV',
+      text: 'For God so loved the world...\n\nJohn 3:16 NIV',
+    })
+  })
+
+  it('uses the passage reference alone when the version lookup fails', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: { status: 404, body: 'missing' },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16',
+      text: 'For God so loved the world...\n\nJohn 3:16',
+    })
+  })
+
+  it('uses the passage reference alone when the version lookup throws', async () => {
+    const fetchMock: FetchBibleContent = async ({ path }) => {
+      if (path === VERSION_PATH) {
+        throw new Error('timeout')
+      }
+      return fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+      })({ path })
+    }
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16')
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16',
+      text: 'For God so loved the world...\n\nJohn 3:16',
+    })
+  })
+
+  it('uses the passage reference alone when the version body is not JSON', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: {
+          status: 200,
+          body: JSON.stringify({
+            content: 'For God so loved the world...',
+            reference: 'John 3:16',
+          }),
+        },
+        [VERSION_PATH]: { status: 200, body: '<html>' },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16',
+      text: 'For God so loved the world...\n\nJohn 3:16',
+    })
+  })
+
+  it('returns null when the passage lookup is not ok', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: { status: 500, body: 'nope' },
+        [VERSION_PATH]: { status: 200, body: '{}' },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toBeNull()
+  })
+
+  it('returns null when the passage body is not JSON', async () => {
+    const source = await getVerseOfTheDayShareSource(
+      fetchBibleContent({
+        [PASSAGE_PATH]: { status: 200, body: '<html>' },
+        [VERSION_PATH]: { status: 200, body: '{}' },
+      }),
+      3034,
+      'JHN.3.16',
+    )
+
+    expect(source).toBeNull()
+  })
+
+  it('encodes the passage id on the Bible Content path', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    fetchMock.mockResolvedValue({
+      status: 404,
+      body: '',
+      contentType: null,
+    })
+
+    await getVerseOfTheDayShareSource(fetchMock, 111, 'JHN.3.16-18')
+
+    expect(fetchMock).toHaveBeenCalledWith({
+      path: '/v1/bibles/111/passages/JHN.3.16-18?format=text',
+    })
+  })
+
+  it('returns null and does not fetch when the version is excluded', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16', {
+      excludedVersionIds: [3034],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null and does not fetch when the version is not in the permit list', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getVerseOfTheDayShareSource(fetchMock, 3034, 'JHN.3.16', {
+      permittedVersionIds: [111],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null when the version language is not permitted', async () => {
+    const { fetch, paths } = recordingFetch({
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          localized_abbreviation: 'NVI',
+          language_tag: 'es',
+        }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
+
+    expect(source).toBeNull()
+    expect(paths).toEqual([VERSION_PATH])
+  })
+
+  it('returns null when a language allowlist is set and the version tag is missing', async () => {
+    const { fetch, paths } = recordingFetch({
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({ localized_abbreviation: 'NIV' }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
+
+    expect(source).toBeNull()
+    expect(paths).toEqual([VERSION_PATH])
+  })
+
+  it('still shares when the version language is permitted', async () => {
+    const { fetch, paths } = recordingFetch({
+      [PASSAGE_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          content: '  For God so loved the world...  ',
+          reference: 'John 3:16',
+        }),
+      },
+      [VERSION_PATH]: {
+        status: 200,
+        body: JSON.stringify({
+          localized_abbreviation: 'NIV',
+          language_tag: 'en',
+        }),
+      },
+    })
+
+    const source = await getVerseOfTheDayShareSource(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
+
+    expect(source).toEqual({
+      verseText: 'For God so loved the world...',
+      reference: 'John 3:16 NIV',
+      text: 'For God so loved the world...\n\nJohn 3:16 NIV',
+    })
+    expect(paths).toEqual([VERSION_PATH, PASSAGE_PATH])
+  })
+})
