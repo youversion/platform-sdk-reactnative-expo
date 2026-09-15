@@ -215,6 +215,10 @@ export function BibleReaderToolbar({
 }: BibleReaderToolbarProps): ReactNode {
   const tokens = useTokens()
   const { t } = useSdkTranslation()
+  let versionAriaLabel = t('changeBibleVersionAriaLabel')
+  if (isVersionLoading) {
+    versionAriaLabel = t('loadingBibleVersionAriaLabel')
+  }
 
   return (
     <View
@@ -278,7 +282,7 @@ export function BibleReaderToolbar({
         size="lg"
         disabled={isVersionLoading}
         onPress={onVersionPress}
-        accessibilityLabel={t('changeBibleVersionAriaLabel')}
+        accessibilityLabel={versionAriaLabel}
         testID="reader-toolbar-version"
         style={styles.version}
       >

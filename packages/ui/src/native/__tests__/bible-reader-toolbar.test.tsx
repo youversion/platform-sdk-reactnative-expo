@@ -261,10 +261,16 @@ describe('BibleReader native toolbar', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
 
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
+      en.loadingBibleVersionAriaLabel,
+    )
     expect(screen.queryByText('3034')).toBeNull()
     await settleToolbarLookups()
     expect(screen.getByText('NIV')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
+      en.changeBibleVersionAriaLabel,
+    )
   })
 
   it('shows the full book name on the chapter button', async () => {
