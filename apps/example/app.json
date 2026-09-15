@@ -17,6 +17,7 @@
           }
         }
       ],
+      "./plugins/with-resource-bundle-deployment-target.js",
       [
         "expo-splash-screen",
         {

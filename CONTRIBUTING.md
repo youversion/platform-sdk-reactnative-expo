@@ -72,6 +72,11 @@ pnpm exec expo start --dev-client
 >
 > This applies whenever a native module is added to `packages/ui`, `packages/core`, or the example app. `expo install --fix` won't help here — it only reconciles versions, not an unlinked pod.
 
+> **Xcode 27.** Two upstream packages lag the Swift 6.4 / iOS 15 minimum it enforces. Both are handled in the repo, but know where to look if a fresh build fails:
+>
+> - `expo-modules-jsi` must be ≥ 56.0.13 — earlier versions fail to compile `JavaScriptRuntime.swift`. Pinned via `pnpm-lock.yaml`; do not let `expo install --fix` walk it back.
+> - `react-native-svg`'s `RNSVGFilters` resource bundle ships at iOS 12.4, which Xcode 27 rejects. `apps/example/plugins/with-resource-bundle-deployment-target.js` lifts it during prebuild. Delete the plugin once react-native-svg releases [#3022](https://github.com/software-mansion/react-native-svg/pull/3022).
+
 ### Device builds on BrowserStack
 
 When an approved collaborator on `platform-sdk-reactnative-expo_automation`
