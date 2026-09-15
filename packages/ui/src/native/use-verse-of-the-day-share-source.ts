@@ -49,22 +49,10 @@ function sameShareRequest(a: ShareRequest | null, b: ShareRequest): boolean {
 }
 
 export type VerseOfTheDayShareSource = {
-  /** `null` while loading, on failure, and while the resolved passage does not match. */
   shareSource: VerseOfTheDayShareData | null
-  /**
-   * Fetches again for the current passage and returns the result. A share
-   * press uses this as its retry path so a failed background fetch does not
-   * leave share dead for the life of the mount. Returns `null` when provider
-   * filters change before the fetch settles.
-   */
   loadShareSource: () => Promise<VerseOfTheDayShareData | null>
 }
 
-/**
- * Share payload for the pinned VOTD passage.
- *
- * Internal. Not on the UI or core package barrel.
- */
 export function useVerseOfTheDayShareSource(
   versionId: number,
   passageId: string | null,
@@ -72,8 +60,6 @@ export function useVerseOfTheDayShareSource(
   const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
     useYouVersion()
   const [result, setResult] = useState<ShareSourceForPassage | null>(null)
-  // Latest requested passage and filter lists, so a slow fetch cannot land on
-  // top of a newer result. Cleared on unmount.
   const currentRef = useRef<ShareRequest | null>(null)
 
   useEffect(() => {

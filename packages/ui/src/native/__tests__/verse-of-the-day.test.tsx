@@ -53,7 +53,6 @@ type LatestDomProps = {
 
 let latestDomProps: LatestDomProps = {}
 
-// Passage lookup and the share-source fetch each resolve in a microtask.
 async function renderAndSettle(...args: Parameters<typeof render>) {
   const result = render(...args)
   await act(async () => {})
@@ -297,13 +296,11 @@ describe('VerseOfTheDay', () => {
     expect(queryByText(sampleShareData.reference)).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
 
-    // First press: the retry also fails, so nothing is shared.
     await act(async () => {
       fireEvent.press(getByTestId('verse-of-the-day-share'))
     })
     expect(Share.share).not.toHaveBeenCalled()
 
-    // Second press: the retry succeeds, shares, and the reference line appears.
     await act(async () => {
       fireEvent.press(getByTestId('verse-of-the-day-share'))
     })
