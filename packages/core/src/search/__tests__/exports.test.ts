@@ -1,7 +1,3 @@
-/**
- * Guards the Search public surface: `useSearch` and the USFM helper are on the
- * package index; the SearchClient wrapper and the Result seam stay internal.
- */
 import * as core from '../../index'
 
 describe('search package exports', () => {
