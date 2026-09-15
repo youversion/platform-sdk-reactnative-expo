@@ -211,5 +211,5 @@ The interception of the Web SDK's `fetch` inside an **Expo DOM Component** that 
 _Avoid_: Query persistence (the Web SDK's query client is private and its persister has no per-entry lifetime); a WebView-side network fallback; read/write cache actions (the bridge carries requests, not cache entries)
 
 **Search**:
-Placeholder client in expo-core until `@youversion/platform-core` ships `SearchClient` (YPE-5622). Public operations: `suggestedQueries`, `trendingQueries`, `verses`, `topics`. The HTTP wrapper stays internal; replace it by wrapping the shared client the way highlights wraps `HighlightsClient`. Search is a normal JSON API, not **Bible Content Cache** / [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
-_Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; depending on a platform-core `SearchClient` that does not exist yet
+`createSearchApi` wraps `@youversion/platform-core` `SearchClient` the way highlights wraps `HighlightsClient`. Public operations: `suggestedQueries`, `trendingQueries`, `verses`, `topics`. Thrown client errors become RN `Result` (`auth` / `transient` / `invalid-parameter`). Types alias the shared Search DTOs (`id` is USFM on verse hits; query lists are `{ queries }`). The wrapper stays internal. Search is a normal JSON API, not **Bible Content Cache** / [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
+_Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; a parallel Search HTTP client or DTO layer

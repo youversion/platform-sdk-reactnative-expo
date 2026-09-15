@@ -56,6 +56,7 @@ export type {
   SuggestedQueriesParams,
   TrendingQueriesParams,
   UseSearchResult,
+  YouVersionSearchQueries,
   YouVersionSearchQuery,
   YouVersionSearchTopic,
   YouVersionSearchUserIntent,
