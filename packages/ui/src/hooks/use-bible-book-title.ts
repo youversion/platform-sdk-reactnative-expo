@@ -34,6 +34,8 @@ export function useBibleBookTitle(
   const retryKey = options?.retryKey ?? 0
   const { fetchBibleContent } = useYouVersion()
   const cacheRef = useRef(new Map<number, Catalog>())
+  const generationRef = useRef(new Map<number, number>())
+  const fetchedRetryKeyRef = useRef<number | null>(null)
   const [versionIdForState, setVersionIdForState] = useState(versionId)
   const [retryKeyForState, setRetryKeyForState] = useState(retryKey)
   const [owned, setOwned] = useState<OwnedCatalog | null>(null)
@@ -63,8 +65,16 @@ export function useBibleBookTitle(
     }
 
     let cancelled = false
+    const generation = (generationRef.current.get(versionId) ?? 0) + 1
+    generationRef.current.set(versionId, generation)
+    const skipCache =
+      fetchedRetryKeyRef.current !== null && fetchedRetryKeyRef.current !== retryKey
+    fetchedRetryKeyRef.current = retryKey
 
-    void fetchBibleContent({ path: `/v1/bibles/${versionId}/books` })
+    void fetchBibleContent({
+      path: `/v1/bibles/${versionId}/books`,
+      skipCache,
+    })
       .then((response) => {
         if (response.status !== 200) {
           return
@@ -73,7 +83,9 @@ export function useBibleBookTitle(
         if (next === null) {
           return
         }
-        cacheRef.current.set(versionId, next)
+        if (generationRef.current.get(versionId) === generation) {
+          cacheRef.current.set(versionId, next)
+        }
         if (!cancelled) {
           setOwned({ versionId, value: next })
         }
@@ -94,10 +106,9 @@ export function useBibleBookTitle(
   }, [enabled, fetchBibleContent, retryKey, versionId])
 
   const isLoading = enabled && !settled
-  // While the new version loads, its predecessor's catalog still drives chevron
-  // enablement. The chapter button shows a spinner, not that title. Once the
-  // lookup settles without a catalog, both are gone: a wrong book name is worse
-  // than none. A failed lookup stays empty until `retryKey` bumps.
+  // Chevrons read `catalog`, which is this version's list only. The last title can
+  // stay on `title` while `isLoading` is true. The toolbar covers it with a spinner.
+  // A failed lookup stays empty until `retryKey` bumps.
   const isStale = owned === null || (owned.versionId !== versionId && !isLoading)
   const displayCatalog = isStale ? null : owned.value
   const entry = entryFromBooksCatalog(displayCatalog, book)

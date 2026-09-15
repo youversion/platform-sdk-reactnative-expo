@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -298,5 +298,118 @@ describe('useBibleVersionAbbreviation', () => {
     await waitFor(() => {
       expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
     })
+  })
+
+  it('retries past a cacheable empty version body', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionBodyResponse({})
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ retryKey }: { retryKey: number }) => useBibleVersionAbbreviation(111, { retryKey }),
+      { wrapper: wrapper(), initialProps: { retryKey: 0 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.abbreviation).toBeNull()
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionResponse('NIV', 'en')
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    rerender({ retryKey: 1 })
+    await waitFor(() => {
+      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+    })
+  })
+
+  it('does not let a cancelled version meta overwrite a newer cache entry', async () => {
+    let resolveFirst!: (value: Response) => void
+    let resolveSecond!: (value: Response) => void
+    const first = new Promise<Response>((resolve) => {
+      resolveFirst = resolve
+    })
+    const second = new Promise<Response>((resolve) => {
+      resolveSecond = resolve
+    })
+    let versionCalls = 0
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        versionCalls += 1
+        if (versionCalls === 1) {
+          return first
+        }
+        return second
+      }
+      if (isVersionUrl(url) && url.includes('/128')) {
+        return versionResponse('NVI', 'es')
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId, retryKey }: { versionId: number; retryKey: number }) =>
+        useBibleVersionAbbreviation(versionId, { retryKey }),
+      { wrapper: wrapper(), initialProps: { versionId: 111, retryKey: 0 } },
+    )
+
+    await waitFor(() => {
+      expect(versionCalls).toBe(1)
+    })
+    rerender({ versionId: 111, retryKey: 1 })
+    await waitFor(() => {
+      expect(versionCalls).toBe(2)
+    })
+
+    await act(async () => {
+      resolveSecond(
+        new Response(JSON.stringify({ abbreviation: 'NIV', language_tag: 'en' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await second
+    })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
+    })
+
+    await act(async () => {
+      resolveFirst(
+        new Response(JSON.stringify({ abbreviation: 'KJV', language_tag: 'en' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await first
+    })
+
+    rerender({ versionId: 128, retryKey: 1 })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NVI')
+    })
+    rerender({ versionId: 111, retryKey: 1 })
+    expect(result.current.abbreviation).toBe('NIV')
   })
 })

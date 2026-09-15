@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -348,5 +348,118 @@ describe('useBibleBookTitle', () => {
         catalog: expect.any(Map),
       })
     })
+  })
+
+  it('retries past a cacheable empty catalog', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        return booksResponse(JSON.stringify({ data: [] }))
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ retryKey }: { retryKey: number }) => useBibleBookTitle(111, 'JHN', { retryKey }),
+      { wrapper: wrapper(), initialProps: { retryKey: 0 } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.catalog).toBeNull()
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        return booksResponse(BOOKS_BODY)
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    rerender({ retryKey: 1 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+  })
+
+  it('does not let a cancelled catalog overwrite a newer cache entry', async () => {
+    let resolveFirst!: (value: Response) => void
+    let resolveSecond!: (value: Response) => void
+    const first = new Promise<Response>((resolve) => {
+      resolveFirst = resolve
+    })
+    const second = new Promise<Response>((resolve) => {
+      resolveSecond = resolve
+    })
+    let booksCalls = 0
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        booksCalls += 1
+        if (booksCalls === 1) {
+          return first
+        }
+        return second
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/128/')) {
+        return booksResponse(SPANISH_BOOKS_BODY)
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId, retryKey }: { versionId: number; retryKey: number }) =>
+        useBibleBookTitle(versionId, 'JHN', { retryKey }),
+      { wrapper: wrapper(), initialProps: { versionId: 111, retryKey: 0 } },
+    )
+
+    await waitFor(() => {
+      expect(booksCalls).toBe(1)
+    })
+    rerender({ versionId: 111, retryKey: 1 })
+    await waitFor(() => {
+      expect(booksCalls).toBe(2)
+    })
+
+    await act(async () => {
+      resolveSecond(
+        new Response(BOOKS_BODY, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await second
+    })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+
+    await act(async () => {
+      resolveFirst(
+        new Response(SPANISH_BOOKS_BODY, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await first
+    })
+
+    rerender({ versionId: 128, retryKey: 1 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('Juan')
+    })
+    rerender({ versionId: 111, retryKey: 1 })
+    expect(result.current.title).toBe('John')
   })
 })

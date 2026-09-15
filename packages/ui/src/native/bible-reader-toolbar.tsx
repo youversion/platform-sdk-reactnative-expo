@@ -163,12 +163,18 @@ function VersionContent({
   isVersionLoading: boolean
 }): ReactNode {
   const tokens = useTokens()
+  const { t } = useSdkTranslation()
 
   if (isVersionLoading) {
     return <ToolbarSpinner testID="reader-toolbar-version-loading" />
   }
 
-  return <Button.Text style={boldLabelStyle(tokens)}>{versionLabel}</Button.Text>
+  let label = versionLabel
+  if (label.length === 0) {
+    label = t('changeBibleVersionAriaLabel')
+  }
+
+  return <Button.Text style={boldLabelStyle(tokens)}>{label}</Button.Text>
 }
 
 export type BibleReaderToolbarProps = {

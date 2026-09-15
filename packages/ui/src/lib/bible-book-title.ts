@@ -105,7 +105,7 @@ export function catalogFromBooksBody(body: string): ReadonlyMap<string, BookCata
 
   const asList = bookListSchema.safeParse(parsed)
   if (asList.success) {
-    return catalogFromEntries(asList.data)
+    return catalogOrNull(catalogFromEntries(asList.data))
   }
 
   const envelope = booksBodySchema.safeParse(parsed)
@@ -116,7 +116,16 @@ export function catalogFromBooksBody(body: string): ReadonlyMap<string, BookCata
   if (!fromData.success) {
     return null
   }
-  return catalogFromEntries(fromData.data)
+  return catalogOrNull(catalogFromEntries(fromData.data))
+}
+
+function catalogOrNull(
+  catalog: Map<string, BookCatalogEntry>,
+): ReadonlyMap<string, BookCatalogEntry> | null {
+  if (catalog.size === 0) {
+    return null
+  }
+  return catalog
 }
 
 /** Catalog key for a book id. Consumers may pass `jhn`; the payload keys on `JHN`. */
@@ -231,5 +240,20 @@ export function adjacentBookChapter(
     return null
   }
 
-  return getAdjacentChapterFromCatalog(adjacentBooksFromCatalog(catalog), key, chapter, direction)
+  const books = adjacentBooksFromCatalog(catalog)
+  const result = getAdjacentChapterFromCatalog(books, key, chapter, direction)
+  if (
+    result === null ||
+    direction !== 'previous' ||
+    isIntroChapterId(chapter) ||
+    !isIntroChapterId(result.chapterId)
+  ) {
+    return result
+  }
+
+  return getAdjacentChapterFromCatalog(books, result.bookId, result.chapterId, 'previous')
+}
+
+function isIntroChapterId(chapterId: string): boolean {
+  return chapterId.toUpperCase() === 'INTRO'
 }

@@ -5,7 +5,11 @@ import { getSdkHeaders } from '../sdk-version'
 import { contentLifetimeMs } from './content-lifetime'
 import { createBibleContentStore, type BibleContentStore } from './content-store'
 
-export type BibleContentRequest = { path: string }
+export type BibleContentRequest = {
+  path: string
+  /** Skip the store read and hit the network. A successful 2xx still writes. */
+  skipCache?: boolean
+}
 
 export type BibleContentResponse = {
   status: number
@@ -39,7 +43,7 @@ export function createBibleContentClient({
   store = createBibleContentStore(),
   now = Date.now,
 }: BibleContentClientDeps): FetchBibleContent {
-  return async ({ path }) => {
+  return async ({ path, skipCache = false }) => {
     const [pathname] = path.split('?', 1)
     const versionId = pathname === undefined ? null : parseVersionId(pathname)
     if (versionId === null) {
@@ -47,10 +51,12 @@ export function createBibleContentClient({
     }
 
     const key = `${apiHost}${path}`
-    const cached = store.read(versionId, key, now())
-    if (cached !== null) {
-      // Entries keep no content type; stored bodies are always JSON (ADR 0020).
-      return { status: 200, body: cached.body, contentType: 'application/json' }
+    if (!skipCache) {
+      const cached = store.read(versionId, key, now())
+      if (cached !== null) {
+        // Entries keep no content type; stored bodies are always JSON (ADR 0020).
+        return { status: 200, body: cached.body, contentType: 'application/json' }
+      }
     }
 
     // RN's OkHttp client ships with no timeouts; without this an Android

@@ -79,6 +79,11 @@ describe('catalogFromBooksBody', () => {
     expect(catalogFromBooksBody('{}')).toBeNull()
     expect(catalogFromBooksBody(JSON.stringify({ data: { title: 'John' } }))).toBeNull()
   })
+
+  it('returns null for an empty list', () => {
+    expect(catalogFromBooksBody(JSON.stringify([]))).toBeNull()
+    expect(catalogFromBooksBody(JSON.stringify({ data: [] }))).toBeNull()
+  })
 })
 
 describe('entryFromBooksCatalog', () => {
@@ -221,10 +226,10 @@ describe('adjacentBookChapter', () => {
       })
     })
 
-    it('steps back into the intro from chapter 1', () => {
+    it('skips the intro when leaving chapter 1', () => {
       expect(adjacentBookChapter(withIntros, 'ACT', '1', 'previous')).toEqual({
-        bookId: 'ACT',
-        chapterId: 'INTRO',
+        bookId: 'JHN',
+        chapterId: '2',
       })
     })
 

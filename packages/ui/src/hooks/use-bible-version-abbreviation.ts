@@ -27,6 +27,8 @@ export function useBibleVersionAbbreviation(
   const retryKey = options?.retryKey ?? 0
   const { fetchBibleContent } = useYouVersion()
   const cacheRef = useRef(new Map<number, VersionMeta>())
+  const generationRef = useRef(new Map<number, number>())
+  const fetchedRetryKeyRef = useRef<number | null>(null)
   const [versionIdForState, setVersionIdForState] = useState(versionId)
   const [retryKeyForState, setRetryKeyForState] = useState(retryKey)
   // One version's short name and language move together: a mix of two versions would hand the
@@ -58,8 +60,16 @@ export function useBibleVersionAbbreviation(
     }
 
     let cancelled = false
+    const generation = (generationRef.current.get(versionId) ?? 0) + 1
+    generationRef.current.set(versionId, generation)
+    const skipCache =
+      fetchedRetryKeyRef.current !== null && fetchedRetryKeyRef.current !== retryKey
+    fetchedRetryKeyRef.current = retryKey
 
-    void fetchBibleContent({ path: `/v1/bibles/${versionId}` })
+    void fetchBibleContent({
+      path: `/v1/bibles/${versionId}`,
+      skipCache,
+    })
       .then((response) => {
         if (response.status !== 200) {
           return
@@ -68,7 +78,9 @@ export function useBibleVersionAbbreviation(
         if (next.abbreviation === null && next.languageId === null) {
           return
         }
-        cacheRef.current.set(versionId, next)
+        if (generationRef.current.get(versionId) === generation) {
+          cacheRef.current.set(versionId, next)
+        }
         if (!cancelled) {
           setMeta({ versionId, value: next })
         }
@@ -89,9 +101,8 @@ export function useBibleVersionAbbreviation(
   }, [enabled, fetchBibleContent, retryKey, versionId])
 
   const isLoading = enabled && !settled
-  // While the new version loads, its predecessor's short name is what the spinner
-  // covers. Once the lookup settles without one, it is gone: a wrong name is
-  // worse than none. A failed lookup stays empty until `retryKey` bumps.
+  // The last short name can stay on the return while `isLoading` is true. The toolbar
+  // covers it with a spinner. A failed lookup stays empty until `retryKey` bumps.
   const isStale = meta === null || (meta.versionId !== versionId && !isLoading)
   return { ...(isStale ? EMPTY_META : meta.value), isLoading }
 }
