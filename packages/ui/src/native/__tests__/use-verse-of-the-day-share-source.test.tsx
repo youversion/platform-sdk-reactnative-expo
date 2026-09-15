@@ -1,6 +1,3 @@
-/**
- * Layer 3 — VOTD share source follows the current provider filter lists.
- */
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
