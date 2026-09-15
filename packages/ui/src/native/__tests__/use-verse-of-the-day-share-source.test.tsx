@@ -103,4 +103,44 @@ describe('useVerseOfTheDayShareSource', () => {
       permittedLanguageTags: ['en'],
     })
   })
+
+  it('returns null from a share load that started under looser filters', async () => {
+    let resolvePress: (value: VerseOfTheDayShareData | null) => void
+    getShare.mockResolvedValueOnce(null)
+    getShare.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolvePress = resolve
+        }),
+    )
+
+    const wrapper = filterWrapper()
+    const { result, rerender } = renderHook(
+      () => useVerseOfTheDayShareSource(3034, 'JHN.3.16'),
+      { wrapper },
+    )
+
+    await waitFor(() => {
+      expect(getShare).toHaveBeenCalledTimes(1)
+    })
+    expect(result.current.shareSource).toBeNull()
+
+    let inFlight!: Promise<VerseOfTheDayShareData | null>
+    await act(async () => {
+      inFlight = result.current.loadShareSource()
+    })
+
+    await waitFor(() => {
+      expect(getShare).toHaveBeenCalledTimes(2)
+    })
+
+    wrapper.setPermittedLanguageTags(['en'])
+    rerender(undefined)
+
+    await act(async () => {
+      resolvePress(sampleShareData)
+    })
+
+    expect(await inFlight).toBeNull()
+  })
 })

@@ -312,6 +312,58 @@ describe('VerseOfTheDay', () => {
     expect(queryByText(sampleShareData.reference)).toBeTruthy()
   })
 
+  it('does not share after filters tighten during an in-flight press', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    let resolvePress: (value: VerseOfTheDayShareData | null) => void
+    jest
+      .spyOn(votdShare, 'getVerseOfTheDayShareSource')
+      .mockResolvedValueOnce(null)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolvePress = resolve
+          }),
+      )
+      .mockResolvedValue(null)
+
+    const holder: { current: string[] | undefined } = { current: undefined }
+    function FilterWrapper({ children }: { children: ReactNode }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedLanguageTags={holder.current}
+        >
+          {children}
+        </YouVersionProvider>
+      )
+    }
+
+    const { getByTestId, rerender } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: FilterWrapper,
+    })
+
+    await waitFor(() => {
+      expect(votdShare.getVerseOfTheDayShareSource).toHaveBeenCalledTimes(1)
+    })
+
+    fireEvent.press(getByTestId('verse-of-the-day-share'))
+
+    await waitFor(() => {
+      expect(votdShare.getVerseOfTheDayShareSource).toHaveBeenCalledTimes(2)
+    })
+
+    holder.current = ['en']
+    rerender(<VerseOfTheDay versionId={3034} />)
+
+    await act(async () => {
+      resolvePress(sampleShareData)
+    })
+
+    expect(Share.share).not.toHaveBeenCalled()
+  })
+
   it('invokes consumer onShare and does not call Share.share', async () => {
     const consumerOnShare = jest.fn().mockResolvedValue(undefined)
     const { getByTestId } = await renderAndSettle(
