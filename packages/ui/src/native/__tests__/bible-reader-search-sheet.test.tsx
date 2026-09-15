@@ -12,14 +12,14 @@ import { BibleReaderSearchSheet } from '../bible-reader-search-sheet'
 
 function searchStub(overrides: Partial<UseSearchResult> = {}): UseSearchResult {
   return {
-    suggestedQueries: jest.fn(async () => ({ ok: true as const, value: [] })),
+    suggestedQueries: jest.fn(async () => ({ ok: true as const, value: { queries: [] } })),
     trendingQueries: jest.fn(async () => ({
       ok: true as const,
-      value: [{ text: 'faith' }],
+      value: { queries: [{ text: 'faith' }] },
     })),
     verses: jest.fn(async () => ({
       ok: true as const,
-      value: { verses: [{ reference: 'JHN.3.16' }], didYouMean: [] },
+      value: { verses: [{ id: 'JHN.3.16' }], didYouMean: [] },
     })),
     topics: jest.fn(async () => ({
       ok: true as const,
@@ -213,7 +213,7 @@ describe('BibleReaderSearchSheet', () => {
       })
       .mockResolvedValueOnce({
         ok: true as const,
-        value: { verses: [{ reference: 'JHN.3.16' }], didYouMean: [] },
+        value: { verses: [{ id: 'JHN.3.16' }], didYouMean: [] },
       })
     const stub = searchStub({ verses })
     render(
@@ -286,7 +286,7 @@ describe('BibleReaderSearchSheet', () => {
     const stub = searchStub({
       verses: jest.fn(async () => ({
         ok: true as const,
-        value: { verses: [{ reference: 'not-a-usfm' }], didYouMean: [] },
+        value: { verses: [{ id: 'not-a-usfm' }], didYouMean: [] },
       })),
     })
     const onClose = jest.fn()

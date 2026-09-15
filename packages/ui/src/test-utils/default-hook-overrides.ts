@@ -58,8 +58,8 @@ export function defaultPermissionFlow(
 
 export function emptySearch(): UseSearchResult {
   return {
-    suggestedQueries: async () => ({ ok: true, value: [] }),
-    trendingQueries: async () => ({ ok: true, value: [] }),
+    suggestedQueries: async () => ({ ok: true, value: { queries: [] } }),
+    trendingQueries: async () => ({ ok: true, value: { queries: [] } }),
     verses: async () => ({ ok: true, value: { verses: [], didYouMean: [] } }),
     topics: async () => ({ ok: true, value: { topics: [], didYouMean: [], totalSize: 0 } }),
   }

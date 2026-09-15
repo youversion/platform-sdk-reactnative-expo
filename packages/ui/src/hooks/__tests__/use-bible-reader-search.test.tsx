@@ -2,7 +2,7 @@ import type {
   FetchBibleContent,
   SearchApiResult,
   UseSearchResult,
-  YouVersionSearchQuery,
+  YouVersionSearchQueries,
   YouVersionVerseSearchResults,
 } from '@youversion/platform-react-native-expo-core'
 import { act, renderHook } from '@testing-library/react-native'
@@ -19,18 +19,18 @@ function deferred<T>() {
   return { promise, resolve }
 }
 
-function okQueries(texts: string[]): SearchApiResult<YouVersionSearchQuery[]> {
-  return { ok: true, value: texts.map((text) => ({ text })) }
+function okQueries(texts: string[]): SearchApiResult<YouVersionSearchQueries> {
+  return { ok: true, value: { queries: texts.map((text) => ({ text })) } }
 }
 
 function okVerses(
   usfms: string[],
-  nextPageToken?: string,
+  nextPageToken?: string | null,
 ): SearchApiResult<YouVersionVerseSearchResults> {
   return {
     ok: true,
     value: {
-      verses: usfms.map((reference) => ({ reference })),
+      verses: usfms.map((id) => ({ id })),
       didYouMean: [],
       nextPageToken,
     },
@@ -103,7 +103,7 @@ describe('useBibleReaderSearch', () => {
 
   it('does not show suggestion progress during the debounce window', async () => {
     jest.useFakeTimers()
-    const pending = deferred<SearchApiResult<YouVersionSearchQuery[]>>()
+    const pending = deferred<SearchApiResult<YouVersionSearchQueries>>()
     const stub = searchStub({
       suggestedQueries: jest.fn(async () => pending.promise),
     })
@@ -372,6 +372,34 @@ describe('useBibleReaderSearch', () => {
 
     expect(result.current.verses[0]?.usfm).toBe('JHN.3.16')
     expect(result.current.pageError?.kind).toBe('transient')
+  })
+
+  it('does not request another page when nextPageToken is null', async () => {
+    const verses = jest.fn(async () => okVerses(['JHN.3.16'], null))
+    const stub = searchStub({ verses })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('love')
+    })
+    await flush()
+
+    act(() => {
+      result.current.loadNextPage()
+    })
+
+    expect(verses).toHaveBeenCalledTimes(1)
+    expect(result.current.verses[0]?.usfm).toBe('JHN.3.16')
   })
 
   it('trims enrichment text and drops a stale snippet', async () => {

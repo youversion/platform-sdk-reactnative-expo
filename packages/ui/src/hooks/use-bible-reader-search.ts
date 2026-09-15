@@ -51,8 +51,8 @@ export type UseBibleReaderSearchResult = {
 
 function toRows(verses: readonly YouVersionVerseSearchResult[]): BibleReaderSearchVerseRow[] {
   return verses.map((verse) => ({
-    usfm: verse.reference,
-    title: formatUsfmLabel(verse.reference),
+    usfm: verse.id,
+    title: formatUsfmLabel(verse.id),
     snippet: null,
   }))
 }
@@ -160,7 +160,7 @@ export function useBibleReaderSearch(
         }
         setIsLoadingSuggestions(false)
         if (result.ok) {
-          setSuggestions(result.value)
+          setSuggestions(result.value.queries)
           return
         }
         setSuggestions([])
@@ -189,7 +189,7 @@ export function useBibleReaderSearch(
           }
           setIsLoadingSuggestions(false)
           if (result.ok) {
-            setSuggestions(result.value)
+            setSuggestions(result.value.queries)
             return
           }
           setSuggestions([])
@@ -242,10 +242,11 @@ export function useBibleReaderSearch(
             return
           }
           const rows = toRows(result.value.verses)
+          const token = result.value.nextPageToken ?? undefined
           setVerses(rows)
           versesRef.current = rows
-          setNextPageToken(result.value.nextPageToken)
-          nextPageTokenRef.current = result.value.nextPageToken
+          setNextPageToken(token)
+          nextPageTokenRef.current = token
           void enrichRows(
             rows.map((row) => row.usfm),
             enrichId,
@@ -416,16 +417,17 @@ export function useBibleReaderSearch(
           return
         }
         const existingUsfms = versesRef.current.map((row) => row.usfm)
-        const incomingUsfms = result.value.verses.map((verse) => verse.reference)
+        const incomingUsfms = result.value.verses.map((verse) => verse.id)
         const addedUsfms = dedupeVerseUsfms(existingUsfms, incomingUsfms)
         const addedRows = toRows(
-          result.value.verses.filter((verse) => addedUsfms.includes(verse.reference)),
+          result.value.verses.filter((verse) => addedUsfms.includes(verse.id)),
         )
         const nextRows = [...versesRef.current, ...addedRows]
+        const token = result.value.nextPageToken ?? undefined
         setVerses(nextRows)
         versesRef.current = nextRows
-        setNextPageToken(result.value.nextPageToken)
-        nextPageTokenRef.current = result.value.nextPageToken
+        setNextPageToken(token)
+        nextPageTokenRef.current = token
         void enrichRows(addedUsfms, enrichId)
       })
       .catch(() => {
