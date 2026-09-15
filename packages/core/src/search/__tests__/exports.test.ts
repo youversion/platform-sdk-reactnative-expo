@@ -1,6 +1,6 @@
 /**
  * Guards the Search public surface: `useSearch` and the USFM helper are on the
- * package index; the temporary HTTP wrapper and the Result seam stay internal.
+ * package index; the SearchClient wrapper and the Result seam stay internal.
  */
 import * as core from '../../index'
 
@@ -16,7 +16,7 @@ describe('search package exports', () => {
     })
   })
 
-  it('keeps the HTTP wrapper and the Result seam internal', () => {
+  it('keeps the client wrapper and the Result seam internal', () => {
     const names = Object.keys(core)
     expect(names).not.toContain('createSearchApi')
     expect(names).not.toContain('ok')
