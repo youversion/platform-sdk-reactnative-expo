@@ -83,7 +83,7 @@ describe('useVerseOfTheDayShareSource', () => {
     })
 
     wrapper.setPermittedLanguageTags(['en'])
-    rerender()
+    rerender(undefined)
 
     await waitFor(() => {
       expect(getShare).toHaveBeenCalledTimes(2)
