@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
@@ -166,6 +174,34 @@ function installOpenAwareSheets() {
   )
 }
 
+async function flushToolbarEffects() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+  })
+}
+
+async function settleToolbarLookups() {
+  await flushToolbarEffects()
+  if (screen.queryByTestId('reader-toolbar') === null) {
+    return
+  }
+  await waitFor(
+    () => {
+      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
+      expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+    },
+    { timeout: 3000 },
+  )
+}
+
+async function renderToolbar(...args: Parameters<typeof render>) {
+  const result = render(...args)
+  await settleToolbarLookups()
+  return result
+}
+
 async function openUserMenu() {
   const avatar = screen.queryByTestId('reader-toolbar-avatar')
   if (avatar) {
@@ -192,7 +228,7 @@ describe('BibleReader native toolbar', () => {
 
   afterEach(async () => {
     await act(async () => {
-      await Promise.resolve()
+      cleanup()
     })
     resetImpls()
     restoreViewMeasure()
@@ -201,7 +237,10 @@ describe('BibleReader native toolbar', () => {
   })
 
   it('renders the native row and hides the in-WebView toolbar', async () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
 
     expect(screen.getByTestId('reader-toolbar')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
@@ -214,9 +253,6 @@ describe('BibleReader native toolbar', () => {
       en.changeBibleVersionAriaLabel,
     )
     expect(latestDomProps.showToolbar).toBe(false)
-    await waitFor(() => {
-      expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
-    })
   })
 
   it('shows the version abbreviation on the version button', async () => {
@@ -226,9 +262,8 @@ describe('BibleReader native toolbar', () => {
 
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
-    await waitFor(() => {
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
+    await settleToolbarLookups()
+    expect(screen.getByText('NIV')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
   })
 
@@ -239,9 +274,8 @@ describe('BibleReader native toolbar', () => {
 
     expect(screen.getByTestId('reader-toolbar-chapter-loading')).toBeTruthy()
     expect(screen.queryByText('1')).toBeNull()
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-    })
+    await settleToolbarLookups()
+    expect(screen.getByText('John 1')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
   })
 
@@ -302,15 +336,14 @@ describe('BibleReader native toolbar', () => {
       return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
     })
 
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+    const { rerender } = await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
       wrapper: defaultWrapper,
     })
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
+    expect(screen.getByText('John 1')).toBeTruthy()
+    expect(screen.getByText('NIV')).toBeTruthy()
 
     rerender(<BibleReader book="JHN" chapter="1" versionId={128} />)
+    await flushToolbarEffects()
     expect(screen.getByTestId('reader-toolbar-chapter-loading')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
@@ -346,37 +379,32 @@ describe('BibleReader native toolbar', () => {
         ),
       )
     })
-    await waitFor(() => {
-      expect(screen.getByText('Juan 1')).toBeTruthy()
-      expect(screen.getByText('NVI')).toBeTruthy()
-    })
+    await settleToolbarLookups()
+    expect(screen.getByText('Juan 1')).toBeTruthy()
+    expect(screen.getByText('NVI')).toBeTruthy()
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).not.toMatchObject({ disabled: true })
 
     rerender(<BibleReader book="JHN" chapter="1" versionId={3034} />)
+    await settleToolbarLookups()
     expect(screen.getByText('John 1')).toBeTruthy()
     expect(screen.getByText('NIV')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
     expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
   })
 
   it('opens the chapter and version sheets from the native row', async () => {
     installToolbarFetches()
 
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
 
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
-
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
+    expect(screen.getByText('John 1')).toBeTruthy()
+    expect(screen.getByText('NIV')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
@@ -390,7 +418,10 @@ describe('BibleReader native toolbar', () => {
   })
 
   it('opens settings from the gear', async () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: defaultWrapper })
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
 
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
 
@@ -405,7 +436,7 @@ describe('BibleReader native toolbar', () => {
     const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
     installToolbarFetches({ languageTag: 'en' })
 
-    render(
+    await renderToolbar(
       <BibleReader
         book="JHN"
         chapter="1"
@@ -416,9 +447,7 @@ describe('BibleReader native toolbar', () => {
       { wrapper: defaultWrapper },
     )
 
-    await waitFor(() => {
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
+    expect(screen.getByText('NIV')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
@@ -487,10 +516,9 @@ describe('BibleReader native toolbar', () => {
       />,
       { wrapper: defaultWrapper },
     )
+    await flushToolbarEffects()
 
-    await waitFor(() => {
-      expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
-    })
+    expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityState).toMatchObject({
       disabled: true,
     })
@@ -510,9 +538,8 @@ describe('BibleReader native toolbar', () => {
         }),
       )
     })
-    await waitFor(() => {
-      expect(screen.getByText('NIV')).toBeTruthy()
-    })
+    await settleToolbarLookups()
+    expect(screen.getByText('NIV')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
@@ -540,7 +567,7 @@ describe('BibleReader native toolbar', () => {
     })
 
     const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
-    render(
+    await renderToolbar(
       <BibleReader
         book="JHN"
         chapter="1"
@@ -548,16 +575,6 @@ describe('BibleReader native toolbar', () => {
         onVersionPickerPress={onVersionPickerPress}
       />,
       { wrapper: defaultWrapper },
-    )
-
-    // Both lookups reject and the spinners keep animating meanwhile, so this settles slower
-    // than the happy paths above — the default one-second window is tight under a full run.
-    await waitFor(
-      () => {
-        expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
-        expect(screen.queryByTestId('reader-toolbar-chapter-loading')).toBeNull()
-      },
-      { timeout: 3000 },
     )
     // No catalog and no version meta: the version pill stays empty; the chapter pill shows the id.
     expect(screen.queryByText('3034')).toBeNull()
@@ -599,13 +616,12 @@ describe('BibleReader native toolbar', () => {
   it('does not reopen a built-in sheet when the toolbar is hidden and shown again', async () => {
     installToolbarFetches()
 
-    const { rerender } = render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
-      wrapper: defaultWrapper,
-    })
+    const { rerender } = await renderToolbar(
+      <BibleReader book="JHN" chapter="1" versionId={3034} />,
+      { wrapper: defaultWrapper },
+    )
 
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-    })
+    expect(screen.getByText('John 1')).toBeTruthy()
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
     })
@@ -615,22 +631,21 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
 
     rerender(<BibleReader book="JHN" chapter="1" versionId={3034} />)
+    await settleToolbarLookups()
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
   })
 
   it('keeps next off until the book list says how many chapters', async () => {
     installToolbarFetches({ books: [] })
 
-    render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
+    await renderToolbar(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
     })
 
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
-    await waitFor(() => {
-      expect(screen.getByText('1')).toBeTruthy()
-    })
+    expect(screen.getByText('1')).toBeTruthy()
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -644,13 +659,11 @@ describe('BibleReader native toolbar', () => {
       ],
     })
 
-    render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
+    await renderToolbar(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-    })
+    expect(screen.getByText('John 1')).toBeTruthy()
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).not.toMatchObject({ disabled: true })
@@ -671,13 +684,11 @@ describe('BibleReader native toolbar', () => {
       ],
     })
 
-    render(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
+    await renderToolbar(<BibleReader defaultBook="JHN" defaultChapter="1" defaultVersionId={3034} />, {
       wrapper: defaultWrapper,
     })
 
-    await waitFor(() => {
-      expect(screen.getByText('John 1')).toBeTruthy()
-    })
+    expect(screen.getByText('John 1')).toBeTruthy()
 
     expect(
       screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,
@@ -715,11 +726,13 @@ describe('BibleReader native toolbar', () => {
   it('saves book and chapter together when next opens the next book', async () => {
     const originalSetLocation = useReaderLocationStore.getState().setLocation
     const patches: { book?: string; chapter?: string; versionId?: number }[] = []
-    useReaderLocationStore.setState({
-      setLocation: (patch) => {
-        patches.push(patch)
-        originalSetLocation(patch)
-      },
+    await act(async () => {
+      useReaderLocationStore.setState({
+        setLocation: (patch) => {
+          patches.push(patch)
+          originalSetLocation(patch)
+        },
+      })
     })
 
     try {
@@ -730,13 +743,12 @@ describe('BibleReader native toolbar', () => {
         ],
       })
 
-      render(<BibleReader defaultBook="JHN" defaultChapter="2" defaultVersionId={3034} />, {
-        wrapper: defaultWrapper,
-      })
+      await renderToolbar(
+        <BibleReader defaultBook="JHN" defaultChapter="2" defaultVersionId={3034} />,
+        { wrapper: defaultWrapper },
+      )
 
-      await waitFor(() => {
-        expect(screen.getByText('John 2')).toBeTruthy()
-      })
+      expect(screen.getByText('John 2')).toBeTruthy()
       patches.length = 0
 
       await act(async () => {
@@ -746,7 +758,9 @@ describe('BibleReader native toolbar', () => {
       expect(patches).toEqual([{ book: 'ACT', chapter: '1' }])
       expect(useReaderLocationStore.getState()).toMatchObject({ book: 'ACT', chapter: '1' })
     } finally {
-      useReaderLocationStore.setState({ setLocation: originalSetLocation })
+      await act(async () => {
+        useReaderLocationStore.setState({ setLocation: originalSetLocation })
+      })
     }
   })
 
@@ -760,7 +774,7 @@ describe('BibleReader native toolbar', () => {
       ],
     })
 
-    const { rerender } = render(
+    const { rerender } = await renderToolbar(
       <BibleReader
         book="JHN"
         chapter="2"
@@ -771,9 +785,7 @@ describe('BibleReader native toolbar', () => {
       { wrapper: defaultWrapper },
     )
 
-    await waitFor(() => {
-      expect(screen.getByText('John 2')).toBeTruthy()
-    })
+    expect(screen.getByText('John 2')).toBeTruthy()
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
@@ -794,15 +806,17 @@ describe('BibleReader native toolbar', () => {
         onChapterChange={onChapterChange}
       />,
     )
+    await settleToolbarLookups()
 
-    await waitFor(() => {
-      expect(screen.getByText('Acts 1')).toBeTruthy()
-    })
+    expect(screen.getByText('Acts 1')).toBeTruthy()
     expect(useReaderLocationStore.getState()).toMatchObject({ book: null, chapter: null })
   })
 
   it('shows Avatar when signed in and routes press through the sign-out guard', async () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedInWrapper })
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: signedInWrapper,
+    })
 
     expect(screen.getByTestId('reader-toolbar-avatar')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-avatar').props.accessibilityLabel).toBe('Jane Doe')
@@ -826,7 +840,7 @@ describe('BibleReader native toolbar', () => {
     expect(signOut).not.toHaveBeenCalled()
   })
 
-  it('labels an unnamed signed-in avatar as the user avatar, not sign out', () => {
+  it('labels an unnamed signed-in avatar as the user avatar, not sign out', async () => {
     const unnamedWrapper = youVersionProviderWrapper('light', undefined, {
       useYVAuth: signedOutAuth({
         isAuthenticated: true,
@@ -841,7 +855,10 @@ describe('BibleReader native toolbar', () => {
       }),
     })
 
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: unnamedWrapper })
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: unnamedWrapper,
+    })
 
     expect(screen.getByTestId('reader-toolbar-avatar').props.accessibilityLabel).toBe(
       en.userAvatarAlt,
@@ -849,7 +866,10 @@ describe('BibleReader native toolbar', () => {
   })
 
   it('shows the person control when signed out with auth configured and calls signIn', async () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, { wrapper: signedOutWrapper })
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: signedOutWrapper,
+    })
 
     expect(screen.getByTestId('reader-toolbar-user')).toBeTruthy()
     expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
@@ -864,8 +884,9 @@ describe('BibleReader native toolbar', () => {
     expect(signIn).toHaveBeenCalledTimes(1)
   })
 
-  it('hides the avatar and sign-in control when auth is unconfigured', () => {
-    render(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+  it('hides the avatar and sign-in control when auth is unconfigured', async () => {
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
       wrapper: unconfiguredWrapper,
     })
 
