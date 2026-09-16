@@ -696,8 +696,8 @@ export function BibleReader({
               isVersionLoading={isVersionMetaLoading}
               canGoPrevious={previousChapter !== null}
               canGoNext={nextChapter !== null}
-              showAuth={auth !== null}
-              signedIn={auth?.isAuthenticated === true}
+              showAuth={authGate === 'signed-out' || authGate === 'ready'}
+              signedIn={authGate === 'ready'}
               avatarUrl={userInfo?.avatarUrl}
               name={userInfo?.name}
               onChapterPress={() => {
