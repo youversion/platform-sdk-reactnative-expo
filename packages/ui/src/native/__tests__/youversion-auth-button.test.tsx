@@ -35,10 +35,14 @@ function authValue() {
   })
 }
 
-function renderAuthButton(props: ComponentProps<typeof YouVersionAuthButton> = {}) {
+function renderAuthButton(
+  props: ComponentProps<typeof YouVersionAuthButton> = {},
+  providerTheme: 'light' | 'dark' = 'light',
+) {
   return render(
     <YouVersionProvider
       appKey="test-key"
+      theme={providerTheme}
       hookOverrides={{ ...defaultHookOverrides, useYVAuth: authValue() }}
     >
       <YouVersionAuthButton {...props} />
@@ -68,27 +72,23 @@ function pressAlertButton(text: string) {
   button?.onPress?.()
 }
 
-function containerStyle() {
-  let node: ReactTestInstance | null = screen.getByTestId('bible-app-logo')
-  while (node) {
-    const style = StyleSheet.flatten(node.props.style)
-    if (style && 'backgroundColor' in style) {
-      return style
-    }
-    node = node.parent
-  }
-  throw new Error('Pressable container not found')
+function buttonStyle() {
+  return StyleSheet.flatten(screen.getByRole('button').props.style)
+}
+
+function labelStyle(matcher: string | RegExp) {
+  return StyleSheet.flatten(screen.getByText(matcher).props.style)
+}
+
+function findLogo(): ReactTestInstance {
+  return screen.getByTestId('bible-app-logo')
 }
 
 describe('YouVersionAuthButton labels', () => {
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
     renderAuthButton()
     expect(screen.getByText(/sign in with/i)).toBeTruthy()
-  })
-
-  it('shows "Sign in" when unauthenticated and size="short"', () => {
-    renderAuthButton({ size: 'short' })
-    expect(screen.getByText('Sign in')).toBeTruthy()
+    expect(findLogo()).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when authenticated (mode=auto)', () => {
@@ -97,20 +97,9 @@ describe('YouVersionAuthButton labels', () => {
     expect(screen.getByText(/sign out of/i)).toBeTruthy()
   })
 
-  it('shows the short sign-out label when authenticated and size="short"', () => {
-    mockIsAuthenticated = true
-    renderAuthButton({ size: 'short' })
-    expect(screen.getByText(en.signOut)).toBeTruthy()
-  })
-
   it('shows "Sign out of YouVersion" when mode="signOut" even if unauthenticated', () => {
     renderAuthButton({ mode: 'signOut' })
     expect(screen.getByText(/sign out of/i)).toBeTruthy()
-  })
-
-  it('shows the short sign-out label when mode="signOut" and size="short"', () => {
-    renderAuthButton({ mode: 'signOut', size: 'short' })
-    expect(screen.getByText(en.signOut)).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" and unauthenticated', () => {
@@ -125,78 +114,49 @@ describe('YouVersionAuthButton labels', () => {
     expect(screen.queryByText(/sign out of/i)).toBeNull()
   })
 
-  it('renders no label in size="icon" mode but keeps the logo', () => {
-    renderAuthButton({ size: 'icon' })
-    expect(screen.queryByText(/sign/i)).toBeNull()
-    expect(screen.getByTestId('bible-app-logo')).toBeTruthy()
+  it('replaces the localized label when text is passed', () => {
+    renderAuthButton({ text: 'Continue with YouVersion' })
+    expect(screen.getByText('Continue with YouVersion')).toBeTruthy()
+    expect(screen.queryByText(/sign in with/i)).toBeNull()
   })
 
-  it('applies white text color on dark background for sign-in label', () => {
-    renderAuthButton({ background: 'dark' })
-    const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: dark.foreground })
+  it('paints the light scheme label in primaryForeground', () => {
+    renderAuthButton({ background: 'light' })
+    expect(labelStyle(/sign in with/i)).toMatchObject({ color: light.primaryForeground })
   })
 
-  it('applies white text color on dark background for sign-out label', () => {
+  it('paints the dark scheme label in primaryForeground', () => {
     mockIsAuthenticated = true
     renderAuthButton({ background: 'dark' })
-    const label = screen.getByText(/sign out of/i)
-    expect(label.props.style).toMatchObject({ color: dark.foreground })
-  })
-
-  it('applies black text color on light background for sign-in label', () => {
-    renderAuthButton({ background: 'light' })
-    const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: light.foreground })
+    expect(labelStyle(/sign out of/i)).toMatchObject({ color: dark.primaryForeground })
   })
 })
 
 describe('YouVersionAuthButton container tokens', () => {
-  it('maps outline light to border and fill tokens', () => {
-    renderAuthButton({ background: 'light', outline: true })
+  it('fills the default Button from the light scheme even when the provider is dark', () => {
+    renderAuthButton({ background: 'light' }, 'dark')
 
-    expect(containerStyle()).toMatchObject({
-      borderColor: light.border,
-      borderWidth: 1,
-      backgroundColor: light.background,
+    expect(buttonStyle()).toMatchObject({
+      backgroundColor: light.primary,
+      borderRadius: light.radius.full,
     })
+    expect(buttonStyle().borderWidth).toBeUndefined()
   })
 
-  it('maps outline dark to border and fill tokens', () => {
-    renderAuthButton({ background: 'dark', outline: true })
+  it('fills the default Button from the dark scheme even when the provider is light', () => {
+    renderAuthButton({ background: 'dark' }, 'light')
 
-    expect(containerStyle()).toMatchObject({
-      borderColor: dark.border,
-      borderWidth: 2,
-      backgroundColor: dark.background,
+    expect(buttonStyle()).toMatchObject({
+      backgroundColor: dark.primary,
+      borderRadius: dark.radius.full,
     })
-  })
-
-  it('maps non-outline light to fill without a border', () => {
-    renderAuthButton({ background: 'light', outline: false })
-
-    const style = containerStyle()
-    expect(style).toMatchObject({ backgroundColor: light.background })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
-  })
-
-  it('maps non-outline dark to fill without a border', () => {
-    renderAuthButton({ background: 'dark', outline: false })
-
-    const style = containerStyle()
-    expect(style).toMatchObject({ backgroundColor: dark.background })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
+    expect(buttonStyle().borderWidth).toBeUndefined()
   })
 })
 
 describe('youversion-auth-button source', () => {
   it('keeps youversion-auth-button.tsx free of copied hex literals', () => {
-    const source = readFileSync(
-      join(__dirname, '..', 'youversion-auth-button.tsx'),
-      'utf8',
-    )
+    const source = readFileSync(join(__dirname, '..', 'youversion-auth-button.tsx'), 'utf8')
 
     expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })

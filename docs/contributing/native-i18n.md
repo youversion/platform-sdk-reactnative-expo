@@ -54,8 +54,8 @@ const { t, i18n } = useSdkTranslation()
 <Trans
   i18n={i18n}
   i18nKey="signInWithYouVersion"
-  parent={Text}
-  components={{ bold: <Text style={{ fontWeight: 'bold' }} /> }}
+  parent={Button.Text}
+  components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
 />
 ```
 
