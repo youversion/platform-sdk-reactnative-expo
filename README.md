@@ -156,25 +156,6 @@ On iOS and Android, avatar, chapter (with prev/next), version, Search, and setti
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 
-#### Jumping to a passage
-
-Create a `BibleReaderNavigation` object and pass it in. You can call it before the reader mounts. A newer call replaces an older one; the reader consumes each request once.
-
-```tsx
-import { useMemo } from 'react'
-import { BibleReader, createBibleReaderNavigation } from '@youversion/platform-react-native-expo-ui'
-
-function ReaderScreen() {
-  const navigation = useMemo(() => createBibleReaderNavigation(), [])
-
-  navigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
-
-  return <BibleReader navigation={navigation} defaultVersionId={3034} />
-}
-```
-
-`request` and `focusReference` load that version / book / chapter. They do not scroll to the verse or dim the rest of the chapter in this release.
-
 #### Verse actions
 
 Tapping a verse opens a native bottom sheet with the reference, Copy, and Share. When `auth` is configured on `YouVersionProvider`, the sheet also shows the highlight colors. It is the same surface the [Swift](https://github.com/youversion/platform-sdk-swift) and [Kotlin](https://github.com/youversion/platform-sdk-kotlin) SDKs present. It is on by default and needs no props.
@@ -267,7 +248,7 @@ Clearing the selection also closes the verse action sheet. Clears arrive on `onV
 
 #### Custom picker flows
 
-To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the callback waits until that tag lands.
+To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the trigger stays disabled until the version lookup settles, so the callback never fires mid-flight; if that lookup fails, `languageId` arrives as an empty string rather than a guess.
 
 ```tsx
 <BibleReader

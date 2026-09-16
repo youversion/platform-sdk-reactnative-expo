@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { StyleSheet } from 'react-native'
 
+import { ThemeContext } from '../../../hooks/use-theme'
 import { withAlpha } from '../../../lib/color'
 import { SDK_POPOVER_HOST_NAME } from '../../../lib/sdk-portal-hosts'
+import { restoreViewMeasure, stubViewMeasure } from '../../../test-utils/stub-view-measure'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../../theme'
 import { sansFace } from '../../../theme/fonts'
@@ -334,6 +336,14 @@ function PopoverHarness() {
 }
 
 describe('Popover', () => {
+  beforeEach(() => {
+    stubViewMeasure()
+  })
+
+  afterEach(() => {
+    restoreViewMeasure()
+  })
+
   it('keeps content closed until the trigger is pressed', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper() })
 
@@ -378,6 +388,20 @@ describe('Popover', () => {
     expect(viewStyle('popover-close')).toMatchObject({ backgroundColor: light.accent })
   })
 
+  it('fills Close with the content theme accent, not the provider scheme', () => {
+    expect(dark.accent).not.toBe(light.accent)
+    render(
+      <ThemeContext.Provider value="dark">
+        <PopoverHarness />
+      </ThemeContext.Provider>,
+      { wrapper: youVersionProviderWrapper('light') },
+    )
+    fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
+
+    fireEvent(screen.getByTestId('popover-close'), 'responderGrant', touchEvent())
+    expect(viewStyle('popover-close')).toMatchObject({ backgroundColor: dark.accent })
+  })
+
   it('paints content from the dark popover tokens', () => {
     render(<PopoverHarness />, { wrapper: youVersionProviderWrapper('dark') })
     fireEvent.press(screen.getByRole('button', { name: 'Open filter' }))
@@ -403,6 +427,20 @@ describe('Popover', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     expect(() => render(<Popover.Text>Orphan</Popover.Text>)).toThrow(/inside <Popover.Content>/)
+
+    consoleError.mockRestore()
+  })
+
+  it('throws when Popover.Close renders outside content', () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
+
+    expect(() =>
+      render(
+        <Popover.Close>
+          <Text>Orphan</Text>
+        </Popover.Close>,
+      ),
+    ).toThrow(/inside <Popover.Content>/)
 
     consoleError.mockRestore()
   })

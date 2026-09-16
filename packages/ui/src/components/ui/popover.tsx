@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
 
 type PopoverContentContextValue = {
   readonly foreground: string
+  readonly accent: string
 }
 
 const PopoverContentContext = createContext<PopoverContentContextValue | null>(null)
@@ -45,7 +46,7 @@ const PopoverContentContext = createContext<PopoverContentContextValue | null>(n
 function usePopoverContentContext(): PopoverContentContextValue {
   const context = use(PopoverContentContext)
   if (context === null) {
-    throw new Error('Popover.Text must be rendered inside <Popover.Content>')
+    throw new Error('Popover.Text and Popover.Close must be rendered inside <Popover.Content>')
   }
   return context
 }
@@ -84,8 +85,8 @@ function PopoverContent({
 }: PopoverContentProps): ReactNode {
   const tokens = useTokens()
   const context = useMemo(
-    () => ({ foreground: tokens.popoverForeground }),
-    [tokens.popoverForeground],
+    () => ({ foreground: tokens.popoverForeground, accent: tokens.accent }),
+    [tokens.popoverForeground, tokens.accent],
   )
 
   return (
@@ -129,6 +130,7 @@ export type PopoverCloseProps = Omit<PopoverPrimitive.CloseProps, 'style'> & {
 }
 
 function PopoverClose({ style, disabled, ...props }: PopoverCloseProps): ReactNode {
+  const context = usePopoverContentContext()
   const tokens = useTokens()
   return (
     <PopoverPrimitive.Close
@@ -143,7 +145,9 @@ function PopoverClose({ style, disabled, ...props }: PopoverCloseProps): ReactNo
         },
         style,
         // Ghost Button: fill with accent while pressed so a menu row looks live.
-        pressed && { backgroundColor: tokens.accent },
+        // Accent comes from Content, which resolves tokens before the portal —
+        // the host tree is the provider scheme, not a nested Reader theme.
+        pressed && { backgroundColor: context.accent },
         disabled === true && styles.disabled,
       ]}
     />

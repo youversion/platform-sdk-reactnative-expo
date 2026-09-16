@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from '@testing-library/react-native'
+import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -29,10 +29,13 @@ function restoreDefaultFetch() {
 
 function fontResponse() {
   return Promise.resolve(
-    new Response(JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    }),
+    new Response(
+      JSON.stringify({ id: 1, slug: 'untitled-serif', family: 'Untitled Serif', variants: [] }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      },
+    ),
   )
 }
 
@@ -46,6 +49,14 @@ const BOOKS_BODY = JSON.stringify({
 const SPANISH_BOOKS_BODY = JSON.stringify({
   data: [{ id: 'JHN', title: 'Juan', chapters: [{ id: '1' }, { id: '2' }] }],
 })
+
+const CHAPTERS_1_2 = [
+  { id: '1', title: '1' },
+  { id: '2', title: '2' },
+]
+const JOHN_ENTRY = { title: 'John', chapters: CHAPTERS_1_2, intro: null }
+const JUAN_ENTRY = { title: 'Juan', chapters: CHAPTERS_1_2, intro: null }
+const HEBREWS_ENTRY = { title: 'Hebrews', chapters: [{ id: '1', title: '1' }], intro: null }
 
 function booksResponse(body: string) {
   return Promise.resolve(
@@ -83,14 +94,14 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: true,
       catalog: null,
     })
     await waitFor(() => {
       expect(result.current).toEqual({
         title: 'John',
-        chapterCount: 2,
+        entry: JOHN_ENTRY,
         isLoading: false,
         catalog: expect.any(Map),
       })
@@ -124,7 +135,7 @@ describe('useBibleBookTitle', () => {
     rerender({ book: 'HEB' })
     expect(result.current).toEqual({
       title: 'Hebrews',
-      chapterCount: 1,
+      entry: HEBREWS_ENTRY,
       isLoading: false,
       catalog: expect.any(Map),
     })
@@ -133,7 +144,7 @@ describe('useBibleBookTitle', () => {
     ).toBe(catalogCalls)
   })
 
-  it('keeps the previous catalog, with loading true, while the new version fetches', async () => {
+  it('keeps the previous title and drops the catalog while the new version fetches', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -160,14 +171,14 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 128 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: true,
-      catalog: expect.any(Map),
+      catalog: null,
     })
     await waitFor(() => {
       expect(result.current).toEqual({
         title: 'Juan',
-        chapterCount: 2,
+        entry: JUAN_ENTRY,
         isLoading: false,
         catalog: expect.any(Map),
       })
@@ -205,7 +216,7 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 111 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: false,
       catalog: expect.any(Map),
     })
@@ -214,7 +225,7 @@ describe('useBibleBookTitle', () => {
     })
   })
 
-  it('keeps the previous catalog when a version switch refetch fails', async () => {
+  it('drops the previous title and catalog when a version switch refetch fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -238,18 +249,18 @@ describe('useBibleBookTitle', () => {
     rerender({ versionId: 999 })
     expect(result.current).toEqual({
       title: 'John',
-      chapterCount: 2,
+      entry: JOHN_ENTRY,
       isLoading: true,
-      catalog: expect.any(Map),
+      catalog: null,
     })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
     expect(result.current).toEqual({
-      title: 'John',
-      chapterCount: 2,
+      title: null,
+      entry: null,
       isLoading: false,
-      catalog: expect.any(Map),
+      catalog: null,
     })
   })
 
@@ -260,7 +271,7 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: false,
       catalog: null,
     })
@@ -282,7 +293,7 @@ describe('useBibleBookTitle', () => {
 
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: true,
       catalog: null,
     })
@@ -291,9 +302,89 @@ describe('useBibleBookTitle', () => {
     })
     expect(result.current).toEqual({
       title: null,
-      chapterCount: null,
+      entry: null,
       isLoading: false,
       catalog: null,
+    })
+  })
+
+  it('does not let a cancelled catalog overwrite a newer cache entry', async () => {
+    let resolveFirst!: (value: Response) => void
+    let resolveSecond!: (value: Response) => void
+    const first = new Promise<Response>((resolve) => {
+      resolveFirst = resolve
+    })
+    const second = new Promise<Response>((resolve) => {
+      resolveSecond = resolve
+    })
+    let booksCalls = 0
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        booksCalls += 1
+        if (booksCalls === 1) {
+          return first
+        }
+        return second
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/128/')) {
+        return booksResponse(SPANISH_BOOKS_BODY)
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ versionId }: { versionId: number }) => useBibleBookTitle(versionId, 'JHN'),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
+    )
+
+    await waitFor(() => {
+      expect(booksCalls).toBe(1)
+    })
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('Juan')
+    })
+    rerender({ versionId: 111 })
+    await waitFor(() => {
+      expect(booksCalls).toBe(2)
+    })
+
+    await act(async () => {
+      resolveSecond(
+        new Response(BOOKS_BODY, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await second
+    })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+
+    await act(async () => {
+      resolveFirst(
+        new Response(SPANISH_BOOKS_BODY, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await first
+    })
+
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('Juan')
+    })
+    rerender({ versionId: 111 })
+    expect(result.current.title).toBe('John')
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
     })
   })
 })

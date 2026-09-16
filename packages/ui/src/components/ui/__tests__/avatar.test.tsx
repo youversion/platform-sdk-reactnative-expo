@@ -24,6 +24,7 @@ describe('Avatar', () => {
     const image = screen.getByTestId('avatar-image')
     expect(image.type).toBe('Image')
     expect(image.props.source).toEqual({ uri: 'https://cdn.example.com/a.png' })
+    expect(image.props.accessible).toBe(false)
     expect(viewStyle('avatar')).toMatchObject({
       width: 32,
       height: 32,
@@ -78,9 +79,40 @@ describe('Avatar', () => {
       { wrapper },
     )
 
-    expect(screen.getByTestId('avatar-fallback-person', { includeHiddenElements: true })).toBeTruthy()
+    expect(
+      screen.getByTestId('avatar-fallback-person', { includeHiddenElements: true }),
+    ).toBeTruthy()
     expect(screen.queryByText(/./)).toBeNull()
     expect(viewStyle('avatar-fallback')).toMatchObject({ backgroundColor: light.background })
+  })
+
+  it('paints the image over the fallback when both are present', () => {
+    render(
+      <Avatar testID="avatar">
+        <Avatar.Fallback name="Jane Doe" testID="avatar-fallback" />
+        <Avatar.Image uri="https://cdn.example.com/a.png" testID="avatar-image" />
+      </Avatar>,
+      { wrapper },
+    )
+
+    // The fallback fills the root and the image paints after it, so a slow or broken photo
+    // reveals the initials rather than covering them.
+    expect(viewStyle('avatar-fallback')).toMatchObject({
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+    })
+    expect(screen.getByText('JD')).toBeTruthy()
+    const painted = screen
+      .getByTestId('avatar')
+      .findAll(
+        (node) => node.props.testID === 'avatar-fallback' || node.props.testID === 'avatar-image',
+        { deep: false },
+      )
+      .map((node) => node.props.testID)
+    expect(painted).toEqual(['avatar-fallback', 'avatar-image'])
   })
 
   it('throws when a slot renders outside an Avatar root', () => {

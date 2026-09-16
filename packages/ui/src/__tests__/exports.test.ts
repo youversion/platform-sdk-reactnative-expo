@@ -68,6 +68,7 @@ describe('package exports', () => {
     expect(names).not.toContain('Text')
     expect(names).not.toContain('Card')
     expect(names).not.toContain('Avatar')
+    expect(names).not.toContain('PersonIcon')
     expect(names).not.toContain('BibleReaderToolbar')
     expect(names).not.toContain('BibleReaderSearchSheet')
     expect(names).not.toContain('Input')

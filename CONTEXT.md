@@ -48,11 +48,7 @@ _Avoid_: Passage id, USFM ref
 
 **Reader Location**:
 The last committed Bible location (`book`, `chapter`, `versionId`) a **Native Wrapper** restores on launch for uncontrolled readers. Same shape as **Picker Selection**, but names the persisted snapshot rather than the commit event. Controlled `book` / `chapter` / `versionId` win and are not overwritten by the snapshot. Uncontrolled **BibleCard** persists committed `versionId` in MMKV, separate from this snapshot.
-_Avoid_: **Reader Navigation** (the pending-request object); passage state
-
-**Reader Navigation**:
-The public pending-request object (`BibleReaderNavigation`) a host creates and passes into `BibleReader`. `request` and `focusReference` queue one jump to a version / book / chapter; a newer call replaces an older one; the Reader consumes it once, including when submitted before mount. Verse scroll and focus fields are stored for a later release and do not move or dim the chapter today. Goes through the existing `book` / `chapter` / `versionId` setters, so controlled props still notify the host and uncontrolled readers still persist **Reader Location**.
-_Avoid_: Adding methods to **BibleReaderHandle**; new DOM / WebView props; treating this as **Reader Location** (that is the MMKV snapshot)
+_Avoid_: Reader navigation, passage state
 
 **Picker Press**:
 The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.
@@ -103,7 +99,7 @@ The visible controls around reader content, including chapter navigation, versio
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Native Reader Toolbar**:
-The native row of Reader triggers on iOS and Android — avatar when auth is on, chapter with prev/next chevrons, version abbreviation, Search, and a settings gear. Layout and sizes follow the Web SDK `BibleReader.Toolbar`. Presses open the existing sheets (or the sign-in / sign-out popover). Changing books looks up the new name at once. Changing versions keeps the last list and short name, and the buttons show a small spinner until the new ones land — same as the Web SDK toolbar. A version seen before paints at once. The version id is only the fallback when the short name never arrives. Next stays off until that list lands. At the last chapter of a book it opens chapter 1 of the next book. Previous from chapter 1 opens the last chapter of the previous book. Both stay off at the ends of the list. A title with no chapter list leaves Next off. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands. The Web SDK `BibleReader.Toolbar` stays on web only.
+The native row of Reader triggers on iOS and Android — avatar when auth is on, chapter with prev/next chevrons, version abbreviation, Search, and a settings gear. Layout and sizes follow the Web SDK `BibleReader.Toolbar`. Presses open the existing sheets (or the sign-in / sign-out popover). Changing books looks up the new name at once. Changing versions drops the last catalog so Next cannot walk it, and covers the last short name with a spinner until the new ones land. Previous can still step back inside the book using the chapter number. A version seen before paints at once. When the short name never arrives, the version button shows Select version, not the id. Change Bible version is the accessibility label, not visible text. Next stays off until that list lands. Chapter and version presses open sheets. They do not retry a settled lookup. At the last chapter of a book it opens chapter 1 of the next book. Previous from chapter 1 opens the last chapter of the previous book and skips intros. Both stay off at the ends of the list. A title with no chapter list still opens the next book on Next. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands, and gets an empty string when the lookup fails. The Web SDK `BibleReader.Toolbar` stays on web only.
 _Avoid_: In-WebView toolbar on iOS/Android; a spare Search bar above the WebView
 
 **Compiled Distribution**:

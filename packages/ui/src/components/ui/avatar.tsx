@@ -4,8 +4,8 @@ import { Image, StyleSheet, View } from 'react-native'
 import type { ImageProps, ViewProps } from 'react-native'
 
 import { useTokens } from '../../hooks'
-import { PersonIcon } from '../../native/icons/person-icon'
 import { sansFace } from '../../theme/fonts'
+import { PersonIcon } from './person-icon'
 import { Text } from './text'
 
 /** Fits inside the 32px avatar with the 2px fallback border. */
@@ -16,6 +16,7 @@ const AVATAR_SIZE = 32
 
 type AvatarContextValue = {
   readonly size: number
+  readonly foreground: string
 }
 
 const AvatarContext = createContext<AvatarContextValue | null>(null)
@@ -30,7 +31,10 @@ function useAvatarContext(): AvatarContextValue {
 
 /** "Cam Anderson" → "CA", "Cher" → "C". Same rule as the web ProfileAvatar. */
 function initialsFromName(name: string): string {
-  const words = name.trim().split(/\s+/).filter((part) => part.length > 0)
+  const words = name
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
   const first = words[0]
   if (first === undefined) {
     return ''
@@ -46,7 +50,10 @@ export type AvatarProps = ViewProps
 
 function AvatarRoot({ style, ...props }: AvatarProps): ReactNode {
   const tokens = useTokens()
-  const context = useMemo(() => ({ size: AVATAR_SIZE }), [])
+  const context = useMemo(
+    () => ({ size: AVATAR_SIZE, foreground: tokens.foreground }),
+    [tokens.foreground],
+  )
 
   return (
     <AvatarContext.Provider value={context}>
@@ -79,7 +86,7 @@ function AvatarImage({ uri, style, ...props }: AvatarImageProps): ReactNode {
 
   return (
     <Image
-      accessibilityRole="image"
+      accessible={false}
       {...props}
       source={{ uri }}
       resizeMode="cover"
@@ -93,7 +100,7 @@ export type AvatarFallbackProps = ViewProps & {
 }
 
 function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNode {
-  useAvatarContext()
+  const { foreground } = useAvatarContext()
   const tokens = useTokens()
   const trimmed = name?.trim() ?? ''
   let initials = ''
@@ -109,7 +116,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
         style={[
           styles.initials,
           {
-            color: tokens.foreground,
+            color: foreground,
             ...sansFace(tokens.fontFamily.sans, 700),
           },
         ]}
@@ -120,7 +127,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
   } else {
     label = (
       <PersonIcon
-        color={tokens.foreground}
+        color={foreground}
         size={FALLBACK_PERSON_ICON_SIZE}
         testID="avatar-fallback-person"
       />
@@ -136,7 +143,7 @@ function AvatarFallback({ name, style, ...props }: AvatarFallbackProps): ReactNo
         {
           backgroundColor: tokens.background,
           borderWidth: 2,
-          borderColor: tokens.foreground,
+          borderColor: foreground,
           borderRadius: tokens.radius.full,
         },
         style,

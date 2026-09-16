@@ -4,6 +4,7 @@ import type { TextStyle, ViewStyle } from 'react-native'
 
 import { Avatar } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
+import { PersonIcon } from '../components/ui/person-icon'
 import { Popover } from '../components/ui/popover'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -12,12 +13,14 @@ import { sansFace } from '../theme/fonts'
 import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { GearIcon } from './icons/gear-icon'
-import { PersonIcon } from './icons/person-icon'
 import { SearchIcon } from './icons/search-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return sansFace(tokens.fontFamily.sans, 700)
 }
+
+/** 36pt visual + 4pt each side = 44pt iOS minimum. */
+const ICON_HIT_SLOP = 4
 
 function iconHitStyle(tokens: Tokens): ViewStyle {
   return {
@@ -67,7 +70,8 @@ function ToolbarUserMenu({
       <Popover>
         <Popover.Trigger
           testID="reader-toolbar-avatar"
-          accessibilityLabel={name?.trim() || t('signOut')}
+          hitSlop={ICON_HIT_SLOP}
+          accessibilityLabel={name?.trim() || t('userAvatarAlt')}
           style={[
             iconHitStyle(tokens),
             {
@@ -79,7 +83,7 @@ function ToolbarUserMenu({
         >
           <Avatar>{portrait}</Avatar>
         </Popover.Trigger>
-        <Popover.Content align="start" style={styles.userMenu}>
+        <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
           <Popover.Close
             onPress={onSignOutPress}
             testID="reader-toolbar-sign-out"
@@ -96,12 +100,13 @@ function ToolbarUserMenu({
     <Popover>
       <Popover.Trigger
         testID="reader-toolbar-user"
+        hitSlop={ICON_HIT_SLOP}
         accessibilityLabel={t('signIn')}
         style={[iconHitStyle(tokens), { backgroundColor: tokens.muted }]}
       >
         <PersonIcon color={tokens.foreground} size={24} />
       </Popover.Trigger>
-      <Popover.Content align="start" style={styles.userMenu}>
+      <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
         <Popover.Close
           onPress={onSignInPress}
           testID="reader-toolbar-sign-in"
@@ -159,12 +164,17 @@ function VersionContent({
   isVersionLoading: boolean
 }): ReactNode {
   const tokens = useTokens()
+  const { t } = useSdkTranslation()
 
   if (isVersionLoading) {
     return <ToolbarSpinner testID="reader-toolbar-version-loading" />
   }
 
-  return <Button.Text style={boldLabelStyle(tokens)}>{versionLabel}</Button.Text>
+  let label = versionLabel
+  if (label.length === 0) {
+    label = t('selectVersion')
+  }
+  return <Button.Text style={boldLabelStyle(tokens)}>{label}</Button.Text>
 }
 
 export type BibleReaderToolbarProps = {
@@ -213,6 +223,14 @@ export function BibleReaderToolbar({
 }: BibleReaderToolbarProps): ReactNode {
   const tokens = useTokens()
   const { t } = useSdkTranslation()
+  let chapterAriaLabel = t('changeBibleBookAndChapterAriaLabel')
+  if (isBookTitleLoading) {
+    chapterAriaLabel = t('loading')
+  }
+  let versionAriaLabel = t('changeBibleVersionAriaLabel')
+  if (isVersionLoading) {
+    versionAriaLabel = t('loadingBibleVersionAriaLabel')
+  }
 
   return (
     <View
@@ -236,6 +254,7 @@ export function BibleReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
+          hitSlop={ICON_HIT_SLOP}
           disabled={!canGoPrevious}
           onPress={onPreviousChapterPress}
           accessibilityLabel={t('previousChapterAriaLabel')}
@@ -248,6 +267,7 @@ export function BibleReaderToolbar({
           size="lg"
           disabled={isBookTitleLoading}
           onPress={onChapterPress}
+          accessibilityLabel={chapterAriaLabel}
           testID="reader-toolbar-chapter"
           style={styles.chapter}
         >
@@ -260,6 +280,7 @@ export function BibleReaderToolbar({
         <Button
           variant="ghost"
           size="icon"
+          hitSlop={ICON_HIT_SLOP}
           disabled={!canGoNext}
           onPress={onNextChapterPress}
           accessibilityLabel={t('nextChapterAriaLabel')}
@@ -273,6 +294,7 @@ export function BibleReaderToolbar({
         size="lg"
         disabled={isVersionLoading}
         onPress={onVersionPress}
+        accessibilityLabel={versionAriaLabel}
         testID="reader-toolbar-version"
         style={styles.version}
       >
@@ -283,6 +305,7 @@ export function BibleReaderToolbar({
       <Button
         variant="secondary"
         size="icon"
+        hitSlop={ICON_HIT_SLOP}
         onPress={onSearchPress}
         accessibilityLabel={t('search')}
         testID="reader-toolbar-search"
@@ -292,6 +315,7 @@ export function BibleReaderToolbar({
       <Button
         variant="secondary"
         size="icon"
+        hitSlop={ICON_HIT_SLOP}
         onPress={onSettingsPress}
         accessibilityLabel={t('fontAndSettings')}
         testID="reader-toolbar-settings"
@@ -323,21 +347,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 0,
   },
   version: {
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: 96,
+    minWidth: 44,
     paddingHorizontal: 16,
   },
   versionLabel: {
     minWidth: 28,
+    maxWidth: '100%',
     alignItems: 'center',
     justifyContent: 'center',
   },
   userMenu: {
-    width: 120,
+    width: 160,
     padding: 4,
   },
   menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
     paddingVertical: 4,

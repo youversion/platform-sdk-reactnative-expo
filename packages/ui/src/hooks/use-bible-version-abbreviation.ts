@@ -9,7 +9,15 @@ export type BibleVersionAbbreviation = {
   isLoading: boolean
 }
 
-/** Loads the short version name and language for the toolbar. Falls back to nothing on a miss. */
+const EMPTY_META: VersionMeta = { abbreviation: null, languageId: null }
+
+/** The version each short name belongs to, so a settled miss cannot keep the last one's. */
+type OwnedMeta = {
+  versionId: number
+  value: VersionMeta
+}
+
+/** Loads the short version name and language for the toolbar. */
 export function useBibleVersionAbbreviation(
   versionId: number,
   options?: { enabled?: boolean },
@@ -17,17 +25,18 @@ export function useBibleVersionAbbreviation(
   const enabled = options?.enabled ?? true
   const { fetchBibleContent } = useYouVersion()
   const cacheRef = useRef(new Map<number, VersionMeta>())
+  const generationRef = useRef(new Map<number, number>())
   const [versionIdForState, setVersionIdForState] = useState(versionId)
-  const [abbreviation, setAbbreviation] = useState<string | null>(null)
-  const [languageId, setLanguageId] = useState<string | null>(null)
+  // One version's short name and language move together: a mix of two versions would hand the
+  // consumer this version's name with the last one's language.
+  const [meta, setMeta] = useState<OwnedMeta | null>(null)
   const [settled, setSettled] = useState(false)
 
   if (versionIdForState !== versionId) {
     setVersionIdForState(versionId)
     const cached = cacheRef.current.get(versionId)
     if (cached !== undefined) {
-      setAbbreviation(cached.abbreviation)
-      setLanguageId(cached.languageId)
+      setMeta({ versionId, value: cached })
       setSettled(true)
     } else {
       setSettled(false)
@@ -40,29 +49,27 @@ export function useBibleVersionAbbreviation(
     }
 
     let cancelled = false
+    const generation = (generationRef.current.get(versionId) ?? 0) + 1
+    generationRef.current.set(versionId, generation)
 
-    void fetchBibleContent({ path: `/v1/bibles/${versionId}` })
+    void fetchBibleContent({
+      path: `/v1/bibles/${versionId}`,
+    })
       .then((response) => {
         if (response.status !== 200) {
           return
         }
         const next = versionMetaFromBody(response.body)
-        if (next.abbreviation === null && next.languageId === null) {
-          return
+        if (generationRef.current.get(versionId) === generation) {
+          cacheRef.current.set(versionId, next)
         }
-        cacheRef.current.set(versionId, next)
-        if (cancelled) {
-          return
-        }
-        if (next.abbreviation !== null) {
-          setAbbreviation(next.abbreviation)
-        }
-        if (next.languageId !== null) {
-          setLanguageId(next.languageId)
+        if (!cancelled) {
+          setMeta({ versionId, value: next })
         }
       })
       .catch(() => {
-        // Keep the last short name on the button. A failed lookup is not worth a blank control.
+        // The miss is reported by leaving `meta` on the version it came from, which `isStale`
+        // below then drops. Painting the last version's short name would misname this one.
       })
       .finally(() => {
         if (!cancelled) {
@@ -75,5 +82,9 @@ export function useBibleVersionAbbreviation(
     }
   }, [enabled, fetchBibleContent, versionId])
 
-  return { abbreviation, languageId, isLoading: enabled && !settled }
+  const isLoading = enabled && !settled
+  // The last short name can stay on the return while `isLoading` is true. The toolbar
+  // covers it with a spinner.
+  const isStale = meta === null || (meta.versionId !== versionId && !isLoading)
+  return { ...(isStale ? EMPTY_META : meta.value), isLoading }
 }

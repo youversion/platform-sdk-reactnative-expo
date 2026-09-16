@@ -1,4 +1,28 @@
-import { adjacentBookChapter, catalogFromBooksBody, entryFromBooksCatalog } from '../bible-book-title'
+import {
+  adjacentBookChapter,
+  catalogFromBooksBody,
+  chapterLabelForBook,
+  entryFromBooksCatalog,
+  type BookCatalogEntry,
+} from '../bible-book-title'
+
+const INTRO = { id: 'INTRO', title: 'Introduction' }
+
+/** A catalog row, optionally led by the intro entry the way the API sends it. */
+function book(
+  title: string,
+  chapterCount: number,
+  options?: { intro?: boolean },
+): BookCatalogEntry {
+  const chapters = Array.from({ length: chapterCount }, (_, index) => ({
+    id: String(index + 1),
+    title: String(index + 1),
+  }))
+  if (options?.intro === true) {
+    return { title, chapters: [INTRO, ...chapters], intro: INTRO }
+  }
+  return { title, chapters, intro: null }
+}
 
 describe('catalogFromBooksBody', () => {
   it('reads a data array', () => {
@@ -11,14 +35,43 @@ describe('catalogFromBooksBody', () => {
       }),
     )
 
-    expect(catalog?.get('JHN')).toEqual({ title: 'John', chapterCount: 2 })
-    expect(catalog?.get('HEB')).toEqual({ title: 'Hebrews', chapterCount: null })
+    expect(catalog?.get('JHN')).toEqual({
+      title: 'John',
+      chapters: [
+        { id: '1', title: '1' },
+        { id: '2', title: '2' },
+      ],
+      intro: null,
+    })
+    expect(catalog?.get('HEB')).toEqual({ title: 'Hebrews', chapters: null, intro: null })
+  })
+
+  it('keeps chapter titles and the intro entry', () => {
+    const catalog = catalogFromBooksBody(
+      JSON.stringify([
+        {
+          id: 'GEN',
+          title: 'Genesis',
+          intro: { id: 'INTRO', passage_id: 'GEN.INTRO', title: 'Introduction' },
+          chapters: [
+            { id: 'INTRO', title: 'Introduction' },
+            { id: '1', title: '1' },
+          ],
+        },
+      ]),
+    )
+
+    expect(catalog?.get('GEN')).toEqual({
+      title: 'Genesis',
+      chapters: [INTRO, { id: '1', title: '1' }],
+      intro: INTRO,
+    })
   })
 
   it('reads a bare array and usfm keys', () => {
     const catalog = catalogFromBooksBody(JSON.stringify([{ usfm: 'GEN', title: 'Genesis' }]))
 
-    expect(catalog?.get('GEN')).toEqual({ title: 'Genesis', chapterCount: null })
+    expect(catalog?.get('GEN')).toEqual({ title: 'Genesis', chapters: null, intro: null })
   })
 
   it('returns null for junk', () => {
@@ -26,17 +79,22 @@ describe('catalogFromBooksBody', () => {
     expect(catalogFromBooksBody('{}')).toBeNull()
     expect(catalogFromBooksBody(JSON.stringify({ data: { title: 'John' } }))).toBeNull()
   })
+
+  it('returns null for an empty list', () => {
+    expect(catalogFromBooksBody(JSON.stringify([]))).toBeNull()
+    expect(catalogFromBooksBody(JSON.stringify({ data: [] }))).toBeNull()
+  })
 })
 
 describe('entryFromBooksCatalog', () => {
   const catalog = new Map([
-    ['JHN', { title: 'John', chapterCount: 21 }],
-    ['HEB', { title: 'Hebrews', chapterCount: 13 }],
+    ['JHN', book('John', 21)],
+    ['HEB', book('Hebrews', 13)],
   ])
 
   it('finds the selected book', () => {
-    expect(entryFromBooksCatalog(catalog, 'JHN')).toEqual({ title: 'John', chapterCount: 21 })
-    expect(entryFromBooksCatalog(catalog, 'jhn')).toEqual({ title: 'John', chapterCount: 21 })
+    expect(entryFromBooksCatalog(catalog, 'JHN')?.title).toBe('John')
+    expect(entryFromBooksCatalog(catalog, 'jhn')?.title).toBe('John')
   })
 
   it('returns null when the book is missing', () => {
@@ -45,11 +103,32 @@ describe('entryFromBooksCatalog', () => {
   })
 })
 
+describe('chapterLabelForBook', () => {
+  it('names the intro instead of showing its id', () => {
+    expect(chapterLabelForBook(book('Genesis', 50, { intro: true }), 'INTRO')).toBe('Introduction')
+  })
+
+  it('uses the catalog chapter title', () => {
+    const psalms: BookCatalogEntry = {
+      title: 'Psalms',
+      chapters: [{ id: '119', title: 'Psalm 119' }],
+      intro: null,
+    }
+
+    expect(chapterLabelForBook(psalms, '119')).toBe('Psalm 119')
+  })
+
+  it('falls back to the raw chapter', () => {
+    expect(chapterLabelForBook(book('John', 21), '99')).toBe('99')
+    expect(chapterLabelForBook(null, '1')).toBe('1')
+  })
+})
+
 describe('adjacentBookChapter', () => {
   const catalog = new Map([
-    ['JHN', { title: 'John', chapterCount: 2 }],
-    ['ACT', { title: 'Acts', chapterCount: 3 }],
-    ['ROM', { title: 'Romans', chapterCount: 1 }],
+    ['JHN', book('John', 2)],
+    ['ACT', book('Acts', 3)],
+    ['ROM', book('Romans', 1)],
   ])
 
   it('steps within the current book', () => {
@@ -82,6 +161,13 @@ describe('adjacentBookChapter', () => {
     expect(adjacentBookChapter(catalog, 'ROM', '1', 'next')).toBeNull()
   })
 
+  it('resolves a lowercase book id', () => {
+    expect(adjacentBookChapter(catalog, 'jhn', '1', 'next')).toEqual({
+      bookId: 'JHN',
+      chapterId: '2',
+    })
+  })
+
   it('still steps back a chapter before the catalog lands', () => {
     expect(adjacentBookChapter(null, 'JHN', '3', 'previous')).toEqual({
       bookId: 'JHN',
@@ -89,14 +175,104 @@ describe('adjacentBookChapter', () => {
     })
     expect(adjacentBookChapter(null, 'JHN', '1', 'previous')).toBeNull()
     expect(adjacentBookChapter(null, 'JHN', '1', 'next')).toBeNull()
+    expect(adjacentBookChapter(null, 'JHN', 'INTRO', 'previous')).toBeNull()
   })
 
   it('does not cross into a book with no chapter list', () => {
     const withGap = new Map([
-      ['JHN', { title: 'John', chapterCount: 2 }],
-      ['HEB', { title: 'Hebrews', chapterCount: null }],
+      ['JHN', book('John', 2)],
+      ['HEB', { title: 'Hebrews', chapters: null, intro: null }],
     ])
 
     expect(adjacentBookChapter(withGap, 'JHN', '2', 'next')).toBeNull()
+  })
+
+  it('opens the next book when the current title has no chapter list', () => {
+    const withGap = new Map([
+      ['JHN', { title: 'John', chapters: null, intro: null }],
+      ['ACT', book('Acts', 1)],
+    ])
+
+    expect(adjacentBookChapter(withGap, 'JHN', '1', 'next')).toEqual({
+      bookId: 'ACT',
+      chapterId: '1',
+    })
+  })
+
+  describe('intro chapters', () => {
+    const withIntros = new Map([
+      ['JHN', book('John', 2, { intro: true })],
+      ['ACT', book('Acts', 3, { intro: true })],
+    ])
+
+    it('does not count the intro as a chapter', () => {
+      expect(adjacentBookChapter(withIntros, 'JHN', '2', 'next')).toEqual({
+        bookId: 'ACT',
+        chapterId: '1',
+      })
+    })
+
+    it('leaves the intro for the first canonical chapter', () => {
+      expect(adjacentBookChapter(withIntros, 'JHN', 'INTRO', 'next')).toEqual({
+        bookId: 'JHN',
+        chapterId: '1',
+      })
+    })
+
+    it('opens the previous book from the intro', () => {
+      expect(adjacentBookChapter(withIntros, 'ACT', 'INTRO', 'previous')).toEqual({
+        bookId: 'JHN',
+        chapterId: '2',
+      })
+    })
+
+    it('skips the intro when leaving chapter 1', () => {
+      expect(adjacentBookChapter(withIntros, 'ACT', '1', 'previous')).toEqual({
+        bookId: 'JHN',
+        chapterId: '2',
+      })
+    })
+
+    it('skips a book-prefixed intro id when leaving chapter 1', () => {
+      const withPrefixedIntros = new Map([
+        [
+          'JHN',
+          {
+            title: 'John',
+            chapters: [
+              { id: 'JHN.INTRO', title: 'Introduction' },
+              { id: '1', title: '1' },
+              { id: '2', title: '2' },
+            ],
+            intro: { id: 'JHN.INTRO', title: 'Introduction' },
+          },
+        ],
+        [
+          'ACT',
+          {
+            title: 'Acts',
+            chapters: [
+              { id: 'ACT.INTRO', title: 'Introduction' },
+              { id: '1', title: '1' },
+              { id: '2', title: '2' },
+              { id: '3', title: '3' },
+            ],
+            intro: { id: 'ACT.INTRO', title: 'Introduction' },
+          },
+        ],
+      ])
+
+      expect(adjacentBookChapter(withPrefixedIntros, 'ACT', '1', 'previous')).toEqual({
+        bookId: 'JHN',
+        chapterId: '2',
+      })
+    })
+
+    it('skips the next book intro when crossing forward', () => {
+      expect(adjacentBookChapter(withIntros, 'JHN', '2', 'next')).not.toEqual({
+        bookId: 'ACT',
+        chapterId: 'INTRO',
+      })
+    })
   })
 })
