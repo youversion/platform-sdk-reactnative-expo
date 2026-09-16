@@ -52,6 +52,9 @@ export function useBibleBookTitle(
     if (!enabled) {
       return
     }
+    if (cacheRef.current.has(versionId)) {
+      return
+    }
 
     let cancelled = false
     const generation = (generationRef.current.get(versionId) ?? 0) + 1
