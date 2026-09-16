@@ -530,7 +530,7 @@ describe('BibleReader native toolbar', () => {
     ).toMatchObject({ disabled: true })
   })
 
-  it('keeps the version pill empty when the lookup has a language tag and no abbreviation', async () => {
+  it('shows Select version when the lookup has a language tag and no abbreviation', async () => {
     const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
     ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
@@ -584,6 +584,7 @@ describe('BibleReader native toolbar', () => {
       { wrapper: defaultWrapper },
     )
 
+    expect(screen.getByText(en.selectVersion)).toBeTruthy()
     expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
@@ -789,6 +790,7 @@ describe('BibleReader native toolbar', () => {
       />,
       { wrapper: defaultWrapper },
     )
+    expect(screen.getByText(en.selectVersion)).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(

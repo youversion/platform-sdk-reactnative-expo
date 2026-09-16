@@ -154,7 +154,7 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     // Holding NIV here would name version 128 after the one before it, and hand the consumer
-    // its language too. Once the lookup settles empty, the pill stays empty.
+    // its language too. Once the lookup settles empty, the toolbar shows Select version.
     rerender({ versionId: 128 })
     await waitFor(() => {
       expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
