@@ -20,7 +20,7 @@ import {
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
 import { getTokens } from '../../theme'
-import { signedOutAuth } from '../../test-utils/default-hook-overrides'
+import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import {
   installBibleReaderTestImpls,
   resetImpls,
@@ -29,6 +29,7 @@ import {
 import { restoreViewMeasure, stubViewMeasure } from '../../test-utils/stub-view-measure'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
+import { YouVersionProvider } from '../youversion-provider'
 
 type LatestDomProps = {
   showToolbar?: boolean
@@ -81,6 +82,24 @@ const signedOutWrapper = youVersionProviderWrapper('light', undefined, {
   useYVAuth: signedOutAuth({ signIn }),
 })
 const unconfiguredWrapper = youVersionProviderWrapper('light', undefined, { useYVAuth: null })
+
+const restoringAuth = signedOutAuth({
+  isLoading: true,
+  userInfo: { id: 'user-1', name: 'Jane Doe', avatarUrl: 'https://cdn.example.com/a.png' },
+  signIn,
+})
+
+function ToolbarAuthHarness({ auth }: { auth: typeof restoringAuth | typeof signedInAuth | null }) {
+  return (
+    <YouVersionProvider
+      appKey="test-key"
+      theme="light"
+      hookOverrides={{ ...defaultHookOverrides, useYVAuth: auth }}
+    >
+      <BibleReader book="JHN" chapter="1" versionId={3034} />
+    </YouVersionProvider>
+  )
+}
 
 const user = userEvent.setup()
 const setupFetch = jest.mocked(global.fetch)
@@ -1232,5 +1251,36 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
     expect(screen.queryByText(en.signIn)).toBeNull()
     expect(screen.queryByText(en.signOut)).toBeNull()
+  })
+
+  it('hides the account control while a stored session is restoring, then shows the avatar', async () => {
+    installToolbarFetches()
+    const { rerender } = await renderToolbar(<ToolbarAuthHarness auth={restoringAuth} />)
+
+    expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+    expect(signIn).not.toHaveBeenCalled()
+
+    rerender(<ToolbarAuthHarness auth={signedInAuth} />)
+    await settleToolbarLookups()
+
+    expect(screen.getByTestId('reader-toolbar-avatar')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
+    expect(signIn).not.toHaveBeenCalled()
+  })
+
+  it('hides the account control while auth is restoring, then shows sign in when there is no session', async () => {
+    installToolbarFetches()
+    const { rerender } = await renderToolbar(<ToolbarAuthHarness auth={restoringAuth} />)
+
+    expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+
+    rerender(<ToolbarAuthHarness auth={signedOutAuth({ signIn })} />)
+    await settleToolbarLookups()
+
+    expect(screen.getByTestId('reader-toolbar-user')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-avatar')).toBeNull()
+    expect(signIn).not.toHaveBeenCalled()
   })
 })
