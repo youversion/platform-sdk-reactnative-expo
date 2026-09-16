@@ -62,12 +62,9 @@ export function YouVersionAuthButton({
         {text ? (
           <Button.Text>{text}</Button.Text>
         ) : (
-          <Trans
-            i18n={i18n}
-            i18nKey={i18nKey}
-            parent={Button.Text}
-            components={{ bold: boldComponent }}
-          />
+          <Button.Text>
+            <Trans i18n={i18n} i18nKey={i18nKey} components={{ bold: boldComponent }} />
+          </Button.Text>
         )}
       </Button>
     </ThemeContext.Provider>

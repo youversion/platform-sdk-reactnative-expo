@@ -51,12 +51,13 @@ Pass `i18n` from `useSdkTranslation()` to `<Trans>` — see `youversion-auth-but
 ```tsx
 const { t, i18n } = useSdkTranslation()
 
-<Trans
-  i18n={i18n}
-  i18nKey="signInWithYouVersion"
-  parent={Button.Text}
-  components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
-/>
+<Button.Text>
+  <Trans
+    i18n={i18n}
+    i18nKey="signInWithYouVersion"
+    components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
+  />
+</Button.Text>
 ```
 
 Matching entry in `platform-localization` (`sources/common/en.json`):
