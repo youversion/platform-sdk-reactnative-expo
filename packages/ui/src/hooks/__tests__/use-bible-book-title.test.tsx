@@ -308,149 +308,6 @@ describe('useBibleBookTitle', () => {
     })
   })
 
-  it('refetches when retryKey bumps after a failed lookup', async () => {
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error('network down'))
-    })
-
-    const { result, rerender } = renderHook(
-      ({ retryKey }: { retryKey: number }) => useBibleBookTitle(111, 'JHN', { retryKey }),
-      { wrapper: wrapper(), initialProps: { retryKey: 0 } },
-    )
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-    expect(result.current.title).toBeNull()
-
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
-        return booksResponse(BOOKS_BODY)
-      }
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
-    })
-
-    rerender({ retryKey: 1 })
-    expect(result.current.isLoading).toBe(true)
-    await waitFor(() => {
-      expect(result.current).toEqual({
-        title: 'John',
-        entry: JOHN_ENTRY,
-        isLoading: false,
-        catalog: expect.any(Map),
-      })
-    })
-  })
-
-  it('retries past a cacheable empty catalog', async () => {
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
-        return booksResponse(JSON.stringify({ data: [] }))
-      }
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
-    })
-
-    const { result, rerender } = renderHook(
-      ({ retryKey }: { retryKey: number }) => useBibleBookTitle(111, 'JHN', { retryKey }),
-      { wrapper: wrapper(), initialProps: { retryKey: 0 } },
-    )
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-    expect(result.current.catalog).toBeNull()
-
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
-        return booksResponse(BOOKS_BODY)
-      }
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
-    })
-
-    rerender({ retryKey: 1 })
-    await waitFor(() => {
-      expect(result.current.title).toBe('John')
-    })
-  })
-
-  it('retries past a cacheable empty catalog after the effect remounts', async () => {
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
-        return booksResponse(JSON.stringify({ data: [] }))
-      }
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
-    })
-
-    const { result, rerender } = renderHook(
-      ({ retryKey, enabled }: { retryKey: number; enabled: boolean }) =>
-        useBibleBookTitle(111, 'JHN', { retryKey, enabled }),
-      { wrapper: wrapper(), initialProps: { retryKey: 0, enabled: true } },
-    )
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false)
-    })
-    expect(result.current.catalog).toBeNull()
-
-    const booksResolvers: Array<(value: Response) => void> = []
-    const booksFetches: Promise<Response>[] = []
-    fetchMock.mockImplementation((input: RequestInfo | URL) => {
-      const url = urlFromFetchInput(input)
-      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
-        const pending = new Promise<Response>((resolve) => {
-          booksResolvers.push(resolve)
-        })
-        booksFetches.push(pending)
-        return pending
-      }
-      if (url.includes('/v1/fonts/')) {
-        return fontResponse()
-      }
-      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
-    })
-
-    rerender({ retryKey: 1, enabled: true })
-    // Strict Mode remounts the effect with the same retryKey before the retry fetch
-    // settles. Skip must stay on for that remount or it rereads the empty 200.
-    rerender({ retryKey: 1, enabled: false })
-    rerender({ retryKey: 1, enabled: true })
-
-    await act(async () => {
-      for (const resolve of booksResolvers) {
-        resolve(
-          new Response(BOOKS_BODY, {
-            status: 200,
-            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
-          }),
-        )
-      }
-      await Promise.all(booksFetches)
-    })
-    await waitFor(() => {
-      expect(result.current.title).toBe('John')
-    })
-  })
-
   it('does not let a cancelled catalog overwrite a newer cache entry', async () => {
     let resolveFirst!: (value: Response) => void
     let resolveSecond!: (value: Response) => void
@@ -481,15 +338,18 @@ describe('useBibleBookTitle', () => {
     })
 
     const { result, rerender } = renderHook(
-      ({ versionId, retryKey }: { versionId: number; retryKey: number }) =>
-        useBibleBookTitle(versionId, 'JHN', { retryKey }),
-      { wrapper: wrapper(), initialProps: { versionId: 111, retryKey: 0 } },
+      ({ versionId }: { versionId: number }) => useBibleBookTitle(versionId, 'JHN'),
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
     )
 
     await waitFor(() => {
       expect(booksCalls).toBe(1)
     })
-    rerender({ versionId: 111, retryKey: 1 })
+    rerender({ versionId: 128 })
+    await waitFor(() => {
+      expect(result.current.title).toBe('Juan')
+    })
+    rerender({ versionId: 111 })
     await waitFor(() => {
       expect(booksCalls).toBe(2)
     })
@@ -517,11 +377,14 @@ describe('useBibleBookTitle', () => {
       await first
     })
 
-    rerender({ versionId: 128, retryKey: 1 })
+    rerender({ versionId: 128 })
     await waitFor(() => {
       expect(result.current.title).toBe('Juan')
     })
-    rerender({ versionId: 111, retryKey: 1 })
+    rerender({ versionId: 111 })
     expect(result.current.title).toBe('John')
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
   })
 })

@@ -308,14 +308,12 @@ export function BibleReader({
   const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = book ?? DEFAULT_BOOK
   const showNativeToolbar = Platform.OS !== 'web' && showToolbar
-  const [toolbarLookupRetry, setToolbarLookupRetry] = useState(0)
   const {
     abbreviation: versionAbbreviation,
     languageId: versionLanguageId,
     isLoading: isVersionMetaLoading,
   } = useBibleVersionAbbreviation(resolvedVersionId, {
     enabled: showNativeToolbar,
-    retryKey: toolbarLookupRetry,
   })
   const versionLabel = versionAbbreviation ?? ''
   const {
@@ -325,7 +323,6 @@ export function BibleReader({
     catalog: bookCatalog,
   } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
     enabled: showNativeToolbar,
-    retryKey: toolbarLookupRetry,
   })
   const bookLabel = bookTitle ?? ''
   const resolvedChapter = chapter ?? DEFAULT_CHAPTER
@@ -704,12 +701,6 @@ export function BibleReader({
               avatarUrl={userInfo?.avatarUrl}
               name={userInfo?.name}
               onChapterPress={() => {
-                if (
-                  (!isBookTitleLoading && bookCatalog === null) ||
-                  (!isVersionMetaLoading && versionAbbreviation === null)
-                ) {
-                  setToolbarLookupRetry((key) => key + 1)
-                }
                 void handleChapterPickerPress({
                   book: resolvedBook,
                   chapter: resolvedChapter,
@@ -735,15 +726,6 @@ export function BibleReader({
                 })
               }}
               onVersionPress={() => {
-                // The button is disabled while the tag loads, so a press here means the lookup
-                // settled. An empty tag is a lookup that failed, not one still in flight —
-                // `languageId` stays a string for Web SDK parity, so empty carries "unknown".
-                if (
-                  (!isBookTitleLoading && bookCatalog === null) ||
-                  (!isVersionMetaLoading && versionAbbreviation === null)
-                ) {
-                  setToolbarLookupRetry((key) => key + 1)
-                }
                 void handleVersionPickerPress({
                   versionId: resolvedVersionId,
                   languageId: versionLanguageId ?? '',

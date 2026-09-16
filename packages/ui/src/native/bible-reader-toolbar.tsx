@@ -168,8 +168,6 @@ function VersionContent({
     return <ToolbarSpinner testID="reader-toolbar-version-loading" />
   }
 
-  // No short visible key for a miss. Stay empty; the button's accessibilityLabel
-  // still names the control, and flexShrink keeps the pill from crowding the chapter.
   return <Button.Text style={boldLabelStyle(tokens)}>{versionLabel}</Button.Text>
 }
 

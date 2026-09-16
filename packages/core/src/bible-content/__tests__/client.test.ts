@@ -264,23 +264,6 @@ describe('createBibleContentClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
-  it('skips the store and still writes when skipCache is true', async () => {
-    const { client, fetchMock, store } = setup()
-    fetchMock
-      .mockResolvedValueOnce(new Response('{"a":1}', { status: 200 }))
-      .mockResolvedValueOnce(new Response('{"a":2}', { status: 200 }))
-
-    await client({ path: PATH })
-    const skipped = await client({ path: PATH, skipCache: true })
-
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(skipped.body).toBe('{"a":2}')
-    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toEqual({
-      body: '{"a":2}',
-      expiresAt: NOW + DEFAULT_CONTENT_LIFETIME_MS,
-    })
-  })
-
   it('does not let an older in-flight fetch overwrite a newer store body', async () => {
     const { client, fetchMock, store } = setup()
     let resolveFirst!: (value: Response) => void
@@ -299,8 +282,8 @@ describe('createBibleContentClient', () => {
           }),
       )
 
-    const pendingFirst = client({ path: PATH, skipCache: true })
-    const pendingSecond = client({ path: PATH, skipCache: true })
+    const pendingFirst = client({ path: PATH })
+    const pendingSecond = client({ path: PATH })
 
     resolveSecond(new Response('{"a":2}', { status: 200 }))
     await pendingSecond

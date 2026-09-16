@@ -7,8 +7,6 @@ import { createBibleContentStore, type BibleContentStore } from './content-store
 
 export type BibleContentRequest = {
   path: string
-  /** Skip the store read and hit the network. A successful 2xx still writes. */
-  skipCache?: boolean
 }
 
 export type BibleContentResponse = {
@@ -45,7 +43,7 @@ export function createBibleContentClient({
 }: BibleContentClientDeps): FetchBibleContent {
   const writeGenerationByKey = new Map<string, number>()
 
-  return async ({ path, skipCache = false }) => {
+  return async ({ path }) => {
     const [pathname] = path.split('?', 1)
     const versionId = pathname === undefined ? null : parseVersionId(pathname)
     if (versionId === null) {
@@ -53,12 +51,10 @@ export function createBibleContentClient({
     }
 
     const key = `${apiHost}${path}`
-    if (!skipCache) {
-      const cached = store.read(versionId, key, now())
-      if (cached !== null) {
-        // Entries keep no content type; stored bodies are always JSON (ADR 0020).
-        return { status: 200, body: cached.body, contentType: 'application/json' }
-      }
+    const cached = store.read(versionId, key, now())
+    if (cached !== null) {
+      // Entries keep no content type; stored bodies are always JSON (ADR 0020).
+      return { status: 200, body: cached.body, contentType: 'application/json' }
     }
 
     const writeGeneration = (writeGenerationByKey.get(key) ?? 0) + 1

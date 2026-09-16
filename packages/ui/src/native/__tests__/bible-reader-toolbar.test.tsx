@@ -457,7 +457,7 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
   })
 
-  it('retries a failed catalog lookup when the chapter button is pressed', async () => {
+  it('does not retry a failed catalog lookup when the chapter button is pressed', async () => {
     let booksAttempts = 0
     ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
@@ -514,16 +514,97 @@ describe('BibleReader native toolbar', () => {
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
+    const booksCallsAfterSettle = booksAttempts
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
     })
     await settleToolbarLookups()
 
-    expect(screen.getByText('John 1')).toBeTruthy()
+    expect(screen.getByText('1')).toBeTruthy()
+    expect(screen.queryByText('John 1')).toBeNull()
+    expect(booksAttempts).toBe(booksCallsAfterSettle)
+    expect(screen.getByTestId('mock-chapter-picker-sheet')).toBeTruthy()
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
-    ).not.toMatchObject({ disabled: true })
+    ).toMatchObject({ disabled: true })
+  })
+
+  it('keeps the version pill empty when the lookup has a language tag and no abbreviation', async () => {
+    const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
+    ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/3034')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+          }),
+        )
+      }
+      if (isBooksCatalogUrl(url) && url.includes('/3034/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: [{ id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] }],
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+            },
+          ),
+        )
+      }
+      if (url.includes('/v1/fonts/')) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 1,
+              slug: 'untitled-serif',
+              family: 'Untitled Serif',
+              variants: [],
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json' },
+            },
+          ),
+        )
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    await renderToolbar(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={3034}
+        onVersionPickerPress={onVersionPickerPress}
+      />,
+      { wrapper: defaultWrapper },
+    )
+
+    expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
+    expect(screen.queryByText('3034')).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
+      en.changeBibleVersionAriaLabel,
+    )
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityState).not.toMatchObject(
+      { disabled: true },
+    )
+    const versionCallsAfterSettle = ensureSetupFetch().mock.calls.filter(([input]) =>
+      isVersionUrl(urlFromFetchInput(input)),
+    ).length
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+    })
+
+    expect(onVersionPickerPress).toHaveBeenCalledWith({ versionId: 3034, languageId: 'en' })
+    expect(
+      ensureSetupFetch().mock.calls.filter(([input]) => isVersionUrl(urlFromFetchInput(input)))
+        .length,
+    ).toBe(versionCallsAfterSettle)
   })
 
   it('opens the chapter and version sheets from the native row', async () => {
@@ -708,8 +789,6 @@ describe('BibleReader native toolbar', () => {
       />,
       { wrapper: defaultWrapper },
     )
-    // No catalog and no version meta: the version pill stays empty (the
-    // accessibilityLabel still names it); the chapter pill shows the id.
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(

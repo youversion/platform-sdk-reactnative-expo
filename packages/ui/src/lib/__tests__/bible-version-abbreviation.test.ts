@@ -20,6 +20,13 @@ describe('versionMetaFromBody', () => {
     ).toEqual({ abbreviation: 'NVI', languageId: 'es' })
   })
 
+  it('reads language_tag with no abbreviation', () => {
+    expect(versionMetaFromBody(JSON.stringify({ language_tag: 'en' }))).toEqual({
+      abbreviation: null,
+      languageId: 'en',
+    })
+  })
+
   it('reads a nested data object', () => {
     expect(
       versionMetaFromBody(JSON.stringify({ data: { abbreviation: 'KJV', language_tag: 'en' } })),

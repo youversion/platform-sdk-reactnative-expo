@@ -23,21 +23,17 @@ type OwnedCatalog = {
   value: Catalog
 }
 
-/** Loads the version's book list once, then looks up the selected book's name and chapters.
- * Cache, settle, and retryKey match `useBibleVersionAbbreviation`. */
+/** Loads the version's book list once, then looks up the selected book's name and chapters. */
 export function useBibleBookTitle(
   versionId: number,
   book: string,
-  options?: { enabled?: boolean; retryKey?: number },
+  options?: { enabled?: boolean },
 ): BibleBookTitle {
   const enabled = options?.enabled ?? true
-  const retryKey = options?.retryKey ?? 0
   const { fetchBibleContent } = useYouVersion()
   const cacheRef = useRef(new Map<number, Catalog>())
   const generationRef = useRef(new Map<number, number>())
-  const fetchedRetryKeyRef = useRef<number | null>(null)
   const [versionIdForState, setVersionIdForState] = useState(versionId)
-  const [retryKeyForState, setRetryKeyForState] = useState(retryKey)
   const [owned, setOwned] = useState<OwnedCatalog | null>(null)
   const [settled, setSettled] = useState(false)
 
@@ -52,13 +48,6 @@ export function useBibleBookTitle(
     }
   }
 
-  if (retryKeyForState !== retryKey) {
-    setRetryKeyForState(retryKey)
-    if (cacheRef.current.get(versionId) === undefined) {
-      setSettled(false)
-    }
-  }
-
   useEffect(() => {
     if (!enabled) {
       return
@@ -67,14 +56,9 @@ export function useBibleBookTitle(
     let cancelled = false
     const generation = (generationRef.current.get(versionId) ?? 0) + 1
     generationRef.current.set(versionId, generation)
-    // Skip for every run of this retryKey, including Strict Mode remounts. Stamp
-    // only after settle so a remount cannot reread the cached miss this retry is beating.
-    const skipCache =
-      fetchedRetryKeyRef.current !== null && fetchedRetryKeyRef.current !== retryKey
 
     void fetchBibleContent({
       path: `/v1/bibles/${versionId}/books`,
-      skipCache,
     })
       .then((response) => {
         if (response.status !== 200) {
@@ -96,7 +80,6 @@ export function useBibleBookTitle(
         // below then drops. Painting the last version's book name would misname this one.
       })
       .finally(() => {
-        fetchedRetryKeyRef.current = retryKey
         if (!cancelled) {
           setSettled(true)
         }
@@ -105,12 +88,11 @@ export function useBibleBookTitle(
     return () => {
       cancelled = true
     }
-  }, [enabled, fetchBibleContent, retryKey, versionId])
+  }, [enabled, fetchBibleContent, versionId])
 
   const isLoading = enabled && !settled
   // Chevrons read `catalog`, which is this version's list only. The last title can
   // stay on `title` while `isLoading` is true. The toolbar covers it with a spinner.
-  // A failed lookup stays empty until `retryKey` bumps.
   const isStale = owned === null || (owned.versionId !== versionId && !isLoading)
   const displayCatalog = isStale ? null : owned.value
   const entry = entryFromBooksCatalog(displayCatalog, book)
