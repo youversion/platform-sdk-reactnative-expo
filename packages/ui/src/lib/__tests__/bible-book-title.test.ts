@@ -233,6 +233,41 @@ describe('adjacentBookChapter', () => {
       })
     })
 
+    it('skips a book-prefixed intro id when leaving chapter 1', () => {
+      const withPrefixedIntros = new Map([
+        [
+          'JHN',
+          {
+            title: 'John',
+            chapters: [
+              { id: 'JHN.INTRO', title: 'Introduction' },
+              { id: '1', title: '1' },
+              { id: '2', title: '2' },
+            ],
+            intro: { id: 'JHN.INTRO', title: 'Introduction' },
+          },
+        ],
+        [
+          'ACT',
+          {
+            title: 'Acts',
+            chapters: [
+              { id: 'ACT.INTRO', title: 'Introduction' },
+              { id: '1', title: '1' },
+              { id: '2', title: '2' },
+              { id: '3', title: '3' },
+            ],
+            intro: { id: 'ACT.INTRO', title: 'Introduction' },
+          },
+        ],
+      ])
+
+      expect(adjacentBookChapter(withPrefixedIntros, 'ACT', '1', 'previous')).toEqual({
+        bookId: 'JHN',
+        chapterId: '2',
+      })
+    })
+
     it('skips the next book intro when crossing forward', () => {
       expect(adjacentBookChapter(withIntros, 'JHN', '2', 'next')).not.toEqual({
         bookId: 'ACT',

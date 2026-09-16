@@ -708,10 +708,13 @@ describe('BibleReader native toolbar', () => {
       />,
       { wrapper: defaultWrapper },
     )
-    // No catalog and no version meta: the version pill shows the change-version
-    // label; the chapter pill shows the id.
+    // No catalog and no version meta: the version pill stays empty (the
+    // accessibilityLabel still names it); the chapter pill shows the id.
     expect(screen.queryByText('3034')).toBeNull()
-    expect(screen.getByText('Change Bible version')).toBeTruthy()
+    expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
+      en.changeBibleVersionAriaLabel,
+    )
     expect(screen.getByText('1')).toBeTruthy()
 
     // Both chevrons stay off without a catalog to walk.

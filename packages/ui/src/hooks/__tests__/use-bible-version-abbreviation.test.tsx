@@ -339,6 +339,68 @@ describe('useBibleVersionAbbreviation', () => {
     })
   })
 
+  it('retries past a cacheable empty version body after the effect remounts', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        return versionBodyResponse({})
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ retryKey, enabled }: { retryKey: number; enabled: boolean }) =>
+        useBibleVersionAbbreviation(111, { retryKey, enabled }),
+      { wrapper: wrapper(), initialProps: { retryKey: 0, enabled: true } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.abbreviation).toBeNull()
+
+    const versionResolvers: Array<(value: Response) => void> = []
+    const versionFetches: Promise<Response>[] = []
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        const pending = new Promise<Response>((resolve) => {
+          versionResolvers.push(resolve)
+        })
+        versionFetches.push(pending)
+        return pending
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    rerender({ retryKey: 1, enabled: true })
+    // Strict Mode remounts the effect with the same retryKey before the retry fetch
+    // settles. Skip must stay on for that remount or it rereads the empty 200.
+    rerender({ retryKey: 1, enabled: false })
+    rerender({ retryKey: 1, enabled: true })
+
+    await act(async () => {
+      for (const resolve of versionResolvers) {
+        resolve(
+          new Response(JSON.stringify({ abbreviation: 'NIV', language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+          }),
+        )
+      }
+      await Promise.all(versionFetches)
+    })
+    await waitFor(() => {
+      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+    })
+  })
+
   it('does not let a cancelled version meta overwrite a newer cache entry', async () => {
     let resolveFirst!: (value: Response) => void
     let resolveSecond!: (value: Response) => void

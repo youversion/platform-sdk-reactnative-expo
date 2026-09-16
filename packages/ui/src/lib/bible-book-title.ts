@@ -255,5 +255,5 @@ export function adjacentBookChapter(
 }
 
 function isIntroChapterId(chapterId: string): boolean {
-  return chapterId.toUpperCase() === 'INTRO'
+  return chapterId.toLowerCase().includes('intro')
 }

@@ -281,6 +281,39 @@ describe('createBibleContentClient', () => {
     })
   })
 
+  it('does not let an older in-flight fetch overwrite a newer store body', async () => {
+    const { client, fetchMock, store } = setup()
+    let resolveFirst!: (value: Response) => void
+    let resolveSecond!: (value: Response) => void
+    fetchMock
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFirst = resolve
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecond = resolve
+          }),
+      )
+
+    const pendingFirst = client({ path: PATH, skipCache: true })
+    const pendingSecond = client({ path: PATH, skipCache: true })
+
+    resolveSecond(new Response('{"a":2}', { status: 200 }))
+    await pendingSecond
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)?.body).toBe('{"a":2}')
+
+    resolveFirst(new Response('{"a":1}', { status: 200 }))
+    await pendingFirst
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toEqual({
+      body: '{"a":2}',
+      expiresAt: NOW + DEFAULT_CONTENT_LIFETIME_MS,
+    })
+  })
+
   it('keeps content and the version-id index through the sign-out purge', async () => {
     const { client, fetchMock, store } = setup()
     fetchMock.mockImplementation(async () => new Response('{"a":1}', { status: 200 }))

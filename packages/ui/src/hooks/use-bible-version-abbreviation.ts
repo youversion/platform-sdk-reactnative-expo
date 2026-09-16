@@ -62,9 +62,10 @@ export function useBibleVersionAbbreviation(
     let cancelled = false
     const generation = (generationRef.current.get(versionId) ?? 0) + 1
     generationRef.current.set(versionId, generation)
+    // Skip for every run of this retryKey, including Strict Mode remounts. Stamp
+    // only after settle so a remount cannot reread the cached miss this retry is beating.
     const skipCache =
       fetchedRetryKeyRef.current !== null && fetchedRetryKeyRef.current !== retryKey
-    fetchedRetryKeyRef.current = retryKey
 
     void fetchBibleContent({
       path: `/v1/bibles/${versionId}`,
@@ -90,6 +91,7 @@ export function useBibleVersionAbbreviation(
         // below then drops. Painting the last version's short name would misname this one.
       })
       .finally(() => {
+        fetchedRetryKeyRef.current = retryKey
         if (!cancelled) {
           setSettled(true)
         }

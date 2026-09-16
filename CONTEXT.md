@@ -207,7 +207,7 @@ The pass over the whole native **Bible Content Cache** that deletes every entry 
 _Avoid_: Cache invalidation (nothing outside the lifetime rule triggers it); permission eviction (a separate, not-yet-built pass)
 
 **Bible Content Client**:
-The native-side owner of every **Bible Content** request. Composes the request headers from core's own configuration (app key, installation id, SDK stamp), reads the native **Bible Content Cache** first, fetches on a miss, stores the response by its **Content Lifetime**, and returns the status, body and content type. It is the piece that survives a native-only SDK unchanged; it never depends on anything a WebView sent.
+The native-side owner of every **Bible Content** request. Composes the request headers from core's own configuration (app key, installation id, SDK stamp), reads the native **Bible Content Cache** first, fetches on a miss, stores the response by its **Content Lifetime**, and returns the status, body and content type. Callers can pass `skipCache` to skip the store read; a successful 2xx still writes. It is the piece that survives a native-only SDK unchanged; it never depends on anything a WebView sent.
 _Avoid_: Forwarding headers from the WebView (native is authoritative); `BibleClient` from platform-core (it hides response headers, so it cannot see `Cache-Control`)
 
 **Content Read-Through**:

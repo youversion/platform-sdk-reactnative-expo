@@ -389,6 +389,68 @@ describe('useBibleBookTitle', () => {
     })
   })
 
+  it('retries past a cacheable empty catalog after the effect remounts', async () => {
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        return booksResponse(JSON.stringify({ data: [] }))
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ retryKey, enabled }: { retryKey: number; enabled: boolean }) =>
+        useBibleBookTitle(111, 'JHN', { retryKey, enabled }),
+      { wrapper: wrapper(), initialProps: { retryKey: 0, enabled: true } },
+    )
+
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false)
+    })
+    expect(result.current.catalog).toBeNull()
+
+    const booksResolvers: Array<(value: Response) => void> = []
+    const booksFetches: Promise<Response>[] = []
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        const pending = new Promise<Response>((resolve) => {
+          booksResolvers.push(resolve)
+        })
+        booksFetches.push(pending)
+        return pending
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    rerender({ retryKey: 1, enabled: true })
+    // Strict Mode remounts the effect with the same retryKey before the retry fetch
+    // settles. Skip must stay on for that remount or it rereads the empty 200.
+    rerender({ retryKey: 1, enabled: false })
+    rerender({ retryKey: 1, enabled: true })
+
+    await act(async () => {
+      for (const resolve of booksResolvers) {
+        resolve(
+          new Response(BOOKS_BODY, {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+          }),
+        )
+      }
+      await Promise.all(booksFetches)
+    })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
+    })
+  })
+
   it('does not let a cancelled catalog overwrite a newer cache entry', async () => {
     let resolveFirst!: (value: Response) => void
     let resolveSecond!: (value: Response) => void

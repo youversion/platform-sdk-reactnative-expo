@@ -43,6 +43,8 @@ export function createBibleContentClient({
   store = createBibleContentStore(),
   now = Date.now,
 }: BibleContentClientDeps): FetchBibleContent {
+  const writeGenerationByKey = new Map<string, number>()
+
   return async ({ path, skipCache = false }) => {
     const [pathname] = path.split('?', 1)
     const versionId = pathname === undefined ? null : parseVersionId(pathname)
@@ -58,6 +60,9 @@ export function createBibleContentClient({
         return { status: 200, body: cached.body, contentType: 'application/json' }
       }
     }
+
+    const writeGeneration = (writeGenerationByKey.get(key) ?? 0) + 1
+    writeGenerationByKey.set(key, writeGeneration)
 
     // RN's OkHttp client ships with no timeouts; without this an Android
     // request on a stalled connection never settles.
@@ -81,7 +86,13 @@ export function createBibleContentClient({
           response.headers.get('age'),
         )
         // null: `no-cache`/`no-store`; 0: already expired — neither is stored (ADR 0020).
-        if (lifetimeMs !== null && lifetimeMs > 0) {
+        // Only the latest in-flight fetch for this key may write; a slower one
+        // would put a stale or empty body back on disk.
+        if (
+          lifetimeMs !== null &&
+          lifetimeMs > 0 &&
+          writeGenerationByKey.get(key) === writeGeneration
+        ) {
           store.write(versionId, key, { body, expiresAt: receivedAt + lifetimeMs })
         }
       }
