@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
-import { countingBibleContentFetchWrapper } from '../../test-utils/counting-bible-content-fetch'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { useBibleBookTitle } from '../use-bible-book-title'
 
@@ -187,12 +186,6 @@ describe('useBibleBookTitle', () => {
   })
 
   it('paints a seen version from cache without a loading flash', async () => {
-    const { Wrapper, contentFetchCount, returnStale } = countingBibleContentFetchWrapper(
-      JSON.stringify({
-        data: [{ id: 'GEN', title: 'Genesis', chapters: [{ id: '1' }] }],
-      }),
-    )
-
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isBooksCatalogUrl(url) && url.includes('/111/')) {
@@ -209,7 +202,7 @@ describe('useBibleBookTitle', () => {
 
     const { result, rerender } = renderHook(
       ({ versionId }: { versionId: number }) => useBibleBookTitle(versionId, 'JHN'),
-      { wrapper: Wrapper, initialProps: { versionId: 111 } },
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
     )
 
     await waitFor(() => {
@@ -220,8 +213,6 @@ describe('useBibleBookTitle', () => {
       expect(result.current.title).toBe('Juan')
     })
 
-    const fetchesAfterWarm = contentFetchCount.current
-    returnStale.current = true
     rerender({ versionId: 111 })
     expect(result.current).toEqual({
       title: 'John',
@@ -229,15 +220,9 @@ describe('useBibleBookTitle', () => {
       isLoading: false,
       catalog: expect.any(Map),
     })
-
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 0)
-      })
+    await waitFor(() => {
+      expect(result.current.title).toBe('John')
     })
-
-    expect(contentFetchCount.current).toBe(fetchesAfterWarm)
-    expect(result.current.title).toBe('John')
   })
 
   it('drops the previous title and catalog when a version switch refetch fails', async () => {

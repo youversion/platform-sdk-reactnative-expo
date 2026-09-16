@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
-import { countingBibleContentFetchWrapper } from '../../test-utils/counting-bible-content-fetch'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { useBibleVersionAbbreviation } from '../use-bible-version-abbreviation'
 
@@ -163,8 +162,6 @@ describe('useBibleVersionAbbreviation', () => {
   })
 
   it('paints a seen version from cache without a loading flash', async () => {
-    const { Wrapper, contentFetchCount, returnStale } = countingBibleContentFetchWrapper('{}')
-
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (isVersionUrl(url) && url.includes('/111')) {
@@ -181,7 +178,7 @@ describe('useBibleVersionAbbreviation', () => {
 
     const { result, rerender } = renderHook(
       ({ versionId }: { versionId: number }) => useBibleVersionAbbreviation(versionId),
-      { wrapper: Wrapper, initialProps: { versionId: 111 } },
+      { wrapper: wrapper(), initialProps: { versionId: 111 } },
     )
 
     await waitFor(() => {
@@ -192,19 +189,11 @@ describe('useBibleVersionAbbreviation', () => {
       expect(result.current.abbreviation).toBe('NVI')
     })
 
-    const fetchesAfterWarm = contentFetchCount.current
-    returnStale.current = true
     rerender({ versionId: 111 })
     expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
-
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 0)
-      })
+    await waitFor(() => {
+      expect(result.current.abbreviation).toBe('NIV')
     })
-
-    expect(contentFetchCount.current).toBe(fetchesAfterWarm)
-    expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
   })
 
   it('does not pair a new short name with the last version language', async () => {

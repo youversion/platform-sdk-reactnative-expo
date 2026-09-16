@@ -7,7 +7,7 @@ import {
   userEvent,
   waitFor,
 } from '@testing-library/react-native'
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { mmkvStorage, type AuthContextValue } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
@@ -89,7 +89,7 @@ const restoringAuth = signedOutAuth({
   signIn,
 })
 
-function ToolbarAuthHarness({ auth }: { auth: typeof restoringAuth | typeof signedInAuth | null }) {
+function ToolbarAuthHarness({ auth }: { auth: AuthContextValue | null }) {
   return (
     <YouVersionProvider
       appKey="test-key"
