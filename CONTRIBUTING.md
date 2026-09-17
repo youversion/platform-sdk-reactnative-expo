@@ -42,12 +42,19 @@ For auth flows, register `youversionauth://callback` as the callback URI for you
 
 An app key has exactly one callback URI, and both browser round-trips — sign-in and the data-exchange permission grant — come back through it. If the value in `_layout.tsx` and the console entry disagree, sign-in fails with `invalid_request` and permission grants silently report `cancel`.
 
-Build the dev client the first time:
+Run the iOS example from the repository root:
 
 ```bash
-cd apps/example
-pnpm build:ios
+pnpm dev:ios
 ```
+
+This command discovers available iPhones through `simctl`, boots one, chooses
+an unused Metro port, builds the dev client, and opens that client against the
+same server. Each worktree receives its own Metro cache, and the command never
+reuses an occupied port because that port may belong to another worktree. Set
+`IOS_SIMULATOR` or pass `--device <name-or-UDID>` to pick a simulator explicitly.
+Concurrent Metro servers are supported, but one simulator can run only one copy
+of the example app. Use a different simulator UDID for simultaneous app sessions.
 
 Or for Android:
 
@@ -56,21 +63,23 @@ cd apps/example
 pnpm build:android
 ```
 
-After the dev client is installed, start the dev server:
+Check the local iOS toolchain and simulator state without building:
 
 ```bash
-cd apps/example
-pnpm exec expo start --dev-client
+pnpm doctor:ios
 ```
 
-> **Added a native dependency?** Rebuild the dev client. Restarting the dev server only reloads JS — it can't link new native code, so the installed app goes stale. The tell is a runtime redbox `Cannot find native module 'X'` even though the package is installed (and listed in `ios/Podfile.lock`). `apps/example/ios` is generated (gitignored), so a clean regen is safe:
+> **Added a native dependency or suspect stale native output?** Regenerate the
+> iOS project, clear Metro's cache, rebuild, and reconnect with one command:
 >
 > ```bash
-> cd apps/example
-> npx expo prebuild --clean -p ios && pnpm build:ios   # or -p android
+> pnpm dev:ios:clean
 > ```
 >
-> This applies whenever a native module is added to `packages/ui`, `packages/core`, or the example app. `expo install --fix` won't help here — it only reconciles versions, not an unlinked pod.
+> Restarting Metro only reloads JavaScript; it cannot link a new native module.
+> The tell is a runtime redbox `Cannot find native module 'X'` even though the
+> package is installed and listed in `ios/Podfile.lock`. `expo install --fix`
+> only reconciles versions, so it does not repair an unlinked pod.
 
 > **Xcode 27.** Two upstream packages lag the Swift 6.4 / iOS 15 minimum it enforces. Both are handled in the repo, but know where to look if a fresh build fails:
 >
@@ -151,6 +160,9 @@ From the repo root:
 
 ```bash
 pnpm build          # turbo build
+pnpm dev:ios        # boot a simulator and run the iOS example in this worktree
+pnpm dev:ios:clean  # regenerate ios/, clear Metro, rebuild, and run
+pnpm doctor:ios     # report Xcode, simulator, dependency, and Metro state
 pnpm typecheck      # turbo typecheck
 pnpm test           # turbo test
 pnpm lint           # oxlint (type-aware TypeScript, Expo DOM, i18n, anti-slop)

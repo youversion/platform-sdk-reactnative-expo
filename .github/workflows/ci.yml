@@ -23,6 +23,8 @@ jobs:
         run: pnpm lint:native-i18n
       - name: Run no-raw-color oxlint regression tests
         run: pnpm lint:no-raw-color
+      - name: Run iOS development tooling tests
+        run: pnpm test:ios-dev
 
   typecheck:
     name: Typecheck
