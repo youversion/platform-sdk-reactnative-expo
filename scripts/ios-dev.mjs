@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseEnv } from 'node:util'
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const EXAMPLE_DIR = join(REPO_ROOT, 'apps/example')
@@ -60,6 +61,17 @@ export function stopChildren(children, signalProcess = process.kill) {
 
 export function assertNotInterrupted(signal, action) {
   if (signal) throw new Error(`Cannot ${action} after ${signal}.`)
+}
+
+export function hasExampleAppKey(environmentValue, envFileContents) {
+  if (environmentValue?.trim()) return true
+  if (envFileContents === undefined) return false
+
+  try {
+    return Boolean(parseEnv(envFileContents).EXPO_PUBLIC_YOUVERSION_APP_KEY?.trim())
+  } catch {
+    return false
+  }
 }
 
 function runtimeVersion(runtime) {
@@ -313,13 +325,22 @@ async function doctor() {
       existsSync(join(REPO_ROOT, 'node_modules')) ? 'installed' : 'run pnpm install',
       existsSync(join(REPO_ROOT, 'node_modules')),
     ) && healthy
+  const envFilePath = join(EXAMPLE_DIR, '.env')
+  let envFileContents
+  try {
+    envFileContents = readFileSync(envFilePath, 'utf8')
+  } catch {}
+  const appKeyConfigured = hasExampleAppKey(
+    process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY,
+    envFileContents,
+  )
   healthy =
     check(
       'Example app key',
-      process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY || existsSync(join(EXAMPLE_DIR, '.env'))
+      appKeyConfigured
         ? 'configured'
         : 'copy apps/example/.env or export EXPO_PUBLIC_YOUVERSION_APP_KEY',
-      Boolean(process.env.EXPO_PUBLIC_YOUVERSION_APP_KEY || existsSync(join(EXAMPLE_DIR, '.env'))),
+      appKeyConfigured,
     ) && healthy
 
   try {
@@ -342,7 +363,11 @@ async function doctor() {
     `INFO  Metro port ${DEFAULT_PORT}: ${defaultPortFree ? 'available' : `occupied by ${describePortOwner(owner)}`}`,
   )
   if (!defaultPortFree) {
-    console.log(`INFO  Next free Metro port: ${await findAvailablePort(DEFAULT_PORT + 1)}`)
+    try {
+      console.log(`INFO  Next free Metro port: ${await findAvailablePort(DEFAULT_PORT + 1)}`)
+    } catch (error) {
+      healthy = check('Next free Metro port', error.message, false) && healthy
+    }
   }
 
   console.log(

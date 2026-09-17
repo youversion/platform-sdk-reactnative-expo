@@ -11,6 +11,7 @@ import {
   buildExpoEnvironment,
   chooseSimulator,
   findAvailablePort,
+  hasExampleAppKey,
   isPortAvailable,
   metroIsReady,
   parseArguments,
@@ -91,6 +92,22 @@ test('findAvailablePort skips ports already owned by another process', async () 
   const occupied = new Set([8081, 8082])
 
   assert.equal(await findAvailablePort(8081, async (port) => !occupied.has(port)), 8083)
+})
+
+test('findAvailablePort reports exhaustion without hiding the checked range', async () => {
+  await assert.rejects(
+    findAvailablePort(8180, async () => false),
+    /No free Metro port found from 8180 through 8181/,
+  )
+})
+
+test('hasExampleAppKey requires a non-empty environment or .env value', () => {
+  assert.equal(hasExampleAppKey('from-process', ''), true)
+  assert.equal(hasExampleAppKey('   ', 'EXPO_PUBLIC_YOUVERSION_APP_KEY=from-file'), true)
+  assert.equal(hasExampleAppKey(undefined, 'EXPO_PUBLIC_YOUVERSION_APP_KEY=""'), false)
+  assert.equal(hasExampleAppKey(undefined, 'ANOTHER_VALUE=present'), false)
+  assert.equal(hasExampleAppKey(undefined, 'not valid dotenv syntax'), false)
+  assert.equal(hasExampleAppKey(undefined, undefined), false)
 })
 
 test('isPortAvailable detects a server listening outside IPv4 localhost', async (context) => {
