@@ -156,10 +156,15 @@ function BibleCardBody({
           showVersionPicker={showVersionPicker}
           versionLabel={t('selectVersion')}
           versionAriaLabel={t('changeBibleVersionAriaLabel')}
+          versionPickerDisabled={metadata?.languageTag == null}
           onVersionPress={() => {
+            const languageId = metadata?.languageTag
+            if (languageId == null) {
+              return
+            }
             void onVersionPickerPress({
               versionId: versionId ?? DEFAULT_BIBLE_VERSION_ID,
-              languageId: metadata?.languageTag ?? '',
+              languageId,
             })
           }}
         />
@@ -235,6 +240,7 @@ type BibleCardHeaderProps = {
   showVersionPicker: boolean
   versionLabel: string
   versionAriaLabel: string
+  versionPickerDisabled: boolean
   onVersionPress: () => void
 }
 
@@ -244,6 +250,7 @@ function BibleCardHeader({
   showVersionPicker,
   versionLabel,
   versionAriaLabel,
+  versionPickerDisabled,
   onVersionPress,
 }: BibleCardHeaderProps): ReactNode {
   const tokens = useTokens()
@@ -267,6 +274,7 @@ function BibleCardHeader({
         <Button
           variant="secondary"
           accessibilityLabel={versionAriaLabel}
+          disabled={versionPickerDisabled}
           onPress={onVersionPress}
           testID="bible-card-version"
         >
