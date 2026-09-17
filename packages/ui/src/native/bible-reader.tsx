@@ -484,11 +484,14 @@ export function BibleReader({
   // The stale intent on the ref is left alone. Closing the sheet means nothing
   // can fire `onConfirm`, the next swatch press overwrites the intent, and the
   // confirm handler re-checks the scope anyway.
-  const currentScope: HighlightScope = {
-    versionId: appliedVersionId,
-    book: appliedBook,
-    chapter: appliedChapter,
-  }
+  const currentScope: HighlightScope = useMemo(
+    () => ({
+      versionId: appliedVersionId,
+      book: appliedBook,
+      chapter: appliedChapter,
+    }),
+    [appliedVersionId, appliedBook, appliedChapter],
+  )
   let renderedPrompt = prompt
   if (prompt.kind === 'sign-in' && !sameScope(prompt.scope, currentScope)) {
     renderedPrompt = NO_PROMPT
@@ -535,18 +538,11 @@ export function BibleReader({
     // Backstop for the during-render discard above. A confirm that races a
     // controlled location change must not hand verse numbers to the current
     // location-scoped flow.
-    if (
-      !sameScope(pending.scope, {
-        versionId: appliedVersionId,
-        book: appliedBook,
-        chapter: appliedChapter,
-      })
-    )
-      return
+    if (!sameScope(pending.scope, currentScope)) return
     void applyHighlight(pending.color, pending.verses).then((outcome) =>
       reportHighlightWriteError(outcome, onHighlightError),
     )
-  }, [applyHighlight, onHighlightError, versionId, book, chapter])
+  }, [applyHighlight, onHighlightError, currentScope])
 
   const handleSwatchPress = (swatch: VerseActionSwatch) => {
     const verses = verseSelection?.verses ?? []
@@ -572,21 +568,10 @@ export function BibleReader({
         pendingIntentRef.current = {
           color: swatch.color,
           verses,
-          scope: {
-            versionId: appliedVersionId,
-            book: appliedBook,
-            chapter: appliedChapter,
-          },
+          scope: currentScope,
         }
         if (authGate === 'signed-out') {
-          setPrompt({
-            kind: 'sign-in',
-            scope: {
-              versionId: appliedVersionId,
-              book: appliedBook,
-              chapter: appliedChapter,
-            },
-          })
+          setPrompt({ kind: 'sign-in', scope: currentScope })
         }
         return
       }
@@ -624,13 +609,7 @@ export function BibleReader({
     if (prompt.kind !== 'none') return
     const pending = pendingIntentRef.current
     if (pending === null) return
-    if (
-      !sameScope(pending.scope, {
-        versionId: appliedVersionId,
-        book: appliedBook,
-        chapter: appliedChapter,
-      })
-    ) {
+    if (!sameScope(pending.scope, currentScope)) {
       pendingIntentRef.current = null
       return
     }
@@ -646,7 +625,7 @@ export function BibleReader({
         return _exhaustive
       }
     }
-  }, [authGate, prompt.kind, versionId, book, chapter, replayPendingIntent])
+  }, [authGate, prompt.kind, currentScope, replayPendingIntent])
 
   const handleOpenBibleThemeSettings = () => {
     setIsSettingsSheetOpen(true)
@@ -851,9 +830,9 @@ export function BibleReader({
           onSignOutPress={guardedSignOut}
           userInfo={userInfo}
           theme={resolvedTheme}
-          book={book}
-          chapter={chapter}
-          versionId={versionId}
+          book={appliedBook}
+          chapter={appliedChapter}
+          versionId={appliedVersionId}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
@@ -956,9 +935,9 @@ export function BibleReader({
         <BibleChapterPickerSheet
           isOpen={isPickerOpen}
           onClose={() => setIsPickerOpen(false)}
-          book={book}
-          chapter={chapter}
-          versionId={versionId}
+          book={appliedBook}
+          chapter={appliedChapter}
+          versionId={appliedVersionId}
           theme={resolvedTheme}
           onSelect={async (data) => {
             applyReaderLocation({
@@ -973,7 +952,7 @@ export function BibleReader({
         <BibleVersionPickerSheet
           isOpen={isVersionPickerOpen}
           onClose={() => setIsVersionPickerOpen(false)}
-          versionId={versionId}
+          versionId={appliedVersionId}
           theme={resolvedTheme}
           onSelect={async (newVersionId) => {
             setVersionId(newVersionId)
