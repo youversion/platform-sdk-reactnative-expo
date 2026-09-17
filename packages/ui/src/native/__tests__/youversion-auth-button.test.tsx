@@ -3,16 +3,25 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import { Alert, Platform, StyleSheet, View } from 'react-native'
-import type { ReactTestInstance } from 'react-test-renderer'
+import { Alert, Platform, StyleSheet, Text, View } from 'react-native'
 
+import { useTokens } from '../../hooks'
 import en from '../../i18n/locales/en.json'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { getTokens } from '../../theme'
-import { YouVersionAuthButton } from '../youversion-auth-button'
+import { fontMapKey } from '../../theme/fonts'
+import { YouVersionAuthButton, type YouVersionAuthButtonProps } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
+
+type RemovedAuthButtonProp = 'outline' | 'radius' | 'size'
+type RemovedPropsGone = RemovedAuthButtonProp extends keyof YouVersionAuthButtonProps ? true : false
+
+function ThemeProbe() {
+  const tokens = useTokens()
+  return <Text testID="theme-probe">{tokens.primary}</Text>
+}
 
 const light = getTokens('light')
 const dark = getTokens('dark')
@@ -80,15 +89,16 @@ function labelStyle(matcher: string | RegExp) {
   return StyleSheet.flatten(screen.getByText(matcher).props.style)
 }
 
-function findLogo(): ReactTestInstance {
-  return screen.getByTestId('bible-app-logo')
-}
-
 describe('YouVersionAuthButton labels', () => {
+  it('keeps outline, radius, and size off the public props type', () => {
+    const gone: RemovedPropsGone = false
+    expect(gone).toBe(false)
+  })
+
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
     renderAuthButton()
     expect(screen.getByText(/sign in with/i)).toBeTruthy()
-    expect(findLogo()).toBeTruthy()
+    expect(screen.getByTestId('bible-app-logo')).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when authenticated (mode=auto)', () => {
@@ -130,6 +140,13 @@ describe('YouVersionAuthButton labels', () => {
     renderAuthButton({ background: 'dark' })
     expect(labelStyle(/sign out of/i)).toMatchObject({ color: dark.primaryForeground })
   })
+
+  it('paints the brand name in the bold sans face', () => {
+    renderAuthButton()
+    expect(labelStyle('YouVersion')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
+    })
+  })
 })
 
 describe('YouVersionAuthButton container tokens', () => {
@@ -151,6 +168,22 @@ describe('YouVersionAuthButton container tokens', () => {
       borderRadius: dark.radius.full,
     })
     expect(buttonStyle().borderWidth).toBeUndefined()
+  })
+
+  it('does not leak the forced scheme to siblings', () => {
+    render(
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={{ ...defaultHookOverrides, useYVAuth: authValue() }}
+      >
+        <YouVersionAuthButton background="dark" />
+        <ThemeProbe />
+      </YouVersionProvider>,
+    )
+
+    expect(buttonStyle()).toMatchObject({ backgroundColor: dark.primary })
+    expect(screen.getByTestId('theme-probe').props.children).toBe(light.primary)
   })
 })
 

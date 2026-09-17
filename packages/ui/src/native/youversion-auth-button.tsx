@@ -11,7 +11,7 @@ import { BibleAppLogo } from './bible-app-logo'
 import { useSignOutGuard } from './use-sign-out-guard'
 
 export type YouVersionAuthButtonProps = {
-  /** Forces the Button token scheme. Defaults to light. */
+  /** Forces the light or dark token scheme. Defaults to light. */
   background?: 'light' | 'dark'
   mode?: 'auto' | 'signIn' | 'signOut'
   /** Override the button label. When omitted the SDK uses localized default strings. */
@@ -30,26 +30,20 @@ export function YouVersionAuthButton({
   const tokens = getTokens(background)
   const boldComponent = <RNText style={sansFace(tokens.fontFamily.sans, 700)} />
 
+  const isSignOut = mode === 'signOut' || (mode === 'auto' && isAuthenticated)
+  const i18nKey = isSignOut ? 'signOutOfYouVersion' : 'signInWithYouVersion'
+
   const authFunction = async () => {
     try {
-      if (mode === 'auto') {
-        if (isAuthenticated) {
-          await guardedSignOut?.()
-        } else {
-          await signIn()
-        }
-      } else if (mode === 'signIn') {
-        await signIn()
-      } else {
+      if (isSignOut) {
         await guardedSignOut?.()
+      } else {
+        await signIn()
       }
     } catch (error) {
       console.error(error)
     }
   }
-
-  const isSignOut = mode === 'signOut' || (mode === 'auto' && isAuthenticated)
-  const i18nKey = isSignOut ? 'signOutOfYouVersion' : 'signInWithYouVersion'
 
   return (
     <ThemeContext.Provider value={background}>

@@ -354,7 +354,7 @@ function ProfileScreen() {
 }
 ```
 
-It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`, forces that token scheme; default `'light'`), and `text` (string, replaces the default localized label). It is a filled, rounded design-system Button with the Bible App logo as a child. `outline`, `radius`, and `size` (`short` / `icon`) are gone.
+It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`, forces that token scheme; default `'light'`), and `text` (string, replaces the default localized label). The control is filled and rounded, with the Bible App logo beside the full localized label. Do not pass `outline`, `radius`, or `size`. Those props are gone.
 
 #### Signing out
 
