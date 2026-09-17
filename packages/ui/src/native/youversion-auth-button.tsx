@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Text as RNText } from 'react-native'
 import { Trans } from 'react-i18next'
 import { Button } from '../components/ui'
-import { ThemeContext, useTokens } from '../hooks'
+import { ThemeContext, useTheme, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { sansFace } from '../theme/fonts'
 import { BibleAppLogo } from './bible-app-logo'
@@ -26,6 +26,7 @@ type AuthButtonSurfaceProps = {
 function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
   const { i18n } = useSdkTranslation()
   const tokens = useTokens()
+  const theme = useTheme()
 
   let label: ReactNode = (
     <Trans
@@ -38,14 +39,27 @@ function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): 
     label = text
   }
 
+  let outlineWidth = 1
+  if (theme === 'dark') {
+    outlineWidth = 2
+  }
+
   return (
     <Button
-      // Pin the brand surface. Button default primary is red in dark and hides the logo.
-      style={{ backgroundColor: tokens.background }}
+      // Pin fill and outline. Button default primary is red in dark and hides the logo.
+      style={{
+        backgroundColor: tokens.background,
+        borderColor: tokens.border,
+        borderWidth: outlineWidth,
+        minHeight: 36,
+        height: 'auto',
+      }}
       onPress={onPress}
     >
       <BibleAppLogo />
-      <Button.Text style={{ color: tokens.foreground }}>{label}</Button.Text>
+      <Button.Text numberOfLines={2} style={{ color: tokens.foreground }}>
+        {label}
+      </Button.Text>
     </Button>
   )
 }

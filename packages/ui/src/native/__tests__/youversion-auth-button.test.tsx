@@ -149,6 +149,11 @@ describe('YouVersionAuthButton labels', () => {
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
     })
   })
+
+  it('lets the label wrap to two lines', () => {
+    renderAuthButton()
+    expect(screen.getByText('Sign in with YouVersion').props.numberOfLines).toBe(2)
+  })
 })
 
 describe('YouVersionAuthButton container tokens', () => {
@@ -158,8 +163,9 @@ describe('YouVersionAuthButton container tokens', () => {
     expect(buttonStyle()).toMatchObject({
       backgroundColor: light.background,
       borderRadius: light.radius.full,
+      borderColor: light.border,
+      borderWidth: 1,
     })
-    expect(buttonStyle().borderWidth).toBeUndefined()
   })
 
   it('fills the default Button from the dark scheme even when the provider is light', () => {
@@ -168,8 +174,9 @@ describe('YouVersionAuthButton container tokens', () => {
     expect(buttonStyle()).toMatchObject({
       backgroundColor: dark.background,
       borderRadius: dark.radius.full,
+      borderColor: dark.border,
+      borderWidth: 2,
     })
-    expect(buttonStyle().borderWidth).toBeUndefined()
   })
 
   it('does not leak the forced scheme to siblings', () => {
