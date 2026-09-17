@@ -26,13 +26,17 @@ type AuthButtonSurfaceProps = {
 function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
   const { i18n } = useSdkTranslation()
   const tokens = useTokens()
-  const label = text ?? (
+
+  let label: ReactNode = (
     <Trans
       i18n={i18n}
       i18nKey={i18nKey}
       components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
     />
   )
+  if (text) {
+    label = text
+  }
 
   return (
     <Button

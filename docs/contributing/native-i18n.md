@@ -46,7 +46,7 @@ function SheetHeader({ onClose }: { onClose: () => void }) {
 
 ### Rich text (bold segments)
 
-Pass `i18n` from `useSdkTranslation()` to `<Trans>`. Nest it inside `Button.Text` or a platform `Text`. Bold faces go through `sansFace`, not a hand-written `fontWeight` (see `youversion-auth-button.tsx`).
+Pass `i18n` from `useSdkTranslation()` to `<Trans>`. Nest it inside `Button.Text` or a platform `Text`. Primitives bold through `sansFace` (see `youversion-auth-button.tsx`). Sheets that still use the system face keep `fontWeight` until they move onto the primitives.
 
 ```tsx
 const { i18n } = useSdkTranslation()

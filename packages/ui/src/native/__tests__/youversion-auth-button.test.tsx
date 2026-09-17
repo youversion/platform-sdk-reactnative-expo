@@ -127,6 +127,11 @@ describe('YouVersionAuthButton labels', () => {
     expect(screen.queryByText('Sign in with YouVersion')).toBeNull()
   })
 
+  it('keeps the localized label when text is an empty string', () => {
+    renderAuthButton({ text: '' })
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
+  })
+
   it('paints the light scheme label in foreground', () => {
     renderAuthButton({ background: 'light' })
     expect(labelStyle('Sign in with YouVersion')).toMatchObject({ color: light.foreground })
