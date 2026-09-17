@@ -30,5 +30,5 @@ overrides:
   '@expo/cli': 57.0.24
   '@expo/router-server': 57.0.9
   babel-preset-expo: 57.0.11
-  expo: 57.0.22
+  expo: 57.0.23
   expo-build-properties: 57.0.17
