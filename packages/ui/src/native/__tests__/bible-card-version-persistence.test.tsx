@@ -1,6 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import type { BibleVersionPickerPressData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
@@ -13,12 +12,11 @@ import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
+import * as bibleCardMetadata from '../bible-card-metadata'
 import { YouVersionProvider } from '../youversion-provider'
 
 type LatestDomProps = {
   versionId?: number
-  onVersionChange?: (versionId: number) => Promise<void>
-  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
 }
 
 type PersistedCardVersion = {
@@ -27,24 +25,23 @@ type PersistedCardVersion = {
 
 let latestDomProps: LatestDomProps = {}
 
-function MockDOM(props: LatestDomProps) {
+function MockBibleTextViewDOM(props: LatestDomProps) {
   latestDomProps = props
   return (
-    <View testID="mock-dom">
+    <View testID="mock-btv-dom">
       <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-      <Pressable
-        testID="trigger-version-picker"
-        onPress={() => {
-          props.onVersionPickerPress?.({ versionId: 3034, languageId: 'eng' })
-        }}
-      >
-        <Text>VersionPicker</Text>
-      </Pressable>
     </View>
   )
 }
 
 const wrapper = youVersionProviderWrapper()
+
+async function renderAndSettle(...args: Parameters<typeof render>) {
+  const result = render(...args)
+  await act(async () => {})
+  await act(async () => {})
+  return result
+}
 
 const refuseFilterWrapper = ({ children }: { children: ReactNode }) => (
   <YouVersionProvider
@@ -78,7 +75,8 @@ describe('BibleCard version persistence', () => {
   beforeEach(async () => {
     latestDomProps = {}
     stubImpl('FootnoteContent', 'mock-footnote')
-    setImpl('BibleCardDom', MockDOM)
+    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
+    setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
     setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
     setImpl(
       'BibleVersionPickerSheet',
@@ -97,6 +95,12 @@ describe('BibleCard version persistence', () => {
           </View>
         ) : null,
     )
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockResolvedValue({
+      reference: 'John 1:1',
+      abbreviation: 'NIV',
+      copyright: 'NIV copyright',
+      languageTag: 'en',
+    })
     await resetBibleCardVersionStore()
   })
 
@@ -108,18 +112,21 @@ describe('BibleCard version persistence', () => {
   it('hydrates uncontrolled state from MMKV on mount', async () => {
     await seedBibleCardVersion(59)
 
-    render(<BibleCard reference="JHN.1.1" />, { wrapper })
+    await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper })
 
     expect(latestDomProps.versionId).toBe(59)
   })
 
   it('persists picker selection to MMKV', async () => {
-    const { getByTestId } = render(<BibleCard reference="JHN.1.1" showVersionPicker />, {
-      wrapper,
-    })
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" showVersionPicker />,
+      {
+        wrapper,
+      },
+    )
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
+      fireEvent.press(getByTestId('bible-card-version'))
     })
 
     await act(async () => {
@@ -136,7 +143,7 @@ describe('BibleCard version persistence', () => {
     await seedBibleCardVersion(3034)
     const onVersionChange = jest.fn()
 
-    const { getByTestId } = render(
+    const { getByTestId } = await renderAndSettle(
       <BibleCard
         reference="JHN.1.1"
         versionId={3034}
@@ -147,7 +154,7 @@ describe('BibleCard version persistence', () => {
     )
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
+      fireEvent.press(getByTestId('bible-card-version'))
     })
 
     await act(async () => {
@@ -164,15 +171,15 @@ describe('BibleCard version persistence', () => {
   it('uses stored version over versionId seed prop when uncontrolled', async () => {
     await seedBibleCardVersion(59)
 
-    render(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
+    await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
 
     expect(latestDomProps.versionId).toBe(59)
   })
 
-  it('passes a stored versionId into the DOM when version filter lists would refuse it', async () => {
+  it('passes a stored versionId into BibleTextView when version filter lists would refuse it', async () => {
     await seedBibleCardVersion(59)
 
-    render(<BibleCard reference="JHN.1.1" />, { wrapper: refuseFilterWrapper })
+    await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper: refuseFilterWrapper })
 
     expect(latestDomProps.versionId).toBe(59)
 
@@ -186,8 +193,10 @@ describe('BibleCard version persistence', () => {
     expect(parsed.state.versionId).toBe(59)
   })
 
-  it('passes a host versionId into the DOM when version filter lists would refuse it', () => {
-    render(<BibleCard reference="JHN.1.1" versionId={59} />, { wrapper: refuseFilterWrapper })
+  it('passes a host versionId into BibleTextView when version filter lists would refuse it', async () => {
+    await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={59} />, {
+      wrapper: refuseFilterWrapper,
+    })
 
     expect(latestDomProps.versionId).toBe(59)
   })

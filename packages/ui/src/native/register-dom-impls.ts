@@ -1,4 +1,3 @@
-import BibleCardDom from '../dom/bible-card'
 import BibleReaderDom from '../dom/bible-reader'
 import BibleReaderSettings from '../dom/bible-reader-settings'
 import BibleTextViewDom from '../dom/bible-text-view'
@@ -13,7 +12,6 @@ let registered = false
 export function ensureDomImpls(): void {
   if (registered) return
   registered = true
-  registerDefault('BibleCardDom', BibleCardDom)
   registerDefault('BibleReaderDom', BibleReaderDom)
   registerDefault('BibleReaderSettings', BibleReaderSettings)
   registerDefault('BibleTextViewDom', BibleTextViewDom)
