@@ -18,6 +18,8 @@ minimumReleaseAge: 4320 # 3-day cooldown — supply-chain attack mitigation
 # publish-side controls (2FA/trusted publishing) rather than this cooldown.
 minimumReleaseAgeExclude:
   - '@youversion/*'
+  - expo@57.0.23
+  - expo-build-properties@57.0.20
 
 # Migrated from .npmrc — pnpm 11 only reads auth/registry settings from .npmrc,
 # all other settings must live here (https://pnpm.io/blog/releases/11.0).
@@ -31,4 +33,4 @@ overrides:
   '@expo/router-server': 57.0.9
   babel-preset-expo: 57.0.11
   expo: 57.0.23
-  expo-build-properties: 57.0.17
+  expo-build-properties: 57.0.20
