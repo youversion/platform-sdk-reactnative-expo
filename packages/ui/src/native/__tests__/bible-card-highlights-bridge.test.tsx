@@ -24,6 +24,7 @@ import { emptyHighlights } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
+import * as bibleCardMetadata from '../bible-card-metadata'
 
 type CapturedDomProps = {
   highlights?: unknown
@@ -73,7 +74,9 @@ beforeEach(async () => {
   stubImpl('FootnoteContent', 'mock-footnote')
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('NativeSheet')
-  setImpl('BibleCardDom', MockDOM)
+  setImpl('BibleTextViewDom', MockDOM)
+  setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
+  jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockReturnValue(new Promise(() => undefined))
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
   await useBibleCardVersionStore.persist.rehydrate()
@@ -81,6 +84,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   resetImpls()
+  jest.restoreAllMocks()
 })
 
 describe('the Controlled Highlights Latch', () => {
@@ -189,15 +193,26 @@ describe('the verse-action event set', () => {
   })
 })
 
-describe('the DOM component source (unobservable from layer 3)', () => {
-  const source = readFileSync(join(__dirname, '../../dom/bible-card.tsx'), 'utf8')
+describe('the DOM scripture surface (unobservable from layer 3)', () => {
+  const cardSource = readFileSync(join(__dirname, '../bible-card.tsx'), 'utf8')
+  const textViewSource = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
+  const legacyDomSource = readFileSync(join(__dirname, '../../dom/bible-card.tsx'), 'utf8')
 
-  it('neither declares nor applies an accessToken prop', () => {
-    expect(source).not.toMatch(/^\s*accessToken\b/m)
-    expect(source).not.toContain('applyAuthToken')
+  it('embeds BibleTextView instead of the full-component BibleCard wrapper', () => {
+    expect(cardSource).toContain("getImpl('BibleTextViewDom')")
+    expect(cardSource).not.toContain("getImpl('BibleCardDom')")
   })
 
-  it('still clears the residue prior versions left in WebView storage', () => {
-    expect(source).toMatch(/^\s*clearAuthResidue\(\)$/m)
+  it('keeps the unused full-component DOM wrapper for RNV2-10', () => {
+    expect(legacyDomSource).toContain('BibleCard')
+    expect(legacyDomSource).not.toMatch(/^\s*accessToken\b/m)
+    expect(legacyDomSource).not.toContain('applyAuthToken')
+    expect(legacyDomSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
+  })
+
+  it('keeps content fetches on the native Bible Content Client', () => {
+    expect(textViewSource).toContain('registerBibleContentAction')
+    expect(textViewSource).toContain('fetchBibleContent')
+    expect(textViewSource).not.toMatch(/BibleClient/)
   })
 })
