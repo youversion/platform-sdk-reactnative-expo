@@ -53,6 +53,8 @@ an unused Metro port, builds the dev client, and opens that client against the
 same server. Each worktree receives its own Metro cache, and the command never
 reuses an occupied port because that port may belong to another worktree. Set
 `IOS_SIMULATOR` or pass `--device <name-or-UDID>` to pick a simulator explicitly.
+Concurrent Metro servers are supported, but one simulator can run only one copy
+of the example app. Use a different simulator UDID for simultaneous app sessions.
 
 Or for Android:
 

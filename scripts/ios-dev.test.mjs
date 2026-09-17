@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:net'
 import { test } from 'node:test'
 
@@ -8,8 +10,10 @@ import {
   chooseSimulator,
   findAvailablePort,
   isPortAvailable,
+  metroIsReady,
   parseArguments,
   parseAvailableIphones,
+  stopChildren,
 } from './ios-dev.mjs'
 
 const simctlOutput = JSON.stringify({
@@ -93,6 +97,42 @@ test('isPortAvailable detects a server listening outside IPv4 localhost', async 
   context.after(() => server.close())
 
   assert.equal(await isPortAvailable(server.address().port), false)
+})
+
+test('metroIsReady requires a running Metro for the expected project root', async (context) => {
+  const server = createHttpServer((request, response) => {
+    assert.equal(request.url, '/status')
+    response.setHeader('X-React-Native-Project-Root', '/expected/project')
+    response.end('packager-status:running')
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  context.after(() => server.close())
+  const port = server.address().port
+
+  assert.equal(await metroIsReady(port, '/expected/project'), true)
+  assert.equal(await metroIsReady(port, '/another/worktree'), false)
+})
+
+test('stopChildren interrupts each active child without touching exited children', () => {
+  const active = Object.assign(new EventEmitter(), {
+    exitCode: null,
+    signals: [],
+    kill(signal) {
+      this.signals.push(signal)
+    },
+  })
+  const exited = Object.assign(new EventEmitter(), {
+    exitCode: 0,
+    signals: [],
+    kill(signal) {
+      this.signals.push(signal)
+    },
+  })
+
+  stopChildren(new Set([active, exited]))
+
+  assert.deepEqual(active.signals, ['SIGTERM'])
+  assert.deepEqual(exited.signals, [])
 })
 
 test('parseArguments accepts the argument separator forwarded by pnpm', () => {

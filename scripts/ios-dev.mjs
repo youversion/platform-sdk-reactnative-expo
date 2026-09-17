@@ -33,6 +33,26 @@ function capture(command, args, options = {}) {
   }
 }
 
+function observeChild(child) {
+  return new Promise((resolve) => {
+    child.once('error', (error) => resolve({ error }))
+    child.once('exit', (code, signal) => resolve({ code, signal }))
+  })
+}
+
+function assertChildSucceeded(outcome, label) {
+  if (outcome.error) throw outcome.error
+  if (outcome.code !== 0) {
+    throw new Error(`${label} exited with code ${outcome.code ?? outcome.signal}.`)
+  }
+}
+
+export function stopChildren(children) {
+  for (const child of children) {
+    if (child.exitCode === null) child.kill('SIGTERM')
+  }
+}
+
 function runtimeVersion(runtime) {
   const match = runtime.match(/iOS-(\d+)(?:-(\d+))?(?:-(\d+))?$/)
   if (!match) return [0, 0, 0]
@@ -212,22 +232,43 @@ function readSimulators() {
   return parseAvailableIphones(output)
 }
 
-async function waitForMetro(port, child, timeoutMs = 30_000) {
+export async function metroIsReady(port, projectRoot = EXAMPLE_DIR) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/status`, {
+      signal: AbortSignal.timeout(500),
+    })
+    return (
+      (await response.text()).trim() === 'packager-status:running' &&
+      response.headers.get('x-react-native-project-root') === projectRoot
+    )
+  } catch {
+    return false
+  }
+}
+
+async function waitForMetro(port, childOutcome, timeoutMs = 30_000) {
   const startedAt = Date.now()
+  let outcome
+  void childOutcome.then((value) => {
+    outcome = value
+  })
 
   while (Date.now() - startedAt < timeoutMs) {
-    if (child.exitCode !== null) {
-      throw new Error(`Metro exited before opening port ${port}.`)
+    if (outcome) {
+      if (outcome.error) throw outcome.error
+      throw new Error(`Metro exited with code ${outcome.code ?? outcome.signal}.`)
     }
-
+    if (await metroIsReady(port)) return
     const owner = portOwner(port)
-    if (owner?.cwd === EXAMPLE_DIR) return
+    if (owner && owner.cwd !== EXAMPLE_DIR) {
+      const error = new Error(`Metro port ${port} was claimed by ${describePortOwner(owner)}.`)
+      error.code = 'METRO_PORT_CONFLICT'
+      throw error
+    }
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
 
-  throw new Error(
-    `Metro did not take ownership of port ${port} from ${EXAMPLE_DIR} within 30 seconds.`,
-  )
+  throw new Error(`Metro was not ready for ${EXAMPLE_DIR} on port ${port} within 30 seconds.`)
 }
 
 function printHelp() {
@@ -305,87 +346,154 @@ async function doctor() {
 async function dev(options) {
   const devices = readSimulators()
   const simulator = chooseSimulator(devices, options.device)
-
-  let port
-  if (options.port !== undefined) {
-    if (!(await isPortAvailable(options.port))) {
-      const owner = portOwner(options.port)
-      throw new Error(
-        `Metro port ${options.port} is occupied by ${describePortOwner(owner)}. Choose another port instead of reusing a server from another checkout.`,
-      )
-    }
-    port = options.port
-  } else {
-    port = await findAvailablePort()
-    if (port !== DEFAULT_PORT) {
-      console.log(
-        `Metro port ${DEFAULT_PORT} is occupied by ${describePortOwner(portOwner(DEFAULT_PORT))}; using ${port}.`,
-      )
-    }
-  }
-
   const appConfig = JSON.parse(readFileSync(join(EXAMPLE_DIR, 'app.json'), 'utf8'))
   const slug = appConfig.expo.slug
+  const activeChildren = new Set()
+  const childOutcomes = new Map()
+  let interruptedSignal
+
+  const startChild = (command, args, childOptions = {}) => {
+    const child = spawn(command, args, {
+      cwd: childOptions.cwd ?? REPO_ROOT,
+      env: childOptions.env ?? process.env,
+      stdio: childOptions.pipeOutput ? ['inherit', 'pipe', 'pipe'] : 'inherit',
+    })
+    child.stdout?.pipe(process.stdout)
+    child.stderr?.pipe(process.stderr)
+    activeChildren.add(child)
+    const outcome = observeChild(child).then((result) => {
+      activeChildren.delete(child)
+      return result
+    })
+    childOutcomes.set(child, outcome)
+    return { child, outcome }
+  }
+
+  const runChild = async (command, args, childOptions) => {
+    const { outcome } = startChild(command, args, childOptions)
+    const result = await outcome
+    assertChildSucceeded(result, childOptions?.label ?? command)
+  }
+
+  const interrupt = (signal) => {
+    interruptedSignal ??= signal
+    stopChildren(activeChildren)
+  }
+  const handleSigint = () => interrupt('SIGINT')
+  const handleSigterm = () => interrupt('SIGTERM')
+  process.once('SIGINT', handleSigint)
+  process.once('SIGTERM', handleSigterm)
 
   console.log(`Repository: ${REPO_ROOT}`)
   console.log(`Commit: ${capture('git', ['rev-parse', '--short', 'HEAD'])}`)
   console.log(`Simulator: ${simulator.name} (${simulator.udid})`)
-  console.log(`Metro: http://127.0.0.1:${port}`)
-
-  run('open', ['-a', 'Simulator'])
-  if (simulator.state !== 'Booted') {
-    run('xcrun', ['simctl', 'boot', simulator.udid])
-  }
-  run('xcrun', ['simctl', 'bootstatus', simulator.udid, '-b'])
-
-  if (options.clean) {
-    console.log('Regenerating the native iOS project...')
-    run('pnpm', ['exec', 'expo', 'prebuild', '--clean', '--platform', 'ios'], {
-      cwd: EXAMPLE_DIR,
-    })
-  }
-
-  const metroArguments = ['exec', 'expo', 'start', '--dev-client', '--lan', '--port', String(port)]
-  if (options.clean) metroArguments.push('--clear')
-
-  mkdirSync(METRO_TMP_DIR, { recursive: true })
-  const metro = spawn('pnpm', metroArguments, {
-    cwd: EXAMPLE_DIR,
-    env: { ...process.env, TMPDIR: METRO_TMP_DIR },
-    stdio: 'inherit',
-  })
-  const stopMetro = () => {
-    if (metro.exitCode === null) metro.kill('SIGTERM')
-  }
-
-  process.once('SIGINT', () => {
-    stopMetro()
-    process.exit(130)
-  })
-  process.once('SIGTERM', () => {
-    stopMetro()
-    process.exit(143)
-  })
 
   try {
-    await waitForMetro(port, metro)
-    run('pnpm', ['exec', 'expo', 'run:ios', '--no-bundler', '--device', simulator.udid], {
-      cwd: EXAMPLE_DIR,
-      env: buildExpoEnvironment(port),
+    run('open', ['-a', 'Simulator'])
+    await runChild('xcrun', ['simctl', 'bootstatus', simulator.udid, '-b'], {
+      label: 'Simulator boot',
     })
+
+    if (options.clean) {
+      console.log('Regenerating the native iOS project...')
+      await runChild('pnpm', ['exec', 'expo', 'prebuild', '--clean', '--platform', 'ios'], {
+        cwd: EXAMPLE_DIR,
+        label: 'Expo prebuild',
+      })
+    }
+
+    let port = options.port ?? DEFAULT_PORT
+    let metro
+    while (!metro) {
+      if (!(await isPortAvailable(port))) {
+        const owner = portOwner(port)
+        if (options.port !== undefined) {
+          throw new Error(
+            `Metro port ${port} is occupied by ${describePortOwner(owner)}. Choose another port instead of reusing a server from another checkout.`,
+          )
+        }
+        const nextPort = await findAvailablePort(port + 1)
+        console.log(
+          `Metro port ${port} is occupied by ${describePortOwner(owner)}; using ${nextPort}.`,
+        )
+        port = nextPort
+      }
+
+      console.log(`Metro: http://127.0.0.1:${port}`)
+      const metroArguments = [
+        'exec',
+        'expo',
+        'start',
+        '--dev-client',
+        '--lan',
+        '--port',
+        String(port),
+      ]
+      if (options.clean) metroArguments.push('--clear')
+
+      mkdirSync(METRO_TMP_DIR, { recursive: true })
+      const attempt = startChild('pnpm', metroArguments, {
+        cwd: EXAMPLE_DIR,
+        env: { ...process.env, TMPDIR: METRO_TMP_DIR },
+        pipeOutput: true,
+      })
+
+      try {
+        await waitForMetro(port, attempt.outcome)
+        metro = attempt
+      } catch (error) {
+        if (attempt.child.exitCode === null) attempt.child.kill('SIGTERM')
+        await attempt.outcome
+        if (
+          options.port === undefined &&
+          !interruptedSignal &&
+          (error.code === 'METRO_PORT_CONFLICT' || !(await isPortAvailable(port)))
+        ) {
+          const nextPort = await findAvailablePort(port + 1)
+          console.log(`Metro port ${port} was claimed during startup; retrying on ${nextPort}.`)
+          port = nextPort
+          continue
+        }
+        throw error
+      }
+    }
+
+    const build = startChild(
+      'pnpm',
+      ['exec', 'expo', 'run:ios', '--no-bundler', '--device', simulator.udid],
+      {
+        cwd: EXAMPLE_DIR,
+        env: buildExpoEnvironment(port),
+      },
+    )
+    const firstExit = await Promise.race([
+      build.outcome.then((outcome) => ({ source: 'build', outcome })),
+      metro.outcome.then((outcome) => ({ source: 'metro', outcome })),
+    ])
+    if (firstExit.source === 'metro') {
+      if (build.child.exitCode === null) build.child.kill('SIGTERM')
+      await build.outcome
+      assertChildSucceeded(firstExit.outcome, 'Metro')
+      throw new Error('Metro exited before the iOS build completed.')
+    }
+    assertChildSucceeded(firstExit.outcome, 'Expo iOS build')
+
     run('xcrun', ['simctl', 'openurl', simulator.udid, buildDevClientUrl(slug, port)])
     console.log(
       `\nRunning ${slug} on ${simulator.name} from ${REPO_ROOT}. Press Ctrl-C to stop Metro.`,
     )
-    await new Promise((resolve, reject) => {
-      metro.once('exit', (code, signal) => {
-        if (code === 0 || signal === 'SIGTERM') resolve()
-        else reject(new Error(`Metro exited with code ${code ?? signal}.`))
-      })
-    })
+    assertChildSucceeded(await metro.outcome, 'Metro')
   } catch (error) {
-    stopMetro()
+    if (interruptedSignal) {
+      process.exitCode = interruptedSignal === 'SIGINT' ? 130 : 143
+      return
+    }
     throw error
+  } finally {
+    stopChildren(activeChildren)
+    await Promise.allSettled(childOutcomes.values())
+    process.removeListener('SIGINT', handleSigint)
+    process.removeListener('SIGTERM', handleSigterm)
   }
 }
 
