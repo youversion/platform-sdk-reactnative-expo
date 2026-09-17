@@ -10,7 +10,7 @@ export default function ProfileScreen() {
   if (auth === null) {
     return (
       <View style={[styles.container, { backgroundColor: theme.bg }]}>
-        <Text style={[styles.muted, { color: theme.muted, textAlign: 'center' }]}>
+        <Text style={[styles.muted, { color: theme.muted }]}>
           Sign-in is not configured.
         </Text>
       </View>
@@ -68,6 +68,7 @@ const styles = StyleSheet.create({
   },
   signedIn: {
     alignItems: 'center',
+    alignSelf: 'stretch',
     gap: 8,
   },
   avatar: {
@@ -78,13 +79,16 @@ const styles = StyleSheet.create({
   },
   muted: {
     fontSize: 15,
+    textAlign: 'center',
   },
   name: {
     fontSize: 22,
     fontWeight: '600',
+    textAlign: 'center',
   },
   email: {
     fontSize: 15,
+    textAlign: 'center',
   },
   button: {
     marginTop: 16,
