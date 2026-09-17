@@ -47,7 +47,10 @@ export function useBibleVersionAbbreviation(
     if (!enabled) {
       return
     }
-    if (cacheRef.current.has(versionId)) {
+    const cached = cacheRef.current.get(versionId)
+    if (cached !== undefined) {
+      setMeta({ versionId, value: cached })
+      setSettled(true)
       return
     }
 

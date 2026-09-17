@@ -52,7 +52,10 @@ export function useBibleBookTitle(
     if (!enabled) {
       return
     }
-    if (cacheRef.current.has(versionId)) {
+    const cached = cacheRef.current.get(versionId)
+    if (cached !== undefined) {
+      setOwned({ versionId, value: cached })
+      setSettled(true)
       return
     }
 

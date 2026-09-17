@@ -245,6 +245,52 @@ describe('useBibleVersionAbbreviation', () => {
     )
   })
 
+  it('hydrates from cache when a request finishes after the hook is disabled', async () => {
+    let resolveVersion!: (value: Response) => void
+    const pending = new Promise<Response>((resolve) => {
+      resolveVersion = resolve
+    })
+    let versionCalls = 0
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/111')) {
+        versionCalls += 1
+        return pending
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useBibleVersionAbbreviation(111, { enabled }),
+      { wrapper: wrapper(), initialProps: { enabled: true } },
+    )
+
+    await waitFor(() => {
+      expect(versionCalls).toBe(1)
+    })
+    rerender({ enabled: false })
+
+    await act(async () => {
+      resolveVersion(
+        new Response(JSON.stringify({ abbreviation: 'NIV', language_tag: 'en' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await pending
+    })
+
+    rerender({ enabled: true })
+    await waitFor(() => {
+      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+    })
+    expect(versionCalls).toBe(1)
+  })
+
   it('stays null when the lookup fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)

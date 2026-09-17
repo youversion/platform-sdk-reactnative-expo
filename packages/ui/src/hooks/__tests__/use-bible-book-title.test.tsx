@@ -280,6 +280,57 @@ describe('useBibleBookTitle', () => {
     ).toBe(false)
   })
 
+  it('hydrates from cache when a request finishes after the hook is disabled', async () => {
+    let resolveBooks!: (value: Response) => void
+    const pending = new Promise<Response>((resolve) => {
+      resolveBooks = resolve
+    })
+    let booksCalls = 0
+
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isBooksCatalogUrl(url) && url.includes('/111/')) {
+        booksCalls += 1
+        return pending
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result, rerender } = renderHook(
+      ({ enabled }: { enabled: boolean }) => useBibleBookTitle(111, 'JHN', { enabled }),
+      { wrapper: wrapper(), initialProps: { enabled: true } },
+    )
+
+    await waitFor(() => {
+      expect(booksCalls).toBe(1)
+    })
+    rerender({ enabled: false })
+
+    await act(async () => {
+      resolveBooks(
+        new Response(BOOKS_BODY, {
+          status: 200,
+          headers: { 'content-type': 'application/json', 'cache-control': 'max-age=3600' },
+        }),
+      )
+      await pending
+    })
+
+    rerender({ enabled: true })
+    await waitFor(() => {
+      expect(result.current).toEqual({
+        title: 'John',
+        entry: JOHN_ENTRY,
+        isLoading: false,
+        catalog: expect.any(Map),
+      })
+    })
+    expect(booksCalls).toBe(1)
+  })
+
   it('stays null when the lookup fails', async () => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
