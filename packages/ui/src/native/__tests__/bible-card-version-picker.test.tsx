@@ -141,6 +141,27 @@ describe('BibleCard version picker integration', () => {
     expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
   })
 
+  it('does not call consumer handler when chrome metadata has no language tag', async () => {
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockResolvedValue({
+      reference: 'John 1:1',
+      abbreviation: 'NIV',
+      copyright: 'NIV copyright',
+      languageTag: undefined,
+    })
+    const consumerHandler = jest.fn().mockResolvedValue(undefined)
+
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" showVersionPicker onVersionPickerPress={consumerHandler} />,
+      { wrapper },
+    )
+
+    await act(async () => {
+      fireEvent.press(getByTestId('bible-card-version'))
+    })
+
+    expect(consumerHandler).not.toHaveBeenCalled()
+  })
+
   it('hides the version picker by default (Web SDK parity) and does not mount the built-in sheet', async () => {
     const { queryByTestId } = await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper })
 
