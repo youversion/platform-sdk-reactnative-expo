@@ -282,11 +282,11 @@ describe('BibleReaderSearchSheet', () => {
     } satisfies BibleReference)
   })
 
-  it('ignores a malformed USFM tap and stays in Search', async () => {
+  it('selects a chapter-only hit and hands book plus chapter up', async () => {
     const stub = searchStub({
       verses: jest.fn(async () => ({
         ok: true as const,
-        value: { verses: [{ id: 'not-a-usfm' }], didYouMean: [] },
+        value: { verses: [{ id: 'PSA.23' }], didYouMean: [] },
       })),
     })
     const onClose = jest.fn()
@@ -311,11 +311,56 @@ describe('BibleReaderSearchSheet', () => {
     await flush()
 
     await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-reader-search-result-not-a-usfm'))
+      fireEvent.press(screen.getByTestId('bible-reader-search-result-PSA.23'))
     })
 
-    expect(onClose).not.toHaveBeenCalled()
-    expect(onSelectReference).not.toHaveBeenCalled()
-    expect(screen.getByTestId('search-sheet')).toBeTruthy()
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onSelectReference).toHaveBeenCalledWith({
+      versionId: 111,
+      bookId: 'PSA',
+      chapter: 23,
+    } satisfies BibleReference)
+  })
+
+  it('selects a verse-range hit using the start verse as the anchor', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => ({
+        ok: true as const,
+        value: { verses: [{ id: 'JHN.3.16-17' }], didYouMean: [] },
+      })),
+    })
+    const onClose = jest.fn()
+    const onSelectReference = jest.fn()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={onClose}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={onSelectReference}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-result-JHN.3.16-17'))
+    })
+
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(onSelectReference).toHaveBeenCalledWith({
+      versionId: 111,
+      bookId: 'JHN',
+      chapter: 3,
+      verse: 16,
+    } satisfies BibleReference)
   })
 })
+

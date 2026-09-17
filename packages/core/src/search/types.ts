@@ -62,5 +62,6 @@ export type BibleReference = {
   versionId: number
   bookId: string
   chapter: number
-  verse: number
+  /** Absent for chapter-only hits. For ranges, the start verse (scroll anchor). */
+  verse?: number
 }

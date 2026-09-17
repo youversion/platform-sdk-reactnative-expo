@@ -1,20 +1,43 @@
 import type { BibleReference } from './types'
 
+/**
+ * Parse a search-hit USFM into a {@link BibleReference}.
+ *
+ * Accepts chapter-only (`PSA.23`), a single verse (`JHN.3.16`), and a verse
+ * range (`JHN.3.16-17`). Ranges use the start verse as the navigation anchor.
+ * Returns `null` only for structurally invalid input, not for "not a single
+ * verse".
+ */
 export function bibleReferenceFromUsfm(usfm: string, versionId: number): BibleReference | null {
   const parts = usfm.split('.')
-  if (parts.length !== 3) {
+  if (parts.length !== 2 && parts.length !== 3) {
     return null
   }
   const [bookId, chapterPart, versePart] = parts
-  if (bookId === undefined || chapterPart === undefined || versePart === undefined) {
-    return null
-  }
-  if (bookId === '') {
+  if (bookId === undefined || bookId === '' || chapterPart === undefined) {
     return null
   }
   const chapter = parsePositiveInt(chapterPart)
-  const verse = parsePositiveInt(versePart)
-  if (chapter === null || verse === null) {
+  if (chapter === null) {
+    return null
+  }
+  if (versePart === undefined) {
+    return { versionId, bookId, chapter }
+  }
+
+  const verseSegments = versePart.split('-')
+  if (verseSegments.length > 2) {
+    return null
+  }
+  const [startPart, endPart] = verseSegments
+  if (startPart === undefined) {
+    return null
+  }
+  const verse = parsePositiveInt(startPart)
+  if (verse === null) {
+    return null
+  }
+  if (endPart !== undefined && parsePositiveInt(endPart) === null) {
     return null
   }
   return { versionId, bookId, chapter, verse }
