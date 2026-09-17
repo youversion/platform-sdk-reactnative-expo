@@ -1,5 +1,22 @@
 # @youversion/platform-react-native-expo-ui
 
+## 1.7.0
+
+### Minor Changes
+
+- 7e7fcec: VerseOfTheDay is now hybrid: native chrome (share, attribution, Card surface) wrapping the DOM BibleTextView for scripture (YPE-5440 / RNV2-2). Public props are unchanged. Light/dark resolve on native before they cross the bridge. Share uses the native Share API. Native share and the header reference honor the provider version filter lists, so a refused version cannot leak through Share.
+- dffc732: feat: draw a native Reader toolbar on iOS/Android instead of the in-WebView Web SDK toolbar (YPE-5712 / RNV2-9a). Avatar, chapter (with chevrons), version, and settings open the existing sheets.
+
+### Patch Changes
+
+- 9b95630: Sync localization from platform-localization (413e2e7): update 1 keys in en.
+- 5586004: Sync localization from platform-localization (c99c472): update 1 keys in en.
+- 6fd7a23: Sync localization from platform-localization (e4c7700): update 3 keys in en.
+- 4ad729d: Sync localization from platform-localization (ee03e27): update 49 keys in es.
+- Updated dependencies [7e7fcec]
+- Updated dependencies [dffc732]
+  - @youversion/platform-react-native-expo-core@1.7.0
+
 ## 1.6.0
 
 ### Minor Changes
