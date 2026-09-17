@@ -1,11 +1,11 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
+import type { i18n as I18n } from 'i18next'
 import type { ReactNode } from 'react'
 import { Text as RNText } from 'react-native'
 import { Trans } from 'react-i18next'
 import { Button } from '../components/ui'
-import { ThemeContext } from '../hooks'
+import { ThemeContext, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { getTokens } from '../theme'
 import { sansFace } from '../theme/fonts'
 import { BibleAppLogo } from './bible-app-logo'
 import { useSignOutGuard } from './use-sign-out-guard'
@@ -18,6 +18,35 @@ export type YouVersionAuthButtonProps = {
   text?: string
 }
 
+type AuthButtonSurfaceProps = {
+  i18n: I18n
+  i18nKey: 'signInWithYouVersion' | 'signOutOfYouVersion'
+  text?: string
+  onPress: () => void
+}
+
+function AuthButtonSurface({ i18n, i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
+  const tokens = useTokens()
+  const label = text ?? (
+    <Trans
+      i18n={i18n}
+      i18nKey={i18nKey}
+      components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
+    />
+  )
+
+  return (
+    <Button
+      // Pin the brand surface. Button default primary is red in dark and hides the logo.
+      style={{ backgroundColor: tokens.background }}
+      onPress={onPress}
+    >
+      <BibleAppLogo />
+      <Button.Text style={{ color: tokens.foreground }}>{label}</Button.Text>
+    </Button>
+  )
+}
+
 export function YouVersionAuthButton({
   background = 'light',
   mode = 'auto',
@@ -27,8 +56,6 @@ export function YouVersionAuthButton({
   const { isAuthenticated, signIn } = auth
   const guardedSignOut = useSignOutGuard(auth)
   const { i18n } = useSdkTranslation()
-  const tokens = getTokens(background)
-  const boldComponent = <RNText style={sansFace(tokens.fontFamily.sans, 700)} />
 
   const isSignOut = mode === 'signOut' || (mode === 'auto' && isAuthenticated)
   const i18nKey = isSignOut ? 'signOutOfYouVersion' : 'signInWithYouVersion'
@@ -47,20 +74,14 @@ export function YouVersionAuthButton({
 
   return (
     <ThemeContext.Provider value={background}>
-      <Button
+      <AuthButtonSurface
+        i18n={i18n}
+        i18nKey={i18nKey}
+        text={text}
         onPress={() => {
           void authFunction()
         }}
-      >
-        <BibleAppLogo />
-        {text ? (
-          <Button.Text>{text}</Button.Text>
-        ) : (
-          <Button.Text>
-            <Trans i18n={i18n} i18nKey={i18nKey} components={{ bold: boldComponent }} />
-          </Button.Text>
-        )}
-      </Button>
+      />
     </ThemeContext.Provider>
   )
 }

@@ -16,7 +16,9 @@ import { YouVersionAuthButton, type YouVersionAuthButtonProps } from '../youvers
 import { YouVersionProvider } from '../youversion-provider'
 
 type RemovedAuthButtonProp = 'outline' | 'radius' | 'size'
-type RemovedPropsGone = RemovedAuthButtonProp extends keyof YouVersionAuthButtonProps ? true : false
+type RemovedStillPresent = Extract<RemovedAuthButtonProp, keyof YouVersionAuthButtonProps>
+type AssertNever<T extends never> = T
+type _removedAuthButtonProps = AssertNever<RemovedStillPresent>
 
 function ThemeProbe() {
   const tokens = useTokens()
@@ -90,55 +92,50 @@ function labelStyle(matcher: string | RegExp) {
 }
 
 describe('YouVersionAuthButton labels', () => {
-  it('keeps outline, radius, and size off the public props type', () => {
-    const gone: RemovedPropsGone = false
-    expect(gone).toBe(false)
-  })
-
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
     renderAuthButton()
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
     expect(screen.getByTestId('bible-app-logo')).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when authenticated (mode=auto)', () => {
     mockIsAuthenticated = true
     renderAuthButton()
-    expect(screen.getByText(/sign out of/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign out of YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when mode="signOut" even if unauthenticated', () => {
     renderAuthButton({ mode: 'signOut' })
-    expect(screen.getByText(/sign out of/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign out of YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" and unauthenticated', () => {
     renderAuthButton({ mode: 'signIn' })
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" even while authenticated', () => {
     mockIsAuthenticated = true
     renderAuthButton({ mode: 'signIn' })
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
-    expect(screen.queryByText(/sign out of/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
+    expect(screen.queryByText('Sign out of YouVersion')).toBeNull()
   })
 
   it('replaces the localized label when text is passed', () => {
     renderAuthButton({ text: 'Continue with YouVersion' })
-    expect(screen.getByText('Continue with YouVersion')).toBeTruthy()
-    expect(screen.queryByText(/sign in with/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Continue with YouVersion' })).toBeTruthy()
+    expect(screen.queryByText('Sign in with YouVersion')).toBeNull()
   })
 
-  it('paints the light scheme label in primaryForeground', () => {
+  it('paints the light scheme label in foreground', () => {
     renderAuthButton({ background: 'light' })
-    expect(labelStyle(/sign in with/i)).toMatchObject({ color: light.primaryForeground })
+    expect(labelStyle('Sign in with YouVersion')).toMatchObject({ color: light.foreground })
   })
 
-  it('paints the dark scheme label in primaryForeground', () => {
+  it('paints the dark scheme label in foreground', () => {
     mockIsAuthenticated = true
     renderAuthButton({ background: 'dark' })
-    expect(labelStyle(/sign out of/i)).toMatchObject({ color: dark.primaryForeground })
+    expect(labelStyle('Sign out of YouVersion')).toMatchObject({ color: dark.foreground })
   })
 
   it('paints the brand name in the bold sans face', () => {
@@ -154,7 +151,7 @@ describe('YouVersionAuthButton container tokens', () => {
     renderAuthButton({ background: 'light' }, 'dark')
 
     expect(buttonStyle()).toMatchObject({
-      backgroundColor: light.primary,
+      backgroundColor: light.background,
       borderRadius: light.radius.full,
     })
     expect(buttonStyle().borderWidth).toBeUndefined()
@@ -164,7 +161,7 @@ describe('YouVersionAuthButton container tokens', () => {
     renderAuthButton({ background: 'dark' }, 'light')
 
     expect(buttonStyle()).toMatchObject({
-      backgroundColor: dark.primary,
+      backgroundColor: dark.background,
       borderRadius: dark.radius.full,
     })
     expect(buttonStyle().borderWidth).toBeUndefined()
@@ -182,7 +179,7 @@ describe('YouVersionAuthButton container tokens', () => {
       </YouVersionProvider>,
     )
 
-    expect(buttonStyle()).toMatchObject({ backgroundColor: dark.primary })
+    expect(buttonStyle()).toMatchObject({ backgroundColor: dark.background })
     expect(screen.getByTestId('theme-probe').props.children).toBe(light.primary)
   })
 })
@@ -210,11 +207,23 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
     expect(Alert.alert).not.toHaveBeenCalled()
+  })
+
+  it('logs when signIn rejects', async () => {
+    const boom = new Error('sign-in failed')
+    mockSignIn.mockRejectedValueOnce(boom)
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const user = userEvent.setup()
+    renderAuthButton()
+
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
+
+    expect(errorSpy).toHaveBeenCalledWith(boom)
   })
 
   it('asks before signing out when authenticated (mode=auto)', async () => {
@@ -222,7 +231,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -233,7 +242,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
     pressAlertButton(en.signOut)
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -245,7 +254,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     const call = jest.mocked(Alert.alert).mock.calls[0]
     expect(call?.[0]).toBe(en.signOutPendingHighlightsQuestion)
@@ -260,7 +269,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signIn' })
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -271,7 +280,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signIn' })
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -281,7 +290,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).not.toHaveBeenCalled()
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -297,7 +306,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).not.toHaveBeenCalled()
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -308,7 +317,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
     pressAlertButton(en.signOut)
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
