@@ -23,3 +23,12 @@ minimumReleaseAgeExclude:
 # all other settings must live here (https://pnpm.io/blog/releases/11.0).
 # Required for Expo DOM Components + pnpm compatibility.
 nodeLinker: hoisted
+
+# Pin transitive Expo SDK 57 deps to versions past the 3-day minimumReleaseAge
+# cutoff while SDK 57.0.23+ patches age out (see PR-1 upgrade notes).
+overrides:
+  '@expo/cli': 57.0.24
+  '@expo/router-server': 57.0.9
+  babel-preset-expo: 57.0.11
+  expo: 57.0.22
+  expo-build-properties: 57.0.17
