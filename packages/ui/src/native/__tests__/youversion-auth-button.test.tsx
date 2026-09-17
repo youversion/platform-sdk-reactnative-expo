@@ -3,16 +3,27 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import { Alert, Platform, StyleSheet, View } from 'react-native'
-import type { ReactTestInstance } from 'react-test-renderer'
+import { Alert, Platform, StyleSheet, Text, View } from 'react-native'
 
+import { useTokens } from '../../hooks'
 import en from '../../i18n/locales/en.json'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { seedQueuedHighlightWrites } from '../../test-utils/seed-queued-highlight-writes'
 import { getTokens } from '../../theme'
-import { YouVersionAuthButton } from '../youversion-auth-button'
+import { fontMapKey } from '../../theme/fonts'
+import { YouVersionAuthButton, type YouVersionAuthButtonProps } from '../youversion-auth-button'
 import { YouVersionProvider } from '../youversion-provider'
+
+type RemovedAuthButtonProp = 'outline' | 'radius' | 'size'
+type RemovedStillPresent = Extract<RemovedAuthButtonProp, keyof YouVersionAuthButtonProps>
+type AssertNever<T extends never> = T
+type _removedAuthButtonProps = AssertNever<RemovedStillPresent>
+
+function ThemeProbe() {
+  const tokens = useTokens()
+  return <Text testID="theme-probe">{tokens.primary}</Text>
+}
 
 const light = getTokens('light')
 const dark = getTokens('dark')
@@ -35,10 +46,14 @@ function authValue() {
   })
 }
 
-function renderAuthButton(props: ComponentProps<typeof YouVersionAuthButton> = {}) {
+function renderAuthButton(
+  props: ComponentProps<typeof YouVersionAuthButton> = {},
+  providerTheme: 'light' | 'dark' = 'light',
+) {
   return render(
     <YouVersionProvider
       appKey="test-key"
+      theme={providerTheme}
       hookOverrides={{ ...defaultHookOverrides, useYVAuth: authValue() }}
     >
       <YouVersionAuthButton {...props} />
@@ -68,135 +83,122 @@ function pressAlertButton(text: string) {
   button?.onPress?.()
 }
 
-function containerStyle() {
-  let node: ReactTestInstance | null = screen.getByTestId('bible-app-logo')
-  while (node) {
-    const style = StyleSheet.flatten(node.props.style)
-    if (style && 'backgroundColor' in style) {
-      return style
-    }
-    node = node.parent
-  }
-  throw new Error('Pressable container not found')
+function buttonStyle() {
+  return StyleSheet.flatten(screen.getByRole('button').props.style)
+}
+
+function labelStyle(matcher: string | RegExp) {
+  return StyleSheet.flatten(screen.getByText(matcher).props.style)
 }
 
 describe('YouVersionAuthButton labels', () => {
   it('shows "Sign in with YouVersion" when unauthenticated (mode=auto)', () => {
     renderAuthButton()
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
-  })
-
-  it('shows "Sign in" when unauthenticated and size="short"', () => {
-    renderAuthButton({ size: 'short' })
-    expect(screen.getByText('Sign in')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
+    expect(screen.getByTestId('bible-app-logo')).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when authenticated (mode=auto)', () => {
     mockIsAuthenticated = true
     renderAuthButton()
-    expect(screen.getByText(/sign out of/i)).toBeTruthy()
-  })
-
-  it('shows the short sign-out label when authenticated and size="short"', () => {
-    mockIsAuthenticated = true
-    renderAuthButton({ size: 'short' })
-    expect(screen.getByText(en.signOut)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign out of YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign out of YouVersion" when mode="signOut" even if unauthenticated', () => {
     renderAuthButton({ mode: 'signOut' })
-    expect(screen.getByText(/sign out of/i)).toBeTruthy()
-  })
-
-  it('shows the short sign-out label when mode="signOut" and size="short"', () => {
-    renderAuthButton({ mode: 'signOut', size: 'short' })
-    expect(screen.getByText(en.signOut)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign out of YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" and unauthenticated', () => {
     renderAuthButton({ mode: 'signIn' })
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
   })
 
   it('shows "Sign in with YouVersion" when mode="signIn" even while authenticated', () => {
     mockIsAuthenticated = true
     renderAuthButton({ mode: 'signIn' })
-    expect(screen.getByText(/sign in with/i)).toBeTruthy()
-    expect(screen.queryByText(/sign out of/i)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
+    expect(screen.queryByText('Sign out of YouVersion')).toBeNull()
   })
 
-  it('renders no label in size="icon" mode but keeps the logo', () => {
-    renderAuthButton({ size: 'icon' })
-    expect(screen.queryByText(/sign/i)).toBeNull()
-    expect(screen.getByTestId('bible-app-logo')).toBeTruthy()
+  it('replaces the localized label when text is passed', () => {
+    renderAuthButton({ text: 'Continue with YouVersion' })
+    expect(screen.getByRole('button', { name: 'Continue with YouVersion' })).toBeTruthy()
+    expect(screen.queryByText('Sign in with YouVersion')).toBeNull()
   })
 
-  it('applies white text color on dark background for sign-in label', () => {
-    renderAuthButton({ background: 'dark' })
-    const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: dark.foreground })
+  it('keeps the localized label when text is an empty string', () => {
+    renderAuthButton({ text: '' })
+    expect(screen.getByRole('button', { name: 'Sign in with YouVersion' })).toBeTruthy()
   })
 
-  it('applies white text color on dark background for sign-out label', () => {
+  it('paints the light scheme label in foreground', () => {
+    renderAuthButton({ background: 'light' })
+    expect(labelStyle('Sign in with YouVersion')).toMatchObject({ color: light.foreground })
+  })
+
+  it('paints the dark scheme label in foreground', () => {
     mockIsAuthenticated = true
     renderAuthButton({ background: 'dark' })
-    const label = screen.getByText(/sign out of/i)
-    expect(label.props.style).toMatchObject({ color: dark.foreground })
+    expect(labelStyle('Sign out of YouVersion')).toMatchObject({ color: dark.foreground })
   })
 
-  it('applies black text color on light background for sign-in label', () => {
-    renderAuthButton({ background: 'light' })
-    const label = screen.getByText(/sign in with/i)
-    expect(label.props.style).toMatchObject({ color: light.foreground })
+  it('paints the brand name in the bold sans face', () => {
+    renderAuthButton()
+    expect(labelStyle('YouVersion')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
+    })
+  })
+
+  it('lets the label wrap to two lines', () => {
+    renderAuthButton()
+    expect(screen.getByText('Sign in with YouVersion').props.numberOfLines).toBe(2)
   })
 })
 
 describe('YouVersionAuthButton container tokens', () => {
-  it('maps outline light to border and fill tokens', () => {
-    renderAuthButton({ background: 'light', outline: true })
+  it('fills the default Button from the light scheme even when the provider is dark', () => {
+    renderAuthButton({ background: 'light' }, 'dark')
 
-    expect(containerStyle()).toMatchObject({
+    expect(buttonStyle()).toMatchObject({
+      backgroundColor: light.background,
+      borderRadius: light.radius.full,
       borderColor: light.border,
       borderWidth: 1,
-      backgroundColor: light.background,
     })
   })
 
-  it('maps outline dark to border and fill tokens', () => {
-    renderAuthButton({ background: 'dark', outline: true })
+  it('fills the default Button from the dark scheme even when the provider is light', () => {
+    renderAuthButton({ background: 'dark' }, 'light')
 
-    expect(containerStyle()).toMatchObject({
+    expect(buttonStyle()).toMatchObject({
+      backgroundColor: dark.background,
+      borderRadius: dark.radius.full,
       borderColor: dark.border,
       borderWidth: 2,
-      backgroundColor: dark.background,
     })
   })
 
-  it('maps non-outline light to fill without a border', () => {
-    renderAuthButton({ background: 'light', outline: false })
+  it('does not leak the forced scheme to siblings', () => {
+    render(
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={{ ...defaultHookOverrides, useYVAuth: authValue() }}
+      >
+        <YouVersionAuthButton background="dark" />
+        <ThemeProbe />
+      </YouVersionProvider>,
+    )
 
-    const style = containerStyle()
-    expect(style).toMatchObject({ backgroundColor: light.background })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
-  })
-
-  it('maps non-outline dark to fill without a border', () => {
-    renderAuthButton({ background: 'dark', outline: false })
-
-    const style = containerStyle()
-    expect(style).toMatchObject({ backgroundColor: dark.background })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
+    expect(buttonStyle()).toMatchObject({ backgroundColor: dark.background })
+    expect(screen.getByTestId('theme-probe').props.children).toBe(light.primary)
   })
 })
 
 describe('youversion-auth-button source', () => {
   it('keeps youversion-auth-button.tsx free of copied hex literals', () => {
-    const source = readFileSync(
-      join(__dirname, '..', 'youversion-auth-button.tsx'),
-      'utf8',
-    )
+    const source = readFileSync(join(__dirname, '..', 'youversion-auth-button.tsx'), 'utf8')
 
     expect(source).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
   })
@@ -217,11 +219,23 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
     expect(Alert.alert).not.toHaveBeenCalled()
+  })
+
+  it('logs when signIn rejects', async () => {
+    const boom = new Error('sign-in failed')
+    mockSignIn.mockRejectedValueOnce(boom)
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const user = userEvent.setup()
+    renderAuthButton()
+
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
+
+    expect(errorSpy).toHaveBeenCalledWith(boom)
   })
 
   it('asks before signing out when authenticated (mode=auto)', async () => {
@@ -229,7 +243,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -240,7 +254,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
     pressAlertButton(en.signOut)
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -252,7 +266,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     const call = jest.mocked(Alert.alert).mock.calls[0]
     expect(call?.[0]).toBe(en.signOutPendingHighlightsQuestion)
@@ -267,7 +281,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signIn' })
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -278,7 +292,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signIn' })
 
-    await user.press(screen.getByText(/sign in with/i))
+    await user.press(screen.getByRole('button', { name: 'Sign in with YouVersion' }))
 
     expect(mockSignIn).toHaveBeenCalledTimes(1)
     expect(mockSignOut).not.toHaveBeenCalled()
@@ -288,7 +302,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).not.toHaveBeenCalled()
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -304,7 +318,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton()
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
 
     expect(Alert.alert).not.toHaveBeenCalled()
     expect(mockSignOut).toHaveBeenCalledTimes(1)
@@ -315,7 +329,7 @@ describe('YouVersionAuthButton press behavior', () => {
     const user = userEvent.setup()
     renderAuthButton({ mode: 'signOut' })
 
-    await user.press(screen.getByText(/sign out of/i))
+    await user.press(screen.getByRole('button', { name: 'Sign out of YouVersion' }))
     pressAlertButton(en.signOut)
 
     expect(mockSignOut).toHaveBeenCalledTimes(1)

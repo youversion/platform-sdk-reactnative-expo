@@ -1,149 +1,102 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Text as RNText } from 'react-native'
 import { Trans } from 'react-i18next'
+import { Button } from '../components/ui'
+import { ThemeContext, useTheme, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import type { Theme } from '../lib/resolve-theme'
-import { getTokens } from '../theme'
+import { sansFace } from '../theme/fonts'
 import { BibleAppLogo } from './bible-app-logo'
 import { useSignOutGuard } from './use-sign-out-guard'
 
 export type YouVersionAuthButtonProps = {
+  /** Forces the light or dark token scheme. Defaults to light. */
   background?: 'light' | 'dark'
-  radius?: 'rounded' | 'rectangular'
-  outline?: boolean
   mode?: 'auto' | 'signIn' | 'signOut'
-  size?: 'default' | 'short' | 'icon'
   /** Override the button label. When omitted the SDK uses localized default strings. */
   text?: string
 }
 
-const light = getTokens('light')
-const dark = getTokens('dark')
-
-type AuthButtonScheme = {
-  readonly fill: { readonly backgroundColor: string }
-  readonly label: { readonly color: string }
-  readonly outline: { readonly borderColor: string; readonly borderWidth: number }
+type AuthButtonSurfaceProps = {
+  i18nKey: 'signInWithYouVersion' | 'signOutOfYouVersion'
+  text?: string
+  onPress: () => void
 }
 
-const SCHEME = {
-  light: StyleSheet.create({
-    fill: { backgroundColor: light.background },
-    label: { color: light.foreground },
-    outline: { borderColor: light.border, borderWidth: 1 },
-  }),
-  dark: StyleSheet.create({
-    fill: { backgroundColor: dark.background },
-    label: { color: dark.foreground },
-    outline: { borderColor: dark.border, borderWidth: 2 },
-  }),
-} satisfies Record<Theme, AuthButtonScheme>
+function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
+  const { i18n } = useSdkTranslation()
+  const tokens = useTokens()
+  const theme = useTheme()
+
+  let label: ReactNode = (
+    <Trans
+      i18n={i18n}
+      i18nKey={i18nKey}
+      components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
+    />
+  )
+  if (text) {
+    label = text
+  }
+
+  let outlineWidth = 1
+  if (theme === 'dark') {
+    outlineWidth = 2
+  }
+
+  return (
+    <Button
+      // Pin fill and outline. Button default primary is red in dark and hides the logo.
+      style={{
+        backgroundColor: tokens.background,
+        borderColor: tokens.border,
+        borderWidth: outlineWidth,
+        minHeight: 36,
+        height: 'auto',
+      }}
+      onPress={onPress}
+    >
+      <BibleAppLogo />
+      <Button.Text numberOfLines={2} style={{ color: tokens.foreground }}>
+        {label}
+      </Button.Text>
+    </Button>
+  )
+}
 
 export function YouVersionAuthButton({
   background = 'light',
-  radius = 'rounded',
-  outline = false,
   mode = 'auto',
-  size = 'default',
   text,
 }: YouVersionAuthButtonProps): ReactNode {
   const auth = useYVAuth()
   const { isAuthenticated, signIn } = auth
   const guardedSignOut = useSignOutGuard(auth)
-  const { t, i18n } = useSdkTranslation()
 
-  const scheme = SCHEME[background]
-  const textStyle = scheme.label
-  const boldComponent = <Text style={{ fontWeight: 'bold' }} />
+  const isSignOut = mode === 'signOut' || (mode === 'auto' && isAuthenticated)
+  const i18nKey = isSignOut ? 'signOutOfYouVersion' : 'signInWithYouVersion'
 
   const authFunction = async () => {
     try {
-      if (mode === 'auto') {
-        if (isAuthenticated) {
-          await guardedSignOut?.()
-        } else {
-          await signIn()
-        }
-      } else if (mode === 'signIn') {
-        await signIn()
-      } else {
+      if (isSignOut) {
         await guardedSignOut?.()
+      } else {
+        await signIn()
       }
     } catch (error) {
       console.error(error)
     }
   }
 
-  const unauthedButtonText = text ? (
-    <Text style={textStyle}>{text}</Text>
-  ) : size === 'short' ? (
-    <Text style={textStyle}>{t('signIn')}</Text>
-  ) : (
-    <Trans
-      i18n={i18n}
-      i18nKey="signInWithYouVersion"
-      parent={Text}
-      style={textStyle}
-      components={{ bold: boldComponent }}
-    />
-  )
-
-  const authedButtonText = text ? (
-    <Text style={textStyle}>{text}</Text>
-  ) : size === 'short' ? (
-    <Text style={textStyle}>{t('signOut')}</Text>
-  ) : (
-    <Trans
-      i18n={i18n}
-      i18nKey="signOutOfYouVersion"
-      parent={Text}
-      style={textStyle}
-      components={{ bold: boldComponent }}
-    />
-  )
-
   return (
-    <Pressable
-      style={[
-        styles.buttonContainer,
-        scheme.fill,
-        radius === 'rounded' ? styles.buttonRound : styles.buttonRectangle,
-        outline ? scheme.outline : null,
-        size === 'icon' && styles.iconButton,
-      ]}
-      onPress={() => {
-        void authFunction()
-      }}
-    >
-      <BibleAppLogo style={size !== 'icon' && styles.bibleAppLogo} />
-      {size !== 'icon'
-        ? mode === 'signOut' || (mode === 'auto' && isAuthenticated)
-          ? authedButtonText
-          : unauthedButtonText
-        : null}
-    </Pressable>
+    <ThemeContext.Provider value={background}>
+      <AuthButtonSurface
+        i18nKey={i18nKey}
+        text={text}
+        onPress={() => {
+          void authFunction()
+        }}
+      />
+    </ThemeContext.Provider>
   )
 }
-
-const styles = StyleSheet.create({
-  buttonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingInline: 18,
-    paddingBlock: 8,
-  },
-  iconButton: {
-    paddingInline: 12,
-    paddingBlock: 12,
-  },
-  bibleAppLogo: {
-    marginEnd: 16,
-  },
-  buttonRound: {
-    borderRadius: 40,
-  },
-  buttonRectangle: {
-    borderRadius: 8,
-  },
-})
