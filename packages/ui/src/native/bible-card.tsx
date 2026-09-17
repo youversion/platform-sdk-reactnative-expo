@@ -101,6 +101,7 @@ function useBibleCardChromeMetadata(
       setMetadata(null)
       return
     }
+    setMetadata(null)
     let cancelled = false
     void getBibleCardMetadata(fetchBibleContent, versionId, reference).then((data) => {
       if (!cancelled) {
