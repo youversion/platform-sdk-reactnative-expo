@@ -5,7 +5,7 @@ import {
   type Highlight,
 } from '@youversion/platform-react-native-expo-core'
 import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import { Button, Card, Text } from '../components/ui'
@@ -89,23 +89,43 @@ type BibleCardBodyProps = Omit<
     onCloseFootnote: () => void
   }
 
+type BibleCardMetadataKey = {
+  reference: string
+  versionId: number
+}
+
+function metadataMatchesKey(
+  loadedFor: BibleCardMetadataKey | null,
+  versionId: number | undefined,
+  reference: string,
+): loadedFor is BibleCardMetadataKey {
+  return (
+    loadedFor != null &&
+    versionId != null &&
+    loadedFor.versionId === versionId &&
+    loadedFor.reference === reference
+  )
+}
+
 function useBibleCardChromeMetadata(
   fetchBibleContent: FetchBibleContent,
   versionId: number | undefined,
   reference: string,
 ): BibleCardMetadata | null {
   const [metadata, setMetadata] = useState<BibleCardMetadata | null>(null)
+  const loadedForRef = useRef<BibleCardMetadataKey | null>(null)
 
   useEffect(() => {
     if (versionId == null) {
       setMetadata(null)
+      loadedForRef.current = null
       return
     }
-    setMetadata(null)
     let cancelled = false
     void getBibleCardMetadata(fetchBibleContent, versionId, reference).then((data) => {
       if (!cancelled) {
         setMetadata(data)
+        loadedForRef.current = { versionId, reference }
       }
     })
     return () => {
@@ -113,7 +133,7 @@ function useBibleCardChromeMetadata(
     }
   }, [fetchBibleContent, versionId, reference])
 
-  return metadata
+  return metadataMatchesKey(loadedForRef.current, versionId, reference) ? metadata : null
 }
 
 function BibleCardBody({

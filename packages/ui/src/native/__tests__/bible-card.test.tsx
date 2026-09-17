@@ -190,6 +190,40 @@ describe('BibleCard', () => {
     expect(queryByTestId('bible-card-version')).toBeNull()
   })
 
+  it('clears chrome metadata synchronously when reference changes', async () => {
+    const TestWrapper = wrapper()
+    const { getByText, queryByText, rerender } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      { wrapper: TestWrapper },
+    )
+
+    expect(getByText('John 3:16')).toBeTruthy()
+
+    let resolveNewMetadata: (value: typeof sampleMetadata) => void = () => {}
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockImplementation((_fetch, _versionId, passageId) => {
+      if (passageId === 'GEN.1.1') {
+        return new Promise((resolve) => {
+          resolveNewMetadata = resolve
+        })
+      }
+      return Promise.resolve(sampleMetadata)
+    })
+
+    rerender(
+      <TestWrapper>
+        <BibleCard reference="GEN.1.1" versionId={3034} />
+      </TestWrapper>,
+    )
+
+    expect(queryByText('John 3:16')).toBeNull()
+
+    await act(async () => {
+      resolveNewMetadata({ ...sampleMetadata, reference: 'Genesis 1:1' })
+    })
+
+    expect(getByText('Genesis 1:1')).toBeTruthy()
+  })
+
   it('paints the card surface from the light tokens', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
