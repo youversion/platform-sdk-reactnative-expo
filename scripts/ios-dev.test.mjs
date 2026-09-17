@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict'
-import { EventEmitter } from 'node:events'
+import { spawn } from 'node:child_process'
+import { EventEmitter, once } from 'node:events'
 import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:net'
 import { test } from 'node:test'
 
 import {
+  assertNotInterrupted,
   buildDevClientUrl,
   buildExpoEnvironment,
   chooseSimulator,
@@ -100,22 +102,24 @@ test('isPortAvailable detects a server listening outside IPv4 localhost', async 
 })
 
 test('metroIsReady requires a running Metro for the expected project root', async (context) => {
+  const projectRoot = '/expected project/π'
   const server = createHttpServer((request, response) => {
     assert.equal(request.url, '/status')
-    response.setHeader('X-React-Native-Project-Root', '/expected/project')
+    response.setHeader('X-React-Native-Project-Root', encodeURI(projectRoot))
     response.end('packager-status:running')
   })
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
   context.after(() => server.close())
   const port = server.address().port
 
-  assert.equal(await metroIsReady(port, '/expected/project'), true)
+  assert.equal(await metroIsReady(port, projectRoot), true)
   assert.equal(await metroIsReady(port, '/another/worktree'), false)
 })
 
 test('stopChildren interrupts each active child without touching exited children', () => {
   const active = Object.assign(new EventEmitter(), {
     exitCode: null,
+    pid: 123,
     signals: [],
     kill(signal) {
       this.signals.push(signal)
@@ -123,16 +127,71 @@ test('stopChildren interrupts each active child without touching exited children
   })
   const exited = Object.assign(new EventEmitter(), {
     exitCode: 0,
+    pid: 456,
     signals: [],
     kill(signal) {
       this.signals.push(signal)
     },
   })
 
-  stopChildren(new Set([active, exited]))
+  const processSignals = []
+  stopChildren(new Set([active, exited]), (pid, signal) => processSignals.push({ pid, signal }))
 
-  assert.deepEqual(active.signals, ['SIGTERM'])
+  assert.deepEqual(processSignals, [{ pid: -123, signal: 'SIGTERM' }])
+  assert.deepEqual(active.signals, [])
   assert.deepEqual(exited.signals, [])
+})
+
+test('stopChildren terminates a command and its grandchild process', async (context) => {
+  const child = spawn(
+    process.execPath,
+    [
+      '-e',
+      `const { spawn } = require('node:child_process');
+       const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+       console.log(grandchild.pid);
+       setInterval(() => {}, 1000);`,
+    ],
+    { detached: true, stdio: ['ignore', 'pipe', 'ignore'] },
+  )
+  context.after(() => {
+    try {
+      process.kill(-child.pid, 'SIGKILL')
+    } catch {}
+  })
+  const [line] = await once(child.stdout, 'data')
+  const grandchildPid = Number(line.toString().trim())
+
+  stopChildren([child])
+  const [, signal] = await once(child, 'exit')
+
+  assert.equal(signal, 'SIGTERM')
+  await assert.rejects(
+    async () => {
+      for (let attempts = 0; attempts < 20; attempts += 1) {
+        process.kill(grandchildPid, 0)
+        await new Promise((resolve) => setTimeout(resolve, 25))
+      }
+    },
+    { code: 'ESRCH' },
+  )
+})
+
+test('an interrupt during an async probe prevents the next command from starting', async () => {
+  const probe = Promise.withResolvers()
+  let interruptedSignal
+  let commandStarted = false
+  const flow = (async () => {
+    await probe.promise
+    assertNotInterrupted(interruptedSignal, 'start Metro')
+    commandStarted = true
+  })()
+
+  interruptedSignal = 'SIGTERM'
+  probe.resolve()
+
+  await assert.rejects(flow, /Cannot start Metro after SIGTERM/)
+  assert.equal(commandStarted, false)
 })
 
 test('parseArguments accepts the argument separator forwarded by pnpm', () => {

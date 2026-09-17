@@ -47,10 +47,19 @@ function assertChildSucceeded(outcome, label) {
   }
 }
 
-export function stopChildren(children) {
+export function stopChildren(children, signalProcess = process.kill) {
   for (const child of children) {
-    if (child.exitCode === null) child.kill('SIGTERM')
+    if (child.exitCode !== null || child.pid === undefined) continue
+    try {
+      signalProcess(-child.pid, 'SIGTERM')
+    } catch {
+      child.kill('SIGTERM')
+    }
   }
+}
+
+export function assertNotInterrupted(signal, action) {
+  if (signal) throw new Error(`Cannot ${action} after ${signal}.`)
 }
 
 function runtimeVersion(runtime) {
@@ -239,7 +248,7 @@ export async function metroIsReady(port, projectRoot = EXAMPLE_DIR) {
     })
     return (
       (await response.text()).trim() === 'packager-status:running' &&
-      response.headers.get('x-react-native-project-root') === projectRoot
+      response.headers.get('x-react-native-project-root') === encodeURI(projectRoot)
     )
   } catch {
     return false
@@ -353,8 +362,10 @@ async function dev(options) {
   let interruptedSignal
 
   const startChild = (command, args, childOptions = {}) => {
+    assertNotInterrupted(interruptedSignal, `start ${command}`)
     const child = spawn(command, args, {
       cwd: childOptions.cwd ?? REPO_ROOT,
+      detached: true,
       env: childOptions.env ?? process.env,
       stdio: childOptions.pipeOutput ? ['inherit', 'pipe', 'pipe'] : 'inherit',
     })
@@ -406,6 +417,7 @@ async function dev(options) {
     let metro
     while (!metro) {
       if (!(await isPortAvailable(port))) {
+        assertNotInterrupted(interruptedSignal, 'continue Metro startup')
         const owner = portOwner(port)
         if (options.port !== undefined) {
           throw new Error(
@@ -440,9 +452,10 @@ async function dev(options) {
 
       try {
         await waitForMetro(port, attempt.outcome)
+        assertNotInterrupted(interruptedSignal, 'continue Metro startup')
         metro = attempt
       } catch (error) {
-        if (attempt.child.exitCode === null) attempt.child.kill('SIGTERM')
+        stopChildren([attempt.child])
         await attempt.outcome
         if (
           options.port === undefined &&
@@ -471,13 +484,14 @@ async function dev(options) {
       metro.outcome.then((outcome) => ({ source: 'metro', outcome })),
     ])
     if (firstExit.source === 'metro') {
-      if (build.child.exitCode === null) build.child.kill('SIGTERM')
+      stopChildren([build.child])
       await build.outcome
       assertChildSucceeded(firstExit.outcome, 'Metro')
       throw new Error('Metro exited before the iOS build completed.')
     }
     assertChildSucceeded(firstExit.outcome, 'Expo iOS build')
 
+    assertNotInterrupted(interruptedSignal, 'open the app')
     run('xcrun', ['simctl', 'openurl', simulator.udid, buildDevClientUrl(slug, port)])
     console.log(
       `\nRunning ${slug} on ${simulator.name} from ${REPO_ROOT}. Press Ctrl-C to stop Metro.`,
