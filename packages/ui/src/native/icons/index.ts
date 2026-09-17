@@ -1,4 +1,7 @@
 export { CheckIcon } from './check-icon'
+export { ChevronLeftIcon } from './chevron-left-icon'
+export { ChevronRightIcon } from './chevron-right-icon'
 export { CopyIcon } from './copy-icon'
+export { GearIcon } from './gear-icon'
 export { ShareIcon } from './share-icon'
 export { VotdIcon } from './votd-icon'

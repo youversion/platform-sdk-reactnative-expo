@@ -49,7 +49,7 @@ NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-lang
 
 ## Design Tokens
 
-Tokens, color scheme, or palette: [ADR 0021](docs/adr/0021-native-design-tokens.md). Values live in `packages/ui/src/theme/` — `palette.ts` (named hex) feeds `semantic.ts` (a role per scheme), and `getTokens(scheme)` returns one frozen object per scheme, by identity. The hook is `packages/ui/src/hooks/use-tokens.ts`; scheme comes from `YouVersionProvider`, and there is no second theme provider.
+Tokens, color scheme, or palette: [ADR 0021](docs/adr/0021-native-design-tokens.md). Values live in `packages/ui/src/theme/` — `palette.ts` (named hex) feeds `semantic.ts` (a role per scheme), and `getTokens(scheme)` returns one frozen object per scheme, by identity. The hook is `packages/ui/src/hooks/use-tokens.ts`; scheme comes from `YouVersionProvider`. A nested `ThemeContext.Provider` is allowed for a component-level `theme` override (the Reader toolbar); do not add a second scheme owner.
 
 - **Hex only.** `theme/__tests__/tokens.test.ts` scans the directory and fails on `oklch(`, `rgb(`, or `rem`. Alpha fills go through `withAlpha` at the call site.
 - **Public, unlike the primitives.** `getTokens` and `useTokens` are on the package namespace (pinned by `exports.test.ts`); the components that consume them are not.
