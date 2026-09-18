@@ -1,6 +1,6 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import { Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, Text, View } from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
@@ -160,6 +160,82 @@ describe('BibleCard version picker integration', () => {
     })
 
     expect(consumerHandler).not.toHaveBeenCalled()
+  })
+
+  it('opens the built-in sheet when language tag is missing but no consumer handler is set', async () => {
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockResolvedValue({
+      reference: 'John 1:1',
+      abbreviation: 'NIV',
+      copyright: 'NIV copyright',
+      languageTag: undefined,
+    })
+
+    const { getByTestId, queryByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" showVersionPicker />,
+      { wrapper },
+    )
+
+    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+
+    await act(async () => {
+      fireEvent.press(getByTestId('bible-card-version'))
+    })
+
+    expect(getByTestId('mock-version-picker-sheet')).toBeTruthy()
+  })
+
+  it('hides the built-in version picker on web when no consumer handler is provided', async () => {
+    const originalOs = Platform.OS
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'web',
+    })
+
+    try {
+      const { queryByTestId } = await renderAndSettle(
+        <BibleCard reference="JHN.1.1" showVersionPicker />,
+        { wrapper },
+      )
+
+      expect(queryByTestId('bible-card-version')).toBeNull()
+      expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: originalOs,
+      })
+    }
+  })
+
+  it('invokes consumer onVersionPickerPress on web', async () => {
+    const originalOs = Platform.OS
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'web',
+    })
+    const consumerHandler = jest.fn().mockResolvedValue(undefined)
+
+    try {
+      const { getByTestId } = await renderAndSettle(
+        <BibleCard reference="JHN.1.1" showVersionPicker onVersionPickerPress={consumerHandler} />,
+        { wrapper },
+      )
+
+      await act(async () => {
+        fireEvent.press(getByTestId('bible-card-version'))
+      })
+
+      expect(consumerHandler).toHaveBeenCalledWith({ versionId: 3034, languageId: 'en' })
+    } finally {
+      Object.defineProperty(Platform, 'OS', {
+        configurable: true,
+        enumerable: true,
+        value: originalOs,
+      })
+    }
   })
 
   it('hides the version picker by default (Web SDK parity) and does not mount the built-in sheet', async () => {

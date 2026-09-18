@@ -67,6 +67,7 @@ type BibleCardBodyProps = Omit<
   | 'onVersionPickerPress'
   | 'onFootnotePress'
   | 'showVersionPicker'
+  | 'background'
 > &
   InternalVersionFilterProps &
   InternalLocaleProps & {
@@ -80,6 +81,7 @@ type BibleCardBodyProps = Omit<
     onVersionPickerPress: (data: BibleVersionPickerPressData) => Promise<void>
     onFootnotePress?: (data: FootnoteData) => Promise<void>
     showVersionPicker: boolean
+    versionPickerRequiresLanguageId: boolean
     showVersionPickerSheet: boolean
     isVersionPickerOpen: boolean
     onCloseVersionPicker: () => void
@@ -111,9 +113,11 @@ function useBibleCardChromeMetadata(
   fetchBibleContent: FetchBibleContent,
   versionId: number | undefined,
   reference: string,
+  filters: InternalVersionFilterProps,
 ): BibleCardMetadata | null {
   const [metadata, setMetadata] = useState<BibleCardMetadata | null>(null)
   const loadedForRef = useRef<BibleCardMetadataKey | null>(null)
+  const { permittedVersionIds, excludedVersionIds, permittedLanguageTags } = filters
 
   useEffect(() => {
     if (versionId == null) {
@@ -122,7 +126,11 @@ function useBibleCardChromeMetadata(
       return
     }
     let cancelled = false
-    void getBibleCardMetadata(fetchBibleContent, versionId, reference).then((data) => {
+    void getBibleCardMetadata(fetchBibleContent, versionId, reference, {
+      permittedVersionIds,
+      excludedVersionIds,
+      permittedLanguageTags,
+    }).then((data) => {
       if (!cancelled) {
         setMetadata(data)
         loadedForRef.current = { versionId, reference }
@@ -131,7 +139,14 @@ function useBibleCardChromeMetadata(
     return () => {
       cancelled = true
     }
-  }, [fetchBibleContent, versionId, reference])
+  }, [
+    fetchBibleContent,
+    versionId,
+    reference,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  ])
 
   return metadataMatchesKey(loadedForRef.current, versionId, reference) ? metadata : null
 }
@@ -151,6 +166,7 @@ function BibleCardBody({
   onVersionPickerPress,
   onFootnotePress,
   showVersionPicker,
+  versionPickerRequiresLanguageId,
   showVersionPickerSheet,
   isVersionPickerOpen,
   onCloseVersionPicker,
@@ -163,28 +179,40 @@ function BibleCardBody({
   maxWidth = DEFAULT_MAX_WIDTH,
 }: BibleCardBodyProps): ReactNode {
   const { t } = useSdkTranslation()
-  const metadata = useBibleCardChromeMetadata(fetchBibleContent, versionId, reference)
+  const metadata = useBibleCardChromeMetadata(fetchBibleContent, versionId, reference, {
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  })
   const BibleTextViewDOM = getImpl('BibleTextViewDom')
   const FootnoteContent = getImpl('FootnoteContent')
+  const tokens = useTokens()
+  const title =
+    metadata?.reference == null
+      ? undefined
+      : metadata.abbreviation == null
+        ? metadata.reference
+        : `${metadata.reference} ${metadata.abbreviation}`
+  const versionPickerDisabled =
+    versionPickerRequiresLanguageId && metadata?.languageTag == null
 
   return (
     <ThemeContext.Provider value={resolvedTheme}>
       <Card testID="bible-card" style={{ maxWidth, width: '100%', alignSelf: 'center' }}>
         <BibleCardHeader
-          reference={metadata?.reference}
+          title={title}
           abbreviation={metadata?.abbreviation}
           showVersionPicker={showVersionPicker}
           versionLabel={t('selectVersion')}
           versionAriaLabel={t('changeBibleVersionAriaLabel')}
-          versionPickerDisabled={metadata?.languageTag == null}
+          versionPickerDisabled={versionPickerDisabled}
           onVersionPress={() => {
-            const languageId = metadata?.languageTag
-            if (languageId == null) {
+            if (versionPickerRequiresLanguageId && metadata?.languageTag == null) {
               return
             }
             void onVersionPickerPress({
               versionId: versionId ?? DEFAULT_BIBLE_VERSION_ID,
-              languageId,
+              languageId: metadata?.languageTag ?? '',
             })
           }}
         />
@@ -210,7 +238,13 @@ function BibleCardBody({
           />
         </Card.Content>
         <Card.Footer style={styles.footer}>
-          <Text variant="muted" style={styles.copyright}>
+          <Text
+            style={[
+              styles.copyright,
+              { color: tokens.mutedForeground },
+              sansFace(tokens.fontFamily.sans, 700),
+            ]}
+          >
             {metadata?.copyright ?? ''}
           </Text>
           <View
@@ -220,6 +254,7 @@ function BibleCardBody({
             testID="bible-card-attribution"
           >
             <BibleAppLogo size={24} />
+            <Text variant="muted">{t('bibleApp')}</Text>
           </View>
         </Card.Footer>
       </Card>
@@ -255,7 +290,7 @@ function BibleCardBody({
 }
 
 type BibleCardHeaderProps = {
-  reference: string | undefined
+  title: string | undefined
   abbreviation: string | undefined
   showVersionPicker: boolean
   versionLabel: string
@@ -265,7 +300,7 @@ type BibleCardHeaderProps = {
 }
 
 function BibleCardHeader({
-  reference,
+  title,
   abbreviation,
   showVersionPicker,
   versionLabel,
@@ -278,15 +313,16 @@ function BibleCardHeader({
   return (
     <Card.Header style={styles.header}>
       <View style={styles.titleBlock}>
-        {reference ? (
+        {title ? (
           <Text
+            accessibilityRole="header"
             style={[
+              styles.referenceTitle,
               { color: tokens.cardForeground },
-              sansFace(tokens.fontFamily.sans, 500),
-              tokens.typography.sm,
+              sansFace(tokens.fontFamily.sans, 700),
             ]}
           >
-            {reference}
+            {title}
           </Text>
         ) : null}
       </View>
@@ -307,6 +343,7 @@ function BibleCardHeader({
 
 export function BibleCard({
   theme: themeOverride,
+  background,
   versionId: controlledVersionId,
   defaultVersionId = DEFAULT_BIBLE_VERSION_ID,
   onVersionChange,
@@ -319,7 +356,8 @@ export function BibleCard({
 }: BibleCardProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
-  const resolvedTheme = useTheme(themeOverride)
+  // Web SDK `background` forces the surface scheme when `theme` is omitted.
+  const resolvedTheme = useTheme(themeOverride ?? background)
 
   // This mimics how it's done in the React Web SDK.
   // Controlled only when both versionId + onVersionChange are provided.
@@ -348,14 +386,19 @@ export function BibleCard({
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
-  const handleVersionPickerPress = async (_data: BibleVersionPickerPressData) => {
-    if (Platform.OS === 'web') return
-    if (!showVersionPicker) return
+  // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer
+  // handler path live; hide the built-in trigger when only the sheet would open.
+  const canShowVersionPicker =
+    showVersionPicker && (Platform.OS !== 'web' || consumerOnVersionPickerPress != null)
+
+  const handleVersionPickerPress = async (data: BibleVersionPickerPressData) => {
+    if (!canShowVersionPicker) return
     if (consumerOnVersionPickerPress) {
-      await consumerOnVersionPickerPress(_data)
-    } else {
-      setIsVersionPickerOpen(true)
+      await consumerOnVersionPickerPress(data)
+      return
     }
+    if (Platform.OS === 'web') return
+    setIsVersionPickerOpen(true)
   }
 
   const handleFootnotePress = async (data: FootnoteData) => {
@@ -388,7 +431,8 @@ export function BibleCard({
           versionId={versionId}
           onVersionPickerPress={handleVersionPickerPress}
           onFootnotePress={onFootnotePress}
-          showVersionPicker={showVersionPicker}
+          showVersionPicker={canShowVersionPicker}
+          versionPickerRequiresLanguageId={consumerOnVersionPickerPress != null}
           showVersionPickerSheet={showVersionPickerSheet}
           isVersionPickerOpen={isVersionPickerOpen}
           onCloseVersionPicker={() => setIsVersionPickerOpen(false)}
@@ -415,12 +459,22 @@ const styles = StyleSheet.create({
     flex: 1,
     flexShrink: 1,
   },
+  // Matches Web BibleCardHeaderReference: 12px uppercase bold tracked.
+  referenceTitle: {
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   footer: {
     justifyContent: 'space-between',
   },
+  // Matches Web BibleCard copyright: 8px bold.
   copyright: {
     flex: 1,
     flexShrink: 1,
+    fontSize: 8,
+    lineHeight: 12,
   },
   attribution: {
     flexDirection: 'row',

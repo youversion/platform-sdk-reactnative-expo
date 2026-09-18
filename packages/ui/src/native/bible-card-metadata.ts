@@ -4,6 +4,9 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { z } from 'zod'
 
+import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../lib/version-usability'
+
 const passageMetadataSchema = z.object({
   reference: z.string(),
 })
@@ -63,7 +66,8 @@ function versionFromResponse(response: BibleContentResponse | null): ParsedVersi
 
 /**
  * Human-readable reference, version abbreviation, and copyright for native BibleCard chrome.
- * Uses the Bible Content Client (ADR 0020). Returns `null` when both lookups fail.
+ * Uses the Bible Content Client (ADR 0020). Returns `null` when both lookups fail, or when
+ * provider version filters refuse the version (same rules as native VOTD share).
  *
  * Internal. Not on the UI or core package barrel.
  */
@@ -71,10 +75,32 @@ export async function getBibleCardMetadata(
   fetchBibleContent: FetchBibleContent,
   versionId: number,
   passageId: string,
+  filters: InternalVersionFilterProps = {},
 ): Promise<BibleCardMetadata | null> {
+  if (isVersionIdDecidablyUnusable(versionId, filters)) {
+    return null
+  }
   try {
     const passagePath = `/v1/bibles/${versionId}/passages/${encodeURIComponent(passageId)}?format=text`
     const versionPath = `/v1/bibles/${versionId}`
+    if (filters.permittedLanguageTags !== undefined) {
+      const versionResponse = await fetchBibleContent({ path: versionPath }).catch(() => null)
+      const version = versionFromResponse(versionResponse)
+      if (!isUsableBibleVersion({ id: versionId, languageTag: version?.languageTag }, filters)) {
+        return null
+      }
+      const passageResponse = await fetchBibleContent({ path: passagePath }).catch(() => null)
+      const reference = referenceFromResponse(passageResponse)
+      if (reference == null && version == null) {
+        return null
+      }
+      return {
+        reference,
+        abbreviation: version?.abbreviation,
+        copyright: version?.copyright,
+        languageTag: version?.languageTag,
+      }
+    }
     const [passageResponse, versionResponse] = await Promise.all([
       fetchBibleContent({ path: passagePath }).catch(() => null),
       fetchBibleContent({ path: versionPath }).catch(() => null),
