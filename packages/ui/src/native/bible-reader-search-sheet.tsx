@@ -3,16 +3,15 @@ import {
   type BibleReference,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useMemo, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   useWindowDimensions,
   View,
-  type ListRenderItem,
-  type ViewToken,
 } from 'react-native'
 
 import { Button } from '../components/ui/button'
@@ -25,15 +24,19 @@ import {
   languageRangesForVersionLanguage,
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_SNIPPET_LINE_COUNT,
-  shouldRequestNextPage,
+  type TitledVerse,
 } from '../lib/bible-reader-search'
+import type { ResultsFooter, SearchView } from '../lib/bible-reader-search-view'
 import type { Theme } from '../lib/resolve-theme'
+import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
 import { getImpl, registerDefault } from './component-impls'
-import { SearchIcon } from './icons/search-icon'
+import { RecentIcon, SearchIcon, TrendingIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
+const CHIP_GLYPH_SIZE = 32
+const CHIP_ICON_SIZE = 24
 
 export type BibleReaderSearchSheetProps = {
   isOpen: boolean
@@ -44,22 +47,6 @@ export type BibleReaderSearchSheetProps = {
   fetchBibleContent: FetchBibleContent
   onSelectReference: (reference: BibleReference) => void
 }
-
-type SuggestionRow = {
-  kind: 'suggestion'
-  key: string
-  text: string
-}
-
-type VerseRow = {
-  kind: 'verse'
-  key: string
-  usfm: string
-  title: string
-  snippet: string | null
-}
-
-type ListRow = SuggestionRow | VerseRow
 
 function BibleReaderSearchSheetImpl({
   isOpen,
@@ -73,7 +60,7 @@ function BibleReaderSearchSheetImpl({
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const { height } = useWindowDimensions()
-  const languageRanges = useMemo(() => languageRangesForVersionLanguage(languageTag), [languageTag])
+  const languageRanges = languageRangesForVersionLanguage(languageTag)
   const search = useBibleReaderSearch({
     versionId,
     isOpen,
@@ -83,127 +70,15 @@ function BibleReaderSearchSheetImpl({
 
   const listHeight = Math.round(height * 0.5)
   const showClear = search.query.length > 0
+  const { view } = search
 
-  const rows = useMemo((): ListRow[] => {
-    if (search.showingResults) {
-      return search.verses.map((verse) => ({
-        kind: 'verse' as const,
-        key: verse.usfm,
-        usfm: verse.usfm,
-        title: verse.title,
-        snippet: verse.snippet,
-      }))
-    }
-    return search.suggestions.map((suggestion, index) => ({
-      kind: 'suggestion' as const,
-      key: `${suggestion.text}-${index}`,
-      text: suggestion.text,
-    }))
-  }, [search.showingResults, search.suggestions, search.verses])
-
-  const handleSelectVerse = (usfm: string) => {
+  const handleSelectVerse = (usfm: TitledVerse['usfm']) => {
     const reference = bibleReferenceFromUsfm(usfm, versionId)
     if (reference === null) {
       return
     }
     onClose()
     onSelectReference(reference)
-  }
-
-  const renderItem: ListRenderItem<ListRow> = ({ item }) => {
-    if (item.kind === 'suggestion') {
-      return (
-        <Pressable
-          testID={`bible-reader-search-suggestion-${item.text}`}
-          accessibilityRole="button"
-          onPress={() => search.submit(item.text)}
-          style={styles.row}
-        >
-          <Text style={{ color: tokens.foreground }}>{item.text}</Text>
-        </Pressable>
-      )
-    }
-    return (
-      <Pressable
-        testID={`bible-reader-search-result-${item.usfm}`}
-        accessibilityRole="button"
-        onPress={() => handleSelectVerse(item.usfm)}
-        style={styles.resultPress}
-      >
-        <View style={[styles.accent, { backgroundColor: tokens.foreground }]} />
-        <View style={styles.resultCopy}>
-          {item.snippet !== null && (
-            <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
-              {item.snippet}
-            </Text>
-          )}
-          <Text
-            variant="muted"
-            style={{
-              textTransform: 'uppercase',
-              ...sansFace(tokens.fontFamily.sans, 700),
-            }}
-          >
-            {item.title}
-          </Text>
-        </View>
-      </Pressable>
-    )
-  }
-
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (!search.showingResults) {
-        return
-      }
-      let highest = -1
-      for (const token of viewableItems) {
-        if (token.index === null || token.index === undefined) {
-          continue
-        }
-        if (token.index > highest) {
-          highest = token.index
-        }
-      }
-      if (shouldRequestNextPage(highest, search.verses.length)) {
-        search.loadNextPage()
-      }
-    },
-    [search],
-  )
-
-  const showQuerySpinner =
-    (search.showingResults && search.isLoadingSearch) ||
-    (!search.showingResults && search.isLoadingSuggestions)
-  const showSearchError = search.showingResults && search.searchError !== null
-  const showPageError = search.showingResults && search.pageError !== null
-  const showEmpty = search.hasNoResults
-  const showList = !showSearchError && !showEmpty
-
-  const listFooter = () => {
-    if (!search.showingResults) {
-      return null
-    }
-    if (search.isLoadingPage) {
-      return (
-        <View style={styles.status} testID="bible-reader-search-page-loading">
-          <ActivityIndicator color={tokens.foreground} accessibilityLabel={t('loading')} />
-        </View>
-      )
-    }
-    if (showPageError) {
-      return (
-        <Pressable
-          testID="bible-reader-search-page-error"
-          accessibilityRole="button"
-          onPress={search.retryPage}
-          style={styles.status}
-        >
-          <Text style={{ color: tokens.destructive }}>{t('error')}</Text>
-        </Pressable>
-      )
-    }
-    return null
   }
 
   return (
@@ -218,7 +93,7 @@ function BibleReaderSearchSheetImpl({
       <View style={styles.body}>
         <View style={styles.header}>
           <Input style={styles.field}>
-            <SearchIcon color={tokens.mutedForeground} size={16} />
+            <Input.Icon as={SearchIcon} />
             <Input.Field
               testID="bible-reader-search-field"
               value={search.query}
@@ -234,64 +109,258 @@ function BibleReaderSearchSheetImpl({
             {showClear && (
               <Input.Clear
                 testID="bible-reader-search-clear"
-                accessibilityLabel={t('cancel')}
+                accessibilityLabel={t('clearSearch')}
                 onPress={() => search.setQuery('')}
               />
             )}
           </Input>
           <Button
-            testID="bible-reader-search-done"
+            testID="bible-reader-search-cancel"
             variant="ghost"
             onPress={onClose}
-            accessibilityLabel={t('ok')}
+            accessibilityLabel={t('cancel')}
           >
-            <Button.Text>{t('ok')}</Button.Text>
+            <Button.Text>{t('cancel')}</Button.Text>
           </Button>
         </View>
         <View style={[styles.divider, { backgroundColor: tokens.border }]} />
-        {showQuerySpinner && (
-          <View style={styles.status} testID="bible-reader-search-loading">
-            <ActivityIndicator color={tokens.foreground} accessibilityLabel={t('loading')} />
-          </View>
-        )}
-        {showSearchError && (
-          <Pressable
-            testID="bible-reader-search-error"
-            accessibilityRole="button"
-            onPress={search.retrySearch}
-            style={[styles.statusFill, { height: listHeight }]}
-          >
-            <Text style={{ color: tokens.destructive }}>{t('error')}</Text>
-          </Pressable>
-        )}
-        {showEmpty && (
-          <View
-            style={[styles.statusFill, { height: listHeight }]}
-            testID="bible-reader-search-empty"
-          >
-            <Text variant="muted">{t('noBibleSearchResults')}</Text>
-          </View>
-        )}
-        {showList && (
-          <FlatList
-            key={search.scrollGeneration}
-            data={rows}
-            keyExtractor={(item) => item.key}
-            renderItem={renderItem}
-            style={{ height: listHeight }}
-            contentContainerStyle={styles.listContent}
-            keyboardShouldPersistTaps="handled"
-            onViewableItemsChanged={onViewableItemsChanged}
-            viewabilityConfig={VIEWABILITY}
-            ListFooterComponent={listFooter()}
-          />
-        )}
+        <SearchBody
+          view={view}
+          tokens={tokens}
+          listHeight={listHeight}
+          scrollGeneration={search.scrollGeneration}
+          onSubmit={search.submit}
+          onSelectVerse={handleSelectVerse}
+          loadingLabel={t('loading')}
+          trendingHeading={t('trendingSearches')}
+          recentHeading={t('recentSearches')}
+          emptyCopy={t('noBibleSearchResults')}
+          errorCopy={t('error')}
+        />
       </View>
     </NativeSheet>
   )
 }
 
-const VIEWABILITY = { itemVisiblePercentThreshold: 10 }
+type SearchBodyProps = {
+  view: SearchView
+  tokens: Tokens
+  listHeight: number
+  scrollGeneration: number
+  onSubmit: (text: string) => void
+  onSelectVerse: (usfm: TitledVerse['usfm']) => void
+  loadingLabel: string
+  trendingHeading: string
+  recentHeading: string
+  emptyCopy: string
+  errorCopy: string
+}
+
+function SearchBody({
+  view,
+  tokens,
+  listHeight,
+  scrollGeneration,
+  onSubmit,
+  onSelectVerse,
+  loadingLabel,
+  trendingHeading,
+  recentHeading,
+  emptyCopy,
+  errorCopy,
+}: SearchBodyProps): ReactNode {
+  if (view.phase === 'browsing') {
+    return (
+      <ScrollView
+        style={{ height: listHeight }}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text variant="heading">{trendingHeading}</Text>
+        {view.trending.status === 'loading' ? (
+          <View style={styles.status} testID="bible-reader-search-loading">
+            <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
+          </View>
+        ) : (
+          view.trending.value.map((query) => (
+            <QueryChip
+              key={`trending-${query}`}
+              text={query}
+              kind="trending"
+              tokens={tokens}
+              onPress={() => onSubmit(query)}
+            />
+          ))
+        )}
+        {view.recents.length > 0 ? (
+          <>
+            <Text variant="heading" style={styles.recentHeading}>
+              {recentHeading}
+            </Text>
+            {view.recents.map((query) => (
+              <QueryChip
+                key={`recent-${query}`}
+                text={query}
+                kind="recent"
+                tokens={tokens}
+                onPress={() => onSubmit(query)}
+              />
+            ))}
+          </>
+        ) : null}
+      </ScrollView>
+    )
+  }
+
+  if (view.phase === 'suggesting') {
+    return (
+      <FlatList
+        data={[...view.suggestions]}
+        keyExtractor={(item, index) => `${item}-${index}`}
+        renderItem={({ item }) => (
+          <Pressable
+            testID={`bible-reader-search-suggestion-${item}`}
+            accessibilityRole="button"
+            onPress={() => onSubmit(item)}
+            style={styles.row}
+          >
+            <Text style={{ color: tokens.foreground }}>{item}</Text>
+          </Pressable>
+        )}
+        style={{ height: listHeight }}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+      />
+    )
+  }
+
+  if (view.phase === 'pending') {
+    return (
+      <View style={[styles.statusFill, { height: listHeight }]} testID="bible-reader-search-loading">
+        <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
+      </View>
+    )
+  }
+
+  if (view.phase === 'results') {
+    return (
+      <FlatList
+        key={scrollGeneration}
+        data={[...view.verses]}
+        keyExtractor={(item) => item.usfm}
+        renderItem={({ item }) => (
+          <Pressable
+            testID={`bible-reader-search-result-${item.usfm}`}
+            accessibilityRole="button"
+            onPress={() => onSelectVerse(item.usfm)}
+            style={styles.resultPress}
+          >
+            <View style={[styles.accent, { backgroundColor: tokens.foreground }]} />
+            <View style={styles.resultCopy}>
+              <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
+                {item.snippet}
+              </Text>
+              <Text
+                variant="muted"
+                style={{
+                  textTransform: 'uppercase',
+                  ...sansFace(tokens.fontFamily.sans, 700),
+                }}
+              >
+                {item.title}
+              </Text>
+            </View>
+          </Pressable>
+        )}
+        style={{ height: listHeight }}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        onEndReached={view.onEndReached}
+        onEndReachedThreshold={0.2}
+        ListFooterComponent={resultsFooter(view.footer, tokens, loadingLabel, errorCopy)}
+      />
+    )
+  }
+
+  if (view.phase === 'empty') {
+    return (
+      <View style={[styles.statusFill, { height: listHeight }]} testID="bible-reader-search-empty">
+        <Text variant="muted">{emptyCopy}</Text>
+      </View>
+    )
+  }
+
+  return (
+    <Pressable
+      testID="bible-reader-search-error"
+      accessibilityRole="button"
+      onPress={view.onRetry}
+      style={[styles.statusFill, { height: listHeight }]}
+    >
+      <Text style={{ color: tokens.destructive }}>{errorCopy}</Text>
+    </Pressable>
+  )
+}
+
+function resultsFooter(
+  footer: ResultsFooter,
+  tokens: Tokens,
+  loadingLabel: string,
+  errorCopy: string,
+): ReactNode {
+  if (footer.kind === 'loading') {
+    return (
+      <View style={styles.status} testID="bible-reader-search-page-loading">
+        <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
+      </View>
+    )
+  }
+  if (footer.kind === 'error') {
+    return (
+      <Pressable
+        testID="bible-reader-search-page-error"
+        accessibilityRole="button"
+        onPress={footer.onRetry}
+        style={styles.status}
+      >
+        <Text style={{ color: tokens.destructive }}>{errorCopy}</Text>
+      </Pressable>
+    )
+  }
+  return null
+}
+
+function QueryChip({
+  text,
+  kind,
+  tokens,
+  onPress,
+}: {
+  text: string
+  kind: 'trending' | 'recent'
+  tokens: Tokens
+  onPress: () => void
+}): ReactNode {
+  const Icon = kind === 'trending' ? TrendingIcon : RecentIcon
+  return (
+    <Pressable
+      testID={`bible-reader-search-suggestion-${text}`}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={styles.chip}
+    >
+      <View
+        style={[
+          styles.chipGlyph,
+          { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
+        ]}
+      >
+        <Icon color={tokens.mutedForeground} size={CHIP_ICON_SIZE} />
+      </View>
+      <Text style={{ color: tokens.foreground, flex: 1 }}>{text}</Text>
+    </Pressable>
+  )
+}
 
 registerDefault('BibleReaderSearchSheet', BibleReaderSearchSheetImpl)
 
@@ -324,9 +393,26 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+    gap: 4,
+  },
+  recentHeading: {
+    marginTop: 16,
   },
   row: {
     paddingVertical: 14,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  chipGlyph: {
+    width: CHIP_GLYPH_SIZE,
+    height: CHIP_GLYPH_SIZE,
+    padding: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   resultPress: {
     flexDirection: 'row',

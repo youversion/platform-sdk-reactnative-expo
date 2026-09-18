@@ -4,24 +4,32 @@ import {
   type FetchBibleContent,
   type SearchApiError,
   type YouVersionSearchQuery,
-  type YouVersionVerseSearchResult,
 } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 
 import {
-  clipSearchQuery,
   dedupeVerseUsfms,
-  formatUsfmLabel,
-  parsePassageSnippet,
+  nonBlankQuery,
+  pageTokenOf,
   SEARCH_DEBOUNCE_MS,
+  SEARCH_QUERY_MAX_LENGTH,
+  titledVerseFromPassage,
+  usfmsFromSearchHits,
   verseContentPath,
+  type NonBlankQuery,
+  type TitledVerse,
+  type Usfm,
 } from '../lib/bible-reader-search'
-
-export type BibleReaderSearchVerseRow = {
-  usfm: string
-  title: string
-  snippet: string | null
-}
+import {
+  demandOf,
+  fieldTextOf,
+  initialSearchState,
+  searchReducer,
+  type SearchDemand,
+  type SearchState,
+} from '../lib/bible-reader-search-machine'
+import { toSearchView, type SearchView } from '../lib/bible-reader-search-view'
+import { useSearchHistoryStore } from '../stores/search-history-store'
 
 export type UseBibleReaderSearchOptions = {
   versionId: number
@@ -34,33 +42,81 @@ export type UseBibleReaderSearchResult = {
   query: string
   setQuery: (text: string) => void
   submit: (text: string) => void
-  suggestions: YouVersionSearchQuery[]
-  verses: BibleReaderSearchVerseRow[]
-  showingResults: boolean
-  isLoadingSuggestions: boolean
-  isLoadingSearch: boolean
-  isLoadingPage: boolean
-  searchError: SearchApiError | null
-  pageError: SearchApiError | null
-  hasNoResults: boolean
+  view: SearchView
   scrollGeneration: number
-  loadNextPage: () => void
-  retrySearch: () => void
-  retryPage: () => void
-}
-
-function toRows(verses: readonly YouVersionVerseSearchResult[]): BibleReaderSearchVerseRow[] {
-  return verses.map((verse) => ({
-    usfm: verse.id,
-    title: formatUsfmLabel(verse.id),
-    snippet: null,
-  }))
 }
 
 /** A rejected call never reaches the Result type, so it needs an error of its own. */
 const TRANSPORT_ERROR: SearchApiError = {
   kind: 'transient',
   message: 'Search request failed',
+}
+
+const NO_DEMAND: SearchDemand = { kind: 'none' }
+
+function clipField(text: string): string {
+  if (text.length <= SEARCH_QUERY_MAX_LENGTH) {
+    return text
+  }
+  return text.slice(0, SEARCH_QUERY_MAX_LENGTH)
+}
+
+function brandQueries(queries: readonly YouVersionSearchQuery[]): readonly NonBlankQuery[] {
+  const branded: NonBlankQuery[] = []
+  for (const item of queries) {
+    const query = nonBlankQuery(item.text)
+    if (query !== null) {
+      branded.push(query)
+    }
+  }
+  return branded
+}
+
+function demandSignature(demand: SearchDemand): string {
+  switch (demand.kind) {
+    case 'none':
+      return 'none'
+    case 'trending':
+      return `trending:${demand.epoch}`
+    case 'suggestions':
+      return `suggestions:${demand.epoch}:${demand.query}`
+    case 'verses':
+      return `verses:${demand.epoch}:${demand.query}`
+    case 'page':
+      return `page:${demand.epoch}:${demand.query}:${demand.token}`
+  }
+}
+
+async function titledVersesFor(
+  usfms: readonly Usfm[],
+  versionId: number,
+  fetchBibleContent: FetchBibleContent,
+): Promise<readonly TitledVerse[]> {
+  const results = await Promise.all(
+    usfms.map(async (usfm) => {
+      try {
+        const response = await fetchBibleContent({
+          path: verseContentPath(versionId, usfm),
+        })
+        if (response.status !== 200) {
+          return null
+        }
+        return titledVerseFromPassage(usfm, response.body)
+      } catch {
+        return null
+      }
+    }),
+  )
+  return results.filter((verse): verse is TitledVerse => verse !== null)
+}
+
+function submittedOf(
+  state: SearchState,
+): NonBlankQuery | null {
+  if (state.kind === 'searching' || state.kind === 'resolved' || state.kind === 'failed') {
+    return state.submitted
+  }
+  return null
 }
 
 export function useBibleReaderSearch(
@@ -76,225 +132,57 @@ export function useBibleReaderSearch(
     return languageRangeKey.split(',')
   }, [languageRangeKey])
 
-  const [query, setQueryState] = useState('')
-  const [submittedQuery, setSubmittedQuery] = useState<string | null>(null)
-  const [suggestions, setSuggestions] = useState<YouVersionSearchQuery[]>([])
-  const [verses, setVerses] = useState<BibleReaderSearchVerseRow[]>([])
-  const [nextPageToken, setNextPageToken] = useState<string | undefined>(undefined)
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
-  const [isLoadingSearch, setIsLoadingSearch] = useState(false)
-  const [isLoadingPage, setIsLoadingPage] = useState(false)
-  const [searchError, setSearchError] = useState<SearchApiError | null>(null)
-  const [pageError, setPageError] = useState<SearchApiError | null>(null)
+  const [state, dispatch] = useReducer(searchReducer, undefined, initialSearchState)
   const [scrollGeneration, setScrollGeneration] = useState(0)
+  const [armed, setArmed] = useState(false)
+  const recents = useSearchHistoryStore((history) => history.entries)
+  const record = useSearchHistoryStore((history) => history.record)
 
-  const suggestionIdRef = useRef(0)
-  const searchIdRef = useRef(0)
-  const pageIdRef = useRef(0)
-  const enrichIdRef = useRef(0)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const pageInFlightRef = useRef(false)
-  const submittedQueryRef = useRef<string | null>(null)
-  const nextPageTokenRef = useRef<string | undefined>(undefined)
-  const versesRef = useRef<BibleReaderSearchVerseRow[]>([])
   const wasOpenRef = useRef(false)
+  const languageRangeKeyRef = useRef(languageRangeKey)
+  const stateRef = useRef(state)
+  stateRef.current = state
 
-  versesRef.current = verses
-  nextPageTokenRef.current = nextPageToken
-  submittedQueryRef.current = submittedQuery
-
-  const cancelDebounce = useCallback(() => {
-    if (debounceRef.current !== null) {
-      clearTimeout(debounceRef.current)
-      debounceRef.current = null
-    }
+  const retrySearch = useCallback(() => {
+    dispatch({ type: 'retried' })
   }, [])
 
-  const enrichRows = useCallback(
-    async (usfms: readonly string[], requestId: number) => {
-      const results = await Promise.all(
-        usfms.map(async (usfm) => {
-          try {
-            const response = await fetchBibleContent({
-              path: verseContentPath(versionId, usfm),
-            })
-            if (response.status !== 200) {
-              return null
-            }
-            const parsed = parsePassageSnippet(response.body)
-            if (parsed === null) {
-              return null
-            }
-            return { usfm, title: parsed.title, snippet: parsed.snippet }
-          } catch {
-            return null
-          }
-        }),
-      )
-      if (requestId !== enrichIdRef.current) {
-        return
-      }
-      setVerses((current) =>
-        current.map((row) => {
-          const match = results.find((result) => result !== null && result.usfm === row.usfm)
-          if (match === undefined || match === null) {
-            return row
-          }
-          return { ...row, title: match.title, snippet: match.snippet }
-        }),
-      )
-    },
-    [fetchBibleContent, versionId],
-  )
+  const loadNextPage = useCallback(() => {
+    dispatch({ type: 'pageRequested' })
+  }, [])
 
-  const loadTrending = useCallback(() => {
-    cancelDebounce()
-    const requestId = suggestionIdRef.current + 1
-    suggestionIdRef.current = requestId
-    setIsLoadingSuggestions(true)
-    void search
-      .trendingQueries({ languageRanges: ranges })
-      .then((result) => {
-        if (requestId !== suggestionIdRef.current) {
-          return
-        }
-        setIsLoadingSuggestions(false)
-        if (result.ok) {
-          setSuggestions(result.value.queries)
-          return
-        }
-        setSuggestions([])
-      })
-      .catch(() => {
-        // A rejection is a transport failure below the Result type. Clear the
-        // spinner so the sheet does not sit on it forever.
-        if (requestId !== suggestionIdRef.current) {
-          return
-        }
-        setIsLoadingSuggestions(false)
-        setSuggestions([])
-      })
-  }, [cancelDebounce, ranges, search])
+  const setQuery = useCallback((text: string) => {
+    const clipped = clipField(text)
+    const draft = nonBlankQuery(clipped)
+    const submitted = submittedOf(stateRef.current)
+    if (submitted !== null && draft === submitted) {
+      return
+    }
+    dispatch({ type: 'queryEdited', text: clipped })
+  }, [])
 
-  const loadSuggestions = useCallback(
-    (text: string) => {
-      const requestId = suggestionIdRef.current + 1
-      suggestionIdRef.current = requestId
-      setIsLoadingSuggestions(true)
-      void search
-        .suggestedQueries({ query: text, languageRanges: ranges })
-        .then((result) => {
-          if (requestId !== suggestionIdRef.current) {
-            return
-          }
-          setIsLoadingSuggestions(false)
-          if (result.ok) {
-            setSuggestions(result.value.queries)
-            return
-          }
-          setSuggestions([])
-        })
-        .catch(() => {
-          if (requestId !== suggestionIdRef.current) {
-            return
-          }
-          setIsLoadingSuggestions(false)
-          setSuggestions([])
-        })
-    },
-    [ranges, search],
-  )
-
-  const runSearch = useCallback(
-    (text: string) => {
-      cancelDebounce()
-      suggestionIdRef.current += 1
-      const requestId = searchIdRef.current + 1
-      searchIdRef.current = requestId
-      pageIdRef.current += 1
-      pageInFlightRef.current = false
-      const enrichId = enrichIdRef.current + 1
-      enrichIdRef.current = enrichId
-      setSubmittedQuery(text)
-      submittedQueryRef.current = text
-      setSuggestions([])
-      setVerses([])
-      versesRef.current = []
-      setNextPageToken(undefined)
-      nextPageTokenRef.current = undefined
-      setSearchError(null)
-      setPageError(null)
-      setIsLoadingPage(false)
-      setIsLoadingSearch(true)
-      void search
-        .verses({
-          query: text,
-          bibleId: versionId,
-          userIntent: SEARCH_USER_INTENT.unknown,
-        })
-        .then((result) => {
-          if (requestId !== searchIdRef.current) {
-            return
-          }
-          setIsLoadingSearch(false)
-          if (!result.ok) {
-            setSearchError(result.error)
-            return
-          }
-          const rows = toRows(result.value.verses)
-          const token = result.value.nextPageToken ?? undefined
-          setVerses(rows)
-          versesRef.current = rows
-          setNextPageToken(token)
-          nextPageTokenRef.current = token
-          void enrichRows(
-            rows.map((row) => row.usfm),
-            enrichId,
-          )
-        })
-        .catch(() => {
-          if (requestId !== searchIdRef.current) {
-            return
-          }
-          setIsLoadingSearch(false)
-          setSearchError(TRANSPORT_ERROR)
-        })
-    },
-    [cancelDebounce, enrichRows, search, versionId],
-  )
-
-  const resetForOpen = useCallback(() => {
-    cancelDebounce()
-    suggestionIdRef.current += 1
-    searchIdRef.current += 1
-    pageIdRef.current += 1
-    enrichIdRef.current += 1
-    pageInFlightRef.current = false
-    setQueryState('')
-    setSubmittedQuery(null)
-    submittedQueryRef.current = null
-    setSuggestions([])
-    setVerses([])
-    versesRef.current = []
-    setNextPageToken(undefined)
-    nextPageTokenRef.current = undefined
-    setIsLoadingSuggestions(false)
-    setIsLoadingSearch(false)
-    setIsLoadingPage(false)
-    setSearchError(null)
-    setPageError(null)
-    setScrollGeneration((generation) => generation + 1)
-    loadTrending()
-  }, [cancelDebounce, loadTrending])
+  const submit = useCallback((text: string) => {
+    const clipped = clipField(text)
+    const query = nonBlankQuery(clipped)
+    if (query === null) {
+      dispatch({ type: 'queryEdited', text: clipped })
+      return
+    }
+    record(query)
+    dispatch({ type: 'submitted', query })
+  }, [record])
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
-      resetForOpen()
+      dispatch({ type: 'opened' })
+      setScrollGeneration((generation) => generation + 1)
+      setArmed(true)
+    } else if (!isOpen) {
+      setArmed(false)
     }
     wasOpenRef.current = isOpen
-  }, [isOpen, resetForOpen])
+  }, [isOpen])
 
-  const languageRangeKeyRef = useRef(languageRangeKey)
   useEffect(() => {
     if (languageRangeKeyRef.current === languageRangeKey) {
       return
@@ -303,176 +191,183 @@ export function useBibleReaderSearch(
     if (!isOpen) {
       return
     }
-    if (submittedQueryRef.current !== null) {
-      return
-    }
-    const trimmed = query.trim()
-    if (trimmed === '') {
-      loadTrending()
-      return
-    }
-    loadSuggestions(trimmed)
-  }, [isOpen, languageRangeKey, loadSuggestions, loadTrending, query])
+    dispatch({ type: 'languageChanged' })
+  }, [isOpen, languageRangeKey])
+
+  const demand = isOpen && armed ? demandOf(state) : NO_DEMAND
+  const demandRef = useRef(demand)
+  demandRef.current = demand
+  const signature = demandSignature(demand)
 
   useEffect(() => {
-    return () => {
-      cancelDebounce()
-    }
-  }, [cancelDebounce])
-
-  const setQuery = useCallback(
-    (text: string) => {
-      const clipped = clipSearchQuery(text)
-      setQueryState(clipped)
-      const trimmed = clipped.trim()
-      if (trimmed === '') {
-        cancelDebounce()
-        suggestionIdRef.current += 1
-        searchIdRef.current += 1
-        pageIdRef.current += 1
-        enrichIdRef.current += 1
-        pageInFlightRef.current = false
-        setSubmittedQuery(null)
-        submittedQueryRef.current = null
-        setVerses([])
-        versesRef.current = []
-        setNextPageToken(undefined)
-        nextPageTokenRef.current = undefined
-        setSearchError(null)
-        setPageError(null)
-        setIsLoadingSearch(false)
-        setIsLoadingPage(false)
-        loadTrending()
-        return
-      }
-      if (trimmed === submittedQueryRef.current) {
-        cancelDebounce()
-        return
-      }
-      setSuggestions([])
-      searchIdRef.current += 1
-      pageIdRef.current += 1
-      enrichIdRef.current += 1
-      pageInFlightRef.current = false
-      setVerses([])
-      versesRef.current = []
-      setNextPageToken(undefined)
-      nextPageTokenRef.current = undefined
-      setSearchError(null)
-      setPageError(null)
-      setIsLoadingSearch(false)
-      setIsLoadingPage(false)
-      cancelDebounce()
-      debounceRef.current = setTimeout(() => {
-        debounceRef.current = null
-        loadSuggestions(trimmed)
-      }, SEARCH_DEBOUNCE_MS)
-    },
-    [cancelDebounce, loadSuggestions, loadTrending],
-  )
-
-  const submit = useCallback(
-    (text: string) => {
-      const trimmed = clipSearchQuery(text).trim()
-      setQueryState(trimmed)
-      if (trimmed === '') {
-        setQuery('')
-        return
-      }
-      runSearch(trimmed)
-    },
-    [runSearch, setQuery],
-  )
-
-  const loadNextPage = useCallback(() => {
-    const token = nextPageTokenRef.current
-    const submitted = submittedQueryRef.current
-    if (token === undefined || submitted === null) {
+    const current = demandRef.current
+    if (current.kind === 'none') {
       return
     }
-    if (pageInFlightRef.current) {
-      return
-    }
-    pageInFlightRef.current = true
-    const requestId = pageIdRef.current + 1
-    pageIdRef.current = requestId
-    const enrichId = enrichIdRef.current
-    setIsLoadingPage(true)
-    setPageError(null)
-    void search
-      .verses({
-        query: submitted,
-        bibleId: versionId,
-        userIntent: SEARCH_USER_INTENT.unknown,
-        pageToken: token,
-      })
-      .then((result) => {
-        if (requestId !== pageIdRef.current) {
+
+    let cancelled = false
+
+    const loadTrending = async () => {
+      if (current.kind !== 'trending') {
+        return
+      }
+      try {
+        const result = await search.trendingQueries({ languageRanges: ranges })
+        if (cancelled) {
           return
         }
-        pageInFlightRef.current = false
-        setIsLoadingPage(false)
         if (!result.ok) {
-          setPageError(result.error)
+          dispatch({ type: 'trendingLoaded', epoch: current.epoch, queries: [] })
           return
         }
-        const existingUsfms = versesRef.current.map((row) => row.usfm)
-        const incomingUsfms = result.value.verses.map((verse) => verse.id)
-        const addedUsfms = dedupeVerseUsfms(existingUsfms, incomingUsfms)
-        const addedRows = toRows(
-          result.value.verses.filter((verse) => addedUsfms.includes(verse.id)),
-        )
-        const nextRows = [...versesRef.current, ...addedRows]
-        const token = result.value.nextPageToken ?? undefined
-        setVerses(nextRows)
-        versesRef.current = nextRows
-        setNextPageToken(token)
-        nextPageTokenRef.current = token
-        void enrichRows(addedUsfms, enrichId)
-      })
-      .catch(() => {
-        if (requestId !== pageIdRef.current) {
+        dispatch({
+          type: 'trendingLoaded',
+          epoch: current.epoch,
+          queries: brandQueries(result.value.queries),
+        })
+      } catch {
+        if (cancelled) {
           return
         }
-        pageInFlightRef.current = false
-        setIsLoadingPage(false)
-        setPageError(TRANSPORT_ERROR)
-      })
-  }, [enrichRows, search, versionId])
-
-  const retrySearch = useCallback(() => {
-    const submitted = submittedQueryRef.current
-    if (submitted === null) {
-      return
+        dispatch({ type: 'trendingLoaded', epoch: current.epoch, queries: [] })
+      }
     }
-    runSearch(submitted)
-  }, [runSearch])
 
-  const retryPage = useCallback(() => {
-    pageInFlightRef.current = false
-    loadNextPage()
-  }, [loadNextPage])
+    const loadSuggestions = async () => {
+      if (current.kind !== 'suggestions') {
+        return
+      }
+      try {
+        const result = await search.suggestedQueries({
+          query: current.query,
+          languageRanges: ranges,
+        })
+        if (cancelled) {
+          return
+        }
+        if (!result.ok) {
+          dispatch({ type: 'suggestionsLoaded', epoch: current.epoch, queries: [] })
+          return
+        }
+        dispatch({
+          type: 'suggestionsLoaded',
+          epoch: current.epoch,
+          queries: brandQueries(result.value.queries),
+        })
+      } catch {
+        if (cancelled) {
+          return
+        }
+        dispatch({ type: 'suggestionsLoaded', epoch: current.epoch, queries: [] })
+      }
+    }
 
-  const showingResults = submittedQuery !== null && query.trim() === submittedQuery
-  const hasNoResults =
-    showingResults && !isLoadingSearch && searchError === null && verses.length === 0
+    const loadVerses = async () => {
+      if (current.kind !== 'verses') {
+        return
+      }
+      try {
+        const result = await search.verses({
+          query: current.query,
+          bibleId: versionId,
+          userIntent: SEARCH_USER_INTENT.unknown,
+        })
+        if (cancelled) {
+          return
+        }
+        if (!result.ok) {
+          dispatch({ type: 'searchFailed', epoch: current.epoch, error: result.error })
+          return
+        }
+        const usfms = usfmsFromSearchHits(result.value.verses)
+        const verses = await titledVersesFor(usfms, versionId, fetchBibleContent)
+        if (cancelled) {
+          return
+        }
+        dispatch({
+          type: 'resultsCommitted',
+          epoch: current.epoch,
+          verses,
+          seen: new Set(usfms),
+          nextPageToken: pageTokenOf(result.value.nextPageToken),
+        })
+      } catch {
+        if (cancelled) {
+          return
+        }
+        dispatch({ type: 'searchFailed', epoch: current.epoch, error: TRANSPORT_ERROR })
+      }
+    }
+
+    const loadPage = async () => {
+      if (current.kind !== 'page') {
+        return
+      }
+      try {
+        const result = await search.verses({
+          query: current.query,
+          bibleId: versionId,
+          userIntent: SEARCH_USER_INTENT.unknown,
+          pageToken: current.token,
+        })
+        if (cancelled) {
+          return
+        }
+        if (!result.ok) {
+          dispatch({ type: 'pageFailed', epoch: current.epoch, error: result.error })
+          return
+        }
+        const incoming = usfmsFromSearchHits(result.value.verses)
+        const added = dedupeVerseUsfms(current.seen, incoming)
+        const verses = await titledVersesFor(added, versionId, fetchBibleContent)
+        if (cancelled) {
+          return
+        }
+        dispatch({
+          type: 'pageCommitted',
+          epoch: current.epoch,
+          verses,
+          seen: new Set(incoming),
+          nextPageToken: pageTokenOf(result.value.nextPageToken),
+        })
+      } catch {
+        if (cancelled) {
+          return
+        }
+        dispatch({ type: 'pageFailed', epoch: current.epoch, error: TRANSPORT_ERROR })
+      }
+    }
+
+    if (current.kind === 'suggestions') {
+      const timer = setTimeout(() => {
+        void loadSuggestions()
+      }, SEARCH_DEBOUNCE_MS)
+      return () => {
+        cancelled = true
+        clearTimeout(timer)
+      }
+    }
+
+    if (current.kind === 'trending') {
+      void loadTrending()
+    } else if (current.kind === 'verses') {
+      void loadVerses()
+    } else if (current.kind === 'page') {
+      void loadPage()
+    }
+
+    return () => {
+      cancelled = true
+    }
+  }, [fetchBibleContent, ranges, search, signature, versionId])
+
+  const view = toSearchView(state, recents, { retrySearch, loadNextPage })
 
   return {
-    query,
+    query: fieldTextOf(state),
     setQuery,
     submit,
-    suggestions,
-    verses,
-    showingResults,
-    isLoadingSuggestions,
-    isLoadingSearch,
-    isLoadingPage,
-    searchError,
-    pageError,
-    hasNoResults,
+    view,
     scrollGeneration,
-    loadNextPage,
-    retrySearch,
-    retryPage,
   }
 }

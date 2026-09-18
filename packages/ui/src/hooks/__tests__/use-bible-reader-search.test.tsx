@@ -7,8 +7,13 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { act, renderHook } from '@testing-library/react-native'
 
-import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { SEARCH_DEBOUNCE_MS } from '../../lib/bible-reader-search'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import {
+  searchHistoryStoreInitialState,
+  useSearchHistoryStore,
+} from '../../stores/search-history-store'
 import { useBibleReaderSearch } from '../use-bible-reader-search'
 
 function deferred<T>() {
@@ -71,7 +76,17 @@ async function flush() {
   })
 }
 
+async function resetSearchHistoryStore() {
+  mmkvStorage.clearAll()
+  useSearchHistoryStore.setState(searchHistoryStoreInitialState)
+  await useSearchHistoryStore.persist.rehydrate()
+}
+
 describe('useBibleReaderSearch', () => {
+  beforeEach(() => {
+    return resetSearchHistoryStore()
+  })
+
   afterEach(() => {
     jest.useRealTimers()
   })
@@ -90,18 +105,22 @@ describe('useBibleReaderSearch', () => {
     )
 
     expect(stub.trendingQueries).not.toHaveBeenCalled()
+    expect(result.current.view.phase).toBe('browsing')
 
     rerender({ isOpen: true })
     await flush()
 
     expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['en'] })
     expect(result.current.query).toBe('')
-    expect(result.current.verses).toEqual([])
-    expect(result.current.suggestions).toEqual([{ text: 'faith' }])
+    expect(result.current.view).toEqual({
+      phase: 'browsing',
+      trending: { status: 'done', value: ['faith'] },
+      recents: [],
+    })
     expect(result.current.scrollGeneration).toBe(1)
   })
 
-  it('does not show suggestion progress during the debounce window', async () => {
+  it('does not call suggestedQueries during the debounce window', async () => {
     jest.useFakeTimers()
     const pending = deferred<SearchApiResult<YouVersionSearchQueries>>()
     const stub = searchStub({
@@ -123,29 +142,31 @@ describe('useBibleReaderSearch', () => {
       result.current.setQuery('love')
     })
 
-    expect(result.current.isLoadingSuggestions).toBe(false)
+    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
 
     act(() => {
       jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1)
     })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
-    expect(result.current.isLoadingSuggestions).toBe(false)
 
     act(() => {
       jest.advanceTimersByTime(1)
     })
-    expect(result.current.isLoadingSuggestions).toBe(true)
     expect(stub.suggestedQueries).toHaveBeenCalledWith({
       query: 'love',
       languageRanges: ['en'],
     })
+    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
 
     await act(async () => {
       pending.resolve(okQueries(['love one another']))
     })
     await flush()
-    expect(result.current.isLoadingSuggestions).toBe(false)
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: ['love one another'],
+    })
   })
 
   it('clears trending as soon as the query changes', async () => {
@@ -161,13 +182,13 @@ describe('useBibleReaderSearch', () => {
       { wrapper: wrapperFor(stub) },
     )
     await flush()
-    expect(result.current.suggestions).toEqual([{ text: 'faith' }])
+    expect(result.current.view.phase).toBe('browsing')
 
     act(() => {
       result.current.setQuery('love')
     })
 
-    expect(result.current.suggestions).toEqual([])
+    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
   })
 
@@ -223,8 +244,11 @@ describe('useBibleReaderSearch', () => {
     })
 
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
-    expect(result.current.showingResults).toBe(true)
-    expect(result.current.verses[0]?.usfm).toBe('JHN.3.16')
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses[0]?.usfm).toBe('JHN.3.16')
+      expect(result.current.view.verses[0]?.title).toBe('John 3:16')
+    }
   })
 
   it('clears whitespace without requesting verses or suggestions', async () => {
@@ -252,12 +276,63 @@ describe('useBibleReaderSearch', () => {
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
     expect(stub.trendingQueries).toHaveBeenCalledTimes(1)
     expect(result.current.query).toBe('   ')
-    expect(result.current.showingResults).toBe(false)
+    expect(result.current.view.phase).toBe('browsing')
   })
 
-  it('submits a suggestion as the search query', async () => {
+  it('submits a suggestion as the search query and stays pending until titled', async () => {
+    const passage = deferred<{ status: number; body: string; contentType: string | null }>()
+    const fetchBibleContent = jest.fn(async () => passage.promise)
     const stub = searchStub({
       verses: jest.fn(async () => okVerses(['ROM.8.28'])),
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent,
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('hope')
+    })
+    await flush()
+
+    expect(stub.verses).toHaveBeenCalledWith({
+      query: 'hope',
+      bibleId: 111,
+      userIntent: 'unknown',
+    })
+    expect(result.current.query).toBe('hope')
+    expect(result.current.view.phase).toBe('pending')
+
+    await act(async () => {
+      passage.resolve({
+        status: 200,
+        body: '{"content":"And we know","reference":"Romans 8:28"}',
+        contentType: 'application/json',
+      })
+    })
+    await flush()
+
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses).toEqual([
+        { usfm: 'ROM.8.28', title: 'Romans 8:28', snippet: 'And we know' },
+      ])
+    }
+  })
+
+  it('records recents on submit even when verses fail', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => ({
+        ok: false as const,
+        error: { kind: 'transient' as const, message: 'offline' },
+      })),
     })
     const { result } = renderHook(
       () =>
@@ -276,13 +351,59 @@ describe('useBibleReaderSearch', () => {
     })
     await flush()
 
-    expect(stub.verses).toHaveBeenCalledWith({
-      query: 'hope',
-      bibleId: 111,
-      userIntent: 'unknown',
+    expect(result.current.view.phase).toBe('failed')
+    expect(useSearchHistoryStore.getState().entries).toEqual(['hope'])
+  })
+
+  it('treats zero API hits as empty', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses([])),
     })
-    expect(result.current.query).toBe('hope')
-    expect(result.current.verses[0]?.usfm).toBe('ROM.8.28')
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('zzzz')
+    })
+    await flush()
+
+    expect(result.current.view.phase).toBe('empty')
+  })
+
+  it('treats all-failed enrichment as failed, not empty', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses(['JHN.3.16'])),
+    })
+    const fetchBibleContent = jest.fn(async () => {
+      throw new Error('offline')
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent,
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('love')
+    })
+    await flush()
+
+    expect(result.current.view.phase).toBe('failed')
   })
 
   it('keeps results when a page fails and rejects a stale page', async () => {
@@ -310,13 +431,17 @@ describe('useBibleReaderSearch', () => {
       result.current.submit('love')
     })
     await flush()
-    expect(result.current.verses).toHaveLength(1)
+    expect(result.current.view.phase).toBe('results')
 
     act(() => {
-      result.current.loadNextPage()
+      if (result.current.view.phase === 'results') {
+        result.current.view.onEndReached()
+      }
     })
     act(() => {
-      result.current.loadNextPage()
+      if (result.current.view.phase === 'results') {
+        result.current.view.onEndReached()
+      }
     })
     expect(verses).toHaveBeenCalledTimes(2)
 
@@ -331,17 +456,20 @@ describe('useBibleReaderSearch', () => {
     await flush()
 
     expect(result.current.query).toBe('peace')
-    expect(result.current.verses).toEqual([])
+    expect(result.current.view.phase).toBe('pending')
 
     await act(async () => {
       secondSearch.resolve(okVerses(['ISA.26.3']))
     })
     await flush()
 
-    expect(result.current.verses[0]?.usfm).toBe('ISA.26.3')
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses[0]?.usfm).toBe('ISA.26.3')
+    }
   })
 
-  it('keeps existing rows when pagination fails', async () => {
+  it('keeps existing titled rows when pagination fails', async () => {
     const stub = searchStub({
       verses: jest
         .fn()
@@ -366,12 +494,18 @@ describe('useBibleReaderSearch', () => {
     await flush()
 
     await act(async () => {
-      result.current.loadNextPage()
+      if (result.current.view.phase === 'results') {
+        result.current.view.onEndReached()
+      }
     })
     await flush()
 
-    expect(result.current.verses[0]?.usfm).toBe('JHN.3.16')
-    expect(result.current.pageError?.kind).toBe('transient')
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses[0]?.usfm).toBe('JHN.3.16')
+      expect(result.current.view.verses[0]?.title).toBe('John 3:16')
+      expect(result.current.view.footer.kind).toBe('error')
+    }
   })
 
   it('does not request another page when nextPageToken is null', async () => {
@@ -395,14 +529,18 @@ describe('useBibleReaderSearch', () => {
     await flush()
 
     act(() => {
-      result.current.loadNextPage()
+      if (result.current.view.phase === 'results') {
+        result.current.view.onEndReached()
+      }
     })
 
     expect(verses).toHaveBeenCalledTimes(1)
-    expect(result.current.verses[0]?.usfm).toBe('JHN.3.16')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses[0]?.usfm).toBe('JHN.3.16')
+    }
   })
 
-  it('trims enrichment text and drops a stale snippet', async () => {
+  it('drops a stale snippet from an earlier search', async () => {
     const firstText = deferred<{ status: number; body: string; contentType: string | null }>()
     const fetchBibleContent = jest
       .fn<ReturnType<FetchBibleContent>, Parameters<FetchBibleContent>>()
@@ -449,35 +587,11 @@ describe('useBibleReaderSearch', () => {
     })
     await flush()
 
-    expect(result.current.verses).toEqual([
-      { usfm: 'PSA.23.1', title: 'Psalm 23:1', snippet: 'The Lord is my shepherd' },
-    ])
-  })
-
-  it('keeps a row when enrichment fails', async () => {
-    const stub = searchStub({
-      verses: jest.fn(async () => okVerses(['JHN.3.16'])),
-    })
-    const fetchBibleContent = jest.fn(async () => {
-      throw new Error('offline')
-    })
-    const { result } = renderHook(
-      () =>
-        useBibleReaderSearch({
-          versionId: 111,
-          isOpen: true,
-          fetchBibleContent,
-          languageRanges: ['en'],
-        }),
-      { wrapper: wrapperFor(stub) },
-    )
-    await flush()
-
-    await act(async () => {
-      result.current.submit('love')
-    })
-    await flush()
-
-    expect(result.current.verses).toEqual([{ usfm: 'JHN.3.16', title: 'JHN 3:16', snippet: null }])
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses).toEqual([
+        { usfm: 'PSA.23.1', title: 'Psalm 23:1', snippet: 'The Lord is my shepherd' },
+      ])
+    }
   })
 })

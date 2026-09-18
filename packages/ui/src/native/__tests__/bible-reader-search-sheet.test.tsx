@@ -1,14 +1,29 @@
 import type {
   BibleReference,
   FetchBibleContent,
+  SearchApiResult,
   UseSearchResult,
+  YouVersionSearchQueries,
 } from '@youversion/platform-react-native-expo-core'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { Pressable, Text, View } from 'react-native'
 
+import {
+  searchHistoryStoreInitialState,
+  useSearchHistoryStore,
+} from '../../stores/search-history-store'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderSearchSheet } from '../bible-reader-search-sheet'
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((res) => {
+    resolve = res
+  })
+  return { promise, resolve }
+}
 
 function searchStub(overrides: Partial<UseSearchResult> = {}): UseSearchResult {
   return {
@@ -46,6 +61,12 @@ async function flush() {
   })
 }
 
+async function resetSearchHistoryStore() {
+  mmkvStorage.clearAll()
+  useSearchHistoryStore.setState(searchHistoryStoreInitialState)
+  await useSearchHistoryStore.persist.rehydrate()
+}
+
 describe('BibleReaderSearchSheet', () => {
   beforeEach(() => {
     setImpl('NativeSheet', ({ children, isOpen, headerTitle, onClose }) =>
@@ -59,13 +80,14 @@ describe('BibleReaderSearchSheet', () => {
         </View>
       ) : null,
     )
+    return resetSearchHistoryStore()
   })
 
   afterEach(() => {
     resetImpls()
   })
 
-  it('puts the field and Done in the header and asks trending in the version language', async () => {
+  it('puts the field and Cancel in the header and asks trending in the version language', async () => {
     const stub = searchStub()
     const onClose = jest.fn()
     render(
@@ -84,13 +106,71 @@ describe('BibleReaderSearchSheet', () => {
 
     expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['es'] })
     expect(screen.getByTestId('bible-reader-search-field')).toBeTruthy()
-    expect(screen.getByTestId('bible-reader-search-done')).toBeTruthy()
-    expect(screen.getByText('OK')).toBeTruthy()
+    expect(screen.getByTestId('bible-reader-search-cancel')).toBeTruthy()
+    expect(screen.getByText('Cancel')).toBeTruthy()
+    expect(screen.queryByText('OK')).toBeNull()
 
     await act(async () => {
-      fireEvent.press(screen.getByTestId('bible-reader-search-done'))
+      fireEvent.press(screen.getByTestId('bible-reader-search-cancel'))
     })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows Trending Searches while trending is still loading and omits Recents when empty', async () => {
+    const pending = deferred<SearchApiResult<YouVersionSearchQueries>>()
+    const stub = searchStub({
+      trendingQueries: jest.fn(async () => pending.promise),
+    })
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+
+    expect(screen.getByText('Trending Searches')).toBeTruthy()
+    expect(screen.getByTestId('bible-reader-search-loading')).toBeTruthy()
+    expect(screen.queryByText('Recent Searches')).toBeNull()
+    expect(screen.queryByText('faith')).toBeNull()
+
+    await act(async () => {
+      pending.resolve({ ok: true, value: { queries: [{ text: 'faith' }] } })
+    })
+    await flush()
+
+    expect(screen.getByText('faith')).toBeTruthy()
+    expect(screen.queryByTestId('bible-reader-search-loading')).toBeNull()
+    expect(screen.queryByText('Recent Searches')).toBeNull()
+  })
+
+  it('labels Clear search distinctly from Cancel', async () => {
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('bible-reader-search-field'), 'love')
+    })
+
+    expect(screen.getByLabelText('Clear search')).toBeTruthy()
+    expect(screen.getByText('Cancel')).toBeTruthy()
   })
 
   it('falls back to * when the version language is missing', async () => {
@@ -141,6 +221,78 @@ describe('BibleReaderSearchSheet', () => {
       bibleId: 111,
       userIntent: 'unknown',
     })
+  })
+
+  it('shows Recents after a submit and a return to idle', async () => {
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    await act(async () => {
+      fireEvent.changeText(screen.getByTestId('bible-reader-search-field'), '')
+    })
+    await flush()
+
+    expect(screen.getByText('Recent Searches')).toBeTruthy()
+    expect(screen.getAllByText('faith').length).toBeGreaterThan(0)
+  })
+
+  it('keeps a full-sheet spinner up until the passage title exists', async () => {
+    const passage = deferred<{ status: number; body: string; contentType: string | null }>()
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={async () => passage.promise}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    expect(screen.getByTestId('bible-reader-search-loading')).toBeTruthy()
+    expect(screen.queryByText('JHN 3:16')).toBeNull()
+    expect(screen.queryByText('JHN.3.16')).toBeNull()
+    expect(screen.queryByText('John 3:16')).toBeNull()
+
+    await act(async () => {
+      passage.resolve({
+        status: 200,
+        body: '{"content":"For God so loved the world","reference":"John 3:16"}',
+        contentType: 'application/json',
+      })
+    })
+    await flush()
+
+    expect(screen.getByText('For God so loved the world')).toBeTruthy()
+    expect(screen.getByText('John 3:16')).toBeTruthy()
+    expect(screen.queryByText('JHN.3.16')).toBeNull()
+    expect(screen.queryByText('JHN 3:16')).toBeNull()
   })
 
   it('shows the snippet above the title and omits a raw USFM line', async () => {
@@ -289,6 +441,11 @@ describe('BibleReaderSearchSheet', () => {
         value: { verses: [{ id: 'PSA.23' }], didYouMean: [] },
       })),
     })
+    const fetchChapter: FetchBibleContent = async () => ({
+      status: 200,
+      body: '{"content":"The Lord is my shepherd","reference":"Psalm 23"}',
+      contentType: 'application/json',
+    })
     const onClose = jest.fn()
     const onSelectReference = jest.fn()
     render(
@@ -298,7 +455,7 @@ describe('BibleReaderSearchSheet', () => {
         versionId={111}
         languageTag="en"
         theme="light"
-        fetchBibleContent={fetchBibleContent}
+        fetchBibleContent={fetchChapter}
         onSelectReference={onSelectReference}
       />,
       { wrapper: wrapperFor(stub) },
@@ -329,6 +486,11 @@ describe('BibleReaderSearchSheet', () => {
         value: { verses: [{ id: 'JHN.3.16-17' }], didYouMean: [] },
       })),
     })
+    const fetchRange: FetchBibleContent = async () => ({
+      status: 200,
+      body: '{"content":"For God so loved the world","reference":"John 3:16-17"}',
+      contentType: 'application/json',
+    })
     const onClose = jest.fn()
     const onSelectReference = jest.fn()
     render(
@@ -338,7 +500,7 @@ describe('BibleReaderSearchSheet', () => {
         versionId={111}
         languageTag="en"
         theme="light"
-        fetchBibleContent={fetchBibleContent}
+        fetchBibleContent={fetchRange}
         onSelectReference={onSelectReference}
       />,
       { wrapper: wrapperFor(stub) },
@@ -363,4 +525,3 @@ describe('BibleReaderSearchSheet', () => {
     } satisfies BibleReference)
   })
 })
-
