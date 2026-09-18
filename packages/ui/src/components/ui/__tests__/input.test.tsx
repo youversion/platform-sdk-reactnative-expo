@@ -57,6 +57,7 @@ describe('Input', () => {
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {})
 
     expect(() => render(<Input.Field placeholder="Orphan" />)).toThrow(/inside <Input>/)
+    expect(() => render(<Input.Icon as={() => null} />)).toThrow(/inside <Input>/)
     expect(() =>
       render(
         <Input.Clear>
@@ -66,6 +67,31 @@ describe('Input', () => {
     ).toThrow(/inside <Input>/)
 
     consoleError.mockRestore()
+  })
+
+  it('hands Input.Icon the root muted color and icon size, and lets props win', () => {
+    const received: { color: string; size: number }[] = []
+    function RecordingIcon({ color, size }: { color: string; size: number }) {
+      received.push({ color, size })
+      return null
+    }
+
+    render(
+      <>
+        <Input>
+          <Input.Icon as={RecordingIcon} />
+          <Input.Field placeholder="Search" />
+        </Input>
+        <Input>
+          <Input.Icon as={RecordingIcon} color={light.destructive} size={16} />
+          <Input.Field placeholder="Search" />
+        </Input>
+      </>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(received[0]).toEqual({ color: light.mutedForeground, size: 24 })
+    expect(received[1]).toEqual({ color: light.destructive, size: 16 })
   })
 
   it('lets a caller style win over the variant styles', () => {

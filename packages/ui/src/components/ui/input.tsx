@@ -1,5 +1,5 @@
 import { createContext, use, useMemo } from 'react'
-import type { ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 import { Pressable, StyleSheet, TextInput, View } from 'react-native'
 import type { PressableProps, StyleProp, TextInputProps, ViewStyle } from 'react-native'
 
@@ -10,6 +10,7 @@ import { Text } from './text'
 
 const PRESSED_OPACITY = 0.8
 const DISABLED_OPACITY = 0.5
+const ICON_SIZE = 24
 
 const inputVariants = createVariants((tokens) => ({
   base: {
@@ -44,6 +45,8 @@ const styles = StyleSheet.create({
 type InputContextValue = {
   readonly foreground: string
   readonly placeholderColor: string
+  readonly iconColor: string
+  readonly iconSize: number
   readonly disabled: boolean
 }
 
@@ -52,7 +55,7 @@ const InputContext = createContext<InputContextValue | null>(null)
 function useInputContext(): InputContextValue {
   const context = use(InputContext)
   if (context === null) {
-    throw new Error('Input.Field and Input.Clear must be rendered inside <Input>')
+    throw new Error('Input.Field, Input.Icon, and Input.Clear must be rendered inside <Input>')
   }
   return context
 }
@@ -71,6 +74,8 @@ function InputRoot({ children, disabled = false, style, testID }: InputProps): R
     () => ({
       foreground: tokens.foreground,
       placeholderColor: tokens.mutedForeground,
+      iconColor: tokens.mutedForeground,
+      iconSize: ICON_SIZE,
       disabled,
     }),
     [tokens.foreground, tokens.mutedForeground, disabled],
@@ -121,6 +126,19 @@ function InputField({
   )
 }
 
+export type InputIconProps = {
+  /** An icon component from `native/icons`, or anything with the same signature. */
+  as: ComponentType<{ color: string; size: number }>
+  color?: string
+  size?: number
+}
+
+/** Paints an icon in the root muted color unless the caller overrides it. */
+function InputIcon({ as: As, color, size }: InputIconProps): ReactNode {
+  const context = useInputContext()
+  return <As color={color ?? context.iconColor} size={size ?? context.iconSize} />
+}
+
 export type InputClearProps = Omit<PressableProps, 'style'> & {
   style?: StyleProp<ViewStyle>
 }
@@ -149,4 +167,8 @@ function InputClear({ disabled, onPress, style, ...props }: InputClearProps): Re
 }
 
 /** Themed text field. Internal — see UI Primitives in AGENTS.md. */
-export const Input = Object.assign(InputRoot, { Field: InputField, Clear: InputClear })
+export const Input = Object.assign(InputRoot, {
+  Field: InputField,
+  Icon: InputIcon,
+  Clear: InputClear,
+})
