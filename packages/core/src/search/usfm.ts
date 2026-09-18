@@ -9,7 +9,7 @@ export function bibleReferenceFromUsfm(usfm: string, versionId: number): BibleRe
   if (bookId === undefined || chapterPart === undefined || versePart === undefined) {
     return null
   }
-  if (bookId === '') {
+  if (!/^[A-Z0-9]{3}$/.test(bookId)) {
     return null
   }
   const chapter = parsePositiveInt(chapterPart)
