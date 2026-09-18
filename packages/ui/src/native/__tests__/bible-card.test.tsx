@@ -183,11 +183,33 @@ describe('BibleCard', () => {
     )
 
     expect(getByTestId('bible-card')).toBeTruthy()
-    expect(getByText('John 3:16')).toBeTruthy()
+    expect(getByText('John 3:16 NIV')).toBeTruthy()
     expect(getByText('NIV copyright')).toBeTruthy()
     expect(getByTestId('bible-card-attribution')).toBeTruthy()
+    expect(getByText('Bible App')).toBeTruthy()
     expect(getByTestId('mock-btv-dom')).toBeTruthy()
     expect(queryByTestId('bible-card-version')).toBeNull()
+  })
+
+  it('exposes the passage reference as an accessible heading', async () => {
+    const { getByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      { wrapper: wrapper() },
+    )
+
+    expect(getByText('John 3:16 NIV').props.accessibilityRole).toBe('header')
+  })
+
+  it('honors the web background prop when theme is omitted', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} background="dark" />,
+      { wrapper: wrapper('light') },
+    )
+
+    expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+      backgroundColor: getTokens('dark').card,
+    })
+    expect(latestDomProps.theme).toBe('dark')
   })
 
   it('clears chrome metadata synchronously when reference changes', async () => {
@@ -197,7 +219,7 @@ describe('BibleCard', () => {
       { wrapper: TestWrapper },
     )
 
-    expect(getByText('John 3:16')).toBeTruthy()
+    expect(getByText('John 3:16 NIV')).toBeTruthy()
 
     let resolveNewMetadata: (value: typeof sampleMetadata) => void = () => {}
     jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockImplementation((_fetch, _versionId, passageId) => {
@@ -215,13 +237,13 @@ describe('BibleCard', () => {
       </TestWrapper>,
     )
 
-    expect(queryByText('John 3:16')).toBeNull()
+    expect(queryByText('John 3:16 NIV')).toBeNull()
 
     await act(async () => {
       resolveNewMetadata({ ...sampleMetadata, reference: 'Genesis 1:1' })
     })
 
-    expect(getByText('Genesis 1:1')).toBeTruthy()
+    expect(getByText('Genesis 1:1 NIV')).toBeTruthy()
   })
 
   it('paints the card surface from the light tokens', async () => {
@@ -297,6 +319,43 @@ describe('BibleCard', () => {
     expect(latestDomProps.permittedVersionIds).toEqual([111])
     expect(latestDomProps.excludedVersionIds).toEqual([3034])
     expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+  })
+
+  it('passes provider version filters into chrome metadata lookups', async () => {
+    const getMetadata = jest
+      .spyOn(bibleCardMetadata, 'getBibleCardMetadata')
+      .mockResolvedValue(sampleMetadata)
+
+    await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
+      wrapper: versionFilterWrapper({
+        permittedVersionIds: [111],
+        excludedVersionIds: [3034],
+        permittedLanguageTags: ['en'],
+      }),
+    })
+
+    expect(getMetadata).toHaveBeenCalledWith(expect.any(Function), 3034, 'JHN.3.16', {
+      permittedVersionIds: [111],
+      excludedVersionIds: [3034],
+      permittedLanguageTags: ['en'],
+    })
+  })
+
+  it('hides chrome metadata when the version is refused by provider filters', async () => {
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockResolvedValue(null)
+
+    const { queryByText, queryByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      {
+        wrapper: versionFilterWrapper({
+          permittedVersionIds: [],
+        }),
+      },
+    )
+
+    expect(queryByText('John 3:16 NIV')).toBeNull()
+    expect(queryByText('NIV copyright')).toBeNull()
+    expect(queryByTestId('mock-btv-dom')).toBeTruthy()
   })
 
   it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {

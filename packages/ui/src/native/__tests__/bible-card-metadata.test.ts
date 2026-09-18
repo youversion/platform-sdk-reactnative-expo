@@ -173,4 +173,63 @@ describe('getBibleCardMetadata', () => {
       path: '/v1/bibles/111',
     })
   })
+
+  it('returns null and does not fetch when the version is excluded', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getBibleCardMetadata(fetchMock, 3034, 'JHN.3.16', {
+      excludedVersionIds: [3034],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null and does not fetch when the version is not in the permit list', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getBibleCardMetadata(fetchMock, 3034, 'JHN.3.16', {
+      permittedVersionIds: [111],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null for an empty permit list without fetching', async () => {
+    const fetchMock: jest.MockedFunction<FetchBibleContent> = jest.fn()
+
+    const source = await getBibleCardMetadata(fetchMock, 3034, 'JHN.3.16', {
+      permittedVersionIds: [],
+    })
+
+    expect(source).toBeNull()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('returns null when the version language is not permitted', async () => {
+    const paths: string[] = []
+    const fetch: FetchBibleContent = async ({ path }) => {
+      paths.push(path)
+      if (path === VERSION_PATH) {
+        return {
+          status: 200,
+          body: JSON.stringify({
+            localized_abbreviation: 'NVI',
+            copyright: 'NVI copyright',
+            language_tag: 'es',
+          }),
+          contentType: 'application/json',
+        }
+      }
+      throw new Error(`Unexpected Bible Content path: ${path}`)
+    }
+
+    const source = await getBibleCardMetadata(fetch, 3034, 'JHN.3.16', {
+      permittedLanguageTags: ['en'],
+    })
+
+    expect(source).toBeNull()
+    expect(paths).toEqual([VERSION_PATH])
+  })
 })
