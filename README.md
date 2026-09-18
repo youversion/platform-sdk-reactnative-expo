@@ -36,7 +36,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 
 ## Requirements
 
-- Expo SDK 56
+- Expo SDK 57 (React Native 0.86)
 - A YouVersion Platform API key ([register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
