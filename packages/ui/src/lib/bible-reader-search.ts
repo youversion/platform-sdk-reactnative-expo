@@ -1,8 +1,8 @@
+import type { YouVersionVerseSearchResult } from '@youversion/platform-react-native-expo-core'
 import { z } from 'zod'
 
 export const SEARCH_DEBOUNCE_MS = 300
 export const SEARCH_QUERY_MAX_LENGTH = 100
-export const SEARCH_PAGINATE_REMAINING = 5
 export const SEARCH_SNIPPET_MAX_CHARS = 180
 export const SEARCH_SNIPPET_LINE_COUNT = 3
 
@@ -11,6 +11,25 @@ const passageSchema = z.object({
   reference: z.string(),
 })
 
+/** A query that survived clipping and trimming and is known non-blank. */
+export type NonBlankQuery = string & { readonly __brand: 'NonBlankQuery' }
+
+/** An opaque page cursor. Never assembled by hand, never rendered. */
+export type PageToken = string & { readonly __brand: 'PageToken' }
+
+/** A USFM id as the search API returned it. */
+export type Usfm = string & { readonly __brand: 'Usfm' }
+
+/**
+ * A verse the sheet is allowed to render. `title` and `snippet` can only come from a parsed
+ * passage response, so nothing in scope can pair a usfm with a placeholder title.
+ */
+export type TitledVerse = {
+  readonly usfm: Usfm
+  readonly title: string
+  readonly snippet: string
+}
+
 export function languageRangesForVersionLanguage(languageTag: string | null | undefined): string[] {
   if (languageTag === undefined || languageTag === null || languageTag === '') {
     return ['*']
@@ -18,49 +37,52 @@ export function languageRangesForVersionLanguage(languageTag: string | null | un
   return [languageTag]
 }
 
-export function clipSearchQuery(text: string): string {
+function clipSearchQuery(text: string): string {
   if (text.length <= SEARCH_QUERY_MAX_LENGTH) {
     return text
   }
   return text.slice(0, SEARCH_QUERY_MAX_LENGTH)
 }
 
-export function formatUsfmLabel(usfm: string): string {
-  const parts = usfm.split('.')
-  if (parts.length !== 3) {
-    return usfm
+/** Clips, trims, and brands. `null` when the text is blank. The only way into `NonBlankQuery`. */
+export function nonBlankQuery(text: string): NonBlankQuery | null {
+  const trimmed = clipSearchQuery(text).trim()
+  if (trimmed === '') {
+    return null
   }
-  const [book, chapter, verse] = parts
-  if (book === undefined || chapter === undefined || verse === undefined) {
-    return usfm
-  }
-  return `${book} ${chapter}:${verse}`
+  return trimmed as NonBlankQuery
 }
 
-export function shouldRequestNextPage(highestViewableIndex: number, rowCount: number): boolean {
-  if (rowCount === 0) {
-    return false
+export function usfmsFromSearchHits(
+  hits: readonly YouVersionVerseSearchResult[],
+): readonly Usfm[] {
+  return hits.map((hit) => hit.id as Usfm)
+}
+
+export function pageTokenOf(raw: string | null | undefined): PageToken | null {
+  if (raw === undefined || raw === null || raw === '') {
+    return null
   }
-  return highestViewableIndex >= rowCount - SEARCH_PAGINATE_REMAINING
+  return raw as PageToken
 }
 
 export function dedupeVerseUsfms(
-  existing: readonly string[],
-  incoming: readonly string[],
-): string[] {
-  const seen = new Set(existing)
-  const added: string[] = []
+  seen: ReadonlySet<Usfm>,
+  incoming: readonly Usfm[],
+): readonly Usfm[] {
+  const taken = new Set(seen)
+  const added: Usfm[] = []
   for (const usfm of incoming) {
-    if (seen.has(usfm)) {
+    if (taken.has(usfm)) {
       continue
     }
-    seen.add(usfm)
+    taken.add(usfm)
     added.push(usfm)
   }
   return added
 }
 
-export function verseContentPath(versionId: number, usfm: string): string {
+export function verseContentPath(versionId: number, usfm: Usfm): string {
   return `/v1/bibles/${versionId}/passages/${usfm}?format=text`
 }
 
@@ -76,7 +98,8 @@ export function trimSnippet(text: string): string {
   return collapsed.slice(0, SEARCH_SNIPPET_MAX_CHARS).trimEnd()
 }
 
-export function parsePassageSnippet(body: string): { snippet: string; title: string } | null {
+/** The only constructor for `TitledVerse`. `null` when the passage yields no usable title or snippet. */
+export function titledVerseFromPassage(usfm: Usfm, body: string): TitledVerse | null {
   let json: unknown
   try {
     json = JSON.parse(body)
@@ -88,8 +111,9 @@ export function parsePassageSnippet(body: string): { snippet: string; title: str
     return null
   }
   const snippet = trimSnippet(stripHtml(parsed.data.content))
-  if (snippet === '') {
+  const title = parsed.data.reference.trim()
+  if (snippet === '' || title === '') {
     return null
   }
-  return { snippet, title: parsed.data.reference }
+  return { usfm, title, snippet }
 }

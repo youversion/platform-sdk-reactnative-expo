@@ -1,14 +1,19 @@
 import {
-  clipSearchQuery,
   dedupeVerseUsfms,
-  formatUsfmLabel,
   languageRangesForVersionLanguage,
-  parsePassageSnippet,
+  nonBlankQuery,
+  pageTokenOf,
   SEARCH_QUERY_MAX_LENGTH,
-  shouldRequestNextPage,
+  titledVerseFromPassage,
   trimSnippet,
+  usfmsFromSearchHits,
   verseContentPath,
+  type Usfm,
 } from '../bible-reader-search'
+
+function usfm(value: string): Usfm {
+  return value as Usfm
+}
 
 describe('bible reader search helpers', () => {
   it('uses the Bible version language tag, or * when it is missing', () => {
@@ -18,42 +23,68 @@ describe('bible reader search helpers', () => {
     expect(languageRangesForVersionLanguage('')).toEqual(['*'])
   })
 
-  it('clips the query at 100 characters', () => {
-    const long = 'a'.repeat(SEARCH_QUERY_MAX_LENGTH + 8)
-    expect(clipSearchQuery(long)).toHaveLength(SEARCH_QUERY_MAX_LENGTH)
-    expect(clipSearchQuery('love')).toBe('love')
+  it('clips a branded query at 100 characters and trims it', () => {
+    expect(nonBlankQuery('a'.repeat(SEARCH_QUERY_MAX_LENGTH + 8))).toHaveLength(
+      SEARCH_QUERY_MAX_LENGTH,
+    )
+    expect(nonBlankQuery('  love  ')).toBe('love')
   })
 
-  it('formats USFM as a short label and leaves malformed ids alone', () => {
-    expect(formatUsfmLabel('JHN.3.16')).toBe('JHN 3:16')
-    expect(formatUsfmLabel('JHN.3')).toBe('JHN.3')
+  it('refuses a blank query', () => {
+    expect(nonBlankQuery('   ')).toBeNull()
+    expect(nonBlankQuery('')).toBeNull()
   })
 
-  it('paginates once a row in the last five is visible', () => {
-    expect(shouldRequestNextPage(5, 10)).toBe(true)
-    expect(shouldRequestNextPage(4, 10)).toBe(false)
-    expect(shouldRequestNextPage(0, 0)).toBe(false)
-  })
-
-  it('dedupes incoming verses by USFM', () => {
-    expect(dedupeVerseUsfms(['JHN.3.16'], ['JHN.3.16', 'JHN.3.17', 'ROM.8.1'])).toEqual([
-      'JHN.3.17',
-      'ROM.8.1',
+  it('brands usfms off the search hits', () => {
+    expect(usfmsFromSearchHits([{ id: 'JHN.3.16' }, { id: 'PSA.23' }])).toEqual([
+      'JHN.3.16',
+      'PSA.23',
     ])
   })
 
-  it('builds the passage path for enrichment', () => {
-    expect(verseContentPath(111, 'JHN.3.16')).toBe('/v1/bibles/111/passages/JHN.3.16?format=text')
+  it('treats a missing or empty page cursor as no next page', () => {
+    expect(pageTokenOf('page-2')).toBe('page-2')
+    expect(pageTokenOf('')).toBeNull()
+    expect(pageTokenOf(null)).toBeNull()
+    expect(pageTokenOf(undefined)).toBeNull()
   })
 
-  it('trims snippets and drops HTML', () => {
-    expect(trimSnippet('  For   God\nso loved  ')).toBe('For God so loved')
+  it('dedupes incoming verses against the usfms already seen', () => {
     expect(
-      parsePassageSnippet('{"content":"<p>For God so loved</p>","reference":"John 3:16"}'),
-    ).toEqual({
-      snippet: 'For God so loved',
-      title: 'John 3:16',
-    })
-    expect(parsePassageSnippet('not-json')).toBeNull()
+      dedupeVerseUsfms(new Set([usfm('JHN.3.16')]), [
+        usfm('JHN.3.16'),
+        usfm('JHN.3.17'),
+        usfm('ROM.8.1'),
+      ]),
+    ).toEqual(['JHN.3.17', 'ROM.8.1'])
+  })
+
+  it('builds the passage path for enrichment', () => {
+    expect(verseContentPath(111, usfm('JHN.3.16'))).toBe(
+      '/v1/bibles/111/passages/JHN.3.16?format=text',
+    )
+  })
+
+  it('collapses whitespace in a snippet', () => {
+    expect(trimSnippet('  For   God\nso loved  ')).toBe('For God so loved')
+  })
+
+  it('titles a verse from a passage body and drops the HTML', () => {
+    expect(
+      titledVerseFromPassage(
+        usfm('JHN.3.16'),
+        '{"content":"<p>For God so loved</p>","reference":"John 3:16"}',
+      ),
+    ).toEqual({ usfm: 'JHN.3.16', title: 'John 3:16', snippet: 'For God so loved' })
+  })
+
+  it('refuses a passage with no usable title or snippet', () => {
+    expect(titledVerseFromPassage(usfm('JHN.3.16'), 'not-json')).toBeNull()
+    expect(
+      titledVerseFromPassage(usfm('JHN.3.16'), '{"content":"   ","reference":"John 3:16"}'),
+    ).toBeNull()
+    expect(
+      titledVerseFromPassage(usfm('JHN.3.16'), '{"content":"For God so loved","reference":"  "}'),
+    ).toBeNull()
   })
 })
