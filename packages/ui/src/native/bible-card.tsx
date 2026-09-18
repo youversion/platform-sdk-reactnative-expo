@@ -30,6 +30,8 @@ import { NativeSheet } from './native-sheet'
 
 const DEFAULT_FONT_SIZE = 16
 const DEFAULT_MAX_WIDTH = 700
+/** Web `yv:card-content` when `maxWidth="100%"` — full-bleed shell, capped inner column. */
+const FULL_BLEED_INNER_MAX_WIDTH = 600
 
 // Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
@@ -218,68 +220,74 @@ function BibleCardBody({
         : `${metadata.reference} ${metadata.abbreviation}`
   const versionPickerDisabled =
     versionPickerRequiresLanguageId && metadata?.languageTag == null
+  const isFullBleed = maxWidth === '100%'
 
   return (
     <ThemeContext.Provider value={resolvedTheme}>
       <Card testID="bible-card" style={{ maxWidth, width: '100%', alignSelf: 'center' }}>
-        <BibleCardHeader
-          title={title}
-          abbreviation={metadata?.abbreviation}
-          showVersionPicker={showVersionPicker}
-          versionLabel={t('selectVersion')}
-          versionAriaLabel={t('changeBibleVersionAriaLabel')}
-          versionPickerDisabled={versionPickerDisabled}
-          onVersionPress={() => {
-            if (versionPickerRequiresLanguageId && metadata?.languageTag == null) {
-              return
-            }
-            void onVersionPickerPress({
-              versionId: versionId ?? DEFAULT_BIBLE_VERSION_ID,
-              languageId: metadata?.languageTag ?? '',
-            })
-          }}
-        />
-        <Card.Content>
-          <BibleTextViewDOM
-            reference={reference}
-            versionId={versionId}
-            showVerseNumbers={false}
-            fontSize={DEFAULT_FONT_SIZE}
-            fontFamily={encodeFontFamilyForDom(UNTITLED_SERIF_FONT)}
-            highlights={highlights}
-            appKey={appKey}
-            apiHost={apiHost}
-            installationId={installationId}
-            fetchBibleContent={fetchBibleContent}
-            permittedVersionIds={permittedVersionIds}
-            excludedVersionIds={excludedVersionIds}
-            permittedLanguageTags={permittedLanguageTags}
-            locale={locale}
-            theme={resolvedTheme}
-            dom={withEmbedDomDefaults(dom)}
-            onFootnotePress={onFootnotePress}
+        <View
+          testID="bible-card-inner"
+          style={isFullBleed ? styles.fullBleedInner : styles.defaultInner}
+        >
+          <BibleCardHeader
+            title={title}
+            abbreviation={metadata?.abbreviation}
+            showVersionPicker={showVersionPicker}
+            versionLabel={t('selectVersion')}
+            versionAriaLabel={t('changeBibleVersionAriaLabel')}
+            versionPickerDisabled={versionPickerDisabled}
+            onVersionPress={() => {
+              if (versionPickerRequiresLanguageId && metadata?.languageTag == null) {
+                return
+              }
+              void onVersionPickerPress({
+                versionId: versionId ?? DEFAULT_BIBLE_VERSION_ID,
+                languageId: metadata?.languageTag ?? '',
+              })
+            }}
           />
-        </Card.Content>
-        <Card.Footer style={styles.footer}>
-          <Text
-            style={[
-              styles.copyright,
-              { color: tokens.mutedForeground },
-              sansFace(tokens.fontFamily.sans, 700),
-            ]}
-          >
-            {metadata?.copyright ?? ''}
-          </Text>
-          <View
-            accessibilityRole="image"
-            accessibilityLabel={t('bibleApp')}
-            style={styles.attribution}
-            testID="bible-card-attribution"
-          >
-            <BibleAppLogo size={24} />
-            <Text variant="muted">{t('bibleApp')}</Text>
-          </View>
-        </Card.Footer>
+          <Card.Content>
+            <BibleTextViewDOM
+              reference={reference}
+              versionId={versionId}
+              showVerseNumbers={false}
+              fontSize={DEFAULT_FONT_SIZE}
+              fontFamily={encodeFontFamilyForDom(UNTITLED_SERIF_FONT)}
+              highlights={highlights}
+              appKey={appKey}
+              apiHost={apiHost}
+              installationId={installationId}
+              fetchBibleContent={fetchBibleContent}
+              permittedVersionIds={permittedVersionIds}
+              excludedVersionIds={excludedVersionIds}
+              permittedLanguageTags={permittedLanguageTags}
+              locale={locale}
+              theme={resolvedTheme}
+              dom={withEmbedDomDefaults(dom)}
+              onFootnotePress={onFootnotePress}
+            />
+          </Card.Content>
+          <Card.Footer style={styles.footer}>
+            <Text
+              style={[
+                styles.copyright,
+                { color: tokens.mutedForeground },
+                sansFace(tokens.fontFamily.sans, 700),
+              ]}
+            >
+              {metadata?.copyright ?? ''}
+            </Text>
+            <View
+              accessibilityRole="image"
+              accessibilityLabel={t('bibleApp')}
+              style={styles.attribution}
+              testID="bible-card-attribution"
+            >
+              <BibleAppLogo size={24} />
+              <Text variant="muted">{t('bibleApp')}</Text>
+            </View>
+          </Card.Footer>
+        </View>
       </Card>
       {showVersionPickerSheet && (
         <BibleVersionPickerSheet
@@ -488,6 +496,18 @@ const styles = StyleSheet.create({
     lineHeight: 16,
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  // Web `yv:w-full` when the shell itself is the content measure.
+  defaultInner: {
+    width: '100%',
+    gap: 24,
+  },
+  // Web `yv:card-content` for maxWidth="100%": full-bleed shell, 600px column.
+  fullBleedInner: {
+    width: '100%',
+    maxWidth: FULL_BLEED_INNER_MAX_WIDTH,
+    alignSelf: 'center',
+    gap: 24,
   },
   footer: {
     justifyContent: 'space-between',
