@@ -391,6 +391,46 @@ describe('BibleCard', () => {
     expect(queryByText('John 3:16 NIV')).toBeNull()
   })
 
+  it('clears chrome metadata synchronously when the content client identity changes', async () => {
+    function AppKeyWrapper({ appKey, children }: { appKey: string; children: ReactNode }) {
+      return (
+        <YouVersionProvider appKey={appKey} theme="light" hookOverrides={defaultHookOverrides}>
+          {children}
+        </YouVersionProvider>
+      )
+    }
+
+    const { getByText, queryByText, rerender } = await renderAndSettle(
+      <AppKeyWrapper appKey="test-key">
+        <BibleCard reference="JHN.3.16" versionId={3034} />
+      </AppKeyWrapper>,
+    )
+
+    expect(getByText('John 3:16 NIV')).toBeTruthy()
+
+    let resolveNewMetadata: (value: typeof sampleMetadata) => void = () => {}
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveNewMetadata = resolve
+        }),
+    )
+
+    rerender(
+      <AppKeyWrapper appKey="other-key">
+        <BibleCard reference="JHN.3.16" versionId={3034} />
+      </AppKeyWrapper>,
+    )
+
+    expect(queryByText('John 3:16 NIV')).toBeNull()
+
+    await act(async () => {
+      resolveNewMetadata({ ...sampleMetadata, reference: 'John 3:16', abbreviation: 'NIV' })
+    })
+
+    expect(getByText('John 3:16 NIV')).toBeTruthy()
+  })
+
   it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {
     await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
       wrapper: wrapper('light', 'es'),
