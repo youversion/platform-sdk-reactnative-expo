@@ -464,6 +464,37 @@ describe('BibleCard', () => {
     expect(latestDomProps.maxWidth).toBeUndefined()
   })
 
+  it('keeps a centered 600px inner column when maxWidth is 100%', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} maxWidth="100%" />,
+      { wrapper: wrapper() },
+    )
+
+    expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+      maxWidth: '100%',
+      width: '100%',
+    })
+    expect(StyleSheet.flatten(getByTestId('bible-card-inner').props.style)).toMatchObject({
+      maxWidth: 600,
+      width: '100%',
+      alignSelf: 'center',
+    })
+  })
+
+  it('fills the capped shell without an inner 600px column for numeric maxWidth', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} maxWidth={480} />,
+      { wrapper: wrapper() },
+    )
+
+    expect(StyleSheet.flatten(getByTestId('bible-card-inner').props.style)).toMatchObject({
+      width: '100%',
+    })
+    expect(StyleSheet.flatten(getByTestId('bible-card-inner').props.style)).not.toHaveProperty(
+      'maxWidth',
+    )
+  })
+
   it('forwards a component-level theme override to BibleTextView as light or dark', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="GEN.1.1" versionId={1} theme="dark" />,
