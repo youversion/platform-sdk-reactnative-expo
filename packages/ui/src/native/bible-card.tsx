@@ -94,18 +94,42 @@ type BibleCardBodyProps = Omit<
 type BibleCardMetadataKey = {
   reference: string
   versionId: number
+  filters: InternalVersionFilterProps
+}
+
+function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === undefined || b === undefined) {
+    return false
+  }
+  if (a.length !== b.length) {
+    return false
+  }
+  return a.every((item, index) => item === b[index])
+}
+
+function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
+  return (
+    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
+    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
+    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
+  )
 }
 
 function metadataMatchesKey(
   loadedFor: BibleCardMetadataKey | null,
   versionId: number | undefined,
   reference: string,
+  filters: InternalVersionFilterProps,
 ): loadedFor is BibleCardMetadataKey {
   return (
     loadedFor != null &&
     versionId != null &&
     loadedFor.versionId === versionId &&
-    loadedFor.reference === reference
+    loadedFor.reference === reference &&
+    sameFilters(loadedFor.filters, filters)
   )
 }
 
@@ -126,16 +150,15 @@ function useBibleCardChromeMetadata(
       return
     }
     let cancelled = false
-    void getBibleCardMetadata(fetchBibleContent, versionId, reference, {
-      permittedVersionIds,
-      excludedVersionIds,
-      permittedLanguageTags,
-    }).then((data) => {
-      if (!cancelled) {
-        setMetadata(data)
-        loadedForRef.current = { versionId, reference }
-      }
-    })
+    const requestFilters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
+    void getBibleCardMetadata(fetchBibleContent, versionId, reference, requestFilters).then(
+      (data) => {
+        if (!cancelled) {
+          setMetadata(data)
+          loadedForRef.current = { versionId, reference, filters: requestFilters }
+        }
+      },
+    )
     return () => {
       cancelled = true
     }
@@ -148,7 +171,7 @@ function useBibleCardChromeMetadata(
     permittedLanguageTags,
   ])
 
-  return metadataMatchesKey(loadedForRef.current, versionId, reference) ? metadata : null
+  return metadataMatchesKey(loadedForRef.current, versionId, reference, filters) ? metadata : null
 }
 
 function BibleCardBody({

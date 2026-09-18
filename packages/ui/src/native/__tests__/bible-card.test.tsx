@@ -358,6 +358,39 @@ describe('BibleCard', () => {
     expect(queryByTestId('mock-btv-dom')).toBeTruthy()
   })
 
+  it('clears chrome metadata synchronously when provider filters tighten', async () => {
+    const OpenWrapper = versionFilterWrapper({})
+    const { getByText, queryByText, rerender } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      { wrapper: OpenWrapper },
+    )
+
+    expect(getByText('John 3:16 NIV')).toBeTruthy()
+
+    let resolveRefused: (value: null) => void = () => {}
+    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefused = resolve
+        }),
+    )
+
+    const TightWrapper = versionFilterWrapper({ permittedVersionIds: [] })
+    rerender(
+      <TightWrapper>
+        <BibleCard reference="JHN.3.16" versionId={3034} />
+      </TightWrapper>,
+    )
+
+    expect(queryByText('John 3:16 NIV')).toBeNull()
+
+    await act(async () => {
+      resolveRefused(null)
+    })
+
+    expect(queryByText('John 3:16 NIV')).toBeNull()
+  })
+
   it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {
     await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
       wrapper: wrapper('light', 'es'),
