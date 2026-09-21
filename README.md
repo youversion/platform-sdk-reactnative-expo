@@ -158,7 +158,7 @@ On iOS and Android, avatar, chapter (with prev/next), version, and settings live
 
 #### Jumping to a passage
 
-Create a `BibleReaderNavigation` object and pass it in. You can call it before the reader mounts. A newer call replaces an older one; the reader consumes each request once.
+Create a `BibleReaderNavigation` object and pass it in. Use one object per Reader. You can call it before the reader mounts. A newer call replaces an older one; the reader consumes each request once.
 
 ```tsx
 import { useMemo } from 'react'

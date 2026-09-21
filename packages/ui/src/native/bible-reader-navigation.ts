@@ -45,9 +45,9 @@ function accessFor(navigation: BibleReaderNavigation): ReaderNavigationAccess {
 }
 
 /**
- * Shared pending-request object a host can create and call before
- * `<BibleReader>` mounts. One pending request; a newer call replaces an older
- * one; the reader consumes it once.
+ * Pending-request object a host can create and call before `<BibleReader>`
+ * mounts. Pass one object to one Reader. One pending request; a newer call
+ * replaces an older one; the reader consumes it once.
  *
  * ```tsx
  * const navigation = useMemo(() => {

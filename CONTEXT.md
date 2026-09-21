@@ -51,7 +51,7 @@ The last committed Bible location (`book`, `chapter`, `versionId`) a **Native Wr
 _Avoid_: **Reader Navigation** (the pending-request object); passage state
 
 **Reader Navigation**:
-The public pending-request object (`BibleReaderNavigation`) a host creates and passes into `BibleReader`. `request` and `focusReference` queue one jump to a version / book / chapter; a newer call replaces an older one; the Reader consumes it once, including when submitted before mount. Verse scroll and focus fields are stored for a later release and do not move or dim the chapter today. Goes through the existing `book` / `chapter` / `versionId` setters, so controlled props still notify the host and uncontrolled readers still persist **Reader Location**.
+The public pending-request object (`BibleReaderNavigation`) a host creates and passes into `BibleReader`. One object per mounted Reader. `request` and `focusReference` queue one jump to a version / book / chapter; a newer call replaces an older one; the Reader consumes it once, including when submitted before mount. Verse scroll and focus fields are stored for a later release and do not move or dim the chapter today. Goes through the existing `book` / `chapter` / `versionId` setters, so controlled props still notify the host and uncontrolled readers still persist **Reader Location**.
 _Avoid_: Adding methods to **BibleReaderHandle**; new DOM / WebView props; treating this as **Reader Location** (that is the MMKV snapshot)
 
 **Picker Press**:

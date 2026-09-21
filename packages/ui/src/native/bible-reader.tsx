@@ -198,9 +198,10 @@ export type BibleReaderProps = Omit<
    */
   ref?: Ref<BibleReaderHandle>
   /**
-   * Shared pending-request object from {@link BibleReaderNavigation}. Call
-   * `request` or `focusReference` before or after mount. One pending request;
-   * a newer call replaces an older one; this reader consumes it once.
+   * Pending-request object from {@link BibleReaderNavigation}. Pass one object
+   * to one Reader. Call `request` or `focusReference` before or after mount.
+   * One pending request; a newer call replaces an older one; this reader
+   * consumes it once.
    *
    * Loads book / chapter / versionId only. Verse scroll and focus stay stored
    * on the request for a later release.
