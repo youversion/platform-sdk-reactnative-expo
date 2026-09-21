@@ -138,6 +138,49 @@ describe('BibleReader navigation', () => {
     expect(getByTestId('version-id').props.children).toBe('59')
   })
 
+  it('persists a combined jump as one Reader Location', async () => {
+    const originalSetLocation = useReaderLocationStore.getState().setLocation
+    const patches: { book?: string; chapter?: string; versionId?: number }[] = []
+
+    try {
+      await act(async () => {
+        useReaderLocationStore.setState({
+          setLocation: (patch) => {
+            patches.push(patch)
+            originalSetLocation(patch)
+          },
+        })
+      })
+
+      const navigation = createBibleReaderNavigation()
+      render(
+        <BibleReader
+          navigation={navigation}
+          defaultBook="JHN"
+          defaultChapter="1"
+          defaultVersionId={111}
+        />,
+        { wrapper },
+      )
+      patches.length = 0
+
+      await act(async () => {
+        navigation.request({ versionId: 59, bookId: 'ROM', chapter: 8, verse: 1 })
+      })
+
+      expect(patches).toEqual([{ book: 'ROM', chapter: '8', versionId: 59 }])
+      expect(useReaderLocationStore.getState()).toMatchObject({
+        book: 'ROM',
+        chapter: '8',
+        versionId: 59,
+      })
+    } finally {
+      await act(async () => {
+        useReaderLocationStore.setState({ setLocation: originalSetLocation })
+      })
+    }
+  })
+
   it('consumes a same-location request without rewriting the DOM location', async () => {
     const navigation = createBibleReaderNavigation()
     const onBookChange = jest.fn()

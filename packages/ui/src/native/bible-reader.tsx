@@ -278,7 +278,11 @@ export function BibleReader({
     prop: controlledBook,
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: (newBook) => {
-      if (controlledBook === undefined && lastAppliedRef.current?.book !== newBook) {
+      if (
+        controlledBook === undefined &&
+        lastAppliedRef.current?.book !== newBook &&
+        useReaderLocationStore.getState().book !== newBook
+      ) {
         setLocation({ book: newBook })
       }
       void onBookChange?.(newBook)
@@ -290,7 +294,11 @@ export function BibleReader({
     defaultProp:
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: (newChapter) => {
-      if (controlledChapter === undefined && lastAppliedRef.current?.chapter !== newChapter) {
+      if (
+        controlledChapter === undefined &&
+        lastAppliedRef.current?.chapter !== newChapter &&
+        useReaderLocationStore.getState().chapter !== newChapter
+      ) {
         setLocation({ chapter: newChapter })
       }
       void onChapterChange?.(newChapter)
@@ -302,7 +310,11 @@ export function BibleReader({
     defaultProp:
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: (newVersionId) => {
-      if (controlledVersionId === undefined && lastAppliedRef.current?.versionId !== newVersionId) {
+      if (
+        controlledVersionId === undefined &&
+        lastAppliedRef.current?.versionId !== newVersionId &&
+        useReaderLocationStore.getState().versionId !== newVersionId
+      ) {
         setLocation({ versionId: newVersionId })
       }
       void onVersionChange?.(newVersionId)
@@ -316,6 +328,27 @@ export function BibleReader({
   useEffect(() => {
     lastAppliedRef.current = null
   })
+
+  const commitReaderLocationPatch = (next: LocationPatch) => {
+    lastAppliedRef.current = next
+    const storePatch: LocationPatch = {}
+    if (controlledBook === undefined && next.book !== undefined) {
+      storePatch.book = next.book
+    }
+    if (controlledChapter === undefined && next.chapter !== undefined) {
+      storePatch.chapter = next.chapter
+    }
+    if (controlledVersionId === undefined && next.versionId !== undefined) {
+      storePatch.versionId = next.versionId
+    }
+    if (
+      storePatch.book !== undefined ||
+      storePatch.chapter !== undefined ||
+      storePatch.versionId !== undefined
+    ) {
+      setLocation(storePatch)
+    }
+  }
 
   const pendingNavigation = useConsumedNavigationRequest(navigation)
   let appliedBook = book
@@ -340,9 +373,8 @@ export function BibleReader({
     }
   }
 
-  // Overlay paints the jump on this render. Setters wait for commit so a
-  // discarded render cannot notify the host or persist a chapter that never
-  // showed.
+  // Overlay paints the jump on this render. Persist one location after commit
+  // so a discarded render cannot notify the host or save a mixed book/chapter.
   useLayoutEffect(() => {
     if (!pendingNavigation) {
       return
@@ -354,6 +386,18 @@ export function BibleReader({
     } = pendingNavigation.reference
     const requestedBook = bookId
     const requestedChapter = String(requestedChapterNumber)
+    if (
+      requestedBook === book &&
+      requestedChapter === chapter &&
+      requestedVersionId === versionId
+    ) {
+      return
+    }
+    commitReaderLocationPatch({
+      book: requestedBook,
+      chapter: requestedChapter,
+      versionId: requestedVersionId,
+    })
     if (requestedBook !== book) {
       setBook(requestedBook)
     }
@@ -397,24 +441,7 @@ export function BibleReader({
   const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
 
   const applyReaderLocation = (next: LocationPatch) => {
-    lastAppliedRef.current = next
-    const storePatch: LocationPatch = {}
-    if (controlledBook === undefined && next.book !== undefined) {
-      storePatch.book = next.book
-    }
-    if (controlledChapter === undefined && next.chapter !== undefined) {
-      storePatch.chapter = next.chapter
-    }
-    if (controlledVersionId === undefined && next.versionId !== undefined) {
-      storePatch.versionId = next.versionId
-    }
-    if (
-      storePatch.book !== undefined ||
-      storePatch.chapter !== undefined ||
-      storePatch.versionId !== undefined
-    ) {
-      setLocation(storePatch)
-    }
+    commitReaderLocationPatch(next)
     if (next.book !== undefined && next.book !== resolvedBook) {
       setBook(next.book)
     }
