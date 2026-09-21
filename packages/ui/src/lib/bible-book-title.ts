@@ -94,38 +94,45 @@ function catalogFromEntries(
   return catalog
 }
 
-/** Reads book id → title, chapter list, and intro from a `/v1/bibles/{id}/books` body. */
-export function catalogFromBooksBody(body: string): ReadonlyMap<string, BookCatalogEntry> | null {
+export type BooksCatalogParseResult =
+  | { ok: true; catalog: ReadonlyMap<string, BookCatalogEntry> }
+  | { ok: false }
+
+/**
+ * Reads a `/v1/bibles/{id}/books` body while preserving the distinction between
+ * a valid empty response and malformed data.
+ */
+export function parseBooksCatalog(body: string): BooksCatalogParseResult {
   let parsed: unknown
   try {
     parsed = JSON.parse(body)
   } catch {
-    return null
+    return { ok: false }
   }
 
   const asList = bookListSchema.safeParse(parsed)
   if (asList.success) {
-    return catalogOrNull(catalogFromEntries(asList.data))
+    return { ok: true, catalog: catalogFromEntries(asList.data) }
   }
 
   const envelope = booksBodySchema.safeParse(parsed)
   if (!envelope.success) {
-    return null
+    return { ok: false }
   }
   const fromData = bookListSchema.safeParse(envelope.data.data)
   if (!fromData.success) {
-    return null
+    return { ok: false }
   }
-  return catalogOrNull(catalogFromEntries(fromData.data))
+  return { ok: true, catalog: catalogFromEntries(fromData.data) }
 }
 
-function catalogOrNull(
-  catalog: Map<string, BookCatalogEntry>,
-): ReadonlyMap<string, BookCatalogEntry> | null {
-  if (catalog.size === 0) {
+/** Reads book id → title, chapter list, and intro from a `/v1/bibles/{id}/books` body. */
+export function catalogFromBooksBody(body: string): ReadonlyMap<string, BookCatalogEntry> | null {
+  const result = parseBooksCatalog(body)
+  if (!result.ok || result.catalog.size === 0) {
     return null
   }
-  return catalog
+  return result.catalog
 }
 
 /** Catalog key for a book id. Consumers may pass `jhn`; the payload keys on `JHN`. */

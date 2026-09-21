@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 
 export type ImplKey =
   | 'BibleAppLogo'
+  | 'BibleChapterPicker'
   | 'BibleChapterPickerSheet'
   | 'BibleReaderDom'
   | 'BibleReaderSettings'
@@ -10,7 +11,6 @@ export type ImplKey =
   | 'BibleVerseActionSheet'
   | 'BibleVersionPickerContent'
   | 'BibleVersionPickerSheet'
-  | 'ChapterPickerContent'
   | 'FootnoteContent'
   | 'HighlightConsentSheet'
   | 'NativeSheet'

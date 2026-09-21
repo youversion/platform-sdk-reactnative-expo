@@ -3,68 +3,10 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
-import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import type { BibleChapterPickerProps } from '../bible-chapter-picker'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
-import { YouVersionProvider } from '../youversion-provider'
-
-type LatestDomProps = {
-  appKey?: string
-  apiHost?: string
-  installationId?: string
-  fetchBibleContent?: unknown
-  theme?: string
-  resetKey?: number
-  locale?: string
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-  onSelect?: (data: BibleChapterPickerSelectData) => Promise<void>
-}
-
-let latestDomProps: LatestDomProps = {}
-
-function MockDOM(props: LatestDomProps) {
-  latestDomProps = props
-  return (
-    <View testID="mock-dom">
-      <Text testID="theme-value">{props.theme ?? 'none'}</Text>
-      <Pressable
-        testID="trigger-select"
-        onPress={() => {
-          if (props.onSelect) {
-            props.onSelect({ book: 'GEN', chapter: '3', versionId: 3034 })
-          }
-        }}
-      >
-        <Text>Select</Text>
-      </Pressable>
-    </View>
-  )
-}
-
-const wrapper = youVersionProviderWrapper()
-
-function versionFilterWrapper(lists: {
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-}) {
-  return function FilterWrapper({ children }: { children: ReactNode }) {
-    return (
-      <YouVersionProvider
-        appKey="test-key"
-        theme="light"
-        hookOverrides={defaultHookOverrides}
-        {...lists}
-      >
-        {children}
-      </YouVersionProvider>
-    )
-  }
-}
 
 const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
   book: 'GEN',
@@ -72,11 +14,33 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
   versionId: 3034,
 }
 
+type MockPickerProps = Pick<BibleChapterPickerProps, 'book' | 'chapter' | 'versionId' | 'onSelect'>
+
+let latestPickerProps: MockPickerProps = {}
+let pickerMounts = 0
+
+function MockPicker(props: MockPickerProps) {
+  latestPickerProps = props
+  pickerMounts += 1
+  return (
+    <Pressable
+      testID="trigger-select"
+      onPress={() => {
+        void Promise.resolve(props.onSelect?.(SAMPLE_SELECTION)).catch(() => {})
+      }}
+    >
+      <Text>Select</Text>
+    </Pressable>
+  )
+}
+
+const wrapper = youVersionProviderWrapper()
+
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
-    latestDomProps = {}
-    stubDeviceLocale('xx-XX', 'xx')
-    setImpl('ChapterPickerContent', MockDOM)
+    latestPickerProps = {}
+    pickerMounts = 0
+    setImpl('BibleChapterPicker', MockPicker)
     setImpl(
       'NativeSheet',
       ({
@@ -104,146 +68,44 @@ describe('BibleChapterPickerSheet', () => {
     jest.restoreAllMocks()
   })
 
-  it('fires onSelect with picker selection data and closes the sheet', async () => {
+  it('passes selection to the consumer and closes after it resolves', async () => {
     const onSelect = jest.fn().mockResolvedValue(undefined)
     const onClose = jest.fn()
-
-    const { getByTestId, queryByTestId, rerender } = render(
-      <BibleChapterPickerSheet isOpen={true} onClose={onClose} onSelect={onSelect} />,
+    const { getByTestId } = render(
+      <BibleChapterPickerSheet isOpen onClose={onClose} onSelect={onSelect} />,
       { wrapper },
     )
 
-    expect(getByTestId('sheet')).toBeTruthy()
+    await act(async () => fireEvent.press(getByTestId('trigger-select')))
 
-    await act(async () => {
-      // userEvent.press not yet stable in @testing-library/react-native
-      fireEvent.press(getByTestId('trigger-select'))
-    })
-
-    expect(onSelect).toHaveBeenCalledTimes(1)
     expect(onSelect).toHaveBeenCalledWith(SAMPLE_SELECTION)
     expect(onClose).toHaveBeenCalledTimes(1)
-
-    rerender(<BibleChapterPickerSheet isOpen={false} onClose={onClose} onSelect={onSelect} />)
-
-    expect(queryByTestId('sheet')).toBeNull()
   })
 
-  it('keeps the sheet open when onSelect rejects', async () => {
+  it('keeps the sheet open when selection rejects', async () => {
     const onSelect = jest.fn().mockRejectedValue(new Error('boom'))
     const onClose = jest.fn()
-
     const { getByTestId } = render(
-      <BibleChapterPickerSheet isOpen={true} onClose={onClose} onSelect={onSelect} />,
+      <BibleChapterPickerSheet isOpen onClose={onClose} onSelect={onSelect} />,
       { wrapper },
     )
 
-    await act(async () => {
-      // userEvent.press not yet stable in @testing-library/react-native
-      fireEvent.press(getByTestId('trigger-select'))
-    })
+    await act(async () => fireEvent.press(getByTestId('trigger-select')))
 
-    expect(onSelect).toHaveBeenCalledWith(SAMPLE_SELECTION)
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('resolves theme from provider when no theme prop', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.theme).toBe('light')
-  })
-
-  it('explicit theme overrides provider theme', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
-      wrapper: ({ children }) => (
-        <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
-          {children}
-        </YouVersionProvider>
-      ),
-    })
-
-    expect(latestDomProps.theme).toBe('dark')
-  })
-
-  it('system theme defers to provider resolved theme', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} theme="system" />, { wrapper })
-
-    expect(latestDomProps.theme).toBe('light')
-  })
-
-  it('passes appKey, apiHost, installationId, and the content action to DOM content', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.appKey).toBe('test-key')
-    expect(latestDomProps.apiHost).toBe('api.youversion.com')
-    expect(latestDomProps.installationId).toEqual(expect.any(String))
-    expect(latestDomProps.installationId).not.toBe('')
-    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
-  })
-
-  it('passes resetKey to DOM content', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.resetKey).toEqual(expect.any(Number))
-  })
-
-  it('increments resetKey when the sheet closes', () => {
-    const { getByTestId, rerender } = render(
-      <BibleChapterPickerSheet isOpen={true} onClose={() => {}} />,
+  it('forwards location and remounts the picker on each open', () => {
+    const { rerender } = render(
+      <BibleChapterPickerSheet isOpen onClose={() => {}} book="HEB" chapter="11" versionId={111} />,
       { wrapper },
     )
+    expect(latestPickerProps).toMatchObject({ book: 'HEB', chapter: '11', versionId: 111 })
+    const openMounts = pickerMounts
 
-    const firstKey = latestDomProps.resetKey
+    rerender(<BibleChapterPickerSheet isOpen={false} onClose={() => {}} />)
+    rerender(<BibleChapterPickerSheet isOpen onClose={() => {}} />)
 
-    // Tapping out routes through NativeSheet's onClose, which bumps resetKey so the
-    // picker tree remounts (clearing the book search filter) before the next open.
-    fireEvent.press(getByTestId('trigger-close'))
-    rerender(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />)
-
-    expect(latestDomProps.resetKey).toBeGreaterThan(firstKey!)
-  })
-
-  it('forwards version filter lists from YouVersionProvider to DOM content', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    })
-
-    expect(latestDomProps.permittedVersionIds).toEqual([111])
-    expect(latestDomProps.excludedVersionIds).toEqual([3034])
-    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
-  })
-
-  it('forwards empty version filter arrays to DOM content without coercing to undefined', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [],
-        excludedVersionIds: [],
-        permittedLanguageTags: [],
-      }),
-    })
-
-    expect(latestDomProps.permittedVersionIds).toEqual([])
-    expect(latestDomProps.excludedVersionIds).toEqual([])
-    expect(latestDomProps.permittedLanguageTags).toEqual([])
-  })
-
-  it('forwards resolved locale from YouVersionProvider to DOM content', () => {
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: youVersionProviderWrapper('light', 'es'),
-    })
-
-    expect(latestDomProps.locale).toBe('es')
-  })
-
-  it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
-    stubDeviceLocale('es-MX', 'es')
-
-    render(<BibleChapterPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.locale).toBe('es')
+    expect(pickerMounts).toBeGreaterThan(openMounts)
   })
 })
