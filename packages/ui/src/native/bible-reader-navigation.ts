@@ -13,7 +13,9 @@ export type BibleReaderNavigationRequest = {
   shouldFocus: boolean
 }
 
-const subscribeNoop = (): (() => void) => () => {}
+type Subscribe = (onStoreChange: () => void) => () => void
+
+const subscribeNoop: Subscribe = () => () => {}
 const snapshotZero = (): number => 0
 
 function copyReference(reference: BibleReference): BibleReference {
@@ -23,6 +25,23 @@ function copyReference(reference: BibleReference): BibleReference {
     chapter: reference.chapter,
     verse: reference.verse,
   }
+}
+
+type ReaderNavigationAccess = {
+  subscribe: Subscribe
+  getSnapshot: () => number
+  peekPending: () => BibleReaderNavigationRequest | null
+  consumeCommitted: (version: number) => void
+}
+
+const readerAccess = new WeakMap<BibleReaderNavigation, ReaderNavigationAccess>()
+
+function accessFor(navigation: BibleReaderNavigation): ReaderNavigationAccess {
+  const access = readerAccess.get(navigation)
+  if (!access) {
+    throw new Error('BibleReaderNavigation is not initialized')
+  }
+  return access
 }
 
 /**
@@ -44,6 +63,25 @@ export class BibleReaderNavigation {
   #version = 0
   #pendingVersion = 0
   #listeners = new Set<() => void>()
+
+  constructor() {
+    readerAccess.set(this, {
+      subscribe: (onStoreChange) => {
+        this.#listeners.add(onStoreChange)
+        return () => {
+          this.#listeners.delete(onStoreChange)
+        }
+      },
+      getSnapshot: () => this.#version,
+      peekPending: () => this.#pending,
+      consumeCommitted: (version) => {
+        if (this.#pendingVersion !== version) {
+          return
+        }
+        this.#pending = null
+      },
+    })
+  }
 
   /**
    * Load this version / book / chapter as a full chapter. Verse fields stay on
@@ -72,41 +110,6 @@ export class BibleReaderNavigation {
     })
   }
 
-  get pendingRequest(): BibleReaderNavigationRequest | null {
-    return this.#pending
-  }
-
-  subscribe = (onStoreChange: () => void): (() => void) => {
-    this.#listeners.add(onStoreChange)
-    return () => {
-      this.#listeners.delete(onStoreChange)
-    }
-  }
-
-  getSnapshot = (): number => this.#version
-
-  /**
-   * Take the pending request and clear it so a later render cannot apply it
-   * again. The reader calls this; hosts do not need to.
-   */
-  consumePending(): BibleReaderNavigationRequest | null {
-    const pending = this.#pending
-    this.#pending = null
-    return pending
-  }
-
-  /**
-   * Clear pending only if it is still the request from this snapshot. A newer
-   * call that replaced it stays. The reader calls this after a render commits;
-   * hosts do not need to.
-   */
-  consumeCommitted(version: number): void {
-    if (this.#pendingVersion !== version) {
-      return
-    }
-    this.#pending = null
-  }
-
   #setPending(request: BibleReaderNavigationRequest): void {
     this.#pending = request
     this.#version += 1
@@ -130,11 +133,14 @@ export function createBibleReaderNavigation(): BibleReaderNavigation {
 export function useConsumedNavigationRequest(
   navigation: BibleReaderNavigation | undefined,
 ): BibleReaderNavigationRequest | null {
-  const version = useSyncExternalStore(
-    navigation ? navigation.subscribe : subscribeNoop,
-    navigation ? navigation.getSnapshot : snapshotZero,
-    navigation ? navigation.getSnapshot : snapshotZero,
-  )
+  let subscribe: Subscribe = subscribeNoop
+  let getSnapshot = snapshotZero
+  if (navigation) {
+    const access = accessFor(navigation)
+    subscribe = access.subscribe
+    getSnapshot = access.getSnapshot
+  }
+  const version = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
   const committedRef = useRef<{
     navigation: BibleReaderNavigation | undefined
     version: number
@@ -145,7 +151,7 @@ export function useConsumedNavigationRequest(
     if (!navigation) {
       return
     }
-    navigation.consumeCommitted(version)
+    accessFor(navigation).consumeCommitted(version)
   }, [navigation, version])
 
   if (!navigation) {
@@ -156,5 +162,5 @@ export function useConsumedNavigationRequest(
   if (version === committedVersion) {
     return null
   }
-  return navigation.pendingRequest
+  return accessFor(navigation).peekPending()
 }

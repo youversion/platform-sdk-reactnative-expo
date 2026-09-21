@@ -88,13 +88,11 @@ describe('BibleReader navigation', () => {
 
     const { getByTestId, rerender } = render(<BibleReader navigation={navigation} />, { wrapper })
 
-    expect(navigation.pendingRequest).toBeNull()
     expect(getByTestId('book').props.children).toBe('PSA')
     expect(getByTestId('chapter').props.children).toBe('23')
 
     rerender(<BibleReader navigation={navigation} />)
 
-    expect(navigation.pendingRequest).toBeNull()
     expect(getByTestId('chapter').props.children).toBe('23')
 
     await act(async () => {
@@ -163,7 +161,6 @@ describe('BibleReader navigation', () => {
       navigation.request({ versionId: 111, bookId: 'JHN', chapter: 1, verse: 16 })
     })
 
-    expect(navigation.pendingRequest).toBeNull()
     expect(getByTestId('book').props.children).toBe('JHN')
     expect(getByTestId('chapter').props.children).toBe('1')
     expect(getByTestId('version-id').props.children).toBe('111')

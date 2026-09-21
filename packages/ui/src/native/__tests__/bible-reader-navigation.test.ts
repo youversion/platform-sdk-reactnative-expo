@@ -1,5 +1,5 @@
 import type { BibleReference } from '@youversion/platform-react-native-expo-core'
-import { renderHook } from '@testing-library/react-native'
+import { act, renderHook } from '@testing-library/react-native'
 
 import {
   BibleReaderNavigation,
@@ -27,7 +27,9 @@ describe('BibleReaderNavigation', () => {
 
     navigation.request(JOHN_3_16)
 
-    expect(navigation.pendingRequest).toEqual({
+    const { result } = renderHook(() => useConsumedNavigationRequest(navigation))
+
+    expect(result.current).toEqual({
       reference: JOHN_3_16,
       showsFullChapter: true,
       scrollsToVerse: false,
@@ -40,16 +42,20 @@ describe('BibleReaderNavigation', () => {
 
     navigation.focusReference(JOHN_3_16)
 
-    expect(navigation.pendingRequest).toEqual({
+    const { result } = renderHook(() => useConsumedNavigationRequest(navigation))
+
+    expect(result.current).toEqual({
       reference: JOHN_3_16,
       showsFullChapter: false,
       scrollsToVerse: true,
       shouldFocus: true,
     })
 
-    navigation.focusReference(ROMANS_8_1, false)
+    act(() => {
+      navigation.focusReference(ROMANS_8_1, false)
+    })
 
-    expect(navigation.pendingRequest).toEqual({
+    expect(result.current).toEqual({
       reference: ROMANS_8_1,
       showsFullChapter: false,
       scrollsToVerse: false,
@@ -63,59 +69,24 @@ describe('BibleReaderNavigation', () => {
     navigation.request(JOHN_3_16)
     navigation.focusReference(ROMANS_8_1, true)
 
-    expect(navigation.pendingRequest?.reference).toEqual(ROMANS_8_1)
-    expect(navigation.pendingRequest?.shouldFocus).toBe(true)
-  })
+    const { result } = renderHook(() => useConsumedNavigationRequest(navigation))
 
-  it('consumePending returns the request once and leaves pending empty', () => {
-    const navigation = createBibleReaderNavigation()
-    navigation.request(JOHN_3_16)
-
-    expect(navigation.consumePending()).toEqual({
-      reference: JOHN_3_16,
-      showsFullChapter: true,
-      scrollsToVerse: false,
-      shouldFocus: false,
-    })
-    expect(navigation.pendingRequest).toBeNull()
-    expect(navigation.consumePending()).toBeNull()
+    expect(result.current?.reference).toEqual(ROMANS_8_1)
+    expect(result.current?.shouldFocus).toBe(true)
   })
 
   it('keeps verse fields on an uncommitted pending request', () => {
     const navigation = createBibleReaderNavigation()
     navigation.request(JOHN_3_16)
 
-    expect(navigation.pendingRequest?.reference.verse).toBe(16)
-    expect(navigation.pendingRequest?.scrollsToVerse).toBe(false)
-    expect(navigation.pendingRequest?.shouldFocus).toBe(false)
+    const { result } = renderHook(() => useConsumedNavigationRequest(navigation))
+
+    expect(result.current?.reference.verse).toBe(16)
+    expect(result.current?.scrollsToVerse).toBe(false)
+    expect(result.current?.shouldFocus).toBe(false)
   })
 
-  it('leaves pending in place until consumeCommitted', () => {
-    const navigation = createBibleReaderNavigation()
-    navigation.request(JOHN_3_16)
-    const version = navigation.getSnapshot()
-
-    expect(navigation.pendingRequest?.reference).toEqual(JOHN_3_16)
-    expect(navigation.getSnapshot()).toBe(version)
-
-    navigation.consumeCommitted(version)
-
-    expect(navigation.pendingRequest).toBeNull()
-  })
-
-  it('does not consume a newer request when committing an older snapshot', () => {
-    const navigation = createBibleReaderNavigation()
-    navigation.request(JOHN_3_16)
-    const firstVersion = navigation.getSnapshot()
-    navigation.focusReference(ROMANS_8_1)
-
-    navigation.consumeCommitted(firstVersion)
-
-    expect(navigation.pendingRequest?.reference).toEqual(ROMANS_8_1)
-    expect(navigation.pendingRequest?.shouldFocus).toBe(true)
-  })
-
-  it('createBibleReaderNavigation and new BibleReaderNavigation share the same API', () => {
+  it('createBibleReaderNavigation and new BibleReaderNavigation share the host API', () => {
     const created = createBibleReaderNavigation()
     const constructed = new BibleReaderNavigation()
 
@@ -123,6 +94,11 @@ describe('BibleReaderNavigation', () => {
     expect(constructed).toBeInstanceOf(BibleReaderNavigation)
     expect(created.request).toEqual(expect.any(Function))
     expect(created.focusReference).toEqual(expect.any(Function))
+    expect(created).not.toHaveProperty('pendingRequest')
+    expect(created).not.toHaveProperty('subscribe')
+    expect(created).not.toHaveProperty('getSnapshot')
+    expect(created).not.toHaveProperty('consumePending')
+    expect(created).not.toHaveProperty('consumeCommitted')
   })
 })
 
@@ -138,10 +114,25 @@ describe('useConsumedNavigationRequest', () => {
 
     expect(result.current?.reference).toEqual(JOHN_3_16)
     expect(result.current?.reference.verse).toBe(16)
-    expect(navigation.pendingRequest).toBeNull()
 
     rerender({ nav: navigation })
 
     expect(result.current).toBeNull()
+  })
+
+  it('does not drop a newer request when an older render has already committed', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.request(JOHN_3_16)
+
+    const { result } = renderHook(() => useConsumedNavigationRequest(navigation))
+
+    expect(result.current?.reference).toEqual(JOHN_3_16)
+
+    act(() => {
+      navigation.focusReference(ROMANS_8_1)
+    })
+
+    expect(result.current?.reference).toEqual(ROMANS_8_1)
+    expect(result.current?.shouldFocus).toBe(true)
   })
 })
