@@ -17,32 +17,40 @@ export type YouVersionAuthButtonProps = {
   text?: string
 }
 
-type AuthButtonSurfaceProps = {
-  i18nKey: 'signInWithYouVersion' | 'signOutOfYouVersion'
+type AuthButtonI18nKey = 'signInWithYouVersion' | 'signOutOfYouVersion'
+
+type AuthButtonLabelProps = {
+  i18nKey: AuthButtonI18nKey
   text?: string
-  onPress: () => void
 }
 
-function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
+function AuthButtonLabel({ i18nKey, text }: AuthButtonLabelProps): ReactNode {
   const { i18n } = useSdkTranslation()
   const tokens = useTokens()
-  const theme = useTheme()
 
-  let label: ReactNode = (
+  if (text) {
+    return text
+  }
+
+  return (
     <Trans
       i18n={i18n}
       i18nKey={i18nKey}
       components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
     />
   )
-  if (text) {
-    label = text
-  }
+}
 
-  let outlineWidth = 1
-  if (theme === 'dark') {
-    outlineWidth = 2
-  }
+type AuthButtonSurfaceProps = {
+  i18nKey: AuthButtonI18nKey
+  text?: string
+  onPress: () => void
+}
+
+function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
+  const tokens = useTokens()
+  const theme = useTheme()
+  const outlineWidth = { light: 1, dark: 2 }[theme]
 
   return (
     <Button
@@ -58,7 +66,7 @@ function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): 
     >
       <BibleAppLogo />
       <Button.Text numberOfLines={2} style={{ color: tokens.foreground }}>
-        {label}
+        <AuthButtonLabel i18nKey={i18nKey} text={text} />
       </Button.Text>
     </Button>
   )
