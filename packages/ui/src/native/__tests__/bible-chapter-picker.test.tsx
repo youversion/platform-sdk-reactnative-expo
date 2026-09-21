@@ -1,7 +1,9 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import type { ReactNode } from 'react'
 
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleChapterPicker } from '../bible-chapter-picker'
+import { YouVersionProvider } from '../youversion-provider'
 
 function booksResponse(): Response {
   return new Response(
@@ -60,7 +62,7 @@ describe('BibleChapterPicker', () => {
           : Promise.resolve(booksResponse()),
       )
     const { getByLabelText, getByText, queryByText } = render(
-      <BibleChapterPicker book="JHN" chapter="2" versionId={9101} />,
+      <BibleChapterPicker book="jhn" chapter="2" versionId={9101} />,
       { wrapper: youVersionProviderWrapper() },
     )
 
@@ -107,7 +109,7 @@ describe('BibleChapterPicker', () => {
     expect(getByLabelText('John 2').props.accessibilityState).toMatchObject({ disabled: false })
   })
 
-  it('retries request failures and distinguishes a valid empty book list', async () => {
+  it('retries request failures and treats an empty book list as an error', async () => {
     let bookRequests = 0
     const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input) => {
       if (String(input).includes('/v1/fonts/')) return Promise.resolve(fontResponse())
@@ -127,8 +129,55 @@ describe('BibleChapterPicker', () => {
     await waitFor(() => expect(getByText('Error')).toBeTruthy())
     fireEvent.press(getByText('Retry'))
 
-    await waitFor(() => expect(getByText('No books available')).toBeTruthy())
-    expect(bookRequests).toBe(2)
+    await waitFor(() => expect(bookRequests).toBe(2))
+    expect(getByText('Error')).toBeTruthy()
     expect(fetchSpy).toHaveBeenCalled()
+  })
+
+  it('does not load books for a version refused by provider id filters', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      if (String(input).includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      return Promise.resolve(booksResponse())
+    })
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <YouVersionProvider appKey="test-key" permittedVersionIds={[111]}>
+        {children}
+      </YouVersionProvider>
+    )
+
+    const { getByText } = render(<BibleChapterPicker versionId={9104} />, { wrapper })
+
+    await waitFor(() => expect(getByText('Error')).toBeTruthy())
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).includes('/v1/bibles/9104/books')),
+    ).toBe(false)
+  })
+
+  it('checks a version language before loading its books', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      const url = String(input)
+      if (url.includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      if (url.endsWith('/v1/bibles/9105')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ language_tag: 'es' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+          }),
+        )
+      }
+      return Promise.resolve(booksResponse())
+    })
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <YouVersionProvider appKey="test-key" permittedLanguageTags={['en']}>
+        {children}
+      </YouVersionProvider>
+    )
+
+    const { getByText } = render(<BibleChapterPicker versionId={9105} />, { wrapper })
+
+    await waitFor(() => expect(getByText('Error')).toBeTruthy())
+    expect(
+      fetchSpy.mock.calls.some(([input]) => String(input).includes('/v1/bibles/9105/books')),
+    ).toBe(false)
   })
 })

@@ -3,7 +3,9 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useLocale } from '../../i18n/locale-context'
-import { parseBooksCatalog } from '../../lib/bible-book-title'
+import { catalogFromBooksBody } from '../../lib/bible-book-title'
+import { versionMetaFromBody } from '../../lib/bible-version-abbreviation'
+import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../../lib/version-usability'
 import {
   booksFromCatalog,
   visibleChapterPickerBooks,
@@ -39,7 +41,8 @@ export function useChapterPicker({
   versionId: number
   onSelect?: (data: BibleChapterPickerSelectData) => void | Promise<void>
 }): ChapterPickerController {
-  const { fetchBibleContent } = useYouVersion()
+  const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
+    useYouVersion()
   const { lng } = useLocale()
   const [loadState, setLoadState] = useState<ChapterPickerLoadState>({ status: 'loading' })
   const [query, setQuery] = useState('')
@@ -55,28 +58,54 @@ export function useChapterPicker({
     let cancelled = false
     setLoadState({ status: 'loading' })
 
-    void fetchBibleContent({ path: `/v1/bibles/${versionId}/books` })
-      .then((response) => {
+    const filters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
+    const load = async () => {
+      if (isVersionIdDecidablyUnusable(versionId, filters)) {
+        setLoadState({ status: 'error' })
+        return
+      }
+      if (permittedLanguageTags !== undefined) {
+        const versionResponse = await fetchBibleContent({ path: `/v1/bibles/${versionId}` })
         if (cancelled) return
-        if (response.status !== 200) {
+        const { languageId } = versionMetaFromBody(versionResponse.body)
+        if (
+          versionResponse.status !== 200 ||
+          !isUsableBibleVersion({ id: versionId, languageTag: languageId ?? undefined }, filters)
+        ) {
           setLoadState({ status: 'error' })
           return
         }
-        const parsed = parseBooksCatalog(response.body)
-        setLoadState(
-          parsed.ok
-            ? { status: 'ready', books: booksFromCatalog(parsed.catalog) }
-            : { status: 'error' },
-        )
-      })
-      .catch(() => {
-        if (!cancelled) setLoadState({ status: 'error' })
-      })
+      }
+
+      const response = await fetchBibleContent({ path: `/v1/bibles/${versionId}/books` })
+      if (cancelled) return
+      if (response.status !== 200) {
+        setLoadState({ status: 'error' })
+        return
+      }
+      const catalog = catalogFromBooksBody(response.body)
+      setLoadState(
+        catalog === null
+          ? { status: 'error' }
+          : { status: 'ready', books: booksFromCatalog(catalog) },
+      )
+    }
+
+    void load().catch(() => {
+      if (!cancelled) setLoadState({ status: 'error' })
+    })
 
     return () => {
       cancelled = true
     }
-  }, [fetchBibleContent, requestGeneration, versionId])
+  }, [
+    excludedVersionIds,
+    fetchBibleContent,
+    permittedLanguageTags,
+    permittedVersionIds,
+    requestGeneration,
+    versionId,
+  ])
 
   const visibleBooks = useMemo(
     () =>

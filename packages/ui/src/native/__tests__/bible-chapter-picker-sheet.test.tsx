@@ -3,6 +3,7 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
+import { SHEET_SURFACE } from '../../lib/native-sheet-theme'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import type { BibleChapterPickerProps } from '../bible-chapter-picker'
@@ -17,6 +18,7 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 type MockPickerProps = Pick<BibleChapterPickerProps, 'book' | 'chapter' | 'versionId' | 'onSelect'>
 
 let latestPickerProps: MockPickerProps = {}
+let latestBottomInsetColor: string | undefined
 let pickerMounts = 0
 
 function MockPicker(props: MockPickerProps) {
@@ -39,6 +41,7 @@ const wrapper = youVersionProviderWrapper()
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestPickerProps = {}
+    latestBottomInsetColor = undefined
     pickerMounts = 0
     setImpl('BibleChapterPicker', MockPicker)
     setImpl(
@@ -46,20 +49,24 @@ describe('BibleChapterPickerSheet', () => {
       ({
         isOpen,
         onClose,
+        bottomInsetColor,
         children,
       }: {
         isOpen: boolean
         onClose: () => void
+        bottomInsetColor?: string
         children: ReactNode
-      }) =>
-        isOpen ? (
+      }) => {
+        latestBottomInsetColor = bottomInsetColor
+        return isOpen ? (
           <View testID="sheet">
             <Pressable testID="trigger-close" onPress={onClose}>
               <Text>Close</Text>
             </Pressable>
             {children}
           </View>
-        ) : null,
+        ) : null
+      },
     )
   })
 
@@ -107,5 +114,13 @@ describe('BibleChapterPickerSheet', () => {
     rerender(<BibleChapterPickerSheet isOpen onClose={() => {}} />)
 
     expect(pickerMounts).toBeGreaterThan(openMounts)
+  })
+
+  it('matches the bottom safe area to the sheet surface', () => {
+    const { rerender } = render(<BibleChapterPickerSheet isOpen onClose={() => {}} />, { wrapper })
+    expect(latestBottomInsetColor).toBe(SHEET_SURFACE.light)
+
+    rerender(<BibleChapterPickerSheet isOpen onClose={() => {}} theme="dark" />)
+    expect(latestBottomInsetColor).toBe(SHEET_SURFACE.dark)
   })
 })

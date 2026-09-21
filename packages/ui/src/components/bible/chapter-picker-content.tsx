@@ -7,31 +7,32 @@ import {
   StyleSheet,
   TextInput,
   View,
+  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
 import Animated, {
   FadeIn,
   FadeOut,
-  LinearTransition,
   ReduceMotion,
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated'
-import Svg, { Circle, Line, Path } from 'react-native-svg'
 
 import { useTokens } from '../../hooks/use-tokens'
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { sansFace } from '../../theme/fonts'
+import { ClearIcon } from '../icons/clear-icon'
+import { InfoIcon } from '../icons/info-icon'
+import { SearchIcon } from '../icons/search-icon'
 import { Text } from '../ui'
 import type { ChapterPickerBook, ChapterPickerOrder } from './chapter-picker-model'
 import type { ChapterPickerLoadState } from './use-chapter-picker'
 
 const SIDE_PADDING = 20
 const GRID_GAP = 8
-const CHAPTER_SIZE = 48
 const MOTION_DURATION = 180
 
 export type ChapterPickerContentProps = {
@@ -51,33 +52,6 @@ export type ChapterPickerContentProps = {
   onSelectChapter: (book: string, chapter: string) => void
 }
 
-function SearchIcon({ color }: { color: string }): ReactNode {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Circle cx={11} cy={11} r={7} stroke={color} strokeWidth={2} />
-      <Line x1={16} y1={16} x2={21} y2={21} stroke={color} strokeWidth={2} />
-    </Svg>
-  )
-}
-
-function ClearIcon({ color }: { color: string }): ReactNode {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Path d="M7 7l10 10M17 7L7 17" stroke={color} strokeWidth={2} strokeLinecap="round" />
-    </Svg>
-  )
-}
-
-function InfoIcon({ color }: { color: string }): ReactNode {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-      <Circle cx={12} cy={12} r={9} stroke={color} strokeWidth={2} />
-      <Line x1={12} y1={11} x2={12} y2={17} stroke={color} strokeWidth={2} />
-      <Circle cx={12} cy={7.5} r={1} fill={color} />
-    </Svg>
-  )
-}
-
 function BookRow({
   book,
   expanded,
@@ -86,6 +60,7 @@ function BookRow({
   pendingChapterId,
   onPress,
   onSelectChapter,
+  onExpandedLayout,
   onSelectedLayout,
 }: {
   book: ChapterPickerBook
@@ -95,7 +70,8 @@ function BookRow({
   pendingChapterId: string | null
   onPress: () => void
   onSelectChapter: (chapter: string) => void
-  onSelectedLayout: (y: number) => void
+  onExpandedLayout: (bookId: string, top: number, firstChapterBottom: number) => void
+  onSelectedLayout: (key: string, top: number, bottom: number) => void
 }): ReactNode {
   const tokens = useTokens()
   const { t } = useSdkTranslation()
@@ -110,23 +86,68 @@ function BookRow({
     backgroundColor: interpolateColor(
       selectedProgress.value,
       [0, 1],
-      ['transparent', tokens.secondary],
+      ['transparent', tokens.muted],
     ),
   }))
   const chapters = book.chapters
-  const selectedIndex = chapters.findIndex((item) => item.id === selectedChapter)
-  const selectedGridIndex =
-    book.intro?.id === selectedChapter
-      ? 0
-      : selectedIndex < 0
-        ? -1
-        : selectedIndex + (book.intro === null ? 0 : 1)
-  const rowRef = useRef<View>(null)
+  const rowYRef = useRef<number | null>(null)
+  const sectionYRef = useRef<number | null>(null)
+  const gridYRef = useRef<number | null>(null)
+  const firstChapterLayoutRef = useRef<{ y: number; height: number } | null>(null)
+  const selectedChapterLayoutRef = useRef<{ id: string; y: number; height: number } | null>(null)
+
+  useEffect(() => {
+    if (!expanded) {
+      sectionYRef.current = null
+      gridYRef.current = null
+      firstChapterLayoutRef.current = null
+      selectedChapterLayoutRef.current = null
+    }
+  }, [expanded])
+
+  const reportMeasuredLayouts = () => {
+    const rowY = rowYRef.current
+    if (rowY === null || !expanded) return
+
+    const sectionY = sectionYRef.current
+    const gridY = gridYRef.current
+    const firstChapter = firstChapterLayoutRef.current
+    if (sectionY !== null && gridY !== null && firstChapter !== null) {
+      onExpandedLayout(
+        book.id,
+        rowY,
+        rowY + sectionY + gridY + firstChapter.y + firstChapter.height,
+      )
+    } else if (chapters.length === 0 && book.intro === null) {
+      onExpandedLayout(book.id, rowY, rowY + 58)
+    }
+
+    const selectedLayout = selectedChapterLayoutRef.current
+    if (selected && sectionY !== null && gridY !== null && selectedLayout?.id === selectedChapter) {
+      const top = rowY + sectionY + gridY + selectedLayout.y
+      onSelectedLayout(
+        `${book.id.toUpperCase()}.${selectedChapter}`,
+        top,
+        top + selectedLayout.height,
+      )
+    }
+  }
+
+  const recordChapterLayout = (chapterId: string, isFirst: boolean, event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout
+    if (isFirst) firstChapterLayoutRef.current = { y, height }
+    if (selected && chapterId === selectedChapter) {
+      selectedChapterLayoutRef.current = { id: chapterId, y, height }
+    }
+    reportMeasuredLayouts()
+  }
 
   return (
-    <Animated.View
-      ref={rowRef}
-      layout={LinearTransition.duration(MOTION_DURATION).reduceMotion(ReduceMotion.System)}
+    <View
+      onLayout={(event) => {
+        rowYRef.current = event.nativeEvent.layout.y
+        reportMeasuredLayouts()
+      }}
     >
       <Animated.View style={[styles.bookRow, selectedStyle]}>
         <Pressable
@@ -141,18 +162,11 @@ function BookRow({
         </Pressable>
       </Animated.View>
       {expanded ? (
-        <Animated.View
-          entering={FadeIn.duration(MOTION_DURATION).reduceMotion(ReduceMotion.System)}
-          exiting={FadeOut.duration(MOTION_DURATION).reduceMotion(ReduceMotion.System)}
+        <View
           style={styles.chapterSection}
           onLayout={(event) => {
-            if (selected && selectedGridIndex >= 0) {
-              const row = Math.floor(selectedGridIndex / 5)
-              const chapterOffset = event.nativeEvent.layout.y + row * (CHAPTER_SIZE + GRID_GAP)
-              rowRef.current?.measure((_x, _y, _width, _height, _pageX, pageY) => {
-                onSelectedLayout(pageY + chapterOffset)
-              })
-            }
+            sectionYRef.current = event.nativeEvent.layout.y
+            reportMeasuredLayouts()
           }}
         >
           {chapters.length === 0 && book.intro === null ? (
@@ -160,7 +174,13 @@ function BookRow({
               {t('noChaptersAvailable')}
             </Text>
           ) : (
-            <View style={styles.chapterGrid}>
+            <View
+              style={styles.chapterGrid}
+              onLayout={(event) => {
+                gridYRef.current = event.nativeEvent.layout.y
+                reportMeasuredLayouts()
+              }}
+            >
               {book.intro !== null ? (
                 <ChapterButton
                   label={book.intro.title}
@@ -170,6 +190,7 @@ function BookRow({
                   pending={pendingChapterId === `${book.id}.${book.intro.id}`}
                   selected={selected && selectedChapter === book.intro.id}
                   icon={<InfoIcon color={tokens.foreground} />}
+                  onLayout={(event) => recordChapterLayout(book.intro?.id ?? '', true, event)}
                   onPress={() => onSelectChapter(book.intro?.id ?? '')}
                 />
               ) : null}
@@ -182,14 +203,17 @@ function BookRow({
                   gridIndex={index + (book.intro === null ? 0 : 1)}
                   pending={pendingChapterId === `${book.id}.${item.id}`}
                   selected={selected && selectedChapter === item.id}
+                  onLayout={(event) =>
+                    recordChapterLayout(item.id, index === 0 && book.intro === null, event)
+                  }
                   onPress={() => onSelectChapter(item.id)}
                 />
               ))}
             </View>
           )}
-        </Animated.View>
+        </View>
       ) : null}
-    </Animated.View>
+    </View>
   )
 }
 
@@ -201,6 +225,7 @@ function ChapterButton({
   pending,
   selected,
   icon,
+  onLayout,
   onPress,
 }: {
   label: string
@@ -210,6 +235,7 @@ function ChapterButton({
   pending: boolean
   selected: boolean
   icon?: ReactNode
+  onLayout?: (event: LayoutChangeEvent) => void
   onPress: () => void
 }): ReactNode {
   const tokens = useTokens()
@@ -219,6 +245,7 @@ function ChapterButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
+      onLayout={onLayout}
       onPress={onPress}
       style={({ pressed }) => [
         styles.chapterButton,
@@ -259,19 +286,43 @@ export function ChapterPickerContent({
   const tokens = useTokens()
   const { t } = useSdkTranslation()
   const scrollRef = useRef<ScrollView>(null)
-  const scrollFrameRef = useRef<View>(null)
   const scrollY = useRef(0)
+  const listHeight = useRef(0)
+  const pendingExpandedBookId = useRef<string | null>(null)
+  const pendingSelectedLayout = useRef<{ key: string; bottom: number } | null>(null)
+  const focusedSelectionKey = useRef<string | null>(null)
 
-  const scrollSelectedChapter = (pageY: number) => {
+  const focusSelectedChapter = () => {
+    const selectedLayout = pendingSelectedLayout.current
+    if (
+      selectedLayout === null ||
+      listHeight.current === 0 ||
+      focusedSelectionKey.current === selectedLayout.key
+    ) {
+      return
+    }
+    focusedSelectionKey.current = selectedLayout.key
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        scrollFrameRef.current?.measure((_x, _y, _width, _height, _pageX, scrollPageY) => {
-          scrollRef.current?.scrollTo({
-            y: Math.max(0, scrollY.current + pageY - scrollPageY - CHAPTER_SIZE),
-            animated: true,
-          })
-        })
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, selectedLayout.bottom - listHeight.current + SIDE_PADDING),
+        animated: false,
       })
+    })
+  }
+
+  const scrollSelectedChapter = (key: string, _top: number, bottom: number) => {
+    pendingSelectedLayout.current = { key, bottom }
+    focusSelectedChapter()
+  }
+
+  const scrollExpandedBookIntoView = (bookId: string, top: number, firstChapterBottom: number) => {
+    if (pendingExpandedBookId.current?.toUpperCase() !== bookId.toUpperCase()) return
+    pendingExpandedBookId.current = null
+    const viewportTop = scrollY.current
+    const viewportBottom = viewportTop + listHeight.current
+    if (top >= viewportTop + GRID_GAP && firstChapterBottom <= viewportBottom - GRID_GAP) return
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: Math.max(0, top - GRID_GAP), animated: true })
     })
   }
 
@@ -304,7 +355,13 @@ export function ChapterPickerContent({
         ) : null}
       </View>
 
-      <View ref={scrollFrameRef} style={styles.list}>
+      <View
+        style={styles.list}
+        onLayout={(event) => {
+          listHeight.current = event.nativeEvent.layout.height
+          focusSelectedChapter()
+        }}
+      >
         <ScrollView
           ref={scrollRef}
           keyboardDismissMode="on-drag"
@@ -321,8 +378,6 @@ export function ChapterPickerContent({
             </View>
           ) : loadState.status === 'error' ? (
             <StateMessage label={t('error')} action={t('retry')} onAction={onRetry} />
-          ) : loadState.books.length === 0 ? (
-            <StateMessage label={t('noBooksAvailable')} action={t('retry')} onAction={onRetry} />
           ) : books.length === 0 ? (
             <View style={styles.centerState}>
               <Text variant="body" style={{ color: tokens.mutedForeground }}>
@@ -339,12 +394,17 @@ export function ChapterPickerContent({
                 <BookRow
                   key={item.id}
                   book={item}
-                  expanded={expandedBookId === item.id}
+                  expanded={expandedBookId?.toUpperCase() === item.id.toUpperCase()}
                   selected={selectedBook.toUpperCase() === item.id.toUpperCase()}
                   selectedChapter={selectedChapter}
                   pendingChapterId={pendingChapterId}
-                  onPress={() => onExpandedBookChange(expandedBookId === item.id ? null : item.id)}
+                  onPress={() => {
+                    const isExpanded = expandedBookId?.toUpperCase() === item.id.toUpperCase()
+                    pendingExpandedBookId.current = isExpanded ? null : item.id
+                    onExpandedBookChange(isExpanded ? null : item.id)
+                  }}
                   onSelectChapter={(chapter) => onSelectChapter(item.id, chapter)}
+                  onExpandedLayout={scrollExpandedBookIntoView}
                   onSelectedLayout={scrollSelectedChapter}
                 />
               ))}

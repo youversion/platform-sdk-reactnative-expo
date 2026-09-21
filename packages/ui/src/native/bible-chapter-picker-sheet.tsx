@@ -1,11 +1,10 @@
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
-import type { DOMProps } from 'expo/dom'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useTheme } from '../hooks/use-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
+import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { getImpl, registerDefault } from './component-impls'
 import './bible-chapter-picker'
 import { NativeSheet } from './native-sheet'
@@ -23,8 +22,6 @@ export type BibleChapterPickerSheetProps = {
 
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (data: BibleChapterPickerSelectData) => void | Promise<void>
-  /** @deprecated The chapter picker is native. This no-op remains for source compatibility. */
-  dom?: DOMProps
 }
 
 function BibleChapterPickerSheetImpl({
@@ -55,7 +52,7 @@ function BibleChapterPickerSheetImpl({
       onClose={onClose}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
-      bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
+      bottomInsetColor={SHEET_SURFACE[resolvedTheme]}
       contentStyle={styles.content}
       showHeader={true}
       headerTitle={t('booksHeading')}

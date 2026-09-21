@@ -3,7 +3,6 @@ import {
   catalogFromBooksBody,
   chapterLabelForBook,
   entryFromBooksCatalog,
-  parseBooksCatalog,
   type BookCatalogEntry,
 } from '../bible-book-title'
 
@@ -84,14 +83,6 @@ describe('catalogFromBooksBody', () => {
   it('returns null for an empty list', () => {
     expect(catalogFromBooksBody(JSON.stringify([]))).toBeNull()
     expect(catalogFromBooksBody(JSON.stringify({ data: [] }))).toBeNull()
-  })
-
-  it('distinguishes a valid empty list from malformed data', () => {
-    expect(parseBooksCatalog(JSON.stringify({ data: [] }))).toEqual({
-      ok: true,
-      catalog: new Map(),
-    })
-    expect(parseBooksCatalog('{}')).toEqual({ ok: false })
   })
 })
 
