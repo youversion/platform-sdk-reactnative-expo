@@ -40,7 +40,10 @@ import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-titl
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
-import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
+import {
+  computeOverlayNavBottomOffset,
+  computeReaderBottomScrollPadding,
+} from '../lib/reader-bottom-scroll-padding'
 import {
   reportHighlightWriteError,
   type HighlightWriteError,
@@ -772,6 +775,7 @@ export function BibleReader({
     Platform.OS,
     showNativeToolbar,
   )
+  const overlayNavBottomOffset = computeOverlayNavBottomOffset(bottomSafeArea, Platform.OS)
 
   const BibleReaderDOM = getImpl('BibleReaderDom')
   const FootnoteContent = getImpl('FootnoteContent')
@@ -868,6 +872,7 @@ export function BibleReader({
             />
             {showNativeToolbar && verseSelection === null ? (
               <BibleReaderNavButtons
+                bottomOffset={overlayNavBottomOffset}
                 canGoPrevious={previousChapter !== null}
                 canGoNext={nextChapter !== null}
                 onPreviousChapterPress={() => {

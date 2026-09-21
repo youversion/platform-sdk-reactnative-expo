@@ -17,6 +17,19 @@ export type ReaderBottomScrollPaddingPlatform =
   | 'macos'
   | 'default'
 
+export function computeOverlayNavBottomOffset(
+  bottomSafeArea: number,
+  platform: ReaderBottomScrollPaddingPlatform = 'default',
+): number {
+  if (platform === 'ios') {
+    return IOS_TAB_BAR_CLEARANCE + bottomSafeArea + READER_OVERLAY_NAV_EDGE_PADDING
+  }
+  if (platform === 'android') {
+    return bottomSafeArea + READER_OVERLAY_NAV_EDGE_PADDING
+  }
+  return READER_OVERLAY_NAV_EDGE_PADDING
+}
+
 export function computeReaderBottomScrollPadding(
   bottomSafeArea: number,
   platform: ReaderBottomScrollPaddingPlatform = 'default',

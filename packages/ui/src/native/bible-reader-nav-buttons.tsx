@@ -11,6 +11,7 @@ import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 
 export type BibleReaderNavButtonsProps = {
+  bottomOffset: number
   canGoPrevious: boolean
   canGoNext: boolean
   onPreviousChapterPress: () => void
@@ -18,6 +19,7 @@ export type BibleReaderNavButtonsProps = {
 }
 
 export function BibleReaderNavButtons({
+  bottomOffset,
   canGoPrevious,
   canGoNext,
   onPreviousChapterPress,
@@ -34,7 +36,7 @@ export function BibleReaderNavButtons({
         onPress={onPreviousChapterPress}
         accessibilityLabel={t('previousChapterAriaLabel')}
         testID="reader-toolbar-previous-chapter"
-        style={styles.previous}
+        style={[styles.previous, { bottom: bottomOffset }]}
       >
         <Button.Icon as={ChevronLeftIcon} />
       </Button>
@@ -45,7 +47,7 @@ export function BibleReaderNavButtons({
         onPress={onNextChapterPress}
         accessibilityLabel={t('nextChapterAriaLabel')}
         testID="reader-toolbar-next-chapter"
-        style={styles.next}
+        style={[styles.next, { bottom: bottomOffset }]}
       >
         <Button.Icon as={ChevronRightIcon} />
       </Button>
@@ -60,14 +62,12 @@ const styles = StyleSheet.create({
   previous: {
     position: 'absolute',
     left: READER_OVERLAY_NAV_EDGE_PADDING,
-    bottom: READER_OVERLAY_NAV_EDGE_PADDING,
     height: READER_OVERLAY_NAV_SIZE,
     width: READER_OVERLAY_NAV_SIZE,
   },
   next: {
     position: 'absolute',
     right: READER_OVERLAY_NAV_EDGE_PADDING,
-    bottom: READER_OVERLAY_NAV_EDGE_PADDING,
     height: READER_OVERLAY_NAV_SIZE,
     width: READER_OVERLAY_NAV_SIZE,
   },

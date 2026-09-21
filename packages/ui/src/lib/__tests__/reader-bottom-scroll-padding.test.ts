@@ -1,7 +1,9 @@
 import {
   IOS_TAB_BAR_CLEARANCE,
   READER_OVERLAY_NAV_CLEARANCE,
+  READER_OVERLAY_NAV_EDGE_PADDING,
   READER_SCROLL_END_GAP,
+  computeOverlayNavBottomOffset,
   computeReaderBottomScrollPadding,
 } from '../reader-bottom-scroll-padding'
 
@@ -34,5 +36,17 @@ describe('computeReaderBottomScrollPadding', () => {
       READER_SCROLL_END_GAP + READER_OVERLAY_NAV_CLEARANCE,
     )
     expect(computeReaderBottomScrollPadding(0, 'android', true)).toBe(READER_OVERLAY_NAV_CLEARANCE)
+  })
+})
+
+describe('computeOverlayNavBottomOffset', () => {
+  it('sits above the iOS tab bar overlay and home indicator', () => {
+    expect(computeOverlayNavBottomOffset(34, 'ios')).toBe(
+      IOS_TAB_BAR_CLEARANCE + 34 + READER_OVERLAY_NAV_EDGE_PADDING,
+    )
+  })
+
+  it('uses the Android safe-area inset plus edge padding', () => {
+    expect(computeOverlayNavBottomOffset(24, 'android')).toBe(24 + READER_OVERLAY_NAV_EDGE_PADDING)
   })
 })
