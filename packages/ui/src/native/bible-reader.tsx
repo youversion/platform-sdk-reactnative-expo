@@ -21,6 +21,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -328,29 +329,41 @@ export function BibleReader({
     } = pendingNavigation.reference
     const requestedBook = bookId
     const requestedChapter = String(requestedChapterNumber)
-    const locationChanged =
-      requestedBook !== book || requestedChapter !== chapter || requestedVersionId !== versionId
-    if (locationChanged) {
-      if (requestedBook !== book) {
-        setBook(requestedBook)
-        if (controlledBook === undefined) {
-          appliedBook = requestedBook
-        }
-      }
-      if (requestedChapter !== chapter) {
-        setChapter(requestedChapter)
-        if (controlledChapter === undefined) {
-          appliedChapter = requestedChapter
-        }
-      }
-      if (requestedVersionId !== versionId) {
-        setVersionId(requestedVersionId)
-        if (controlledVersionId === undefined) {
-          appliedVersionId = requestedVersionId
-        }
-      }
+    if (requestedBook !== book && controlledBook === undefined) {
+      appliedBook = requestedBook
+    }
+    if (requestedChapter !== chapter && controlledChapter === undefined) {
+      appliedChapter = requestedChapter
+    }
+    if (requestedVersionId !== versionId && controlledVersionId === undefined) {
+      appliedVersionId = requestedVersionId
     }
   }
+
+  // Overlay paints the jump on this render. Setters wait for commit so a
+  // discarded render cannot notify the host or persist a chapter that never
+  // showed.
+  useLayoutEffect(() => {
+    if (!pendingNavigation) {
+      return
+    }
+    const {
+      bookId,
+      chapter: requestedChapterNumber,
+      versionId: requestedVersionId,
+    } = pendingNavigation.reference
+    const requestedBook = bookId
+    const requestedChapter = String(requestedChapterNumber)
+    if (requestedBook !== book) {
+      setBook(requestedBook)
+    }
+    if (requestedChapter !== chapter) {
+      setChapter(requestedChapter)
+    }
+    if (requestedVersionId !== versionId) {
+      setVersionId(requestedVersionId)
+    }
+  }, [pendingNavigation, book, chapter, versionId, setBook, setChapter, setVersionId])
 
   const resolvedVersionId = appliedVersionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = appliedBook ?? DEFAULT_BOOK
