@@ -153,7 +153,9 @@ describe('YouVersionAuthButton labels', () => {
 
   it('lets the label wrap to two lines', () => {
     renderAuthButton()
-    expect(screen.getByText('Sign in with YouVersion').props.numberOfLines).toBe(2)
+    const label = screen.getByText('Sign in with YouVersion')
+    expect(label.props.numberOfLines).toBe(2)
+    expect(labelStyle('Sign in with YouVersion')).toMatchObject({ flex: 1 })
   })
 })
 

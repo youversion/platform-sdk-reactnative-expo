@@ -73,7 +73,7 @@ function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): 
       onPress={onPress}
     >
       <BibleAppLogo />
-      <Button.Text numberOfLines={2} style={{ color: tokens.foreground }}>
+      <Button.Text numberOfLines={2} style={{ color: tokens.foreground, flex: 1 }}>
         <AuthButtonLabel i18nKey={i18nKey} text={text} />
       </Button.Text>
     </Button>
