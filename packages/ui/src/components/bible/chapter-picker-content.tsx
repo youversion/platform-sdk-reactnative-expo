@@ -12,8 +12,10 @@ import {
   type ViewStyle,
 } from 'react-native'
 import Animated, {
+  Easing,
   FadeIn,
   FadeOut,
+  LinearTransition,
   ReduceMotion,
   interpolateColor,
   useAnimatedStyle,
@@ -33,7 +35,12 @@ import type { ChapterPickerLoadState } from './use-chapter-picker'
 
 const SIDE_PADDING = 20
 const GRID_GAP = 8
-const MOTION_DURATION = 180
+const CHAPTER_HEIGHT = 48
+const MOTION_DURATION = 200
+
+const accordionTransition = LinearTransition.duration(MOTION_DURATION)
+  .easing(Easing.out(Easing.cubic))
+  .reduceMotion(ReduceMotion.System)
 
 export type ChapterPickerContentProps = {
   loadState: ChapterPickerLoadState
@@ -143,7 +150,9 @@ function BookRow({
   }
 
   return (
-    <View
+    <Animated.View
+      layout={accordionTransition}
+      style={styles.bookContainer}
       onLayout={(event) => {
         rowYRef.current = event.nativeEvent.layout.y
         reportMeasuredLayouts()
@@ -187,7 +196,6 @@ function BookRow({
                   accessibilityLabel={`${book.title} ${book.intro.title}`}
                   disabled={pendingChapterId !== null}
                   gridIndex={0}
-                  pending={pendingChapterId === `${book.id}.${book.intro.id}`}
                   selected={selected && selectedChapter === book.intro.id}
                   icon={<InfoIcon color={tokens.foreground} />}
                   onLayout={(event) => recordChapterLayout(book.intro?.id ?? '', true, event)}
@@ -201,7 +209,6 @@ function BookRow({
                   accessibilityLabel={`${book.title} ${item.title}`}
                   disabled={pendingChapterId !== null}
                   gridIndex={index + (book.intro === null ? 0 : 1)}
-                  pending={pendingChapterId === `${book.id}.${item.id}`}
                   selected={selected && selectedChapter === item.id}
                   onLayout={(event) =>
                     recordChapterLayout(item.id, index === 0 && book.intro === null, event)
@@ -213,7 +220,7 @@ function BookRow({
           )}
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   )
 }
 
@@ -222,7 +229,6 @@ function ChapterButton({
   accessibilityLabel,
   disabled,
   gridIndex,
-  pending,
   selected,
   icon,
   onLayout,
@@ -232,7 +238,6 @@ function ChapterButton({
   accessibilityLabel: string
   disabled: boolean
   gridIndex: number
-  pending: boolean
   selected: boolean
   icon?: ReactNode
   onLayout?: (event: LayoutChangeEvent) => void
@@ -254,14 +259,10 @@ function ChapterButton({
         pressed && styles.pressed,
       ]}
     >
-      {pending ? (
-        <ActivityIndicator color={tokens.foreground} />
-      ) : (
-        (icon ?? (
-          <Text variant="body" style={[styles.chapterLabel, { color: tokens.foreground }]}>
-            {label}
-          </Text>
-        ))
+      {icon ?? (
+        <Text variant="body" style={[styles.chapterLabel, { color: tokens.foreground }]}>
+          {label}
+        </Text>
       )}
     </Pressable>
   )
@@ -490,6 +491,7 @@ const styles = StyleSheet.create({
   centerState: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 12 },
   retryButton: { paddingHorizontal: 16, paddingVertical: 8 },
   retryLabel: { textDecorationLine: 'underline' },
+  bookContainer: { overflow: 'hidden' },
   bookRow: { borderRadius: 14, overflow: 'hidden' },
   bookPressable: { minHeight: 58, justifyContent: 'center', paddingHorizontal: 16 },
   bookTitle: { fontSize: 18, lineHeight: 26 },
@@ -502,12 +504,12 @@ const styles = StyleSheet.create({
   },
   chapterButton: {
     width: '18.4%',
-    aspectRatio: 1,
+    height: CHAPTER_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chapterButtonSpacing: { marginRight: '2%' },
-  chapterLabel: { fontSize: 16, lineHeight: 22 },
+  chapterLabel: { width: '100%', fontSize: 16, lineHeight: 20, textAlign: 'center' },
   emptyChapters: { paddingHorizontal: 16, paddingVertical: 18 },
   sortBar: {
     flexDirection: 'row',

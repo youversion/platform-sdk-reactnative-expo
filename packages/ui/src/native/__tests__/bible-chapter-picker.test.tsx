@@ -104,6 +104,7 @@ describe('BibleChapterPicker', () => {
     fireEvent.press(getByLabelText('John 1'))
     expect(onSelect).toHaveBeenCalledTimes(1)
     expect(getByLabelText('John 2').props.accessibilityState).toMatchObject({ disabled: true })
+    expect(getByText('2')).toBeTruthy()
 
     await act(async () => rejectSelection(new Error('not saved')))
     expect(getByLabelText('John 2').props.accessibilityState).toMatchObject({ disabled: false })
