@@ -1318,7 +1318,7 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar-user')).toBeNull()
   })
 
-  it('unmounts overlay prev and next while the verse action sheet is open', async () => {
+  it('keeps prev and next in the toolbar while the verse action sheet is open', async () => {
     installToolbarFetches()
     await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
       wrapper: defaultWrapper,
@@ -1332,8 +1332,8 @@ describe('BibleReader native toolbar', () => {
     })
 
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
-    expect(screen.queryByTestId('reader-toolbar-previous-chapter')).toBeNull()
-    expect(screen.queryByTestId('reader-toolbar-next-chapter')).toBeNull()
+    expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-chapter')).toBeTruthy()
   })
 })

@@ -8,31 +8,44 @@ import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
+import { ChevronLeftIcon } from './icons/chevron-left-icon'
+import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { MoreIcon } from './icons/more-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return {
     ...sansFace(tokens.fontFamily.sans, 700),
     ...tokens.typography.sm,
-    lineHeight: 16,
+    lineHeight: 20,
     textAlign: 'center',
   }
 }
 
 const ICON_HIT_SLOP = 4
-const HALF_PILL_HEIGHT = 40
-const HALF_PILL_SPLIT = 2
-const HEADER_LEADING_PADDING = 16
+const CHEVRON_HIT = 44
+const CAPSULE_MIN_HEIGHT = 44
+const CAPSULE_GAP = 8
+
+function capsuleStyle(tokens: Tokens): ViewStyle {
+  return {
+    backgroundColor: tokens.background,
+    borderRadius: tokens.radius.full,
+    shadowColor: tokens.foreground,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  }
+}
 
 function moreHitStyle(tokens: Tokens): ViewStyle {
   return {
-    height: HALF_PILL_HEIGHT,
-    width: HALF_PILL_HEIGHT,
+    height: CHEVRON_HIT,
+    width: CHEVRON_HIT,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.full,
     overflow: 'hidden',
-    backgroundColor: tokens.muted,
   }
 }
 
@@ -68,14 +81,14 @@ function ChapterContent({
 
   if (bookLabel.length > 0) {
     return (
-      <Button.Text numberOfLines={2} style={bold}>
+      <Button.Text numberOfLines={1} style={bold}>
         {`${bookLabel} ${chapter}`}
       </Button.Text>
     )
   }
 
   return (
-    <Button.Text numberOfLines={2} style={bold}>
+    <Button.Text numberOfLines={1} style={bold}>
       {chapter}
     </Button.Text>
   )
@@ -171,6 +184,10 @@ export type BibleReaderToolbarProps = {
   isVersionLoading: boolean
   showAuth: boolean
   signedIn: boolean
+  canGoPrevious: boolean
+  canGoNext: boolean
+  onPreviousChapterPress: () => void
+  onNextChapterPress: () => void
   onChapterPress: () => void
   onVersionPress: () => void
   onSettingsPress: () => void
@@ -186,6 +203,10 @@ export function BibleReaderToolbar({
   isVersionLoading,
   showAuth,
   signedIn,
+  canGoPrevious,
+  canGoNext,
+  onPreviousChapterPress,
+  onNextChapterPress,
   onChapterPress,
   onVersionPress,
   onSettingsPress,
@@ -202,15 +223,22 @@ export function BibleReaderToolbar({
   if (isVersionLoading) {
     versionAriaLabel = t('loadingBibleVersionAriaLabel')
   }
+  const capsule = capsuleStyle(tokens)
 
   return (
-    <View
-      testID="reader-toolbar"
-      style={[styles.row, { backgroundColor: tokens.background, borderBottomColor: tokens.border }]}
-    >
-      <View
-        style={[styles.pills, { backgroundColor: tokens.muted, borderRadius: tokens.radius.full }]}
-      >
+    <View testID="reader-toolbar" style={[styles.row, { backgroundColor: tokens.background }]}>
+      <View style={[styles.chapterCapsule, capsule]}>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!canGoPrevious}
+          onPress={onPreviousChapterPress}
+          accessibilityLabel={t('previousChapterAriaLabel')}
+          testID="reader-toolbar-previous-chapter"
+          style={styles.chevron}
+        >
+          <Button.Icon as={ChevronLeftIcon} />
+        </Button>
         <Button
           variant="ghost"
           size="lg"
@@ -226,7 +254,19 @@ export function BibleReaderToolbar({
             chapter={chapter}
           />
         </Button>
-        <View style={[styles.split, { backgroundColor: tokens.background }]} />
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={!canGoNext}
+          onPress={onNextChapterPress}
+          accessibilityLabel={t('nextChapterAriaLabel')}
+          testID="reader-toolbar-next-chapter"
+          style={styles.chevron}
+        >
+          <Button.Icon as={ChevronRightIcon} />
+        </Button>
+      </View>
+      <View style={capsule}>
         <Button
           variant="ghost"
           size="lg"
@@ -255,33 +295,32 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingLeft: HEADER_LEADING_PADDING,
-    paddingRight: 16,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    gap: CAPSULE_GAP,
   },
-  pills: {
+  chapterCapsule: {
     flexShrink: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    height: HALF_PILL_HEIGHT,
+    minHeight: CAPSULE_MIN_HEIGHT,
     overflow: 'hidden',
   },
+  chevron: {
+    height: CHEVRON_HIT,
+    width: CHEVRON_HIT,
+  },
   chapter: {
+    flex: 1,
     flexShrink: 1,
     minWidth: 0,
-    height: HALF_PILL_HEIGHT,
-    paddingHorizontal: 16,
-  },
-  split: {
-    width: HALF_PILL_SPLIT,
-    alignSelf: 'stretch',
+    minHeight: CAPSULE_MIN_HEIGHT,
+    paddingHorizontal: 8,
   },
   version: {
     flexShrink: 0,
-    height: HALF_PILL_HEIGHT,
+    minHeight: CAPSULE_MIN_HEIGHT,
     paddingHorizontal: 16,
   },
   spacer: {

@@ -40,10 +40,7 @@ import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-titl
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
-import {
-  computeOverlayNavBottomOffset,
-  computeReaderBottomScrollPadding,
-} from '../lib/reader-bottom-scroll-padding'
+import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
   reportHighlightWriteError,
   type HighlightWriteError,
@@ -55,7 +52,6 @@ import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
-import { BibleReaderNavButtons } from './bible-reader-nav-buttons'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
@@ -770,12 +766,7 @@ export function BibleReader({
   // native tab bar overlay and home indicator. NativeTabs adjusts ScrollViews
   // automatically, but the reader opts out — clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
-  const bottomScrollPadding = computeReaderBottomScrollPadding(
-    bottomSafeArea,
-    Platform.OS,
-    showNativeToolbar,
-  )
-  const overlayNavBottomOffset = computeOverlayNavBottomOffset(bottomSafeArea, Platform.OS)
+  const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
   const BibleReaderDOM = getImpl('BibleReaderDom')
   const FootnoteContent = getImpl('FootnoteContent')
@@ -815,6 +806,26 @@ export function BibleReader({
                 void handleVersionPickerPress({
                   versionId: resolvedVersionId,
                   languageId: versionLanguageId ?? '',
+                })
+              }}
+              canGoPrevious={previousChapter !== null}
+              canGoNext={nextChapter !== null}
+              onPreviousChapterPress={() => {
+                if (previousChapter === null) {
+                  return
+                }
+                applyReaderLocation({
+                  book: previousChapter.bookId,
+                  chapter: previousChapter.chapterId,
+                })
+              }}
+              onNextChapterPress={() => {
+                if (nextChapter === null) {
+                  return
+                }
+                applyReaderLocation({
+                  book: nextChapter.bookId,
+                  chapter: nextChapter.chapterId,
                 })
               }}
               onSettingsPress={handleOpenBibleThemeSettings}
@@ -870,31 +881,6 @@ export function BibleReader({
               bottomScrollPadding={bottomScrollPadding}
               dom={readerDom}
             />
-            {showNativeToolbar && verseSelection === null ? (
-              <BibleReaderNavButtons
-                bottomOffset={overlayNavBottomOffset}
-                canGoPrevious={previousChapter !== null}
-                canGoNext={nextChapter !== null}
-                onPreviousChapterPress={() => {
-                  if (previousChapter === null) {
-                    return
-                  }
-                  applyReaderLocation({
-                    book: previousChapter.bookId,
-                    chapter: previousChapter.chapterId,
-                  })
-                }}
-                onNextChapterPress={() => {
-                  if (nextChapter === null) {
-                    return
-                  }
-                  applyReaderLocation({
-                    book: nextChapter.bookId,
-                    chapter: nextChapter.chapterId,
-                  })
-                }}
-              />
-            ) : null}
           </View>
         </ThemeContext.Provider>
       </View>
