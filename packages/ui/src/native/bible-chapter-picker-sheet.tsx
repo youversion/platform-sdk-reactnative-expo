@@ -1,7 +1,7 @@
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import { useTheme } from '../hooks/use-theme'
+import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
@@ -59,7 +59,9 @@ function BibleChapterPickerSheetImpl({
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         {isOpen ? (
-          <Picker book={book} chapter={chapter} versionId={versionId} onSelect={handleSelect} />
+          <ThemeContext.Provider value={resolvedTheme}>
+            <Picker book={book} chapter={chapter} versionId={versionId} onSelect={handleSelect} />
+          </ThemeContext.Provider>
         ) : null}
       </View>
     </NativeSheet>

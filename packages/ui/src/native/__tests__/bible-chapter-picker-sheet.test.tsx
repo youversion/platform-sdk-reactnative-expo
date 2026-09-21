@@ -3,9 +3,11 @@ import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
+import { useTokens } from '../../hooks/use-tokens'
 import { SHEET_SURFACE } from '../../lib/native-sheet-theme'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { getTokens } from '../../theme'
 import type { BibleChapterPickerProps } from '../bible-chapter-picker'
 import { BibleChapterPickerSheet } from '../bible-chapter-picker-sheet'
 
@@ -18,11 +20,14 @@ const SAMPLE_SELECTION: BibleChapterPickerSelectData = {
 type MockPickerProps = Pick<BibleChapterPickerProps, 'book' | 'chapter' | 'versionId' | 'onSelect'>
 
 let latestPickerProps: MockPickerProps = {}
+let latestPickerBackgroundColor: string | undefined
 let latestBottomInsetColor: string | undefined
 let pickerMounts = 0
 
 function MockPicker(props: MockPickerProps) {
+  const tokens = useTokens()
   latestPickerProps = props
+  latestPickerBackgroundColor = tokens.background
   pickerMounts += 1
   return (
     <Pressable
@@ -41,6 +46,7 @@ const wrapper = youVersionProviderWrapper()
 describe('BibleChapterPickerSheet', () => {
   beforeEach(() => {
     latestPickerProps = {}
+    latestPickerBackgroundColor = undefined
     latestBottomInsetColor = undefined
     pickerMounts = 0
     setImpl('BibleChapterPicker', MockPicker)
@@ -122,5 +128,11 @@ describe('BibleChapterPickerSheet', () => {
 
     rerender(<BibleChapterPickerSheet isOpen onClose={() => {}} theme="dark" />)
     expect(latestBottomInsetColor).toBe(SHEET_SURFACE.dark)
+  })
+
+  it('applies an explicit theme override to the picker content', () => {
+    render(<BibleChapterPickerSheet isOpen onClose={() => {}} theme="dark" />, { wrapper })
+
+    expect(latestPickerBackgroundColor).toBe(getTokens('dark').background)
   })
 })
