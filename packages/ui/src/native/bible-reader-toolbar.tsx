@@ -1,13 +1,17 @@
 import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import type { TextStyle, ViewStyle } from 'react-native'
+import type { BoxShadowValue, TextStyle, ViewStyle } from 'react-native'
 
 import { Button } from '../components/ui/button'
+import { PersonIcon } from '../components/ui/person-icon'
 import { Popover } from '../components/ui/popover'
+import { useTheme, type Theme } from '../hooks/use-theme'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import { withAlpha } from '../lib/color'
 import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
+import { AaIcon } from './icons/aa-icon'
 import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { MoreIcon } from './icons/more-icon'
@@ -25,17 +29,52 @@ const ICON_HIT_SLOP = 4
 const CHEVRON_HIT = 44
 const CAPSULE_MIN_HEIGHT = 44
 const CAPSULE_GAP = 8
+const TOOLBAR_PADDING_X = 24
+const MENU_ICON_SIZE = 20
 
-function capsuleStyle(tokens: Tokens): ViewStyle {
+function MenuRow({
+  testID,
+  iconTestID,
+  onPress,
+  icon,
+  label,
+}: {
+  testID: string
+  iconTestID: string
+  onPress?: () => void
+  icon: ReactNode
+  label: string
+}): ReactNode {
+  return (
+    <Popover.Close onPress={onPress} testID={testID} style={styles.menuItem}>
+      <View testID={iconTestID}>{icon}</View>
+      <Popover.Text numberOfLines={1}>{label}</Popover.Text>
+    </Popover.Close>
+  )
+}
+
+function capsuleShadow(tokens: Tokens): BoxShadowValue {
   return {
-    backgroundColor: tokens.background,
-    borderRadius: tokens.radius.full,
-    shadowColor: tokens.foreground,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    offsetX: 0,
+    offsetY: 0,
+    blurRadius: 8,
+    color: withAlpha(tokens.foreground, 0.19),
   }
+}
+
+function capsuleStyle(tokens: Tokens, theme: Theme): ViewStyle {
+  let backgroundColor = tokens.background
+  if (theme === 'dark') {
+    backgroundColor = tokens.muted
+  }
+  const style: ViewStyle = {
+    backgroundColor,
+    borderRadius: tokens.radius.full,
+  }
+  if (theme === 'light') {
+    style.boxShadow = [capsuleShadow(tokens)]
+  }
+  return style
 }
 
 function moreHitStyle(tokens: Tokens): ViewStyle {
@@ -146,30 +185,30 @@ function ToolbarMoreMenu({
         <MoreIcon color={tokens.foreground} size={24} />
       </Popover.Trigger>
       <Popover.Content align="end" style={styles.menu}>
-        <Popover.Close
-          onPress={onSettingsPress}
+        <MenuRow
           testID="reader-toolbar-settings"
-          style={styles.menuItem}
-        >
-          <Popover.Text>{t('fontAndSettings')}</Popover.Text>
-        </Popover.Close>
+          iconTestID="reader-toolbar-settings-icon"
+          onPress={onSettingsPress}
+          icon={<AaIcon color={tokens.foreground} size={MENU_ICON_SIZE} />}
+          label={t('fontAndSettings')}
+        />
         {showAuth && !signedIn ? (
-          <Popover.Close
-            onPress={onSignInPress}
+          <MenuRow
             testID="reader-toolbar-sign-in"
-            style={styles.menuItem}
-          >
-            <Popover.Text>{t('signIn')}</Popover.Text>
-          </Popover.Close>
+            iconTestID="reader-toolbar-sign-in-icon"
+            onPress={onSignInPress}
+            icon={<PersonIcon color={tokens.foreground} size={MENU_ICON_SIZE} />}
+            label={t('signIn')}
+          />
         ) : null}
         {showAuth && signedIn ? (
-          <Popover.Close
-            onPress={onSignOutPress}
+          <MenuRow
             testID="reader-toolbar-sign-out"
-            style={styles.menuItem}
-          >
-            <Popover.Text>{t('signOut')}</Popover.Text>
-          </Popover.Close>
+            iconTestID="reader-toolbar-sign-out-icon"
+            onPress={onSignOutPress}
+            icon={<PersonIcon color={tokens.foreground} size={MENU_ICON_SIZE} />}
+            label={t('signOut')}
+          />
         ) : null}
       </Popover.Content>
     </Popover>
@@ -214,6 +253,7 @@ export function BibleReaderToolbar({
   onSignOutPress,
 }: BibleReaderToolbarProps): ReactNode {
   const tokens = useTokens()
+  const theme = useTheme()
   const { t } = useSdkTranslation()
   let chapterAriaLabel = t('changeBibleBookAndChapterAriaLabel')
   if (isBookTitleLoading) {
@@ -223,11 +263,11 @@ export function BibleReaderToolbar({
   if (isVersionLoading) {
     versionAriaLabel = t('loadingBibleVersionAriaLabel')
   }
-  const capsule = capsuleStyle(tokens)
+  const capsule = capsuleStyle(tokens, theme)
 
   return (
     <View testID="reader-toolbar" style={[styles.row, { backgroundColor: tokens.background }]}>
-      <View style={[styles.chapterCapsule, capsule]}>
+      <View testID="reader-toolbar-chapter-capsule" style={[styles.chapterCapsule, capsule]}>
         <Button
           variant="ghost"
           size="icon"
@@ -266,7 +306,7 @@ export function BibleReaderToolbar({
           <Button.Icon as={ChevronRightIcon} />
         </Button>
       </View>
-      <View style={capsule}>
+      <View testID="reader-toolbar-version-capsule" style={capsule}>
         <Button
           variant="ghost"
           size="lg"
@@ -279,7 +319,6 @@ export function BibleReaderToolbar({
           <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
         </Button>
       </View>
-      <View style={styles.spacer} />
       <ToolbarMoreMenu
         showAuth={showAuth}
         signedIn={signedIn}
@@ -296,16 +335,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: TOOLBAR_PADDING_X,
     gap: CAPSULE_GAP,
   },
   chapterCapsule: {
-    flexShrink: 1,
+    flex: 1,
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     minHeight: CAPSULE_MIN_HEIGHT,
-    overflow: 'hidden',
   },
   chevron: {
     height: CHEVRON_HIT,
@@ -323,18 +361,18 @@ const styles = StyleSheet.create({
     minHeight: CAPSULE_MIN_HEIGHT,
     paddingHorizontal: 16,
   },
-  spacer: {
-    flex: 1,
-    minWidth: 8,
-  },
   menu: {
-    width: 160,
+    width: 220,
     padding: 4,
+    flexDirection: 'column',
+    alignItems: 'stretch',
   },
   menuItem: {
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     width: '100%',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
   },
 })

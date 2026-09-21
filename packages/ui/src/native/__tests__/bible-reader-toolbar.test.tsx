@@ -21,6 +21,7 @@ import {
   readerLocationStoreInitialState,
   useReaderLocationStore,
 } from '../../stores/reader-location-store'
+import { withAlpha } from '../../lib/color'
 import { getTokens } from '../../theme'
 import { defaultHookOverrides, signedOutAuth } from '../../test-utils/default-hook-overrides'
 import {
@@ -332,6 +333,56 @@ describe('BibleReader native toolbar', () => {
     expect(latestDomProps.theme).toBe('dark')
     expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)).toMatchObject({
       backgroundColor: darkTokens.background,
+      paddingHorizontal: 24,
+      gap: 8,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style),
+    ).toMatchObject({
+      backgroundColor: darkTokens.muted,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style)
+        .boxShadow,
+    ).toBeUndefined()
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-capsule').props.style),
+    ).toMatchObject({
+      backgroundColor: darkTokens.muted,
+    })
+  })
+
+  it('fills chapter and version capsules with canvas white in light', async () => {
+    expect(lightTokens.background).not.toBe(darkTokens.muted)
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+
+    const softShadow = [
+      {
+        offsetX: 0,
+        offsetY: 0,
+        blurRadius: 8,
+        color: withAlpha(lightTokens.foreground, 0.19),
+      },
+    ]
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style),
+    ).toMatchObject({
+      backgroundColor: lightTokens.background,
+      flex: 1,
+      boxShadow: softShadow,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style)
+        .overflow,
+    ).not.toBe('hidden')
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-capsule').props.style),
+    ).toMatchObject({
+      backgroundColor: lightTokens.background,
+      boxShadow: softShadow,
     })
   })
 
@@ -687,6 +738,7 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
 
     await openMoreMenu()
+    expect(screen.getByTestId('reader-toolbar-settings-icon', { includeHiddenElements: true })).toBeTruthy()
     await act(async () => {
       fireEvent.press(
         screen.getByTestId('reader-toolbar-settings', { includeHiddenElements: true }),
@@ -1213,6 +1265,7 @@ describe('BibleReader native toolbar', () => {
 
     await openMoreMenu()
     expect(screen.getByText(en.signOut, { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-sign-out-icon', { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(en.signIn, { includeHiddenElements: true })).toBeNull()
 
     await user.press(screen.getByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }))
@@ -1230,6 +1283,7 @@ describe('BibleReader native toolbar', () => {
 
     await openMoreMenu()
     expect(screen.getByText(en.signIn, { includeHiddenElements: true })).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-sign-in-icon', { includeHiddenElements: true })).toBeTruthy()
     expect(screen.queryByText(en.signOut, { includeHiddenElements: true })).toBeNull()
 
     await act(async () => {

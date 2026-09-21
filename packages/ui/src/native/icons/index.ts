@@ -1,3 +1,4 @@
+export { AaIcon } from './aa-icon'
 export { CheckIcon } from './check-icon'
 export { ChevronLeftIcon } from './chevron-left-icon'
 export { ChevronRightIcon } from './chevron-right-icon'
