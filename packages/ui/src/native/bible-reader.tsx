@@ -49,8 +49,13 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  useConsumedNavigationRequest,
+  type BibleReaderNavigation,
+} from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
@@ -351,7 +356,9 @@ export function BibleReader({
     }
   }
 
-  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  const fallbackNavigation = useMemo(() => createBibleReaderNavigation(), [])
+  const resolvedNavigation = navigation ?? fallbackNavigation
+  const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -363,14 +370,27 @@ export function BibleReader({
     } = pendingNavigation.reference
     const requestedBook = bookId
     const requestedChapter = String(requestedChapterNumber)
-    if (requestedBook !== book && controlledBook === undefined) {
-      appliedBook = requestedBook
-    }
-    if (requestedChapter !== chapter && controlledChapter === undefined) {
-      appliedChapter = requestedChapter
-    }
-    if (requestedVersionId !== versionId && controlledVersionId === undefined) {
-      appliedVersionId = requestedVersionId
+    const locationChanged =
+      requestedBook !== book || requestedChapter !== chapter || requestedVersionId !== versionId
+    if (locationChanged) {
+      if (requestedBook !== book) {
+        setBook(requestedBook)
+        if (controlledBook === undefined) {
+          appliedBook = requestedBook
+        }
+      }
+      if (requestedChapter !== chapter) {
+        setChapter(requestedChapter)
+        if (controlledChapter === undefined) {
+          appliedChapter = requestedChapter
+        }
+      }
+      if (requestedVersionId !== versionId) {
+        setVersionId(requestedVersionId)
+        if (controlledVersionId === undefined) {
+          appliedVersionId = requestedVersionId
+        }
+      }
     }
   }
 
@@ -409,6 +429,7 @@ export function BibleReader({
       setVersionId(requestedVersionId)
     }
   }, [pendingNavigation, book, chapter, versionId, setBook, setChapter, setVersionId])
+
 
   const resolvedVersionId = appliedVersionId ?? DEFAULT_BIBLE_VERSION_ID
   const resolvedBook = appliedBook ?? DEFAULT_BOOK
@@ -474,14 +495,19 @@ export function BibleReader({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // Hiding the toolbar unmounts the built-in sheets. Clear the open flags on
   // the same render so showing the toolbar again cannot remount a sheet the
   // user already left. An effect would leave one frame with the old flags.
-  if (!showToolbar && (isPickerOpen || isVersionPickerOpen || isSettingsSheetOpen)) {
+  if (
+    !showToolbar &&
+    (isPickerOpen || isVersionPickerOpen || isSettingsSheetOpen || isSearchOpen)
+  ) {
     setIsPickerOpen(false)
     setIsVersionPickerOpen(false)
     setIsSettingsSheetOpen(false)
+    setIsSearchOpen(false)
   }
 
   // ── Verse actions ────────────────────────────────────────────────────────
@@ -828,6 +854,7 @@ export function BibleReader({
                   chapter: nextChapter.chapterId,
                 })
               }}
+              onSearchPress={() => setIsSearchOpen(true)}
               onSettingsPress={handleOpenBibleThemeSettings}
               onSignInPress={() => {
                 void signIn?.()
@@ -888,6 +915,20 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {showNativeToolbar && (
+        <BibleReaderSearchSheet
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          versionId={resolvedVersionId}
+          languageTag={versionLanguageId}
+          theme={resolvedTheme}
+          fetchBibleContent={context.fetchBibleContent}
+          onSelectReference={(reference) => {
+            setIsSearchOpen(false)
+            resolvedNavigation.request(reference)
+          }}
         />
       )}
       {Platform.OS !== 'web' && (

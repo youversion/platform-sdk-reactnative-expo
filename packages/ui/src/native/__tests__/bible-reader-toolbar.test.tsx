@@ -246,6 +246,9 @@ function installOpenAwareSheets() {
     ({ isSettingsSheetOpen }: { isSettingsSheetOpen: boolean }) =>
       isSettingsSheetOpen ? <View testID="mock-settings-sheet" /> : null,
   )
+  setImpl('BibleReaderSearchSheet', ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <View testID="mock-search-sheet" /> : null,
+  )
 }
 
 async function flushToolbarEffects() {
@@ -315,6 +318,8 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-menu')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-search')).toBeTruthy()
+    expect(screen.getByLabelText(en.search)).toBeTruthy()
     expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar-menu').props.style)).toMatchObject(
       {
         width: 24,
@@ -760,6 +765,20 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('mock-settings-sheet')).toBeTruthy()
   })
 
+  it('opens Search from the toolbar icon', async () => {
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+
+    expect(screen.queryByTestId('mock-search-sheet')).toBeNull()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-search'))
+    })
+    expect(screen.getByTestId('mock-search-sheet')).toBeTruthy()
+  })
+
   it('lets escape hatches suppress the built-in picker sheets', async () => {
     const onChapterPickerPress = jest.fn().mockResolvedValue(undefined)
     const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
@@ -937,9 +956,11 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar')).toBeNull()
     expect(screen.queryByTestId('reader-toolbar-previous-chapter')).toBeNull()
     expect(screen.queryByTestId('reader-toolbar-next-chapter')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-search')).toBeNull()
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
+    expect(screen.queryByTestId('mock-search-sheet')).toBeNull()
     expect(
       ensureSetupFetch().mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input))),
     ).toBe(false)
@@ -1378,15 +1399,6 @@ describe('BibleReader native toolbar', () => {
       screen.queryByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }),
     ).toBeNull()
     expect(signIn).not.toHaveBeenCalled()
-  })
-
-  it('does not render a Search button', async () => {
-    installToolbarFetches()
-    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
-      wrapper: defaultWrapper,
-    })
-
-    expect(screen.queryByTestId('reader-toolbar-search')).toBeNull()
   })
 
   it('does not render an avatar or user trigger', async () => {

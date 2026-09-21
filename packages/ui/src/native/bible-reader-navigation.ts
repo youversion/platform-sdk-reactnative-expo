@@ -50,18 +50,14 @@ function accessFor(navigation: BibleReaderNavigation): ReaderNavigationAccess {
  * replaces an older one; the reader consumes it once.
  *
  * ```tsx
- * const navigation = useMemo(() => {
- *   const readerNavigation = createBibleReaderNavigation()
- *   readerNavigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
- *   return readerNavigation
- * }, [])
+ * const navigation = useMemo(() => createBibleReaderNavigation(), [])
+ * navigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
  * <BibleReader navigation={navigation} />
  * ```
  */
 export class BibleReaderNavigation {
   #pending: BibleReaderNavigationRequest | null = null
   #version = 0
-  #pendingVersion = 0
   #listeners = new Set<() => void>()
 
   constructor() {
@@ -113,7 +109,6 @@ export class BibleReaderNavigation {
   #setPending(request: BibleReaderNavigationRequest): void {
     this.#pending = request
     this.#version += 1
-    this.#pendingVersion = this.#version
     for (const listener of this.#listeners) {
       listener()
     }
@@ -126,9 +121,7 @@ export function createBibleReaderNavigation(): BibleReaderNavigation {
 
 /**
  * Subscribe to a navigation object and consume at most one request per
- * version bump. Peek during render so a discarded render cannot drop the
- * jump; clear only after commit. A call before mount still lands on the
- * first reader render.
+ * version bump. A call before mount still lands on the first reader render.
  */
 export function useConsumedNavigationRequest(
   navigation: BibleReaderNavigation | undefined,

@@ -15,6 +15,7 @@ import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { MoreIcon } from './icons/more-icon'
 import { PersonIcon } from './icons/person-icon'
+import { SearchIcon } from './icons/search-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return {
@@ -229,6 +230,7 @@ export type BibleReaderToolbarProps = {
   onNextChapterPress: () => void
   onChapterPress: () => void
   onVersionPress: () => void
+  onSearchPress: () => void
   onSettingsPress: () => void
   onSignInPress?: () => void
   onSignOutPress?: () => void
@@ -248,6 +250,7 @@ export function BibleReaderToolbar({
   onNextChapterPress,
   onChapterPress,
   onVersionPress,
+  onSearchPress,
   onSettingsPress,
   onSignInPress,
   onSignOutPress,
@@ -319,6 +322,15 @@ export function BibleReaderToolbar({
           <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
         </Button>
       </View>
+      <Button
+        variant="secondary"
+        size="icon"
+        onPress={onSearchPress}
+        accessibilityLabel={t('search')}
+        testID="reader-toolbar-search"
+      >
+        <Button.Icon as={SearchIcon} />
+      </Button>
       <ToolbarMoreMenu
         showAuth={showAuth}
         signedIn={signedIn}
