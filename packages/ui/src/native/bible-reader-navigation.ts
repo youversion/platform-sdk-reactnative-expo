@@ -31,8 +31,11 @@ function copyReference(reference: BibleReference): BibleReference {
  * one; the reader consumes it once.
  *
  * ```tsx
- * const navigation = useMemo(() => createBibleReaderNavigation(), [])
- * navigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+ * const navigation = useMemo(() => {
+ *   const readerNavigation = createBibleReaderNavigation()
+ *   readerNavigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+ *   return readerNavigation
+ * }, [])
  * <BibleReader navigation={navigation} />
  * ```
  */
