@@ -152,7 +152,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, avatar, chapter (with prev/next), version, and settings live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that row and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
+On iOS and Android, joined book and chapter plus version pills, a More menu, and overlay chapter buttons live in native chrome. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that chrome and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 

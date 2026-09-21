@@ -1,5 +1,6 @@
 import {
   IOS_TAB_BAR_CLEARANCE,
+  READER_OVERLAY_NAV_CLEARANCE,
   READER_SCROLL_END_GAP,
   computeReaderBottomScrollPadding,
 } from '../reader-bottom-scroll-padding'
@@ -23,5 +24,15 @@ describe('computeReaderBottomScrollPadding', () => {
 
   it('adds only a small gap on Android when bottom safe area is present', () => {
     expect(computeReaderBottomScrollPadding(24, 'android')).toBe(READER_SCROLL_END_GAP)
+  })
+
+  it('adds overlay clearance when the native toolbar is shown', () => {
+    expect(computeReaderBottomScrollPadding(34, 'ios', true)).toBe(
+      IOS_TAB_BAR_CLEARANCE + 34 + READER_SCROLL_END_GAP + READER_OVERLAY_NAV_CLEARANCE,
+    )
+    expect(computeReaderBottomScrollPadding(24, 'android', true)).toBe(
+      READER_SCROLL_END_GAP + READER_OVERLAY_NAV_CLEARANCE,
+    )
+    expect(computeReaderBottomScrollPadding(0, 'android', true)).toBe(READER_OVERLAY_NAV_CLEARANCE)
   })
 })

@@ -4,12 +4,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import {
   IOS_TAB_BAR_CLEARANCE,
+  READER_OVERLAY_NAV_CLEARANCE,
   READER_SCROLL_END_GAP,
 } from '../../lib/reader-bottom-scroll-padding'
-import {
-  installBibleReaderTestImpls,
-  resetImpls,
-} from '../../test-utils/install-test-impls'
+import { installBibleReaderTestImpls, resetImpls } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
@@ -46,6 +44,29 @@ describe('BibleReader bottom scroll padding', () => {
         }}
       >
         <BibleReader />
+      </SafeAreaProvider>,
+      { wrapper },
+    )
+
+    expect(latestDomProps.bottomScrollPadding).toBe(
+      IOS_TAB_BAR_CLEARANCE + 34 + READER_SCROLL_END_GAP + READER_OVERLAY_NAV_CLEARANCE,
+    )
+
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: originalOS })
+  })
+
+  it('does not add overlay clearance when the native toolbar is hidden', () => {
+    const originalOS = Platform.OS
+    Object.defineProperty(Platform, 'OS', { configurable: true, value: 'ios' })
+
+    render(
+      <SafeAreaProvider
+        initialMetrics={{
+          frame: { x: 0, y: 0, width: 390, height: 844 },
+          insets: { top: 0, right: 0, bottom: 34, left: 0 },
+        }}
+      >
+        <BibleReader showToolbar={false} />
       </SafeAreaProvider>,
       { wrapper },
     )

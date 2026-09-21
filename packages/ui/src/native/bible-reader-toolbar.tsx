@@ -2,120 +2,38 @@ import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import type { TextStyle, ViewStyle } from 'react-native'
 
-import { Avatar } from '../components/ui/avatar'
 import { Button } from '../components/ui/button'
-import { PersonIcon } from '../components/ui/person-icon'
 import { Popover } from '../components/ui/popover'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
-import { ChevronLeftIcon } from './icons/chevron-left-icon'
-import { ChevronRightIcon } from './icons/chevron-right-icon'
-import { GearIcon } from './icons/gear-icon'
+import { MoreIcon } from './icons/more-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
-  return sansFace(tokens.fontFamily.sans, 700)
+  return {
+    ...sansFace(tokens.fontFamily.sans, 700),
+    ...tokens.typography.sm,
+    lineHeight: 16,
+    textAlign: 'center',
+  }
 }
 
-/** 36pt visual + 4pt each side = 44pt iOS minimum. */
 const ICON_HIT_SLOP = 4
+const HALF_PILL_HEIGHT = 40
+const HALF_PILL_SPLIT = 2
+const HEADER_LEADING_PADDING = 16
 
-function iconHitStyle(tokens: Tokens): ViewStyle {
+function moreHitStyle(tokens: Tokens): ViewStyle {
   return {
-    height: 36,
-    width: 36,
+    height: HALF_PILL_HEIGHT,
+    width: HALF_PILL_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.full,
     overflow: 'hidden',
+    backgroundColor: tokens.muted,
   }
-}
-
-function ToolbarUserMenu({
-  showAuth,
-  signedIn,
-  avatarUrl,
-  name,
-  onSignInPress,
-  onSignOutPress,
-}: {
-  showAuth: boolean
-  signedIn: boolean
-  avatarUrl?: string
-  name?: string
-  onSignInPress?: () => void
-  onSignOutPress?: () => void
-}): ReactNode {
-  const tokens = useTokens()
-  const { t } = useSdkTranslation()
-
-  if (!showAuth) {
-    return null
-  }
-
-  if (signedIn) {
-    let portrait = <Avatar.Fallback name={name} />
-    if (avatarUrl !== undefined && avatarUrl.length > 0) {
-      portrait = (
-        <>
-          <Avatar.Fallback name={name} />
-          <Avatar.Image uri={avatarUrl} />
-        </>
-      )
-    }
-
-    return (
-      <Popover>
-        <Popover.Trigger
-          testID="reader-toolbar-avatar"
-          hitSlop={ICON_HIT_SLOP}
-          accessibilityLabel={name?.trim() || t('userAvatarAlt')}
-          style={[
-            iconHitStyle(tokens),
-            {
-              borderWidth: 1,
-              borderColor: tokens.border,
-              backgroundColor: tokens.background,
-            },
-          ]}
-        >
-          <Avatar>{portrait}</Avatar>
-        </Popover.Trigger>
-        <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
-          <Popover.Close
-            onPress={onSignOutPress}
-            testID="reader-toolbar-sign-out"
-            style={styles.menuItem}
-          >
-            <Popover.Text>{t('signOut')}</Popover.Text>
-          </Popover.Close>
-        </Popover.Content>
-      </Popover>
-    )
-  }
-
-  return (
-    <Popover>
-      <Popover.Trigger
-        testID="reader-toolbar-user"
-        hitSlop={ICON_HIT_SLOP}
-        accessibilityLabel={t('signIn')}
-        style={[iconHitStyle(tokens), { backgroundColor: tokens.muted }]}
-      >
-        <PersonIcon color={tokens.foreground} size={24} />
-      </Popover.Trigger>
-      <Popover.Content align="start" testID="reader-toolbar-user-menu" style={styles.userMenu}>
-        <Popover.Close
-          onPress={onSignInPress}
-          testID="reader-toolbar-sign-in"
-          style={styles.menuItem}
-        >
-          <Popover.Text>{t('signIn')}</Popover.Text>
-        </Popover.Close>
-      </Popover.Content>
-    </Popover>
-  )
 }
 
 function ToolbarSpinner({ testID }: { testID: string }): ReactNode {
@@ -149,10 +67,18 @@ function ChapterContent({
   }
 
   if (bookLabel.length > 0) {
-    return <Button.Text style={bold}>{`${bookLabel} ${chapter}`}</Button.Text>
+    return (
+      <Button.Text numberOfLines={2} style={bold}>
+        {`${bookLabel} ${chapter}`}
+      </Button.Text>
+    )
   }
 
-  return <Button.Text style={bold}>{chapter}</Button.Text>
+  return (
+    <Button.Text numberOfLines={2} style={bold}>
+      {chapter}
+    </Button.Text>
+  )
 }
 
 function VersionContent({
@@ -173,7 +99,68 @@ function VersionContent({
   if (label.length === 0) {
     label = t('selectVersion')
   }
-  return <Button.Text style={boldLabelStyle(tokens)}>{label}</Button.Text>
+  return (
+    <Button.Text numberOfLines={1} style={boldLabelStyle(tokens)}>
+      {label}
+    </Button.Text>
+  )
+}
+
+function ToolbarMoreMenu({
+  showAuth,
+  signedIn,
+  onSettingsPress,
+  onSignInPress,
+  onSignOutPress,
+}: {
+  showAuth: boolean
+  signedIn: boolean
+  onSettingsPress: () => void
+  onSignInPress?: () => void
+  onSignOutPress?: () => void
+}): ReactNode {
+  const tokens = useTokens()
+  const { t } = useSdkTranslation()
+
+  return (
+    <Popover>
+      <Popover.Trigger
+        testID="reader-toolbar-menu"
+        hitSlop={ICON_HIT_SLOP}
+        accessibilityLabel={t('moreMenuAriaLabel')}
+        style={moreHitStyle(tokens)}
+      >
+        <MoreIcon color={tokens.foreground} size={24} />
+      </Popover.Trigger>
+      <Popover.Content align="end" style={styles.menu}>
+        <Popover.Close
+          onPress={onSettingsPress}
+          testID="reader-toolbar-settings"
+          style={styles.menuItem}
+        >
+          <Popover.Text>{t('fontAndSettings')}</Popover.Text>
+        </Popover.Close>
+        {showAuth && !signedIn ? (
+          <Popover.Close
+            onPress={onSignInPress}
+            testID="reader-toolbar-sign-in"
+            style={styles.menuItem}
+          >
+            <Popover.Text>{t('signIn')}</Popover.Text>
+          </Popover.Close>
+        ) : null}
+        {showAuth && signedIn ? (
+          <Popover.Close
+            onPress={onSignOutPress}
+            testID="reader-toolbar-sign-out"
+            style={styles.menuItem}
+          >
+            <Popover.Text>{t('signOut')}</Popover.Text>
+          </Popover.Close>
+        ) : null}
+      </Popover.Content>
+    </Popover>
+  )
 }
 
 export type BibleReaderToolbarProps = {
@@ -182,37 +169,24 @@ export type BibleReaderToolbarProps = {
   chapter: string
   versionLabel: string
   isVersionLoading: boolean
-  canGoPrevious: boolean
-  canGoNext: boolean
   showAuth: boolean
   signedIn: boolean
-  avatarUrl?: string
-  name?: string
   onChapterPress: () => void
-  onPreviousChapterPress: () => void
-  onNextChapterPress: () => void
   onVersionPress: () => void
   onSettingsPress: () => void
   onSignInPress?: () => void
   onSignOutPress?: () => void
 }
 
-/** Native row of Reader triggers. Opens the existing sheets. Not a public export. */
 export function BibleReaderToolbar({
   bookLabel,
   isBookTitleLoading,
   chapter,
   versionLabel,
   isVersionLoading,
-  canGoPrevious,
-  canGoNext,
   showAuth,
   signedIn,
-  avatarUrl,
-  name,
   onChapterPress,
-  onPreviousChapterPress,
-  onNextChapterPress,
   onVersionPress,
   onSettingsPress,
   onSignInPress,
@@ -234,33 +208,11 @@ export function BibleReaderToolbar({
       testID="reader-toolbar"
       style={[styles.row, { backgroundColor: tokens.background, borderBottomColor: tokens.border }]}
     >
-      <ToolbarUserMenu
-        showAuth={showAuth}
-        signedIn={signedIn}
-        avatarUrl={avatarUrl}
-        name={name}
-        onSignInPress={onSignInPress}
-        onSignOutPress={onSignOutPress}
-      />
       <View
-        style={[
-          styles.chapterGroup,
-          { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
-        ]}
+        style={[styles.pills, { backgroundColor: tokens.muted, borderRadius: tokens.radius.full }]}
       >
         <Button
           variant="ghost"
-          size="icon"
-          hitSlop={ICON_HIT_SLOP}
-          disabled={!canGoPrevious}
-          onPress={onPreviousChapterPress}
-          accessibilityLabel={t('previousChapterAriaLabel')}
-          testID="reader-toolbar-previous-chapter"
-        >
-          <Button.Icon as={ChevronLeftIcon} />
-        </Button>
-        <Button
-          variant="secondary"
           size="lg"
           disabled={isBookTitleLoading}
           onPress={onChapterPress}
@@ -274,41 +226,27 @@ export function BibleReaderToolbar({
             chapter={chapter}
           />
         </Button>
+        <View style={[styles.split, { backgroundColor: tokens.background }]} />
         <Button
           variant="ghost"
-          size="icon"
-          hitSlop={ICON_HIT_SLOP}
-          disabled={!canGoNext}
-          onPress={onNextChapterPress}
-          accessibilityLabel={t('nextChapterAriaLabel')}
-          testID="reader-toolbar-next-chapter"
+          size="lg"
+          disabled={isVersionLoading}
+          onPress={onVersionPress}
+          accessibilityLabel={versionAriaLabel}
+          testID="reader-toolbar-version"
+          style={styles.version}
         >
-          <Button.Icon as={ChevronRightIcon} />
+          <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
         </Button>
       </View>
-      <Button
-        variant="secondary"
-        size="lg"
-        disabled={isVersionLoading}
-        onPress={onVersionPress}
-        accessibilityLabel={versionAriaLabel}
-        testID="reader-toolbar-version"
-        style={styles.version}
-      >
-        <View style={styles.versionLabel}>
-          <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
-        </View>
-      </Button>
-      <Button
-        variant="secondary"
-        size="icon"
-        hitSlop={ICON_HIT_SLOP}
-        onPress={onSettingsPress}
-        accessibilityLabel={t('fontAndSettings')}
-        testID="reader-toolbar-settings"
-      >
-        <Button.Icon as={GearIcon} />
-      </Button>
+      <View style={styles.spacer} />
+      <ToolbarMoreMenu
+        showAuth={showAuth}
+        signedIn={signedIn}
+        onSettingsPress={onSettingsPress}
+        onSignInPress={onSignInPress}
+        onSignOutPress={onSignOutPress}
+      />
     </View>
   )
 }
@@ -317,35 +255,40 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 16,
+    paddingLeft: HEADER_LEADING_PADDING,
+    paddingRight: 16,
     gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  chapterGroup: {
-    flex: 1,
+  pills: {
+    flexShrink: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 120,
+    height: HALF_PILL_HEIGHT,
     overflow: 'hidden',
   },
   chapter: {
-    flex: 1,
-    minWidth: 0,
-    paddingHorizontal: 0,
-  },
-  version: {
     flexShrink: 1,
-    maxWidth: 96,
-    minWidth: 44,
+    minWidth: 0,
+    height: HALF_PILL_HEIGHT,
     paddingHorizontal: 16,
   },
-  versionLabel: {
-    minWidth: 28,
-    maxWidth: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
+  split: {
+    width: HALF_PILL_SPLIT,
+    alignSelf: 'stretch',
   },
-  userMenu: {
+  version: {
+    flexShrink: 0,
+    height: HALF_PILL_HEIGHT,
+    paddingHorizontal: 16,
+  },
+  spacer: {
+    flex: 1,
+    minWidth: 8,
+  },
+  menu: {
     width: 160,
     padding: 4,
   },
