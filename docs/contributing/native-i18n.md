@@ -46,9 +46,11 @@ function SheetHeader({ onClose }: { onClose: () => void }) {
 
 ### Rich text (bold segments)
 
-Pass `i18n` from `useSdkTranslation()` to `<Trans>`. Nest it inside `Button.Text` or a platform `Text`. Primitives bold through `sansFace` (see `youversion-auth-button.tsx`). Sheets that still use the system face keep `fontWeight` until they move onto the primitives.
+Pass `i18n` from `useSdkTranslation()` to `<Trans>`. Nest it inside `Button.Text`. Bold the marked span with the design-system `Text` and `sansFace` (see `youversion-auth-button.tsx`). Pin `typography.sm` so the span stays on the Button.Text size — Text's body variant is `base`. Sheets that still use the system face keep `fontWeight` until they move onto the primitives.
 
 ```tsx
+import { Button, Text } from '../components/ui'
+
 const { i18n } = useSdkTranslation()
 const tokens = useTokens()
 
@@ -56,7 +58,16 @@ const tokens = useTokens()
   <Trans
     i18n={i18n}
     i18nKey="signInWithYouVersion"
-    components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
+    components={{
+      bold: (
+        <Text
+          style={{
+            ...tokens.typography.sm,
+            ...sansFace(tokens.fontFamily.sans, 700),
+          }}
+        />
+      ),
+    }}
   />
 </Button.Text>
 ```

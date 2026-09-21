@@ -147,6 +147,7 @@ describe('YouVersionAuthButton labels', () => {
     renderAuthButton()
     expect(labelStyle('YouVersion')).toMatchObject({
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
+      ...light.typography.sm,
     })
   })
 

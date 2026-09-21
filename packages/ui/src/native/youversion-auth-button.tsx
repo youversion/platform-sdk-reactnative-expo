@@ -1,8 +1,7 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
-import { Text as RNText } from 'react-native'
 import { Trans } from 'react-i18next'
-import { Button } from '../components/ui'
+import { Button, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { sansFace } from '../theme/fonts'
@@ -36,7 +35,16 @@ function AuthButtonLabel({ i18nKey, text }: AuthButtonLabelProps): ReactNode {
     <Trans
       i18n={i18n}
       i18nKey={i18nKey}
-      components={{ bold: <RNText style={sansFace(tokens.fontFamily.sans, 700)} /> }}
+      components={{
+        bold: (
+          <Text
+            style={{
+              ...tokens.typography.sm,
+              ...sansFace(tokens.fontFamily.sans, 700),
+            }}
+          />
+        ),
+      }}
     />
   )
 }
