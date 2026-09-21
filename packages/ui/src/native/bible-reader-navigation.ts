@@ -1,5 +1,5 @@
 import type { BibleReference } from '@youversion/platform-react-native-expo-core'
-import { useSyncExternalStore } from 'react'
+import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 
 /**
  * One jump the host asked the reader to make. Verse scroll and focus are
@@ -39,6 +39,7 @@ function copyReference(reference: BibleReference): BibleReference {
 export class BibleReaderNavigation {
   #pending: BibleReaderNavigationRequest | null = null
   #version = 0
+  #pendingVersion = 0
   #listeners = new Set<() => void>()
 
   /**
@@ -91,9 +92,22 @@ export class BibleReaderNavigation {
     return pending
   }
 
+  /**
+   * Clear pending only if it is still the request from this snapshot. A newer
+   * call that replaced it stays. The reader calls this after a render commits;
+   * hosts do not need to.
+   */
+  consumeCommitted(version: number): void {
+    if (this.#pendingVersion !== version) {
+      return
+    }
+    this.#pending = null
+  }
+
   #setPending(request: BibleReaderNavigationRequest): void {
     this.#pending = request
     this.#version += 1
+    this.#pendingVersion = this.#version
     for (const listener of this.#listeners) {
       listener()
     }
@@ -106,18 +120,38 @@ export function createBibleReaderNavigation(): BibleReaderNavigation {
 
 /**
  * Subscribe to a navigation object and consume at most one request per
- * version bump. A call before mount still lands on the first reader render.
+ * version bump. Peek during render so a discarded render cannot drop the
+ * jump; clear only after commit. A call before mount still lands on the
+ * first reader render.
  */
 export function useConsumedNavigationRequest(
   navigation: BibleReaderNavigation | undefined,
 ): BibleReaderNavigationRequest | null {
-  useSyncExternalStore(
+  const version = useSyncExternalStore(
     navigation ? navigation.subscribe : subscribeNoop,
     navigation ? navigation.getSnapshot : snapshotZero,
     navigation ? navigation.getSnapshot : snapshotZero,
   )
+  const committedRef = useRef<{
+    navigation: BibleReaderNavigation | undefined
+    version: number
+  }>({ navigation: undefined, version: 0 })
+
+  useLayoutEffect(() => {
+    committedRef.current = { navigation, version }
+    if (!navigation) {
+      return
+    }
+    navigation.consumeCommitted(version)
+  }, [navigation, version])
+
   if (!navigation) {
     return null
   }
-  return navigation.consumePending()
+  const committedVersion =
+    committedRef.current.navigation === navigation ? committedRef.current.version : 0
+  if (version === committedVersion) {
+    return null
+  }
+  return navigation.pendingRequest
 }

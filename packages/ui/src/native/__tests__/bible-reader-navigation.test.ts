@@ -1,6 +1,11 @@
 import type { BibleReference } from '@youversion/platform-react-native-expo-core'
+import { renderHook } from '@testing-library/react-native'
 
-import { BibleReaderNavigation, createBibleReaderNavigation } from '../bible-reader-navigation'
+import {
+  BibleReaderNavigation,
+  createBibleReaderNavigation,
+  useConsumedNavigationRequest,
+} from '../bible-reader-navigation'
 
 const JOHN_3_16: BibleReference = {
   versionId: 111,
@@ -76,6 +81,40 @@ describe('BibleReaderNavigation', () => {
     expect(navigation.consumePending()).toBeNull()
   })
 
+  it('keeps verse fields on an uncommitted pending request', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.request(JOHN_3_16)
+
+    expect(navigation.pendingRequest?.reference.verse).toBe(16)
+    expect(navigation.pendingRequest?.scrollsToVerse).toBe(false)
+    expect(navigation.pendingRequest?.shouldFocus).toBe(false)
+  })
+
+  it('leaves pending in place until consumeCommitted', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.request(JOHN_3_16)
+    const version = navigation.getSnapshot()
+
+    expect(navigation.pendingRequest?.reference).toEqual(JOHN_3_16)
+    expect(navigation.getSnapshot()).toBe(version)
+
+    navigation.consumeCommitted(version)
+
+    expect(navigation.pendingRequest).toBeNull()
+  })
+
+  it('does not consume a newer request when committing an older snapshot', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.request(JOHN_3_16)
+    const firstVersion = navigation.getSnapshot()
+    navigation.focusReference(ROMANS_8_1)
+
+    navigation.consumeCommitted(firstVersion)
+
+    expect(navigation.pendingRequest?.reference).toEqual(ROMANS_8_1)
+    expect(navigation.pendingRequest?.shouldFocus).toBe(true)
+  })
+
   it('createBibleReaderNavigation and new BibleReaderNavigation share the same API', () => {
     const created = createBibleReaderNavigation()
     const constructed = new BibleReaderNavigation()
@@ -84,5 +123,25 @@ describe('BibleReaderNavigation', () => {
     expect(constructed).toBeInstanceOf(BibleReaderNavigation)
     expect(created.request).toEqual(expect.any(Function))
     expect(created.focusReference).toEqual(expect.any(Function))
+  })
+})
+
+describe('useConsumedNavigationRequest', () => {
+  it('applies a pre-mount request once and keeps verse fields on that request', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.request(JOHN_3_16)
+
+    const { result, rerender } = renderHook(
+      ({ nav }: { nav: BibleReaderNavigation }) => useConsumedNavigationRequest(nav),
+      { initialProps: { nav: navigation } },
+    )
+
+    expect(result.current?.reference).toEqual(JOHN_3_16)
+    expect(result.current?.reference.verse).toBe(16)
+    expect(navigation.pendingRequest).toBeNull()
+
+    rerender({ nav: navigation })
+
+    expect(result.current).toBeNull()
   })
 })
