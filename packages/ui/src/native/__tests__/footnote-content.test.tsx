@@ -36,16 +36,25 @@ describe('FootnoteContent', () => {
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       fontSize: light.typography.base.fontSize,
     })
+    expect(screen.getByText('John 1:5').props.allowFontScaling).toBe(false)
+    expect(screen.getByText('He then added, "Very truly I tell you,"').props.allowFontScaling).toBe(
+      false,
+    )
+    expect(screen.getByText('1:5 Or understood').props.allowFontScaling).toBe(false)
+    expect(screen.getByText('a').props.allowFontScaling).toBe(false)
     expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
       fontSize: 22,
       lineHeight: 33,
     })
-    expect(flattened('a')).toMatchObject({
+    const marker = screen.getByText('a')
+    expect(StyleSheet.flatten(marker.props.style)).toMatchObject({
       color: light.mutedForeground,
       fontSize: 17,
-      lineHeight: 33,
+      lineHeight: 17,
+    })
+    expect(StyleSheet.flatten(screen.getByTestId('footnote-superscript').props.style)).toMatchObject({
       transform: [{ translateY: -9 }],
     })
     expect(flattened('1:5 Or understood')).toMatchObject({

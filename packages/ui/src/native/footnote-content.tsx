@@ -17,6 +17,8 @@ const VERSE_FONT_SIZE = 20
 // Web sheet list is text-xs: 0.75rem, line-height 1 / 0.75.
 const NOTE_FONT_SIZE = 12
 const NOTE_LINE_HEIGHT = 16
+// The web sheet sets -webkit-text-size-adjust: 100%, so it ignores the system text size.
+// RN Text grows with that setting unless this is off. Extra Extra Large is 1.235×.
 // sup { font-size: 75%; top: -0.5em } under [data-yv-sdk].
 const SUP_SIZE_RATIO = 0.75
 const SUP_RAISE_EM = 0.5
@@ -58,6 +60,7 @@ function FootnoteBody({
       {showVerse ? (
         <View>
           <Text
+            allowFontScaling={false}
             testID="footnote-reference"
             style={[
               sansFace(tokens.fontFamily.sans, 700),
@@ -94,6 +97,7 @@ function FootnoteBody({
               style={[styles.note, { borderBottomColor: tokens.border }]}
             >
               <Text
+                allowFontScaling={false}
                 style={[
                   sansFace(sans, 400),
                   { color: foreground, fontSize: NOTE_FONT_SIZE, lineHeight: NOTE_LINE_HEIGHT },
@@ -142,13 +146,65 @@ function ParagraphText({
 }): ReactNode {
   const face = serif ? serifFace(family, 400) : sansFace(family, 400)
   return (
-    <Text style={[face, { color, fontSize, lineHeight }]}>
-      {paragraph.runs.map((run, index) => (
-        <Text key={index} style={runStyle(run, family, fontSize, lineHeight, color, muted, serif)}>
-          {run.text}
-        </Text>
-      ))}
+    <Text
+      allowFontScaling={false}
+      style={[face, { color, fontSize, lineHeight, overflow: 'visible' }]}
+    >
+      {paragraph.runs.map((run, index) => {
+        if (run.sup) {
+          return (
+            <Superscript
+              key={index}
+              run={run}
+              family={family}
+              fontSize={fontSize}
+              color={muted}
+              serif={serif}
+            />
+          )
+        }
+        return (
+          <Text
+            key={index}
+            allowFontScaling={false}
+            style={runStyle(run, family, fontSize, lineHeight, color, serif)}
+          >
+            {run.text}
+          </Text>
+        )
+      })}
     </Text>
+  )
+}
+
+function Superscript({
+  run,
+  family,
+  fontSize,
+  color,
+  serif,
+}: {
+  run: FootnoteRun
+  family: string
+  fontSize: number
+  color: string
+  serif: boolean
+}): ReactNode {
+  const supSize = Math.max(1, Math.round(fontSize * SUP_SIZE_RATIO))
+  const raise = Math.round(supSize * SUP_RAISE_EM)
+  const weight = run.weight
+  const face = serif ? serifFace(family, weight) : sansFace(family, weight)
+  // A nested Text shares the line, so a shift on it never leaves the baseline.
+  // An inline view is positioned with its bottom on that baseline, and a shift on the view raises the letter.
+  return (
+    <View
+      testID="footnote-superscript"
+      style={{ transform: [{ translateY: -raise }], overflow: 'visible' }}
+    >
+      <Text allowFontScaling={false} style={{ ...face, color, fontSize: supSize, lineHeight: supSize }}>
+        {run.text}
+      </Text>
+    </View>
   )
 }
 
@@ -158,30 +214,15 @@ function runStyle(
   fontSize: number,
   lineHeight: number,
   color: string,
-  muted: string,
   serif: boolean,
 ): TextStyle {
-  let runColor = color
-  let runSize = fontSize
-  let shift = 0
-  if (run.sup) {
-    runColor = muted
-    runSize = Math.max(1, Math.round(fontSize * SUP_SIZE_RATIO))
-    // RN Text has no vertical-align. Half the superscript size matches CSS top: -0.5em.
-    shift = -Math.round(runSize * SUP_RAISE_EM)
-  }
-  const weight = run.weight
-  const face = serif ? serifFace(family, weight) : sansFace(family, weight)
-  const style: TextStyle = {
+  const face = serif ? serifFace(family, run.weight) : sansFace(family, run.weight)
+  return {
     ...face,
-    color: runColor,
-    fontSize: runSize,
+    color,
+    fontSize,
     lineHeight,
   }
-  if (shift !== 0) {
-    style.transform = [{ translateY: shift }]
-  }
-  return style
 }
 
 function lineHeightFor(fontSize: number): number {
