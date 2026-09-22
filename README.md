@@ -165,9 +165,11 @@ import { useMemo } from 'react'
 import { BibleReader, createBibleReaderNavigation } from '@youversion/platform-react-native-expo-ui'
 
 function ReaderScreen() {
-  const navigation = useMemo(() => createBibleReaderNavigation(), [])
-
-  navigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+  const navigation = useMemo(() => {
+    const readerNavigation = createBibleReaderNavigation()
+    readerNavigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+    return readerNavigation
+  }, [])
 
   return <BibleReader navigation={navigation} defaultVersionId={3034} />
 }
