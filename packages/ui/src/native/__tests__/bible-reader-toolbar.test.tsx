@@ -320,12 +320,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-menu')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-search')).toBeTruthy()
     expect(screen.getByLabelText(en.search)).toBeTruthy()
-    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar-menu').props.style)).toMatchObject(
-      {
-        width: 24,
-        height: 24,
-      },
-    )
+    const menu = screen.getByTestId('reader-toolbar-menu')
+    expect(StyleSheet.flatten(menu.props.style)).toMatchObject({
+      width: 44,
+      height: 44,
+    })
+    expect(menu.props.hitSlop).toBeUndefined()
     expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityLabel).toBe(
       en.changeBibleBookAndChapterAriaLabel,
     )
@@ -390,10 +390,22 @@ describe('BibleReader native toolbar', () => {
         .overflow,
     ).not.toBe('hidden')
     expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-clip').props.style),
+    ).toMatchObject({
+      overflow: 'hidden',
+      borderRadius: lightTokens.radius.full,
+    })
+    expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-capsule').props.style),
     ).toMatchObject({
       backgroundColor: lightTokens.background,
       boxShadow: softShadow,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-clip').props.style),
+    ).toMatchObject({
+      overflow: 'hidden',
+      borderRadius: lightTokens.radius.full,
     })
   })
 
