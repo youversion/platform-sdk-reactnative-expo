@@ -785,20 +785,16 @@ export function BibleReader({
   return (
     <>
       <View style={{ flex: 1 }}>
-        {showNativeToolbar && (
-          <ThemeContext.Provider value={resolvedTheme}>
+        <ThemeContext.Provider value={resolvedTheme}>
+          {showNativeToolbar ? (
             <BibleReaderToolbar
               bookLabel={bookLabel}
               isBookTitleLoading={isBookTitleLoading}
               chapter={chapterLabel}
               versionLabel={versionLabel}
               isVersionLoading={isVersionMetaLoading}
-              canGoPrevious={previousChapter !== null}
-              canGoNext={nextChapter !== null}
               showAuth={authGate === 'signed-out' || authGate === 'ready'}
               signedIn={authGate === 'ready'}
-              avatarUrl={userInfo?.avatarUrl}
-              name={userInfo?.name}
               onChapterPress={() => {
                 void handleChapterPickerPress({
                   book: resolvedBook,
@@ -806,6 +802,14 @@ export function BibleReader({
                   versionId: resolvedVersionId,
                 })
               }}
+              onVersionPress={() => {
+                void handleVersionPickerPress({
+                  versionId: resolvedVersionId,
+                  languageId: versionLanguageId ?? '',
+                })
+              }}
+              canGoPrevious={previousChapter !== null}
+              canGoNext={nextChapter !== null}
               onPreviousChapterPress={() => {
                 if (previousChapter === null) {
                   return
@@ -824,12 +828,6 @@ export function BibleReader({
                   chapter: nextChapter.chapterId,
                 })
               }}
-              onVersionPress={() => {
-                void handleVersionPickerPress({
-                  versionId: resolvedVersionId,
-                  languageId: versionLanguageId ?? '',
-                })
-              }}
               onSettingsPress={handleOpenBibleThemeSettings}
               onSignInPress={() => {
                 void signIn?.()
@@ -838,51 +836,53 @@ export function BibleReader({
                 void guardedSignOut?.()
               }}
             />
-          </ThemeContext.Provider>
-        )}
-        <BibleReaderDOM
-          {...authProps}
-          appKey={context.appKey}
-          apiHost={context.apiHost}
-          installationId={context.installationId}
-          fetchBibleContent={context.fetchBibleContent}
-          permittedVersionIds={context.permittedVersionIds}
-          excludedVersionIds={context.excludedVersionIds}
-          permittedLanguageTags={context.permittedLanguageTags}
-          locale={lng}
-          highlights={highlights}
-          verseActions={VERSE_ACTIONS}
-          onVerseSelect={handleVerseSelect}
-          clearSelectionSignal={clearSelectionSignal + internalClearCount}
-          onSignInPress={signIn}
-          onSignOutPress={guardedSignOut}
-          userInfo={userInfo}
-          theme={resolvedTheme}
-          book={appliedBook}
-          chapter={appliedChapter}
-          versionId={appliedVersionId}
-          fontSize={fontSize}
-          fontFamily={encodeFontFamilyForDom(fontFamily)}
-          lineSpacing={lineSpacing}
-          onFontSizeChange={setFontSize}
-          onFontFamilyChange={setFontFamily}
-          onLineSpacingChange={setLineSpacing}
-          onOpenBibleThemeSettings={
-            Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined
-          }
-          onBookChange={handleBookChange}
-          onChapterChange={handleChapterChange}
-          onVersionChange={handleVersionChange}
-          showToolbar={Platform.OS === 'web' && showToolbar}
-          onChapterPickerPress={handleChapterPickerPress}
-          onVersionPickerPress={handleVersionPickerPress}
-          onFootnotePress={onFootnotePress}
-          onExternalLinkPress={Platform.OS !== 'web' ? onExternalLinkPress : undefined}
-          backgroundColor={backgroundColor}
-          foregroundColor={foregroundColor}
-          bottomScrollPadding={bottomScrollPadding}
-          dom={readerDom}
-        />
+          ) : null}
+          <View style={{ flex: 1 }}>
+            <BibleReaderDOM
+              {...authProps}
+              appKey={context.appKey}
+              apiHost={context.apiHost}
+              installationId={context.installationId}
+              fetchBibleContent={context.fetchBibleContent}
+              permittedVersionIds={context.permittedVersionIds}
+              excludedVersionIds={context.excludedVersionIds}
+              permittedLanguageTags={context.permittedLanguageTags}
+              locale={lng}
+              highlights={highlights}
+              verseActions={VERSE_ACTIONS}
+              onVerseSelect={handleVerseSelect}
+              clearSelectionSignal={clearSelectionSignal + internalClearCount}
+              onSignInPress={signIn}
+              onSignOutPress={guardedSignOut}
+              userInfo={userInfo}
+              theme={resolvedTheme}
+              book={appliedBook}
+              chapter={appliedChapter}
+              versionId={appliedVersionId}
+              fontSize={fontSize}
+              fontFamily={encodeFontFamilyForDom(fontFamily)}
+              lineSpacing={lineSpacing}
+              onFontSizeChange={setFontSize}
+              onFontFamilyChange={setFontFamily}
+              onLineSpacingChange={setLineSpacing}
+              onOpenBibleThemeSettings={
+                Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined
+              }
+              onBookChange={handleBookChange}
+              onChapterChange={handleChapterChange}
+              onVersionChange={handleVersionChange}
+              showToolbar={Platform.OS === 'web' && showToolbar}
+              onChapterPickerPress={handleChapterPickerPress}
+              onVersionPickerPress={handleVersionPickerPress}
+              onFootnotePress={onFootnotePress}
+              onExternalLinkPress={Platform.OS !== 'web' ? onExternalLinkPress : undefined}
+              backgroundColor={backgroundColor}
+              foregroundColor={foregroundColor}
+              bottomScrollPadding={bottomScrollPadding}
+              dom={readerDom}
+            />
+          </View>
+        </ThemeContext.Provider>
       </View>
       {showSettingsSheet && (
         <BibleReaderSettingsSheet
