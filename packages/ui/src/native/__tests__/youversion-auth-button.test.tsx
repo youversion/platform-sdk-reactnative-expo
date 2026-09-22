@@ -155,41 +155,46 @@ describe('YouVersionAuthButton labels', () => {
     renderAuthButton()
     const label = screen.getByText('Sign in with YouVersion')
     expect(label.props.numberOfLines).toBe(2)
-    expect(labelStyle('Sign in with YouVersion')).toMatchObject({ flex: 1 })
   })
 })
 
 describe('YouVersionAuthButton container tokens', () => {
-  it('fills from the light scheme with 18/8 padding, a 16px logo gap, and no border even when the provider is dark', () => {
+  it('fills from the light scheme with 20/12 padding, an 8px logo gap, and a 1px border even when the provider is dark', () => {
     renderAuthButton({ background: 'light' }, 'dark')
 
     const style = buttonStyle()
     expect(style).toMatchObject({
       backgroundColor: light.background,
       borderRadius: light.radius.full,
+      borderColor: light.border,
+      borderWidth: 1,
       height: 'auto',
-      paddingHorizontal: 18,
-      paddingVertical: 8,
-      gap: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 8,
     })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
+    expect(style.alignSelf).toBeUndefined()
+    expect(style.maxWidth).toBeUndefined()
+    expect(screen.getByTestId('bible-app-logo').props.size).toBe(24)
   })
 
-  it('fills from the dark scheme with 18/8 padding, a 16px logo gap, and no border even when the provider is light', () => {
+  it('fills from the dark scheme with 20/12 padding, an 8px logo gap, and a 1px border even when the provider is light', () => {
     renderAuthButton({ background: 'dark' }, 'light')
 
     const style = buttonStyle()
     expect(style).toMatchObject({
       backgroundColor: dark.background,
       borderRadius: dark.radius.full,
+      borderColor: dark.border,
+      borderWidth: 1,
       height: 'auto',
-      paddingHorizontal: 18,
-      paddingVertical: 8,
-      gap: 16,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      gap: 8,
     })
-    expect(style.borderColor).toBeUndefined()
-    expect(style.borderWidth).toBeUndefined()
+    expect(style.alignSelf).toBeUndefined()
+    expect(style.maxWidth).toBeUndefined()
+    expect(screen.getByTestId('bible-app-logo').props.size).toBe(24)
   })
 
   it('does not leak the forced scheme to siblings', () => {

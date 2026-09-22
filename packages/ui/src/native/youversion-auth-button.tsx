@@ -61,13 +61,18 @@ function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): 
 
   return (
     <Button
-      // secondary publishes foreground. Fill is the scheme surface so the logo stays readable.
-      variant="secondary"
-      style={[styles.button, { backgroundColor: tokens.background }]}
+      variant="outline"
+      style={[
+        styles.button,
+        {
+          backgroundColor: tokens.background,
+          borderColor: tokens.border,
+        },
+      ]}
       onPress={onPress}
     >
-      <BibleAppLogo />
-      <Button.Text numberOfLines={2} style={styles.label}>
+      <BibleAppLogo size={24} />
+      <Button.Text numberOfLines={2}>
         <AuthButtonLabel i18nKey={i18nKey} text={text} />
       </Button.Text>
     </Button>
@@ -114,11 +119,8 @@ export function YouVersionAuthButton({
 const styles = StyleSheet.create({
   button: {
     height: 'auto',
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    gap: 16,
-  },
-  label: {
-    flex: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 8,
   },
 })
