@@ -370,27 +370,14 @@ export function BibleReader({
     } = pendingNavigation.reference
     const requestedBook = bookId
     const requestedChapter = String(requestedChapterNumber)
-    const locationChanged =
-      requestedBook !== book || requestedChapter !== chapter || requestedVersionId !== versionId
-    if (locationChanged) {
-      if (requestedBook !== book) {
-        setBook(requestedBook)
-        if (controlledBook === undefined) {
-          appliedBook = requestedBook
-        }
-      }
-      if (requestedChapter !== chapter) {
-        setChapter(requestedChapter)
-        if (controlledChapter === undefined) {
-          appliedChapter = requestedChapter
-        }
-      }
-      if (requestedVersionId !== versionId) {
-        setVersionId(requestedVersionId)
-        if (controlledVersionId === undefined) {
-          appliedVersionId = requestedVersionId
-        }
-      }
+    if (requestedBook !== book && controlledBook === undefined) {
+      appliedBook = requestedBook
+    }
+    if (requestedChapter !== chapter && controlledChapter === undefined) {
+      appliedChapter = requestedChapter
+    }
+    if (requestedVersionId !== versionId && controlledVersionId === undefined) {
+      appliedVersionId = requestedVersionId
     }
   }
 
