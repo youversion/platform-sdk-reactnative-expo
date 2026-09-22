@@ -25,12 +25,13 @@ function boldLabelStyle(tokens: Tokens): TextStyle {
   }
 }
 
-const ICON_HIT_SLOP = 4
 const CHEVRON_HIT = 44
 const CAPSULE_MIN_HEIGHT = 44
 const CAPSULE_GAP = 8
 const TOOLBAR_PADDING_X = 24
 const MENU_ICON_SIZE = 20
+const MORE_ICON_SIZE = 24
+const MORE_HIT_SLOP = (CHEVRON_HIT - MORE_ICON_SIZE) / 2
 
 function MenuRow({
   testID,
@@ -79,12 +80,11 @@ function capsuleStyle(tokens: Tokens, theme: Theme): ViewStyle {
 
 function moreHitStyle(tokens: Tokens): ViewStyle {
   return {
-    height: CHEVRON_HIT,
-    width: CHEVRON_HIT,
+    height: MORE_ICON_SIZE,
+    width: MORE_ICON_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.full,
-    overflow: 'hidden',
   }
 }
 
@@ -178,11 +178,11 @@ function ToolbarMoreMenu({
     <Popover>
       <Popover.Trigger
         testID="reader-toolbar-menu"
-        hitSlop={ICON_HIT_SLOP}
+        hitSlop={MORE_HIT_SLOP}
         accessibilityLabel={t('moreMenuAriaLabel')}
         style={moreHitStyle(tokens)}
       >
-        <MoreIcon color={tokens.foreground} size={24} />
+        <MoreIcon color={tokens.foreground} size={MORE_ICON_SIZE} />
       </Popover.Trigger>
       <Popover.Content align="end" style={styles.menu}>
         <MenuRow

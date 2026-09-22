@@ -315,6 +315,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-menu')).toBeTruthy()
+    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar-menu').props.style)).toMatchObject(
+      {
+        width: 24,
+        height: 24,
+      },
+    )
     expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityLabel).toBe(
       en.changeBibleBookAndChapterAriaLabel,
     )
