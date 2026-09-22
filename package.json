@@ -28,8 +28,9 @@
     "generate:locale-index": "node scripts/generate-locale-index.mjs",
     "check:locale-index": "node scripts/generate-locale-index.mjs --check",
     "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "turbo build && pnpm exec changeset publish"
+    "version-packages": "changeset version && node scripts/build-root-changelog.mjs",
+    "release": "turbo build && pnpm exec changeset publish",
+    "build:root-changelog": "node scripts/build-root-changelog.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.29.7",
