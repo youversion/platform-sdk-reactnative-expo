@@ -80,6 +80,14 @@ export function sansFace(family: string, weight: FontFace['weight']): TextStyle 
   return { fontFamily: fontMapKey(family, weight, 'normal') }
 }
 
+export function serifFace(
+  family: string,
+  weight: FontFace['weight'],
+  style: FontFace['style'] = 'normal',
+): TextStyle {
+  return { fontFamily: fontMapKey(family, weight, style) }
+}
+
 function isAllowedFontFileUrl(url: string): boolean {
   let parsed: URL
   try {

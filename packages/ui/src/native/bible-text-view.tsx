@@ -13,7 +13,6 @@ import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -91,7 +90,6 @@ export function BibleTextView({
               isOpen={!!footnoteData}
               openKey={footnoteOpenKey}
               onClose={() => setFootnoteData(null)}
-              showAndroidLoader
               theme={footnoteTheme}
             >
               <FootnoteContent
