@@ -21,6 +21,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -48,6 +49,7 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
+import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
@@ -195,6 +197,16 @@ export type BibleReaderProps = Omit<
    * as an ordinary prop, so there is no `forwardRef` here.
    */
   ref?: Ref<BibleReaderHandle>
+  /**
+   * Pending-request object from {@link BibleReaderNavigation}. Pass one object
+   * to one Reader. Call `request` or `focusReference` before or after mount.
+   * One pending request; a newer call replaces an older one; this reader
+   * consumes it once.
+   *
+   * Loads book / chapter / versionId only. Verse scroll and focus stay stored
+   * on the request for a later release.
+   */
+  navigation?: BibleReaderNavigation
 }
 
 export function BibleReader({
@@ -227,6 +239,7 @@ export function BibleReader({
   foregroundColor,
   dom,
   ref,
+  navigation,
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
@@ -266,7 +279,11 @@ export function BibleReader({
     prop: controlledBook,
     defaultProp: controlledBook !== undefined ? defaultBook : (storedBook ?? defaultBook),
     onChange: (newBook) => {
-      if (controlledBook === undefined && lastAppliedRef.current?.book !== newBook) {
+      if (
+        controlledBook === undefined &&
+        lastAppliedRef.current?.book !== newBook &&
+        useReaderLocationStore.getState().book !== newBook
+      ) {
         setLocation({ book: newBook })
       }
       void onBookChange?.(newBook)
@@ -278,7 +295,11 @@ export function BibleReader({
     defaultProp:
       controlledChapter !== undefined ? defaultChapter : (storedChapter ?? defaultChapter),
     onChange: (newChapter) => {
-      if (controlledChapter === undefined && lastAppliedRef.current?.chapter !== newChapter) {
+      if (
+        controlledChapter === undefined &&
+        lastAppliedRef.current?.chapter !== newChapter &&
+        useReaderLocationStore.getState().chapter !== newChapter
+      ) {
         setLocation({ chapter: newChapter })
       }
       void onChapterChange?.(newChapter)
@@ -290,7 +311,11 @@ export function BibleReader({
     defaultProp:
       controlledVersionId !== undefined ? defaultVersionId : (storedVersionId ?? defaultVersionId),
     onChange: (newVersionId) => {
-      if (controlledVersionId === undefined && lastAppliedRef.current?.versionId !== newVersionId) {
+      if (
+        controlledVersionId === undefined &&
+        lastAppliedRef.current?.versionId !== newVersionId &&
+        useReaderLocationStore.getState().versionId !== newVersionId
+      ) {
         setLocation({ versionId: newVersionId })
       }
       void onVersionChange?.(newVersionId)
@@ -305,38 +330,7 @@ export function BibleReader({
     lastAppliedRef.current = null
   })
 
-  const resolvedVersionId = versionId ?? DEFAULT_BIBLE_VERSION_ID
-  const resolvedBook = book ?? DEFAULT_BOOK
-  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
-  const {
-    abbreviation: versionAbbreviation,
-    languageId: versionLanguageId,
-    isLoading: isVersionMetaLoading,
-  } = useBibleVersionAbbreviation(resolvedVersionId, {
-    enabled: showNativeToolbar,
-  })
-  const versionLabel = versionAbbreviation ?? ''
-  const {
-    title: bookTitle,
-    entry: bookEntry,
-    isLoading: isBookTitleLoading,
-    catalog: bookCatalog,
-  } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
-    enabled: showNativeToolbar,
-  })
-  const bookLabel = bookTitle ?? ''
-  const resolvedChapter = chapter ?? DEFAULT_CHAPTER
-  // Intro chapters carry a non-numeric id ("INTRO"); show the catalog's title, not the id.
-  const chapterLabel = chapterLabelForBook(bookEntry, resolvedChapter)
-  const previousChapter = adjacentBookChapter(
-    bookCatalog,
-    resolvedBook,
-    resolvedChapter,
-    'previous',
-  )
-  const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
-
-  const applyReaderLocation = (next: LocationPatch) => {
+  const commitReaderLocationPatch = (next: LocationPatch) => {
     lastAppliedRef.current = next
     const storePatch: LocationPatch = {}
     if (controlledBook === undefined && next.book !== undefined) {
@@ -355,6 +349,100 @@ export function BibleReader({
     ) {
       setLocation(storePatch)
     }
+  }
+
+  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  let appliedBook = book
+  let appliedChapter = chapter
+  let appliedVersionId = versionId
+  if (pendingNavigation) {
+    const {
+      bookId,
+      chapter: requestedChapterNumber,
+      versionId: requestedVersionId,
+    } = pendingNavigation.reference
+    const requestedBook = bookId
+    const requestedChapter = String(requestedChapterNumber)
+    if (requestedBook !== book && controlledBook === undefined) {
+      appliedBook = requestedBook
+    }
+    if (requestedChapter !== chapter && controlledChapter === undefined) {
+      appliedChapter = requestedChapter
+    }
+    if (requestedVersionId !== versionId && controlledVersionId === undefined) {
+      appliedVersionId = requestedVersionId
+    }
+  }
+
+  // Overlay paints the jump on this render. Persist one location after commit
+  // so a discarded render cannot notify the host or save a mixed book/chapter.
+  useLayoutEffect(() => {
+    if (!pendingNavigation) {
+      return
+    }
+    const {
+      bookId,
+      chapter: requestedChapterNumber,
+      versionId: requestedVersionId,
+    } = pendingNavigation.reference
+    const requestedBook = bookId
+    const requestedChapter = String(requestedChapterNumber)
+    if (
+      requestedBook === book &&
+      requestedChapter === chapter &&
+      requestedVersionId === versionId
+    ) {
+      return
+    }
+    commitReaderLocationPatch({
+      book: requestedBook,
+      chapter: requestedChapter,
+      versionId: requestedVersionId,
+    })
+    if (requestedBook !== book) {
+      setBook(requestedBook)
+    }
+    if (requestedChapter !== chapter) {
+      setChapter(requestedChapter)
+    }
+    if (requestedVersionId !== versionId) {
+      setVersionId(requestedVersionId)
+    }
+  }, [pendingNavigation, book, chapter, versionId, setBook, setChapter, setVersionId])
+
+  const resolvedVersionId = appliedVersionId ?? DEFAULT_BIBLE_VERSION_ID
+  const resolvedBook = appliedBook ?? DEFAULT_BOOK
+  const showNativeToolbar = Platform.OS !== 'web' && showToolbar
+  const {
+    abbreviation: versionAbbreviation,
+    languageId: versionLanguageId,
+    isLoading: isVersionMetaLoading,
+  } = useBibleVersionAbbreviation(resolvedVersionId, {
+    enabled: showNativeToolbar,
+  })
+  const versionLabel = versionAbbreviation ?? ''
+  const {
+    title: bookTitle,
+    entry: bookEntry,
+    isLoading: isBookTitleLoading,
+    catalog: bookCatalog,
+  } = useBibleBookTitle(resolvedVersionId, resolvedBook, {
+    enabled: showNativeToolbar,
+  })
+  const bookLabel = bookTitle ?? ''
+  const resolvedChapter = appliedChapter ?? DEFAULT_CHAPTER
+  // Intro chapters carry a non-numeric id ("INTRO"); show the catalog's title, not the id.
+  const chapterLabel = chapterLabelForBook(bookEntry, resolvedChapter)
+  const previousChapter = adjacentBookChapter(
+    bookCatalog,
+    resolvedBook,
+    resolvedChapter,
+    'previous',
+  )
+  const nextChapter = adjacentBookChapter(bookCatalog, resolvedBook, resolvedChapter, 'next')
+
+  const applyReaderLocation = (next: LocationPatch) => {
+    commitReaderLocationPatch(next)
     if (next.book !== undefined && next.book !== resolvedBook) {
       setBook(next.book)
     }
@@ -366,7 +454,11 @@ export function BibleReader({
     }
   }
 
-  const highlightPermissionFlow = useHighlightPermissionFlow({ versionId, book, chapter })
+  const highlightPermissionFlow = useHighlightPermissionFlow({
+    versionId: appliedVersionId,
+    book: appliedBook,
+    chapter: appliedChapter,
+  })
   const {
     highlights,
     scope: highlightScope,
@@ -421,7 +513,14 @@ export function BibleReader({
   // The stale intent on the ref is left alone. Closing the sheet means nothing
   // can fire `onConfirm`, the next swatch press overwrites the intent, and the
   // confirm handler re-checks the scope anyway.
-  const currentScope: HighlightScope = { versionId, book, chapter }
+  const currentScope: HighlightScope = useMemo(
+    () => ({
+      versionId: appliedVersionId,
+      book: appliedBook,
+      chapter: appliedChapter,
+    }),
+    [appliedVersionId, appliedBook, appliedChapter],
+  )
   let renderedPrompt = prompt
   if (prompt.kind === 'sign-in' && !sameScope(prompt.scope, currentScope)) {
     renderedPrompt = NO_PROMPT
@@ -468,11 +567,11 @@ export function BibleReader({
     // Backstop for the during-render discard above. A confirm that races a
     // controlled location change must not hand verse numbers to the current
     // location-scoped flow.
-    if (!sameScope(pending.scope, { versionId, book, chapter })) return
+    if (!sameScope(pending.scope, currentScope)) return
     void applyHighlight(pending.color, pending.verses).then((outcome) =>
       reportHighlightWriteError(outcome, onHighlightError),
     )
-  }, [applyHighlight, onHighlightError, versionId, book, chapter])
+  }, [applyHighlight, onHighlightError, currentScope])
 
   const handleSwatchPress = (swatch: VerseActionSwatch) => {
     const verses = verseSelection?.verses ?? []
@@ -498,10 +597,10 @@ export function BibleReader({
         pendingIntentRef.current = {
           color: swatch.color,
           verses,
-          scope: { versionId, book, chapter },
+          scope: currentScope,
         }
         if (authGate === 'signed-out') {
-          setPrompt({ kind: 'sign-in', scope: { versionId, book, chapter } })
+          setPrompt({ kind: 'sign-in', scope: currentScope })
         }
         return
       }
@@ -539,7 +638,7 @@ export function BibleReader({
     if (prompt.kind !== 'none') return
     const pending = pendingIntentRef.current
     if (pending === null) return
-    if (!sameScope(pending.scope, { versionId, book, chapter })) {
+    if (!sameScope(pending.scope, currentScope)) {
       pendingIntentRef.current = null
       return
     }
@@ -555,7 +654,7 @@ export function BibleReader({
         return _exhaustive
       }
     }
-  }, [authGate, prompt.kind, versionId, book, chapter, replayPendingIntent])
+  }, [authGate, prompt.kind, currentScope, replayPendingIntent])
 
   const handleOpenBibleThemeSettings = () => {
     setIsSettingsSheetOpen(true)
@@ -759,9 +858,9 @@ export function BibleReader({
           onSignOutPress={guardedSignOut}
           userInfo={userInfo}
           theme={resolvedTheme}
-          book={book}
-          chapter={chapter}
-          versionId={versionId}
+          book={appliedBook}
+          chapter={appliedChapter}
+          versionId={appliedVersionId}
           fontSize={fontSize}
           fontFamily={encodeFontFamilyForDom(fontFamily)}
           lineSpacing={lineSpacing}
@@ -850,9 +949,9 @@ export function BibleReader({
         <BibleChapterPickerSheet
           isOpen={isPickerOpen}
           onClose={() => setIsPickerOpen(false)}
-          book={book}
-          chapter={chapter}
-          versionId={versionId}
+          book={appliedBook}
+          chapter={appliedChapter}
+          versionId={appliedVersionId}
           theme={resolvedTheme}
           onSelect={async (data) => {
             applyReaderLocation({
@@ -867,7 +966,7 @@ export function BibleReader({
         <BibleVersionPickerSheet
           isOpen={isVersionPickerOpen}
           onClose={() => setIsVersionPickerOpen(false)}
-          versionId={versionId}
+          versionId={appliedVersionId}
           theme={resolvedTheme}
           onSelect={async (newVersionId) => {
             setVersionId(newVersionId)
