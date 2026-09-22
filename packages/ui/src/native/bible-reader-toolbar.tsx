@@ -31,7 +31,7 @@ const CAPSULE_GAP = 8
 const TOOLBAR_PADDING_X = 24
 const MENU_ICON_SIZE = 20
 const MORE_ICON_SIZE = 24
-const MORE_HIT_SLOP = (CHEVRON_HIT - MORE_ICON_SIZE) / 2
+const MORE_HIT = 44
 
 function MenuRow({
   testID,
@@ -88,8 +88,8 @@ function capsuleClipStyle(tokens: Tokens): ViewStyle {
 
 function moreHitStyle(tokens: Tokens): ViewStyle {
   return {
-    height: MORE_ICON_SIZE,
-    width: MORE_ICON_SIZE,
+    height: MORE_HIT,
+    width: MORE_HIT,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: tokens.radius.full,
@@ -186,7 +186,6 @@ function ToolbarMoreMenu({
     <Popover>
       <Popover.Trigger
         testID="reader-toolbar-menu"
-        hitSlop={MORE_HIT_SLOP}
         accessibilityLabel={t('moreMenuAriaLabel')}
         style={moreHitStyle(tokens)}
       >

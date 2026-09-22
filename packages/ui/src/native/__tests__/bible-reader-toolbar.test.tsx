@@ -315,12 +315,12 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-menu')).toBeTruthy()
-    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar-menu').props.style)).toMatchObject(
-      {
-        width: 24,
-        height: 24,
-      },
-    )
+    const menu = screen.getByTestId('reader-toolbar-menu')
+    expect(StyleSheet.flatten(menu.props.style)).toMatchObject({
+      width: 44,
+      height: 44,
+    })
+    expect(menu.props.hitSlop).toBeUndefined()
     expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityLabel).toBe(
       en.changeBibleBookAndChapterAriaLabel,
     )
