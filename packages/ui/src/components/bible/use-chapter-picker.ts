@@ -51,15 +51,24 @@ export function useChapterPicker({
     permittedLanguageTags,
   }
   const [filters, setFilters] = useState(incomingFilters)
-  if (!sameVersionFilters(filters, incomingFilters)) {
+  const filtersMatch = sameVersionFilters(filters, incomingFilters)
+  if (!filtersMatch) {
     setFilters(incomingFilters)
   }
+  let activeFilters = filters
+  if (!filtersMatch) {
+    activeFilters = incomingFilters
+  }
   const [loadState, setLoadState] = useState<ChapterPickerLoadState>({ status: 'loading' })
+  if (!filtersMatch && loadState.status !== 'loading') {
+    setLoadState({ status: 'loading' })
+  }
   const [query, setQuery] = useState('')
   const [order, setOrder] = useState<ChapterPickerOrder>('traditional')
   const [expandedBookId, setExpandedBookId] = useState<string | null>(book)
   const [pendingChapterId, setPendingChapterId] = useState<string | null>(null)
   const selectionPendingRef = useRef(false)
+  const loadedLanguageTagRef = useRef<string | null>(null)
   const [requestGeneration, setRequestGeneration] = useState(0)
 
   useEffect(() => setExpandedBookId(book), [book])
@@ -67,19 +76,24 @@ export function useChapterPicker({
   useEffect(() => {
     let cancelled = false
     setLoadState({ status: 'loading' })
+    loadedLanguageTagRef.current = null
 
     const load = async () => {
-      if (isVersionIdDecidablyUnusable(versionId, filters)) {
+      if (isVersionIdDecidablyUnusable(versionId, activeFilters)) {
         setLoadState({ status: 'error' })
         return
       }
-      if (filters.permittedLanguageTags !== undefined) {
+      if (activeFilters.permittedLanguageTags !== undefined) {
         const versionResponse = await fetchBibleContent({ path: `/v1/bibles/${versionId}` })
         if (cancelled) return
         const { languageId } = versionMetaFromBody(versionResponse.body)
+        loadedLanguageTagRef.current = languageId
         if (
           versionResponse.status !== 200 ||
-          !isUsableBibleVersion({ id: versionId, languageTag: languageId ?? undefined }, filters)
+          !isUsableBibleVersion(
+            { id: versionId, languageTag: languageId ?? undefined },
+            activeFilters,
+          )
         ) {
           setLoadState({ status: 'error' })
           return
@@ -107,7 +121,7 @@ export function useChapterPicker({
     return () => {
       cancelled = true
     }
-  }, [fetchBibleContent, filters, requestGeneration, versionId])
+  }, [activeFilters, fetchBibleContent, requestGeneration, versionId])
 
   const visibleBooks = useMemo(
     () =>
@@ -121,6 +135,7 @@ export function useChapterPicker({
   const selectChapter = useCallback(
     async (selectedBook: string, selectedChapter: string) => {
       if (selectionPendingRef.current) return false
+      if (!isSelectionAllowed(versionId, activeFilters, loadedLanguageTagRef.current)) return false
       selectionPendingRef.current = true
       setPendingChapterId(`${selectedBook}.${selectedChapter}`)
       try {
@@ -133,7 +148,7 @@ export function useChapterPicker({
         setPendingChapterId(null)
       }
     },
-    [onSelect, versionId],
+    [activeFilters, onSelect, versionId],
   )
 
   return {
@@ -162,6 +177,23 @@ function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | unde
     return false
   }
   return a.every((item, index) => item === b[index])
+}
+
+function isSelectionAllowed(
+  versionId: number,
+  filters: InternalVersionFilterProps,
+  languageTag: string | null,
+): boolean {
+  if (isVersionIdDecidablyUnusable(versionId, filters)) {
+    return false
+  }
+  if (filters.permittedLanguageTags === undefined) {
+    return true
+  }
+  if (languageTag === null) {
+    return false
+  }
+  return isUsableBibleVersion({ id: versionId, languageTag }, filters)
 }
 
 function sameVersionFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {

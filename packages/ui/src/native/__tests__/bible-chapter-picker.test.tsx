@@ -1,8 +1,10 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
+import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
-import { ScrollView } from 'react-native'
+import { ScrollView, Text } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
+import { useChapterPicker } from '../../components/bible/use-chapter-picker'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleChapterPicker } from '../bible-chapter-picker'
 import { YouVersionProvider } from '../youversion-provider'
@@ -223,6 +225,51 @@ describe('BibleChapterPicker', () => {
     expect(bookRequests).toBe(1)
   })
 
+  it('does not select a chapter after provider filters revoke the loaded version', async () => {
+    const onSelect = jest.fn()
+    jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      if (String(input).includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      return Promise.resolve(booksResponse())
+    })
+
+    const { getByText, rerender } = render(
+      <RevokeHarness permittedVersionIds={[9108]} onSelect={onSelect} />,
+    )
+    await waitFor(() => expect(getByText('ready')).toBeTruthy())
+
+    rerender(<RevokeHarness permittedVersionIds={[1]} onSelect={onSelect} />)
+
+    expect(onSelect).not.toHaveBeenCalled()
+    expect(getByText('error')).toBeTruthy()
+  })
+
+  it('does not select a chapter after the provider revokes the loaded language', async () => {
+    const onSelect = jest.fn()
+    jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      const url = String(input)
+      if (url.includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      if (url.endsWith('/v1/bibles/9109')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+          }),
+        )
+      }
+      return Promise.resolve(booksResponse())
+    })
+
+    const { getByText, rerender } = render(
+      <LanguageRevokeHarness permittedLanguageTags={['en']} onSelect={onSelect} />,
+    )
+    await waitFor(() => expect(getByText('ready')).toBeTruthy())
+
+    rerender(<LanguageRevokeHarness permittedLanguageTags={['es']} onSelect={onSelect} />)
+
+    await waitFor(() => expect(getByText('error')).toBeTruthy())
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
   it('scrolls the selected chapter back into view after the book order changes', async () => {
     const frames: FrameRequestCallback[] = []
     jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
@@ -253,6 +300,64 @@ describe('BibleChapterPicker', () => {
     expect(scrollTo).toHaveBeenCalledTimes(2)
   })
 })
+
+function RevokeHarness({
+  permittedVersionIds,
+  onSelect,
+}: {
+  permittedVersionIds: number[]
+  onSelect: (data: BibleChapterPickerSelectData) => void
+}) {
+  return (
+    <YouVersionProvider appKey="test-key" permittedVersionIds={permittedVersionIds}>
+      <RevokeProbe permittedVersionIds={permittedVersionIds} onSelect={onSelect} />
+    </YouVersionProvider>
+  )
+}
+
+function RevokeProbe({
+  permittedVersionIds,
+  onSelect,
+}: {
+  permittedVersionIds: number[]
+  onSelect: (data: BibleChapterPickerSelectData) => void
+}) {
+  const picker = useChapterPicker({ book: 'JHN', versionId: 9108, onSelect })
+  const versionRevoked = !permittedVersionIds.includes(9108)
+  if (versionRevoked) {
+    void picker.selectChapter('JHN', '1')
+  }
+  return <Text>{picker.loadState.status}</Text>
+}
+
+function LanguageRevokeHarness({
+  permittedLanguageTags,
+  onSelect,
+}: {
+  permittedLanguageTags: string[]
+  onSelect: (data: BibleChapterPickerSelectData) => void
+}) {
+  return (
+    <YouVersionProvider appKey="test-key" permittedLanguageTags={permittedLanguageTags}>
+      <LanguageRevokeProbe permittedLanguageTags={permittedLanguageTags} onSelect={onSelect} />
+    </YouVersionProvider>
+  )
+}
+
+function LanguageRevokeProbe({
+  permittedLanguageTags,
+  onSelect,
+}: {
+  permittedLanguageTags: string[]
+  onSelect: (data: BibleChapterPickerSelectData) => void
+}) {
+  const picker = useChapterPicker({ book: 'JHN', versionId: 9109, onSelect })
+  const languageRevoked = !permittedLanguageTags.includes('en')
+  if (languageRevoked) {
+    void picker.selectChapter('JHN', '1')
+  }
+  return <Text>{picker.loadState.status}</Text>
+}
 
 function fireLayouts(root: ReactTestInstance) {
   const nodes = root.findAll((node) => node.props.onLayout !== undefined)
