@@ -70,7 +70,6 @@ describe('package exports', () => {
     expect(names).not.toContain('Avatar')
     expect(names).not.toContain('PersonIcon')
     expect(names).not.toContain('BibleReaderToolbar')
-    expect(names).not.toContain('BibleReaderNavButtons')
     expect(names).not.toContain('useBibleVersionAbbreviation')
     expect(names).not.toContain('useBibleBookTitle')
   })

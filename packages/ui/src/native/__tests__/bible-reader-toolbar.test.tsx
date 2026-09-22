@@ -685,6 +685,13 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByText(en.selectVersion)).toBeTruthy()
     expect(screen.queryByText(en.changeBibleVersionAriaLabel)).toBeNull()
     expect(screen.queryByText('3034')).toBeNull()
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-version').props.style),
+    ).toMatchObject({
+      maxWidth: 96,
+      flexShrink: 1,
+      minWidth: 44,
+    })
     expect(screen.getByTestId('reader-toolbar-version').props.accessibilityLabel).toBe(
       en.changeBibleVersionAriaLabel,
     )
@@ -1316,14 +1323,21 @@ describe('BibleReader native toolbar', () => {
     installToolbarFetches()
     const { rerender } = await renderToolbar(<ToolbarAuthHarness auth={restoringAuth} />)
 
-    expect(screen.queryByTestId('reader-toolbar-sign-in')).toBeNull()
-    expect(screen.queryByTestId('reader-toolbar-sign-out')).toBeNull()
+    await openMoreMenu()
+    expect(
+      screen.getByTestId('reader-toolbar-settings', { includeHiddenElements: true }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByTestId('reader-toolbar-sign-in', { includeHiddenElements: true }),
+    ).toBeNull()
+    expect(
+      screen.queryByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }),
+    ).toBeNull()
     expect(signIn).not.toHaveBeenCalled()
 
     rerender(<ToolbarAuthHarness auth={signedInAuth} />)
     await settleToolbarLookups()
 
-    await openMoreMenu()
     expect(
       screen.getByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }),
     ).toBeTruthy()
@@ -1337,13 +1351,20 @@ describe('BibleReader native toolbar', () => {
     installToolbarFetches()
     const { rerender } = await renderToolbar(<ToolbarAuthHarness auth={restoringAuth} />)
 
-    expect(screen.queryByTestId('reader-toolbar-sign-in')).toBeNull()
-    expect(screen.queryByTestId('reader-toolbar-sign-out')).toBeNull()
+    await openMoreMenu()
+    expect(
+      screen.getByTestId('reader-toolbar-settings', { includeHiddenElements: true }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByTestId('reader-toolbar-sign-in', { includeHiddenElements: true }),
+    ).toBeNull()
+    expect(
+      screen.queryByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }),
+    ).toBeNull()
 
     rerender(<ToolbarAuthHarness auth={signedOutAuth({ signIn })} />)
     await settleToolbarLookups()
 
-    await openMoreMenu()
     expect(
       screen.getByTestId('reader-toolbar-sign-in', { includeHiddenElements: true }),
     ).toBeTruthy()

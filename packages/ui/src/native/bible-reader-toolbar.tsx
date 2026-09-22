@@ -357,7 +357,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   version: {
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: 96,
+    minWidth: 44,
     minHeight: CAPSULE_MIN_HEIGHT,
     paddingHorizontal: 16,
   },

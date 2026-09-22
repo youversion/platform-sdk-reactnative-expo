@@ -381,7 +381,7 @@ It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles bas
 
 #### Signing out
 
-Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s avatar menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s More menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
 
 On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
 
