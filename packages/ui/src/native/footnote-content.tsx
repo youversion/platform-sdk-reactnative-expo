@@ -1,9 +1,9 @@
+import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import type { TextStyle } from 'react-native'
 
 import { Text } from '../components/ui'
-import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import { ThemeContext, useTokens } from '../hooks'
 import {
   footnoteMarker,
@@ -23,11 +23,17 @@ const NOTE_LINE_HEIGHT = 16
 const SUP_SIZE_RATIO = 0.75
 const SUP_RAISE_EM = 0.5
 
+export type FootnoteContentProps = {
+  data: FootnoteData
+  theme?: 'light' | 'dark'
+  fontSize?: number
+}
+
 export default function FootnoteContent({
   data,
   theme = 'light',
   fontSize,
-}: FootnoteContentDOMProps): ReactNode {
+}: FootnoteContentProps): ReactNode {
   return (
     <ThemeContext.Provider value={theme}>
       <FootnoteBody data={data} fontSize={fontSize} />
@@ -39,7 +45,7 @@ function FootnoteBody({
   data,
   fontSize,
 }: {
-  data: FootnoteContentDOMProps['data']
+  data: FootnoteData
   fontSize: number | undefined
 }): ReactNode {
   const tokens = useTokens()

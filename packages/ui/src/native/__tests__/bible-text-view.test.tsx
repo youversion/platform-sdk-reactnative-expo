@@ -80,18 +80,12 @@ function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
   )
 }
 
-function MockFootnoteContent(props: {
-  data: FootnoteData
-  theme?: string
-  fontSize?: number
-  appKey: string
-}) {
+function MockFootnoteContent(props: { data: FootnoteData; theme?: string; fontSize?: number }) {
   return (
     <View testID="mock-footnote-content">
       <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
       <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-footnote-font-size">{String(props.fontSize ?? '')}</Text>
-      <Text testID="mock-footnote-app-key">{props.appKey}</Text>
     </View>
   )
 }
@@ -240,7 +234,6 @@ describe('BibleTextView', () => {
 
     expect(getByTestId('footnote-sheet')).toBeTruthy()
     expect(getByTestId('mock-footnote-verse').children).toContain('3')
-    expect(getByTestId('mock-footnote-app-key').children).toContain('test-key')
   })
 
   it('renders the marker payload as verse text in the native sheet', () => {

@@ -34,11 +34,7 @@ const VERSION_FILTER_DOM_ENTRIES = [
   'chapter-picker-content.tsx',
 ] as const
 
-const DOM_ENTRIES = [
-  ...VERSION_FILTER_DOM_ENTRIES,
-  'bible-reader-settings.tsx',
-  'footnote-content.tsx',
-] as const
+const DOM_ENTRIES = [...VERSION_FILTER_DOM_ENTRIES, 'bible-reader-settings.tsx'] as const
 
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {

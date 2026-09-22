@@ -131,11 +131,5 @@ describe('FootnoteContent', () => {
 })
 
 function sheetProps(data: FootnoteData) {
-  return {
-    data,
-    appKey: 'test-key',
-    apiHost: 'api.youversion.com',
-    installationId: 'install',
-    locale: 'en',
-  }
+  return { data }
 }
