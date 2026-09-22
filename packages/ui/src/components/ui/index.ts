@@ -4,7 +4,6 @@
  * is pinned by `src/__tests__/exports.test.ts`.
  */
 export { Text, type TextProps } from './text'
-export { Input, type InputClearProps, type InputFieldProps, type InputProps } from './input'
 export { Button, type ButtonIconProps, type ButtonProps, type ButtonTextProps } from './button'
 export {
   Card,

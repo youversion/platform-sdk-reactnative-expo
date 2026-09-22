@@ -224,4 +224,4 @@ _Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; a paralle
 
 **Search Sheet**:
 The native Reader Search UI. Internal, like **BibleVerseActionSheet** — not on the package namespace. The Search icon lives on the **Native Reader Toolbar**. Suggestions and trending use the active Bible version `language_tag`, or `*` when that tag is missing — not the app UI locale. A result tap dismisses the sheet and uses **Reader Navigation** to load that chapter. Verse scroll and focus wait on YPE-5747.
-_Avoid_: WebView Search; a second chrome row above the WebView; exporting the sheet or the Input primitive; using Provider Locale for Search language ranges
+_Avoid_: WebView Search; a second chrome row above the WebView; exporting the sheet; using Provider Locale for Search language ranges

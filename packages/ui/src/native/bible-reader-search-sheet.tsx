@@ -10,12 +10,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native'
 
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
 import { Text } from '../components/ui/text'
 import { useBibleReaderSearch } from '../hooks/use-bible-reader-search'
 import { useTokens } from '../hooks/use-tokens'
@@ -92,9 +92,14 @@ function BibleReaderSearchSheetImpl({
     >
       <View style={styles.body}>
         <View style={styles.header}>
-          <Input style={styles.field}>
-            <Input.Icon as={SearchIcon} />
-            <Input.Field
+          <View
+            style={[
+              styles.field,
+              { backgroundColor: tokens.input, borderRadius: tokens.radius.full },
+            ]}
+          >
+            <SearchIcon color={tokens.mutedForeground} size={24} />
+            <TextInput
               testID="bible-reader-search-field"
               value={search.query}
               onChangeText={search.setQuery}
@@ -104,16 +109,34 @@ function BibleReaderSearchSheetImpl({
               autoCapitalize="none"
               returnKeyType="search"
               placeholder={t('search')}
+              placeholderTextColor={tokens.mutedForeground}
               accessibilityLabel={t('search')}
+              style={[
+                styles.searchInput,
+                {
+                  color: tokens.foreground,
+                  ...sansFace(tokens.fontFamily.sans, 400),
+                  ...tokens.typography.base,
+                },
+              ]}
             />
             {showClear && (
-              <Input.Clear
+              <Pressable
                 testID="bible-reader-search-clear"
+                accessibilityRole="button"
                 accessibilityLabel={t('clearSearch')}
                 onPress={() => search.setQuery('')}
-              />
+                style={({ pressed }) => {
+                  if (pressed) {
+                    return [styles.clear, styles.clearPressed]
+                  }
+                  return styles.clear
+                }}
+              >
+                <Text style={{ color: tokens.mutedForeground, ...tokens.typography.sm }}>×</Text>
+              </Pressable>
             )}
-          </Input>
+          </View>
           <Button
             testID="bible-reader-search-cancel"
             variant="ghost"
@@ -236,7 +259,10 @@ function SearchBody({
 
   if (view.phase === 'pending') {
     return (
-      <View style={[styles.statusFill, { height: listHeight }]} testID="bible-reader-search-loading">
+      <View
+        style={[styles.statusFill, { height: listHeight }]}
+        testID="bible-reader-search-loading"
+      >
         <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
       </View>
     )
@@ -385,7 +411,25 @@ const styles = StyleSheet.create({
   },
   field: {
     flex: 1,
-    borderWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    minHeight: 40,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: 8,
+    margin: 0,
+  },
+  clear: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+  },
+  clearPressed: {
+    opacity: 0.8,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
