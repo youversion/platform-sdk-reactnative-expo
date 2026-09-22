@@ -1,8 +1,9 @@
 import { useYVAuth } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
 import { Trans } from 'react-i18next'
+import { StyleSheet } from 'react-native'
 import { Button, Text } from '../components/ui'
-import { ThemeContext, useTheme, useTokens } from '../hooks'
+import { ThemeContext, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { sansFace } from '../theme/fonts'
 import { BibleAppLogo } from './bible-app-logo'
@@ -57,23 +58,16 @@ type AuthButtonSurfaceProps = {
 
 function AuthButtonSurface({ i18nKey, text, onPress }: AuthButtonSurfaceProps): ReactNode {
   const tokens = useTokens()
-  const theme = useTheme()
-  const outlineWidth = { light: 1, dark: 2 }[theme]
 
   return (
     <Button
-      // Pin fill and outline. Button default primary is red in dark and hides the logo.
-      style={{
-        backgroundColor: tokens.background,
-        borderColor: tokens.border,
-        borderWidth: outlineWidth,
-        minHeight: 36,
-        height: 'auto',
-      }}
+      // secondary publishes foreground. Fill is the scheme surface so the logo stays readable.
+      variant="secondary"
+      style={[styles.button, { backgroundColor: tokens.background }]}
       onPress={onPress}
     >
       <BibleAppLogo />
-      <Button.Text numberOfLines={2} style={{ color: tokens.foreground, flex: 1 }}>
+      <Button.Text numberOfLines={2} style={styles.label}>
         <AuthButtonLabel i18nKey={i18nKey} text={text} />
       </Button.Text>
     </Button>
@@ -116,3 +110,15 @@ export function YouVersionAuthButton({
     </ThemeContext.Provider>
   )
 }
+
+const styles = StyleSheet.create({
+  button: {
+    height: 'auto',
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    gap: 16,
+  },
+  label: {
+    flex: 1,
+  },
+})
