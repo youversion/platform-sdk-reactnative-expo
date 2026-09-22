@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale } from '../../i18n/locale-context'
 import { catalogFromBooksBody } from '../../lib/bible-book-title'
 import { versionMetaFromBody } from '../../lib/bible-version-abbreviation'
+import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
 import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../../lib/version-usability'
 import {
   booksFromCatalog,
@@ -44,6 +45,15 @@ export function useChapterPicker({
   const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
     useYouVersion()
   const { lng } = useLocale()
+  const incomingFilters: InternalVersionFilterProps = {
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  }
+  const [filters, setFilters] = useState(incomingFilters)
+  if (!sameVersionFilters(filters, incomingFilters)) {
+    setFilters(incomingFilters)
+  }
   const [loadState, setLoadState] = useState<ChapterPickerLoadState>({ status: 'loading' })
   const [query, setQuery] = useState('')
   const [order, setOrder] = useState<ChapterPickerOrder>('traditional')
@@ -58,13 +68,12 @@ export function useChapterPicker({
     let cancelled = false
     setLoadState({ status: 'loading' })
 
-    const filters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
     const load = async () => {
       if (isVersionIdDecidablyUnusable(versionId, filters)) {
         setLoadState({ status: 'error' })
         return
       }
-      if (permittedLanguageTags !== undefined) {
+      if (filters.permittedLanguageTags !== undefined) {
         const versionResponse = await fetchBibleContent({ path: `/v1/bibles/${versionId}` })
         if (cancelled) return
         const { languageId } = versionMetaFromBody(versionResponse.body)
@@ -98,14 +107,7 @@ export function useChapterPicker({
     return () => {
       cancelled = true
     }
-  }, [
-    excludedVersionIds,
-    fetchBibleContent,
-    permittedLanguageTags,
-    permittedVersionIds,
-    requestGeneration,
-    versionId,
-  ])
+  }, [fetchBibleContent, filters, requestGeneration, versionId])
 
   const visibleBooks = useMemo(
     () =>
@@ -147,4 +149,25 @@ export function useChapterPicker({
     retry,
     selectChapter,
   }
+}
+
+function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
+  if (a === b) {
+    return true
+  }
+  if (a === undefined || b === undefined) {
+    return false
+  }
+  if (a.length !== b.length) {
+    return false
+  }
+  return a.every((item, index) => item === b[index])
+}
+
+function sameVersionFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
+  return (
+    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
+    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
+    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
+  )
 }

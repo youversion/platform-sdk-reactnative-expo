@@ -25,6 +25,7 @@ import Animated, {
 
 import { useTokens } from '../../hooks/use-tokens'
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
+import { withAlpha } from '../../lib/color'
 import { sansFace } from '../../theme/fonts'
 import { ClearIcon } from '../icons/clear-icon'
 import { InfoIcon } from '../icons/info-icon'
@@ -83,19 +84,23 @@ function BookRow({
   const tokens = useTokens()
   const { t } = useSdkTranslation()
   const selectedProgress = useSharedValue(selected ? 1 : 0)
+  const hiddenMuted = withAlpha(tokens.muted, 0)
   useEffect(() => {
     selectedProgress.value = withTiming(selected ? 1 : 0, {
       duration: MOTION_DURATION,
       reduceMotion: ReduceMotion.System,
     })
   }, [selected, selectedProgress])
-  const selectedStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(
-      selectedProgress.value,
-      [0, 1],
-      ['transparent', tokens.muted],
-    ),
-  }))
+  const selectedStyle = useAnimatedStyle(
+    () => ({
+      backgroundColor: interpolateColor(
+        selectedProgress.value,
+        [0, 1],
+        [hiddenMuted, tokens.muted],
+      ),
+    }),
+    [hiddenMuted, tokens.muted],
+  )
   const chapters = book.chapters
   const rowYRef = useRef<number | null>(null)
   const sectionYRef = useRef<number | null>(null)
@@ -292,6 +297,11 @@ export function ChapterPickerContent({
   const pendingExpandedBookId = useRef<string | null>(null)
   const pendingSelectedLayout = useRef<{ key: string; bottom: number } | null>(null)
   const focusedSelectionKey = useRef<string | null>(null)
+  const focusedOrder = useRef(order)
+  if (focusedOrder.current !== order) {
+    focusedOrder.current = order
+    focusedSelectionKey.current = null
+  }
 
   const focusSelectedChapter = () => {
     const selectedLayout = pendingSelectedLayout.current

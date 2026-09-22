@@ -25,15 +25,11 @@ export function visibleChapterPickerBooks(
   order: ChapterPickerOrder,
   locale: string,
 ): readonly ChapterPickerBook[] {
-  const ordered =
-    order === 'alphabetical'
-      ? [...books].sort((a, b) =>
-          new Intl.Collator(locale, { numeric: true, sensitivity: 'base' }).compare(
-            a.title,
-            b.title,
-          ),
-        )
-      : books
+  const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' })
+  let ordered: readonly ChapterPickerBook[] = books
+  if (order === 'alphabetical') {
+    ordered = [...books].sort((a, b) => collator.compare(a.title, b.title))
+  }
   const normalizedQuery = query.trim()
   if (normalizedQuery === '') {
     return ordered

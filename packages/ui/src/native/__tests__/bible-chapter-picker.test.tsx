@@ -1,5 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
+import { ScrollView } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleChapterPicker } from '../bible-chapter-picker'
@@ -181,4 +183,90 @@ describe('BibleChapterPicker', () => {
       fetchSpy.mock.calls.some(([input]) => String(input).includes('/v1/bibles/9105/books')),
     ).toBe(false)
   })
+
+  it('keeps the loaded catalog when the provider recreates the same language filter', async () => {
+    let bookRequests = 0
+    jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      const url = String(input)
+      if (url.includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      if (url.endsWith('/v1/bibles/9106')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+          }),
+        )
+      }
+      bookRequests += 1
+      return Promise.resolve(booksResponse())
+    })
+
+    function Harness() {
+      return (
+        <YouVersionProvider appKey="test-key" permittedLanguageTags={['en']}>
+          <BibleChapterPicker book="JHN" chapter="1" versionId={9106} />
+        </YouVersionProvider>
+      )
+    }
+
+    const { getByText, queryByLabelText, rerender } = render(<Harness />)
+    await waitFor(() => expect(getByText('John')).toBeTruthy())
+    expect(bookRequests).toBe(1)
+
+    rerender(<Harness />)
+
+    expect(queryByLabelText('Loading')).toBeNull()
+    expect(getByText('John')).toBeTruthy()
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(bookRequests).toBe(1)
+  })
+
+  it('scrolls the selected chapter back into view after the book order changes', async () => {
+    const frames: FrameRequestCallback[] = []
+    jest.spyOn(global, 'requestAnimationFrame').mockImplementation((callback) => {
+      frames.push(callback)
+      return frames.length
+    })
+    const scrollTo = jest.fn()
+    jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(scrollTo)
+    jest.spyOn(global, 'fetch').mockImplementation((input) => {
+      if (String(input).includes('/v1/fonts/')) return Promise.resolve(fontResponse())
+      return Promise.resolve(booksResponse())
+    })
+
+    const { getByText, UNSAFE_root } = render(
+      <BibleChapterPicker book="JHN" chapter="2" versionId={9107} />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+    await waitFor(() => expect(getByText('John')).toBeTruthy())
+
+    fireLayouts(UNSAFE_root)
+    flushFrames(frames)
+    expect(scrollTo).toHaveBeenCalledTimes(1)
+
+    fireEvent.press(getByText('Alphabetical'))
+    fireLayouts(UNSAFE_root)
+    flushFrames(frames)
+
+    expect(scrollTo).toHaveBeenCalledTimes(2)
+  })
 })
+
+function fireLayouts(root: ReactTestInstance) {
+  const nodes = root.findAll((node) => node.props.onLayout !== undefined)
+  const layout = {
+    nativeEvent: { layout: { x: 0, y: 80, width: 320, height: 48 } },
+  }
+  for (const node of nodes) {
+    fireEvent(node, 'layout', layout)
+  }
+}
+
+function flushFrames(frames: FrameRequestCallback[]) {
+  const pending = frames.splice(0)
+  act(() => {
+    for (const callback of pending) callback(0)
+  })
+}

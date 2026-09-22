@@ -22,6 +22,7 @@ type MockPickerProps = Pick<BibleChapterPickerProps, 'book' | 'chapter' | 'versi
 let latestPickerProps: MockPickerProps = {}
 let latestPickerBackgroundColor: string | undefined
 let latestBottomInsetColor: string | undefined
+let latestSelection: Promise<void> | undefined
 let pickerMounts = 0
 
 function MockPicker(props: MockPickerProps) {
@@ -33,7 +34,12 @@ function MockPicker(props: MockPickerProps) {
     <Pressable
       testID="trigger-select"
       onPress={() => {
-        void Promise.resolve(props.onSelect?.(SAMPLE_SELECTION)).catch(() => {})
+        const pending = props.onSelect?.(SAMPLE_SELECTION)
+        if (pending === undefined) {
+          latestSelection = Promise.resolve()
+        } else {
+          latestSelection = Promise.resolve(pending)
+        }
       }}
     >
       <Text>Select</Text>
@@ -48,6 +54,7 @@ describe('BibleChapterPickerSheet', () => {
     latestPickerProps = {}
     latestPickerBackgroundColor = undefined
     latestBottomInsetColor = undefined
+    latestSelection = undefined
     pickerMounts = 0
     setImpl('BibleChapterPicker', MockPicker)
     setImpl(
@@ -103,7 +110,10 @@ describe('BibleChapterPickerSheet', () => {
       { wrapper },
     )
 
-    await act(async () => fireEvent.press(getByTestId('trigger-select')))
+    await act(async () => {
+      fireEvent.press(getByTestId('trigger-select'))
+      await latestSelection
+    })
 
     expect(onClose).not.toHaveBeenCalled()
   })

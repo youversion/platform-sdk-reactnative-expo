@@ -40,7 +40,11 @@ function BibleChapterPickerSheetImpl({
   if (Platform.OS === 'web') return null
 
   const handleSelect = async (data: BibleChapterPickerSelectData) => {
-    await onSelect?.(data)
+    try {
+      await onSelect?.(data)
+    } catch {
+      return
+    }
     onClose()
   }
 
