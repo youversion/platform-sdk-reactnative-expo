@@ -78,6 +78,14 @@ function capsuleStyle(tokens: Tokens, theme: Theme): ViewStyle {
   return style
 }
 
+function capsuleClipStyle(tokens: Tokens): ViewStyle {
+  return {
+    borderRadius: tokens.radius.full,
+    overflow: 'hidden',
+    flexGrow: 1,
+  }
+}
+
 function moreHitStyle(tokens: Tokens): ViewStyle {
   return {
     height: MORE_ICON_SIZE,
@@ -264,60 +272,65 @@ export function BibleReaderToolbar({
     versionAriaLabel = t('loadingBibleVersionAriaLabel')
   }
   const capsule = capsuleStyle(tokens, theme)
+  const clip = capsuleClipStyle(tokens)
 
   return (
     <View testID="reader-toolbar" style={[styles.row, { backgroundColor: tokens.background }]}>
       <View testID="reader-toolbar-chapter-capsule" style={[styles.chapterCapsule, capsule]}>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={!canGoPrevious}
-          onPress={onPreviousChapterPress}
-          accessibilityLabel={t('previousChapterAriaLabel')}
-          testID="reader-toolbar-previous-chapter"
-          style={styles.chevron}
-        >
-          <Button.Icon as={ChevronLeftIcon} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="lg"
-          disabled={isBookTitleLoading}
-          onPress={onChapterPress}
-          accessibilityLabel={chapterAriaLabel}
-          testID="reader-toolbar-chapter"
-          style={styles.chapter}
-        >
-          <ChapterContent
-            bookLabel={bookLabel}
-            isBookTitleLoading={isBookTitleLoading}
-            chapter={chapter}
-          />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          disabled={!canGoNext}
-          onPress={onNextChapterPress}
-          accessibilityLabel={t('nextChapterAriaLabel')}
-          testID="reader-toolbar-next-chapter"
-          style={styles.chevron}
-        >
-          <Button.Icon as={ChevronRightIcon} />
-        </Button>
+        <View testID="reader-toolbar-chapter-clip" style={[styles.chapterClip, clip]}>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!canGoPrevious}
+            onPress={onPreviousChapterPress}
+            accessibilityLabel={t('previousChapterAriaLabel')}
+            testID="reader-toolbar-previous-chapter"
+            style={styles.chevron}
+          >
+            <Button.Icon as={ChevronLeftIcon} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            disabled={isBookTitleLoading}
+            onPress={onChapterPress}
+            accessibilityLabel={chapterAriaLabel}
+            testID="reader-toolbar-chapter"
+            style={styles.chapter}
+          >
+            <ChapterContent
+              bookLabel={bookLabel}
+              isBookTitleLoading={isBookTitleLoading}
+              chapter={chapter}
+            />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!canGoNext}
+            onPress={onNextChapterPress}
+            accessibilityLabel={t('nextChapterAriaLabel')}
+            testID="reader-toolbar-next-chapter"
+            style={styles.chevron}
+          >
+            <Button.Icon as={ChevronRightIcon} />
+          </Button>
+        </View>
       </View>
       <View testID="reader-toolbar-version-capsule" style={capsule}>
-        <Button
-          variant="ghost"
-          size="lg"
-          disabled={isVersionLoading}
-          onPress={onVersionPress}
-          accessibilityLabel={versionAriaLabel}
-          testID="reader-toolbar-version"
-          style={styles.version}
-        >
-          <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
-        </Button>
+        <View testID="reader-toolbar-version-clip" style={clip}>
+          <Button
+            variant="ghost"
+            size="lg"
+            disabled={isVersionLoading}
+            onPress={onVersionPress}
+            accessibilityLabel={versionAriaLabel}
+            testID="reader-toolbar-version"
+            style={styles.version}
+          >
+            <VersionContent versionLabel={versionLabel} isVersionLoading={isVersionLoading} />
+          </Button>
+        </View>
       </View>
       <ToolbarMoreMenu
         showAuth={showAuth}
@@ -341,8 +354,12 @@ const styles = StyleSheet.create({
   chapterCapsule: {
     flex: 1,
     minWidth: 0,
+    minHeight: CAPSULE_MIN_HEIGHT,
+  },
+  chapterClip: {
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 0,
     minHeight: CAPSULE_MIN_HEIGHT,
   },
   chevron: {

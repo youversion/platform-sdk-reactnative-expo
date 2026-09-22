@@ -385,10 +385,22 @@ describe('BibleReader native toolbar', () => {
         .overflow,
     ).not.toBe('hidden')
     expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-clip').props.style),
+    ).toMatchObject({
+      overflow: 'hidden',
+      borderRadius: lightTokens.radius.full,
+    })
+    expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-capsule').props.style),
     ).toMatchObject({
       backgroundColor: lightTokens.background,
       boxShadow: softShadow,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-clip').props.style),
+    ).toMatchObject({
+      overflow: 'hidden',
+      borderRadius: lightTokens.radius.full,
     })
   })
 
