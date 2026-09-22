@@ -14,6 +14,12 @@ import {
 import { sansFace, serifFace } from '../theme/fonts'
 
 const VERSE_FONT_SIZE = 20
+// Web sheet list is text-xs: 0.75rem, line-height 1 / 0.75.
+const NOTE_FONT_SIZE = 12
+const NOTE_LINE_HEIGHT = 16
+// sup { font-size: 75%; top: -0.5em } under [data-yv-sdk].
+const SUP_SIZE_RATIO = 0.75
+const SUP_RAISE_EM = 0.5
 
 export default function FootnoteContent({
   data,
@@ -44,8 +50,8 @@ function FootnoteBody({
   const verseParagraphs = parseFootnoteHtml(data.verseHtml)
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
-  const wj = tokens.wj
   const serif = tokens.fontFamily.serif
+  const sans = tokens.fontFamily.sans
 
   return (
     <View testID="footnote-content" style={styles.body}>
@@ -71,13 +77,13 @@ function FootnoteBody({
                 lineHeight={lineHeightFor(verseSize)}
                 color={foreground}
                 muted={muted}
-                wj={wj}
+                serif
               />
             ))}
           </View>
         </View>
       ) : null}
-      <View testID="footnote-notes">
+      <View testID="footnote-notes" style={styles.notes}>
         {data.notes.map((note, index) => {
           const marker = footnoteMarker(index)
           const label = `${marker}.`
@@ -87,18 +93,25 @@ function FootnoteBody({
               testID={`footnote-note-${marker}`}
               style={[styles.note, { borderBottomColor: tokens.border }]}
             >
-              <Text variant="muted">{label}</Text>
+              <Text
+                style={[
+                  sansFace(sans, 400),
+                  { color: foreground, fontSize: NOTE_FONT_SIZE, lineHeight: NOTE_LINE_HEIGHT },
+                ]}
+              >
+                {label}
+              </Text>
               <View style={styles.noteCopy}>
                 {parseFootnoteHtml(note).map((paragraph, paragraphIndex) => (
                   <ParagraphText
                     key={paragraphIndex}
                     paragraph={paragraph}
-                    family={serif}
-                    fontSize={tokens.typography.sm.fontSize}
-                    lineHeight={tokens.typography.sm.lineHeight}
+                    family={sans}
+                    fontSize={NOTE_FONT_SIZE}
+                    lineHeight={NOTE_LINE_HEIGHT}
                     color={foreground}
                     muted={muted}
-                    wj={wj}
+                    serif={false}
                   />
                 ))}
               </View>
@@ -117,7 +130,7 @@ function ParagraphText({
   lineHeight,
   color,
   muted,
-  wj,
+  serif,
 }: {
   paragraph: FootnoteParagraph
   family: string
@@ -125,12 +138,13 @@ function ParagraphText({
   lineHeight: number
   color: string
   muted: string
-  wj: string
+  serif: boolean
 }): ReactNode {
+  const face = serif ? serifFace(family, 400) : sansFace(family, 400)
   return (
-    <Text style={[serifFace(family, 400), { color, fontSize, lineHeight }]}>
+    <Text style={[face, { color, fontSize, lineHeight }]}>
       {paragraph.runs.map((run, index) => (
-        <Text key={index} style={runStyle(run, family, fontSize, color, muted, wj)}>
+        <Text key={index} style={runStyle(run, family, fontSize, lineHeight, color, muted, serif)}>
           {run.text}
         </Text>
       ))}
@@ -142,49 +156,51 @@ function runStyle(
   run: FootnoteRun,
   family: string,
   fontSize: number,
+  lineHeight: number,
   color: string,
   muted: string,
-  wj: string,
+  serif: boolean,
 ): TextStyle {
-  let faceStyle: 'italic' | 'normal' = 'normal'
-  if (run.italic) {
-    faceStyle = 'italic'
-  }
   let runColor = color
-  if (run.wj) {
-    runColor = wj
-  }
+  let runSize = fontSize
+  let shift = 0
   if (run.sup) {
     runColor = muted
+    runSize = Math.max(1, Math.round(fontSize * SUP_SIZE_RATIO))
+    // RN Text has no vertical-align. Half the superscript size matches CSS top: -0.5em.
+    shift = -Math.round(runSize * SUP_RAISE_EM)
   }
-  let runSize = fontSize
-  if (run.sup) {
-    runSize = Math.max(1, Math.round(fontSize * 0.7))
-  }
+  const weight = run.weight
+  const face = serif ? serifFace(family, weight) : sansFace(family, weight)
   const style: TextStyle = {
-    ...serifFace(family, run.weight, faceStyle),
+    ...face,
     color: runColor,
     fontSize: runSize,
+    lineHeight,
   }
-  if (run.smallCaps) {
-    style.fontVariant = ['small-caps']
+  if (shift !== 0) {
+    style.transform = [{ translateY: shift }]
   }
   return style
 }
 
 function lineHeightFor(fontSize: number): number {
-  return Math.round(fontSize * 1.4)
+  // [data-yv-sdk] sets line-height: 1.5, and the verse inherits it.
+  return Math.round(fontSize * 1.5)
 }
 
 const styles = StyleSheet.create({
   body: {
     paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
     gap: 12,
   },
   verse: {
     marginTop: 8,
+  },
+  notes: {
+    gap: 4,
   },
   note: {
     flexDirection: 'row',

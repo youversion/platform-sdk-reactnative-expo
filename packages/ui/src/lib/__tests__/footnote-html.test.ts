@@ -1,4 +1,8 @@
-import { footnoteMarker, parseFootnoteHtml } from '../footnote-html'
+import { footnoteMarker, parseFootnoteHtml, type FootnoteRun } from '../footnote-html'
+
+function run(text: string, extras?: Partial<FootnoteRun>): FootnoteRun {
+  return { text, weight: 400, sup: false, ...extras }
+}
 
 describe('footnoteMarker', () => {
   it('counts a, z, then aa', () => {
@@ -10,151 +14,50 @@ describe('footnoteMarker', () => {
 })
 
 describe('parseFootnoteHtml', () => {
-  it('reads an alternate-translation note as bold locator, plain text, and italic', () => {
+  it('keeps a note as plain text when the markup is only reader classes', () => {
     expect(
       parseFootnoteHtml(
         '<span class="fr">1:5 </span><span class="ft">Or </span><span class="fqa">understood</span>',
       ),
-    ).toEqual([
+    ).toEqual([{ runs: [run('1:5 Or understood')] }])
+  })
+
+  it('bolds a real b tag and leaves the following words plain', () => {
+    expect(parseFootnoteHtml('<b>1:5</b> Or understood')).toEqual([
       {
-        runs: [
-          {
-            text: '1:5 ',
-            italic: false,
-            weight: 700,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: 'Or ',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: 'understood',
-            italic: true,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
+        runs: [run('1:5', { weight: 700 }), run(' Or understood')],
       },
     ])
   })
 
-  it('splits a footnote paragraph and italicizes keyword and label', () => {
+  it('keeps a keyword note as one paragraph', () => {
     expect(
       parseFootnoteHtml(
         '<span class="ft">First paragraph.</span><span class="fp"><span class="fk">Keyword</span> and <span class="fl">label</span>.</span>',
       ),
-    ).toEqual([
-      {
-        runs: [
-          {
-            text: 'First paragraph.',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
-      {
-        runs: [
-          {
-            text: 'Keyword',
-            italic: true,
-            weight: 500,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: ' and ',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: 'label',
-            italic: true,
-            weight: 500,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: '.',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
-    ])
+    ).toEqual([{ runs: [run('First paragraph.Keyword and label.')] }])
   })
 
-  it('keeps words of Jesus, small caps, and a superscript marker in verse html', () => {
+  it('keeps a superscript marker and collapses the space before it', () => {
     expect(
       parseFootnoteHtml(
         'He then added, <span class="wj">"Very truly I tell you,"</span> <span class="nd">LORD</span><sup class="yv:text-muted-foreground">a</sup>',
       ),
     ).toEqual([
       {
-        runs: [
-          {
-            text: 'He then added, ',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: '"Very truly I tell you,"',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: true,
-            smallCaps: false,
-          },
-          {
-            text: ' ',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-          {
-            text: 'LORD',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: true,
-          },
-          {
-            text: 'a',
-            italic: false,
-            weight: 400,
-            sup: true,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
+        runs: [run('He then added, "Very truly I tell you," LORD'), run('a', { sup: true })],
       },
     ])
+  })
+
+  it('collapses a space at the end of one tag and the start of the next', () => {
+    expect(parseFootnoteHtml('<span>In the beginning </span> <span>was the Word</span>')).toEqual([
+      { runs: [run('In the beginning was the Word')] },
+    ])
+  })
+
+  it('drops a leading space left by an empty bold tag', () => {
+    expect(parseFootnoteHtml('<p><b> </b> text</p>')).toEqual([{ runs: [run('text')] }])
   })
 
   it('decodes entities, unwraps links, and drops script text', () => {
@@ -162,79 +65,20 @@ describe('parseFootnoteHtml', () => {
       parseFootnoteHtml(
         '<span class="ft">God&#39;s <a href="https://example.com">Gen. 28:12</a></span><script>alert(1)</script>',
       ),
-    ).toEqual([
-      {
-        runs: [
-          {
-            text: "God's Gen. 28:12",
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
-    ])
+    ).toEqual([{ runs: [run("God's Gen. 28:12")] }])
   })
 
   it('turns a paragraph and a line break into separate blocks', () => {
-    expect(parseFootnoteHtml('<p>footnote</p>')).toEqual([
-      {
-        runs: [
-          {
-            text: 'footnote',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
-    ])
+    expect(parseFootnoteHtml('<p>footnote</p>')).toEqual([{ runs: [run('footnote')] }])
     expect(parseFootnoteHtml('Line one<br>Line two')).toEqual([
-      {
-        runs: [
-          {
-            text: 'Line one',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
-      {
-        runs: [
-          {
-            text: 'Line two',
-            italic: false,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
+      { runs: [run('Line one')] },
+      { runs: [run('Line two')] },
     ])
   })
 
-  it('italicizes a transliteration', () => {
+  it('leaves a transliteration class as plain text', () => {
     expect(parseFootnoteHtml('<span class="tl">hoi Ioudaioi</span>')).toEqual([
-      {
-        runs: [
-          {
-            text: 'hoi Ioudaioi',
-            italic: true,
-            weight: 400,
-            sup: false,
-            wj: false,
-            smallCaps: false,
-          },
-        ],
-      },
+      { runs: [run('hoi Ioudaioi')] },
     ])
   })
 

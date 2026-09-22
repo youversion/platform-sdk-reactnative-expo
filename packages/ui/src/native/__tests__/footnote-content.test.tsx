@@ -26,7 +26,7 @@ function flattened(text: string) {
 }
 
 describe('FootnoteContent', () => {
-  it('shows the reference, red-letter verse, and italic alternate reading', () => {
+  it('shows the reference, verse, raised marker, and a plain note', () => {
     render(<FootnoteContent {...sheetProps(johnNote)} fontSize={22} />, {
       wrapper: youVersionProviderWrapper(),
     })
@@ -36,29 +36,36 @@ describe('FootnoteContent', () => {
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       fontSize: light.typography.base.fontSize,
     })
-    expect(flattened('"Very truly I tell you,"')).toMatchObject({
-      color: light.wj,
+    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+      color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
       fontSize: 22,
+      lineHeight: 33,
     })
     expect(flattened('a')).toMatchObject({
       color: light.mutedForeground,
-      fontSize: 15,
+      fontSize: 17,
+      lineHeight: 33,
+      transform: [{ translateY: -9 }],
     })
-    expect(flattened('understood')).toMatchObject({
+    expect(flattened('1:5 Or understood')).toMatchObject({
       color: light.foreground,
-      fontFamily: fontMapKey(light.fontFamily.serif, 400, 'italic'),
-      fontSize: light.typography.sm.fontSize,
+      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
+      fontSize: 12,
+      lineHeight: 16,
     })
-    expect(flattened('1:5 ')).toMatchObject({
-      fontFamily: fontMapKey(light.fontFamily.serif, 700, 'normal'),
+    expect(flattened('a.')).toMatchObject({
+      color: light.foreground,
+      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
+      fontSize: 12,
+      lineHeight: 16,
     })
-    expect(flattened('Keyword')).toMatchObject({
-      fontFamily: fontMapKey(light.fontFamily.serif, 500, 'italic'),
+    expect(flattened('b.')).toBeTruthy()
+    expect(flattened('First paragraph.Keyword')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
+      fontSize: 12,
+      lineHeight: 16,
     })
-    expect(screen.getByText('a.')).toBeTruthy()
-    expect(screen.getByText('b.')).toBeTruthy()
-    expect(screen.getByText('First paragraph.')).toBeTruthy()
   })
 
   it('uses a 20px verse face when the host does not pass fontSize', () => {
@@ -76,20 +83,23 @@ describe('FootnoteContent', () => {
     expect(flattened('footnote')).toMatchObject({
       fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
       fontSize: 20,
+      lineHeight: 30,
       color: light.foreground,
     })
     expect(screen.getByText('3')).toBeTruthy()
     expect(screen.queryByTestId('footnote-note-a')).toBeNull()
   })
 
-  it('paints words of Jesus with the dark token when the sheet theme is dark', () => {
+  it('paints the verse with the dark token when the sheet theme is dark', () => {
     render(<FootnoteContent {...sheetProps(johnNote)} theme="dark" />, {
       wrapper: youVersionProviderWrapper('light'),
     })
 
-    expect(flattened('"Very truly I tell you,"')).toMatchObject({ color: dark.wj })
+    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+      color: dark.foreground,
+    })
     expect(flattened('John 1:5')).toMatchObject({ color: dark.foreground })
-    expect(flattened('understood')).toMatchObject({ color: dark.foreground })
+    expect(flattened('1:5 Or understood')).toMatchObject({ color: dark.foreground })
   })
 
   it('hides the verse block when the note has no verse html', () => {

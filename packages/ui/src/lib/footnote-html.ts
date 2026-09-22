@@ -1,10 +1,7 @@
 export type FootnoteRun = {
   text: string
-  italic: boolean
-  weight: 400 | 500 | 700
+  weight: 400 | 700
   sup: boolean
-  wj: boolean
-  smallCaps: boolean
 }
 
 export type FootnoteParagraph = {
@@ -15,11 +12,8 @@ const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
 const PLAIN: FootnoteRun = {
   text: '',
-  italic: false,
   weight: 400,
   sup: false,
-  wj: false,
-  smallCaps: false,
 }
 
 type FootnoteStyle = Omit<FootnoteRun, 'text'>
@@ -33,7 +27,6 @@ type Frame = {
 type OpenTag = {
   kind: 'open'
   name: string
-  classes: string
   selfClosing: boolean
 }
 
@@ -109,16 +102,16 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
   }
 
   function openTag(tag: OpenTag): void {
-    if (isBlock(tag.name, tag.classes)) {
+    if (isBlock(tag.name)) {
       flush()
     }
     if (tag.selfClosing) {
       return
     }
     const drop = tag.name === 'script' || tag.name === 'style'
-    frames.push({ name: tag.name, block: isBlock(tag.name, tag.classes), drop })
+    frames.push({ name: tag.name, block: isBlock(tag.name), drop })
     if (!drop) {
-      styles.push(applyStyle(currentStyle(), tag.name, tag.classes))
+      styles.push(applyStyle(currentStyle(), tag.name))
     }
   }
 
@@ -146,12 +139,19 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
   }
 
   function emitText(token: string): void {
-    const collapsed = decodeEntities(token).replace(/[ \t\n\r\f]+/g, ' ')
+    let collapsed = decodeEntities(token).replace(/[ \t\n\r\f]+/g, ' ')
+    if (collapsed.length === 0) {
+      return
+    }
+    const previous = runs[runs.length - 1]
+    const previousEndsWithSpace = previous !== undefined && previous.text.endsWith(' ')
+    if (collapsed.startsWith(' ') && (previous === undefined || previousEndsWithSpace)) {
+      collapsed = collapsed.replace(/^ +/, '')
+    }
     if (collapsed.length === 0) {
       return
     }
     const style = currentStyle()
-    const previous = runs[runs.length - 1]
     if (previous !== undefined && sameStyle(previous, style)) {
       previous.text += collapsed
       return
@@ -188,70 +188,33 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
 
 function plainStyle(): FootnoteStyle {
   return {
-    italic: PLAIN.italic,
     weight: PLAIN.weight,
     sup: PLAIN.sup,
-    wj: PLAIN.wj,
-    smallCaps: PLAIN.smallCaps,
   }
 }
 
-function isBlock(name: string, classes: string): boolean {
-  if (BLOCK_TAGS.has(name)) {
-    return true
-  }
-  return classTokens(classes).includes('fp')
+function isBlock(name: string): boolean {
+  return BLOCK_TAGS.has(name)
 }
 
-function classTokens(classes: string): string[] {
-  if (classes.length === 0) {
-    return []
-  }
-  return classes.split(/\s+/).filter((token) => token.length > 0)
-}
-
-function applyStyle(parent: FootnoteStyle, name: string, classes: string): FootnoteStyle {
+/**
+ * The web footnote sheet does not style bible-reader classes such as fr, fqa, and wj.
+ * Its CSS resets every element to the parent font and only restores bold on b and strong,
+ * plus the superscript treatment on sup and sub.
+ */
+function applyStyle(parent: FootnoteStyle, name: string): FootnoteStyle {
   const next: FootnoteStyle = { ...parent }
-  if (name === 'i' || name === 'em') {
-    next.italic = true
-  }
   if (name === 'b' || name === 'strong') {
     next.weight = 700
   }
   if (name === 'sup' || name === 'sub') {
     next.sup = true
   }
-  for (const token of classTokens(classes)) {
-    if (token === 'fq' || token === 'fqa' || token === 'tl' || token === 'em') {
-      next.italic = true
-    }
-    if (token === 'fk' || token === 'fl') {
-      next.italic = true
-      if (next.weight === 400) {
-        next.weight = 500
-      }
-    }
-    if (token === 'bd' || token === 'fr') {
-      next.weight = 700
-    }
-    if (token === 'wj') {
-      next.wj = true
-    }
-    if (token === 'nd' || token === 'sc') {
-      next.smallCaps = true
-    }
-  }
   return next
 }
 
 function sameStyle(run: FootnoteRun, style: FootnoteStyle): boolean {
-  return (
-    run.italic === style.italic &&
-    run.weight === style.weight &&
-    run.sup === style.sup &&
-    run.wj === style.wj &&
-    run.smallCaps === style.smallCaps
-  )
+  return run.weight === style.weight && run.sup === style.sup
 }
 
 function trimRuns(source: FootnoteRun[]): FootnoteRun[] {
@@ -281,10 +244,8 @@ function parseTag(raw: string): OpenTag | CloseTag | null {
     return null
   }
   const name = openName.toLowerCase()
-  const classMatch = /\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(raw)
-  const classes = classMatch?.[1] ?? classMatch?.[2] ?? ''
   const selfClosing = /\/\s*>$/.test(raw) || name === 'br'
-  return { kind: 'open', name, classes, selfClosing }
+  return { kind: 'open', name, selfClosing }
 }
 
 function decodeEntities(value: string): string {
