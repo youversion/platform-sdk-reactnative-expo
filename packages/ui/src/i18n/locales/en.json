@@ -63,5 +63,8 @@
   "done": "Done",
   "noChaptersAvailable": "No chapters available",
   "retry": "Retry",
-  "traditional": "Traditional"
+  "traditional": "Traditional",
+  "bibleSearchClearAriaLabel": "Clear search",
+  "bibleSearchRecentHeading": "Recent Searches",
+  "bibleSearchTrendingHeading": "Trending Searches"
 }
