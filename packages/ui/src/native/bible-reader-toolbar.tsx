@@ -3,7 +3,6 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import type { BoxShadowValue, TextStyle, ViewStyle } from 'react-native'
 
 import { Button } from '../components/ui/button'
-import { PersonIcon } from '../components/ui/person-icon'
 import { Popover } from '../components/ui/popover'
 import { useTheme, type Theme } from '../hooks/use-theme'
 import { useTokens } from '../hooks/use-tokens'
@@ -15,6 +14,7 @@ import { AaIcon } from './icons/aa-icon'
 import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { MoreIcon } from './icons/more-icon'
+import { PersonIcon } from './icons/person-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return {
