@@ -160,26 +160,36 @@ describe('YouVersionAuthButton labels', () => {
 })
 
 describe('YouVersionAuthButton container tokens', () => {
-  it('fills the default Button from the light scheme even when the provider is dark', () => {
+  it('fills from the light scheme with 18/8 padding, a 16px logo gap, and no border even when the provider is dark', () => {
     renderAuthButton({ background: 'light' }, 'dark')
 
-    expect(buttonStyle()).toMatchObject({
+    const style = buttonStyle()
+    expect(style).toMatchObject({
       backgroundColor: light.background,
       borderRadius: light.radius.full,
-      borderColor: light.border,
-      borderWidth: 1,
+      height: 'auto',
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+      gap: 16,
     })
+    expect(style.borderColor).toBeUndefined()
+    expect(style.borderWidth).toBeUndefined()
   })
 
-  it('fills the default Button from the dark scheme even when the provider is light', () => {
+  it('fills from the dark scheme with 18/8 padding, a 16px logo gap, and no border even when the provider is light', () => {
     renderAuthButton({ background: 'dark' }, 'light')
 
-    expect(buttonStyle()).toMatchObject({
+    const style = buttonStyle()
+    expect(style).toMatchObject({
       backgroundColor: dark.background,
       borderRadius: dark.radius.full,
-      borderColor: dark.border,
-      borderWidth: 2,
+      height: 'auto',
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+      gap: 16,
     })
+    expect(style.borderColor).toBeUndefined()
+    expect(style.borderWidth).toBeUndefined()
   })
 
   it('does not leak the forced scheme to siblings', () => {
