@@ -1,4 +1,4 @@
-import { fireEvent, render } from '@testing-library/react-native'
+import { fireEvent, render, within } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -11,6 +11,7 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleTextView } from '../bible-text-view'
+import FootnoteContent from '../footnote-content'
 import { YouVersionProvider } from '../youversion-provider'
 
 const EMBED_DEFAULTS = {
@@ -240,6 +241,21 @@ describe('BibleTextView', () => {
     expect(getByTestId('footnote-sheet')).toBeTruthy()
     expect(getByTestId('mock-footnote-verse').children).toContain('3')
     expect(getByTestId('mock-footnote-app-key').children).toContain('test-key')
+  })
+
+  it('renders the marker payload as verse text in the native sheet', () => {
+    setImpl('FootnoteContent', FootnoteContent)
+    const { getByTestId } = render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+
+    fireEvent.press(getByTestId('mock-footnote-trigger'))
+
+    const sheet = within(getByTestId('footnote-sheet'))
+    expect(sheet.getByTestId('footnote-reference').props.children).toBe('3')
+    expect(sheet.getAllByText('footnote').some((node) => node.props.children === 'footnote')).toBe(
+      true,
+    )
   })
 
   it('invokes consumer onFootnotePress and does not mount the default footnote sheet', () => {

@@ -33,7 +33,6 @@ const DEFAULT_MAX_WIDTH = 700
 /** Web `yv:card-content` when `maxWidth="100%"` — full-bleed shell, capped inner column. */
 const FULL_BLEED_INNER_MAX_WIDTH = 600
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -309,12 +308,7 @@ function BibleCardBody({
         />
       )}
       {showFootnoteSheet && (
-        <NativeSheet
-          isOpen={!!footnoteData}
-          onClose={onCloseFootnote}
-          showAndroidLoader
-          theme={resolvedTheme}
-        >
+        <NativeSheet isOpen={!!footnoteData} onClose={onCloseFootnote} theme={resolvedTheme}>
           <FootnoteContent
             dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
