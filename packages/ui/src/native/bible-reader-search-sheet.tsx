@@ -3,7 +3,7 @@ import {
   type BibleReference,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import { type ReactElement, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -71,6 +71,17 @@ function BibleReaderSearchSheetImpl({
   const listHeight = Math.round(height * 0.5)
   const showClear = search.query.length > 0
   const { view } = search
+  const fieldRef = useRef<TextInput>(null)
+
+  // NativeSheet keeps children mounted while closed, so autoFocus would steal
+  // the keyboard on first mount and would not run again on the next open.
+  useEffect(() => {
+    if (isOpen) {
+      fieldRef.current?.focus()
+      return
+    }
+    fieldRef.current?.blur()
+  }, [isOpen])
 
   const handleSelectVerse = (usfm: TitledVerse['usfm']) => {
     const reference = bibleReferenceFromUsfm(usfm, versionId)
@@ -81,10 +92,15 @@ function BibleReaderSearchSheetImpl({
     onSelectReference(reference)
   }
 
+  const handleDismissKeyboardStart = () => {
+    fieldRef.current?.blur()
+  }
+
   return (
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      onDismissKeyboardStart={handleDismissKeyboardStart}
       theme={theme}
       enableContentPanningGesture
       panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
@@ -100,6 +116,7 @@ function BibleReaderSearchSheetImpl({
           >
             <SearchIcon color={tokens.mutedForeground} size={24} />
             <TextInput
+              ref={fieldRef}
               testID="bible-reader-search-field"
               value={search.query}
               onChangeText={search.setQuery}

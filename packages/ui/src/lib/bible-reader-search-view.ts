@@ -1,4 +1,8 @@
-import type { NonBlankQuery, TitledVerse } from './bible-reader-search'
+import {
+  SEARCH_VISIBLE_QUERY_LIMIT,
+  type NonBlankQuery,
+  type TitledVerse,
+} from './bible-reader-search'
 import type { AppendState, Loading, SearchState } from './bible-reader-search-machine'
 
 export type ResultsFooter =
@@ -36,6 +40,10 @@ export type SearchViewHandlers = {
 
 const NO_QUERIES: readonly NonBlankQuery[] = []
 
+function visibleQueries(queries: readonly NonBlankQuery[]): readonly NonBlankQuery[] {
+  return queries.slice(0, SEARCH_VISIBLE_QUERY_LIMIT)
+}
+
 function footerOf(append: AppendState, loadNextPage: () => void): ResultsFooter {
   if (append.status === 'loading') {
     return { kind: 'loading' }
@@ -53,8 +61,17 @@ export function toSearchView(
   handlers: SearchViewHandlers,
 ): SearchView {
   switch (state.kind) {
-    case 'browsing':
-      return { phase: 'browsing', trending: state.trending, recents }
+    case 'browsing': {
+      const trending =
+        state.trending.status === 'loading'
+          ? state.trending
+          : { status: 'done' as const, value: visibleQueries(state.trending.value) }
+      return {
+        phase: 'browsing',
+        trending,
+        recents: visibleQueries(recents),
+      }
+    }
 
     case 'typing': {
       if (state.suggestions.status === 'loading') {

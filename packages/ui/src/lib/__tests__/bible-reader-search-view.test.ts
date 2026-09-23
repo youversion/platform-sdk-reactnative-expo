@@ -102,6 +102,22 @@ describe('toSearchView', () => {
     })
   })
 
+  it('caps browsing trending and recents at the visible query limit', () => {
+    const browsing = opened()
+    const loaded = searchReducer(browsing, {
+      type: 'trendingLoaded',
+      epoch: browsing.epoch,
+      queries: [query('alpha'), query('beta'), query('gamma'), query('delta')],
+    })
+    const recents = [query('one'), query('two'), query('three'), query('four')]
+
+    expect(toSearchView(loaded, recents, handlers())).toEqual({
+      phase: 'browsing',
+      trending: { status: 'done', value: ['alpha', 'beta', 'gamma'] },
+      recents: ['one', 'two', 'three'],
+    })
+  })
+
   it('suggests nothing until the suggestions land', () => {
     const typing = reduce(opened(), { type: 'queryEdited', text: 'lov' })
 

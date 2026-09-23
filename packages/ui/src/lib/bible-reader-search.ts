@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 export const SEARCH_DEBOUNCE_MS = 300
 export const SEARCH_QUERY_MAX_LENGTH = 100
+export const SEARCH_VISIBLE_QUERY_LIMIT = 3
 export const SEARCH_SNIPPET_MAX_CHARS = 180
 export const SEARCH_SNIPPET_LINE_COUNT = 3
 

@@ -361,6 +361,14 @@ describe('BibleReader native toolbar', () => {
     ).toMatchObject({
       backgroundColor: darkTokens.muted,
     })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style),
+    ).toMatchObject({
+      backgroundColor: darkTokens.muted,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style).boxShadow,
+    ).toBeUndefined()
   })
 
   it('fills chapter and version capsules with canvas white in light', async () => {
@@ -397,6 +405,12 @@ describe('BibleReader native toolbar', () => {
     })
     expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-capsule').props.style),
+    ).toMatchObject({
+      backgroundColor: lightTokens.background,
+      boxShadow: softShadow,
+    })
+    expect(
+      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style),
     ).toMatchObject({
       backgroundColor: lightTokens.background,
       boxShadow: softShadow,

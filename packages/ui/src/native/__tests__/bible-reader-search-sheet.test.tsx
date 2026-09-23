@@ -7,8 +7,9 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, Text, TextInput, View } from 'react-native'
 
+import { nonBlankQuery } from '../../lib/bible-reader-search'
 import {
   searchHistoryStoreInitialState,
   useSearchHistoryStore,
@@ -116,6 +117,54 @@ describe('BibleReaderSearchSheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('focuses the search field when the sheet opens and blurs it when the sheet closes', async () => {
+    const focus = jest.spyOn(TextInput.prototype, 'focus')
+    const blur = jest.spyOn(TextInput.prototype, 'blur')
+    // Production NativeSheet keeps children mounted while closed. The suite
+    // mock unmounts them, which clears the field ref before blur can run.
+    setImpl('NativeSheet', ({ children, headerTitle, onClose }) => (
+      <View testID="search-sheet">
+        {headerTitle !== undefined && <Text>{headerTitle}</Text>}
+        {children}
+        <Pressable testID="sheet-close" onPress={onClose}>
+          <Text>Close</Text>
+        </Pressable>
+      </View>
+    ))
+    const stub = searchStub()
+    const props = {
+      onClose: () => {},
+      versionId: 111,
+      languageTag: 'en',
+      theme: 'light' as const,
+      fetchBibleContent,
+      onSelectReference: () => {},
+    }
+    try {
+      const { rerender } = render(<BibleReaderSearchSheet isOpen={false} {...props} />, {
+        wrapper: wrapperFor(stub),
+      })
+      await flush()
+      focus.mockClear()
+      blur.mockClear()
+
+      rerender(<BibleReaderSearchSheet isOpen {...props} />)
+      await flush()
+
+      expect(focus.mock.instances[0].props.testID).toBe('bible-reader-search-field')
+      focus.mockClear()
+      blur.mockClear()
+
+      rerender(<BibleReaderSearchSheet isOpen={false} {...props} />)
+      await flush()
+
+      expect(blur.mock.instances[0].props.testID).toBe('bible-reader-search-field')
+    } finally {
+      focus.mockRestore()
+      blur.mockRestore()
+    }
+  })
+
   it('shows Trending Searches while trending is still loading and omits Recents when empty', async () => {
     const pending = deferred<SearchApiResult<YouVersionSearchQueries>>()
     const stub = searchStub({
@@ -221,6 +270,53 @@ describe('BibleReaderSearchSheet', () => {
       bibleId: 111,
       userIntent: 'unknown',
     })
+  })
+
+  it('shows at most three trending queries and three recents on the empty sheet', async () => {
+    const stub = searchStub({
+      trendingQueries: jest.fn(async () => ({
+        ok: true as const,
+        value: {
+          queries: [
+            { text: 'alpha' },
+            { text: 'beta' },
+            { text: 'gamma' },
+            { text: 'delta' },
+          ],
+        },
+      })),
+    })
+    const { record } = useSearchHistoryStore.getState()
+    for (const text of ['four', 'three', 'two', 'one']) {
+      const branded = nonBlankQuery(text)
+      if (branded === null) {
+        throw new Error(`test fixture query is blank: ${text}`)
+      }
+      record(branded)
+    }
+
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    expect(screen.getByText('alpha')).toBeTruthy()
+    expect(screen.getByText('beta')).toBeTruthy()
+    expect(screen.getByText('gamma')).toBeTruthy()
+    expect(screen.queryByText('delta')).toBeNull()
+    expect(screen.getByText('one')).toBeTruthy()
+    expect(screen.getByText('two')).toBeTruthy()
+    expect(screen.getByText('three')).toBeTruthy()
+    expect(screen.queryByText('four')).toBeNull()
   })
 
   it('shows Recents after a submit and a return to idle', async () => {

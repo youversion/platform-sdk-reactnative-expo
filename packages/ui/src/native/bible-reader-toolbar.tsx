@@ -340,6 +340,7 @@ export function BibleReaderToolbar({
         onPress={onSearchPress}
         accessibilityLabel={t('search')}
         testID="reader-toolbar-search"
+        style={capsule}
       >
         <Button.Icon as={SearchIcon} />
       </Button>
