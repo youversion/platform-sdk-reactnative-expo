@@ -4,6 +4,7 @@ ensureDomImpls()
 
 export {
   BibleCard,
+  BibleChapterPicker,
   BibleChapterPickerSheet,
   BibleReader,
   BibleReaderSettingsSheet,
@@ -15,6 +16,7 @@ export {
 } from './native'
 export type {
   BibleCardProps,
+  BibleChapterPickerProps,
   BibleChapterPickerSheetProps,
   BibleReaderHandle,
   BibleReaderProps,
