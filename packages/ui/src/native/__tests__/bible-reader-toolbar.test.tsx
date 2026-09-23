@@ -346,6 +346,7 @@ describe('BibleReader native toolbar', () => {
     expect(row).toMatchObject({
       backgroundColor: darkTokens.background,
       paddingStart: 16,
+      paddingEnd: 8,
       gap: 8,
     })
     expect(row.paddingHorizontal).toBeUndefined()

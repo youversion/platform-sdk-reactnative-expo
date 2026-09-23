@@ -30,6 +30,7 @@ const CHEVRON_HIT = 44
 const CAPSULE_MIN_HEIGHT = 44
 const CAPSULE_GAP = 8
 const TOOLBAR_PADDING_START = 16
+const TOOLBAR_PADDING_END = 8
 const MENU_ICON_SIZE = 20
 const TOOLBAR_ICON_SIZE = 24
 const MORE_HIT = 44
@@ -369,6 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     paddingStart: TOOLBAR_PADDING_START,
+    paddingEnd: TOOLBAR_PADDING_END,
     gap: CAPSULE_GAP,
   },
   search: {
