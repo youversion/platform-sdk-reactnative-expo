@@ -251,6 +251,47 @@ describe('useBibleReaderSearch', () => {
     }
   })
 
+  it('keeps a trailing space typed onto a submitted query', async () => {
+    jest.useFakeTimers()
+    const pending = deferred<SearchApiResult<YouVersionSearchQueries>>()
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses(['JHN.3.16'])),
+      suggestedQueries: jest.fn(async () => pending.promise),
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('love')
+    })
+    await flush()
+
+    act(() => {
+      result.current.setQuery('love ')
+    })
+
+    expect(result.current.query).toBe('love ')
+    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
+
+    act(() => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS)
+    })
+
+    expect(stub.suggestedQueries).toHaveBeenCalledWith({
+      query: 'love',
+      languageRanges: ['en'],
+    })
+  })
+
   it('clears whitespace without requesting verses or suggestions', async () => {
     const trendingQueries = jest.fn(async () => okQueries(['faith']))
     const stub = searchStub({ trendingQueries })

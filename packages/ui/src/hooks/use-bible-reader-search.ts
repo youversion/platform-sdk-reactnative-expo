@@ -153,9 +153,10 @@ export function useBibleReaderSearch(
 
   const setQuery = useCallback((text: string) => {
     const clipped = clipField(text)
-    const draft = nonBlankQuery(clipped)
     const submitted = submittedOf(stateRef.current)
-    if (submitted !== null && draft === submitted) {
+    // Match the raw field text. Trimming would treat "love " as the submitted
+    // "love" and drop the space, so the next character lands on "loveo".
+    if (submitted !== null && clipped === submitted) {
       return
     }
     dispatch({ type: 'queryEdited', text: clipped })
