@@ -130,11 +130,8 @@ function BibleReaderSearchSheetImpl({
               accessibilityLabel={t('search')}
               style={[
                 styles.searchInput,
-                {
-                  color: tokens.foreground,
-                  ...sansFace(tokens.fontFamily.sans, 400),
-                  ...tokens.typography.base,
-                },
+                sansFace(tokens.fontFamily.sans, 400),
+                { color: tokens.foreground },
               ]}
             />
             {showClear && (
@@ -428,16 +425,16 @@ const styles = StyleSheet.create({
   },
   field: {
     flex: 1,
+    height: 44,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    minHeight: 40,
     gap: 8,
   },
   searchInput: {
     flex: 1,
-    paddingVertical: 8,
-    margin: 0,
+    height: 44,
+    fontSize: 16,
   },
   clear: {
     alignItems: 'center',
