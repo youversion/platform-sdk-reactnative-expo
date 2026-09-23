@@ -221,3 +221,71 @@ or the changeset, rather than this file.
   This is a milestone version bump marking the SDK's official 1.0 launch. There are no breaking API changes from 0.9.1; the major bump signifies the transition to a stable, publicly supported release line.
 
 ## 0.9.1
+
+_(@youversion/platform-react-native-expo-core)_ Initial release. Installation id, optional PKCE authentication, and storage adapters for the YouVersion Platform React Native (Expo) SDK.
+
+_(@youversion/platform-react-native-expo-ui)_ Initial release. Drop YouVersion Bible content into an Expo app on iOS and Android, with native bottom sheets, theming, and optional sign-in. Built on the [React Web SDK](https://github.com/youversion/platform-sdk-react) wrapped as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/), with native affordances layered on top.
+
+### Added
+
+- _(@youversion/platform-react-native-expo-core)_ `YouVersionProvider` — installation id plus optional `auth` config (forwarded by the UI provider), and the `useYouVersion` hook
+
+- _(@youversion/platform-react-native-expo-core)_ PKCE OAuth via `useYVAuth`, with auth types `AuthConfig`, `AuthScope`, and `YVUserInfo`
+
+- _(@youversion/platform-react-native-expo-core)_ Token storage in `expo-secure-store`; token expiry and cached user info in MMKV via `mmkvStorage`
+
+**Auth hardening**
+
+- _(@youversion/platform-react-native-expo-core)_ User info drops placeholder and non-`https` avatar URLs (blocked by iOS ATS and Android cleartext defaults anyway), so consumers never receive a broken picture URL
+
+- _(@youversion/platform-react-native-expo-core)_ Canceling sign-in (`access_denied` callback) is treated as a clean cancel rather than an error
+
+- _(@youversion/platform-react-native-expo-core)_ Cached user info is validated with a zod schema on read, so a corrupt or legacy cache entry can't surface wrong-typed fields
+
+- _(@youversion/platform-react-native-expo-ui)_ `BibleTextView` — render a verse or verse range from a USFM reference
+
+- _(@youversion/platform-react-native-expo-ui)_ `BibleCard` — a verse with built-in reader controls
+
+- _(@youversion/platform-react-native-expo-ui)_ `VerseOfTheDay` — the daily verse, ready to drop in
+
+**Bible reader**
+
+- _(@youversion/platform-react-native-expo-ui)_ `BibleReader` — a full reading experience with built-in chapter and version pickers; bring your own picker UI via `onChapterPickerPress` / `onVersionPickerPress`
+
+- _(@youversion/platform-react-native-expo-ui)_ Standalone sheets for advanced flows: `BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`
+
+Every prop and option for these components is documented at [developers.youversion.com/sdks/react-native](https://developers.youversion.com/sdks/react-native).
+
+**Provider & theming**
+
+- _(@youversion/platform-react-native-expo-ui)_ `YouVersionProvider` — single root provider supplying your `appKey`, resolved theme, and native sheet support
+
+- _(@youversion/platform-react-native-expo-ui)_ `light` / `dark` / `system` themes, with per-component overrides
+
+**Authentication (optional)**
+
+- _(@youversion/platform-react-native-expo-ui)_ `YouVersionAuthButton` and the `auth` prop on `YouVersionProvider` for PKCE OAuth (auth primitives and storage live in `@youversion/platform-react-native-expo-core`)
+
+**Native presentation**
+
+- _(@youversion/platform-react-native-expo-ui)_ Footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+
+- _(@youversion/platform-react-native-expo-ui)_ WebView pre-warming so sheets open without a cold-start flash
+
+- _(@youversion/platform-react-native-expo-ui)_ Sheets cap at 640 wide and center on large screens like iPad; full-width below that breakpoint
+
+**Types**
+
+- _(@youversion/platform-react-native-expo-ui)_ Prop types are exported for each component, e.g. `BibleCardProps`, `BibleReaderProps`, `BibleTextViewProps`
+
+**Attribution**
+
+- _(@youversion/platform-react-native-expo-ui)_ SDK traffic is identified to YouVersion in the `x-yvp-sdk` header as `ReactNativeSDK={version}`; builds running from source report `{version}-dev`, matching the Web SDK's format
+
+### Package surface
+
+- _(@youversion/platform-react-native-expo-core)_ Imports are restricted to the package root via an `exports` map — import everything from `@youversion/platform-react-native-expo-core`. Deep imports (e.g. into `build/`) are not part of the public API.
+
+- _(@youversion/platform-react-native-expo-ui)_ Only the package root is importable — import everything from `@youversion/platform-react-native-expo-ui`. If you want to see how it all works, read the source on [GitHub](https://github.com/youversion/platform-sdk-reactnative-expo).
+
+- _(@youversion/platform-react-native-expo-ui)_ Runtime dependencies ship pinned to exact versions, so an install resolves exactly what was published and tested rather than silently picking up a newer release. Peer dependency ranges are unchanged.

@@ -52,10 +52,15 @@ function parseEntries(bodyLines) {
     entry = null
   }
   for (const line of bodyLines) {
-    const heading = line.match(/^### (.+?) Changes\s*$/)
+    const heading = line.match(/^### (.+?)\s*$/)
     if (heading) {
       push()
-      kind = heading[1]
+      // Keep the heading verbatim unless it is one Changesets writes. React's changelogs are
+      // entirely Changesets output so only ever carry "<level> Changes", but this repo has a
+      // hand-written 0.9.1 using `### Added` and `### Package surface`. Matching only the
+      // Changesets form left `kind` unset and silently dropped those entries.
+      const level = heading[1].match(/^(Major|Minor|Patch) Changes$/)
+      kind = level ? level[1] : heading[1]
       continue
     }
     if (/^- /.test(line)) {
@@ -129,8 +134,23 @@ const packages = fixedGroups[0].map((name) => {
 /** Section order in the output. */
 const KIND_ORDER = ['Major', 'Minor', 'Patch']
 
+/**
+ * Prose written directly under a `## version`, above any `###` heading. Changesets never
+ * emits this, but a hand-written release can: both packages summarise 0.9.1 that way.
+ */
+function preamble(bodyLines) {
+  const out = []
+  for (const line of bodyLines) {
+    if (/^### /.test(line) || /^- /.test(line)) break
+    out.push(line)
+  }
+  return out.join('\n').trim()
+}
+
 /** version -> dedupe key -> { kind, packages, text } */
 const byVersion = new Map()
+/** version -> dedupe key -> { packages, text } for the prose above the first heading */
+const byVersionPreamble = new Map()
 const order = []
 
 for (const dir of packages) {
@@ -140,6 +160,14 @@ for (const dir of packages) {
     if (!byVersion.has(version)) {
       byVersion.set(version, new Map())
       order.push(version)
+    }
+    if (!byVersionPreamble.has(version)) byVersionPreamble.set(version, new Map())
+    const lead = preamble(body)
+    if (lead) {
+      const leadMap = byVersionPreamble.get(version)
+      const leadKey = dedupeKey(lead)
+      if (leadMap.has(leadKey)) leadMap.get(leadKey).packages.add(pkgName)
+      else leadMap.set(leadKey, { packages: new Set([pkgName]), text: lead })
     }
     const entries = byVersion.get(version)
     for (const { kind, text } of parseEntries(body)) {
@@ -154,7 +182,11 @@ for (const dir of packages) {
       // Patch for core but Minor for hooks and ui. Keep the most significant kind rather
       // than whichever package readdir happened to return first, so the merged entry is
       // filed where a reader looking for that change would go.
-      if (KIND_ORDER.indexOf(kind) < KIND_ORDER.indexOf(existing.kind)) {
+      if (
+        KIND_ORDER.includes(kind) &&
+        KIND_ORDER.includes(existing.kind) &&
+        KIND_ORDER.indexOf(kind) < KIND_ORDER.indexOf(existing.kind)
+      ) {
         existing.kind = kind
       }
     }
@@ -180,11 +212,18 @@ const out = [
 
 for (const version of order) {
   out.push(`## ${version}`, '')
+  for (const { text, packages: pkgs } of (byVersionPreamble.get(version) ?? new Map()).values()) {
+    const scope = pkgs.size === packages.length ? 'all packages' : [...pkgs].sort().join(', ')
+    out.push(`_(${scope})_ ${text}`, '')
+  }
   const entries = [...byVersion.get(version).values()]
-  for (const kind of KIND_ORDER) {
+  const extraKinds = [...new Set([...entries.values()].map((e) => e.kind))].filter(
+    (k) => !KIND_ORDER.includes(k),
+  )
+  for (const kind of [...KIND_ORDER, ...extraKinds]) {
     const forKind = entries.filter((e) => e.kind === kind)
     if (forKind.length === 0) continue
-    out.push(`### ${kind} Changes`, '')
+    out.push(`### ${KIND_ORDER.includes(kind) ? `${kind} Changes` : kind}`, '')
     for (const { text, packages: pkgs } of forKind) {
       const scope = pkgs.size === packages.length ? 'all packages' : [...pkgs].sort().join(', ')
       out.push(text.replace(/^- /, `- _(${scope})_ `), '')
