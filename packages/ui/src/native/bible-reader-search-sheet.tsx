@@ -138,7 +138,7 @@ function BibleReaderSearchSheetImpl({
               <Pressable
                 testID="bible-reader-search-clear"
                 accessibilityRole="button"
-                accessibilityLabel={t('clearSearch')}
+                accessibilityLabel={t('bibleSearchClearAriaLabel')}
                 onPress={() => search.setQuery('')}
                 style={({ pressed }) => {
                   if (pressed) {
@@ -169,8 +169,8 @@ function BibleReaderSearchSheetImpl({
           onSubmit={search.submit}
           onSelectVerse={handleSelectVerse}
           loadingLabel={t('loading')}
-          trendingHeading={t('trendingSearches')}
-          recentHeading={t('recentSearches')}
+          trendingHeading={t('bibleSearchTrendingHeading')}
+          recentHeading={t('bibleSearchRecentHeading')}
           emptyCopy={t('noBibleSearchResults')}
           errorCopy={t('error')}
         />

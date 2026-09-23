@@ -151,14 +151,22 @@ describe('BibleReaderSearchSheet', () => {
       rerender(<BibleReaderSearchSheet isOpen {...props} />)
       await flush()
 
-      expect(focus.mock.instances[0].props.testID).toBe('bible-reader-search-field')
+      const focusedInput = focus.mock.contexts[0]
+      if (!focusedInput) {
+        throw new Error('search field did not focus')
+      }
+      expect(focusedInput.props.testID).toBe('bible-reader-search-field')
       focus.mockClear()
       blur.mockClear()
 
       rerender(<BibleReaderSearchSheet isOpen={false} {...props} />)
       await flush()
 
-      expect(blur.mock.instances[0].props.testID).toBe('bible-reader-search-field')
+      const blurredInput = blur.mock.contexts[0]
+      if (!blurredInput) {
+        throw new Error('search field did not blur')
+      }
+      expect(blurredInput.props.testID).toBe('bible-reader-search-field')
     } finally {
       focus.mockRestore()
       blur.mockRestore()
