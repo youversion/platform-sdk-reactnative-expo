@@ -342,11 +342,13 @@ describe('BibleReader native toolbar', () => {
     })
 
     expect(latestDomProps.theme).toBe('dark')
-    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)).toMatchObject({
+    const row = StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)
+    expect(row).toMatchObject({
       backgroundColor: darkTokens.background,
-      paddingHorizontal: 24,
+      paddingStart: 16,
       gap: 8,
     })
+    expect(row.paddingHorizontal).toBeUndefined()
     expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style),
     ).toMatchObject({
@@ -361,14 +363,10 @@ describe('BibleReader native toolbar', () => {
     ).toMatchObject({
       backgroundColor: darkTokens.muted,
     })
-    expect(
-      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style),
-    ).toMatchObject({
-      backgroundColor: darkTokens.muted,
-    })
-    expect(
-      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style).boxShadow,
-    ).toBeUndefined()
+    const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
+    expect(search).toMatchObject({ padding: 8 })
+    expect(search.backgroundColor).toBeUndefined()
+    expect(search.boxShadow).toBeUndefined()
   })
 
   it('fills chapter and version capsules with canvas white in light', async () => {
@@ -409,12 +407,10 @@ describe('BibleReader native toolbar', () => {
       backgroundColor: lightTokens.background,
       boxShadow: softShadow,
     })
-    expect(
-      StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style),
-    ).toMatchObject({
-      backgroundColor: lightTokens.background,
-      boxShadow: softShadow,
-    })
+    const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
+    expect(search).toMatchObject({ padding: 8 })
+    expect(search.backgroundColor).toBeUndefined()
+    expect(search.boxShadow).toBeUndefined()
     expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-clip').props.style),
     ).toMatchObject({
@@ -546,7 +542,6 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.queryByText('128')).toBeNull()
-    // The last title can stay on the button. Next cannot keep walking NIV's chapters.
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -897,8 +892,6 @@ describe('BibleReader native toolbar', () => {
       disabled: true,
     })
 
-    // The disabled trigger is what holds the callback back, so press it mid-flight: a consumer
-    // must never be handed a half-loaded selection.
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
     })
@@ -958,7 +951,6 @@ describe('BibleReader native toolbar', () => {
     )
     expect(screen.getByText('1')).toBeTruthy()
 
-    // Both chevrons stay off without a catalog to walk.
     expect(
       screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -966,8 +958,6 @@ describe('BibleReader native toolbar', () => {
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
 
-    // The trigger re-enables once the lookup settles, failed or not. `BibleVersionPickerPressData`
-    // types `languageId` as a string for Web SDK parity, so a failed lookup sends it empty.
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
     })
