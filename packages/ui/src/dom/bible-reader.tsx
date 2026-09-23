@@ -18,6 +18,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import type { BibleReaderVerseFocus } from '../native/bible-reader-navigation'
 import type { StyleProp, ViewStyle } from 'react-native'
+import { applyMountedVerseFocus } from './apply-verse-focus'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
 
@@ -170,21 +171,14 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   }, [])
 
   const navigation = useRef(new BibleReaderNavigation())
+  const handledFocusSeq = useRef(verseFocus.seq)
   useEffect(() => {
-    if (!verseFocus.shouldFocus) {
-      return
-    }
-    navigation.current.focusReference(
-      { versionId: verseFocus.versionId, passageId: verseFocus.passageId },
-      verseFocus.scrollsToVerse,
+    handledFocusSeq.current = applyMountedVerseFocus(
+      navigation.current,
+      verseFocus,
+      handledFocusSeq.current,
     )
-  }, [
-    verseFocus.seq,
-    verseFocus.shouldFocus,
-    verseFocus.versionId,
-    verseFocus.passageId,
-    verseFocus.scrollsToVerse,
-  ])
+  }, [verseFocus])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.
