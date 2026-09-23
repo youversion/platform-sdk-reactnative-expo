@@ -55,5 +55,9 @@
   "agreeAndDownload": "Aceptar y descargar",
   "all": "Todos",
   "back": "Atrás",
-  "bibleApp": "Biblia App"
+  "bibleApp": "Biblia App",
+  "loadingBibleVersionAriaLabel": "Cargando versión de la Biblia",
+  "selectVersion": "Seleccionar versión",
+  "clearSearch": "Borrar búsqueda",
+  "done": "Listo"
 }

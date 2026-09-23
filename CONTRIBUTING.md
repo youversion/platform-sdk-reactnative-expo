@@ -20,7 +20,7 @@ The sections below are for internal development of this repo.
 
 - Node.js >= 24 (an `.nvmrc` is provided, so `nvm use` picks the right version)
 - pnpm >= 11
-- Expo SDK 56
+- Expo SDK 57
 - A YouVersion Platform API key for running the example app
 - A dev build for native development; Expo Go is not supported
 
