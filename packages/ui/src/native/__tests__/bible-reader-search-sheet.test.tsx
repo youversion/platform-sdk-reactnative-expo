@@ -1,5 +1,4 @@
 import type {
-  BibleReference,
   FetchBibleContent,
   SearchApiResult,
   UseSearchResult,
@@ -285,12 +284,7 @@ describe('BibleReaderSearchSheet', () => {
       trendingQueries: jest.fn(async () => ({
         ok: true as const,
         value: {
-          queries: [
-            { text: 'alpha' },
-            { text: 'beta' },
-            { text: 'gamma' },
-            { text: 'delta' },
-          ],
+          queries: [{ text: 'alpha' }, { text: 'beta' }, { text: 'gamma' }, { text: 'delta' }],
         },
       })),
     })
@@ -535,7 +529,8 @@ describe('BibleReaderSearchSheet', () => {
       bookId: 'JHN',
       chapter: 3,
       verse: 16,
-    } satisfies BibleReference)
+      passageId: 'JHN.3.16',
+    })
   })
 
   it('selects a chapter-only hit and hands book plus chapter up', async () => {
@@ -580,7 +575,8 @@ describe('BibleReaderSearchSheet', () => {
       versionId: 111,
       bookId: 'PSA',
       chapter: 23,
-    } satisfies BibleReference)
+      passageId: 'PSA.23',
+    })
   })
 
   it('selects a verse-range hit using the start verse as the anchor', async () => {
@@ -626,7 +622,8 @@ describe('BibleReaderSearchSheet', () => {
       bookId: 'JHN',
       chapter: 3,
       verse: 16,
-    } satisfies BibleReference)
+      passageId: 'JHN.3.16-17',
+    })
   })
 
   it('stays open and reports nothing when a result id is not a reference', async () => {

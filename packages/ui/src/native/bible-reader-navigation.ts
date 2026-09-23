@@ -2,15 +2,49 @@ import type { BibleReference } from '@youversion/platform-react-native-expo-core
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 
 /**
- * One jump the host asked the reader to make. Verse scroll and focus are
- * stored so a later release can honor them; this release only loads the
- * chapter.
+ * One jump the host asked the reader to make. Chapter fields drive the
+ * location. Verse focus crosses the DOM bridge as {@link BibleReaderVerseFocus}.
  */
 export type BibleReaderNavigationRequest = {
   reference: BibleReference
   showsFullChapter: boolean
   scrollsToVerse: boolean
   shouldFocus: boolean
+}
+
+/**
+ * JSON-safe verse focus. Mount value never focuses. `seq` increases only
+ * when {@link BibleReaderNavigation.focusReference} runs, including a repeat.
+ */
+export type BibleReaderVerseFocus = {
+  seq: number
+  versionId: number
+  passageId: string
+  scrollsToVerse: boolean
+  shouldFocus: boolean
+}
+
+/** A chapter reference, plus the original USFM when the caller still has it. */
+export type BibleReaderFocusTarget = BibleReference & {
+  passageId?: string
+}
+
+const idleVerseFocus: BibleReaderVerseFocus = {
+  seq: 0,
+  versionId: 0,
+  passageId: '',
+  scrollsToVerse: false,
+  shouldFocus: false,
+}
+
+function passageIdFromTarget(reference: BibleReaderFocusTarget): string {
+  if (reference.passageId !== undefined && reference.passageId !== '') {
+    return reference.passageId
+  }
+  if (reference.verse === undefined) {
+    return `${reference.bookId}.${reference.chapter}`
+  }
+  return `${reference.bookId}.${reference.chapter}.${reference.verse}`
 }
 
 type Subscribe = (onStoreChange: () => void) => () => void
@@ -30,6 +64,7 @@ function copyReference(reference: BibleReference): BibleReference {
 type ReaderNavigationAccess = {
   subscribe: Subscribe
   getSnapshot: () => number
+  getVerseFocus: () => BibleReaderVerseFocus
   peekPending: () => BibleReaderNavigationRequest | null
   consumeCommitted: (version: number) => void
 }
@@ -62,6 +97,8 @@ export class BibleReaderNavigation {
   #pending: BibleReaderNavigationRequest | null = null
   #version = 0
   #pendingVersion = 0
+  #focusSeq = 0
+  #verseFocus: BibleReaderVerseFocus = idleVerseFocus
   #listeners = new Set<() => void>()
 
   constructor() {
@@ -73,6 +110,7 @@ export class BibleReaderNavigation {
         }
       },
       getSnapshot: () => this.#version,
+      getVerseFocus: () => this.#verseFocus,
       peekPending: () => this.#pending,
       consumeCommitted: (version) => {
         if (this.#pendingVersion !== version) {
@@ -84,12 +122,20 @@ export class BibleReaderNavigation {
   }
 
   /**
-   * Load this version / book / chapter as a full chapter. Verse fields stay on
-   * the pending request for a later scroll/focus pass.
+   * Load this version / book / chapter as a full chapter. Does not bump the
+   * focus `seq` and does not ask the reader to focus.
    */
   request(reference: BibleReference): void {
+    const copied = copyReference(reference)
+    this.#verseFocus = {
+      seq: this.#focusSeq,
+      versionId: copied.versionId,
+      passageId: passageIdFromTarget(copied),
+      scrollsToVerse: false,
+      shouldFocus: false,
+    }
     this.#setPending({
-      reference: copyReference(reference),
+      reference: copied,
       showsFullChapter: true,
       scrollsToVerse: false,
       shouldFocus: false,
@@ -97,13 +143,21 @@ export class BibleReaderNavigation {
   }
 
   /**
-   * Same chapter change as {@link BibleReaderNavigation.request} today. Does
-   * not dim or scroll. `scrollsToVerse` and `shouldFocus` are stored for a
-   * later release.
+   * Load this chapter and focus `passageId`. Every call bumps `seq`, including
+   * a repeat of the same verse. A caller-supplied `passageId` is kept as-is.
    */
-  focusReference(reference: BibleReference, scrollsToVerse = true): void {
+  focusReference(reference: BibleReaderFocusTarget, scrollsToVerse = true): void {
+    const copied = copyReference(reference)
+    this.#focusSeq += 1
+    this.#verseFocus = {
+      seq: this.#focusSeq,
+      versionId: copied.versionId,
+      passageId: passageIdFromTarget(reference),
+      scrollsToVerse,
+      shouldFocus: true,
+    }
     this.#setPending({
-      reference: copyReference(reference),
+      reference: copied,
       showsFullChapter: false,
       scrollsToVerse,
       shouldFocus: true,
@@ -163,4 +217,10 @@ export function useConsumedNavigationRequest(
     return null
   }
   return accessFor(navigation).peekPending()
+}
+
+/** Latest verse focus for this navigation object. Stable until the next call. */
+export function useBibleReaderVerseFocus(navigation: BibleReaderNavigation): BibleReaderVerseFocus {
+  const access = accessFor(navigation)
+  return useSyncExternalStore(access.subscribe, access.getVerseFocus, access.getVerseFocus)
 }

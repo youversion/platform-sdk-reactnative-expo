@@ -80,9 +80,9 @@ describe('BibleReader native Search', () => {
     expect(screen.queryByTestId('mock-search-sheet')).toBeNull()
   })
 
-  it('dismisses Search and requests the chapter on a result tap', async () => {
+  it('dismisses Search and focuses the verse on a result tap', async () => {
     const navigation = createBibleReaderNavigation()
-    const request = jest.spyOn(navigation, 'request')
+    const focusReference = jest.spyOn(navigation, 'focusReference')
 
     render(
       <BibleReader
@@ -103,7 +103,7 @@ describe('BibleReader native Search', () => {
       fireEvent.press(screen.getByTestId('select-good-usfm'))
     })
 
-    expect(request).toHaveBeenCalledWith({
+    expect(focusReference).toHaveBeenCalledWith({
       versionId: 111,
       bookId: 'PSA',
       chapter: 23,

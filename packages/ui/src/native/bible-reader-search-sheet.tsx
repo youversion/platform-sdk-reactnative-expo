@@ -1,6 +1,5 @@
 import {
   bibleReferenceFromUsfm,
-  type BibleReference,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react'
@@ -30,6 +29,7 @@ import type { ResultsFooter, SearchView } from '../lib/bible-reader-search-view'
 import type { Theme } from '../lib/resolve-theme'
 import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
+import type { BibleReaderFocusTarget } from './bible-reader-navigation'
 import { getImpl, registerDefault } from './component-impls'
 import { RecentIcon, SearchIcon, TrendingIcon } from './icons'
 import { NativeSheet } from './native-sheet'
@@ -45,7 +45,7 @@ export type BibleReaderSearchSheetProps = {
   languageTag?: string | null
   theme: Theme
   fetchBibleContent: FetchBibleContent
-  onSelectReference: (reference: BibleReference) => void
+  onSelectReference: (reference: BibleReaderFocusTarget) => void
 }
 
 function BibleReaderSearchSheetImpl({
@@ -89,7 +89,7 @@ function BibleReaderSearchSheetImpl({
       return
     }
     onClose()
-    onSelectReference(reference)
+    onSelectReference({ ...reference, passageId: usfm })
   }
 
   const handleDismissKeyboardStart = () => {
