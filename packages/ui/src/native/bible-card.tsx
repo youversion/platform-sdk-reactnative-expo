@@ -14,7 +14,7 @@ import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
 import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
+import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -33,7 +33,6 @@ const DEFAULT_MAX_WIDTH = 700
 /** Web `yv:card-content` when `maxWidth="100%"` — full-bleed shell, capped inner column. */
 const FULL_BLEED_INNER_MAX_WIDTH = 600
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -309,21 +308,8 @@ function BibleCardBody({
         />
       )}
       {showFootnoteSheet && (
-        <NativeSheet
-          isOpen={!!footnoteData}
-          onClose={onCloseFootnote}
-          showAndroidLoader
-          theme={resolvedTheme}
-        >
-          <FootnoteContent
-            dom={withSheetDomDefaults()}
-            data={footnoteData ?? EMPTY_FOOTNOTE}
-            theme={resolvedTheme}
-            appKey={appKey}
-            apiHost={apiHost}
-            installationId={installationId}
-            locale={locale}
-          />
+        <NativeSheet isOpen={!!footnoteData} onClose={onCloseFootnote} theme={resolvedTheme}>
+          <FootnoteContent data={footnoteData ?? EMPTY_FOOTNOTE} theme={resolvedTheme} />
         </NativeSheet>
       )}
     </ThemeContext.Provider>

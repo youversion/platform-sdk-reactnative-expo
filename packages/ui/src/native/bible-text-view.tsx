@@ -3,9 +3,8 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 import type { BibleTextViewProps as BibleTextViewDOMProps } from '../dom/bible-text-view'
-import type { FootnoteContentDOMProps } from '../dom/footnote-content'
 import { getImpl } from './component-impls'
-import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
+import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom, type FontFamily } from '../lib/reader-fonts'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
@@ -13,7 +12,6 @@ import { NativeSheet } from './native-sheet'
 import { useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -60,7 +58,6 @@ export function BibleTextView({
       : undefined
 
   const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
-  const footnoteTheme: FootnoteContentDOMProps['theme'] = resolvedTheme
   const BibleTextViewDOM = getImpl('BibleTextViewDom')
   const FootnoteContent = getImpl('FootnoteContent')
   const scope = highlightScopeFor(domProps.reference, domProps.versionId)
@@ -91,18 +88,12 @@ export function BibleTextView({
               isOpen={!!footnoteData}
               openKey={footnoteOpenKey}
               onClose={() => setFootnoteData(null)}
-              showAndroidLoader
-              theme={footnoteTheme}
+              theme={resolvedTheme}
             >
               <FootnoteContent
-                dom={withSheetDomDefaults()}
                 data={footnoteData ?? EMPTY_FOOTNOTE}
-                theme={footnoteTheme}
+                theme={resolvedTheme}
                 fontSize={fontSize}
-                appKey={context.appKey}
-                apiHost={context.apiHost}
-                installationId={context.installationId}
-                locale={lng}
               />
             </NativeSheet>
           )}

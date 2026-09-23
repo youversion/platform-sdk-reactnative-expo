@@ -5,6 +5,7 @@ import {
   fontMapKey,
   pickTtfSources,
   sansFace,
+  serifFace,
   UNTITLED_SERIF_FONT_ID,
   type UntitledSerifFont,
 } from '../fonts'
@@ -308,5 +309,18 @@ describe('sansFace', () => {
     expect(sansFace('Inter', 700)).toEqual({ fontFamily: 'Inter_bold' })
     expect(sansFace('Inter', 500)).toEqual({ fontFamily: 'Inter_medium' })
     expect(sansFace('Inter', 400)).toEqual({ fontFamily: 'Inter' })
+  })
+})
+
+describe('serifFace', () => {
+  it('names italic and bold serif faces', () => {
+    expect(serifFace('Untitled Serif', 400)).toEqual({ fontFamily: 'Untitled Serif' })
+    expect(serifFace('Untitled Serif', 400, 'italic')).toEqual({
+      fontFamily: 'Untitled Serif_italic',
+    })
+    expect(serifFace('Untitled Serif', 500, 'italic')).toEqual({
+      fontFamily: 'Untitled Serif_medium_italic',
+    })
+    expect(serifFace('Untitled Serif', 700)).toEqual({ fontFamily: 'Untitled Serif_bold' })
   })
 })

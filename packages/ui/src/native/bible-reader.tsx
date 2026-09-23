@@ -37,7 +37,6 @@ import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
@@ -58,7 +57,6 @@ import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -831,18 +829,12 @@ export function BibleReader({
           isOpen={!!footnoteData}
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
-          showAndroidLoader
           theme={resolvedTheme}
         >
           <FootnoteContent
-            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             fontSize={fontSize}
-            appKey={context.appKey}
-            apiHost={context.apiHost}
-            installationId={context.installationId}
-            locale={lng}
           />
         </NativeSheet>
       )}

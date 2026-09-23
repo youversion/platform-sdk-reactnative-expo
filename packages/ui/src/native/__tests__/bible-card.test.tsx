@@ -116,12 +116,11 @@ function MockBibleTextViewDOM(props: LatestDomProps) {
   )
 }
 
-function MockFootnoteContent(props: { data: FootnoteData; theme?: string; appKey: string }) {
+function MockFootnoteContent(props: { data: FootnoteData; theme?: string }) {
   return (
     <View testID="mock-footnote-content">
       <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
       <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-footnote-app-key">{props.appKey}</Text>
     </View>
   )
 }
@@ -618,7 +617,6 @@ describe('BibleCard', () => {
 
     expect(getByTestId('footnote-sheet')).toBeTruthy()
     expect(getByTestId('mock-footnote-verse').children).toContain('3')
-    expect(getByTestId('mock-footnote-app-key').children).toContain('test-key')
   })
 
   it('invokes consumer onFootnotePress and does not mount the default footnote sheet', async () => {
