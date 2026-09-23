@@ -59,8 +59,24 @@ The user action that requests opening version picker presentation from the curre
 _Avoid_: Picker press (use **Picker Press** for chapter picker)
 
 **Chapter Picker Sheet**:
-A **Native Wrapper** that hosts chapter picker content inside a **Native Sheet**, receiving a **Picker Selection** via a native action. Public export usable standalone (e.g., with `BibleTextView`).
+A **Native Wrapper** that hosts the **Native Bible Chapter Picker** inside a **Native Sheet** and closes after a successful **Picker Selection**. A rejected selection leaves the sheet open. Public export usable standalone (e.g., with `BibleTextView`).
 _Avoid_: Picker modal, chapter popover
+
+**Native Bible Chapter Picker**:
+The public React Native book-and-chapter picker. It fetches the selected version's books through the core `fetchBibleContent` client, keeps controller state separate from presentation, and renders search, one-open book expansion, chapter controls, and a pinned order switch with native primitives. The current book starts expanded and highlighted. Search is local: one character is a strict title substring; longer input is typo-tolerant and diacritic-insensitive. The component is presentation-independent; **Chapter Picker Sheet** is only its built-in shell.
+_Avoid_: Chapter picker DOM component, native chapter popover
+
+**Traditional Book Order**:
+The exact order of books in the selected Bible version's API response. It is the default whenever a **Native Bible Chapter Picker** mounts.
+_Avoid_: Canonical order (the SDK does not impose one), API sort
+
+**Alphabetical Book Order**:
+The selected Bible version's books sorted by localized display title with a locale-aware collator. Search filters this order without replacing it with fuzzy-match rank.
+_Avoid_: Search relevance order
+
+**Intro Chapter**:
+The optional informational chapter supplied separately by a book's API payload. It appears as an info control before numbered chapters and retains its API chapter id when selected.
+_Avoid_: Chapter zero, book introduction
 
 **Version Picker Sheet**:
 A **Native Wrapper** that hosts Bible version picker content inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. In-sheet navigation (version list ↔ language list) is owned by the **Version Picker Shell Layout** — not native.
@@ -79,7 +95,7 @@ When a persisted or host `versionId` is not permitted, native chrome still passe
 _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders; sharing a refused version from native chrome
 
 **Version Picker Shell Layout**:
-The Expo DOM wrapper (`bible-version-picker-content.tsx`) for version picker sheet content. It owns the version ↔ language cross-fade, shell height, and keyboard overlap via `visualViewport` (same role as **Chapter Picker Shell Layout** for chapter picker). Web uses Radix popover + `isLanguagesOpen`; mobile duplicates layout outside that **Presentation Shell**. On the language trigger, call `event.preventDefault()` so the Web SDK does not also run `setIsLanguagesOpen`.
+The Expo DOM wrapper (`bible-version-picker-content.tsx`) for version picker sheet content. It owns the version ↔ language cross-fade, shell height, and keyboard overlap via `visualViewport`. Web uses Radix popover + `isLanguagesOpen`; mobile duplicates layout outside that **Presentation Shell**. On the language trigger, call `event.preventDefault()` so the Web SDK does not also run `setIsLanguagesOpen`.
 _Avoid_: Assuming `BibleVersionPicker.Content` popover layout applies inside **Native Sheet**
 
 **DOM-Owned Sheet UI State**:
@@ -89,10 +105,6 @@ _Avoid_: Shared picker UI state on native, `showLanguagePicker` bridge props
 **Sheet Reset Key**:
 A serializable number the **Version Picker Sheet** passes into its Expo DOM component on each open; incrementing it remounts the Web SDK picker tree to clear scroll, search, and in-sheet panel state.
 _Avoid_: Using `openKey` for this (reserve **openKey** for repeat-open while `isOpen` stays true, e.g. footnotes)
-
-**Chapter Picker Shell Layout**:
-The Expo DOM wrapper for chapter picker content applies scoped layout CSS so the Web SDK book list (`overflow-y-auto` accordion) grows and the search bar (`section` with muted background) stays at the bottom of the visible sheet. The Web SDK renders list and search as siblings without a flex column wrapper, so this behavior is owned by the Expo DOM component until or unless the Web SDK adds an explicit layout root. Inside the WebView, `visualViewport` updates a `--yv-keyboard-overlap` custom property on the shell and `focusin` scrolls focused search fields into view to complement native sheet keyboard handling.
-_Avoid_: Assuming `BibleChapterPicker.Content` supplies a full-height flex context
 
 **Reader Controls**:
 The visible controls around reader content, including chapter navigation, version selection, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, and settings sheet.
