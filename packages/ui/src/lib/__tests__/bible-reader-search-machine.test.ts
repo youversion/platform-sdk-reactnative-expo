@@ -242,7 +242,12 @@ describe('searchReducer', () => {
   it('wants suggestions for the draft while typing', () => {
     const typing = reduce(opened(), { type: 'queryEdited', text: 'lov' })
 
-    expect(demandOf(typing)).toEqual({ kind: 'suggestions', epoch: typing.epoch, query: 'lov' })
+    expect(demandOf(typing)).toEqual({
+      kind: 'suggestions',
+      epoch: typing.epoch,
+      query: 'lov',
+      status: 'scheduled',
+    })
 
     const loaded = searchReducer(typing, {
       type: 'suggestionsLoaded',

@@ -21,7 +21,12 @@ export type SearchView =
       readonly trending: Loading<readonly NonBlankQuery[]>
       readonly recents: readonly NonBlankQuery[]
     }
-  | { readonly phase: 'suggesting'; readonly suggestions: readonly NonBlankQuery[] }
+  | {
+      readonly phase: 'suggesting'
+      readonly suggestions: readonly NonBlankQuery[]
+      /** True only after the suggestion request has started, not during the debounce. */
+      readonly loading: boolean
+    }
   | { readonly phase: 'pending' }
   | {
       readonly phase: 'results'
@@ -75,9 +80,12 @@ export function toSearchView(
 
     case 'typing': {
       if (state.suggestions.status === 'loading') {
-        return { phase: 'suggesting', suggestions: NO_QUERIES }
+        return { phase: 'suggesting', suggestions: NO_QUERIES, loading: true }
       }
-      return { phase: 'suggesting', suggestions: state.suggestions.value }
+      if (state.suggestions.status === 'scheduled') {
+        return { phase: 'suggesting', suggestions: NO_QUERIES, loading: false }
+      }
+      return { phase: 'suggesting', suggestions: state.suggestions.value, loading: false }
     }
 
     case 'searching':

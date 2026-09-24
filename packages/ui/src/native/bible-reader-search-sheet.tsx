@@ -250,6 +250,16 @@ function SearchBody({
   }
 
   if (view.phase === 'suggesting') {
+    if (view.loading) {
+      return (
+        <View
+          style={[styles.statusFill, { height: listHeight }]}
+          testID="bible-reader-search-suggestion-loading"
+        >
+          <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
+        </View>
+      )
+    }
     return (
       <FlatList
         data={[...view.suggestions]}

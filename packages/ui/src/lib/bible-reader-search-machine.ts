@@ -13,6 +13,12 @@ export type Loading<T> =
   | { readonly status: 'loading' }
   | { readonly status: 'done'; readonly value: T }
 
+/** `scheduled` is the debounce wait. `loading` is the suggestion request itself. */
+export type SuggestionState =
+  | { readonly status: 'scheduled' }
+  | { readonly status: 'loading' }
+  | { readonly status: 'done'; readonly value: readonly NonBlankQuery[] }
+
 /** Append status for the second page onward. `error` is retryable without losing page one. */
 export type AppendState =
   | { readonly status: 'idle' }
@@ -44,7 +50,7 @@ export type SearchState =
       readonly epoch: Epoch
       readonly text: string
       readonly draft: NonBlankQuery
-      readonly suggestions: Loading<readonly NonBlankQuery[]>
+      readonly suggestions: SuggestionState
     }
   | { readonly kind: 'searching'; readonly epoch: Epoch; readonly submitted: NonBlankQuery }
   | {
@@ -68,6 +74,7 @@ export type SearchEvent =
   | { readonly type: 'opened' }
   | { readonly type: 'languageChanged' }
   | { readonly type: 'queryEdited'; readonly text: string }
+  | { readonly type: 'suggestionsStarted'; readonly epoch: Epoch }
   | { readonly type: 'submitted'; readonly query: NonBlankQuery }
   | { readonly type: 'retried' }
   | {
@@ -105,6 +112,7 @@ export const ENRICHMENT_FAILED: SearchApiError = {
 }
 
 const LOADING = { status: 'loading' } as const
+const SCHEDULED = { status: 'scheduled' } as const
 
 export function initialSearchState(): SearchState {
   return { kind: 'browsing', epoch: 0, text: '', trending: LOADING }
@@ -124,7 +132,7 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
         return { ...state, epoch: state.epoch + 1, trending: LOADING }
       }
       if (state.kind === 'typing') {
-        return { ...state, epoch: state.epoch + 1, suggestions: LOADING }
+        return { ...state, epoch: state.epoch + 1, suggestions: SCHEDULED }
       }
       return state
     }
@@ -145,8 +153,18 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
         epoch: state.epoch + 1,
         text: event.text,
         draft,
-        suggestions: LOADING,
+        suggestions: SCHEDULED,
       }
+    }
+
+    case 'suggestionsStarted': {
+      if (state.kind !== 'typing' || event.epoch !== state.epoch) {
+        return state
+      }
+      if (state.suggestions.status !== 'scheduled') {
+        return state
+      }
+      return { ...state, suggestions: LOADING }
     }
 
     case 'submitted':
@@ -266,7 +284,12 @@ export function fieldTextOf(state: SearchState): string {
 export type SearchDemand =
   | { readonly kind: 'none' }
   | { readonly kind: 'trending'; readonly epoch: Epoch }
-  | { readonly kind: 'suggestions'; readonly epoch: Epoch; readonly query: NonBlankQuery }
+  | {
+      readonly kind: 'suggestions'
+      readonly epoch: Epoch
+      readonly query: NonBlankQuery
+      readonly status: 'scheduled' | 'loading'
+    }
   | { readonly kind: 'verses'; readonly epoch: Epoch; readonly query: NonBlankQuery }
   | {
       readonly kind: 'page'
@@ -288,10 +311,15 @@ export function demandOf(state: SearchState): SearchDemand {
       return NO_DEMAND
     }
     case 'typing': {
-      if (state.suggestions.status === 'loading') {
-        return { kind: 'suggestions', epoch: state.epoch, query: state.draft }
+      if (state.suggestions.status === 'done') {
+        return NO_DEMAND
       }
-      return NO_DEMAND
+      return {
+        kind: 'suggestions',
+        epoch: state.epoch,
+        query: state.draft,
+        status: state.suggestions.status,
+      }
     }
     case 'searching':
       return { kind: 'verses', epoch: state.epoch, query: state.submitted }

@@ -80,7 +80,7 @@ function demandSignature(demand: SearchDemand): string {
     case 'trending':
       return `trending:${demand.epoch}`
     case 'suggestions':
-      return `suggestions:${demand.epoch}:${demand.query}`
+      return `suggestions:${demand.epoch}:${demand.query}:${demand.status}`
     case 'verses':
       return `verses:${demand.epoch}:${demand.query}`
     case 'page':
@@ -344,9 +344,9 @@ export function useBibleReaderSearch(
       }
     }
 
-    if (current.kind === 'suggestions') {
+    if (current.kind === 'suggestions' && current.status === 'scheduled') {
       const timer = setTimeout(() => {
-        void loadSuggestions()
+        dispatch({ type: 'suggestionsStarted', epoch: current.epoch })
       }, SEARCH_DEBOUNCE_MS)
       return () => {
         cancelled = true
@@ -354,7 +354,9 @@ export function useBibleReaderSearch(
       }
     }
 
-    if (current.kind === 'trending') {
+    if (current.kind === 'suggestions') {
+      void loadSuggestions()
+    } else if (current.kind === 'trending') {
       void loadTrending()
     } else if (current.kind === 'verses') {
       void loadVerses()

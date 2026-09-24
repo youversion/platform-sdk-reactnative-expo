@@ -142,13 +142,22 @@ describe('useBibleReaderSearch', () => {
       result.current.setQuery('love')
     })
 
-    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
 
     act(() => {
       jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS - 1)
     })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
 
     act(() => {
       jest.advanceTimersByTime(1)
@@ -157,7 +166,11 @@ describe('useBibleReaderSearch', () => {
       query: 'love',
       languageRanges: ['en'],
     })
-    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: true,
+    })
 
     await act(async () => {
       pending.resolve(okQueries(['love one another']))
@@ -166,6 +179,7 @@ describe('useBibleReaderSearch', () => {
     expect(result.current.view).toEqual({
       phase: 'suggesting',
       suggestions: ['love one another'],
+      loading: false,
     })
   })
 
@@ -188,7 +202,11 @@ describe('useBibleReaderSearch', () => {
       result.current.setQuery('love')
     })
 
-    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
   })
 
@@ -280,7 +298,11 @@ describe('useBibleReaderSearch', () => {
     })
 
     expect(result.current.query).toBe('love ')
-    expect(result.current.view).toEqual({ phase: 'suggesting', suggestions: [] })
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
 
     act(() => {
       jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS)

@@ -121,9 +121,20 @@ describe('toSearchView', () => {
   it('suggests nothing until the suggestions land', () => {
     const typing = reduce(opened(), { type: 'queryEdited', text: 'lov' })
 
-    expect(toSearchView(typing, [], handlers())).toEqual({ phase: 'suggesting', suggestions: [] })
+    expect(toSearchView(typing, [], handlers())).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
 
-    const loaded = searchReducer(typing, {
+    const started = searchReducer(typing, { type: 'suggestionsStarted', epoch: typing.epoch })
+    expect(toSearchView(started, [], handlers())).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: true,
+    })
+
+    const loaded = searchReducer(started, {
       type: 'suggestionsLoaded',
       epoch: typing.epoch,
       queries: [query('love one another')],
@@ -131,6 +142,7 @@ describe('toSearchView', () => {
     expect(toSearchView(loaded, [], handlers())).toEqual({
       phase: 'suggesting',
       suggestions: ['love one another'],
+      loading: false,
     })
   })
 
