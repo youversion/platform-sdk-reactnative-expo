@@ -242,6 +242,8 @@ _(@youversion/platform-react-native-expo-ui)_ Initial release. Drop YouVersion B
 
 - _(@youversion/platform-react-native-expo-core)_ Cached user info is validated with a zod schema on read, so a corrupt or legacy cache entry can't surface wrong-typed fields
 
+**Scripture display**
+
 - _(@youversion/platform-react-native-expo-ui)_ `BibleTextView` — render a verse or verse range from a USFM reference
 
 - _(@youversion/platform-react-native-expo-ui)_ `BibleCard` — a verse with built-in reader controls
