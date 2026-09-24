@@ -21,6 +21,15 @@ import { fileURLToPath } from 'node:url'
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const PACKAGES = join(ROOT, 'packages')
 
+// Read before the filters below, which need the group's package names: a bump line for a
+// package outside the group is a note about a real dependency, not our own bookkeeping.
+const fixedGroups = JSON.parse(readFileSync(join(ROOT, '.changeset', 'config.json'), 'utf8')).fixed
+if (fixedGroups?.length !== 1) {
+  throw new Error(
+    `Expected exactly one fixed group in .changeset/config.json, found ${fixedGroups?.length ?? 0}.`,
+  )
+}
+
 /** `## 2.12.1` ... up to the next `## ` */
 function versionSections(markdown) {
   const out = []
@@ -76,8 +85,24 @@ function parseEntries(bodyLines) {
     .filter((g) => g.text !== null)
 }
 
-/** `- @youversion/platform-react-native-expo-core@1.6.0`, at any indent. The group bumping itself. */
-const DEPENDENCY_BUMP = /^\s*-\s+@[^@\s]+@\d[\w.-]*\s*$/
+const escapeForRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+/**
+ * `  - @youversion/platform-react-native-expo-core@1.6.0`, at any indent. Restricted to the
+ * fixed group's own packages: the same shape naming anything else is a real dependency the
+ * consumer is being told about, and dropping it loses information.
+ */
+const DEPENDENCY_BUMP = new RegExp(
+  `^\\s*-\\s+(?:${fixedGroups[0].map(escapeForRegExp).join('|')})@\\d[\\w.-]*\\s*$`,
+)
+
+/**
+ * Changesets' own header for that block, always carrying the originating commit:
+ * `- Updated dependencies [80d3718]`. Matching the bare prefix instead would also swallow a
+ * hand-written note that happens to open the same way, such as
+ * `- Updated dependencies to address CVE-1234.`
+ */
+const UPDATED_DEPENDENCIES = /^- Updated dependencies \[[0-9a-f]+\]/
 
 /**
  * Remove the fixed group's own version bookkeeping, returning null when an entry is nothing else.
@@ -86,8 +111,8 @@ const DEPENDENCY_BUMP = /^\s*-\s+@[^@\s]+@\d[\w.-]*\s*$/
  * an `Updated dependencies` block, and bare `- @pkg@version` lines, either standing alone as
  * their own entry or trailing a real note as continuation lines.
  */
-function stripBookkeeping(text) {
-  if (/^- Updated dependencies/.test(text)) return null
+export function stripBookkeeping(text) {
+  if (UPDATED_DEPENDENCIES.test(text)) return null
   const kept = text.split('\n').filter((line) => !DEPENDENCY_BUMP.test(line))
   const collapsed = kept
     .join('\n')
@@ -110,12 +135,6 @@ function dedupeKey(text) {
 // a version, so the same entry appears in each of their changelogs. Reading the filesystem
 // instead would silently drop a package whose changelog went missing, and would silently fold
 // a future unrelated package into `(all packages)`.
-const fixedGroups = JSON.parse(readFileSync(join(ROOT, '.changeset', 'config.json'), 'utf8')).fixed
-if (fixedGroups?.length !== 1) {
-  throw new Error(
-    `Expected exactly one fixed group in .changeset/config.json, found ${fixedGroups?.length ?? 0}.`,
-  )
-}
 const expected = new Map(
   readdirSync(PACKAGES)
     .filter((d) => existsSync(join(PACKAGES, d, 'package.json')))
@@ -231,11 +250,13 @@ for (const version of order) {
   }
 }
 
-writeFileSync(
-  join(ROOT, 'CHANGELOG.md'),
-  out
-    .join('\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd() + '\n',
-)
-console.log(`Wrote CHANGELOG.md — ${order.length} versions from ${packages.length} packages.`)
+if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.argv[1]) {
+  writeFileSync(
+    join(ROOT, 'CHANGELOG.md'),
+    out
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd() + '\n',
+  )
+  console.log(`Wrote CHANGELOG.md — ${order.length} versions from ${packages.length} packages.`)
+}

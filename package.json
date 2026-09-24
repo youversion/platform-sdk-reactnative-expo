@@ -30,7 +30,8 @@
     "changeset": "changeset",
     "version-packages": "changeset version && node scripts/build-root-changelog.mjs",
     "release": "turbo build && pnpm exec changeset publish",
-    "build:root-changelog": "node scripts/build-root-changelog.mjs"
+    "build:root-changelog": "node scripts/build-root-changelog.mjs",
+    "test:scripts": "node --test scripts/*.test.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.29.7",
