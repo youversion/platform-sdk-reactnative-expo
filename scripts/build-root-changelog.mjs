@@ -52,7 +52,7 @@ function versionSections(markdown) {
  * Split a version body into `{ kind, entries }`, where kind is Major/Minor/Patch and each
  * entry keeps its continuation lines (Changesets indents them by two spaces).
  */
-function parseEntries(bodyLines) {
+export function parseEntries(bodyLines) {
   const groups = []
   let kind = null
   let entry = null
@@ -77,7 +77,20 @@ function parseEntries(bodyLines) {
       entry = [line]
       continue
     }
-    if (entry) entry.push(line)
+    if (entry) {
+      entry.push(line)
+      continue
+    }
+    // A subheading introducing the entries below it, with no entry open to
+    // attach to. Every other one in these changelogs follows a bullet, so it
+    // rides along as that entry's trailing lines and lands in the right place
+    // by accident. The first one under a `###` heading has nothing to ride, and
+    // was silently dropped. Emit it as its own group instead: the renderer only
+    // prefixes text starting with `- `, so it comes out verbatim.
+    if (line.trim() !== '') {
+      entry = [line]
+      push()
+    }
   }
   push()
   return groups
