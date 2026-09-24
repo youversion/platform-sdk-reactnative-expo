@@ -365,7 +365,7 @@ describe('BibleReader native toolbar', () => {
       backgroundColor: darkTokens.muted,
     })
     const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
-    expect(search).toMatchObject({ padding: 8 })
+    expect(search).toMatchObject({ width: 44, height: 44 })
     expect(search.backgroundColor).toBeUndefined()
     expect(search.boxShadow).toBeUndefined()
   })
@@ -409,7 +409,7 @@ describe('BibleReader native toolbar', () => {
       boxShadow: softShadow,
     })
     const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
-    expect(search).toMatchObject({ padding: 8 })
+    expect(search).toMatchObject({ width: 44, height: 44 })
     expect(search.backgroundColor).toBeUndefined()
     expect(search.boxShadow).toBeUndefined()
     expect(

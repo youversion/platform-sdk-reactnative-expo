@@ -106,6 +106,7 @@ describe('BibleReaderSearchSheet', () => {
 
     expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['es'] })
     expect(screen.getByTestId('bible-reader-search-field')).toBeTruthy()
+    expect(screen.getByTestId('bible-reader-search-field').props.accessibilityRole).toBe('search')
     expect(screen.getByTestId('bible-reader-search-cancel')).toBeTruthy()
     expect(screen.getByText('Cancel')).toBeTruthy()
     expect(screen.queryByText('OK')).toBeNull()

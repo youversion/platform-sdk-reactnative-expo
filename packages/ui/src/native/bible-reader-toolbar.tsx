@@ -34,6 +34,7 @@ const TOOLBAR_PADDING_END = 8
 const MENU_ICON_SIZE = 20
 const TOOLBAR_ICON_SIZE = 24
 const MORE_HIT = 44
+const SEARCH_HIT = 44
 
 function MenuRow({
   testID,
@@ -374,7 +375,10 @@ const styles = StyleSheet.create({
     gap: CAPSULE_GAP,
   },
   search: {
-    padding: 8,
+    width: SEARCH_HIT,
+    height: SEARCH_HIT,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchPressed: {
     opacity: 0.8,

@@ -131,6 +131,7 @@ function BibleReaderSearchSheetImpl({
               placeholder={t('search')}
               placeholderTextColor={tokens.mutedForeground}
               accessibilityLabel={t('search')}
+              accessibilityRole="search"
               style={[
                 styles.searchInput,
                 sansFace(tokens.fontFamily.sans, 400),
@@ -536,8 +537,8 @@ const styles = StyleSheet.create({
   clear: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 28,
-    height: 28,
+    width: 44,
+    height: 44,
   },
   clearPressed: {
     opacity: 0.8,
