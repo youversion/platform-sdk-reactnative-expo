@@ -226,7 +226,10 @@ describe('BibleReaderSearchSheet', () => {
       fireEvent.changeText(screen.getByTestId('bible-reader-search-field'), 'love')
     })
 
-    expect(screen.getByLabelText('Clear search')).toBeTruthy()
+    const clear = screen.getByTestId('bible-reader-search-clear')
+    expect(clear.props.accessibilityLabel).toBe('Clear search')
+    expect(clear.props.hitSlop).toBe(10)
+    expect(StyleSheet.flatten(clear.props.style)).toBeUndefined()
     expect(screen.getByText('Cancel')).toBeTruthy()
   })
 

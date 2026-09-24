@@ -15,6 +15,7 @@ import {
   type ViewToken,
 } from 'react-native'
 
+import { ClearIcon } from '../components/icons/clear-icon'
 import { Button } from '../components/ui/button'
 import { Text } from '../components/ui/text'
 import { useBibleReaderSearch } from '../hooks/use-bible-reader-search'
@@ -143,15 +144,11 @@ function BibleReaderSearchSheetImpl({
                 testID="bible-reader-search-clear"
                 accessibilityRole="button"
                 accessibilityLabel={t('bibleSearchClearAriaLabel')}
+                hitSlop={10}
                 onPress={() => search.setQuery('')}
-                style={({ pressed }) => {
-                  if (pressed) {
-                    return [styles.clear, styles.clearPressed]
-                  }
-                  return styles.clear
-                }}
+                style={({ pressed }) => (pressed ? styles.clearPressed : undefined)}
               >
-                <Text style={{ color: tokens.mutedForeground, ...tokens.typography.sm }}>×</Text>
+                <ClearIcon color={tokens.mutedForeground} />
               </Pressable>
             )}
           </View>
@@ -528,19 +525,13 @@ const styles = StyleSheet.create({
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    gap: 8,
+    paddingHorizontal: 14,
+    gap: 10,
   },
   searchInput: {
     flex: 1,
     height: 44,
     fontSize: 16,
-  },
-  clear: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 44,
-    height: 44,
   },
   clearPressed: {
     opacity: 0.8,
