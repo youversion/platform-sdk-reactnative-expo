@@ -390,6 +390,38 @@ describe('useBibleReaderSearch', () => {
     }
   })
 
+  it('does not search again for the same query and Bible version', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses(['ROM.8.28'])),
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('hope')
+    })
+    await flush()
+    expect(result.current.view.phase).toBe('results')
+    expect(stub.verses).toHaveBeenCalledTimes(1)
+
+    await act(async () => {
+      result.current.submit('hope')
+    })
+    await flush()
+
+    expect(stub.verses).toHaveBeenCalledTimes(1)
+    expect(result.current.view.phase).toBe('results')
+  })
+
   it('records recents on submit even when verses fail', async () => {
     const stub = searchStub({
       verses: jest.fn(async () => ({

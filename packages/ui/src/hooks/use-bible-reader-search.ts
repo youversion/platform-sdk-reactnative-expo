@@ -141,6 +141,7 @@ export function useBibleReaderSearch(
 
   const wasOpenRef = useRef(false)
   const languageRangeKeyRef = useRef(languageRangeKey)
+  const searchedVersionRef = useRef(versionId)
   const stateRef = useRef(state)
   stateRef.current = state
 
@@ -170,9 +171,18 @@ export function useBibleReaderSearch(
       dispatch({ type: 'queryEdited', text: clipped })
       return
     }
+    const current = stateRef.current
+    if (
+      current.kind === 'resolved' &&
+      current.submitted === query &&
+      searchedVersionRef.current === versionId
+    ) {
+      return
+    }
     record(query)
+    searchedVersionRef.current = versionId
     dispatch({ type: 'submitted', query })
-  }, [record])
+  }, [record, versionId])
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
