@@ -25,6 +25,8 @@ jobs:
         run: pnpm lint:no-raw-color
       - name: Run iOS development tooling tests
         run: pnpm test:ios-dev
+      - name: Run repo script regression tests
+        run: pnpm test:scripts
 
   typecheck:
     name: Typecheck
