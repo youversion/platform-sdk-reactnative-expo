@@ -82,9 +82,13 @@ function sameVersionFilters(a: InternalVersionFilterProps, b: InternalVersionFil
 }
 
 function deviceLanguageCodes(locales: ReturnType<typeof useLocales>): string[] {
-  const codes = locales
-    .map((locale) => locale.languageCode?.toLowerCase())
-    .filter((code): code is string => typeof code === 'string' && code.length > 0)
+  const codes: string[] = []
+  for (const locale of locales) {
+    const code = locale.languageCode
+    if (code && code.length > 0) {
+      codes.push(code.toLowerCase())
+    }
+  }
   if (codes.length > 0) {
     return codes
   }

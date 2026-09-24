@@ -29,6 +29,13 @@ import type {
 const SIDE_PADDING = 20
 const LIST_GAP = 8
 
+function languageTabValue(value: string): VersionPickerLanguageTab | null {
+  if (value === 'suggested' || value === 'all') {
+    return value
+  }
+  return null
+}
+
 export type VersionPickerContentProps = {
   controller: VersionPickerController
   style?: StyleProp<ViewStyle>
@@ -349,7 +356,12 @@ function LanguagesPanel({
           ) : (
             <Tabs
               value={languageTab}
-              onValueChange={(value) => onLanguageTabChange(value as VersionPickerLanguageTab)}
+              onValueChange={(value) => {
+                const tab = languageTabValue(value)
+                if (tab) {
+                  onLanguageTabChange(tab)
+                }
+              }}
               style={styles.languageTabs}
             >
               <Tabs.List style={styles.languageTabList}>
