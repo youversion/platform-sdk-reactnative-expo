@@ -64,6 +64,7 @@
     "@youversion/platform-react-native-expo-core": "workspace:*",
     "@youversion/platform-react-ui": "2.15.0",
     "expo-localization": "57.0.2",
+    "fuse.js": "7.5.0",
     "i18next": "26.3.1",
     "react-i18next": "17.0.8",
     "zod": "4.4.3",

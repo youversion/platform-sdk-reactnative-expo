@@ -1,5 +1,7 @@
 export { BibleCard } from './bible-card'
 export type { BibleCardProps } from './bible-card'
+export { BibleChapterPicker } from './bible-chapter-picker'
+export type { BibleChapterPickerProps } from './bible-chapter-picker'
 export { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 export type { BibleChapterPickerSheetProps } from './bible-chapter-picker-sheet'
 export { BibleReader } from './bible-reader'

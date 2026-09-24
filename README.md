@@ -280,7 +280,18 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 />
 ```
 
-The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows.
+The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows. `BibleChapterPicker` renders the native picker without a sheet when your app owns presentation:
+
+```tsx
+<BibleChapterPicker
+  book="JHN"
+  chapter="3"
+  versionId={3034}
+  onSelect={({ book, chapter, versionId }) => {
+    // commit the selected location
+  }}
+/>
+```
 
 ### Verse of the Day
 

@@ -15,6 +15,7 @@ import * as ui from '../index'
 
 const PUBLIC_COMPONENTS = [
   'BibleCard',
+  'BibleChapterPicker',
   'BibleChapterPickerSheet',
   'BibleReader',
   'BibleReaderSettingsSheet',
@@ -31,6 +32,7 @@ describe('package exports', () => {
   // the loop would pass on a name no longer exported.
   it('exposes the public components, reader navigation, the sign-out guard, getTokens, and useTokens', () => {
     expect(ui.BibleCard).toEqual(expect.any(Function))
+    expect(ui.BibleChapterPicker).toEqual(expect.any(Function))
     expect(ui.BibleChapterPickerSheet).toEqual(expect.any(Function))
     expect(ui.BibleReader).toEqual(expect.any(Function))
     expect(ui.BibleReaderSettingsSheet).toEqual(expect.any(Function))
