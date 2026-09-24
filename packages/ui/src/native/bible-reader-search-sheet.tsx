@@ -2,7 +2,7 @@ import {
   bibleReferenceFromUsfm,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import { useEffect, useRef, type ReactElement, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -12,6 +12,7 @@ import {
   TextInput,
   useWindowDimensions,
   View,
+  type ViewToken,
 } from 'react-native'
 
 import { Button } from '../components/ui/button'
@@ -23,6 +24,7 @@ import {
   languageRangesForVersionLanguage,
   SEARCH_QUERY_MAX_LENGTH,
   SEARCH_SNIPPET_LINE_COUNT,
+  shouldPrefetchNextPage,
   type TitledVerse,
 } from '../lib/bible-reader-search'
 import type { ResultsFooter, SearchView } from '../lib/bible-reader-search-view'
@@ -37,6 +39,7 @@ import { NativeSheet } from './native-sheet'
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 const CHIP_GLYPH_SIZE = 32
 const CHIP_ICON_SIZE = 24
+const RESULT_VIEWABILITY = { itemVisiblePercentThreshold: 1 }
 
 export type BibleReaderSearchSheetProps = {
   isOpen: boolean
@@ -297,46 +300,17 @@ function SearchBody({
 
   if (view.phase === 'results') {
     return (
-      <FlatList
-        key={scrollGeneration}
-        data={[...view.verses]}
-        keyExtractor={(item) => item.usfm}
-        renderItem={({ item }) => (
-          <Pressable
-            testID={`bible-reader-search-result-${item.usfm}`}
-            accessibilityRole="button"
-            onPress={() => onSelectVerse(item.usfm)}
-            style={styles.resultPress}
-          >
-            <View style={[styles.accent, { backgroundColor: tokens.foreground }]} />
-            <View style={styles.resultCopy}>
-              <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
-                {item.snippet}
-              </Text>
-              <Text
-                variant="muted"
-                style={{
-                  textTransform: 'uppercase',
-                  ...sansFace(tokens.fontFamily.sans, 700),
-                }}
-              >
-                {item.title}
-              </Text>
-            </View>
-          </Pressable>
-        )}
-        style={{ height: listHeight }}
-        contentContainerStyle={styles.listContent}
-        keyboardShouldPersistTaps="handled"
+      <ResultsList
+        verses={view.verses}
+        scrollGeneration={scrollGeneration}
+        listHeight={listHeight}
+        tokens={tokens}
+        footer={view.footer}
+        loadingLabel={loadingLabel}
+        retryCopy={retryCopy}
+        errorCopy={errorCopy}
         onEndReached={view.onEndReached}
-        onEndReachedThreshold={0.2}
-        ListFooterComponent={resultsFooter(
-          view.footer,
-          tokens,
-          loadingLabel,
-          retryCopy,
-          errorCopy,
-        )}
+        onSelectVerse={onSelectVerse}
       />
     )
   }
@@ -370,6 +344,88 @@ function SearchBody({
         <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
       </Pressable>
     </View>
+  )
+}
+
+function ResultsList({
+  verses,
+  scrollGeneration,
+  listHeight,
+  tokens,
+  footer,
+  loadingLabel,
+  retryCopy,
+  errorCopy,
+  onEndReached,
+  onSelectVerse,
+}: {
+  verses: readonly TitledVerse[]
+  scrollGeneration: number
+  listHeight: number
+  tokens: Tokens
+  footer: ResultsFooter
+  loadingLabel: string
+  retryCopy: string
+  errorCopy: string
+  onEndReached: () => void
+  onSelectVerse: (usfm: TitledVerse['usfm']) => void
+}): ReactNode {
+  const onEndReachedRef = useRef(onEndReached)
+  onEndReachedRef.current = onEndReached
+  const verseCountRef = useRef(verses.length)
+  verseCountRef.current = verses.length
+
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      let highest = -1
+      for (const item of viewableItems) {
+        if (item.index != null && item.index > highest) {
+          highest = item.index
+        }
+      }
+      if (shouldPrefetchNextPage(highest, verseCountRef.current)) {
+        onEndReachedRef.current()
+      }
+    },
+    [],
+  )
+
+  return (
+    <FlatList
+      key={scrollGeneration}
+      data={[...verses]}
+      keyExtractor={(item) => item.usfm}
+      renderItem={({ item }) => (
+        <Pressable
+          testID={`bible-reader-search-result-${item.usfm}`}
+          accessibilityRole="button"
+          onPress={() => onSelectVerse(item.usfm)}
+          style={styles.resultPress}
+        >
+          <View style={[styles.accent, { backgroundColor: tokens.foreground }]} />
+          <View style={styles.resultCopy}>
+            <Text numberOfLines={SEARCH_SNIPPET_LINE_COUNT} style={{ color: tokens.foreground }}>
+              {item.snippet}
+            </Text>
+            <Text
+              variant="muted"
+              style={{
+                textTransform: 'uppercase',
+                ...sansFace(tokens.fontFamily.sans, 700),
+              }}
+            >
+              {item.title}
+            </Text>
+          </View>
+        </Pressable>
+      )}
+      style={{ height: listHeight }}
+      contentContainerStyle={styles.listContent}
+      keyboardShouldPersistTaps="handled"
+      onViewableItemsChanged={handleViewableItemsChanged}
+      viewabilityConfig={RESULT_VIEWABILITY}
+      ListFooterComponent={resultsFooter(footer, tokens, loadingLabel, retryCopy, errorCopy)}
+    />
   )
 }
 

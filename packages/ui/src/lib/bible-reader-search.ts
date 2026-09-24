@@ -6,6 +6,8 @@ export const SEARCH_QUERY_MAX_LENGTH = 100
 export const SEARCH_VISIBLE_QUERY_LIMIT = 3
 export const SEARCH_SNIPPET_MAX_CHARS = 180
 export const SEARCH_SNIPPET_LINE_COUNT = 3
+/** Request the next page once this many rows from the end are on screen. */
+export const SEARCH_PAGE_PREFETCH_ROWS = 5
 
 const passageSchema = z.object({
   content: z.string(),
@@ -88,6 +90,14 @@ export function dedupeVerseUsfms(
 
 export function verseContentPath(versionId: number, usfm: Usfm): string {
   return `/v1/bibles/${versionId}/passages/${usfm}?format=text`
+}
+
+/** True when a visible row is among the last five, including lists shorter than five. */
+export function shouldPrefetchNextPage(highestVisibleIndex: number, verseCount: number): boolean {
+  if (highestVisibleIndex < 0 || verseCount <= 0) {
+    return false
+  }
+  return highestVisibleIndex >= verseCount - SEARCH_PAGE_PREFETCH_ROWS
 }
 
 export function stripHtml(text: string): string {
