@@ -10,19 +10,22 @@ export type VerseFocusCaller = {
 /**
  * Apply one verse focus inside the WebView.
  *
- * `handledSeq` is the seq a previous WebView mount already applied. The first
- * mount passes 0, so a focus queued before the Reader appears still runs. A
- * reload passes that same seq and does not jump back. The Web SDK throws on a
- * passage it rejects, and that throw clears the WebView root, so it is logged
- * and dropped.
+ * `handledSeq` is what this JS instance already applied. `appliedSeq` is what
+ * native last acknowledged. Expo can boot a reload with a stale first snapshot
+ * and then send the current pair on `$$dom_ready`, so both are needed. The
+ * first mount passes 0 for each, so a focus queued before the Reader appears
+ * still runs. The Web SDK throws on a passage it rejects, and that throw
+ * clears the WebView root, so it is logged and dropped.
  */
 export function applyMountedVerseFocus(
   caller: VerseFocusCaller,
   verseFocus: BibleReaderVerseFocus,
   handledSeq: number,
+  appliedSeq: number = handledSeq,
 ): number {
-  if (!verseFocus.shouldFocus || verseFocus.seq <= handledSeq) {
-    return handledSeq
+  const acknowledged = Math.max(handledSeq, appliedSeq)
+  if (!verseFocus.shouldFocus || verseFocus.seq <= acknowledged) {
+    return acknowledged
   }
   try {
     caller.focusReference(

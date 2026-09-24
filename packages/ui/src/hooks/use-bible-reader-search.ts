@@ -142,8 +142,17 @@ export function useBibleReaderSearch(
   const wasOpenRef = useRef(false)
   const languageRangeKeyRef = useRef(languageRangeKey)
   const searchedVersionRef = useRef(versionId)
+  const lastResolvedRef = useRef<{ query: NonBlankQuery; versionId: number } | null>(
+    null,
+  )
   const stateRef = useRef(state)
   stateRef.current = state
+  if (state.kind === 'resolved') {
+    lastResolvedRef.current = {
+      query: state.submitted,
+      versionId: searchedVersionRef.current,
+    }
+  }
 
   const retrySearch = useCallback(() => {
     dispatch({ type: 'retried' })
@@ -171,11 +180,11 @@ export function useBibleReaderSearch(
       dispatch({ type: 'queryEdited', text: clipped })
       return
     }
-    const current = stateRef.current
+    const lastResolved = lastResolvedRef.current
     if (
-      current.kind === 'resolved' &&
-      current.submitted === query &&
-      searchedVersionRef.current === versionId
+      lastResolved !== null &&
+      lastResolved.query === query &&
+      lastResolved.versionId === versionId
     ) {
       return
     }
@@ -186,6 +195,7 @@ export function useBibleReaderSearch(
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
+      lastResolvedRef.current = null
       dispatch({ type: 'opened' })
       setScrollGeneration((generation) => generation + 1)
       setArmed(true)

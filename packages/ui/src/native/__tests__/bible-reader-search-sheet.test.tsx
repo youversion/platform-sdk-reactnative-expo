@@ -6,7 +6,7 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
 import {
@@ -489,6 +489,9 @@ describe('BibleReaderSearchSheet', () => {
     expect(screen.getByText('Error')).toBeTruthy()
     expect(screen.getByText('Retry')).toBeTruthy()
     expect(screen.queryByTestId('bible-reader-search-result-JHN.3.16')).toBeNull()
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-reader-search-retry').props.style),
+    ).toMatchObject({ minWidth: 44, minHeight: 44 })
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('bible-reader-search-retry'))

@@ -341,6 +341,7 @@ function SearchBody({
         accessibilityRole="button"
         accessibilityLabel={retryCopy}
         onPress={view.onRetry}
+        style={styles.retry}
       >
         <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
       </Pressable>
@@ -459,6 +460,7 @@ function resultsFooter(
           accessibilityRole="button"
           accessibilityLabel={retryCopy}
           onPress={footer.onRetry}
+          style={styles.retry}
         >
           <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
         </Pressable>
@@ -595,5 +597,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 32,
     gap: 12,
+  },
+  retry: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 })

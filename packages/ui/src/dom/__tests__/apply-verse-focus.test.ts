@@ -32,6 +32,24 @@ describe('applyMountedVerseFocus', () => {
     expect(next).toBe(4)
   })
 
+  it('does not replay a focus after Expo reloads with a stale then current seq', () => {
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
+    const idle = {
+      ...JOHN_3_16,
+      seq: 0,
+      versionId: 0,
+      passageId: '',
+      scrollsToVerse: false,
+      shouldFocus: false,
+    }
+
+    let handled = applyMountedVerseFocus({ focusReference }, idle, 0, 0)
+    handled = applyMountedVerseFocus({ focusReference }, JOHN_3_16, handled, 1)
+
+    expect(focusReference).not.toHaveBeenCalled()
+    expect(handled).toBe(1)
+  })
+
   it('focuses when seq moves past the one already handled', () => {
     const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
 

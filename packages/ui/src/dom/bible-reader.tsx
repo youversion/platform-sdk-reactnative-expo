@@ -185,8 +185,9 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       navigation.current,
       verseFocus,
       handledFocusSeq.current,
+      appliedFocusSeq,
     )
-  }, [verseFocus])
+  }, [verseFocus, appliedFocusSeq])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.
