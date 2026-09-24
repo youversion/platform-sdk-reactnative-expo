@@ -172,7 +172,7 @@ function BibleReaderSearchSheetImpl({
           trendingHeading={t('bibleSearchTrendingHeading')}
           recentHeading={t('bibleSearchRecentHeading')}
           emptyCopy={t('noBibleSearchResults')}
-          errorCopy={t('error')}
+          retryCopy={t('retry')}
         />
       </View>
     </NativeSheet>
@@ -190,7 +190,7 @@ type SearchBodyProps = {
   trendingHeading: string
   recentHeading: string
   emptyCopy: string
-  errorCopy: string
+  retryCopy: string
 }
 
 function SearchBody({
@@ -204,7 +204,7 @@ function SearchBody({
   trendingHeading,
   recentHeading,
   emptyCopy,
-  errorCopy,
+  retryCopy,
 }: SearchBodyProps): ReactNode {
   if (view.phase === 'browsing') {
     return (
@@ -317,7 +317,7 @@ function SearchBody({
         keyboardShouldPersistTaps="handled"
         onEndReached={view.onEndReached}
         onEndReachedThreshold={0.2}
-        ListFooterComponent={resultsFooter(view.footer, tokens, loadingLabel, errorCopy)}
+        ListFooterComponent={resultsFooter(view.footer, tokens, loadingLabel, retryCopy)}
       />
     )
   }
@@ -334,10 +334,11 @@ function SearchBody({
     <Pressable
       testID="bible-reader-search-error"
       accessibilityRole="button"
+      accessibilityLabel={retryCopy}
       onPress={view.onRetry}
       style={[styles.statusFill, { height: listHeight }]}
     >
-      <Text style={{ color: tokens.destructive }}>{errorCopy}</Text>
+      <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
     </Pressable>
   )
 }
@@ -346,7 +347,7 @@ function resultsFooter(
   footer: ResultsFooter,
   tokens: Tokens,
   loadingLabel: string,
-  errorCopy: string,
+  retryCopy: string,
 ): ReactElement | null {
   if (footer.kind === 'loading') {
     return (
@@ -360,10 +361,11 @@ function resultsFooter(
       <Pressable
         testID="bible-reader-search-page-error"
         accessibilityRole="button"
+        accessibilityLabel={retryCopy}
         onPress={footer.onRetry}
         style={styles.status}
       >
-        <Text style={{ color: tokens.destructive }}>{errorCopy}</Text>
+        <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
       </Pressable>
     )
   }

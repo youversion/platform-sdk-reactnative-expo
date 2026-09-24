@@ -491,7 +491,7 @@ describe('BibleReaderSearchSheet', () => {
     })
     await flush()
 
-    expect(screen.getByTestId('bible-reader-search-error')).toBeTruthy()
+    expect(screen.getByText('Retry')).toBeTruthy()
     expect(screen.queryByTestId('bible-reader-search-result-JHN.3.16')).toBeNull()
 
     await act(async () => {
