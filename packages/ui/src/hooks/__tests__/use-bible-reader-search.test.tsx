@@ -549,6 +549,74 @@ describe('useBibleReaderSearch', () => {
     }
   })
 
+  it('keeps page one and retries when a later page cannot be titled', async () => {
+    const verses = jest
+      .fn()
+      .mockResolvedValueOnce(okVerses(['JHN.3.16'], 'page-2'))
+      .mockResolvedValueOnce(okVerses(['PSA.23.1'], 'page-3'))
+      .mockResolvedValueOnce(okVerses(['PSA.23.1'], 'page-3'))
+    const fetchBibleContent = jest.fn(async (request: { path: string }) => {
+      if (request.path.includes('PSA.23.1')) {
+        throw new Error('offline')
+      }
+      return {
+        status: 200,
+        body: '{"content":"For God so loved","reference":"John 3:16"}',
+        contentType: 'application/json',
+      }
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent,
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(searchStub({ verses })) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('love')
+    })
+    await flush()
+
+    await act(async () => {
+      if (result.current.view.phase === 'results') {
+        result.current.view.onEndReached()
+      }
+    })
+    await flush()
+
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase !== 'results') {
+      return
+    }
+    expect(result.current.view.verses.map((verse) => verse.usfm)).toEqual(['JHN.3.16'])
+    expect(result.current.view.footer.kind).toBe('error')
+
+    fetchBibleContent.mockImplementation(async () => ({
+      status: 200,
+      body: '{"content":"The Lord is my shepherd","reference":"Psalm 23:1"}',
+      contentType: 'application/json',
+    }))
+
+    await act(async () => {
+      if (result.current.view.footer.kind === 'error') {
+        result.current.view.footer.onRetry()
+      }
+    })
+    await flush()
+
+    expect(verses).toHaveBeenCalledTimes(3)
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses.map((verse) => verse.usfm)).toEqual(['JHN.3.16', 'PSA.23.1'])
+      expect(result.current.view.footer.kind).toBe('none')
+    }
+  })
+
   it('does not request another page when nextPageToken is null', async () => {
     const verses = jest.fn(async () => okVerses(['JHN.3.16'], null))
     const stub = searchStub({ verses })

@@ -22,6 +22,7 @@ import {
 } from '../lib/bible-reader-search'
 import {
   demandOf,
+  ENRICHMENT_FAILED,
   fieldTextOf,
   initialSearchState,
   searchReducer,
@@ -322,6 +323,10 @@ export function useBibleReaderSearch(
         const added = dedupeVerseUsfms(current.seen, incoming)
         const verses = await titledVersesFor(added, versionId, fetchBibleContent)
         if (cancelled) {
+          return
+        }
+        if (added.length > 0 && verses.length === 0) {
+          dispatch({ type: 'pageFailed', epoch: current.epoch, error: ENRICHMENT_FAILED })
           return
         }
         dispatch({
