@@ -628,4 +628,41 @@ describe('BibleReaderSearchSheet', () => {
       verse: 16,
     } satisfies BibleReference)
   })
+
+  it('stays open and reports nothing when a result id is not a reference', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => ({
+        ok: true as const,
+        value: { verses: [{ id: 'not-a-usfm' }], didYouMean: [] },
+      })),
+    })
+    const onClose = jest.fn()
+    const onSelectReference = jest.fn()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={onClose}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={onSelectReference}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-result-not-a-usfm'))
+    })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onSelectReference).not.toHaveBeenCalled()
+    expect(screen.getByTestId('bible-reader-search-result-not-a-usfm')).toBeTruthy()
+  })
 })

@@ -18,11 +18,9 @@ type ReaderDomCapture = {
   versionId?: number
 }
 
-let latestSearchProps: BibleReaderSearchSheetProps | null = null
 let latestReaderDomProps: ReaderDomCapture = {}
 
 function CaptureSearchSheet(props: BibleReaderSearchSheetProps) {
-  latestSearchProps = props
   if (!props.isOpen) {
     return <View testID="mock-search-sheet" />
   }
@@ -35,14 +33,6 @@ function CaptureSearchSheet(props: BibleReaderSearchSheetProps) {
         }
       >
         <Text>Select good</Text>
-      </Pressable>
-      <Pressable
-        testID="select-bad-usfm"
-        onPress={() => {
-          // The real sheet no-ops malformed USFM before calling onSelectReference.
-        }}
-      >
-        <Text>Select bad</Text>
       </Pressable>
     </View>
   )
@@ -63,7 +53,6 @@ const wrapper = youVersionProviderWrapper()
 
 describe('BibleReader native Search', () => {
   beforeEach(() => {
-    latestSearchProps = null
     latestReaderDomProps = {}
     installBibleReaderTestImpls()
     setImpl('BibleReaderDom', MockDOM)
@@ -142,17 +131,4 @@ describe('BibleReader native Search', () => {
     expect(latestReaderDomProps.versionId).toBe(111)
   })
 
-  it('leaves Search open when a malformed USFM is ignored', async () => {
-    render(<BibleReader />, { wrapper })
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('reader-toolbar-search'))
-    })
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('select-bad-usfm'))
-    })
-
-    expect(screen.getByTestId('mock-search-sheet-open')).toBeTruthy()
-    expect(latestSearchProps?.isOpen).toBe(true)
-  })
 })
