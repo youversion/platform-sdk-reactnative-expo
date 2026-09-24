@@ -603,8 +603,9 @@ describe('useBibleReaderSearch', () => {
     }))
 
     await act(async () => {
-      if (result.current.view.footer.kind === 'error') {
-        result.current.view.footer.onRetry()
+      const { view } = result.current
+      if (view.phase === 'results' && view.footer.kind === 'error') {
+        view.footer.onRetry()
       }
     })
     await flush()
