@@ -15,7 +15,7 @@ const JOHN_3_16: BibleReaderVerseFocus = {
 
 describe('applyMountedVerseFocus', () => {
   it('does not focus the seq this mount already had', () => {
-    const focusReference = jest.fn<VerseFocusCaller['focusReference']>()
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
 
     const next = applyMountedVerseFocus({ focusReference }, { ...JOHN_3_16, seq: 4 }, 4)
 
@@ -24,7 +24,7 @@ describe('applyMountedVerseFocus', () => {
   })
 
   it('focuses when seq moves past the one already handled', () => {
-    const focusReference = jest.fn<VerseFocusCaller['focusReference']>()
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
 
     const next = applyMountedVerseFocus(
       { focusReference },
@@ -37,7 +37,7 @@ describe('applyMountedVerseFocus', () => {
   })
 
   it('does not focus when the host only changed chapter', () => {
-    const focusReference = jest.fn<VerseFocusCaller['focusReference']>()
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
 
     const next = applyMountedVerseFocus(
       { focusReference },
@@ -50,7 +50,7 @@ describe('applyMountedVerseFocus', () => {
   })
 
   it('stays up when the Web SDK rejects the passage', () => {
-    const focusReference = jest.fn<VerseFocusCaller['focusReference']>(() => {
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>(() => {
       throw new Error('Reader navigation requires a valid passage ID and Bible version ID')
     })
     const errorLog = jest.spyOn(console, 'error').mockImplementation(() => {})
