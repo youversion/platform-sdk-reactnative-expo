@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
 import type { BoxShadowValue, TextStyle, ViewStyle } from 'react-native'
 
 import { Button } from '../components/ui/button'
@@ -15,6 +15,7 @@ import { ChevronLeftIcon } from './icons/chevron-left-icon'
 import { ChevronRightIcon } from './icons/chevron-right-icon'
 import { MoreIcon } from './icons/more-icon'
 import { PersonIcon } from './icons/person-icon'
+import { SearchIcon } from './icons/search-icon'
 
 function boldLabelStyle(tokens: Tokens): TextStyle {
   return {
@@ -28,9 +29,10 @@ function boldLabelStyle(tokens: Tokens): TextStyle {
 const CHEVRON_HIT = 44
 const CAPSULE_MIN_HEIGHT = 44
 const CAPSULE_GAP = 8
-const TOOLBAR_PADDING_X = 24
+const TOOLBAR_PADDING_START = 16
+const TOOLBAR_PADDING_END = 8
 const MENU_ICON_SIZE = 20
-const MORE_ICON_SIZE = 24
+const TOOLBAR_ICON_SIZE = 24
 const MORE_HIT = 44
 
 function MenuRow({
@@ -166,6 +168,23 @@ function VersionContent({
   )
 }
 
+function ToolbarSearchAction({ onPress }: { onPress: () => void }): ReactNode {
+  const tokens = useTokens()
+  const { t } = useSdkTranslation()
+
+  return (
+    <Pressable
+      testID="reader-toolbar-search"
+      accessibilityRole="button"
+      accessibilityLabel={t('search')}
+      onPress={onPress}
+      style={({ pressed }) => [styles.search, pressed && styles.searchPressed]}
+    >
+      <SearchIcon color={tokens.foreground} size={TOOLBAR_ICON_SIZE} />
+    </Pressable>
+  )
+}
+
 function ToolbarMoreMenu({
   showAuth,
   signedIn,
@@ -189,7 +208,7 @@ function ToolbarMoreMenu({
         accessibilityLabel={t('moreMenuAriaLabel')}
         style={moreHitStyle(tokens)}
       >
-        <MoreIcon color={tokens.foreground} size={MORE_ICON_SIZE} />
+        <MoreIcon color={tokens.foreground} size={TOOLBAR_ICON_SIZE} />
       </Popover.Trigger>
       <Popover.Content align="end" style={styles.menu}>
         <MenuRow
@@ -236,6 +255,7 @@ export type BibleReaderToolbarProps = {
   onNextChapterPress: () => void
   onChapterPress: () => void
   onVersionPress: () => void
+  onSearchPress: () => void
   onSettingsPress: () => void
   onSignInPress?: () => void
   onSignOutPress?: () => void
@@ -255,6 +275,7 @@ export function BibleReaderToolbar({
   onNextChapterPress,
   onChapterPress,
   onVersionPress,
+  onSearchPress,
   onSettingsPress,
   onSignInPress,
   onSignOutPress,
@@ -331,6 +352,7 @@ export function BibleReaderToolbar({
           </Button>
         </View>
       </View>
+      <ToolbarSearchAction onPress={onSearchPress} />
       <ToolbarMoreMenu
         showAuth={showAuth}
         signedIn={signedIn}
@@ -347,8 +369,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    paddingHorizontal: TOOLBAR_PADDING_X,
+    paddingStart: TOOLBAR_PADDING_START,
+    paddingEnd: TOOLBAR_PADDING_END,
     gap: CAPSULE_GAP,
+  },
+  search: {
+    padding: 8,
+  },
+  searchPressed: {
+    opacity: 0.8,
   },
   chapterCapsule: {
     flex: 1,

@@ -49,8 +49,14 @@ import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
-import { useConsumedNavigationRequest, type BibleReaderNavigation } from './bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  useBibleReaderVerseFocus,
+  useConsumedNavigationRequest,
+  type BibleReaderNavigation,
+} from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
 import { BibleVerseActionSheet } from './bible-verse-action-sheet'
@@ -165,6 +171,7 @@ export type BibleReaderProps = Omit<
   | 'userInfo'
   // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
+  | 'verseFocus'
   // `onVerseSelect` and `clearSelectionSignal` are deliberately kept. They are
   // the consumer's only handle on a selection. The reader taps both on the way
   // past: it mirrors the payload to raise the native verse action sheet, and it
@@ -203,8 +210,7 @@ export type BibleReaderProps = Omit<
    * One pending request; a newer call replaces an older one; this reader
    * consumes it once.
    *
-   * Loads book / chapter / versionId only. Verse scroll and focus stay stored
-   * on the request for a later release.
+   * `request` loads the chapter. `focusReference` also focuses the verse.
    */
   navigation?: BibleReaderNavigation
 }
@@ -351,7 +357,10 @@ export function BibleReader({
     }
   }
 
-  const pendingNavigation = useConsumedNavigationRequest(navigation)
+  const fallbackNavigation = useMemo(() => createBibleReaderNavigation(), [])
+  const resolvedNavigation = navigation ?? fallbackNavigation
+  const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
+  const verseFocus = useBibleReaderVerseFocus(resolvedNavigation)
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -474,14 +483,19 @@ export function BibleReader({
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
 
   // Hiding the toolbar unmounts the built-in sheets. Clear the open flags on
   // the same render so showing the toolbar again cannot remount a sheet the
   // user already left. An effect would leave one frame with the old flags.
-  if (!showToolbar && (isPickerOpen || isVersionPickerOpen || isSettingsSheetOpen)) {
+  if (
+    !showToolbar &&
+    (isPickerOpen || isVersionPickerOpen || isSettingsSheetOpen || isSearchOpen)
+  ) {
     setIsPickerOpen(false)
     setIsVersionPickerOpen(false)
     setIsSettingsSheetOpen(false)
+    setIsSearchOpen(false)
   }
 
   // ── Verse actions ────────────────────────────────────────────────────────
@@ -828,6 +842,7 @@ export function BibleReader({
                   chapter: nextChapter.chapterId,
                 })
               }}
+              onSearchPress={() => setIsSearchOpen(true)}
               onSettingsPress={handleOpenBibleThemeSettings}
               onSignInPress={() => {
                 void signIn?.()
@@ -852,6 +867,7 @@ export function BibleReader({
               verseActions={VERSE_ACTIONS}
               onVerseSelect={handleVerseSelect}
               clearSelectionSignal={clearSelectionSignal + internalClearCount}
+              verseFocus={verseFocus}
               onSignInPress={signIn}
               onSignOutPress={guardedSignOut}
               userInfo={userInfo}
@@ -888,6 +904,20 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+        />
+      )}
+      {showNativeToolbar && (
+        <BibleReaderSearchSheet
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          versionId={resolvedVersionId}
+          languageTag={versionLanguageId}
+          theme={resolvedTheme}
+          fetchBibleContent={context.fetchBibleContent}
+          onSelectReference={(reference) => {
+            setIsSearchOpen(false)
+            resolvedNavigation.focusReference(reference)
+          }}
         />
       )}
       {Platform.OS !== 'web' && (

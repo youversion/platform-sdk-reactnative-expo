@@ -246,6 +246,9 @@ function installOpenAwareSheets() {
     ({ isSettingsSheetOpen }: { isSettingsSheetOpen: boolean }) =>
       isSettingsSheetOpen ? <View testID="mock-settings-sheet" /> : null,
   )
+  setImpl('BibleReaderSearchSheet', ({ isOpen }: { isOpen: boolean }) =>
+    isOpen ? <View testID="mock-search-sheet" /> : null,
+  )
 }
 
 async function flushToolbarEffects() {
@@ -315,6 +318,8 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-previous-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-next-chapter')).toBeTruthy()
     expect(screen.getByTestId('reader-toolbar-menu')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-search')).toBeTruthy()
+    expect(screen.getByLabelText(en.search)).toBeTruthy()
     const menu = screen.getByTestId('reader-toolbar-menu')
     expect(StyleSheet.flatten(menu.props.style)).toMatchObject({
       width: 44,
@@ -337,11 +342,14 @@ describe('BibleReader native toolbar', () => {
     })
 
     expect(latestDomProps.theme).toBe('dark')
-    expect(StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)).toMatchObject({
+    const row = StyleSheet.flatten(screen.getByTestId('reader-toolbar').props.style)
+    expect(row).toMatchObject({
       backgroundColor: darkTokens.background,
-      paddingHorizontal: 24,
+      paddingStart: 16,
+      paddingEnd: 8,
       gap: 8,
     })
+    expect(row.paddingHorizontal).toBeUndefined()
     expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-chapter-capsule').props.style),
     ).toMatchObject({
@@ -356,6 +364,10 @@ describe('BibleReader native toolbar', () => {
     ).toMatchObject({
       backgroundColor: darkTokens.muted,
     })
+    const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
+    expect(search).toMatchObject({ padding: 8 })
+    expect(search.backgroundColor).toBeUndefined()
+    expect(search.boxShadow).toBeUndefined()
   })
 
   it('fills chapter and version capsules with canvas white in light', async () => {
@@ -396,6 +408,10 @@ describe('BibleReader native toolbar', () => {
       backgroundColor: lightTokens.background,
       boxShadow: softShadow,
     })
+    const search = StyleSheet.flatten(screen.getByTestId('reader-toolbar-search').props.style)
+    expect(search).toMatchObject({ padding: 8 })
+    expect(search.backgroundColor).toBeUndefined()
+    expect(search.boxShadow).toBeUndefined()
     expect(
       StyleSheet.flatten(screen.getByTestId('reader-toolbar-version-clip').props.style),
     ).toMatchObject({
@@ -527,7 +543,6 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('reader-toolbar-version-loading')).toBeTruthy()
     expect(screen.queryByText('3034')).toBeNull()
     expect(screen.queryByText('128')).toBeNull()
-    // The last title can stay on the button. Next cannot keep walking NIV's chapters.
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -772,6 +787,20 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByTestId('mock-settings-sheet')).toBeTruthy()
   })
 
+  it('opens Search from the toolbar icon', async () => {
+    installToolbarFetches()
+    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
+      wrapper: defaultWrapper,
+    })
+
+    expect(screen.queryByTestId('mock-search-sheet')).toBeNull()
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('reader-toolbar-search'))
+    })
+    expect(screen.getByTestId('mock-search-sheet')).toBeTruthy()
+  })
+
   it('lets escape hatches suppress the built-in picker sheets', async () => {
     const onChapterPickerPress = jest.fn().mockResolvedValue(undefined)
     const onVersionPickerPress = jest.fn().mockResolvedValue(undefined)
@@ -864,8 +893,6 @@ describe('BibleReader native toolbar', () => {
       disabled: true,
     })
 
-    // The disabled trigger is what holds the callback back, so press it mid-flight: a consumer
-    // must never be handed a half-loaded selection.
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
     })
@@ -925,7 +952,6 @@ describe('BibleReader native toolbar', () => {
     )
     expect(screen.getByText('1')).toBeTruthy()
 
-    // Both chevrons stay off without a catalog to walk.
     expect(
       screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -933,8 +959,6 @@ describe('BibleReader native toolbar', () => {
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
 
-    // The trigger re-enables once the lookup settles, failed or not. `BibleVersionPickerPressData`
-    // types `languageId` as a string for Web SDK parity, so a failed lookup sends it empty.
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-version'))
     })
@@ -949,9 +973,11 @@ describe('BibleReader native toolbar', () => {
     expect(screen.queryByTestId('reader-toolbar')).toBeNull()
     expect(screen.queryByTestId('reader-toolbar-previous-chapter')).toBeNull()
     expect(screen.queryByTestId('reader-toolbar-next-chapter')).toBeNull()
+    expect(screen.queryByTestId('reader-toolbar-search')).toBeNull()
     expect(screen.queryByTestId('mock-chapter-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
     expect(screen.queryByTestId('mock-settings-sheet')).toBeNull()
+    expect(screen.queryByTestId('mock-search-sheet')).toBeNull()
     expect(
       ensureSetupFetch().mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input))),
     ).toBe(false)
@@ -1390,15 +1416,6 @@ describe('BibleReader native toolbar', () => {
       screen.queryByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }),
     ).toBeNull()
     expect(signIn).not.toHaveBeenCalled()
-  })
-
-  it('does not render a Search button', async () => {
-    installToolbarFetches()
-    await renderToolbar(<BibleReader book="JHN" chapter="1" versionId={3034} />, {
-      wrapper: defaultWrapper,
-    })
-
-    expect(screen.queryByTestId('reader-toolbar-search')).toBeNull()
   })
 
   it('does not render an avatar or user trigger', async () => {

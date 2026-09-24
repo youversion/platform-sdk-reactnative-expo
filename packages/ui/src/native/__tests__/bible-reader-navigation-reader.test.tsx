@@ -15,10 +15,19 @@ import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-
 import { BibleReader } from '../bible-reader'
 import { createBibleReaderNavigation } from '../bible-reader-navigation'
 
+type VerseFocus = {
+  seq: number
+  versionId: number
+  passageId: string
+  scrollsToVerse: boolean
+  shouldFocus: boolean
+}
+
 type LatestReaderDomProps = {
   book?: string
   chapter?: string
   versionId?: number
+  verseFocus?: VerseFocus
   onChapterChange?: (chapter: string) => Promise<void>
 }
 
@@ -212,20 +221,78 @@ describe('BibleReader navigation', () => {
     expect(onVersionChange).not.toHaveBeenCalled()
   })
 
-  it('does not add scroll or focus props on the DOM mock', () => {
+  it('forwards a serializable verse focus on the DOM mock', async () => {
     const navigation = createBibleReaderNavigation()
     navigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
-    navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 }, true)
 
     render(<BibleReader navigation={navigation} />, { wrapper })
 
     expect(latestReaderDomProps.book).toBe('JHN')
     expect(latestReaderDomProps.chapter).toBe('3')
     expect(latestReaderDomProps.versionId).toBe(111)
-    expect(latestReaderDomProps).not.toHaveProperty('scrollsToVerse')
-    expect(latestReaderDomProps).not.toHaveProperty('shouldFocus')
-    expect(latestReaderDomProps).not.toHaveProperty('scrollTarget')
-    expect(latestReaderDomProps).not.toHaveProperty('focusedVerse')
-    expect(latestReaderDomProps).not.toHaveProperty('showsFullChapter')
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 0,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: false,
+      shouldFocus: false,
+    })
+
+    await act(async () => {
+      navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 }, true)
+    })
+
+    const focus = latestReaderDomProps.verseFocus
+    expect(focus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(JSON.parse(JSON.stringify(focus))).toEqual(focus)
+    expect(Object.getPrototypeOf(focus)).toBe(Object.prototype)
+  })
+
+  it('keeps a range passage id instead of rebuilding it from the start verse', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.focusReference({
+      versionId: 111,
+      bookId: 'JHN',
+      chapter: 3,
+      verse: 16,
+      passageId: 'JHN.3.16-18',
+    })
+
+    render(<BibleReader navigation={navigation} />, { wrapper })
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16-18',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+  })
+
+  it('bumps seq when focusReference repeats the same verse', async () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+
+    render(<BibleReader navigation={navigation} />, { wrapper })
+
+    expect(latestReaderDomProps.verseFocus?.seq).toBe(1)
+
+    await act(async () => {
+      navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+    })
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 2,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
   })
 })
