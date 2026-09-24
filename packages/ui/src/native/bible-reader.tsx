@@ -361,6 +361,12 @@ export function BibleReader({
   const resolvedNavigation = navigation ?? fallbackNavigation
   const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   const verseFocus = useBibleReaderVerseFocus(resolvedNavigation)
+  // Stays 0 until after the WebView has seen this seq. A reload then receives
+  // the seq and does not focus again. The first mount still receives 0.
+  const [appliedFocusSeq, setAppliedFocusSeq] = useState(0)
+  useEffect(() => {
+    setAppliedFocusSeq(verseFocus.seq)
+  }, [verseFocus.seq])
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId
@@ -868,6 +874,7 @@ export function BibleReader({
               onVerseSelect={handleVerseSelect}
               clearSelectionSignal={clearSelectionSignal + internalClearCount}
               verseFocus={verseFocus}
+              appliedFocusSeq={appliedFocusSeq}
               onSignInPress={signIn}
               onSignOutPress={guardedSignOut}
               userInfo={userInfo}

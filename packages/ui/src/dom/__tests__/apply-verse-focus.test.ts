@@ -14,6 +14,15 @@ const JOHN_3_16: BibleReaderVerseFocus = {
 }
 
 describe('applyMountedVerseFocus', () => {
+  it('focuses a verse that was queued before the first mount', () => {
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
+
+    const next = applyMountedVerseFocus({ focusReference }, JOHN_3_16, 0)
+
+    expect(focusReference).toHaveBeenCalledWith({ versionId: 111, passageId: 'JHN.3.16' }, true)
+    expect(next).toBe(1)
+  })
+
   it('does not focus the seq this mount already had', () => {
     const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
 

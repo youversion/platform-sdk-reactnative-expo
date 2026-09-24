@@ -28,13 +28,16 @@ type LatestReaderDomProps = {
   chapter?: string
   versionId?: number
   verseFocus?: VerseFocus
+  appliedFocusSeq?: number
   onChapterChange?: (chapter: string) => Promise<void>
 }
 
 let latestReaderDomProps: LatestReaderDomProps = {}
+const appliedFocusSeqs: number[] = []
 
 function MockDOM(props: LatestReaderDomProps) {
   latestReaderDomProps = props
+  appliedFocusSeqs.push(props.appliedFocusSeq ?? -1)
   return (
     <View testID="mock-dom">
       <Text testID="book">{props.book ?? 'none'}</Text>
@@ -58,6 +61,7 @@ async function resetReaderLocationStore() {
 describe('BibleReader navigation', () => {
   beforeEach(async () => {
     latestReaderDomProps = {}
+    appliedFocusSeqs.length = 0
     installBibleReaderTestImpls()
     setImpl('BibleReaderDom', MockDOM)
     await resetReaderLocationStore()
@@ -273,6 +277,8 @@ describe('BibleReader navigation', () => {
       scrollsToVerse: true,
       shouldFocus: true,
     })
+    expect(appliedFocusSeqs[0]).toBe(0)
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
   })
 
   it('bumps seq when focusReference repeats the same verse', async () => {

@@ -75,6 +75,13 @@ type BibleReaderBaseProps = {
    * `seq` increases only on focus, including a repeat of the same verse.
    */
   verseFocus?: BibleReaderVerseFocus
+  /**
+   * Seq already applied by an earlier WebView mount. `0` on the first mount,
+   * so a focus queued before the Reader appears still runs. After that mount
+   * the native reader stores the seq, and a reload passes it back so the new
+   * WebView does not jump to the verse again.
+   */
+  appliedFocusSeq?: number
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -130,6 +137,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       scrollsToVerse: false,
       shouldFocus: false,
     },
+    appliedFocusSeq = 0,
     theme = 'light',
     book,
     chapter,
@@ -171,7 +179,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   }, [])
 
   const navigation = useRef(new BibleReaderNavigation())
-  const handledFocusSeq = useRef(verseFocus.seq)
+  const handledFocusSeq = useRef(appliedFocusSeq)
   useEffect(() => {
     handledFocusSeq.current = applyMountedVerseFocus(
       navigation.current,

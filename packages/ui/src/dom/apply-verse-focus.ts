@@ -10,8 +10,9 @@ export type VerseFocusCaller = {
 /**
  * Apply one verse focus inside the WebView.
  *
- * `handledSeq` starts as the seq already present when this WebView mounted.
- * A later mount must not jump back to that verse. The Web SDK throws on a
+ * `handledSeq` is the seq a previous WebView mount already applied. The first
+ * mount passes 0, so a focus queued before the Reader appears still runs. A
+ * reload passes that same seq and does not jump back. The Web SDK throws on a
  * passage it rejects, and that throw clears the WebView root, so it is logged
  * and dropped.
  */
