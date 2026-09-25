@@ -9,6 +9,7 @@ export type ImplKey =
   | 'BibleReaderSettingsSheet'
   | 'BibleTextViewDom'
   | 'BibleVerseActionSheet'
+  | 'BibleVersionPicker'
   | 'BibleVersionPickerContent'
   | 'BibleVersionPickerSheet'
   | 'FootnoteContent'

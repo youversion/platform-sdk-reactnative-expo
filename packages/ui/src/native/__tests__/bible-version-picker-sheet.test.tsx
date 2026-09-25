@@ -1,41 +1,33 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import {
+  mockWindowDimensions,
+  resetMockWindowDimensions,
+} from '../../../jest.window-dimensions-mock'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import type { BibleVersionPickerProps } from '../bible-version-picker'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
-import { YouVersionProvider } from '../youversion-provider'
 
-type MockDomProps = {
-  appKey?: string
-  apiHost?: string
-  installationId?: string
-  fetchBibleContent?: unknown
-  theme?: string
-  versionId?: number
-  resetKey?: number
-  locale?: string
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-  onVersionChange?: (versionId: number) => Promise<void>
-}
+type MockPickerProps = Pick<BibleVersionPickerProps, 'versionId' | 'onSelect'>
 
-let latestDomProps: MockDomProps = {}
+let latestPickerProps: MockPickerProps = {}
+let pickerMounts = 0
 
-function MockDOM(props: MockDomProps) {
-  latestDomProps = props
+function MockPicker(props: MockPickerProps) {
+  latestPickerProps = props
+  pickerMounts += 1
   return (
-    <View testID="mock-dom">
-      <Text testID="theme-value">{props.theme ?? 'none'}</Text>
+    <View testID="mock-version-picker">
       <Text testID="version-value">{String(props.versionId ?? 'none')}</Text>
       <Pressable
         testID="trigger-select"
         onPress={() => {
-          void props.onVersionChange?.(59)
+          void Promise.resolve(props.onSelect?.(59)).catch(() => undefined)
         }}
       >
         <Text>Select</Text>
@@ -46,30 +38,12 @@ function MockDOM(props: MockDomProps) {
 
 const wrapper = youVersionProviderWrapper()
 
-function versionFilterWrapper(lists: {
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-}) {
-  return function FilterWrapper({ children }: { children: ReactNode }) {
-    return (
-      <YouVersionProvider
-        appKey="test-key"
-        theme="light"
-        hookOverrides={defaultHookOverrides}
-        {...lists}
-      >
-        {children}
-      </YouVersionProvider>
-    )
-  }
-}
-
 describe('BibleVersionPickerSheet', () => {
   beforeEach(() => {
-    latestDomProps = {}
+    latestPickerProps = {}
+    pickerMounts = 0
     stubDeviceLocale('xx-XX', 'xx')
-    setImpl('BibleVersionPickerContent', MockDOM)
+    setImpl('BibleVersionPicker', MockPicker)
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="sheet">{children}</View> : null,
     )
@@ -77,6 +51,7 @@ describe('BibleVersionPickerSheet', () => {
 
   afterEach(() => {
     resetImpls()
+    resetMockWindowDimensions()
     jest.restoreAllMocks()
   })
 
@@ -95,7 +70,7 @@ describe('BibleVersionPickerSheet', () => {
     )
 
     expect(getByTestId('sheet')).toBeTruthy()
-    expect(latestDomProps.versionId).toBe(3034)
+    expect(latestPickerProps.versionId).toBe(3034)
 
     await act(async () => {
       fireEvent.press(getByTestId('trigger-select'))
@@ -139,100 +114,61 @@ describe('BibleVersionPickerSheet', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('resolves theme from provider when no theme prop', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
+  it('remounts the picker when the sheet opens again', () => {
+    const { rerender } = render(
+      <BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
 
-    expect(latestDomProps.theme).toBe('light')
-  })
+    const firstMounts = pickerMounts
 
-  it('explicit theme overrides provider theme', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="dark" />, {
-      wrapper: ({ children }) => (
-        <YouVersionProvider appKey="test-key" theme="light" hookOverrides={defaultHookOverrides}>
-          {children}
-        </YouVersionProvider>
-      ),
-    })
+    rerender(<BibleVersionPickerSheet isOpen={false} onClose={() => {}} versionId={3034} />)
+    rerender(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />)
 
-    expect(latestDomProps.theme).toBe('dark')
-  })
-
-  it('system theme defers to provider resolved theme', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} theme="system" />, { wrapper })
-
-    expect(latestDomProps.theme).toBe('light')
-  })
-
-  it('uses default versionId when not provided', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.versionId).toBe(3034)
-  })
-
-  it('passes appKey, apiHost, installationId, and the content action to DOM content', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.appKey).toBe('test-key')
-    expect(latestDomProps.apiHost).toBe('api.youversion.com')
-    expect(latestDomProps.installationId).toEqual(expect.any(String))
-    expect(latestDomProps.installationId).not.toBe('')
-    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
-  })
-
-  it('passes resetKey to DOM content', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
-
-    expect(latestDomProps.resetKey).toEqual(expect.any(Number))
+    expect(pickerMounts).toBeGreaterThan(firstMounts)
+    expect(latestPickerProps).not.toHaveProperty('sheetOpenedNonce')
   })
 
   it('does not pass language panel state across the native bridge', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 
-    expect(latestDomProps).not.toHaveProperty('showLanguagePicker')
-    expect(latestDomProps).not.toHaveProperty('handleShowLanguagePicker')
+    expect(latestPickerProps).not.toHaveProperty('showLanguagePicker')
+    expect(latestPickerProps).not.toHaveProperty('handleShowLanguagePicker')
   })
 
-  it('forwards version filter lists from YouVersionProvider to DOM content', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    })
-
-    expect(latestDomProps.permittedVersionIds).toEqual([111])
-    expect(latestDomProps.excludedVersionIds).toEqual([3034])
-    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
-  })
-
-  it('forwards empty version filter arrays to DOM content without coercing to undefined', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [],
-        excludedVersionIds: [],
-        permittedLanguageTags: [],
-      }),
-    })
-
-    expect(latestDomProps.permittedVersionIds).toEqual([])
-    expect(latestDomProps.excludedVersionIds).toEqual([])
-    expect(latestDomProps.permittedLanguageTags).toEqual([])
-  })
-
-  it('forwards resolved locale from YouVersionProvider to DOM content', () => {
-    render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, {
-      wrapper: youVersionProviderWrapper('light', 'es'),
-    })
-
-    expect(latestDomProps.locale).toBe('es')
-  })
-
-  it('forwards device-resolved locale to DOM content when provider locale is omitted', () => {
-    stubDeviceLocale('es-MX', 'es')
-
+  it('uses default versionId when not provided', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 
-    expect(latestDomProps.locale).toBe('es')
+    expect(latestPickerProps.versionId).toBe(3034)
+  })
+
+  it('keeps the handle below the top safe area without shortening smaller sheets', () => {
+    mockWindowDimensions.height = 844
+
+    function WithInsets({ children }: { children: ReactNode }) {
+      return (
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 59, right: 0, bottom: 34, left: 0 },
+          }}
+        >
+          {children}
+        </SafeAreaProvider>
+      )
+    }
+
+    const constrained = render(<BibleVersionPickerSheet isOpen onClose={() => {}} />, {
+      wrapper: WithInsets,
+    })
+    expect(
+      StyleSheet.flatten(constrained.getByTestId('sheet').findAllByType(View)[0]?.props.style),
+    ).toEqual(expect.objectContaining({ height: 711 }))
+    constrained.unmount()
+
+    const unconstrained = render(<BibleVersionPickerSheet isOpen onClose={() => {}} />, { wrapper })
+    expect(
+      StyleSheet.flatten(unconstrained.getByTestId('sheet').findAllByType(View)[0]?.props.style),
+    ).toEqual(expect.objectContaining({ height: 743 }))
   })
 })
