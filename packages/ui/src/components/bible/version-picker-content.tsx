@@ -148,24 +148,30 @@ function SearchField({
 
 function VersionAbbreviation({ text }: { text: string }): ReactNode {
   const tokens = useTokens()
-  const [fontSize, setFontSize] = useState(BADGE_FONT_SIZE)
+  const [fittedSizes, setFittedSizes] = useState({
+    prefix: BADGE_FONT_SIZE,
+    digits: BADGE_FONT_SIZE,
+  })
   const match = /^(.+?)(\d+)$/.exec(text)
   const prefix = match?.[1] ?? text
   const digits = match?.[2]
   const face = fontMapKey(tokens.fontFamily.serif, 700, 'normal')
+  const fontSize = Math.min(fittedSizes.prefix, fittedSizes.digits)
   const textStyle = [
     styles.versionBadgeText,
     { fontFamily: face, color: tokens.foreground, fontSize, lineHeight: fontSize * 1.03 },
   ]
 
-  const fitPrefix = ({ nativeEvent: { lines } }: TextLayoutEvent) => {
+  const fitLine = (part: 'prefix' | 'digits', { nativeEvent: { lines } }: TextLayoutEvent) => {
     const line = lines[0]
     if (!line?.width || !line.height) return
-    const size = Math.max(
-      12,
+    const size = Math.min(
+      BADGE_FONT_SIZE,
       BADGE_FONT_SIZE * Math.min((BADGE_SIZE * 0.7) / line.width, (BADGE_SIZE * 0.4) / line.height),
     )
-    setFontSize((current) => (Math.abs(current - size) > 0.1 ? size : current))
+    setFittedSizes((current) =>
+      Math.abs(current[part] - size) > 0.1 ? { ...current, [part]: size } : current,
+    )
   }
 
   return (
@@ -175,11 +181,23 @@ function VersionAbbreviation({ text }: { text: string }): ReactNode {
         pointerEvents="none"
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
-        onTextLayout={fitPrefix}
+        onTextLayout={(event) => fitLine('prefix', event)}
         style={[styles.badgeMeasure, { fontFamily: face, color: tokens.foreground }]}
       >
         {prefix}
       </Text>
+      {digits ? (
+        <Text
+          variant="body"
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={(event) => fitLine('digits', event)}
+          style={[styles.badgeMeasure, { fontFamily: face, color: tokens.foreground }]}
+        >
+          {digits}
+        </Text>
+      ) : null}
       <Text variant="body" style={textStyle}>
         {prefix}
       </Text>
@@ -244,19 +262,24 @@ function LanguageRow({
   const tokens = useTokens()
   const primary = language.displayNames.en ?? language.id
   const secondary = language.displayNames[language.id] ?? language.displayNames[displayLocale]
+  const name = secondary && secondary !== primary ? secondary : primary
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={primary}
+      accessibilityLabel={name === primary ? name : `${name}, ${primary}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.languageRow, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.languageRow,
+        { backgroundColor: selected ? tokens.muted : 'transparent' },
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.languageNames}>
         <Text variant="body" style={[styles.languagePrimary, { color: tokens.foreground }]}>
-          {secondary && secondary !== primary ? secondary : primary}
+          {name}
         </Text>
-        {secondary && secondary !== primary ? (
+        {name !== primary ? (
           <Text
             variant="body"
             style={[styles.languageSecondary, { color: tokens.mutedForeground }]}
@@ -574,7 +597,13 @@ function LanguagesPanel({
               <StateMessage label={t('error')} action={t('retry')} onAction={onRetry} />
             ) : (
               <Text variant="muted" style={styles.emptyLanguages}>
-                {t(isSearching ? 'noLanguageSearchResults' : 'noRegionalLanguagesAvailable')}
+                {t(
+                  isSearching
+                    ? 'noLanguageSearchResults'
+                    : languageTab === 'suggested'
+                      ? 'noRegionalLanguagesAvailable'
+                      : 'noVersionsFound',
+                )}
               </Text>
             )
           }

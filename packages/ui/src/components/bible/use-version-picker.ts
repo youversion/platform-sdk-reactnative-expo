@@ -314,13 +314,17 @@ export function useVersionPicker({
 
   const versionCountByLanguage = useMemo(() => {
     const counts = new Map<string, number>()
+    const visibleLanguageIds = new Set(visibleLanguages.map((language) => language.id))
     for (const [id, languageTag] of languageTagByVersionId) {
-      if (isUsableBibleVersion({ id, languageTag }, activeFilters)) {
+      if (
+        visibleLanguageIds.has(languageTag) &&
+        isUsableBibleVersion({ id, languageTag }, activeFilters)
+      ) {
         counts.set(languageTag, (counts.get(languageTag) ?? 0) + 1)
       }
     }
     return counts
-  }, [activeFilters, languageTagByVersionId])
+  }, [activeFilters, languageTagByVersionId, visibleLanguages])
 
   const recentVersions = useMemo(() => {
     const matching = !versionSearchQuery.trim()
