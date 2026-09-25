@@ -48,7 +48,11 @@ _Avoid_: Passage id, USFM ref
 
 **Reader Location**:
 The last committed Bible location (`book`, `chapter`, `versionId`) a **Native Wrapper** restores on launch for uncontrolled readers. Same shape as **Picker Selection**, but names the persisted snapshot rather than the commit event. Controlled `book` / `chapter` / `versionId` win and are not overwritten by the snapshot. Uncontrolled **BibleCard** persists committed `versionId` in MMKV, separate from this snapshot.
-_Avoid_: Reader navigation, passage state
+_Avoid_: **Reader Navigation** (the pending-request object); passage state
+
+**Reader Navigation**:
+The public pending-request object (`BibleReaderNavigation`) a host creates and passes into `BibleReader`. One object per mounted Reader. `request` queues a chapter jump. `focusReference` queues a chapter jump, scrolls to the verse, and dims the rest of the chapter. A newer call replaces an older one. The Reader consumes it once, including when submitted before mount. Goes through the existing `book` / `chapter` / `versionId` setters, so controlled props still notify the host and uncontrolled readers still persist **Reader Location**.
+_Avoid_: Adding methods to **BibleReaderHandle**; new DOM / WebView props; treating this as **Reader Location** (that is the MMKV snapshot)
 
 **Picker Press**:
 The user action that requests opening chapter picker presentation from the current Bible location. Defaults to opening the built-in **Chapter Picker Sheet**; overridable via `onChapterPickerPress`.
@@ -107,12 +111,12 @@ A serializable number the **Version Picker Sheet** passes into its Expo DOM comp
 _Avoid_: Using `openKey` for this (reserve **openKey** for repeat-open while `isOpen` stays true, e.g. footnotes)
 
 **Reader Controls**:
-The visible controls around reader content, including chapter navigation, version selection, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, and settings sheet.
+The visible controls around reader content, including chapter navigation, version selection, Search, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, Search sheet, and settings sheet.
 _Avoid_: Toolbar when referring to product behavior rather than the Web SDK component name
 
 **Native Reader Toolbar**:
-The native row of Reader triggers on iOS and Android — avatar when auth is on, chapter with prev/next chevrons, version abbreviation, and a settings gear. Layout and sizes follow the Web SDK `BibleReader.Toolbar`. Presses open the existing sheets (or the sign-in / sign-out popover). Changing books looks up the new name at once. Changing versions drops the last catalog so Next cannot walk it, and covers the last short name with a spinner until the new ones land. Previous can still step back inside the book using the chapter number. A version seen before paints at once. When the short name never arrives, the version button shows Select version, not the id. Change Bible version is the accessibility label, not visible text. Next stays off until that list lands. Chapter and version presses open sheets. They do not retry a settled lookup. At the last chapter of a book it opens chapter 1 of the next book. Previous from chapter 1 opens the last chapter of the previous book and skips intros. Both stay off at the ends of the list. A title with no chapter list still opens the next book on Next. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands, and gets an empty string when the lookup fails. The Web SDK `BibleReader.Toolbar` stays on web only.
-_Avoid_: In-WebView toolbar on iOS/Android; treating Search as shipped (YPE-5708)
+The native Reader chrome on iOS and Android. A chapter capsule holds previous, book and chapter, and next, and grows into leftover space. A separate version capsule sits beside it. Search sits between the version capsule and a More control. More opens Fonts and Settings, and sign in or sign out when auth is on. Previous and next stay in the chapter capsule while a verse is selected. They hide when `showToolbar` is false. There is no avatar. Presses open the existing sheets. Search opens a native sheet. A result tap loads that chapter, scrolls to the verse, and dims the rest of the chapter. Changing books looks up the new name at once. Changing versions drops the last catalog so Next cannot walk it, and covers the last short name with a spinner until the new ones land. Previous can still step back inside the book using the chapter number. A version seen before paints at once. When the short name never arrives, the version button shows Select version, not the id. Change Bible version is the accessibility label, not visible text. Next stays off until that list lands. Chapter and version presses open sheets. They do not retry a settled lookup. At the last chapter of a book it opens chapter 1 of the next book. Previous from chapter 1 opens the last chapter of the previous book and skips intros. Both stay off at the ends of the list. A title with no chapter list still opens the next book on Next. The version press sends `language_tag` as `languageId` (`en`, `es`), matching the Web SDK picker. A custom `onVersionPickerPress` waits until that tag lands, and gets an empty string when the lookup fails. The Web SDK `BibleReader.Toolbar` stays on web only.
+_Avoid_: In-WebView toolbar on iOS/Android; a spare Search bar above the WebView
 
 **Compiled Distribution**:
 Published packages ship compiled `build/` (`tsc` preserves `'use dom'`). Dev resolves `src/`; `publishConfig` swaps at `pnpm publish`. See [ADR 0011](docs/adr/0011-compiled-distribution.md).
@@ -225,3 +229,11 @@ _Avoid_: Forwarding headers from the WebView (native is authoritative); `BibleCl
 **Content Read-Through**:
 The interception of the Web SDK's `fetch` inside an **Expo DOM Component** that hands an eligible request's URL to the **Bible Content Client** through one **Native Action** and rebuilds a `Response` from what comes back. The WebView never performs an eligible request itself. The Web SDK and its query cache are unaware of it. Throwaway by design: it exists only while content renders in a WebView. See [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
 _Avoid_: Query persistence (the Web SDK's query client is private and its persister has no per-entry lifetime); a WebView-side network fallback; read/write cache actions (the bridge carries requests, not cache entries)
+
+**Search**:
+`createSearchApi` wraps `@youversion/platform-core` `SearchClient` the way highlights wraps `HighlightsClient`. Public operations: `suggestedQueries`, `trendingQueries`, `verses`, `topics`. Thrown client errors become RN `Result` (`auth` / `transient` / `invalid-parameter`). Types alias the shared Search DTOs (`id` is USFM on verse hits; query lists are `{ queries }`). The wrapper stays internal. Search is a normal JSON API, not **Bible Content Cache** / [ADR 0020](docs/adr/0020-bible-content-cache-below-fetch.md).
+_Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; a parallel Search HTTP client or DTO layer
+
+**Search Sheet**:
+The native Reader Search UI. Internal, like **BibleVerseActionSheet** — not on the package namespace. The Search icon lives on the **Native Reader Toolbar**. Suggestions and trending use the active Bible version `language_tag`, or `*` when that tag is missing — not the app UI locale. A result tap dismisses the sheet and uses **Reader Navigation** to load that chapter, scroll to the verse, and dim the rest of the chapter.
+_Avoid_: WebView Search; a second chrome row above the WebView; exporting the sheet; using Provider Locale for Search language ranges

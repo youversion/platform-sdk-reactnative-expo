@@ -152,9 +152,30 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, avatar, chapter (with prev/next), version, and settings live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that row and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
+On iOS and Android, a chapter capsule with previous and next, a separate version capsule, Search, and a More menu live in native chrome. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. Search opens a native sheet. A result tap loads that chapter, scrolls to the verse, and dims the rest of the chapter. `showToolbar={false}` hides that chrome and the built-in chapter, version, Search, and settings sheets. On web, the Web SDK toolbar is unchanged. There is no native Search chrome on web.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
+
+#### Jumping to a passage
+
+Create a `BibleReaderNavigation` object and pass it in. Use one object per Reader. You can call it before the reader mounts. A newer call replaces an older one; the reader consumes each request once.
+
+```tsx
+import { useMemo } from 'react'
+import { BibleReader, createBibleReaderNavigation } from '@youversion/platform-react-native-expo-ui'
+
+function ReaderScreen() {
+  const navigation = useMemo(() => {
+    const readerNavigation = createBibleReaderNavigation()
+    readerNavigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+    return readerNavigation
+  }, [])
+
+  return <BibleReader navigation={navigation} defaultVersionId={3034} />
+}
+```
+
+`request` loads that version / book / chapter without focusing a verse. `focusReference` loads the chapter, scrolls to the verse, and dims the rest of the chapter.
 
 #### Verse actions
 
@@ -371,7 +392,7 @@ It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles bas
 
 #### Signing out
 
-Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s avatar menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s More menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
 
 On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
 

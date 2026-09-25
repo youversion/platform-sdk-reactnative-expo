@@ -70,6 +70,20 @@ if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function')
     return true
   }
 }
+/**
+ * `@rn-primitives/popover` places the menu by calling `measure()` on the
+ * trigger. Jest's React Native mock never runs that callback, so the menu
+ * stays closed. A fake box is enough for tests that press More or Open.
+ */
+{
+  const { View } = require('react-native')
+  View.prototype.measure = function measure(callback) {
+    if (typeof callback === 'function') {
+      callback(0, 0, 40, 40, 12, 80)
+    }
+  }
+}
+
 jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'))
 jest.mock('react-native-reanimated', () => ({
   ...require('react-native-reanimated/mock'),

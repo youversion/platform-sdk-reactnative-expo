@@ -12,11 +12,13 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
-import { BibleReader } from '@youversion/platform-react-ui'
+import { BibleReader, BibleReaderNavigation } from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
 import type { ComponentType, ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import type { BibleReaderVerseFocus } from '../native/bible-reader-navigation'
 import type { StyleProp, ViewStyle } from 'react-native'
+import { applyMountedVerseFocus } from './apply-verse-focus'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
 
@@ -68,6 +70,19 @@ type BibleReaderBaseProps = {
   onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
   /** Increment to clear the current selection. Its value at mount never clears. */
   clearSelectionSignal?: number
+  /**
+   * Plain verse focus for the WebView. Mount leaves `shouldFocus` false.
+   * `seq` increases only on focus, including a repeat of the same verse.
+   */
+  verseFocus?: BibleReaderVerseFocus
+  /**
+   * Seq an earlier WebView reported through `onVerseFocusApplied`. `0` until
+   * that report, so a focus queued before this WebView is ready still runs.
+   * A reload passes the reported seq back and does not jump again.
+   */
+  appliedFocusSeq?: number
+  /** Native stores this seq so a later WebView reload does not refocus. */
+  onVerseFocusApplied?: (seq: number) => void
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -116,6 +131,15 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
     verseActions,
     onVerseSelect,
     clearSelectionSignal,
+    verseFocus = {
+      seq: 0,
+      versionId: 0,
+      passageId: '',
+      scrollsToVerse: false,
+      shouldFocus: false,
+    },
+    appliedFocusSeq = 0,
+    onVerseFocusApplied,
     theme = 'light',
     book,
     chapter,
@@ -155,6 +179,21 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   useEffect(() => {
     clearAuthResidue()
   }, [])
+
+  const navigation = useRef(new BibleReaderNavigation())
+  const handledFocusSeq = useRef(appliedFocusSeq)
+  useEffect(() => {
+    const before = handledFocusSeq.current
+    handledFocusSeq.current = applyMountedVerseFocus(
+      navigation.current,
+      verseFocus,
+      before,
+      appliedFocusSeq,
+    )
+    if (verseFocus.shouldFocus && verseFocus.seq > Math.max(before, appliedFocusSeq)) {
+      onVerseFocusApplied?.(verseFocus.seq)
+    }
+  }, [verseFocus, appliedFocusSeq, onVerseFocusApplied])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.
@@ -245,6 +284,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
 
       <div style={{ position: 'relative', height: '100%', width: '100%' }}>
         <NativeActionBibleReaderRoot
+          navigation={navigation.current}
           highlights={safeHighlights}
           verseActions={verseActions}
           onVerseSelect={handleVerseSelect}
