@@ -191,7 +191,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       appliedFocusSeq,
     )
     if (verseFocus.shouldFocus && verseFocus.seq > Math.max(before, appliedFocusSeq)) {
-      void onVerseFocusApplied?.(verseFocus.seq)
+      onVerseFocusApplied?.(verseFocus.seq)
     }
   }, [verseFocus, appliedFocusSeq, onVerseFocusApplied])
 
