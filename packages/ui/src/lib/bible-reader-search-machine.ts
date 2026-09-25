@@ -264,12 +264,18 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
       if (state.page.append.status !== 'loading') {
         return state
       }
+      // A page of only already-seen hits adds no rows, so the list never scrolls
+      // to ask again. Keep loading and follow the new cursor instead.
+      const followsCursor =
+        event.verses.length === 0 &&
+        event.nextPageToken !== null &&
+        event.nextPageToken !== state.page.nextPageToken
       return {
         ...state,
         page: {
           verses: [...state.page.verses, ...event.verses],
           nextPageToken: event.nextPageToken,
-          append: { status: 'idle' },
+          append: followsCursor ? LOADING : { status: 'idle' },
           seen: new Set([...state.page.seen, ...event.seen]),
         },
       }

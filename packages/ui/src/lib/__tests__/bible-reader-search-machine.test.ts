@@ -237,6 +237,37 @@ describe('searchReducer', () => {
     expect(demandOf(appended)).toEqual({ kind: 'none' })
   })
 
+  it('follows the cursor when a page adds no new verses', () => {
+    const resolved = resolvedWith([JOHN_3_16], token('page-2'))
+    const loading = searchReducer(resolved, { type: 'pageRequested' })
+    const repeated = searchReducer(loading, {
+      type: 'pageCommitted',
+      epoch: loading.epoch,
+      verses: [],
+      seen: new Set([JOHN_3_16.usfm]),
+      nextPageToken: token('page-3'),
+    })
+
+    expect(repeated).toMatchObject({
+      page: { verses: [JOHN_3_16], append: { status: 'loading' } },
+    })
+    expect(demandOf(repeated)).toMatchObject({ kind: 'page', token: 'page-3' })
+  })
+
+  it('stops when an empty page hands back the same cursor', () => {
+    const resolved = resolvedWith([JOHN_3_16], token('page-2'))
+    const loading = searchReducer(resolved, { type: 'pageRequested' })
+    const stuck = searchReducer(loading, {
+      type: 'pageCommitted',
+      epoch: loading.epoch,
+      verses: [],
+      seen: new Set([JOHN_3_16.usfm]),
+      nextPageToken: token('page-2'),
+    })
+
+    expect(stuck).toMatchObject({ page: { append: { status: 'idle' } } })
+  })
+
   it('keeps page one and allows a retry when the next page fails', () => {
     const resolved = resolvedWith([JOHN_3_16], token('page-2'))
     const loading = searchReducer(resolved, { type: 'pageRequested' })
