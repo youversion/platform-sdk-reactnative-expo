@@ -8,10 +8,7 @@ import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-
 import type { BibleVersionPickerProps } from '../bible-version-picker'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 
-type MockPickerProps = Pick<
-  BibleVersionPickerProps,
-  'versionId' | 'sheetOpenedNonce' | 'onSelect'
->
+type MockPickerProps = Pick<BibleVersionPickerProps, 'versionId' | 'onSelect'>
 
 let latestPickerProps: MockPickerProps = {}
 let pickerMounts = 0
@@ -25,7 +22,7 @@ function MockPicker(props: MockPickerProps) {
       <Pressable
         testID="trigger-select"
         onPress={() => {
-          void props.onSelect?.(59)
+          void Promise.resolve(props.onSelect?.(59)).catch(() => undefined)
         }}
       >
         <Text>Select</Text>
@@ -111,20 +108,19 @@ describe('BibleVersionPickerSheet', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('bumps sheetOpenedNonce and remounts the picker on each open', () => {
+  it('remounts the picker when the sheet opens again', () => {
     const { rerender } = render(
       <BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />,
       { wrapper },
     )
 
-    const firstNonce = latestPickerProps.sheetOpenedNonce
     const firstMounts = pickerMounts
 
     rerender(<BibleVersionPickerSheet isOpen={false} onClose={() => {}} versionId={3034} />)
     rerender(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />)
 
-    expect(latestPickerProps.sheetOpenedNonce).toBeGreaterThan(firstNonce ?? 0)
     expect(pickerMounts).toBeGreaterThan(firstMounts)
+    expect(latestPickerProps).not.toHaveProperty('sheetOpenedNonce')
   })
 
   it('does not pass language panel state across the native bridge', () => {

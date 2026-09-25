@@ -13,10 +13,7 @@ import {
   type VersionPickerPanel,
   type VersionPickerPanelEvent,
 } from '../../lib/version-picker-panels'
-import {
-  isUsableBibleVersion,
-  languageTagsWithUsableVersions,
-} from '../../lib/version-usability'
+import { isUsableBibleVersion, languageTagsWithUsableVersions } from '../../lib/version-usability'
 import {
   buildSuggestedLanguages,
   fetchSuggestedVersionPickerLanguages,
@@ -103,12 +100,10 @@ export function useVersionPicker({
   versionId,
   selectedLanguageId: initialLanguageId,
   onSelect,
-  sheetOpenedNonce = 0,
 }: {
   versionId: number
   selectedLanguageId?: string
   onSelect?: (versionId: number) => void | Promise<void>
-  sheetOpenedNonce?: number
 }): VersionPickerController {
   const {
     appKey,
@@ -122,7 +117,9 @@ export function useVersionPicker({
   const locales = useLocales()
   const deviceLanguageKey = deviceLanguageCodes(locales).join(',')
   const recentVersionIds = useRecentBibleVersionsStore((state) => state.versionIds)
-  const recordVersionSelection = useRecentBibleVersionsStore((state) => state.recordVersionSelection)
+  const recordVersionSelection = useRecentBibleVersionsStore(
+    (state) => state.recordVersionSelection,
+  )
 
   const incomingFilters: InternalVersionFilterProps = {
     permittedVersionIds,
@@ -204,23 +201,6 @@ export function useVersionPicker({
           countryLanguages,
           deviceLanguageKey.split(',').filter((code) => code.length > 0),
         )
-        let languageId = pickedLanguageId
-        if (!languageId) {
-          const versionResponse = await fetchBibleContent({ path: `/v1/bibles/${versionId}` })
-          if (cancelled) {
-            return
-          }
-          languageId = versionMetaFromBody(versionResponse.body).languageId ?? undefined
-        }
-        if (!languageId) {
-          setLoadState({ status: 'error' })
-          return
-        }
-        const nextVersions = await fetchVersionsForLanguage(clients, languageId)
-        if (cancelled) {
-          return
-        }
-
         const nextVersionById = new Map<number, VersionPickerVersion>()
         for (const item of summaries) {
           nextVersionById.set(item.id, {
@@ -228,13 +208,37 @@ export function useVersionPicker({
             languageTag: item.languageTag || tags.get(item.id) || '',
           })
         }
-        setSelectedLanguageId(languageId)
-
         setAllLanguages(unique)
         setSuggestedLanguages(suggested)
         setLanguageTagByVersionId(tags)
-        setVersions(nextVersions)
         setVersionById(nextVersionById)
+
+        let languageId = pickedLanguageId
+        if (!languageId) {
+          try {
+            const versionResponse = await fetchBibleContent({ path: `/v1/bibles/${versionId}` })
+            if (cancelled) {
+              return
+            }
+            languageId = versionMetaFromBody(versionResponse.body).languageId ?? undefined
+          } catch {
+            if (cancelled) {
+              return
+            }
+          }
+        }
+        if (!languageId) {
+          setSelectedLanguageId('')
+          setVersions([])
+          setLoadState({ status: 'ready' })
+          return
+        }
+        const nextVersions = await fetchVersionsForLanguage(clients, languageId)
+        if (cancelled) {
+          return
+        }
+        setSelectedLanguageId(languageId)
+        setVersions(nextVersions)
         setLoadState({ status: 'ready' })
       } catch {
         if (!cancelled) {
@@ -271,13 +275,6 @@ export function useVersionPicker({
       setLanguageTab('suggested')
     }
   }, [])
-
-  useEffect(() => {
-    if (sheetOpenedNonce === 0) {
-      return
-    }
-    dispatchPanelEvent('sheet-opened')
-  }, [dispatchPanelEvent, sheetOpenedNonce])
 
   const retry = useCallback(() => setRequestGeneration((generation) => generation + 1), [])
 
@@ -329,20 +326,11 @@ export function useVersionPicker({
           activeFilters,
         ),
       )
-  }, [
-    activeFilters,
-    languageTagByVersionId,
-    recentVersionIds,
-    versionById,
-    versionSearchQuery,
-  ])
+  }, [activeFilters, languageTagByVersionId, recentVersionIds, versionById, versionSearchQuery])
 
   const filteredVersions = useMemo(() => {
     const usable = versions.filter((version) =>
-      isUsableBibleVersion(
-        { id: version.id, languageTag: version.languageTag },
-        activeFilters,
-      ),
+      isUsableBibleVersion({ id: version.id, languageTag: version.languageTag }, activeFilters),
     )
     const filtered = filterVersions(
       usable,
@@ -366,10 +354,7 @@ export function useVersionPicker({
         return false
       }
       if (
-        !isUsableBibleVersion(
-          { id: version.id, languageTag: version.languageTag },
-          activeFilters,
-        )
+        !isUsableBibleVersion({ id: version.id, languageTag: version.languageTag }, activeFilters)
       ) {
         return false
       }

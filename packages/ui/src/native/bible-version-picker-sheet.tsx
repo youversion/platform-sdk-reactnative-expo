@@ -1,5 +1,5 @@
 import type { DOMProps } from 'expo/dom'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -29,17 +29,6 @@ function BibleVersionPickerSheetImpl({
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
-  const [pickerKey, setPickerKey] = useState(0)
-  const [wasOpen, setWasOpen] = useState(false)
-  const [sheetOpenedNonce, setSheetOpenedNonce] = useState(0)
-  if (isOpen !== wasOpen) {
-    setWasOpen(isOpen)
-    if (isOpen) {
-      setPickerKey((key) => key + 1)
-      setSheetOpenedNonce((nonce) => nonce + 1)
-    }
-  }
-
   if (Platform.OS === 'web') return null
 
   const handleDismissKeyboardStart = () => {
@@ -47,13 +36,7 @@ function BibleVersionPickerSheetImpl({
   }
 
   const handleVersionChange = async (newVersionId: number) => {
-    if (onSelect) {
-      try {
-        await onSelect(newVersionId)
-      } catch {
-        return
-      }
-    }
+    await onSelect?.(newVersionId)
     onClose()
   }
 
@@ -74,12 +57,7 @@ function BibleVersionPickerSheetImpl({
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
         {isOpen ? (
           <ThemeContext.Provider value={resolvedTheme}>
-            <Picker
-              key={pickerKey}
-              versionId={versionId}
-              sheetOpenedNonce={sheetOpenedNonce}
-              onSelect={handleVersionChange}
-            />
+            <Picker versionId={versionId} onSelect={handleVersionChange} />
           </ThemeContext.Provider>
         ) : null}
       </View>

@@ -9,7 +9,6 @@ import { getImpl, registerDefault } from './component-impls'
 export type BibleVersionPickerProps = {
   versionId?: number
   languageId?: string
-  sheetOpenedNonce?: number
   onSelect?: (versionId: number) => void | Promise<void>
   style?: StyleProp<ViewStyle>
 }
@@ -17,14 +16,12 @@ export type BibleVersionPickerProps = {
 function BibleVersionPickerImpl({
   versionId = DEFAULT_BIBLE_VERSION_ID,
   languageId,
-  sheetOpenedNonce = 0,
   onSelect,
   style,
 }: BibleVersionPickerProps): ReactNode {
   const controller = useVersionPicker({
     versionId,
     selectedLanguageId: languageId,
-    sheetOpenedNonce,
     onSelect,
   })
 
