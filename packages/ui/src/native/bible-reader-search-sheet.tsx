@@ -144,9 +144,8 @@ function BibleReaderSearchSheetImpl({
                 testID="bible-reader-search-clear"
                 accessibilityRole="button"
                 accessibilityLabel={t('bibleSearchClearAriaLabel')}
-                hitSlop={10}
                 onPress={() => search.setQuery('')}
-                style={({ pressed }) => (pressed ? styles.clearPressed : undefined)}
+                style={({ pressed }) => [styles.clear, pressed ? styles.clearPressed : null]}
               >
                 <ClearIcon color={tokens.mutedForeground} />
               </Pressable>
@@ -532,6 +531,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     fontSize: 16,
+  },
+  clear: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   clearPressed: {
     opacity: 0.8,

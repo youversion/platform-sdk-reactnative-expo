@@ -228,8 +228,8 @@ describe('BibleReaderSearchSheet', () => {
 
     const clear = screen.getByTestId('bible-reader-search-clear')
     expect(clear.props.accessibilityLabel).toBe('Clear search')
-    expect(clear.props.hitSlop).toBe(10)
-    expect(StyleSheet.flatten(clear.props.style)).toBeUndefined()
+    expect(clear.props.hitSlop).toBeUndefined()
+    expect(StyleSheet.flatten(clear.props.style)).toMatchObject({ width: 44, height: 44 })
     expect(screen.getByText('Cancel')).toBeTruthy()
   })
 
