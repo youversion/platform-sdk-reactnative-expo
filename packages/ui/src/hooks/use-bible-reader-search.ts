@@ -26,6 +26,8 @@ import {
   fieldTextOf,
   initialSearchState,
   searchReducer,
+  type Epoch,
+  type ResultPage,
   type SearchDemand,
   type SearchState,
 } from '../lib/bible-reader-search-machine'
@@ -142,15 +144,20 @@ export function useBibleReaderSearch(
   const wasOpenRef = useRef(false)
   const languageRangeKeyRef = useRef(languageRangeKey)
   const searchedVersionRef = useRef(versionId)
-  const lastResolvedRef = useRef<{ query: NonBlankQuery; versionId: number } | null>(
-    null,
-  )
+  const lastResolvedRef = useRef<{
+    query: NonBlankQuery
+    versionId: number
+    epoch: Epoch
+    page: ResultPage
+  } | null>(null)
   const stateRef = useRef(state)
   stateRef.current = state
   if (state.kind === 'resolved') {
     lastResolvedRef.current = {
       query: state.submitted,
       versionId: searchedVersionRef.current,
+      epoch: state.epoch,
+      page: state.page,
     }
   }
 
@@ -186,6 +193,13 @@ export function useBibleReaderSearch(
       lastResolved.query === query &&
       lastResolved.versionId === versionId
     ) {
+      dispatch({
+        type: 'resultsRestored',
+        text: clipped,
+        submitted: lastResolved.query,
+        epoch: lastResolved.epoch,
+        page: lastResolved.page,
+      })
       return
     }
     record(query)

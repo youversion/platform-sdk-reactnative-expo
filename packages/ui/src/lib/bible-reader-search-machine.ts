@@ -57,6 +57,8 @@ export type SearchState =
       readonly kind: 'resolved'
       readonly epoch: Epoch
       readonly submitted: NonBlankQuery
+      /** Raw field text. May differ from `submitted` by surrounding whitespace. */
+      readonly text: string
       readonly page: ResultPage
     }
   | {
@@ -76,6 +78,13 @@ export type SearchEvent =
   | { readonly type: 'queryEdited'; readonly text: string }
   | { readonly type: 'suggestionsStarted'; readonly epoch: Epoch }
   | { readonly type: 'submitted'; readonly query: NonBlankQuery }
+  | {
+      readonly type: 'resultsRestored'
+      readonly text: string
+      readonly submitted: NonBlankQuery
+      readonly epoch: Epoch
+      readonly page: ResultPage
+    }
   | { readonly type: 'retried' }
   | {
       readonly type: 'trendingLoaded'
@@ -170,6 +179,15 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
     case 'submitted':
       return { kind: 'searching', epoch: state.epoch + 1, submitted: event.query }
 
+    case 'resultsRestored':
+      return {
+        kind: 'resolved',
+        epoch: event.epoch,
+        submitted: event.submitted,
+        text: event.text,
+        page: event.page,
+      }
+
     case 'retried': {
       if (state.kind !== 'failed') {
         return state
@@ -207,6 +225,7 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
         kind: 'resolved',
         epoch: state.epoch,
         submitted: state.submitted,
+        text: state.submitted,
         page: {
           verses: event.verses,
           nextPageToken: event.nextPageToken,
@@ -274,10 +293,10 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
 
 /** Field text. The one selector the sheet needs that is not part of the view. */
 export function fieldTextOf(state: SearchState): string {
-  if (state.kind === 'browsing' || state.kind === 'typing') {
-    return state.text
+  if (state.kind === 'searching' || state.kind === 'failed') {
+    return state.submitted
   }
-  return state.submitted
+  return state.text
 }
 
 /** Which network work the current state wants. Read by the effects shell, not by the sheet. */

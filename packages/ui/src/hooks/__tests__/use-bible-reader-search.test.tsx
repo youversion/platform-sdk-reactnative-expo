@@ -454,6 +454,10 @@ describe('useBibleReaderSearch', () => {
 
     expect(stub.verses).toHaveBeenCalledTimes(1)
     expect(result.current.query).toBe('hope ')
+    expect(result.current.view.phase).toBe('results')
+    if (result.current.view.phase === 'results') {
+      expect(result.current.view.verses.map((verse) => verse.usfm)).toEqual(['ROM.8.28'])
+    }
   })
 
   it('records recents on submit even when verses fail', async () => {
