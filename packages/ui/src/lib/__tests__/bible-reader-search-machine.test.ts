@@ -268,6 +268,30 @@ describe('searchReducer', () => {
     expect(stuck).toMatchObject({ page: { append: { status: 'idle' } } })
   })
 
+  it('stops when repeat-only pages cycle back to a fetched cursor', () => {
+    const resolved = resolvedWith([JOHN_3_16], token('page-a'))
+    const loadingA = searchReducer(resolved, { type: 'pageRequested' })
+    const loadingB = searchReducer(loadingA, {
+      type: 'pageCommitted',
+      epoch: loadingA.epoch,
+      verses: [],
+      seen: new Set([JOHN_3_16.usfm]),
+      nextPageToken: token('page-b'),
+    })
+    expect(demandOf(loadingB)).toMatchObject({ kind: 'page', token: 'page-b' })
+
+    const cycled = searchReducer(loadingB, {
+      type: 'pageCommitted',
+      epoch: loadingB.epoch,
+      verses: [],
+      seen: new Set([JOHN_3_16.usfm]),
+      nextPageToken: token('page-a'),
+    })
+
+    expect(cycled).toMatchObject({ page: { append: { status: 'idle' } } })
+    expect(demandOf(cycled)).toEqual({ kind: 'none' })
+  })
+
   it('keeps page one and allows a retry when the next page fails', () => {
     const resolved = resolvedWith([JOHN_3_16], token('page-2'))
     const loading = searchReducer(resolved, { type: 'pageRequested' })

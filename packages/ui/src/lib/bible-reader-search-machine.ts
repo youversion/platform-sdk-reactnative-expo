@@ -32,6 +32,8 @@ export type ResultPage = {
   readonly append: AppendState
   /** Every usfm the API has returned, including ones enrichment dropped, so dedupe holds. */
   readonly seen: ReadonlySet<Usfm>
+  /** Every cursor already fetched, so skipping repeat-only pages cannot cycle. */
+  readonly fetchedTokens: ReadonlySet<PageToken>
 }
 
 /**
@@ -230,6 +232,7 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
           nextPageToken: event.nextPageToken,
           append: { status: 'idle' },
           seen: event.seen,
+          fetchedTokens: new Set(),
         },
       }
     }
@@ -265,11 +268,15 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
         return state
       }
       // A page of only already-seen hits adds no rows, so the list never scrolls
-      // to ask again. Keep loading and follow the new cursor instead.
+      // to ask again. Follow the new cursor, unless it was fetched before.
+      const fetchedTokens = new Set(state.page.fetchedTokens)
+      if (state.page.nextPageToken !== null) {
+        fetchedTokens.add(state.page.nextPageToken)
+      }
       const followsCursor =
         event.verses.length === 0 &&
         event.nextPageToken !== null &&
-        event.nextPageToken !== state.page.nextPageToken
+        !fetchedTokens.has(event.nextPageToken)
       return {
         ...state,
         page: {
@@ -277,6 +284,7 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
           nextPageToken: event.nextPageToken,
           append: followsCursor ? LOADING : { status: 'idle' },
           seen: new Set([...state.page.seen, ...event.seen]),
+          fetchedTokens,
         },
       }
     }
