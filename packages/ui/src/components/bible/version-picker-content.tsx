@@ -222,7 +222,7 @@ function VersionsPanel({
             <View style={styles.centerState}>
               <ActivityIndicator accessibilityLabel={t('loading')} color={tokens.foreground} />
             </View>
-          ) : loadState.status === 'error' || versionLookupFailed ? (
+          ) : loadState.status === 'error' ? (
             <StateMessage label={t('error')} action={t('retry')} onAction={onRetry} />
           ) : (
             <>
@@ -239,7 +239,9 @@ function VersionsPanel({
                   ))}
                 </View>
               ) : null}
-              {filteredVersions.length > 0 ? (
+              {versionLookupFailed ? (
+                <StateMessage label={t('error')} action={t('retry')} onAction={onRetry} />
+              ) : filteredVersions.length > 0 ? (
                 <View style={styles.section}>
                   {recentVersions.length > 0 ? (
                     <Text

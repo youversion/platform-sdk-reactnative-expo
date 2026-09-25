@@ -246,6 +246,33 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(onSelect).toHaveBeenCalledWith(128)
   })
 
+  it('keeps recent versions selectable when the current version lookup fails', async () => {
+    useRecentBibleVersionsStore.setState({ versionIds: [111] })
+    installCatalogFetch('reject')
+    const onSelect = jest.fn().mockResolvedValue(undefined)
+    const onClose = jest.fn()
+
+    const { findByText, findByLabelText, getByLabelText } = render(
+      <BibleVersionPickerSheet
+        isOpen={true}
+        onClose={onClose}
+        onSelect={onSelect}
+        versionId={3034}
+      />,
+      { wrapper },
+    )
+
+    await findByText('Retry')
+    fireEvent.press(await findByLabelText('King James Version'))
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalledWith(111))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(getByLabelText('King James Version').props.accessibilityState).toEqual({
+      selected: true,
+      disabled: false,
+    })
+  })
+
   it('retries a failed current-version lookup without replacing the host version', async () => {
     installCatalogFetch('reject-once')
     const onSelect = jest.fn().mockResolvedValue(undefined)
