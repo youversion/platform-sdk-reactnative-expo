@@ -147,15 +147,14 @@ export function searchReducer(state: SearchState, event: SearchEvent): SearchSta
     }
 
     case 'queryEdited': {
+      // Match the text the field shows, not `submitted`: a restored page keeps
+      // "love ", so deleting the space back to "love" must still land.
+      if (event.text === fieldTextOf(state)) {
+        return state
+      }
       const draft = nonBlankQuery(event.text)
       if (draft === null) {
-        if (state.kind === 'browsing' && state.text === event.text) {
-          return state
-        }
         return browsing(state.epoch + 1, event.text)
-      }
-      if (state.kind === 'typing' && state.text === event.text) {
-        return state
       }
       return {
         kind: 'typing',

@@ -95,6 +95,22 @@ describe('searchReducer', () => {
     expect(searchReducer(typing, { type: 'queryEdited', text: 'love' })).toBe(typing)
   })
 
+  it('ignores an edit that matches the submitted query while it searches', () => {
+    const searching = reduce(opened(), { type: 'submitted', query: query('love') })
+
+    expect(searchReducer(searching, { type: 'queryEdited', text: 'love' })).toBe(searching)
+  })
+
+  it('applies the second of two edits against the first', () => {
+    const searching = reduce(opened(), { type: 'submitted', query: query('love') })
+    const typed = searchReducer(searching, { type: 'queryEdited', text: 'lovex' })
+
+    expect(searchReducer(typed, { type: 'queryEdited', text: 'love' })).toMatchObject({
+      kind: 'typing',
+      text: 'love',
+    })
+  })
+
   it('drops trending that arrives under a stale epoch', () => {
     const browsing = opened()
     const typing = searchReducer(browsing, { type: 'queryEdited', text: 'love' })

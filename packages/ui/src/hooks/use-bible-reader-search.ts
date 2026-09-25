@@ -140,8 +140,6 @@ export function useBibleReaderSearch(
     epoch: Epoch
     page: ResultPage
   } | null>(null)
-  const stateRef = useRef(state)
-  stateRef.current = state
   if (state.kind === 'resolved') {
     lastResolvedRef.current = {
       query: state.submitted,
@@ -160,13 +158,7 @@ export function useBibleReaderSearch(
   }, [])
 
   const setQuery = useCallback((text: string) => {
-    const clipped = clipField(text)
-    // Match the text the field shows, not `submitted`. A restored page keeps
-    // "love ", so deleting the space back to "love" must still land.
-    if (clipped === fieldTextOf(stateRef.current)) {
-      return
-    }
-    dispatch({ type: 'queryEdited', text: clipped })
+    dispatch({ type: 'queryEdited', text: clipField(text) })
   }, [])
 
   const submit = useCallback((text: string) => {

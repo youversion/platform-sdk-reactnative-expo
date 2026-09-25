@@ -497,6 +497,35 @@ describe('useBibleReaderSearch', () => {
     expect(stub.verses).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps the last of two edits dispatched before a render', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses(['ROM.8.28'])),
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('hope')
+    })
+    await flush()
+
+    act(() => {
+      result.current.setQuery('hopex')
+      result.current.setQuery('hope')
+    })
+
+    expect(result.current.query).toBe('hope')
+  })
+
   it('records recents on submit even when verses fail', async () => {
     const stub = searchStub({
       verses: jest.fn(async () => ({
