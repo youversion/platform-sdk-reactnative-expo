@@ -50,7 +50,9 @@ import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-a
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import {
+  acknowledgeBibleReaderVerseFocus,
   createBibleReaderNavigation,
+  useBibleReaderAppliedFocusSeq,
   useBibleReaderVerseFocus,
   useConsumedNavigationRequest,
   type BibleReaderNavigation,
@@ -361,12 +363,13 @@ export function BibleReader({
   const resolvedNavigation = navigation ?? fallbackNavigation
   const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   const verseFocus = useBibleReaderVerseFocus(resolvedNavigation)
-  // Stays 0 until the WebView reports that it focused this seq. A focus that
-  // arrives while the WebView is still loading is not marked applied.
-  const [appliedFocusSeq, setAppliedFocusSeq] = useState(0)
-  const handleVerseFocusApplied = useCallback((seq: number) => {
-    setAppliedFocusSeq((current) => Math.max(current, seq))
-  }, [])
+  const appliedFocusSeq = useBibleReaderAppliedFocusSeq(resolvedNavigation)
+  const handleVerseFocusApplied = useCallback(
+    (seq: number) => {
+      acknowledgeBibleReaderVerseFocus(resolvedNavigation, seq)
+    },
+    [resolvedNavigation],
+  )
   let appliedBook = book
   let appliedChapter = chapter
   let appliedVersionId = versionId

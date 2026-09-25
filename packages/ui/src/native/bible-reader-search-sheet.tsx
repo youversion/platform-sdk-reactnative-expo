@@ -2,7 +2,14 @@ import {
   bibleReferenceFromUsfm,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import { useCallback, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type ReactElement,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -19,6 +26,7 @@ import { ClearIcon } from '../components/icons/clear-icon'
 import { Button } from '../components/ui/button'
 import { Text } from '../components/ui/text'
 import { useBibleReaderSearch } from '../hooks/use-bible-reader-search'
+import { ThemeContext } from '../hooks/use-theme'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import {
@@ -55,12 +63,46 @@ export type BibleReaderSearchSheetProps = {
 function BibleReaderSearchSheetImpl({
   isOpen,
   onClose,
+  theme,
+  ...contentProps
+}: BibleReaderSearchSheetProps): ReactNode {
+  const fieldRef = useRef<TextInput>(null)
+  return (
+    <NativeSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      onDismissKeyboardStart={() => {
+        fieldRef.current?.blur()
+      }}
+      theme={theme}
+      enableContentPanningGesture
+      panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
+      contentStyle={styles.sheetContent}
+    >
+      <ThemeContext.Provider value={theme}>
+        <BibleReaderSearchSheetContent
+          isOpen={isOpen}
+          onClose={onClose}
+          theme={theme}
+          fieldRef={fieldRef}
+          {...contentProps}
+        />
+      </ThemeContext.Provider>
+    </NativeSheet>
+  )
+}
+
+function BibleReaderSearchSheetContent({
+  isOpen,
+  onClose,
   versionId,
   languageTag,
-  theme,
   fetchBibleContent,
   onSelectReference,
-}: BibleReaderSearchSheetProps): ReactNode {
+  fieldRef,
+}: BibleReaderSearchSheetProps & {
+  fieldRef: RefObject<TextInput | null>
+}): ReactNode {
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const { height } = useWindowDimensions()
@@ -75,7 +117,6 @@ function BibleReaderSearchSheetImpl({
   const listHeight = Math.round(height * 0.5)
   const showClear = search.query.length > 0
   const { view } = search
-  const fieldRef = useRef<TextInput>(null)
 
   // NativeSheet keeps children mounted while closed, so autoFocus would steal
   // the keyboard on first mount and would not run again on the next open.
@@ -85,7 +126,7 @@ function BibleReaderSearchSheetImpl({
       return
     }
     fieldRef.current?.blur()
-  }, [isOpen])
+  }, [fieldRef, isOpen])
 
   const handleSelectVerse = (usfm: TitledVerse['usfm']) => {
     const reference = bibleReferenceFromUsfm(usfm, versionId)
@@ -96,21 +137,8 @@ function BibleReaderSearchSheetImpl({
     onSelectReference({ ...reference, passageId: usfm })
   }
 
-  const handleDismissKeyboardStart = () => {
-    fieldRef.current?.blur()
-  }
-
   return (
-    <NativeSheet
-      isOpen={isOpen}
-      onClose={onClose}
-      onDismissKeyboardStart={handleDismissKeyboardStart}
-      theme={theme}
-      enableContentPanningGesture
-      panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
-      contentStyle={styles.sheetContent}
-    >
-      <View style={styles.body}>
+    <View style={styles.body}>
         <View style={styles.header}>
           <View
             style={[
@@ -176,7 +204,6 @@ function BibleReaderSearchSheetImpl({
           errorCopy={t('error')}
         />
       </View>
-    </NativeSheet>
   )
 }
 

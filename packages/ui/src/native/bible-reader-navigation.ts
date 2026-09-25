@@ -65,6 +65,8 @@ type ReaderNavigationAccess = {
   subscribe: Subscribe
   getSnapshot: () => number
   getVerseFocus: () => BibleReaderVerseFocus
+  getAppliedFocusSeq: () => number
+  acknowledgeVerseFocus: (seq: number) => void
   peekPending: () => BibleReaderNavigationRequest | null
   consumeCommitted: (version: number) => void
 }
@@ -99,6 +101,10 @@ export class BibleReaderNavigation {
   #pendingVersion = 0
   #focusSeq = 0
   #verseFocus: BibleReaderVerseFocus = idleVerseFocus
+  // Highest seq a DOM instance has reported. It stays on this object so a
+  // Reader remount does not replay it, and it stays 0 until that report so a
+  // focus that arrives while the WebView is loading still runs.
+  #appliedFocusSeq = 0
   #listeners = new Set<() => void>()
 
   constructor() {
@@ -111,6 +117,14 @@ export class BibleReaderNavigation {
       },
       getSnapshot: () => this.#version,
       getVerseFocus: () => this.#verseFocus,
+      getAppliedFocusSeq: () => this.#appliedFocusSeq,
+      acknowledgeVerseFocus: (seq) => {
+        if (seq <= this.#appliedFocusSeq) {
+          return
+        }
+        this.#appliedFocusSeq = seq
+        this.#notify()
+      },
       peekPending: () => this.#pending,
       consumeCommitted: (version) => {
         if (this.#pendingVersion !== version) {
@@ -168,6 +182,10 @@ export class BibleReaderNavigation {
     this.#pending = request
     this.#version += 1
     this.#pendingVersion = this.#version
+    this.#notify()
+  }
+
+  #notify(): void {
     for (const listener of this.#listeners) {
       listener()
     }
@@ -223,4 +241,22 @@ export function useConsumedNavigationRequest(
 export function useBibleReaderVerseFocus(navigation: BibleReaderNavigation): BibleReaderVerseFocus {
   const access = accessFor(navigation)
   return useSyncExternalStore(access.subscribe, access.getVerseFocus, access.getVerseFocus)
+}
+
+/** Highest verse-focus seq this navigation object has already applied. */
+export function useBibleReaderAppliedFocusSeq(navigation: BibleReaderNavigation): number {
+  const access = accessFor(navigation)
+  return useSyncExternalStore(
+    access.subscribe,
+    access.getAppliedFocusSeq,
+    access.getAppliedFocusSeq,
+  )
+}
+
+/** Record that the DOM finished this seq. A lower or equal seq is ignored. */
+export function acknowledgeBibleReaderVerseFocus(
+  navigation: BibleReaderNavigation,
+  seq: number,
+): void {
+  accessFor(navigation).acknowledgeVerseFocus(seq)
 }

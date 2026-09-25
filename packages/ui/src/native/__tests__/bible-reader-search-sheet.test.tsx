@@ -670,4 +670,54 @@ describe('BibleReaderSearchSheet', () => {
     expect(onSelectReference).not.toHaveBeenCalled()
     expect(screen.getByTestId('bible-reader-search-result-not-a-usfm')).toBeTruthy()
   })
+
+  it('paints result text dark when the provider is light and the reader theme is dark', async () => {
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="dark"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: youVersionProviderWrapper('light', 'en', { useSearch: () => stub }) },
+    )
+    await flush()
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    expect(StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color).toBe(
+      '#ffffff',
+    )
+  })
+
+  it('paints result text light when the provider is dark and the reader theme is light', async () => {
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: youVersionProviderWrapper('dark', 'en', { useSearch: () => stub }) },
+    )
+    await flush()
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('bible-reader-search-suggestion-faith'))
+    })
+    await flush()
+
+    expect(StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color).toBe(
+      '#121212',
+    )
+  })
 })

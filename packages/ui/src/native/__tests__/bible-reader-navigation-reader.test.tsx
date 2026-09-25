@@ -288,6 +288,89 @@ describe('BibleReader navigation', () => {
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
   })
 
+  it('keeps an acknowledged focus from replaying after the reader leaves and remounts', async () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+
+    const first = render(<BibleReader navigation={navigation} />, { wrapper })
+
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+
+    act(() => {
+      latestReaderDomProps.onVerseFocusApplied?.(1)
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
+
+    await act(async () => {
+      fireEvent.press(first.getByTestId('trigger-chapter-change'))
+    })
+    expect(first.getByTestId('chapter').props.children).toBe('5')
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+
+    first.unmount()
+    render(<BibleReader navigation={navigation} />, { wrapper })
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
+
+    await act(async () => {
+      navigation.focusReference({ versionId: 111, bookId: 'ROM', chapter: 8, verse: 1 })
+    })
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 2,
+      versionId: 111,
+      passageId: 'ROM.8.1',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
+
+    act(() => {
+      latestReaderDomProps.onVerseFocusApplied?.(2)
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(2)
+  })
+
+  it('still forwards a focus that the DOM has not acknowledged after remount', () => {
+    const navigation = createBibleReaderNavigation()
+    navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+
+    const first = render(<BibleReader navigation={navigation} />, { wrapper })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+    first.unmount()
+
+    render(<BibleReader navigation={navigation} />, { wrapper })
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'JHN.3.16',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+  })
+
   it('bumps seq when focusReference repeats the same verse', async () => {
     const navigation = createBibleReaderNavigation()
     navigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
