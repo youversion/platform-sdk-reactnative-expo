@@ -29,6 +29,7 @@ type LatestReaderDomProps = {
   versionId?: number
   verseFocus?: VerseFocus
   appliedFocusSeq?: number
+  onVerseFocusApplied?: (seq: number) => void
   onChapterChange?: (chapter: string) => Promise<void>
 }
 
@@ -277,7 +278,13 @@ describe('BibleReader navigation', () => {
       scrollsToVerse: true,
       shouldFocus: true,
     })
-    expect(appliedFocusSeqs[0]).toBe(0)
+    expect(appliedFocusSeqs.every((seq) => seq === 0)).toBe(true)
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+
+    act(() => {
+      latestReaderDomProps.onVerseFocusApplied?.(1)
+    })
+
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
   })
 

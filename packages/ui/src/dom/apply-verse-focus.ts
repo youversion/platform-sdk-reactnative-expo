@@ -11,11 +11,11 @@ export type VerseFocusCaller = {
  * Apply one verse focus inside the WebView.
  *
  * `handledSeq` is what this JS instance already applied. `appliedSeq` is what
- * native last acknowledged. Expo can boot a reload with a stale first snapshot
- * and then send the current pair on `$$dom_ready`, so both are needed. The
- * first mount passes 0 for each, so a focus queued before the Reader appears
- * still runs. The Web SDK throws on a passage it rejects, and that throw
- * clears the WebView root, so it is logged and dropped.
+ * an earlier WebView told native it finished. Native does not raise it until
+ * that report, so a focus that arrived while this WebView was still loading
+ * still has `appliedSeq` 0 and runs. A reload of a finished focus carries the
+ * reported seq and does not run again. The Web SDK throws on a passage it
+ * rejects, and that throw clears the WebView root, so it is logged and dropped.
  */
 export function applyMountedVerseFocus(
   caller: VerseFocusCaller,

@@ -76,12 +76,13 @@ type BibleReaderBaseProps = {
    */
   verseFocus?: BibleReaderVerseFocus
   /**
-   * Seq already applied by an earlier WebView mount. `0` on the first mount,
-   * so a focus queued before the Reader appears still runs. After that mount
-   * the native reader stores the seq, and a reload passes it back so the new
-   * WebView does not jump to the verse again.
+   * Seq an earlier WebView reported through `onVerseFocusApplied`. `0` until
+   * that report, so a focus queued before this WebView is ready still runs.
+   * A reload passes the reported seq back and does not jump again.
    */
   appliedFocusSeq?: number
+  /** Native stores this seq so a later WebView reload does not refocus. */
+  onVerseFocusApplied?: (seq: number) => void
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -138,6 +139,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       shouldFocus: false,
     },
     appliedFocusSeq = 0,
+    onVerseFocusApplied,
     theme = 'light',
     book,
     chapter,
@@ -181,13 +183,17 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   const navigation = useRef(new BibleReaderNavigation())
   const handledFocusSeq = useRef(appliedFocusSeq)
   useEffect(() => {
+    const before = handledFocusSeq.current
     handledFocusSeq.current = applyMountedVerseFocus(
       navigation.current,
       verseFocus,
-      handledFocusSeq.current,
+      before,
       appliedFocusSeq,
     )
-  }, [verseFocus, appliedFocusSeq])
+    if (verseFocus.shouldFocus && verseFocus.seq > Math.max(before, appliedFocusSeq)) {
+      void onVerseFocusApplied?.(verseFocus.seq)
+    }
+  }, [verseFocus, appliedFocusSeq, onVerseFocusApplied])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.
