@@ -1,13 +1,15 @@
 import type { DOMProps } from 'expo/dom'
 import type { ReactNode } from 'react'
 import { Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ThemeContext, useTheme } from '../hooks/use-theme'
-import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { getImpl, registerDefault } from './component-impls'
 import './bible-version-picker'
 import { NativeSheet } from './native-sheet'
+
+// Gorhom's default handle is 24pt; leave another 16pt above the sheet.
+const SHEET_TOP_CHROME = 40
 
 export type BibleVersionPickerSheetProps = {
   isOpen: boolean
@@ -25,9 +27,9 @@ function BibleVersionPickerSheetImpl({
   theme: themeOverride,
   onSelect,
 }: BibleVersionPickerSheetProps) {
-  const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
+  const { top, bottom } = useSafeAreaInsets()
 
   if (Platform.OS === 'web') return null
 
@@ -49,15 +51,17 @@ function BibleVersionPickerSheetImpl({
       onDismissKeyboardStart={handleDismissKeyboardStart}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
-      bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
       contentStyle={styles.content}
-      showHeader={true}
-      headerTitle={t('bibleVersionsHeading')}
     >
-      <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
+      <View
+        style={[
+          styles.componentContent,
+          { height: Math.min(Math.round(height * 0.88), height - top - bottom - SHEET_TOP_CHROME) },
+        ]}
+      >
         {isOpen ? (
           <ThemeContext.Provider value={resolvedTheme}>
-            <Picker versionId={versionId} onSelect={handleVersionChange} />
+            <Picker versionId={versionId} onSelect={handleVersionChange} onClose={onClose} />
           </ThemeContext.Provider>
         ) : null}
       </View>

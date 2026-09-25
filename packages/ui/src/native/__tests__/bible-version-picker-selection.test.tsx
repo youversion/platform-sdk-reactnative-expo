@@ -1,6 +1,6 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
-import type { ReactNode } from 'react'
-import { View } from 'react-native'
+import { Children, type ReactNode } from 'react'
+import { ScrollView, StyleSheet, Text as RNText, View } from 'react-native'
 
 import { useRecentBibleVersionsStore } from '../../stores/recent-bible-versions-store'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
@@ -11,6 +11,7 @@ import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 const wrapper = youVersionProviderWrapper('light', 'en')
 
 type VersionLookup = 'ready' | 'missing-tag' | 'reject' | 'reject-once'
+type CatalogVariant = 'default' | 'hidden-language' | 'native-name' | 'empty'
 
 function jsonResponse(body: string): Promise<Response> {
   return Promise.resolve(
@@ -21,7 +22,11 @@ function jsonResponse(body: string): Promise<Response> {
   )
 }
 
-function installCatalogFetch(versionLookup: VersionLookup) {
+function installCatalogFetch(
+  versionLookup: VersionLookup,
+  abbreviations: Readonly<Record<number, string>> = {},
+  catalog: CatalogVariant = 'default',
+) {
   let versionLookupAttempts = 0
   jest.spyOn(global, 'fetch').mockImplementation((input) => {
     const url = String(input)
@@ -29,16 +34,30 @@ function installCatalogFetch(versionLookup: VersionLookup) {
     if (parsed.pathname === '/v1/languages') {
       const country = parsed.searchParams.get('country')
       const languages =
-        country === 'zz'
+        country?.toLowerCase() === 'zz'
           ? [{ id: 'en', display_names: { en: 'English' } }]
-          : [
-              { id: 'en', display_names: { en: 'English' } },
-              { id: 'es', display_names: { en: 'Spanish' } },
-            ]
+          : catalog === 'empty'
+            ? []
+            : [
+                { id: 'en', display_names: { en: 'English' } },
+                {
+                  id: 'es',
+                  display_names:
+                    catalog === 'native-name'
+                      ? { en: 'Spanish', es: 'Español' }
+                      : { en: 'Spanish' },
+                },
+                ...(catalog === 'hidden-language'
+                  ? [{ id: 'xx', display_names: { xx: 'Unlisted' } }]
+                  : []),
+              ]
       return jsonResponse(JSON.stringify({ data: languages }))
     }
     if (parsed.pathname === '/v1/bibles') {
       const ranges = parsed.searchParams.getAll('language_ranges[]')
+      if (catalog === 'empty') {
+        return jsonResponse(JSON.stringify({ data: [] }))
+      }
       if (ranges.includes('es')) {
         return jsonResponse(
           JSON.stringify({
@@ -61,13 +80,13 @@ function installCatalogFetch(versionLookup: VersionLookup) {
                 id: 3034,
                 language_tag: 'en',
                 localized_title: 'Berean Standard Bible',
-                localized_abbreviation: 'BSB',
+                localized_abbreviation: abbreviations[3034] ?? 'BSB',
               },
               {
                 id: 111,
                 language_tag: 'en',
                 localized_title: 'King James Version',
-                localized_abbreviation: 'KJV',
+                localized_abbreviation: abbreviations[111] ?? 'KJV',
               },
             ],
           }),
@@ -80,13 +99,13 @@ function installCatalogFetch(versionLookup: VersionLookup) {
               id: 3034,
               language_tag: 'en',
               localized_title: 'Berean Standard Bible',
-              localized_abbreviation: 'BSB',
+              localized_abbreviation: abbreviations[3034] ?? 'BSB',
             },
             {
               id: 111,
               language_tag: 'en',
               localized_title: 'King James Version',
-              localized_abbreviation: 'KJV',
+              localized_abbreviation: abbreviations[111] ?? 'KJV',
             },
             {
               id: 128,
@@ -94,6 +113,16 @@ function installCatalogFetch(versionLookup: VersionLookup) {
               localized_title: 'Reina Valera',
               localized_abbreviation: 'RVR',
             },
+            ...(catalog === 'hidden-language'
+              ? [
+                  {
+                    id: 415,
+                    language_tag: 'xx',
+                    localized_title: 'Unlisted Bible',
+                    localized_abbreviation: 'UB',
+                  },
+                ]
+              : []),
           ],
         }),
       )
@@ -213,11 +242,227 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(onSelect).not.toHaveBeenCalled()
 
     fireEvent.press(getByText('Language'))
+    fireEvent.press(getByText('All (2)'))
     fireEvent.press(await findByLabelText('Spanish'))
     fireEvent.press(await findByLabelText('Reina Valera'))
 
     await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1))
     expect(onSelect).toHaveBeenCalledWith(128)
+  })
+
+  it('shows catalog counts and searches languages within the same sheet', async () => {
+    installCatalogFetch('ready')
+
+    const {
+      findByText,
+      getByLabelText,
+      getByRole,
+      getByText,
+      findByLabelText,
+      queryByLabelText,
+      queryByPlaceholderText,
+      queryByRole,
+    } = render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />, {
+      wrapper,
+    })
+
+    await findByText('3 All Versions · 2 All Languages')
+    fireEvent.press(getByLabelText('Language'))
+    expect(getByRole('tab', { name: 'Suggested' }).props.accessibilityState.selected).toBe(true)
+    await waitFor(() => expect(queryByLabelText('Spanish')).toBeNull())
+    fireEvent.press(getByRole('tab', { name: 'All (2)' }))
+    expect(getByRole('tab', { name: 'All (2)' }).props.accessibilityState.selected).toBe(true)
+    expect(getByLabelText('Spanish')).toBeTruthy()
+    fireEvent.press(getByRole('tab', { name: 'Suggested' }))
+    await waitFor(() => expect(queryByLabelText('Spanish')).toBeNull())
+    fireEvent.press(getByLabelText('Search languages'))
+    expect(queryByRole('tab', { name: 'Suggested' })).toBeNull()
+    expect(getByLabelText('Search languages').props.autoFocus).toBe(true)
+    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    expect(getByLabelText('Spanish')).toBeTruthy()
+    fireEvent.press(getByLabelText('Clear search'))
+    expect(getByLabelText('Search languages').props.value).toBe('')
+    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    fireEvent.press(getByLabelText('Cancel'))
+    expect(queryByPlaceholderText('Search languages')).toBeNull()
+    expect(getByText('All (2)')).toBeTruthy()
+    fireEvent.press(getByLabelText('Search languages'))
+    expect(getByLabelText('Search languages').props.value).toBe('')
+    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    fireEvent.press(await findByLabelText('Spanish'))
+    expect(await findByLabelText('Reina Valera')).toBeTruthy()
+  })
+
+  it('counts only versions whose languages appear in the picker', async () => {
+    installCatalogFetch('ready', {}, 'hidden-language')
+    const { findByText, getByLabelText, getByText, queryByLabelText } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('3 All Versions · 2 All Languages')
+    fireEvent.press(getByLabelText('Language'))
+    fireEvent.press(getByText('All (2)'))
+    expect(queryByLabelText('Unlisted')).toBeNull()
+  })
+
+  it('announces the visible native name and the selected language', async () => {
+    installCatalogFetch('ready', {}, 'native-name')
+    const { findByText, getByLabelText, getByText } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('English Bible Versions')
+    fireEvent.press(getByLabelText('Language'))
+    const selectedRow = getByLabelText('English')
+    expect(StyleSheet.flatten(selectedRow.props.style).backgroundColor).toBe('#f6f4f4')
+    fireEvent.press(getByText('All (2)'))
+    expect(getByText('Español')).toBeTruthy()
+    expect(getByLabelText('Español, Spanish').props.accessibilityState.selected).toBe(false)
+    expect(StyleSheet.flatten(getByLabelText('Español, Spanish').props.style).backgroundColor).toBe(
+      'transparent',
+    )
+  })
+
+  it('uses a general empty state for the All languages tab', async () => {
+    installCatalogFetch('ready', {}, 'empty')
+    const { findByText, getByLabelText, getByText, queryByText } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('0 All Versions · 0 All Languages')
+    fireEvent.press(getByLabelText('Language'))
+    expect(getByText('No regional languages available')).toBeTruthy()
+    fireEvent.press(getByText('All (0)'))
+    expect(getByText('No versions found')).toBeTruthy()
+    expect(queryByText('No regional languages available')).toBeNull()
+  })
+
+  it('cross-fades panels while keeping the hidden panel inert', async () => {
+    installCatalogFetch('ready')
+    const { findByText, getByLabelText, UNSAFE_getAllByType } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('English Bible Versions')
+    const panels = UNSAFE_getAllByType(View)
+    const versions = panels.find((view) => view.props.testID === 'version-picker-versions-panel')!
+    const languages = panels.find((view) => view.props.testID === 'version-picker-languages-panel')!
+    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(1)
+    expect(StyleSheet.flatten(languages.props.style).opacity).toBe(0)
+    expect(languages.props.pointerEvents).toBe('none')
+
+    fireEvent.press(getByLabelText('Language'))
+    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(0)
+    expect(versions.props.pointerEvents).toBe('none')
+    expect(StyleSheet.flatten(languages.props.style).opacity).toBe(1)
+    expect(languages.props.pointerEvents).toBe('auto')
+
+    fireEvent.press(getByLabelText('Back to Bible versions'))
+    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(1)
+    expect(languages.props.pointerEvents).toBe('none')
+  })
+
+  it('fits long abbreviations on one line except for trailing digits', async () => {
+    installCatalogFetch('ready', { 3034: 'TOIB2011', 111: 'CEVDCI' })
+    const { findByText, getByText, queryByText, UNSAFE_getAllByType } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('King James Version')
+    const badgeTexts = () => UNSAFE_getAllByType(RNText)
+    const prefix = badgeTexts().find(
+      (node) => node.props.children === 'TOIB' && node.props.onTextLayout,
+    )
+    const letters = badgeTexts().find(
+      (node) => node.props.children === 'CEVDCI' && node.props.onTextLayout,
+    )
+    expect(prefix).toBeDefined()
+    expect(letters).toBeDefined()
+    expect(queryByText('TOIB2011')).toBeNull()
+    expect(getByText('2011')).toBeTruthy()
+
+    fireEvent(prefix!, 'textLayout', { nativeEvent: { lines: [{ width: 52, height: 20 }] } })
+    fireEvent(letters!, 'textLayout', { nativeEvent: { lines: [{ width: 65, height: 20 }] } })
+    const prefixLine = getByText('TOIB')
+    const digitsLine = getByText('2011')
+    const lettersLine = getByText('CEVDCI')
+    expect(StyleSheet.flatten(prefixLine?.props.style).fontSize).toBeCloseTo(14)
+    expect(StyleSheet.flatten(digitsLine.props.style).fontSize).toBeCloseTo(14)
+    expect(StyleSheet.flatten(lettersLine?.props.style).fontSize).toBeCloseTo(11.2)
+    expect(lettersLine?.props.numberOfLines).toBeUndefined()
+    expect(StyleSheet.flatten(lettersLine?.props.style).width).toBe('100%')
+  })
+
+  it('sizes both lines from the wider suffix without truncating either', async () => {
+    installCatalogFetch('ready', { 3034: 'K201012' })
+    const { findByText, UNSAFE_getAllByType } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('Berean Standard Bible')
+    const badgeTexts = () => UNSAFE_getAllByType(RNText)
+    const measure = (value: string) =>
+      badgeTexts().find((node) => node.props.children === value && node.props.onTextLayout)!
+    fireEvent(measure('K'), 'textLayout', { nativeEvent: { lines: [{ width: 10, height: 20 }] } })
+    fireEvent(measure('201012'), 'textLayout', {
+      nativeEvent: { lines: [{ width: 90, height: 20 }] },
+    })
+
+    for (const value of ['K', '201012']) {
+      const rendered = badgeTexts().find(
+        (node) => node.props.children === value && !node.props.onTextLayout,
+      )!
+      expect(StyleSheet.flatten(rendered.props.style).fontSize).toBeCloseTo(20 * (36.4 / 90))
+      expect(rendered.props.numberOfLines).toBeUndefined()
+    }
+  })
+
+  it('sticks whichever version section headings are visible', async () => {
+    useRecentBibleVersionsStore.setState({ versionIds: [111] })
+    installCatalogFetch('ready')
+
+    const { findByText, getByLabelText, getByText, queryByText, UNSAFE_getAllByType } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    await findByText('Recently Used Versions')
+    expect(getByText('English Bible Versions')).toBeTruthy()
+    const list = UNSAFE_getAllByType(ScrollView).find(
+      (view) => view.props.stickyHeaderIndices !== undefined,
+    )
+    expect(list?.props.stickyHeaderIndices).toEqual([0, 2])
+    expect(Children.toArray(list?.props.children)[0]).toHaveProperty(
+      'props.children.props.children',
+      'Recently Used Versions',
+    )
+    expect(Children.toArray(list?.props.children)[2]).toHaveProperty(
+      'props.children.props.children',
+      ['English', ' ', 'Bible Versions'],
+    )
+
+    fireEvent.changeText(getByLabelText('Search versions'), 'Berean')
+    expect(queryByText('Recently Used Versions')).toBeNull()
+    expect(getByText('English Bible Versions')).toBeTruthy()
+    expect(list?.props.stickyHeaderIndices).toEqual([0])
+    expect(Children.toArray(list?.props.children)[0]).toHaveProperty(
+      'props.children.props.children',
+      ['English', ' ', 'Bible Versions'],
+    )
+
+    fireEvent.changeText(getByLabelText('Search versions'), 'King James')
+    expect(getByText('Recently Used Versions')).toBeTruthy()
+    expect(queryByText('English Bible Versions')).toBeNull()
+    expect(list?.props.stickyHeaderIndices).toEqual([0])
+
+    fireEvent.changeText(getByLabelText('Search versions'), 'not a version')
+    expect(list?.props.stickyHeaderIndices).toEqual([])
   })
 
   it('lets the user choose a replacement when the current version lookup fails', async () => {
@@ -239,6 +484,7 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(onSelect).not.toHaveBeenCalled()
 
     fireEvent.press(getByText('Language'))
+    fireEvent.press(getByText('All (2)'))
     fireEvent.press(await findByLabelText('Spanish'))
     fireEvent.press(await findByLabelText('Reina Valera'))
 

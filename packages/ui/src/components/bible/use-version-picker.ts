@@ -48,6 +48,8 @@ export type VersionPickerController = {
   allLanguages: readonly VersionPickerLanguage[]
   filteredLanguages: readonly VersionPickerLanguage[]
   totalLanguages: number
+  totalVersions: number
+  versionCountByLanguage: ReadonlyMap<string, number>
   pendingVersionId: number | null
   versionLookupFailed: boolean
   setVersionSearchQuery: (query: string) => void
@@ -310,6 +312,20 @@ export function useVersionPicker({
     [allowedLanguageTags, suggestedLanguages],
   )
 
+  const versionCountByLanguage = useMemo(() => {
+    const counts = new Map<string, number>()
+    const visibleLanguageIds = new Set(visibleLanguages.map((language) => language.id))
+    for (const [id, languageTag] of languageTagByVersionId) {
+      if (
+        visibleLanguageIds.has(languageTag) &&
+        isUsableBibleVersion({ id, languageTag }, activeFilters)
+      ) {
+        counts.set(languageTag, (counts.get(languageTag) ?? 0) + 1)
+      }
+    }
+    return counts
+  }, [activeFilters, languageTagByVersionId, visibleLanguages])
+
   const recentVersions = useMemo(() => {
     const matching = !versionSearchQuery.trim()
       ? recentVersionIds
@@ -398,6 +414,8 @@ export function useVersionPicker({
     allLanguages: visibleLanguages,
     filteredLanguages,
     totalLanguages: visibleLanguages.length,
+    totalVersions: [...versionCountByLanguage.values()].reduce((sum, count) => sum + count, 0),
+    versionCountByLanguage,
     pendingVersionId,
     versionLookupFailed,
     setVersionSearchQuery,
