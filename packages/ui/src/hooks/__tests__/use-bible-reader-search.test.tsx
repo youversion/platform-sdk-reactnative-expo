@@ -578,6 +578,36 @@ describe('useBibleReaderSearch', () => {
     expect(result.current.view.phase).toBe('empty')
   })
 
+  it('dedupes repeated hits on the first page', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => okVerses(['JHN.3.16', 'JHN.3.16'])),
+    })
+    const fetchBibleContent = fetchStub()
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent,
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('love')
+    })
+    await flush()
+
+    const { view } = result.current
+    expect(view.phase).toBe('results')
+    expect(view.phase === 'results' ? view.verses.map((verse) => verse.usfm) : []).toEqual([
+      'JHN.3.16',
+    ])
+    expect(fetchBibleContent).toHaveBeenCalledTimes(1)
+  })
+
   it('treats all-failed enrichment as failed, not empty', async () => {
     const stub = searchStub({
       verses: jest.fn(async () => okVerses(['JHN.3.16'])),

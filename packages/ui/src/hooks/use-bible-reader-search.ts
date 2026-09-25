@@ -296,7 +296,8 @@ export function useBibleReaderSearch(
           dispatch({ type: 'searchFailed', epoch: current.epoch, error: result.error })
           return
         }
-        const usfms = usfmsFromSearchHits(result.value.verses)
+        // Dedupe page one like later pages: a repeated id would render two rows with one key.
+        const usfms = dedupeVerseUsfms(new Set(), usfmsFromSearchHits(result.value.verses))
         const verses = await titledVersesFor(usfms, versionId, fetchBibleContent)
         if (cancelled) {
           return
