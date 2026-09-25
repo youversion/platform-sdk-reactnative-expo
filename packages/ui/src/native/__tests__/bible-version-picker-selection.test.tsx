@@ -10,7 +10,7 @@ import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 
 const wrapper = youVersionProviderWrapper('light', 'en')
 
-type VersionLookup = 'ready' | 'missing-tag' | 'reject'
+type VersionLookup = 'ready' | 'missing-tag' | 'reject' | 'reject-once'
 
 function jsonResponse(body: string): Promise<Response> {
   return Promise.resolve(
@@ -22,6 +22,7 @@ function jsonResponse(body: string): Promise<Response> {
 }
 
 function installCatalogFetch(versionLookup: VersionLookup) {
+  let versionLookupAttempts = 0
   jest.spyOn(global, 'fetch').mockImplementation((input) => {
     const url = String(input)
     const parsed = new URL(url)
@@ -98,7 +99,11 @@ function installCatalogFetch(versionLookup: VersionLookup) {
       )
     }
     if (/\/v1\/bibles\/\d+$/.test(parsed.pathname)) {
-      if (versionLookup === 'reject') {
+      versionLookupAttempts += 1
+      if (
+        versionLookup === 'reject' ||
+        (versionLookup === 'reject-once' && versionLookupAttempts === 1)
+      ) {
         return Promise.reject(new Error('version unavailable'))
       }
       if (versionLookup === 'missing-tag') {
@@ -229,8 +234,8 @@ describe('BibleVersionPickerSheet selection', () => {
       { wrapper },
     )
 
-    await findByText('Language')
-    expect(queryByText('Error')).toBeNull()
+    await findByText('Retry')
+    expect(queryByText('No versions found')).toBeNull()
     expect(onSelect).not.toHaveBeenCalled()
 
     fireEvent.press(getByText('Language'))
@@ -239,5 +244,26 @@ describe('BibleVersionPickerSheet selection', () => {
 
     await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1))
     expect(onSelect).toHaveBeenCalledWith(128)
+  })
+
+  it('retries a failed current-version lookup without replacing the host version', async () => {
+    installCatalogFetch('reject-once')
+    const onSelect = jest.fn().mockResolvedValue(undefined)
+
+    const { findByText, findByLabelText, queryByText } = render(
+      <BibleVersionPickerSheet
+        isOpen={true}
+        onClose={() => {}}
+        onSelect={onSelect}
+        versionId={3034}
+      />,
+      { wrapper },
+    )
+
+    fireEvent.press(await findByText('Retry'))
+
+    await findByLabelText('King James Version')
+    expect(queryByText('Error')).toBeNull()
+    expect(onSelect).not.toHaveBeenCalled()
   })
 })

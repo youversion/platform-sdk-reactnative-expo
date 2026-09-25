@@ -49,6 +49,7 @@ export type VersionPickerController = {
   filteredLanguages: readonly VersionPickerLanguage[]
   totalLanguages: number
   pendingVersionId: number | null
+  versionLookupFailed: boolean
   setVersionSearchQuery: (query: string) => void
   setLanguageSearchQuery: (query: string) => void
   setLanguageTab: (tab: VersionPickerLanguageTab) => void
@@ -154,6 +155,7 @@ export function useVersionPicker({
     () => new Map(),
   )
   const [pendingVersionId, setPendingVersionId] = useState<number | null>(null)
+  const [versionLookupFailed, setVersionLookupFailed] = useState(false)
   const [requestGeneration, setRequestGeneration] = useState(0)
   const selectionPendingRef = useRef(false)
 
@@ -225,9 +227,15 @@ export function useVersionPicker({
             if (cancelled) {
               return
             }
+            setVersionLookupFailed(true)
+            setSelectedLanguageId('')
+            setVersions([])
+            setLoadState({ status: 'ready' })
+            return
           }
         }
         if (!languageId) {
+          setVersionLookupFailed(false)
           setSelectedLanguageId('')
           setVersions([])
           setLoadState({ status: 'ready' })
@@ -237,6 +245,7 @@ export function useVersionPicker({
         if (cancelled) {
           return
         }
+        setVersionLookupFailed(false)
         setSelectedLanguageId(languageId)
         setVersions(nextVersions)
         setLoadState({ status: 'ready' })
@@ -390,6 +399,7 @@ export function useVersionPicker({
     filteredLanguages,
     totalLanguages: visibleLanguages.length,
     pendingVersionId,
+    versionLookupFailed,
     setVersionSearchQuery,
     setLanguageSearchQuery,
     setLanguageTab,

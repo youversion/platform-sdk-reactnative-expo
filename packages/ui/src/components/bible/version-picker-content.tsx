@@ -19,7 +19,10 @@ import { sansFace } from '../../theme/fonts'
 import { ClearIcon } from '../icons/clear-icon'
 import { SearchIcon } from '../icons/search-icon'
 import { Button, Tabs, Text } from '../ui'
-import type { VersionPickerLanguage, VersionPickerVersion } from '../../native/bible-version-picker-api'
+import type {
+  VersionPickerLanguage,
+  VersionPickerVersion,
+} from '../../native/bible-version-picker-api'
 import type {
   VersionPickerController,
   VersionPickerLanguageTab,
@@ -113,10 +116,7 @@ function VersionRow({
       ]}
     >
       <View
-        style={[
-          styles.versionBadge,
-          { backgroundColor: tokens.muted, borderColor: tokens.border },
-        ]}
+        style={[styles.versionBadge, { backgroundColor: tokens.muted, borderColor: tokens.border }]}
       >
         <Text variant="body" style={[styles.versionBadgeText, { color: tokens.foreground }]}>
           {version.localizedAbbreviation}
@@ -178,6 +178,7 @@ function VersionsPanel({
   recentVersions,
   filteredVersions,
   versionSearchQuery,
+  versionLookupFailed,
   onVersionSearchChange,
   onOpenLanguagePanel,
   onSelectVersion,
@@ -190,6 +191,7 @@ function VersionsPanel({
   recentVersions: readonly VersionPickerVersion[]
   filteredVersions: readonly VersionPickerVersion[]
   versionSearchQuery: string
+  versionLookupFailed: boolean
   onVersionSearchChange: (query: string) => void
   onOpenLanguagePanel: () => void
   onSelectVersion: (version: VersionPickerVersion) => void
@@ -220,7 +222,7 @@ function VersionsPanel({
             <View style={styles.centerState}>
               <ActivityIndicator accessibilityLabel={t('loading')} color={tokens.foreground} />
             </View>
-          ) : loadState.status === 'error' ? (
+          ) : loadState.status === 'error' || versionLookupFailed ? (
             <StateMessage label={t('error')} action={t('retry')} onAction={onRetry} />
           ) : (
             <>
@@ -240,7 +242,10 @@ function VersionsPanel({
               {filteredVersions.length > 0 ? (
                 <View style={styles.section}>
                   {recentVersions.length > 0 ? (
-                    <Text variant="body" style={[styles.sectionHeading, { color: tokens.foreground }]}>
+                    <Text
+                      variant="body"
+                      style={[styles.sectionHeading, { color: tokens.foreground }]}
+                    >
                       {t('bibleVersionsHeading')}
                     </Text>
                   ) : null}
@@ -265,7 +270,9 @@ function VersionsPanel({
           )}
         </ScrollView>
       </View>
-      <View style={[styles.searchBar, { backgroundColor: tokens.muted, borderColor: tokens.border }]}>
+      <View
+        style={[styles.searchBar, { backgroundColor: tokens.muted, borderColor: tokens.border }]}
+      >
         <SearchField
           value={versionSearchQuery}
           onChange={onVersionSearchChange}
@@ -376,7 +383,10 @@ function LanguagesPanel({
               </Tabs.List>
               <Tabs.Content value="suggested">
                 <View style={styles.section}>
-                  <Text variant="body" style={[styles.sectionHeading, { color: tokens.foreground }]}>
+                  <Text
+                    variant="body"
+                    style={[styles.sectionHeading, { color: tokens.foreground }]}
+                  >
                     {t('regional')}
                   </Text>
                   {suggestedLanguages.map((language) => (
@@ -407,7 +417,9 @@ function LanguagesPanel({
           )}
         </ScrollView>
       </View>
-      <View style={[styles.searchBar, { backgroundColor: tokens.muted, borderColor: tokens.border }]}>
+      <View
+        style={[styles.searchBar, { backgroundColor: tokens.muted, borderColor: tokens.border }]}
+      >
         <SearchField
           value={languageSearchQuery}
           onChange={onLanguageSearchChange}
@@ -443,10 +455,7 @@ function StateMessage({
   )
 }
 
-export function VersionPickerContent({
-  controller,
-  style,
-}: VersionPickerContentProps): ReactNode {
+export function VersionPickerContent({ controller, style }: VersionPickerContentProps): ReactNode {
   const tokens = useTokens()
   const { lng } = useLocale()
   const panel: VersionPickerPanel = controller.panel
@@ -467,6 +476,7 @@ export function VersionPickerContent({
         recentVersions={controller.recentVersions}
         filteredVersions={controller.filteredVersions}
         versionSearchQuery={controller.versionSearchQuery}
+        versionLookupFailed={controller.versionLookupFailed}
         onVersionSearchChange={controller.setVersionSearchQuery}
         onOpenLanguagePanel={() => controller.dispatchPanelEvent('open-language')}
         onSelectVersion={(version) => {
