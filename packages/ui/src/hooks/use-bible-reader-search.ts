@@ -29,7 +29,6 @@ import {
   type Epoch,
   type ResultPage,
   type SearchDemand,
-  type SearchState,
 } from '../lib/bible-reader-search-machine'
 import { toSearchView, type SearchView } from '../lib/bible-reader-search-view'
 import { useSearchHistoryStore } from '../stores/search-history-store'
@@ -113,15 +112,6 @@ async function titledVersesFor(
   return results.filter((verse): verse is TitledVerse => verse !== null)
 }
 
-function submittedOf(
-  state: SearchState,
-): NonBlankQuery | null {
-  if (state.kind === 'searching' || state.kind === 'resolved' || state.kind === 'failed') {
-    return state.submitted
-  }
-  return null
-}
-
 export function useBibleReaderSearch(
   options: UseBibleReaderSearchOptions,
 ): UseBibleReaderSearchResult {
@@ -171,10 +161,9 @@ export function useBibleReaderSearch(
 
   const setQuery = useCallback((text: string) => {
     const clipped = clipField(text)
-    const submitted = submittedOf(stateRef.current)
-    // Match the raw field text. Trimming would treat "love " as the submitted
-    // "love" and drop the space, so the next character lands on "loveo".
-    if (submitted !== null && clipped === submitted) {
+    // Match the text the field shows, not `submitted`. A restored page keeps
+    // "love ", so deleting the space back to "love" must still land.
+    if (clipped === fieldTextOf(stateRef.current)) {
       return
     }
     dispatch({ type: 'queryEdited', text: clipped })
