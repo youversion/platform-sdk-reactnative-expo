@@ -70,7 +70,12 @@ if (typeof window !== 'undefined' && typeof window.dispatchEvent !== 'function')
     return true
   }
 }
-jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock'))
+jest.mock('react-native-worklets', () => require('react-native-worklets/src/mock'))
+jest.mock('react-native-reanimated', () => ({
+  ...require('react-native-reanimated/mock'),
+  cubicBezier: () => 'ease-out',
+  useReducedMotion: () => false,
+}))
 jest.mock('@gorhom/bottom-sheet', () => require('./jest.gorhom-mock').createGorhomMock())
 jest.mock('react-native/Libraries/Utilities/useWindowDimensions', () => ({
   __esModule: true,

@@ -31,7 +31,6 @@ const VERSION_FILTER_DOM_ENTRIES = [
   'bible-text-view.tsx',
   'verse-of-the-day.tsx',
   'bible-version-picker-content.tsx',
-  'chapter-picker-content.tsx',
 ] as const
 
 const DOM_ENTRIES = [

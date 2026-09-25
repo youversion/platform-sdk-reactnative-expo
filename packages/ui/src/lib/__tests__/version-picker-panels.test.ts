@@ -1,4 +1,19 @@
-import { getVersionPickerPanelClassName } from '../version-picker-panels'
+import { getVersionPickerPanelClassName, nextPanel } from '../version-picker-panels'
+
+describe('nextPanel', () => {
+  it('opens the language panel from versions', () => {
+    expect(nextPanel('versions', 'open-language')).toBe('languages')
+  })
+
+  it('returns versions when the language panel closes', () => {
+    expect(nextPanel('languages', 'close-language')).toBe('versions')
+  })
+
+  it('returns versions when the sheet opens', () => {
+    expect(nextPanel('languages', 'sheet-opened')).toBe('versions')
+    expect(nextPanel('versions', 'sheet-opened')).toBe('versions')
+  })
+})
 
 describe('getVersionPickerPanelClassName', () => {
   it('shows the version panel when the language panel is closed', () => {

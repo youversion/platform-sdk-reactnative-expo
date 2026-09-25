@@ -36,7 +36,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 
 ## Requirements
 
-- Expo SDK 56
+- Expo SDK 57 (React Native 0.86)
 - A YouVersion Platform API key ([register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
@@ -259,7 +259,18 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 />
 ```
 
-The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows.
+The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows. `BibleChapterPicker` renders the native picker without a sheet when your app owns presentation:
+
+```tsx
+<BibleChapterPicker
+  book="JHN"
+  chapter="3"
+  versionId={3034}
+  onSelect={({ book, chapter, versionId }) => {
+    // commit the selected location
+  }}
+/>
+```
 
 ### Verse of the Day
 
@@ -356,7 +367,7 @@ function ProfileScreen() {
 }
 ```
 
-It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`), `outline`, `radius` (`'rounded' | 'rectangular'`), `size` (`'default' | 'short' | 'icon'`), and `text` (string, replaces the default localized label).
+It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`, forces that token scheme; default `'light'`), and `text` (string, replaces the default localized label). The control is a filled, rounded, outlined pill with the Bible App logo beside the localized label (up to two lines). Do not pass `outline`, `radius`, or `size`. Those props are gone.
 
 #### Signing out
 

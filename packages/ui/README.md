@@ -9,7 +9,7 @@ Drop-in YouVersion Bible components for React Native (Expo) apps. Built on the R
 Use `@youversion/platform-react-native-expo-ui` when you need:
 
 - ✅ Pre-built Bible components for Expo: `BibleCard`, `BibleReader`, `BibleTextView`, `VerseOfTheDay`
-- ✅ A native Reader toolbar on iOS/Android, version/chapter picker and reader-settings bottom sheets, plus `YouVersionAuthButton`
+- ✅ A native Reader toolbar and chapter picker on iOS/Android, version/chapter picker and reader-settings bottom sheets, plus `YouVersionAuthButton`
 - ✅ Native verse actions in `BibleReader`: a bottom sheet with Copy and Share (plus highlight colors when `auth` is configured), and `onCopy` / `onShare` overrides
 - ✅ Highlights the reader paints for you, including ones made offline — surface them with `onHighlightError`, refetch them with `refreshHighlights()` on the reader's ref
 - ✅ A native sign-out confirmation on `YouVersionAuthButton` and the reader, warning when unsent highlights would be lost (`useSignOutGuard` for your own UI)
@@ -24,7 +24,7 @@ Use `@youversion/platform-react-native-expo-ui` when you need:
 npx expo install @youversion/platform-react-native-expo-ui @youversion/platform-react-native-expo-core
 ```
 
-Requires Expo SDK 56+, React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). Peer dependencies are listed in [`package.json`](./package.json).
+Requires Expo SDK 57 (React Native 0.86), React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). If you upgrade from SDK 56, rebuild the dev client. Peer dependencies are listed in [`package.json`](./package.json).
 
 Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
 

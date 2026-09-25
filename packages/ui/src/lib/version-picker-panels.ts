@@ -4,6 +4,20 @@ const PANEL_TRANSITION =
 const PANEL_VISIBLE = 'yv:grow yv:opacity-100 yv:pointer-events-auto yv:blur-none yv:scale-100'
 const PANEL_HIDDEN = 'yv:shrink yv:opacity-0 yv:pointer-events-none yv:blur-sm yv:scale-95'
 
+export type VersionPickerPanel = 'versions' | 'languages'
+
+export type VersionPickerPanelEvent = 'open-language' | 'close-language' | 'sheet-opened'
+
+export function nextPanel(
+  _panel: VersionPickerPanel,
+  event: VersionPickerPanelEvent,
+): VersionPickerPanel {
+  if (event === 'open-language') {
+    return 'languages'
+  }
+  return 'versions'
+}
+
 export function getVersionPickerPanelClassName(
   showLanguagePicker: boolean,
   panel: 'version' | 'language',
