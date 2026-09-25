@@ -31,3 +31,20 @@ export function isUsableBibleVersion(
   }
   return permittedLanguageTags.includes(candidate.languageTag)
 }
+
+/** Language tags that still have at least one version the provider filters allow. */
+export function languageTagsWithUsableVersions(
+  versionLanguageTags: ReadonlyMap<number, string>,
+  filters: InternalVersionFilterProps,
+): ReadonlySet<string> {
+  const tags = new Set<string>()
+  for (const [id, languageTag] of versionLanguageTags) {
+    if (languageTag.length === 0) {
+      continue
+    }
+    if (isUsableBibleVersion({ id, languageTag }, filters)) {
+      tags.add(languageTag)
+    }
+  }
+  return tags
+}

@@ -1,14 +1,15 @@
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { DOMProps } from 'expo/dom'
-import { useState, type ReactNode } from 'react'
-import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import { useTheme } from '../hooks/use-theme'
-import { useLocale } from '../i18n/locale-context'
-import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import type { ReactNode } from 'react'
+import { Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
 import { getImpl, registerDefault } from './component-impls'
+import './bible-version-picker'
 import { NativeSheet } from './native-sheet'
+
+// Gorhom's default handle is 24pt; leave another 16pt above the sheet.
+const SHEET_TOP_CHROME = 40
 
 export type BibleVersionPickerSheetProps = {
   isOpen: boolean
@@ -25,52 +26,23 @@ function BibleVersionPickerSheetImpl({
   versionId = DEFAULT_BIBLE_VERSION_ID,
   theme: themeOverride,
   onSelect,
-  dom,
 }: BibleVersionPickerSheetProps) {
-  const context = useYouVersion()
-  const { lng } = useLocale()
-  const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
-
-  // Bump resetKey on each open so the DOM component remounts its picker tree,
-  // resetting scroll position, search query, and language filter state. Detect
-  // the closed->open transition by comparing isOpen against its previous value
-  // during render (not in an effect), so the new resetKey flows straight into
-  // the child on the same commit without a stale intermediate frame.
-  // See https://react.dev/learn/you-might-not-need-an-effect
-  const [resetKey, setResetKey] = useState(0)
-  const [wasOpen, setWasOpen] = useState(false)
-  const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
-  const handleDismissKeyboardStart = () => {
-    setDismissKeyboardNonce((n) => n + 1)
-  }
-  if (isOpen !== wasOpen) {
-    setWasOpen(isOpen)
-    if (isOpen) setResetKey((k) => k + 1)
-  }
+  const { top, bottom } = useSafeAreaInsets()
 
   if (Platform.OS === 'web') return null
 
-  const pickerDom = {
-    style: styles.dom,
-    hideKeyboardAccessoryView: true,
-    scrollEnabled: false,
-    ...dom,
+  const handleDismissKeyboardStart = () => {
+    Keyboard.dismiss()
   }
 
   const handleVersionChange = async (newVersionId: number) => {
-    if (onSelect) {
-      try {
-        await onSelect(newVersionId)
-      } catch {
-        return
-      }
-    }
+    await onSelect?.(newVersionId)
     onClose()
   }
 
-  const VersionPickerContentDOM = getImpl('BibleVersionPickerContent')
+  const Picker = getImpl('BibleVersionPicker')
 
   return (
     <NativeSheet
@@ -79,29 +51,19 @@ function BibleVersionPickerSheetImpl({
       onDismissKeyboardStart={handleDismissKeyboardStart}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
-      bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
       contentStyle={styles.content}
-      showHeader={true}
-      headerTitle={t('bibleVersionsHeading')}
     >
-      <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
-        <VersionPickerContentDOM
-          dom={pickerDom}
-          appKey={context.appKey}
-          apiHost={context.apiHost}
-          installationId={context.installationId}
-          fetchBibleContent={context.fetchBibleContent}
-          versionId={versionId}
-          theme={resolvedTheme}
-          resetKey={resetKey}
-          isOpen={isOpen}
-          dismissKeyboardNonce={dismissKeyboardNonce}
-          onVersionChange={handleVersionChange}
-          permittedVersionIds={context.permittedVersionIds}
-          excludedVersionIds={context.excludedVersionIds}
-          permittedLanguageTags={context.permittedLanguageTags}
-          locale={lng}
-        />
+      <View
+        style={[
+          styles.componentContent,
+          { height: Math.min(Math.round(height * 0.88), height - top - bottom - SHEET_TOP_CHROME) },
+        ]}
+      >
+        {isOpen ? (
+          <ThemeContext.Provider value={resolvedTheme}>
+            <Picker versionId={versionId} onSelect={handleVersionChange} onClose={onClose} />
+          </ThemeContext.Provider>
+        ) : null}
       </View>
     </NativeSheet>
   )
@@ -120,8 +82,5 @@ const styles = StyleSheet.create({
   },
   componentContent: {
     width: '100%',
-  },
-  dom: {
-    flex: 1,
   },
 })
