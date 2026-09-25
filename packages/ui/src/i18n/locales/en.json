@@ -57,14 +57,5 @@
   "changeBibleVersionAriaLabel": "Change Bible version",
   "userAvatarAlt": "User avatar",
   "loadingBibleVersionAriaLabel": "Loading Bible version",
-  "selectVersion": "Select version",
-  "alphabetical": "Alphabetical",
-  "clearSearch": "Clear search",
-  "done": "Done",
-  "noChaptersAvailable": "No chapters available",
-  "retry": "Retry",
-  "traditional": "Traditional",
-  "bibleSearchClearAriaLabel": "Clear search",
-  "bibleSearchRecentHeading": "Recent Searches",
-  "bibleSearchTrendingHeading": "Trending Searches"
+  "selectVersion": "Select version"
 }
