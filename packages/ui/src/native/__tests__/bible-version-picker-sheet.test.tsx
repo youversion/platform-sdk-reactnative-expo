@@ -1,7 +1,12 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { Pressable, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
+import {
+  mockWindowDimensions,
+  resetMockWindowDimensions,
+} from '../../../jest.window-dimensions-mock'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -46,6 +51,7 @@ describe('BibleVersionPickerSheet', () => {
 
   afterEach(() => {
     resetImpls()
+    resetMockWindowDimensions()
     jest.restoreAllMocks()
   })
 
@@ -134,5 +140,35 @@ describe('BibleVersionPickerSheet', () => {
     render(<BibleVersionPickerSheet isOpen={true} onClose={() => {}} />, { wrapper })
 
     expect(latestPickerProps.versionId).toBe(3034)
+  })
+
+  it('keeps the handle below the top safe area without shortening smaller sheets', () => {
+    mockWindowDimensions.height = 844
+
+    function WithInsets({ children }: { children: ReactNode }) {
+      return (
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 844 },
+            insets: { top: 59, right: 0, bottom: 34, left: 0 },
+          }}
+        >
+          {children}
+        </SafeAreaProvider>
+      )
+    }
+
+    const constrained = render(<BibleVersionPickerSheet isOpen onClose={() => {}} />, {
+      wrapper: WithInsets,
+    })
+    expect(
+      StyleSheet.flatten(constrained.getByTestId('sheet').findAllByType(View)[0]?.props.style),
+    ).toEqual(expect.objectContaining({ height: 711 }))
+    constrained.unmount()
+
+    const unconstrained = render(<BibleVersionPickerSheet isOpen onClose={() => {}} />, { wrapper })
+    expect(
+      StyleSheet.flatten(unconstrained.getByTestId('sheet').findAllByType(View)[0]?.props.style),
+    ).toEqual(expect.objectContaining({ height: 743 }))
   })
 })

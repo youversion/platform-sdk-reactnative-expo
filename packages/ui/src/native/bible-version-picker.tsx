@@ -10,6 +10,7 @@ export type BibleVersionPickerProps = {
   versionId?: number
   languageId?: string
   onSelect?: (versionId: number) => void | Promise<void>
+  onClose?: () => void
   style?: StyleProp<ViewStyle>
 }
 
@@ -17,6 +18,7 @@ function BibleVersionPickerImpl({
   versionId = DEFAULT_BIBLE_VERSION_ID,
   languageId,
   onSelect,
+  onClose,
   style,
 }: BibleVersionPickerProps): ReactNode {
   const controller = useVersionPicker({
@@ -25,7 +27,7 @@ function BibleVersionPickerImpl({
     onSelect,
   })
 
-  return <VersionPickerContent controller={controller} style={style} />
+  return <VersionPickerContent controller={controller} style={style} onClose={onClose} />
 }
 
 registerDefault('BibleVersionPicker', BibleVersionPickerImpl)
