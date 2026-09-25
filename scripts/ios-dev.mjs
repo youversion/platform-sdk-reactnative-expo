@@ -95,7 +95,11 @@ export function parseAvailableIphones(simctlOutput) {
     .filter(([runtime]) => runtime.includes('SimRuntime.iOS-'))
     .flatMap(([runtime, runtimeDevices]) =>
       runtimeDevices
-        .filter((device) => device.isAvailable !== false && device.name.startsWith('iPhone'))
+        .filter(
+          (device) =>
+            device.isAvailable !== false &&
+            device.deviceTypeIdentifier?.startsWith('com.apple.CoreSimulator.SimDeviceType.iPhone-'),
+        )
         .map((device) => ({ ...device, runtime })),
     )
     .sort((left, right) => {
@@ -471,7 +475,7 @@ async function dev(options) {
       mkdirSync(METRO_TMP_DIR, { recursive: true })
       const attempt = startChild('pnpm', metroArguments, {
         cwd: EXAMPLE_DIR,
-        env: { ...process.env, TMPDIR: METRO_TMP_DIR },
+        env: { ...buildExpoEnvironment(port), TMPDIR: METRO_TMP_DIR },
         pipeOutput: true,
       })
 

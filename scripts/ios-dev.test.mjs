@@ -24,12 +24,14 @@ const simctlOutput = JSON.stringify({
     'com.apple.CoreSimulator.SimRuntime.iOS-25-0': [
       {
         name: 'iPhone 16 Pro',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro',
         udid: 'old-shutdown',
         state: 'Shutdown',
         isAvailable: true,
       },
       {
         name: 'iPhone 16',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-16',
         udid: 'old-booted',
         state: 'Booted',
         isAvailable: true,
@@ -38,18 +40,28 @@ const simctlOutput = JSON.stringify({
     'com.apple.CoreSimulator.SimRuntime.iOS-26-5': [
       {
         name: 'iPhone 17 Pro',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro',
         udid: 'new-shutdown',
         state: 'Shutdown',
         isAvailable: true,
       },
       {
-        name: 'iPad Pro',
+        name: 'Worktree B',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro',
+        udid: 'renamed-iphone',
+        state: 'Shutdown',
+        isAvailable: true,
+      },
+      {
+        name: 'iPhone-shaped iPad',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch',
         udid: 'ipad',
         state: 'Booted',
         isAvailable: true,
       },
       {
         name: 'iPhone unavailable',
+        deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro',
         udid: 'unavailable',
         state: 'Shutdown',
         isAvailable: false,
@@ -66,6 +78,7 @@ test('parseAvailableIphones prefers a booted iPhone and excludes unavailable dev
     [
       { name: 'iPhone 16', udid: 'old-booted' },
       { name: 'iPhone 17 Pro', udid: 'new-shutdown' },
+      { name: 'Worktree B', udid: 'renamed-iphone' },
       { name: 'iPhone 16 Pro', udid: 'old-shutdown' },
     ],
   )
@@ -77,6 +90,8 @@ test('chooseSimulator targets an explicit name or UDID instead of the booted def
   assert.equal(chooseSimulator(devices).udid, 'old-booted')
   assert.equal(chooseSimulator(devices, 'iPhone 17 Pro').udid, 'new-shutdown')
   assert.equal(chooseSimulator(devices, 'NEW-SHUTDOWN').name, 'iPhone 17 Pro')
+  assert.equal(chooseSimulator(devices, 'Worktree B').udid, 'renamed-iphone')
+  assert.equal(chooseSimulator(devices, 'RENAMED-IPHONE').name, 'Worktree B')
 })
 
 test('chooseSimulator reports available names when an explicit device is missing', () => {
@@ -84,7 +99,7 @@ test('chooseSimulator reports available names when an explicit device is missing
 
   assert.throws(
     () => chooseSimulator(devices, 'iPhone 99'),
-    /Available iPhones: iPhone 16, iPhone 17 Pro, iPhone 16 Pro/,
+    /Available iPhones: iPhone 16, iPhone 17 Pro, Worktree B, iPhone 16 Pro/,
   )
 })
 
@@ -223,8 +238,15 @@ test('buildDevClientUrl pins the development client to this Metro port', () => {
 })
 
 test('buildExpoEnvironment pins Expo and React Native to this Metro port', () => {
-  const environment = buildExpoEnvironment(8083)
+  const originalProxy = process.env.EXPO_PACKAGER_PROXY_URL
+  process.env.EXPO_PACKAGER_PROXY_URL = 'http://127.0.0.1:8081'
+  try {
+    const environment = buildExpoEnvironment(8083)
 
-  assert.equal(environment.EXPO_PACKAGER_PROXY_URL, 'http://127.0.0.1:8083')
-  assert.equal(environment.RCT_METRO_PORT, '8083')
+    assert.equal(environment.EXPO_PACKAGER_PROXY_URL, 'http://127.0.0.1:8083')
+    assert.equal(environment.RCT_METRO_PORT, '8083')
+  } finally {
+    if (originalProxy === undefined) delete process.env.EXPO_PACKAGER_PROXY_URL
+    else process.env.EXPO_PACKAGER_PROXY_URL = originalProxy
+  }
 })
