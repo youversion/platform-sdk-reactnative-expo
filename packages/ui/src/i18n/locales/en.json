@@ -66,5 +66,12 @@
   "traditional": "Traditional",
   "bibleSearchClearAriaLabel": "Clear search",
   "bibleSearchRecentHeading": "Recent Searches",
-  "bibleSearchTrendingHeading": "Trending Searches"
+  "bibleSearchTrendingHeading": "Trending Searches",
+  "allLanguagesHeading": "All Languages",
+  "allLanguagesTab": "All ({{count}})",
+  "allVersionsHeading": "All Versions",
+  "backToBibleVersionsAriaLabel": "Back to Bible versions",
+  "noLanguageSearchResults": "We're sorry, there are no results for this search.",
+  "noRegionalLanguagesAvailable": "No regional languages available",
+  "recentlyUsedVersionsHeading": "Recently Used Versions"
 }
