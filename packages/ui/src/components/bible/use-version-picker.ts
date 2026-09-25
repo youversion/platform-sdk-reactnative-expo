@@ -13,7 +13,10 @@ import {
   type VersionPickerPanel,
   type VersionPickerPanelEvent,
 } from '../../lib/version-picker-panels'
-import { isUsableBibleVersion } from '../../lib/version-usability'
+import {
+  isUsableBibleVersion,
+  languageTagsWithUsableVersions,
+} from '../../lib/version-usability'
 import {
   buildSuggestedLanguages,
   fetchSuggestedVersionPickerLanguages,
@@ -286,6 +289,21 @@ export function useVersionPicker({
     setPanel('versions')
   }, [])
 
+  const allowedLanguageTags = useMemo(
+    () => languageTagsWithUsableVersions(languageTagByVersionId, activeFilters),
+    [activeFilters, languageTagByVersionId],
+  )
+
+  const visibleLanguages = useMemo(
+    () => allLanguages.filter((language) => allowedLanguageTags.has(language.id)),
+    [allLanguages, allowedLanguageTags],
+  )
+
+  const visibleSuggestedLanguages = useMemo(
+    () => suggestedLanguages.filter((language) => allowedLanguageTags.has(language.id)),
+    [allowedLanguageTags, suggestedLanguages],
+  )
+
   const recentVersions = useMemo(() => {
     const matching = !versionSearchQuery.trim()
       ? recentVersionIds
@@ -338,8 +356,8 @@ export function useVersionPicker({
   }, [activeFilters, recentVersions, selectedLanguageId, versionSearchQuery, versions])
 
   const filteredLanguages = useMemo(
-    () => filterLanguagesBySearch(allLanguages, languageSearchQuery),
-    [allLanguages, languageSearchQuery],
+    () => filterLanguagesBySearch(visibleLanguages, languageSearchQuery),
+    [languageSearchQuery, visibleLanguages],
   )
 
   const selectVersion = useCallback(
@@ -382,10 +400,10 @@ export function useVersionPicker({
     selectedVersionId,
     recentVersions,
     filteredVersions,
-    suggestedLanguages,
-    allLanguages,
+    suggestedLanguages: visibleSuggestedLanguages,
+    allLanguages: visibleLanguages,
     filteredLanguages,
-    totalLanguages: allLanguages.length,
+    totalLanguages: visibleLanguages.length,
     pendingVersionId,
     setVersionSearchQuery,
     setLanguageSearchQuery,
