@@ -23,6 +23,8 @@ jobs:
         run: pnpm lint:native-i18n
       - name: Run no-raw-color oxlint regression tests
         run: pnpm lint:no-raw-color
+      - name: Run repo script regression tests
+        run: pnpm test:scripts
 
   typecheck:
     name: Typecheck
