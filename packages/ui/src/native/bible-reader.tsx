@@ -57,6 +57,7 @@ import {
   useBibleReaderVerseFocus,
   useConsumedNavigationRequest,
   type BibleReaderNavigation,
+  type BibleReaderVerseFocusAcknowledgment,
 } from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
 import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
@@ -368,8 +369,8 @@ export function BibleReader({
   const appliedFocusSeq = useBibleReaderAppliedFocusSeq(resolvedNavigation)
   const focusStream = bibleReaderFocusStream(resolvedNavigation)
   const handleVerseFocusApplied = useCallback(
-    (seq: number) => {
-      acknowledgeBibleReaderVerseFocus(resolvedNavigation, seq)
+    (acknowledgment: BibleReaderVerseFocusAcknowledgment) => {
+      acknowledgeBibleReaderVerseFocus(resolvedNavigation, acknowledgment)
     },
     [resolvedNavigation],
   )

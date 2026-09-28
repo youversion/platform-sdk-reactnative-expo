@@ -13,7 +13,10 @@ import {
 } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
-import { createBibleReaderNavigation } from '../bible-reader-navigation'
+import {
+  createBibleReaderNavigation,
+  type BibleReaderVerseFocusAcknowledgment,
+} from '../bible-reader-navigation'
 
 type VerseFocus = {
   seq: number
@@ -30,12 +33,19 @@ type LatestReaderDomProps = {
   verseFocus?: VerseFocus
   appliedFocusSeq?: number
   focusStream?: number
-  onVerseFocusApplied?: (seq: number) => void
+  onVerseFocusApplied?: (acknowledgment: BibleReaderVerseFocusAcknowledgment) => void
   onChapterChange?: (chapter: string) => Promise<void>
 }
 
 let latestReaderDomProps: LatestReaderDomProps = {}
 const appliedFocusSeqs: number[] = []
+
+function acknowledgeLatestFocus(seq: number, stream = latestReaderDomProps.focusStream) {
+  if (stream === undefined) {
+    throw new Error('BibleReader rendered without a focusStream')
+  }
+  latestReaderDomProps.onVerseFocusApplied?.({ stream, seq })
+}
 
 function MockDOM(props: LatestReaderDomProps) {
   latestReaderDomProps = props
@@ -283,7 +293,7 @@ describe('BibleReader navigation', () => {
     expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
 
     act(() => {
-      latestReaderDomProps.onVerseFocusApplied?.(1)
+      acknowledgeLatestFocus(1)
     })
 
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
@@ -305,7 +315,7 @@ describe('BibleReader navigation', () => {
     })
 
     act(() => {
-      latestReaderDomProps.onVerseFocusApplied?.(1)
+      acknowledgeLatestFocus(1)
     })
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
 
@@ -347,7 +357,7 @@ describe('BibleReader navigation', () => {
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
 
     act(() => {
-      latestReaderDomProps.onVerseFocusApplied?.(2)
+      acknowledgeLatestFocus(2)
     })
     expect(latestReaderDomProps.appliedFocusSeq).toBe(2)
   })
@@ -402,7 +412,7 @@ describe('BibleReader navigation', () => {
     expect(firstStream).toBeGreaterThan(0)
 
     act(() => {
-      latestReaderDomProps.onVerseFocusApplied?.(1)
+      acknowledgeLatestFocus(1)
     })
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
 
@@ -448,7 +458,8 @@ describe('BibleReader navigation', () => {
     expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
 
     act(() => {
-      latestReaderDomProps.onVerseFocusApplied?.(1)
+      acknowledgeLatestFocus(1, firstStream)
+      acknowledgeLatestFocus(5, firstStream)
     })
 
     expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
@@ -459,5 +470,10 @@ describe('BibleReader navigation', () => {
       scrollsToVerse: true,
       shouldFocus: true,
     })
+
+    act(() => {
+      acknowledgeLatestFocus(1)
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
   })
 })

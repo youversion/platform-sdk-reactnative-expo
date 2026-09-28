@@ -16,7 +16,10 @@ import { BibleReader, BibleReaderNavigation } from '@youversion/platform-react-u
 import type { DOMProps } from 'expo/dom'
 import type { ComponentType, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
-import type { BibleReaderVerseFocus } from '../native/bible-reader-navigation'
+import type {
+  BibleReaderVerseFocus,
+  BibleReaderVerseFocusAcknowledgment,
+} from '../native/bible-reader-navigation'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { applyMountedVerseFocus, handledSeqForStream } from './apply-verse-focus'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
@@ -87,7 +90,7 @@ type BibleReaderBaseProps = {
    */
   focusStream?: number
   /** Native stores this seq so a later WebView reload does not refocus. */
-  onVerseFocusApplied?: (seq: number) => void
+  onVerseFocusApplied?: (acknowledgment: BibleReaderVerseFocusAcknowledgment) => void
   theme?: 'light' | 'dark'
   book?: string
   chapter?: string
@@ -195,7 +198,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       seq: applyMountedVerseFocus(navigation.current, verseFocus, before, appliedFocusSeq),
     }
     if (verseFocus.shouldFocus && verseFocus.seq > Math.max(before, appliedFocusSeq)) {
-      onVerseFocusApplied?.(verseFocus.seq)
+      onVerseFocusApplied?.({ stream: focusStream, seq: verseFocus.seq })
     }
   }, [verseFocus, appliedFocusSeq, focusStream, onVerseFocusApplied])
 

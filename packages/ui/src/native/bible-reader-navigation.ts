@@ -24,6 +24,11 @@ export type BibleReaderVerseFocus = {
   shouldFocus: boolean
 }
 
+export type BibleReaderVerseFocusAcknowledgment = {
+  stream: number
+  seq: number
+}
+
 /** A chapter reference, plus the original USFM when the caller still has it. */
 export type BibleReaderFocusTarget = BibleReference & {
   passageId?: string
@@ -265,10 +270,17 @@ export function bibleReaderFocusStream(navigation: BibleReaderNavigation): numbe
   return accessFor(navigation).getFocusStream()
 }
 
-/** Record that the DOM finished this seq. A lower or equal seq is ignored. */
+/**
+ * Expo delivers the action to the reader currently mounted, so a late reply
+ * from the previous WebView arrives here. A lower or equal seq is ignored.
+ */
 export function acknowledgeBibleReaderVerseFocus(
   navigation: BibleReaderNavigation,
-  seq: number,
+  acknowledgment: BibleReaderVerseFocusAcknowledgment,
 ): void {
-  accessFor(navigation).acknowledgeVerseFocus(seq)
+  const access = accessFor(navigation)
+  if (acknowledgment.stream !== access.getFocusStream()) {
+    return
+  }
+  access.acknowledgeVerseFocus(acknowledgment.seq)
 }
