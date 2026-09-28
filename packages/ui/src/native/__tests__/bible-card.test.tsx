@@ -82,6 +82,7 @@ type LatestDomProps = {
   onVersionPickerPress?: unknown
   dom?: EmbedDomProps
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  scriptureDirection?: 'ltr' | 'rtl'
 }
 
 let latestDomProps: LatestDomProps = {}
@@ -116,12 +117,18 @@ function MockBibleTextViewDOM(props: LatestDomProps) {
   )
 }
 
-function MockFootnoteContent(props: { data: FootnoteData; theme?: string; appKey: string }) {
+function MockFootnoteContent(props: {
+  data: FootnoteData
+  theme?: string
+  appKey: string
+  scriptureDirection?: 'ltr' | 'rtl'
+}) {
   return (
     <View testID="mock-footnote-content">
       <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
       <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
       <Text testID="mock-footnote-app-key">{props.appKey}</Text>
+      <Text testID="mock-footnote-direction">{props.scriptureDirection ?? ''}</Text>
     </View>
   )
 }
@@ -619,6 +626,19 @@ describe('BibleCard', () => {
     expect(getByTestId('footnote-sheet')).toBeTruthy()
     expect(getByTestId('mock-footnote-verse').children).toContain('3')
     expect(getByTestId('mock-footnote-app-key').children).toContain('test-key')
+  })
+
+  it('passes scriptureDirection to the scripture view and the footnote sheet', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" versionId={3034} scriptureDirection="rtl" />,
+      { wrapper: wrapper() },
+    )
+
+    expect(latestDomProps.scriptureDirection).toBe('rtl')
+
+    fireEvent.press(getByTestId('mock-footnote-trigger'))
+
+    expect(getByTestId('mock-footnote-direction').children).toContain('rtl')
   })
 
   it('invokes consumer onFootnotePress and does not mount the default footnote sheet', async () => {
