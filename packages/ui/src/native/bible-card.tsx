@@ -211,6 +211,7 @@ function BibleCardBody({
   onCloseFootnote,
   dom,
   reference,
+  scriptureDirection,
   maxWidth = DEFAULT_MAX_WIDTH,
 }: BibleCardBodyProps): ReactNode {
   const { t } = useSdkTranslation()
@@ -273,6 +274,7 @@ function BibleCardBody({
               permittedLanguageTags={permittedLanguageTags}
               locale={locale}
               theme={resolvedTheme}
+              scriptureDirection={scriptureDirection}
               dom={withEmbedDomDefaults(dom)}
               onFootnotePress={onFootnotePress}
             />
@@ -323,6 +325,7 @@ function BibleCardBody({
             apiHost={apiHost}
             installationId={installationId}
             locale={locale}
+            scriptureDirection={scriptureDirection}
           />
         </NativeSheet>
       )}
