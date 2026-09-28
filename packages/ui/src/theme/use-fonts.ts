@@ -74,15 +74,17 @@ export function useSerifFontReady(): boolean {
   return useContext(SerifFontReadyContext)
 }
 
+type BrandFontReadiness = {
+  sansReady: boolean
+  serifReady: boolean
+}
+
 /**
  * Sans readiness opens the provider. Serif readiness is separate so a preview
  * can wait for Untitled Serif without holding first paint. Source Serif 4 is
  * the serif fallback, registered under the Untitled Serif name.
  */
-export function useBrandFonts(
-  appKey: string,
-  apiHost?: string,
-): { sansReady: boolean; serifReady: boolean } {
+export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
   const [serifReady, setSerifReady] = useState(serifFaceIsRegistered)
 

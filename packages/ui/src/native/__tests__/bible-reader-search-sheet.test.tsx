@@ -7,7 +7,15 @@ import type {
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import {
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardEvent,
+} from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
@@ -164,10 +172,19 @@ describe('BibleReaderSearchSheet', () => {
   })
 
   it('pads the list so the last row can scroll above the keyboard', async () => {
-    const listeners = new Map<string, (event: unknown) => void>()
+    const listeners = new Map<string, (event: KeyboardEvent) => void>()
     const addListener = jest.spyOn(Keyboard, 'addListener').mockImplementation((type, listener) => {
-      listeners.set(type, listener as (event: unknown) => void)
-      return { remove: () => listeners.delete(type) } as ReturnType<typeof Keyboard.addListener>
+      listeners.set(type, listener)
+      // SAFETY: the test only calls remove(); the rest of EmitterSubscription is unused.
+      return {
+        remove: () => {
+          listeners.delete(type)
+        },
+        eventType: type,
+        key: 0,
+        listener,
+        context: null,
+      } as ReturnType<typeof Keyboard.addListener>
     })
     const stub = searchStub()
     render(
@@ -191,6 +208,8 @@ describe('BibleReaderSearchSheet', () => {
 
     await act(async () => {
       listeners.get('keyboardDidShow')?.({
+        duration: 0,
+        easing: 'keyboard',
         endCoordinates: { screenX: 0, screenY: 1000, width: 390, height: 334 },
       })
     })
@@ -199,7 +218,11 @@ describe('BibleReaderSearchSheet', () => {
     })
 
     await act(async () => {
-      listeners.get('keyboardDidHide')?.({})
+      listeners.get('keyboardDidHide')?.({
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: { screenX: 0, screenY: 1334, width: 390, height: 0 },
+      })
     })
     expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
       paddingBottom: 8,

@@ -129,6 +129,7 @@ describe('BibleReaderSettingsSheet', () => {
         }
       })
     })
+    // SAFETY: the font loader only reads ok and json(); the rest of Response is unused.
     jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
       json: async () => ({
