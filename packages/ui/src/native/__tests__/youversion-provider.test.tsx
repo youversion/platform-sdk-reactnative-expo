@@ -231,10 +231,9 @@ describe('YouVersionProvider brand fonts', () => {
 
     expect(getByTestId('locale-lng')).toBeTruthy()
 
-    const maps = await waitForFontMaps(3)
+    const maps = await waitForFontMaps(2)
     expect(maps[0]).toEqual(bundledSans)
-    expect(maps[1]).toEqual(untitledSerifFallback)
-    expect(maps[2]).toEqual({
+    expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
     })
@@ -292,8 +291,8 @@ describe('YouVersionProvider brand fonts', () => {
       </YouVersionProvider>,
     )
 
-    const maps = await waitForFontMaps(3)
-    expect(maps[2]).toEqual({
+    const maps = await waitForFontMaps(2)
+    expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
       'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
