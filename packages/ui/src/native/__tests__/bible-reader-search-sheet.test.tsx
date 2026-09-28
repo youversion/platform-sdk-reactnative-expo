@@ -7,7 +7,7 @@ import type {
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
@@ -161,6 +161,51 @@ describe('BibleReaderSearchSheet', () => {
     expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
       height: 1217,
     })
+  })
+
+  it('pads the list so the last row can scroll above the keyboard', async () => {
+    const listeners = new Map<string, (event: unknown) => void>()
+    const addListener = jest.spyOn(Keyboard, 'addListener').mockImplementation((type, listener) => {
+      listeners.set(type, listener as (event: unknown) => void)
+      return { remove: () => listeners.delete(type) } as ReturnType<typeof Keyboard.addListener>
+    })
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    const list = () => screen.getByTestId('bible-reader-search-list')
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8,
+    })
+
+    await act(async () => {
+      listeners.get('keyboardDidShow')?.({
+        endCoordinates: { screenX: 0, screenY: 1000, width: 390, height: 334 },
+      })
+    })
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8 + (1334 - 1000),
+    })
+
+    await act(async () => {
+      listeners.get('keyboardDidHide')?.({})
+    })
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8,
+    })
+
+    addListener.mockRestore()
   })
 
   it('focuses the search field when the sheet opens and blurs it when the sheet closes', async () => {

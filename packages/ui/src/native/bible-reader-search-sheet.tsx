@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
   type ReactElement,
   type ReactNode,
   type RefObject,
@@ -13,12 +14,14 @@ import {
 import {
   ActivityIndicator,
   FlatList,
+  Keyboard,
   Pressable,
   ScrollView,
   StyleSheet,
   TextInput,
   useWindowDimensions,
   View,
+  type KeyboardEvent,
   type ViewToken,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -38,6 +41,10 @@ import {
   type TitledVerse,
 } from '../lib/bible-reader-search'
 import type { ResultsFooter, SearchView } from '../lib/bible-reader-search-view'
+import {
+  searchListKeyboardPadding,
+  type KeyboardFrame,
+} from '../lib/search-list-keyboard-padding'
 import type { Theme } from '../lib/resolve-theme'
 import type { Tokens } from '../theme'
 import { sansFace } from '../theme/fonts'
@@ -53,6 +60,7 @@ const RESULT_VIEWABILITY = { itemVisiblePercentThreshold: 1 }
 // Gorhom's default handle. NativeSheet draws the bottom safe area under the
 // content, so this height plus both insets is the space the sheet cannot use.
 const SHEET_HANDLE_HEIGHT = 24
+const LIST_END_PADDING = 8
 
 export type BibleReaderSearchSheetProps = {
   isOpen: boolean
@@ -120,6 +128,7 @@ function BibleReaderSearchSheetContent({
   })
 
   const sheetBodyHeight = Math.max(0, height - top - bottom - SHEET_HANDLE_HEIGHT)
+  const keyboardPadding = useSearchListKeyboardPadding(isOpen, height, bottom)
   const showClear = search.query.length > 0
   const { view } = search
 
@@ -198,6 +207,7 @@ function BibleReaderSearchSheetContent({
           <SearchBody
             view={view}
             tokens={tokens}
+            keyboardPadding={keyboardPadding}
             scrollGeneration={search.scrollGeneration}
             onSubmit={search.submit}
             onSelectVerse={handleSelectVerse}
@@ -216,6 +226,7 @@ function BibleReaderSearchSheetContent({
 type SearchBodyProps = {
   view: SearchView
   tokens: Tokens
+  keyboardPadding: number
   scrollGeneration: number
   onSubmit: (text: string) => void
   onSelectVerse: (usfm: TitledVerse['usfm']) => void
@@ -230,6 +241,7 @@ type SearchBodyProps = {
 function SearchBody({
   view,
   tokens,
+  keyboardPadding,
   scrollGeneration,
   onSubmit,
   onSelectVerse,
@@ -243,8 +255,9 @@ function SearchBody({
   if (view.phase === 'browsing') {
     return (
       <ScrollView
+        testID="bible-reader-search-list"
         style={styles.fill}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle(keyboardPadding)}
         keyboardShouldPersistTaps="handled"
       >
         <Text variant="heading">{trendingHeading}</Text>
@@ -309,8 +322,9 @@ function SearchBody({
           </Pressable>
         )}
         style={styles.fill}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={listContentStyle(keyboardPadding)}
         keyboardShouldPersistTaps="handled"
+        testID="bible-reader-search-list"
       />
     )
   }
@@ -331,6 +345,7 @@ function SearchBody({
       <ResultsList
         verses={view.verses}
         scrollGeneration={scrollGeneration}
+        keyboardPadding={keyboardPadding}
         tokens={tokens}
         footer={view.footer}
         loadingLabel={loadingLabel}
@@ -378,6 +393,7 @@ function SearchBody({
 function ResultsList({
   verses,
   scrollGeneration,
+  keyboardPadding,
   tokens,
   footer,
   loadingLabel,
@@ -388,6 +404,7 @@ function ResultsList({
 }: {
   verses: readonly TitledVerse[]
   scrollGeneration: number
+  keyboardPadding: number
   tokens: Tokens
   footer: ResultsFooter
   loadingLabel: string
@@ -419,6 +436,7 @@ function ResultsList({
   return (
     <FlatList
       key={scrollGeneration}
+      testID="bible-reader-search-list"
       data={[...verses]}
       keyExtractor={(item) => item.usfm}
       renderItem={({ item }) => (
@@ -446,7 +464,7 @@ function ResultsList({
         </Pressable>
       )}
       style={styles.fill}
-      contentContainerStyle={styles.listContent}
+      contentContainerStyle={listContentStyle(keyboardPadding)}
       keyboardShouldPersistTaps="handled"
       onViewableItemsChanged={handleViewableItemsChanged}
       viewabilityConfig={RESULT_VIEWABILITY}
@@ -533,6 +551,51 @@ export function BibleReaderSearchSheet(props: BibleReaderSearchSheetProps): Reac
   return <Impl {...props} />
 }
 
+function listContentStyle(keyboardPadding: number) {
+  return [styles.listContent, { paddingBottom: LIST_END_PADDING + keyboardPadding }]
+}
+
+function useSearchListKeyboardPadding(
+  isOpen: boolean,
+  windowHeight: number,
+  bottomInset: number,
+): number {
+  const [keyboard, setKeyboard] = useState<KeyboardFrame | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setKeyboard(null)
+      return
+    }
+
+    const onShow = (event: KeyboardEvent) => {
+      const { screenY, height } = event.endCoordinates
+      setKeyboard((current) => {
+        if (current?.screenY === screenY && current.height === height) {
+          return current
+        }
+        return { screenY, height }
+      })
+    }
+    const onHide = () => {
+      setKeyboard(null)
+    }
+    const subscriptions = [
+      Keyboard.addListener('keyboardWillShow', onShow),
+      Keyboard.addListener('keyboardDidShow', onShow),
+      Keyboard.addListener('keyboardWillHide', onHide),
+      Keyboard.addListener('keyboardDidHide', onHide),
+    ]
+    return () => {
+      for (const subscription of subscriptions) {
+        subscription.remove()
+      }
+    }
+  }, [isOpen])
+
+  return searchListKeyboardPadding(windowHeight, bottomInset, keyboard)
+}
+
 const styles = StyleSheet.create({
   sheetContent: {
     paddingHorizontal: 0,
@@ -577,7 +640,8 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingTop: LIST_END_PADDING,
+    paddingBottom: LIST_END_PADDING,
     gap: 4,
   },
   recentHeading: {
