@@ -1,4 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
+import * as Font from 'expo-font'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
@@ -14,6 +15,7 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
+import { bundledSans } from '../../theme/use-fonts'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
 
 let latestSheetTheme: string | undefined
@@ -108,6 +110,64 @@ describe('BibleReaderSettingsSheet', () => {
     )
     expect(flattenedStyle(getByTestId('bible-reader-settings').props.style).gap).toBe(16)
     expect(getByTestId('font-serif').props.accessibilityState).toMatchObject({ selected: true })
+  })
+
+  it('waits to show the serif name until that face is registered', async () => {
+    const isLoaded = jest.mocked(Font.isLoaded)
+    const loadAsync = jest.mocked(Font.loadAsync)
+    let serifLoaded = false
+    isLoaded.mockImplementation((face) => face !== 'Untitled Serif' || serifLoaded)
+    let resolveSerif: () => void = () => {}
+    loadAsync.mockImplementation((map) => {
+      if (map === bundledSans) {
+        return Promise.resolve()
+      }
+      return new Promise((resolve) => {
+        resolveSerif = () => {
+          serifLoaded = true
+          resolve()
+        }
+      })
+    })
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 1,
+        slug: 'untitled-serif',
+        family: 'Untitled Serif',
+        variants: [
+          {
+            weight: 400,
+            style: 'normal',
+            sources: [
+              { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/regular.ttf' },
+            ],
+          },
+        ],
+      }),
+    } as Response)
+
+    try {
+      const { queryByText, getByText } = render(<SheetHarness isOpen />, { wrapper })
+      await act(async () => {
+        await Promise.resolve()
+      })
+
+      expect(queryByText('Untitled Serif')).toBeNull()
+      expect(getByText('Inter')).toBeTruthy()
+
+      await act(async () => {
+        resolveSerif()
+      })
+
+      expect(getByText('Untitled Serif')).toBeTruthy()
+      expect(flattenedTextStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
+        'Untitled Serif',
+      )
+    } finally {
+      isLoaded.mockImplementation(() => true)
+      loadAsync.mockImplementation(() => Promise.resolve())
+    }
   })
 
   it('disables decrease at the minimum font size and increase at the maximum', () => {

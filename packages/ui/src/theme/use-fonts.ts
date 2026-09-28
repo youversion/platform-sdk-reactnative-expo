@@ -8,9 +8,10 @@ import {
   SourceSerif4_700Bold_Italic,
 } from '@expo-google-fonts/source-serif-4'
 import * as Font from 'expo-font'
-import { useEffect, useState } from 'react'
+import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react'
 
 import { buildFontMap, fetchUntitledSerifFont, pickTtfSources } from './fonts'
+import { fontFamily } from './scales'
 
 export const bundledSans = {
   Inter: Inter_400Regular,
@@ -53,13 +54,37 @@ function sansIsRegistered(): boolean {
   return Object.keys(bundledSans).every((face) => Font.isLoaded(face))
 }
 
+function serifFaceIsRegistered(): boolean {
+  return Font.isLoaded(fontFamily.serif)
+}
+
+const SerifFontReadyContext = createContext(false)
+
+export function SerifFontReadyProvider({
+  ready,
+  children,
+}: {
+  ready: boolean
+  children: ReactNode
+}): ReactNode {
+  return createElement(SerifFontReadyContext.Provider, { value: ready }, children)
+}
+
+export function useSerifFontReady(): boolean {
+  return useContext(SerifFontReadyContext)
+}
+
 /**
- * Returns true once the bundled Inter faces are registered so the provider
- * can open children. Serif is never awaited: its network fetch must not hold
- * first paint. Source Serif 4 is the serif fallback.
+ * Sans readiness opens the provider. Serif readiness is separate so a preview
+ * can wait for Untitled Serif without holding first paint. Source Serif 4 is
+ * the serif fallback, registered under the Untitled Serif name.
  */
-export function useBrandFonts(appKey: string, apiHost?: string): boolean {
+export function useBrandFonts(
+  appKey: string,
+  apiHost?: string,
+): { sansReady: boolean; serifReady: boolean } {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
+  const [serifReady, setSerifReady] = useState(serifFaceIsRegistered)
 
   useEffect(() => {
     let cancelled = false
@@ -76,11 +101,15 @@ export function useBrandFonts(appKey: string, apiHost?: string): boolean {
         }
       },
     )
-    void loadUntitledSerif(appKey, apiHost)
+    void loadUntitledSerif(appKey, apiHost).finally(() => {
+      if (!cancelled) {
+        setSerifReady(serifFaceIsRegistered())
+      }
+    })
     return () => {
       cancelled = true
     }
   }, [appKey, apiHost])
 
-  return sansReady
+  return { sansReady, serifReady }
 }
