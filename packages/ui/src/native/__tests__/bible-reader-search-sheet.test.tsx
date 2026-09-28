@@ -6,7 +6,8 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, StyleSheet, Text, TextInput, View, type ReactNode } from 'react-native'
+import type { ReactNode } from 'react'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'

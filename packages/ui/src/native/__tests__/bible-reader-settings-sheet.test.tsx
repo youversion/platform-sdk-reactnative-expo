@@ -2,7 +2,7 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
-import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import es from '../../i18n/locales/es.json'
@@ -26,6 +26,10 @@ function SheetHarness({ isOpen, theme }: { isOpen: boolean; theme?: 'light' | 'd
 }
 
 function flattenedStyle(style: StyleProp<ViewStyle>) {
+  return StyleSheet.flatten(style)
+}
+
+function flattenedTextStyle(style: StyleProp<TextStyle>) {
   return StyleSheet.flatten(style)
 }
 
@@ -98,8 +102,8 @@ describe('BibleReaderSettingsSheet', () => {
     expect(getByText('Untitled Serif')).toBeTruthy()
     expect(queryByText('interFontName')).toBeNull()
     expect(queryByText('untitledSerifFontName')).toBeNull()
-    expect(flattenedStyle(getByText('Inter').props.style).fontFamily).toBe('Inter')
-    expect(flattenedStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
+    expect(flattenedTextStyle(getByText('Inter').props.style).fontFamily).toBe('Inter')
+    expect(flattenedTextStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
       'Untitled Serif',
     )
     expect(flattenedStyle(getByTestId('bible-reader-settings').props.style).gap).toBe(16)
@@ -206,7 +210,7 @@ describe('BibleReaderSettingsSheet', () => {
     expect(flattenedStyle(getByTestId('font-serif').props.style).backgroundColor).toBe(
       dark.background,
     )
-    expect(flattenedStyle(getByText('Untitled Serif').props.style).color).toBe(dark.foreground)
+    expect(flattenedTextStyle(getByText('Untitled Serif').props.style).color).toBe(dark.foreground)
     expect(flattenedStyle(getByTestId('font-inter').props.style).backgroundColor).toBe(dark.muted)
   })
 
