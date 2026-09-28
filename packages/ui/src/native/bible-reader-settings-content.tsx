@@ -13,8 +13,6 @@ import { INTER_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import type { Tokens } from '../theme'
 import { fontMapKey, sansFace } from '../theme/fonts'
-import { useSerifFontReady } from '../theme/use-fonts'
-
 const CONTROL_RADIUS = 8
 const ROW_GAP = 16
 const LINE_BAR_WIDTH = 32
@@ -74,7 +72,6 @@ export function BibleReaderSettingsContent({
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const theme = useTheme()
-  const serifReady = useSerifFontReady()
   const serifFamily = fontMapKey(tokens.fontFamily.serif, 400, 'normal')
   const decreaseDisabled = fontSize <= BIBLE_READER_FONT.MIN
   const increaseDisabled = fontSize >= BIBLE_READER_FONT.MAX
@@ -138,9 +135,6 @@ export function BibleReaderSettingsContent({
       </View>
       <View style={styles.fontPair}>
         {FONT_CHOICES.map((choice, index) => {
-          if (choice.family === UNTITLED_SERIF_FONT && !serifReady) {
-            return null
-          }
           const selected = fontFamily === choice.family
           let nameColor = tokens.foreground
           let labelColor = tokens.mutedForeground

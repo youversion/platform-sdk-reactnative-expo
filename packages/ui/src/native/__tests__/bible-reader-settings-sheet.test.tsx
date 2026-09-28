@@ -15,7 +15,7 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
-import { bundledSans } from '../../theme/use-fonts'
+import { bundledSans, untitledSerifFallback } from '../../theme/use-fonts'
 import { BibleReaderSettingsSheet } from '../bible-reader-settings-sheet'
 
 let latestSheetTheme: string | undefined
@@ -112,21 +112,15 @@ describe('BibleReaderSettingsSheet', () => {
     expect(getByTestId('font-serif').props.accessibilityState).toMatchObject({ selected: true })
   })
 
-  it('waits to show the serif name until that face is registered', async () => {
-    const isLoaded = jest.mocked(Font.isLoaded)
+  it('keeps Untitled Serif choosable while the remote font request is pending', async () => {
     const loadAsync = jest.mocked(Font.loadAsync)
-    let serifLoaded = false
-    isLoaded.mockImplementation((face) => face !== 'Untitled Serif' || serifLoaded)
-    let resolveSerif: () => void = () => {}
+    let resolveRemoteSerif: () => void = () => {}
     loadAsync.mockImplementation((map) => {
-      if (map === bundledSans) {
+      if (map === bundledSans || map === untitledSerifFallback) {
         return Promise.resolve()
       }
-      return new Promise((resolve) => {
-        resolveSerif = () => {
-          serifLoaded = true
-          resolve()
-        }
+      return new Promise<void>((resolve) => {
+        resolveRemoteSerif = resolve
       })
     })
     // SAFETY: the font loader only reads ok and json(); the rest of Response is unused.
@@ -149,24 +143,22 @@ describe('BibleReaderSettingsSheet', () => {
     } as Response)
 
     try {
-      const { queryByText, getByText } = render(<SheetHarness isOpen />, { wrapper })
+      const { getByTestId, getByText } = render(<SheetHarness isOpen />, { wrapper })
       await act(async () => {
         await Promise.resolve()
       })
 
-      expect(queryByText('Untitled Serif')).toBeNull()
-      expect(getByText('Inter')).toBeTruthy()
+      expect(getByText('Untitled Serif')).toBeTruthy()
+      fireEvent.press(getByTestId('font-inter'))
+      expect(useReaderSettingsStore.getState().fontFamily).toBe(INTER_FONT)
+
+      fireEvent.press(getByTestId('font-serif'))
+      expect(useReaderSettingsStore.getState().fontFamily).toBe(UNTITLED_SERIF_FONT)
 
       await act(async () => {
-        resolveSerif()
+        resolveRemoteSerif()
       })
-
-      expect(getByText('Untitled Serif')).toBeTruthy()
-      expect(flattenedTextStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
-        'Untitled Serif',
-      )
     } finally {
-      isLoaded.mockImplementation(() => true)
       loadAsync.mockImplementation(() => Promise.resolve())
     }
   })
