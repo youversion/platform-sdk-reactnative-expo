@@ -6,7 +6,8 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View, type ReactNode } from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
 import {
@@ -115,6 +116,50 @@ describe('BibleReaderSearchSheet', () => {
       fireEvent.press(screen.getByTestId('bible-reader-search-cancel'))
     })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens to the full viewport, under the status bar and above the home indicator', async () => {
+    const stub = searchStub()
+    const props = {
+      isOpen: true,
+      onClose: () => {},
+      versionId: 111,
+      languageTag: 'en',
+      theme: 'light' as const,
+      fetchBibleContent,
+      onSelectReference: () => {},
+    }
+
+    function WithInsets({ children }: { children: ReactNode }) {
+      return (
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 1334 },
+            insets: { top: 59, right: 0, bottom: 34, left: 0 },
+          }}
+        >
+          {children}
+        </SafeAreaProvider>
+      )
+    }
+
+    const { rerender } = render(<BibleReaderSearchSheet {...props} />, {
+      wrapper: wrapperFor(stub),
+    })
+    await flush()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+      height: 1310,
+    })
+
+    rerender(
+      <WithInsets>
+        <BibleReaderSearchSheet {...props} />
+      </WithInsets>,
+    )
+    await flush()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+      height: 1217,
+    })
   })
 
   it('focuses the search field when the sheet opens and blurs it when the sheet closes', async () => {

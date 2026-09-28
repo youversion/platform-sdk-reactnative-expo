@@ -21,6 +21,7 @@ import {
   View,
   type ViewToken,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ClearIcon } from '../components/icons/clear-icon'
 import { Button } from '../components/ui/button'
@@ -49,6 +50,9 @@ const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 const CHIP_GLYPH_SIZE = 32
 const CHIP_ICON_SIZE = 24
 const RESULT_VIEWABILITY = { itemVisiblePercentThreshold: 1 }
+// Gorhom's default handle. NativeSheet draws the bottom safe area under the
+// content, so this height plus both insets is the space the sheet cannot use.
+const SHEET_HANDLE_HEIGHT = 24
 
 export type BibleReaderSearchSheetProps = {
   isOpen: boolean
@@ -106,6 +110,7 @@ function BibleReaderSearchSheetContent({
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const { height } = useWindowDimensions()
+  const { top, bottom } = useSafeAreaInsets()
   const languageRanges = languageRangesForVersionLanguage(languageTag)
   const search = useBibleReaderSearch({
     versionId,
@@ -114,7 +119,7 @@ function BibleReaderSearchSheetContent({
     languageRanges,
   })
 
-  const listHeight = Math.round(height * 0.5)
+  const sheetBodyHeight = Math.max(0, height - top - bottom - SHEET_HANDLE_HEIGHT)
   const showClear = search.query.length > 0
   const { view } = search
 
@@ -138,7 +143,7 @@ function BibleReaderSearchSheetContent({
   }
 
   return (
-    <View style={styles.body}>
+    <View testID="bible-reader-search-body" style={[styles.body, { height: sheetBodyHeight }]}>
         <View style={styles.header}>
           <View
             style={[
@@ -189,20 +194,21 @@ function BibleReaderSearchSheetContent({
           </Button>
         </View>
         <View style={[styles.divider, { backgroundColor: tokens.border }]} />
-        <SearchBody
-          view={view}
-          tokens={tokens}
-          listHeight={listHeight}
-          scrollGeneration={search.scrollGeneration}
-          onSubmit={search.submit}
-          onSelectVerse={handleSelectVerse}
-          loadingLabel={t('loading')}
-          trendingHeading={t('bibleSearchTrendingHeading')}
-          recentHeading={t('bibleSearchRecentHeading')}
-          emptyCopy={t('noBibleSearchResults')}
-          retryCopy={t('retry')}
-          errorCopy={t('error')}
-        />
+        <View style={styles.fill}>
+          <SearchBody
+            view={view}
+            tokens={tokens}
+            scrollGeneration={search.scrollGeneration}
+            onSubmit={search.submit}
+            onSelectVerse={handleSelectVerse}
+            loadingLabel={t('loading')}
+            trendingHeading={t('bibleSearchTrendingHeading')}
+            recentHeading={t('bibleSearchRecentHeading')}
+            emptyCopy={t('noBibleSearchResults')}
+            retryCopy={t('retry')}
+            errorCopy={t('error')}
+          />
+        </View>
       </View>
   )
 }
@@ -210,7 +216,6 @@ function BibleReaderSearchSheetContent({
 type SearchBodyProps = {
   view: SearchView
   tokens: Tokens
-  listHeight: number
   scrollGeneration: number
   onSubmit: (text: string) => void
   onSelectVerse: (usfm: TitledVerse['usfm']) => void
@@ -225,7 +230,6 @@ type SearchBodyProps = {
 function SearchBody({
   view,
   tokens,
-  listHeight,
   scrollGeneration,
   onSubmit,
   onSelectVerse,
@@ -239,7 +243,7 @@ function SearchBody({
   if (view.phase === 'browsing') {
     return (
       <ScrollView
-        style={{ height: listHeight }}
+        style={styles.fill}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -283,7 +287,7 @@ function SearchBody({
     if (view.loading) {
       return (
         <View
-          style={[styles.statusFill, { height: listHeight }]}
+          style={styles.statusFill}
           testID="bible-reader-search-suggestion-loading"
         >
           <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
@@ -304,7 +308,7 @@ function SearchBody({
             <Text style={{ color: tokens.foreground }}>{item}</Text>
           </Pressable>
         )}
-        style={{ height: listHeight }}
+        style={styles.fill}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
       />
@@ -314,7 +318,7 @@ function SearchBody({
   if (view.phase === 'pending') {
     return (
       <View
-        style={[styles.statusFill, { height: listHeight }]}
+        style={styles.statusFill}
         testID="bible-reader-search-loading"
       >
         <ActivityIndicator color={tokens.foreground} accessibilityLabel={loadingLabel} />
@@ -327,7 +331,6 @@ function SearchBody({
       <ResultsList
         verses={view.verses}
         scrollGeneration={scrollGeneration}
-        listHeight={listHeight}
         tokens={tokens}
         footer={view.footer}
         loadingLabel={loadingLabel}
@@ -341,7 +344,7 @@ function SearchBody({
 
   if (view.phase === 'empty') {
     return (
-      <View style={[styles.statusFill, { height: listHeight }]} testID="bible-reader-search-empty">
+      <View style={styles.statusFill} testID="bible-reader-search-empty">
         <Text variant="muted">{emptyCopy}</Text>
       </View>
     )
@@ -349,7 +352,7 @@ function SearchBody({
 
   return (
     <View
-      style={[styles.statusFill, { height: listHeight }]}
+      style={styles.statusFill}
       testID="bible-reader-search-error"
     >
       <Text
@@ -375,7 +378,6 @@ function SearchBody({
 function ResultsList({
   verses,
   scrollGeneration,
-  listHeight,
   tokens,
   footer,
   loadingLabel,
@@ -386,7 +388,6 @@ function ResultsList({
 }: {
   verses: readonly TitledVerse[]
   scrollGeneration: number
-  listHeight: number
   tokens: Tokens
   footer: ResultsFooter
   loadingLabel: string
@@ -444,7 +445,7 @@ function ResultsList({
           </View>
         </Pressable>
       )}
-      style={{ height: listHeight }}
+      style={styles.fill}
       contentContainerStyle={styles.listContent}
       keyboardShouldPersistTaps="handled"
       onViewableItemsChanged={handleViewableItemsChanged}
@@ -539,6 +540,9 @@ const styles = StyleSheet.create({
   body: {
     paddingBottom: 8,
   },
+  fill: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,6 +620,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statusFill: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,
