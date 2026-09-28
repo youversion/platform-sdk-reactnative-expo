@@ -425,4 +425,39 @@ describe('BibleReader navigation', () => {
     expect(latestReaderDomProps.focusStream).not.toBe(firstStream)
     expect(latestReaderDomProps.verseFocus?.seq).toBe(1)
   })
+
+  it('keeps a late acknowledgment from the previous navigation stream off the replacement', () => {
+    const firstNavigation = createBibleReaderNavigation()
+    firstNavigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+
+    const { rerender } = render(<BibleReader navigation={firstNavigation} />, { wrapper })
+    const firstStream = latestReaderDomProps.focusStream
+    expect(firstStream).toBeGreaterThan(0)
+
+    const secondNavigation = createBibleReaderNavigation()
+    secondNavigation.focusReference({ versionId: 111, bookId: 'ROM', chapter: 8, verse: 1 })
+    rerender(<BibleReader navigation={secondNavigation} />)
+
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'ROM.8.1',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+
+    act(() => {
+      latestReaderDomProps.onVerseFocusApplied?.(1)
+    })
+
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'ROM.8.1',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+  })
 })
