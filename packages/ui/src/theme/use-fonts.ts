@@ -51,14 +51,14 @@ async function unloadRegisteredSerifFaces(): Promise<void> {
   }
 }
 
-async function loadSerifWithRemoteTtfs(remoteMap: BrandFontUriMap): Promise<void> {
-  if (Object.keys(remoteMap).length === 0) {
+async function loadSerifWithApiTtfs(apiTtfMap: BrandFontUriMap): Promise<void> {
+  if (Object.keys(apiTtfMap).length === 0) {
     return
   }
   await unloadRegisteredSerifFaces()
   await Font.loadAsync({
     ...untitledSerifFallback,
-    ...remoteMap,
+    ...apiTtfMap,
   })
 }
 
@@ -74,9 +74,9 @@ async function loadUntitledSerif(appKey: string, apiHost?: string): Promise<void
     if (font) {
       untitledSerifFaces = pickTtfSources(font)
     }
-    const remoteMap = buildFontMap(untitledSerifFaces)
-    if (Object.keys(remoteMap).length > 0) {
-      await loadSerifWithRemoteTtfs(remoteMap)
+    const apiTtfMap = buildFontMap(untitledSerifFaces)
+    if (Object.keys(apiTtfMap).length > 0) {
+      await loadSerifWithApiTtfs(apiTtfMap)
       return
     }
     await loadSerifFallbackBestEffort()
@@ -120,7 +120,7 @@ type BrandFontReadiness = {
  * Sans readiness opens the provider. Serif readiness tracks when the Untitled
  * Serif face registers bundled Source Serif 4 immediately, then upgrades to
  * Fonts API TTFs after unload when the request succeeds. Settings keep the
- * serif choice visible while the remote request is pending.
+ * serif choice visible while the Fonts API request is pending.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
