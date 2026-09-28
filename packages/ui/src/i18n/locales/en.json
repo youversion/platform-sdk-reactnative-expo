@@ -78,5 +78,10 @@
   "backToBibleVersionsAriaLabel": "Back to Bible versions",
   "noLanguageSearchResults": "We're sorry, there are no results for this search.",
   "noRegionalLanguagesAvailable": "No regional languages available",
-  "recentlyUsedVersionsHeading": "Recently Used Versions"
+  "recentlyUsedVersionsHeading": "Recently Used Versions",
+  "changeLineSpacingAriaLabel": "Change line spacing",
+  "decreaseFontSizeAriaLabel": "Decrease font size",
+  "increaseFontSizeAriaLabel": "Increase font size",
+  "interFontName": "Inter",
+  "untitledSerifFontName": "Untitled Serif"
 }

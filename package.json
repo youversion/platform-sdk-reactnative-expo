@@ -13,8 +13,12 @@
   "scripts": {
     "build": "CI=true turbo build",
     "dev": "turbo dev",
+    "dev:ios": "node scripts/ios-dev.mjs",
+    "dev:ios:clean": "node scripts/ios-dev.mjs --clean",
+    "doctor:ios": "node scripts/ios-dev.mjs --doctor",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:ios-dev": "node --test scripts/ios-dev.test.mjs",
     "test:coverage": "turbo test:coverage",
     "clean:cache": "bash scripts/clear-cache.sh",
     "lint": "oxlint",
