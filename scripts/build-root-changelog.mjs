@@ -110,12 +110,12 @@ const DEPENDENCY_BUMP = new RegExp(
 )
 
 /**
- * Changesets' own header for that block, always carrying the originating commit:
- * `- Updated dependencies [80d3718]`. Matching the bare prefix instead would also swallow a
- * hand-written note that happens to open the same way, such as
- * `- Updated dependencies to address CVE-1234.`
+ * Changesets' own header for that block, alone on its line and carrying the originating
+ * commit: `- Updated dependencies [80d3718]`. Anchored at both ends, because a prefix match
+ * also swallows a hand-written note that merely opens the same way, such as
+ * `- Updated dependencies [deadbee] to address CVE-1234.`
  */
-const UPDATED_DEPENDENCIES = /^- Updated dependencies \[[0-9a-f]+\]/
+const UPDATED_DEPENDENCIES = /^-\s+Updated dependencies \[[0-9a-f]+\]\s*$/
 
 /**
  * Remove the fixed group's own version bookkeeping, returning null when an entry is nothing else.
@@ -125,14 +125,22 @@ const UPDATED_DEPENDENCIES = /^- Updated dependencies \[[0-9a-f]+\]/
  * their own entry or trailing a real note as continuation lines.
  */
 export function stripBookkeeping(text) {
-  if (UPDATED_DEPENDENCIES.test(text)) return null
-  const kept = text.split('\n').filter((line) => !DEPENDENCY_BUMP.test(line))
+  // Drop the bookkeeping lines and judge the entry by what survives, rather than discarding
+  // a whole entry because its first line looks like bookkeeping. An entry can open with the
+  // generated header and still carry something a consumer needs, such as a bump for a
+  // package outside the fixed group.
+  const kept = text
+    .split('\n')
+    .filter((line) => !UPDATED_DEPENDENCIES.test(line) && !DEPENDENCY_BUMP.test(line))
   const collapsed = kept
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
     .trimEnd()
-  // Nothing but a bullet marker left, so the entry was only a version bump.
-  return /^-\s*$/.test(collapsed) || collapsed === '' ? null : collapsed
+  // Nothing but a bullet marker left, so the entry was only version bookkeeping.
+  if (/^-\s*$/.test(collapsed) || collapsed.trim() === '') return null
+  // Removing the header can leave a continuation line first. Promote it to a top-level
+  // bullet so the renderer can still tag it with its package scope.
+  return collapsed.replace(/^\s+- /, '- ')
 }
 
 /**

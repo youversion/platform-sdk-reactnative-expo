@@ -18,6 +18,22 @@ test('keeps a release note that only reads like bookkeeping', () => {
   assert.equal(stripBookkeeping(note), note)
 })
 
+test('keeps a note that opens with the generated header but says more', () => {
+  // The header regex used to match a prefix, so anything starting this way was discarded
+  // whole, including a hand-written note.
+  const note = '- Updated dependencies [deadbee] to address CVE-1234.'
+  assert.equal(stripBookkeeping(note), note)
+})
+
+test('keeps a third-party bump listed under the generated header', () => {
+  // The header is bookkeeping, the bump under it is not: that package is outside the fixed
+  // group, so its version is news. Dropping the entry wholesale lost it.
+  assert.equal(
+    stripBookkeeping(`- Updated dependencies [deadbee]\n  - @vendor/client@2.0.0`),
+    '- @vendor/client@2.0.0',
+  )
+})
+
 test('keeps a bump for a package outside the fixed group', () => {
   // Only the group's own packages share a version, so only their bumps are duplication. A
   // third-party bump is something the consumer is being told about.
