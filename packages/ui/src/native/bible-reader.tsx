@@ -920,6 +920,7 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+          theme={resolvedTheme}
         />
       )}
       {showNativeToolbar && (

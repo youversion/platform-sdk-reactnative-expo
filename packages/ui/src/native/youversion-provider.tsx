@@ -10,7 +10,7 @@ import { ThemeContext } from '../hooks/use-theme'
 import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
 import { SDK_POPOVER_HOST_NAME } from '../lib/sdk-portal-hosts'
-import { useBrandFonts } from '../theme/use-fonts'
+import { SerifFontReadyProvider, useBrandFonts } from '../theme/use-fonts'
 import { NativeSheetProvider } from './native-sheet'
 
 export type YouVersionTheme = Theme | 'system'
@@ -49,7 +49,7 @@ export function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
-  const fontsReady = useBrandFonts(appKey, apiHost)
+  const { sansReady, serifReady } = useBrandFonts(appKey, apiHost)
 
   return (
     <CoreYouVersionProvider
@@ -62,15 +62,17 @@ export function YouVersionProvider({
       excludedVersionIds={excludedVersionIds}
       permittedLanguageTags={permittedLanguageTags}
     >
-      {fontsReady ? (
-        <LocaleProvider locale={locale}>
-          <ThemeContext.Provider value={resolvedTheme}>
-            <NativeSheetProvider>{children}</NativeSheetProvider>
+      {sansReady ? (
+        <SerifFontReadyProvider ready={serifReady}>
+          <LocaleProvider locale={locale}>
+            <ThemeContext.Provider value={resolvedTheme}>
+              <NativeSheetProvider>{children}</NativeSheetProvider>
             {ReactNative.Platform.OS === 'web' ? null : (
               <PortalHost name={SDK_POPOVER_HOST_NAME} />
             )}
-          </ThemeContext.Provider>
-        </LocaleProvider>
+            </ThemeContext.Provider>
+          </LocaleProvider>
+        </SerifFontReadyProvider>
       ) : null}
     </CoreYouVersionProvider>
   )

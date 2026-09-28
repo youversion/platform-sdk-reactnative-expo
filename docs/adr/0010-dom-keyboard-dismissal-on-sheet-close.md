@@ -1,5 +1,7 @@
 # DOM-side keyboard dismissal on sheet close
 
+> **Status: Retired for the version and chapter pickers.** Both search fields are React Native text fields. The version picker sheet calls `Keyboard.dismiss()` from `onDismissKeyboardStart`. `useDismissKeyboardOnClose` remains in `lib/dom-dismiss-keyboard.ts`, and no current sheet calls it. The text below records why an HTML input inside the WebView could not be blurred from React Native.
+
 When a picker sheet (version, chapter/book) closes, the soft keyboard raised by its search input must dismiss with it. The input lives inside an Expo DOM WebView, so we dismiss it by blurring `document.activeElement` **inside the DOM runtime**, triggered by the sheet's `isOpen` prop flipping to false — not from the native side.
 
 ## Context

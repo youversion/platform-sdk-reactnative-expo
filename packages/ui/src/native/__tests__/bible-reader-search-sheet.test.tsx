@@ -6,7 +6,17 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import type { ReactNode } from 'react'
+import {
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  type KeyboardEvent,
+} from 'react-native'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
 import {
@@ -115,6 +125,110 @@ describe('BibleReaderSearchSheet', () => {
       fireEvent.press(screen.getByTestId('bible-reader-search-cancel'))
     })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens to the full viewport, under the status bar and above the home indicator', async () => {
+    const stub = searchStub()
+    const props = {
+      isOpen: true,
+      onClose: () => {},
+      versionId: 111,
+      languageTag: 'en',
+      theme: 'light' as const,
+      fetchBibleContent,
+      onSelectReference: () => {},
+    }
+
+    function WithInsets({ children }: { children: ReactNode }) {
+      return (
+        <SafeAreaProvider
+          initialMetrics={{
+            frame: { x: 0, y: 0, width: 390, height: 1334 },
+            insets: { top: 59, right: 0, bottom: 34, left: 0 },
+          }}
+        >
+          {children}
+        </SafeAreaProvider>
+      )
+    }
+
+    const { rerender } = render(<BibleReaderSearchSheet {...props} />, {
+      wrapper: wrapperFor(stub),
+    })
+    await flush()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+      height: 1310,
+    })
+
+    rerender(
+      <WithInsets>
+        <BibleReaderSearchSheet {...props} />
+      </WithInsets>,
+    )
+    await flush()
+    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+      height: 1217,
+    })
+  })
+
+  it('pads the list so the last row can scroll above the keyboard', async () => {
+    const listeners = new Map<string, (event: KeyboardEvent) => void>()
+    const addListener = jest.spyOn(Keyboard, 'addListener').mockImplementation((type, listener) => {
+      listeners.set(type, listener)
+      // SAFETY: the test only calls remove(); the rest of EmitterSubscription is unused.
+      return {
+        remove: () => {
+          listeners.delete(type)
+        },
+        eventType: type,
+        key: 0,
+        listener,
+        context: null,
+      } as ReturnType<typeof Keyboard.addListener>
+    })
+    const stub = searchStub()
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    const list = () => screen.getByTestId('bible-reader-search-list')
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8,
+    })
+
+    await act(async () => {
+      listeners.get('keyboardDidShow')?.({
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: { screenX: 0, screenY: 1000, width: 390, height: 334 },
+      })
+    })
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8 + (1334 - 1000),
+    })
+
+    await act(async () => {
+      listeners.get('keyboardDidHide')?.({
+        duration: 0,
+        easing: 'keyboard',
+        endCoordinates: { screenX: 0, screenY: 1334, width: 390, height: 0 },
+      })
+    })
+    expect(StyleSheet.flatten(list().props.contentContainerStyle)).toMatchObject({
+      paddingBottom: 8,
+    })
+
+    addListener.mockRestore()
   })
 
   it('focuses the search field when the sheet opens and blurs it when the sheet closes', async () => {

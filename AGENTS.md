@@ -45,7 +45,7 @@ Content cache, `Cache-Control`, lifetime, or sweep: `CONTEXT.md` and [ADR 0020](
 
 ## Sheets
 
-NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md), [0006](docs/adr/0006-inactive-sheet-inertness.md), [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md), [0017](docs/adr/0017-native-verse-action-sheet.md).
+NativeSheet, pickers, or verse actions: `CONTEXT.md` and ADRs [0006](docs/adr/0006-inactive-sheet-inertness.md), [0017](docs/adr/0017-native-verse-action-sheet.md). ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md) and [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md) record the retired DOM pickers.
 
 ## Design Tokens
 
