@@ -10,7 +10,7 @@ import {
 import * as Font from 'expo-font'
 import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react'
 
-import { buildFontMap, fetchUntitledSerifFont, pickTtfSources } from './fonts'
+import { buildFontMap, fetchUntitledSerifFont, pickTtfSources, type BrandFontUriMap } from './fonts'
 import { fontFamily } from './scales'
 
 export const bundledSans = {
@@ -28,25 +28,62 @@ export const untitledSerifFallback = {
   'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
+const serifFaceKeys = Object.keys(untitledSerifFallback)
+
+async function loadSerifFallbackBestEffort(): Promise<void> {
+  try {
+    await Font.loadAsync(untitledSerifFallback)
+  } catch (cause) {
+    console.error('[YouVersion SDK] serif fallback failed to load:', cause)
+  }
+}
+
+async function unloadRegisteredSerifFaces(): Promise<void> {
+  for (const face of serifFaceKeys) {
+    if (!Font.isLoaded(face)) {
+      continue
+    }
+    try {
+      await Font.unloadAsync(face)
+    } catch {
+      // Unload is best-effort; some runtimes only support loadAsync.
+    }
+  }
+}
+
+async function loadSerifWithRemoteTtfs(remoteMap: BrandFontUriMap): Promise<void> {
+  if (Object.keys(remoteMap).length === 0) {
+    return
+  }
+  await unloadRegisteredSerifFaces()
+  await Font.loadAsync({
+    ...untitledSerifFallback,
+    ...remoteMap,
+  })
+}
+
 async function loadUntitledSerif(appKey: string, apiHost?: string): Promise<void> {
+  if (!appKey.trim()) {
+    await loadSerifFallbackBestEffort()
+    return
+  }
+
   try {
     const font = await fetchUntitledSerifFont({ appKey, apiHost })
     let untitledSerifFaces: ReturnType<typeof pickTtfSources> = []
     if (font) {
       untitledSerifFaces = pickTtfSources(font)
     }
-    await Font.loadAsync({
-      ...untitledSerifFallback,
-      ...buildFontMap(untitledSerifFaces),
-    })
+    const remoteMap = buildFontMap(untitledSerifFaces)
+    if (Object.keys(remoteMap).length > 0) {
+      await loadSerifWithRemoteTtfs(remoteMap)
+      return
+    }
+    await loadSerifFallbackBestEffort()
   } catch (cause) {
     const nextError = cause instanceof Error ? cause : new Error(String(cause))
     console.error('[YouVersion SDK] brand fonts failed to load:', nextError)
-    try {
-      await Font.loadAsync(untitledSerifFallback)
-    } catch {
-      // Fallback faces are best-effort; the first error is what we report.
-    }
+    await loadSerifFallbackBestEffort()
   }
 }
 
@@ -81,9 +118,9 @@ type BrandFontReadiness = {
 
 /**
  * Sans readiness opens the provider. Serif readiness tracks when the Untitled
- * Serif face is registered once `loadUntitledSerif` finishes (Fonts API TTFs
- * with Source Serif 4 filling omitted faces in the same `loadAsync` call).
- * Settings keep the serif choice visible while that request is pending.
+ * Serif face registers bundled Source Serif 4 immediately, then upgrades to
+ * Fonts API TTFs after unload when the request succeeds. Settings keep the
+ * serif choice visible while the remote request is pending.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
@@ -104,11 +141,13 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
         }
       },
     )
-    void loadUntitledSerif(appKey, apiHost).finally(() => {
+    const refreshSerifReady = (): void => {
       if (!cancelled) {
         setSerifReady(serifFaceIsRegistered())
       }
-    })
+    }
+    void loadSerifFallbackBestEffort().finally(refreshSerifReady)
+    void loadUntitledSerif(appKey, apiHost).finally(refreshSerifReady)
     return () => {
       cancelled = true
     }

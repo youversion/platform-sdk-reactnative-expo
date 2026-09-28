@@ -140,6 +140,7 @@ jest.mock('expo/fetch', () => ({
  */
 jest.mock('expo-font', () => ({
   loadAsync: jest.fn(() => Promise.resolve()),
+  unloadAsync: jest.fn(() => Promise.resolve()),
   useFonts: jest.fn(() => [true, null]),
   isLoaded: jest.fn(() => true),
 }))
