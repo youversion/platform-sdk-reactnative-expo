@@ -83,15 +83,26 @@ describe('BibleReaderSettingsSheet', () => {
     expect(queryByTestId('bible-reader-settings')).toBeNull()
   })
 
-  it('renders the font controls and the settings title', () => {
-    const { getByTestId, getByRole } = render(<SheetHarness isOpen />, { wrapper })
+  it('renders the font controls with readable font names', () => {
+    const { getByTestId, getByRole, getByText, getAllByText, queryByText } = render(<SheetHarness isOpen />, {
+      wrapper,
+    })
 
-    expect(getByTestId('sheet-title').props.children).toBe(en.fontAndSettings)
     expect(getByRole('button', { name: en.decreaseFontSizeAriaLabel })).toBeTruthy()
     expect(getByRole('button', { name: en.increaseFontSizeAriaLabel })).toBeTruthy()
     expect(getByRole('button', { name: en.changeLineSpacingAriaLabel })).toBeTruthy()
     expect(getByRole('button', { name: en.interFontName })).toBeTruthy()
     expect(getByRole('button', { name: en.untitledSerifFontName })).toBeTruthy()
+    expect(getAllByText('Font')).toHaveLength(2)
+    expect(getByText('Inter')).toBeTruthy()
+    expect(getByText('Untitled Serif')).toBeTruthy()
+    expect(queryByText('interFontName')).toBeNull()
+    expect(queryByText('untitledSerifFontName')).toBeNull()
+    expect(flattenedStyle(getByText('Inter').props.style).fontFamily).toBe('Inter')
+    expect(flattenedStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
+      'Untitled Serif',
+    )
+    expect(flattenedStyle(getByTestId('bible-reader-settings').props.style).gap).toBe(16)
     expect(getByTestId('font-serif').props.accessibilityState).toMatchObject({ selected: true })
   })
 
@@ -169,7 +180,7 @@ describe('BibleReaderSettingsSheet', () => {
   })
 
   it('paints the sheet and the controls from an explicit theme', () => {
-    const { getByTestId, rerender } = render(<SheetHarness isOpen />, { wrapper })
+    const { getByTestId, getByText, rerender } = render(<SheetHarness isOpen />, { wrapper })
     const light = getTokens('light')
     const dark = getTokens('dark')
 
@@ -190,19 +201,23 @@ describe('BibleReaderSettingsSheet', () => {
       dark.background,
     )
     expect(flattenedStyle(getByTestId('line-spacing-bar').props.style).backgroundColor).toBe(
-      dark.foreground,
+      dark.mutedForeground,
     )
     expect(flattenedStyle(getByTestId('font-serif').props.style).backgroundColor).toBe(
-      dark.foreground,
+      dark.background,
     )
+    expect(flattenedStyle(getByText('Untitled Serif').props.style).color).toBe(dark.foreground)
+    expect(flattenedStyle(getByTestId('font-inter').props.style).backgroundColor).toBe(dark.muted)
   })
 
-  it('follows the provider locale for the settings title', () => {
-    const { getByTestId } = render(<SheetHarness isOpen />, {
+  it('follows the provider locale for the font label', () => {
+    const { getAllByText, getByTestId, getByText } = render(<SheetHarness isOpen />, {
       wrapper: youVersionProviderWrapper('light', 'es'),
     })
 
-    expect(getByTestId('sheet-title').props.children).toBe(es.fontAndSettings)
+    expect(getAllByText(es.font)).toHaveLength(2)
+    expect(getByText('Inter')).toBeTruthy()
+    expect(getByText('Untitled Serif')).toBeTruthy()
     expect(getByTestId('font-serif').props.accessibilityLabel).toBe(en.untitledSerifFontName)
   })
 })

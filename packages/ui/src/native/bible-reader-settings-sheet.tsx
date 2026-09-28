@@ -2,7 +2,6 @@ import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-re
 import type { ReactNode } from 'react'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
-import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import type { ThemeInput } from '../lib/resolve-theme'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
@@ -21,7 +20,6 @@ function BibleReaderSettingsSheetImpl({
   onClose,
   theme: themeOverride,
 }: BibleReaderSettingsSheetProps) {
-  const { t } = useSdkTranslation()
   const theme = useTheme(themeOverride)
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
@@ -42,8 +40,6 @@ function BibleReaderSettingsSheetImpl({
       onClose={onClose}
       theme={theme}
       bottomInsetColor={SHEET_SURFACE[theme]}
-      showHeader
-      headerTitle={t('fontAndSettings')}
     >
       <ThemeContext.Provider value={theme}>
         <BibleReaderSettingsContent
