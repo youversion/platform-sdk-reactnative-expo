@@ -94,6 +94,10 @@ export function BibleReaderSettingsContent({
     >
       <View style={styles.sizeRow}>
         <View style={styles.sizePair}>
+          {/*
+           * The letter is a size sample, same as web BibleThemeSettingsContent.
+           * The spoken name is the accessibility label.
+           */}
           <Button
             testID="decrease-font-size"
             accessibilityLabel={t('decreaseFontSizeAriaLabel')}
