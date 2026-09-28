@@ -789,6 +789,7 @@ export function BibleReader({
         <BibleReaderSettingsSheet
           isSettingsSheetOpen={isSettingsSheetOpen}
           onClose={() => setIsSettingsSheetOpen(false)}
+          theme={resolvedTheme}
         />
       )}
       {Platform.OS !== 'web' && (
