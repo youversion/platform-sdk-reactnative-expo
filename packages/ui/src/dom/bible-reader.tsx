@@ -18,7 +18,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import type { BibleReaderVerseFocus } from '../native/bible-reader-navigation'
 import type { StyleProp, ViewStyle } from 'react-native'
-import { applyMountedVerseFocus } from './apply-verse-focus'
+import { applyMountedVerseFocus, handledSeqForStream } from './apply-verse-focus'
 import { applySDKConfig, clearAuthResidue } from '../lib/dom-apply'
 import { registerBibleContentAction } from '../lib/dom-content-cache'
 
@@ -81,6 +81,11 @@ type BibleReaderBaseProps = {
    * A reload passes the reported seq back and does not jump again.
    */
   appliedFocusSeq?: number
+  /**
+   * Which navigation object `verseFocus.seq` belongs to. Seq restarts at 1 for
+   * each object, so a replacement must not inherit the previous high-water mark.
+   */
+  focusStream?: number
   /** Native stores this seq so a later WebView reload does not refocus. */
   onVerseFocusApplied?: (seq: number) => void
   theme?: 'light' | 'dark'
@@ -139,6 +144,7 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
       shouldFocus: false,
     },
     appliedFocusSeq = 0,
+    focusStream = 0,
     onVerseFocusApplied,
     theme = 'light',
     book,
@@ -181,19 +187,17 @@ export default function BibleReaderDOM(props: BibleReaderDOMProps): ReactNode {
   }, [])
 
   const navigation = useRef(new BibleReaderNavigation())
-  const handledFocusSeq = useRef(appliedFocusSeq)
+  const handledFocus = useRef({ stream: focusStream, seq: appliedFocusSeq })
   useEffect(() => {
-    const before = handledFocusSeq.current
-    handledFocusSeq.current = applyMountedVerseFocus(
-      navigation.current,
-      verseFocus,
-      before,
-      appliedFocusSeq,
-    )
+    const before = handledSeqForStream(handledFocus.current, focusStream)
+    handledFocus.current = {
+      stream: focusStream,
+      seq: applyMountedVerseFocus(navigation.current, verseFocus, before, appliedFocusSeq),
+    }
     if (verseFocus.shouldFocus && verseFocus.seq > Math.max(before, appliedFocusSeq)) {
       onVerseFocusApplied?.(verseFocus.seq)
     }
-  }, [verseFocus, appliedFocusSeq, onVerseFocusApplied])
+  }, [verseFocus, appliedFocusSeq, focusStream, onVerseFocusApplied])
 
   // `highlights` is required, but this is the far side of a serialization
   // boundary, so a bad value arrives as `undefined` with no compile-time trace.

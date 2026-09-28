@@ -7,6 +7,23 @@ export type VerseFocusCaller = {
   ) => void
 }
 
+/** Seq this WebView already applied, scoped to one navigation stream. */
+export type HandledVerseFocus = {
+  stream: number
+  seq: number
+}
+
+/**
+ * Seq already applied for `stream`. A different navigation object restarts at 1,
+ * so an older stream's seq must not count.
+ */
+export function handledSeqForStream(handled: HandledVerseFocus, stream: number): number {
+  if (handled.stream !== stream) {
+    return 0
+  }
+  return handled.seq
+}
+
 /**
  * Apply one verse focus inside the WebView.
  *

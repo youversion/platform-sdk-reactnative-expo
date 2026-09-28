@@ -66,10 +66,15 @@ type ReaderNavigationAccess = {
   getSnapshot: () => number
   getVerseFocus: () => BibleReaderVerseFocus
   getAppliedFocusSeq: () => number
+  getFocusStream: () => number
   acknowledgeVerseFocus: (seq: number) => void
   peekPending: () => BibleReaderNavigationRequest | null
   consumeCommitted: (version: number) => void
 }
+
+// Each navigation object owns a stream. Verse-focus seq restarts at 1 per
+// object, so the WebView must not compare seq across streams.
+let nextFocusStream = 1
 
 const readerAccess = new WeakMap<BibleReaderNavigation, ReaderNavigationAccess>()
 
@@ -105,6 +110,7 @@ export class BibleReaderNavigation {
   // Reader remount does not replay it, and it stays 0 until that report so a
   // focus that arrives while the WebView is loading still runs.
   #appliedFocusSeq = 0
+  #focusStream = nextFocusStream++
   #listeners = new Set<() => void>()
 
   constructor() {
@@ -118,6 +124,7 @@ export class BibleReaderNavigation {
       getSnapshot: () => this.#version,
       getVerseFocus: () => this.#verseFocus,
       getAppliedFocusSeq: () => this.#appliedFocusSeq,
+      getFocusStream: () => this.#focusStream,
       acknowledgeVerseFocus: (seq) => {
         if (seq <= this.#appliedFocusSeq) {
           return
@@ -251,6 +258,11 @@ export function useBibleReaderAppliedFocusSeq(navigation: BibleReaderNavigation)
     access.getAppliedFocusSeq,
     access.getAppliedFocusSeq,
   )
+}
+
+/** Stable id for this navigation object. Verse-focus seq is only comparable within it. */
+export function bibleReaderFocusStream(navigation: BibleReaderNavigation): number {
+  return accessFor(navigation).getFocusStream()
 }
 
 /** Record that the DOM finished this seq. A lower or equal seq is ignored. */

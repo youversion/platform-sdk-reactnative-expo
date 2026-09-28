@@ -51,6 +51,7 @@ import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import {
   acknowledgeBibleReaderVerseFocus,
+  bibleReaderFocusStream,
   createBibleReaderNavigation,
   useBibleReaderAppliedFocusSeq,
   useBibleReaderVerseFocus,
@@ -174,6 +175,7 @@ export type BibleReaderProps = Omit<
   // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
   | 'verseFocus'
+  | 'focusStream'
   // `onVerseSelect` and `clearSelectionSignal` are deliberately kept. They are
   // the consumer's only handle on a selection. The reader taps both on the way
   // past: it mirrors the payload to raise the native verse action sheet, and it
@@ -364,6 +366,7 @@ export function BibleReader({
   const pendingNavigation = useConsumedNavigationRequest(resolvedNavigation)
   const verseFocus = useBibleReaderVerseFocus(resolvedNavigation)
   const appliedFocusSeq = useBibleReaderAppliedFocusSeq(resolvedNavigation)
+  const focusStream = bibleReaderFocusStream(resolvedNavigation)
   const handleVerseFocusApplied = useCallback(
     (seq: number) => {
       acknowledgeBibleReaderVerseFocus(resolvedNavigation, seq)
@@ -878,6 +881,7 @@ export function BibleReader({
               clearSelectionSignal={clearSelectionSignal + internalClearCount}
               verseFocus={verseFocus}
               appliedFocusSeq={appliedFocusSeq}
+              focusStream={focusStream}
               onVerseFocusApplied={handleVerseFocusApplied}
               onSignInPress={signIn}
               onSignOutPress={guardedSignOut}

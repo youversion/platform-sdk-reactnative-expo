@@ -3,7 +3,11 @@
  * tests do not mount.
  */
 import type { BibleReaderVerseFocus } from '../../native/bible-reader-navigation'
-import { applyMountedVerseFocus, type VerseFocusCaller } from '../apply-verse-focus'
+import {
+  applyMountedVerseFocus,
+  handledSeqForStream,
+  type VerseFocusCaller,
+} from '../apply-verse-focus'
 
 const JOHN_3_16: BibleReaderVerseFocus = {
   seq: 1,
@@ -92,6 +96,56 @@ describe('applyMountedVerseFocus', () => {
 
     expect(focusReference).not.toHaveBeenCalled()
     expect(next).toBe(4)
+  })
+
+  it('focuses sequence 1 on a new stream after another stream already handled sequence 1', () => {
+    const focusReference = jest.fn<void, Parameters<VerseFocusCaller['focusReference']>>()
+    const caller = { focusReference }
+    let handled = { stream: 1, seq: 0 }
+
+    const first = applyMountedVerseFocus(
+      caller,
+      JOHN_3_16,
+      handledSeqForStream(handled, 1),
+      0,
+    )
+    handled = { stream: 1, seq: first }
+    expect(focusReference).toHaveBeenCalledTimes(1)
+
+    const acknowledged = applyMountedVerseFocus(
+      caller,
+      JOHN_3_16,
+      handledSeqForStream(handled, 1),
+      1,
+    )
+    handled = { stream: 1, seq: acknowledged }
+    expect(focusReference).toHaveBeenCalledTimes(1)
+
+    const beforeNext = handledSeqForStream(handled, 2)
+    expect(beforeNext).toBe(0)
+    const second = applyMountedVerseFocus(
+      caller,
+      { ...JOHN_3_16, passageId: 'ROM.8.1' },
+      beforeNext,
+      0,
+    )
+    handled = { stream: 2, seq: second }
+    expect(focusReference).toHaveBeenCalledTimes(2)
+    expect(focusReference).toHaveBeenLastCalledWith(
+      { versionId: 111, passageId: 'ROM.8.1' },
+      true,
+    )
+
+    applyMountedVerseFocus(
+      caller,
+      { ...JOHN_3_16, passageId: 'ROM.8.1' },
+      handledSeqForStream(handled, 2),
+      1,
+    )
+    expect(focusReference).toHaveBeenCalledTimes(2)
+
+    applyMountedVerseFocus(caller, JOHN_3_16, handledSeqForStream(handled, 1), 1)
+    expect(focusReference).toHaveBeenCalledTimes(2)
   })
 
   it('stays up when the Web SDK rejects the passage', () => {

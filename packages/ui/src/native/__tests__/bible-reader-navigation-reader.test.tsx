@@ -29,6 +29,7 @@ type LatestReaderDomProps = {
   versionId?: number
   verseFocus?: VerseFocus
   appliedFocusSeq?: number
+  focusStream?: number
   onVerseFocusApplied?: (seq: number) => void
   onChapterChange?: (chapter: string) => Promise<void>
 }
@@ -390,5 +391,38 @@ describe('BibleReader navigation', () => {
       scrollsToVerse: true,
       shouldFocus: true,
     })
+  })
+
+  it('gives a replacement navigation object its own focus stream', async () => {
+    const firstNavigation = createBibleReaderNavigation()
+    firstNavigation.focusReference({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+
+    const { rerender } = render(<BibleReader navigation={firstNavigation} />, { wrapper })
+    const firstStream = latestReaderDomProps.focusStream
+    expect(firstStream).toBeGreaterThan(0)
+
+    act(() => {
+      latestReaderDomProps.onVerseFocusApplied?.(1)
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
+
+    const secondNavigation = createBibleReaderNavigation()
+    secondNavigation.focusReference({ versionId: 111, bookId: 'ROM', chapter: 8, verse: 1 })
+
+    rerender(<BibleReader navigation={secondNavigation} />)
+
+    expect(latestReaderDomProps.focusStream).not.toBe(firstStream)
+    expect(latestReaderDomProps.verseFocus).toEqual({
+      seq: 1,
+      versionId: 111,
+      passageId: 'ROM.8.1',
+      scrollsToVerse: true,
+      shouldFocus: true,
+    })
+    expect(latestReaderDomProps.appliedFocusSeq).toBe(0)
+
+    rerender(<BibleReader navigation={secondNavigation} />)
+    expect(latestReaderDomProps.focusStream).not.toBe(firstStream)
+    expect(latestReaderDomProps.verseFocus?.seq).toBe(1)
   })
 })
