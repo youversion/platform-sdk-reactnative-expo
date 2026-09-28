@@ -83,7 +83,7 @@ type BrandFontReadiness = {
  * Sans readiness opens the provider. Serif readiness tracks when the Untitled
  * Serif face is registered (bundled Source Serif 4 first, then the Fonts API
  * upgrade in the background). Settings keep the serif choice visible while the
- * remote request is pending.
+ * Fonts API request is pending.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
