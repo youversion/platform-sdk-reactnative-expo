@@ -30,7 +30,14 @@ export const untitledSerifFallback = {
 
 const serifFaceKeys = Object.keys(untitledSerifFallback)
 
-async function loadSerifFallbackBestEffort(): Promise<void> {
+type FontLoadScope = {
+  isActive: () => boolean
+}
+
+async function loadSerifFallbackBestEffort(scope: FontLoadScope): Promise<void> {
+  if (!scope.isActive()) {
+    return
+  }
   try {
     await Font.loadAsync(untitledSerifFallback)
   } catch (cause) {
@@ -51,39 +58,52 @@ async function unloadRegisteredSerifFaces(): Promise<void> {
   }
 }
 
-async function loadSerifWithApiTtfs(apiTtfMap: BrandFontUriMap): Promise<void> {
-  if (Object.keys(apiTtfMap).length === 0) {
+async function loadSerifWithApiTtfs(apiTtfMap: BrandFontUriMap, scope: FontLoadScope): Promise<void> {
+  if (Object.keys(apiTtfMap).length === 0 || !scope.isActive()) {
     return
   }
   await unloadRegisteredSerifFaces()
+  if (!scope.isActive()) {
+    return
+  }
   await Font.loadAsync({
     ...untitledSerifFallback,
     ...apiTtfMap,
   })
 }
 
-async function loadUntitledSerif(appKey: string, apiHost?: string): Promise<void> {
+async function loadUntitledSerif(
+  appKey: string,
+  apiHost: string | undefined,
+  scope: FontLoadScope,
+): Promise<void> {
   if (!appKey.trim()) {
-    await loadSerifFallbackBestEffort()
+    await loadSerifFallbackBestEffort(scope)
     return
   }
 
   try {
     const font = await fetchUntitledSerifFont({ appKey, apiHost })
+    if (!scope.isActive()) {
+      return
+    }
     let untitledSerifFaces: ReturnType<typeof pickTtfSources> = []
     if (font) {
       untitledSerifFaces = pickTtfSources(font)
     }
     const apiTtfMap = buildFontMap(untitledSerifFaces)
     if (Object.keys(apiTtfMap).length > 0) {
-      await loadSerifWithApiTtfs(apiTtfMap)
+      await loadSerifWithApiTtfs(apiTtfMap, scope)
       return
     }
-    await loadSerifFallbackBestEffort()
+    await loadSerifFallbackBestEffort(scope)
   } catch (cause) {
+    if (!scope.isActive()) {
+      return
+    }
     const nextError = cause instanceof Error ? cause : new Error(String(cause))
     console.error('[YouVersion SDK] brand fonts failed to load:', nextError)
-    await loadSerifFallbackBestEffort()
+    await loadSerifFallbackBestEffort(scope)
   }
 }
 
@@ -141,13 +161,14 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
         }
       },
     )
+    const scope: FontLoadScope = { isActive: () => !cancelled }
     const refreshSerifReady = (): void => {
       if (!cancelled) {
         setSerifReady(serifFaceIsRegistered())
       }
     }
-    void loadSerifFallbackBestEffort().finally(refreshSerifReady)
-    void loadUntitledSerif(appKey, apiHost).finally(refreshSerifReady)
+    void loadSerifFallbackBestEffort(scope).finally(refreshSerifReady)
+    void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifReady)
     return () => {
       cancelled = true
     }
