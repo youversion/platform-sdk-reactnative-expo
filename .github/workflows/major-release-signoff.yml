@@ -241,7 +241,8 @@ jobs:
               while IFS= read -r f; do
                 git cat-file -e "main:$f" 2>/dev/null || rm -f "$f"
               done
-            for f in scripts/preview-release.mjs package.json pnpm-lock.yaml \
+            for f in scripts/preview-release.mjs scripts/changeset-eligibility.mjs \
+                     package.json pnpm-lock.yaml \
                      pnpm-workspace.yaml .changeset/config.json; do
               git cat-file -e "main:$f" 2>/dev/null && git checkout main -- "$f"
             done
@@ -324,7 +325,7 @@ jobs:
   # `failure`, not `!= 'success'`: a cancelled run has been superseded by a newer one, and
   # painting the PR red for that is noise.
   context_unresolved:
-    if: always() && needs.context.result == 'failure'
+    if: always() && !cancelled() && needs.context.result == 'failure'
     name: Signoff status when context is unresolved
     needs: context
     runs-on: ubuntu-latest
@@ -361,7 +362,7 @@ jobs:
 
   gate:
     # `always()`: `preview` is skipped for forks and the gate still has to post a status.
-    if: always() && needs.context.result == 'success'
+    if: always() && !cancelled() && needs.context.result == 'success'
     name: Major release signoff
     needs: [context, generated_release, preview]
     runs-on: ubuntu-latest
@@ -491,7 +492,10 @@ jobs:
             -f target_url="$RUN_URL"
 
       - name: Post failure status when release impact cannot be determined
-        if: steps.decision.outputs.blocked != ''
+        # `always() && !cancelled()` rather than the implicit `success()`: this step follows
+        # the stale-comment cleanup, and a cleanup failure would otherwise skip it and leave
+        # an earlier green status authoritative on a decision we could not determine.
+        if: always() && !cancelled() && steps.decision.outputs.blocked != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ needs.context.outputs.head_sha }}
@@ -615,7 +619,7 @@ jobs:
             -f target_url="$RUN_URL"
 
       - name: Upsert blocking comment when signoff missing
-        if: always() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1' && github.event_name == 'pull_request'
+        if: always() && !cancelled() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1' && github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.context.outputs.pr_number }}
@@ -666,7 +670,7 @@ jobs:
           fi
 
       - name: Post failure status when signoff missing
-        if: always() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1'
+        if: always() && !cancelled() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ needs.context.outputs.head_sha }}
@@ -681,7 +685,7 @@ jobs:
             -f target_url="$RUN_URL"
 
       - name: Fail the job so the gate is loud in the PR UI
-        if: always() && ((steps.decision.outputs.blocked != '') || (steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1'))
+        if: always() && !cancelled() && ((steps.decision.outputs.blocked != '') || (steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1'))
         env:
           BLOCKED: ${{ steps.decision.outputs.blocked }}
         run: |

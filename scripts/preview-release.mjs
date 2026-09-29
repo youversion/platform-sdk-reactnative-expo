@@ -29,6 +29,8 @@ import { tmpdir } from 'node:os'
 import { join, relative, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { isChangesetPath } from './changeset-eligibility.mjs'
+
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
 function parseArgs(argv) {
@@ -125,7 +127,9 @@ function addedChangesetLevels(base) {
       '--name-status',
       '-z',
       '-M',
-      '--diff-filter=AMR',
+      // `T` as well as AMR: replacing a changeset with a symlink is a type change, and
+      // dropping it here would hide a major that Changesets still reads through the link.
+      '--diff-filter=AMRT',
       `${base}..${head}`,
       '--',
       '.changeset',
@@ -134,9 +138,21 @@ function addedChangesetLevels(base) {
   )
   const fields = raw.split('\0').filter((f) => f !== '')
 
-  // `[^]` rather than `.`: a filename containing a line terminator would otherwise fail
-  // this test and drop out of the scan entirely.
-  const isChangeset = (f) => /^\.changeset\/[^]+\.md$/.test(f) && !/README\.md$/.test(f)
+  // Mirror @changesets/read exactly. It reads the directory itself and keeps a file when
+  // it does not start with `.`, ends with `.md`, and is not literally `README.md`
+  // (case-insensitive). Anything looser here hides a real major: a suffix test on README
+  // drops `breaking-README.md`, which Changesets counts, and allowing a nested path counts
+  // a file Changesets never reads.
+  const isChangeset = (f) => isChangesetPath(f)
+
+  /** A symlinked changeset is followed by Changesets but unreadable as a blob here. */
+  const isSymlink = (ref, path) => {
+    const entry = execFileSync('git', ['ls-tree', '-z', ref, '--', path], {
+      cwd: REPO_ROOT,
+      encoding: 'utf8',
+    })
+    return entry.startsWith('120000')
+  }
   const levels = []
   const touched = []
 
@@ -149,6 +165,16 @@ function addedChangesetLevels(base) {
     i += isRename ? 3 : 2
     if (!isChangeset(headPath)) continue
     touched.push(headPath)
+
+    // Fail closed rather than guess: Changesets resolves the link and may read a major,
+    // while reading the blob here yields the link target's path, not changeset front
+    // matter. Treat it as introducing a major so the gate asks for a signoff.
+    if (isSymlink(head, headPath)) {
+      for (const pkg of published) {
+        levels.push({ file: headPath, level: 'major', package: pkg })
+      }
+      continue
+    }
 
     const headLevels = levelsAtRef(head, headPath) ?? {}
     const baseLevels = levelsAtRef(base, basePath)

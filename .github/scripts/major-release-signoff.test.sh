@@ -451,6 +451,7 @@ git -C "$PREVIEW_REPO" remote add origin "$PREVIEW_REMOTE"
 mkdir -p "$PREVIEW_REPO/scripts" "$PREVIEW_REPO/.changeset" \
   "$PREVIEW_REPO/packages/core" "$PREVIEW_REPO/packages/ui"
 cp "$ROOT/scripts/preview-release.mjs" "$PREVIEW_REPO/scripts/preview-release.mjs"
+cp "$ROOT/scripts/changeset-eligibility.mjs" "$PREVIEW_REPO/scripts/changeset-eligibility.mjs"
 cp "$ROOT/.changeset/config.json" "$PREVIEW_REPO/.changeset/config.json"
 cat > "$PREVIEW_REPO/package.json" <<'EOF'
 {"name":"preview-fixture","private":true,"packageManager":"pnpm@11.10.0"}
@@ -551,6 +552,13 @@ if awk '/^  context_unresolved:/{f=1} f && /^    if:/{print; exit}' "$WORKFLOW" 
     "context_unresolved is gated to a subset of events, so a revocation can leave a stale success"
 else
   pass "an unresolved context fails the status on every event"
+fi
+
+if grep -qF 'scripts/preview-release.mjs scripts/changeset-eligibility.mjs' "$WORKFLOW"; then
+  pass "the eligibility module is restored from main alongside the detector"
+else
+  fail "the eligibility module is restored from main alongside the detector" \
+    "a PR-supplied copy of the changeset eligibility rule could hide its own major"
 fi
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"
