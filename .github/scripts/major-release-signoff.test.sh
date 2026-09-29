@@ -607,6 +607,31 @@ git -C "$PREVIEW_REPO" commit --quiet -m 'rename the ignored changeset onto an e
 git -C "$PREVIEW_REPO" push --quiet origin pr
 run_preview_case "renaming an ignored changeset onto an eligible name needs signoff" true 1
 
+# Changesets reads a legacy directory changeset, and filters those only on isDirectory(),
+# so a dot-named one is read like any other. A major declared this way has to be seen.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/.breaking"
+printf 'Breaking, declared in a dot-named legacy directory.\n' \
+  > "$PREVIEW_REPO/.changeset/.breaking/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"major"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/.breaking/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy major in a dot-named directory'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "a legacy major in a dot-named directory needs signoff" true 1
+
+# And the other direction: a legacy changeset declaring minor must not demand signoff.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-minor"
+printf 'A feature, declared in the legacy directory format.\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-minor/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"minor"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-minor/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy minor'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "a legacy minor does not demand signoff" false 0
+
 if grep -Fq 'Generated release PR; major signoff is enforced on source PRs.' "$WORKFLOW"; then
   pass "generated releases publish an explicit lifecycle-aware success"
 else

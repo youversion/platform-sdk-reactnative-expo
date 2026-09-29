@@ -32,6 +32,9 @@ export function isLegacyChangesetPath(file) {
   if (!file.startsWith('.changeset/')) return false
   const rest = file.slice('.changeset/'.length)
   const [dir, ...tail] = rest.split('/')
-  if (tail.length !== 1 || dir === '' || dir.startsWith('.')) return false
+  // No dot exclusion: `getOldChangesets` filters only on `isDirectory()`, so Changesets
+  // reads `.changeset/.breaking/` exactly like any other directory. Mirroring the
+  // flat-file dotfile rule here would let a major hide in a dot-named directory.
+  if (tail.length !== 1 || dir === '') return false
   return tail[0] === 'changes.md' || tail[0] === 'changes.json'
 }

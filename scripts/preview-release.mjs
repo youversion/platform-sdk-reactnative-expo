@@ -93,6 +93,30 @@ function changesetStatus() {
  * Only a genuine absence returns null. A read that fails for any other reason throws, because
  * treating it as "no levels" would under-report a major.
  */
+/**
+ * Release levels declared by a legacy directory changeset, read from its `changes.json`.
+ *
+ * `null` when the file is absent at that ref. An unparseable one returns no levels and the
+ * caller fails closed, since a changeset we cannot read may well be a major.
+ */
+function legacyLevelsAtRef(ref, file) {
+  const spec = `${ref}:${file}`
+  try {
+    execFileSync('git', ['cat-file', '-e', spec], { cwd: REPO_ROOT, stdio: 'ignore' })
+  } catch {
+    return null
+  }
+  const levels = {}
+  try {
+    for (const release of JSON.parse(git('show', spec)).releases ?? []) {
+      levels[release.name] = release.type
+    }
+  } catch {
+    return 'unreadable'
+  }
+  return levels
+}
+
 function levelsAtRef(ref, file) {
   const spec = `${ref}:${file}`
   try {
@@ -163,13 +187,26 @@ function addedChangesetLevels(base) {
     const basePath = fields[i + 1]
     const headPath = isRename ? fields[i + 2] : fields[i + 1]
     i += isRename ? 3 : 2
-    // Fail closed on the legacy directory format rather than parse it: Changesets reads
-    // it, this detector does not, and a major declared that way would otherwise ship
-    // without a signoff.
+    // Changesets still reads the legacy directory format, so read it too rather than
+    // guessing. `changes.json` carries the levels; a touched `changes.md` only changes the
+    // summary and cannot introduce a major on its own.
     if (isLegacyChangesetPath(headPath)) {
       touched.push(headPath)
-      for (const pkg of published) {
-        levels.push({ file: headPath, level: 'major', package: pkg })
+      if (!headPath.endsWith('/changes.json')) continue
+      const headLegacy = legacyLevelsAtRef(head, headPath)
+      const baseLegacy = isLegacyChangesetPath(basePath) ? legacyLevelsAtRef(base, basePath) : null
+      if (headLegacy === 'unreadable') {
+        // Fail closed: a declaration we cannot parse may be a major.
+        for (const pkg of published) {
+          levels.push({ file: headPath, level: 'major', package: pkg })
+        }
+        continue
+      }
+      for (const [pkg, level] of Object.entries(headLegacy ?? {})) {
+        if (level !== 'major') continue
+        if (baseLegacy && baseLegacy !== 'unreadable' && baseLegacy[pkg] === 'major') continue
+        if (!inRelease(pkg)) continue
+        levels.push({ file: headPath, level, package: pkg })
       }
       continue
     }
