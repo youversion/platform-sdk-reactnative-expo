@@ -25,6 +25,40 @@ env:
   STATUS_CONTEXT: major-release-signoff
 
 jobs:
+  # A retarget changes which context this PR is judged on, and the status written under the
+  # old base stays on the SHA until a fresh one replaces it. A PR that was green while
+  # targeting main, moved to a feature branch, then moved back, has a stale unsuffixed
+  # success standing for the whole re-evaluation. Close that window first: mark the context
+  # pending before anything else runs, so a required check cannot be satisfied by the old
+  # answer while the new one is still being computed.
+  invalidate_on_retarget:
+    if: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' }}
+    name: Hold the signoff status while a retarget is re-evaluated
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Mark the status pending
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          # This PR's own context, so a shared head SHA on another PR is untouched.
+          CTX="$STATUS_CONTEXT"
+          if [ "$BASE_REF" != "main" ]; then
+            CTX="$STATUS_CONTEXT/$BASE_REF"
+          fi
+          gh api "repos/$REPOSITORY/statuses/$HEAD_SHA" \
+            -f state=pending \
+            -f context="$CTX" \
+            -f description="Base branch changed; re-evaluating release impact." \
+            -f target_url="$RUN_URL" > /dev/null
+          echo "Held $CTX pending while the retarget is re-evaluated."
+
   context:
     # issue_comment fires for issues AND PRs across the repo. Skip non-PR
     # issues and bot comments. Bot runs have isolated concurrency keys above,

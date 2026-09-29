@@ -35,6 +35,7 @@ extract_step "Compute release preview" > "$TMP/preview.sh"
 extract_step "Decide whether a signoff is required" > "$TMP/decision.sh"
 extract_step "Regenerate and verify release contents" > "$TMP/verify.sh"
 extract_step "Post an unresolved status" > "$TMP/unresolved.sh"
+extract_step "Mark the status pending" > "$TMP/retarget-hold.sh"
 
 TOOLING_SOURCE="$TMP/tooling-source"
 TOOLING_WORK="$TMP/tooling-work"
@@ -315,6 +316,35 @@ run_status_context_case() {
     fail "$name" "expected status_context=$expected; got $(grep '^status_context=' "$output" || echo none)"
   fi
 }
+
+# A retarget leaves the previous base's status standing on the SHA. Hold the context this
+# PR is now judged on at pending, so a required check cannot be satisfied by the old answer
+# while the new one is still being computed.
+run_retarget_hold_case() {
+  local name="$1" base_ref="$2" expected_context="$3"
+  local statuses="$TMP/status-calls" call
+  : > "$statuses"
+  env PATH="$TMP/bin:$PATH" \
+    HEAD_SHA="$HEAD_SHA" BASE_REF="$base_ref" \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
+    RUN_URL=https://example.invalid/run GH_TOKEN=token MOCK_STATUS_CALLS="$statuses" \
+    bash "$TMP/retarget-hold.sh" >/dev/null 2>&1 || true
+  call=$(cat "$statuses")
+  local problem=""
+  [[ "$call" == *"/statuses/$HEAD_SHA"* ]] || problem="wrong target SHA"
+  [[ "$call" == *"state=pending"* ]] || problem="${problem:-status was not pending}"
+  [[ "$call" == *"context=$expected_context"* ]] || problem="${problem:-wrong context}"
+  if [ -z "$problem" ]; then
+    pass "$name"
+  else
+    fail "$name" "$problem; call was '$call'"
+  fi
+}
+
+run_retarget_hold_case "a retarget to main holds the required context pending" \
+  main major-release-signoff
+run_retarget_hold_case "a retarget to a feature base holds only its own context" \
+  journey major-release-signoff/journey
 
 run_status_context_case "a main-targeted PR writes the required status context" \
   main major-release-signoff
@@ -735,6 +765,14 @@ if awk '/^  pull_request:/{f=1} f&&/types:/{print;exit}' "$WORKFLOW" | grep -q "
 else
   fail "a retargeted PR is re-evaluated" \
     "pull_request.edited is not subscribed, so a green result from a feature base survives a retarget to main"
+fi
+
+if awk '/^  invalidate_on_retarget:/{f=1} f&&/^    if:/{print;exit}' "$WORKFLOW" |
+  grep -q "edited"; then
+  pass "the retarget hold runs on the edited event"
+else
+  fail "the retarget hold runs on the edited event" \
+    "without it a stale success from the previous base stands during re-evaluation"
 fi
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"
