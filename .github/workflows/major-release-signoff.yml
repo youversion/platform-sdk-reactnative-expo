@@ -63,7 +63,13 @@ jobs:
     # issue_comment fires for issues AND PRs across the repo. Skip non-PR
     # issues and bot comments. Bot runs have isolated concurrency keys above,
     # because this condition is not evaluated until after concurrency handling.
-    if: ${{ github.event_name != 'issue_comment' || (github.event.issue.pull_request != null && github.event.comment.user.type != 'Bot') }}
+    # `needs` the hold so the two cannot race: without it the evaluation can publish its
+    # real result first and the hold's `pending` lands after, leaving even a signed-off PR
+    # stuck until some other event reruns the workflow. `always()` because the hold is
+    # skipped on every event except a retarget, and a skipped dependency would otherwise
+    # skip this too.
+    needs: invalidate_on_retarget
+    if: ${{ always() && !cancelled() && (github.event_name != 'issue_comment' || (github.event.issue.pull_request != null && github.event.comment.user.type != 'Bot')) }}
     name: Resolve PR context
     runs-on: ubuntu-latest
     permissions:

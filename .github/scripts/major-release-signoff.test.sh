@@ -767,6 +767,14 @@ else
     "pull_request.edited is not subscribed, so a green result from a feature base survives a retarget to main"
 fi
 
+if awk '/^  context:/{f=1} f&&/^    needs:/{print;exit}' "$WORKFLOW" |
+  grep -q "invalidate_on_retarget"; then
+  pass "the evaluation waits for the retarget hold"
+else
+  fail "the evaluation waits for the retarget hold" \
+    "context does not need invalidate_on_retarget, so a late pending can strand a signed-off PR"
+fi
+
 if awk '/^  invalidate_on_retarget:/{f=1} f&&/^    if:/{print;exit}' "$WORKFLOW" |
   grep -q "edited"; then
   pass "the retarget hold runs on the edited event"
