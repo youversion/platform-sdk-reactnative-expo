@@ -245,13 +245,17 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
     height: 'auto',
     justifyContent: 'center',
+    // A large system text size makes "Untitled Serif" wider than this half.
+    // Without a floor of 0 the button stays as wide as the name and the sheet
+    // clips the last letter.
+    minWidth: 0,
     paddingHorizontal: 12,
     paddingVertical: 16,
   },
   fontCopy: {
-    alignItems: 'flex-start',
     flex: 1,
     gap: 4,
+    minWidth: 0,
   },
   fontLabel: {
     fontSize: 12,
@@ -260,5 +264,6 @@ const styles = StyleSheet.create({
   fontName: {
     fontSize: 16,
     lineHeight: 22,
+    width: '100%',
   },
 })

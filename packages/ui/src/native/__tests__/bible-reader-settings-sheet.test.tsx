@@ -110,6 +110,8 @@ describe('BibleReaderSettingsSheet', () => {
     )
     expect(flattenedStyle(getByTestId('bible-reader-settings').props.style).gap).toBe(16)
     expect(getByTestId('font-serif').props.accessibilityState).toMatchObject({ selected: true })
+    expect(flattenedStyle(getByTestId('font-serif').props.style).minWidth).toBe(0)
+    expect(flattenedTextStyle(getByText('Untitled Serif').props.style).width).toBe('100%')
   })
 
   it('keeps Untitled Serif choosable while the remote font request is pending', async () => {
