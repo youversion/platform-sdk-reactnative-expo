@@ -78,23 +78,50 @@ async function resetSearchHistoryStore() {
 }
 
 describe('BibleReaderSearchSheet', () => {
+  let contentPanningEnabled: boolean | undefined
+
   beforeEach(() => {
-    setImpl('NativeSheet', ({ children, isOpen, headerTitle, onClose }) =>
-      isOpen ? (
-        <View testID="search-sheet">
-          {headerTitle !== undefined && <Text>{headerTitle}</Text>}
-          {children}
-          <Pressable testID="sheet-close" onPress={onClose}>
-            <Text>Close</Text>
-          </Pressable>
-        </View>
-      ) : null,
+    contentPanningEnabled = undefined
+    setImpl(
+      'NativeSheet',
+      ({ children, isOpen, headerTitle, onClose, enableContentPanningGesture }) => {
+        if (isOpen) {
+          contentPanningEnabled = enableContentPanningGesture
+        }
+        return isOpen ? (
+          <View testID="search-sheet">
+            {headerTitle !== undefined && <Text>{headerTitle}</Text>}
+            {children}
+            <Pressable testID="sheet-close" onPress={onClose}>
+              <Text>Close</Text>
+            </Pressable>
+          </View>
+        ) : null
+      },
     )
     return resetSearchHistoryStore()
   })
 
   afterEach(() => {
     resetImpls()
+  })
+
+  it('leaves vertical drags on the results to the list', async () => {
+    render(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="en"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+      { wrapper: wrapperFor(searchStub(), 'en') },
+    )
+    await flush()
+
+    expect(contentPanningEnabled).toBe(false)
   })
 
   it('puts the field and Cancel in the header and asks trending in the version language', async () => {
