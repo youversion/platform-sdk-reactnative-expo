@@ -669,6 +669,46 @@ git -C "$PREVIEW_REPO" commit --quiet -m 'rename a legacy changeset directory'
 git -C "$PREVIEW_REPO" push --quiet origin pr
 run_preview_case "renaming a legacy directory adds no new major" false 0
 
+# `none` is a real Changesets level. Omitting it from the rank table made its rank
+# undefined, and `major > undefined` is false, so a `none` ahead of a `major` for the same
+# package kept the `none` and the major never reached the gate.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-none-then-major"
+printf 'Declared none, then major, for the same package.\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-none-then-major/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"none"},{"name":"@youversion/platform-react-native-expo-ui","type":"major"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-none-then-major/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy none then major'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "a legacy none ahead of a major still needs signoff" true 1
+
+# And `none` on its own has to be ranked, not rejected. Without it in the table its rank is
+# undefined, the fold throws, and the fail-closed path demands a signoff for a changeset
+# that releases nothing.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-none-only"
+printf 'Releases nothing.\n' > "$PREVIEW_REPO/.changeset/legacy-none-only/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"none"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-none-only/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy none only'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "a legacy none on its own needs no signoff" false 0
+
+# A level we cannot rank is a level we cannot evaluate, so it fails closed rather than
+# being dropped.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-unsupported"
+printf 'An invented release level.\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-unsupported/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"colossal"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-unsupported/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy changeset with an unsupported level'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "an unrankable legacy level fails closed" true 1
+
 if grep -Fq 'Generated release PR; major signoff is enforced on source PRs.' "$WORKFLOW"; then
   pass "generated releases publish an explicit lifecycle-aware success"
 else

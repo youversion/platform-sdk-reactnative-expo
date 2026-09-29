@@ -93,7 +93,10 @@ function changesetStatus() {
  * Only a genuine absence returns null. A read that fails for any other reason throws, because
  * treating it as "no levels" would under-report a major.
  */
-const LEVEL_RANK = { patch: 0, minor: 1, major: 2 }
+// Changesets' own VersionType, in order. `none` is a real level and has to rank below
+// `patch`: leaving it out made its rank `undefined`, and `2 > undefined` is false, so a
+// `none` entry ahead of a `major` for the same package kept the `none`.
+const LEVEL_RANK = { none: 0, patch: 1, minor: 2, major: 3 }
 
 /**
  * Fold a Changesets `releases` array into one level per package.
@@ -105,8 +108,14 @@ const LEVEL_RANK = { patch: 0, minor: 1, major: 2 }
 function foldReleases(releases) {
   const levels = {}
   for (const release of releases ?? []) {
+    const rank = LEVEL_RANK[release.type]
+    // A level we do not know how to rank cannot be compared, and silently ignoring it
+    // would drop whatever it was. Throwing puts the caller on its fail-closed path.
+    if (rank === undefined) {
+      throw new Error(`Unsupported changeset release level: ${JSON.stringify(release.type)}`)
+    }
     const current = levels[release.name]
-    if (current === undefined || LEVEL_RANK[release.type] > LEVEL_RANK[current]) {
+    if (current === undefined || rank > LEVEL_RANK[current]) {
       levels[release.name] = release.type
     }
   }
@@ -138,6 +147,8 @@ function legacyDirState(ref, dir) {
   try {
     return {
       readable: true,
+      // Both a malformed JSON and an unrankable level land in the catch below, which is
+      // the fail-closed path: a declaration we cannot evaluate may well be a major.
       levels: foldReleases(JSON.parse(git('show', `${ref}:${dir}/changes.json`)).releases),
     }
   } catch {
