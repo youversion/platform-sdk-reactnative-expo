@@ -196,18 +196,11 @@ describe('the verse-action event set', () => {
 describe('the DOM scripture surface (unobservable from layer 3)', () => {
   const cardSource = readFileSync(join(__dirname, '../bible-card.tsx'), 'utf8')
   const textViewSource = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
-  const legacyDomSource = readFileSync(join(__dirname, '../../dom/bible-card.tsx'), 'utf8')
 
-  it('embeds BibleTextView instead of the full-component BibleCard wrapper', () => {
+  it('embeds BibleTextView instead of a full-component BibleCard wrapper', () => {
     expect(cardSource).toContain("getImpl('BibleTextViewDom')")
     expect(cardSource).not.toContain("getImpl('BibleCardDom')")
-  })
-
-  it('keeps the unused full-component DOM wrapper for RNV2-10', () => {
-    expect(legacyDomSource).toContain('BibleCard')
-    expect(legacyDomSource).not.toMatch(/^\s*accessToken\b/m)
-    expect(legacyDomSource).not.toContain('applyAuthToken')
-    expect(legacyDomSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
+    expect(cardSource).not.toContain("from '../dom/bible-card'")
   })
 
   it('keeps content fetches on the native Bible Content Client', () => {
