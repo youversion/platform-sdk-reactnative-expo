@@ -632,6 +632,35 @@ git -C "$PREVIEW_REPO" commit --quiet -m 'legacy minor'
 git -C "$PREVIEW_REPO" push --quiet origin pr
 run_preview_case "a legacy minor does not demand signoff" false 0
 
+# Changesets keeps the highest bump per package, so a releases array naming one package
+# major and then minor is a major. Assigning as we iterate would keep the minor.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-highest"
+printf 'Declared twice, highest wins.\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-highest/changes.md"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"major"},{"name":"@youversion/platform-react-native-expo-ui","type":"minor"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-highest/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy major then minor for one package'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "a legacy major listed beside a minor still needs signoff" true 1
+
+# A directory holding only changes.json is not a changeset to Changesets, which reads both
+# files together. Adding the missing summary makes its major visible for the first time.
+mkdir -p "$PREVIEW_REPO/.changeset/legacy-summary-later"
+printf '{"releases":[{"name":"@youversion/platform-react-native-expo-ui","type":"major"}],"dependents":[]}\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-summary-later/changes.json"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'legacy changeset missing its summary'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+printf 'The summary that makes the directory readable.\n' \
+  > "$PREVIEW_REPO/.changeset/legacy-summary-later/changes.md"
+git -C "$PREVIEW_REPO" add -A .changeset
+git -C "$PREVIEW_REPO" commit --quiet -m 'add the missing summary'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "adding a summary that makes a legacy major readable needs signoff" true 1
+
 if grep -Fq 'Generated release PR; major signoff is enforced on source PRs.' "$WORKFLOW"; then
   pass "generated releases publish an explicit lifecycle-aware success"
 else

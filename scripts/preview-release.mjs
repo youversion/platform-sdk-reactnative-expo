@@ -93,28 +93,56 @@ function changesetStatus() {
  * Only a genuine absence returns null. A read that fails for any other reason throws, because
  * treating it as "no levels" would under-report a major.
  */
+const LEVEL_RANK = { patch: 0, minor: 1, major: 2 }
+
 /**
- * Release levels declared by a legacy directory changeset, read from its `changes.json`.
+ * Fold a Changesets `releases` array into one level per package.
  *
- * `null` when the file is absent at that ref. An unparseable one returns no levels and the
- * caller fails closed, since a changeset we cannot read may well be a major.
+ * Highest wins, because that is what Changesets does. Assigning as we iterate would keep
+ * the last entry instead, so `[{pkg, major}, {pkg, minor}]` would read as a minor and the
+ * major would never reach the gate.
  */
-function legacyLevelsAtRef(ref, file) {
-  const spec = `${ref}:${file}`
-  try {
-    execFileSync('git', ['cat-file', '-e', spec], { cwd: REPO_ROOT, stdio: 'ignore' })
-  } catch {
-    return null
-  }
+function foldReleases(releases) {
   const levels = {}
-  try {
-    for (const release of JSON.parse(git('show', spec)).releases ?? []) {
+  for (const release of releases ?? []) {
+    const current = levels[release.name]
+    if (current === undefined || LEVEL_RANK[release.type] > LEVEL_RANK[current]) {
       levels[release.name] = release.type
     }
-  } catch {
-    return 'unreadable'
   }
   return levels
+}
+
+function existsAtRef(ref, file) {
+  try {
+    execFileSync('git', ['cat-file', '-e', `${ref}:${file}`], { cwd: REPO_ROOT, stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * What Changesets would make of a legacy directory at one ref.
+ *
+ * It reads `changes.md` and `changes.json` together, so a directory missing either is not a
+ * changeset to it at all. That matters as a transition: adding the missing summary to a
+ * directory that already declared a major makes that major visible for the first time.
+ *
+ * `levels: 'unreadable'` when the JSON will not parse, which the caller fails closed on.
+ */
+function legacyDirState(ref, dir) {
+  if (!existsAtRef(ref, `${dir}/changes.md`) || !existsAtRef(ref, `${dir}/changes.json`)) {
+    return { readable: false, levels: {} }
+  }
+  try {
+    return {
+      readable: true,
+      levels: foldReleases(JSON.parse(git('show', `${ref}:${dir}/changes.json`)).releases),
+    }
+  } catch {
+    return { readable: true, levels: 'unreadable' }
+  }
 }
 
 function levelsAtRef(ref, file) {
@@ -124,11 +152,7 @@ function levelsAtRef(ref, file) {
   } catch {
     return null
   }
-  const levels = {}
-  for (const release of parseChangeset(git('show', spec)).releases ?? []) {
-    levels[release.name] = release.type
-  }
-  return levels
+  return foldReleases(parseChangeset(git('show', spec)).releases)
 }
 
 /**
@@ -179,6 +203,8 @@ function addedChangesetLevels(base) {
   }
   const levels = []
   const touched = []
+  // A legacy directory can present two changed files; evaluate it once.
+  const seenLegacyDirs = new Set()
 
   for (let i = 0; i < fields.length; ) {
     const code = fields[i]
@@ -187,26 +213,33 @@ function addedChangesetLevels(base) {
     const basePath = fields[i + 1]
     const headPath = isRename ? fields[i + 2] : fields[i + 1]
     i += isRename ? 3 : 2
-    // Changesets still reads the legacy directory format, so read it too rather than
-    // guessing. `changes.json` carries the levels; a touched `changes.md` only changes the
-    // summary and cannot introduce a major on its own.
+    // Changesets reads a legacy directory as a unit: `changes.md` and `changes.json`
+    // together, or not at all. Judge the directory rather than the file, so that adding a
+    // missing summary to a directory that already declared a major is seen for what it is,
+    // a major becoming visible for the first time.
     if (isLegacyChangesetPath(headPath)) {
       touched.push(headPath)
-      if (!headPath.endsWith('/changes.json')) continue
-      const headLegacy = legacyLevelsAtRef(head, headPath)
-      const baseLegacy = isLegacyChangesetPath(basePath) ? legacyLevelsAtRef(base, basePath) : null
-      if (headLegacy === 'unreadable') {
-        // Fail closed: a declaration we cannot parse may be a major.
+      const dir = headPath.slice(0, headPath.lastIndexOf('/'))
+      if (seenLegacyDirs.has(dir)) continue
+      seenLegacyDirs.add(dir)
+
+      const headState = legacyDirState(head, dir)
+      if (!headState.readable) continue // Changesets cannot read it either
+      if (headState.levels === 'unreadable') {
+        // Fail closed: a declaration we cannot parse may well be a major.
         for (const pkg of published) {
-          levels.push({ file: headPath, level: 'major', package: pkg })
+          levels.push({ file: `${dir}/changes.json`, level: 'major', package: pkg })
         }
         continue
       }
-      for (const [pkg, level] of Object.entries(headLegacy ?? {})) {
+      const baseState = legacyDirState(base, dir)
+      const baseLevels =
+        baseState.readable && baseState.levels !== 'unreadable' ? baseState.levels : {}
+      for (const [pkg, level] of Object.entries(headState.levels)) {
         if (level !== 'major') continue
-        if (baseLegacy && baseLegacy !== 'unreadable' && baseLegacy[pkg] === 'major') continue
+        if (baseLevels[pkg] === 'major') continue
         if (!inRelease(pkg)) continue
-        levels.push({ file: headPath, level, package: pkg })
+        levels.push({ file: `${dir}/changes.json`, level, package: pkg })
       }
       continue
     }
