@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, and the auth button are native. Scripture still renders in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and `react-native-webview` stay required for those scripture surfaces.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, and the auth button are native. Scripture still renders in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK stay required for those scripture surfaces.
 
 ## Table of Contents
 

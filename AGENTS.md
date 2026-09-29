@@ -1,6 +1,6 @@
 # YouVersion Platform React Native Expo SDK
 
-Native chrome for React Native. Scripture still renders through Expo DOM and `@youversion/platform-react-ui`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview`, `react-native-webview`, and the Web SDK stay required. Scripture is the only surface that uses them.
+Native chrome for React Native. Scripture still renders through Expo DOM and `@youversion/platform-react-ui`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay required. Scripture is the only surface that uses them.
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 
