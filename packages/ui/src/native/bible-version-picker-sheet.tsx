@@ -1,4 +1,3 @@
-import type { DOMProps } from 'expo/dom'
 import type { ReactNode } from 'react'
 import { Keyboard, Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -17,7 +16,6 @@ export type BibleVersionPickerSheetProps = {
   versionId?: number
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (versionId: number) => void | Promise<void>
-  dom?: DOMProps
 }
 
 function BibleVersionPickerSheetImpl({
