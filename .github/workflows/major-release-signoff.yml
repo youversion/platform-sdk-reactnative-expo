@@ -2,7 +2,9 @@ name: Major Release Signoff
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # `edited` covers a retarget: the same head evaluated against a feature base can be
+    # green, and without re-evaluating, that result would stand once the base becomes main.
+    types: [opened, synchronize, reopened, edited]
   issue_comment:
     # `deleted` ensures the gate re-runs when a signoff comment is removed,
     # so a previously-cached `success` status doesn't outlive its evidence.
@@ -34,7 +36,9 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
+      base_ref: ${{ steps.pr.outputs.base_ref }}
       base_sha: ${{ steps.pr.outputs.base_sha }}
+      status_context: ${{ steps.pr.outputs.status_context }}
       generated_candidate: ${{ steps.pr.outputs.generated_candidate }}
       generated_release_pr: ${{ steps.pr.outputs.generated_release_pr }}
       head_sha: ${{ steps.pr.outputs.head_sha }}
@@ -134,6 +138,17 @@ jobs:
           fi
 
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "base_ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          # A commit status is keyed on SHA + context, and GitHub keeps only the newest per
+          # pair. Two PRs can share a head: `H -> feature` inherits that branch's major and
+          # passes, `H -> main` introduces one and must not. Publishing both to the same
+          # context lets the permissive result satisfy the strict one. Only a main-targeted
+          # evaluation writes the required context; anything else reports beside it.
+          if [ "$BASE_REF" = "main" ]; then
+            echo "status_context=$STATUS_CONTEXT" >> "$GITHUB_OUTPUT"
+          else
+            echo "status_context=$STATUS_CONTEXT/$BASE_REF" >> "$GITHUB_OUTPUT"
+          fi
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
           echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
           echo "pr_author=$PR_AUTHOR" >> "$GITHUB_OUTPUT"
@@ -236,8 +251,14 @@ jobs:
             # published by reading `private` out of each workspace manifest, and those came
             # from the PR. A branch could mark a package private to hide its own major, then
             # restore publication later without a new changeset.
+            # Every manifest, not just workspace ones. Node resolves a bare specifier by
+            # walking up from the importing file, so a PR-added `scripts/package.json`
+            # naming itself `@changesets/parse` with its own `exports` is loaded by the
+            # restored detector instead of the real package, and the detector then reports
+            # whatever that module returns. Anything tracked under a `node_modules`
+            # directory is the same trick with a different shape.
             git ls-files |
-              grep -E '^(packages|apps)/[^/]+/package[.]json$' |
+              grep -E '(^|/)package[.]json$|(^|/)node_modules/' |
               while IFS= read -r f; do
                 git cat-file -e "main:$f" 2>/dev/null || rm -f "$f"
               done
@@ -332,6 +353,8 @@ jobs:
     permissions:
       contents: read
       statuses: write
+    env:
+      RESOLVED_STATUS_CONTEXT: ${{ needs.context.outputs.status_context }}
     steps:
       - name: Post an unresolved status
         env:
@@ -354,7 +377,7 @@ jobs:
           fi
           gh api "repos/$REPOSITORY/statuses/$HEAD_SHA" \
             -f state=failure \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="Could not resolve PR context; release impact is unknown." \
             -f target_url="$RUN_URL" > /dev/null
           echo "Posted a failing status: PR context could not be resolved."
@@ -366,6 +389,8 @@ jobs:
     name: Major release signoff
     needs: [context, generated_release, preview]
     runs-on: ubuntu-latest
+    env:
+      RESOLVED_STATUS_CONTEXT: ${{ needs.context.outputs.status_context }}
     permissions:
       pull-requests: write
       statuses: write
@@ -473,7 +498,7 @@ jobs:
           set -euo pipefail
           gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
             -f state=success \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="No breaking changeset added (${RELEASE_TYPE:-no bump}); signoff not required." \
             -f target_url="$RUN_URL"
 
@@ -487,7 +512,7 @@ jobs:
           set -euo pipefail
           gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
             -f state=success \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="Generated release PR; major signoff is enforced on source PRs." \
             -f target_url="$RUN_URL"
 
@@ -505,7 +530,7 @@ jobs:
           set -euo pipefail
           gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
             -f state=failure \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="Unable to determine release impact; inspect the workflow run." \
             -f target_url="$RUN_URL"
           echo "Unable to determine release impact: $BLOCKED"
@@ -614,7 +639,7 @@ jobs:
           set -euo pipefail
           gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
             -f state=success \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="Major v${NEXT_VERSION} signed off by ${APPROVER}." \
             -f target_url="$RUN_URL"
 
@@ -680,7 +705,7 @@ jobs:
           set -euo pipefail
           gh api repos/${{ github.repository }}/statuses/$HEAD_SHA \
             -f state=failure \
-            -f context="$STATUS_CONTEXT" \
+            -f context="${RESOLVED_STATUS_CONTEXT:-$STATUS_CONTEXT}" \
             -f description="Breaking change detected; awaiting v${NEXT_VERSION} + :rocket: signoff from a write-access collaborator." \
             -f target_url="$RUN_URL"
 

@@ -55,6 +55,16 @@ git -C "$TOOLING_SOURCE" branch -M main
 git -C "$TOOLING_SOURCE" switch --quiet -c journey
 mkdir -p "$TOOLING_SOURCE/packages/pr-only"
 printf 'journey-only importer\n' > "$TOOLING_SOURCE/packages/pr-only/package.json"
+# Node resolves a bare specifier by walking up from the importing file, so a manifest beside
+# the detector that names itself after a real dependency is loaded instead of that
+# dependency. It sits outside the workspace globs, so the original sweep left it in place.
+printf '{"name":"@changesets/parse","exports":"./pr-owned.mjs"}\n' \
+  > "$TOOLING_SOURCE/scripts/package.json"
+printf 'export const parse = () => ({ releases: [] })\n' \
+  > "$TOOLING_SOURCE/scripts/pr-owned.mjs"
+mkdir -p "$TOOLING_SOURCE/scripts/node_modules/@changesets/parse"
+printf 'journey shadow dependency\n' \
+  > "$TOOLING_SOURCE/scripts/node_modules/@changesets/parse/index.js"
 for file in scripts/preview-release.mjs package.json pnpm-lock.yaml \
   pnpm-workspace.yaml .changeset/config.json packages/ui/package.json; do
   printf 'journey %s\n' "$file" > "$TOOLING_SOURCE/$file"
@@ -75,6 +85,8 @@ if (cd "$TOOLING_WORK" && bash "$TMP/restore-tooling.sh") >/dev/null 2>&1 &&
   [ "$(cat "$TOOLING_WORK/packages/ui/package.json")" = 'main packages/ui/package.json' ] &&
   [ "$(cat "$TOOLING_WORK/.npmrc")" = 'main .npmrc' ] &&
   [ ! -e "$TOOLING_WORK/packages/pr-only/package.json" ] &&
+  [ ! -e "$TOOLING_WORK/scripts/package.json" ] &&
+  [ ! -e "$TOOLING_WORK/scripts/node_modules/@changesets/parse/index.js" ] &&
   [ ! -e "$TOOLING_WORK/.pnpmfile.cjs" ]; then
   pass "restores the complete release dependency graph from trusted main"
 else
@@ -175,7 +187,7 @@ run_context_case() {
   printf '%s\n' "$compare_json" > "$compare_file"
   if PATH="$TMP/bin:$PATH" \
     EVENT_PR_NUMBER="$event_pr_number" EVENT_ISSUE_NUMBER="$event_issue_number" \
-    REPOSITORY=youversion/platform-sdk-reactnative-expo \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$pr_file" MOCK_COMPARE_FILE="$compare_file" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" bash "$TMP/context.sh" >/dev/null 2>&1 &&
     grep -Fxq "generated_release_pr=$expected_release_pr" "$output" &&
@@ -195,7 +207,7 @@ run_context_error_case() {
   printf '%s\n' "$VALID_PR" > "$TMP/pr.json"
   printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
   if env PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo \
+    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" "$error_var"=1 \
     bash "$TMP/context.sh" >/dev/null 2>&1; then
@@ -222,7 +234,7 @@ run_context_retry_case() {
   printf '%s\n' "$VALID_PR" > "$TMP/pr.json"
   printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
   if env PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo \
+    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" \
     MOCK_PULL_FAILURES="$pull_failures" \
@@ -248,7 +260,7 @@ run_unresolved_case() {
   : > "$statuses"
   env PATH="$TMP/bin:$PATH" \
     EVENT_ISSUE_NUMBER=400 PAYLOAD_HEAD_SHA="$payload_sha" \
-    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff STATUS_CONTEXT=major-release-signoff \
     RUN_URL=https://example.invalid/run GH_TOKEN=token \
     MOCK_STATUS_CALLS="$statuses" MOCK_LSREMOTE_SHA="$RECOVERED_SHA" \
     MOCK_LSREMOTE_ERROR="$lsremote_error" \
@@ -278,6 +290,35 @@ run_unresolved_case() {
     fail "$name" "$problem; call was '$call' (exit $result)"
   fi
 }
+
+# A commit status is keyed on SHA + context and GitHub keeps only the newest per pair, so
+# two PRs sharing a head would otherwise trade results: the one targeting a feature branch
+# inherits that branch's major and passes, and its green satisfies the one targeting main.
+run_status_context_case() {
+  local name="$1" base_ref="$2" expected="$3"
+  local output="$TMP/output"
+  : > "$output"
+  : > "$TMP/compare-calls"
+  : > "$TMP/pull-calls"
+  printf '%s\n' "$(jq --arg b "$base_ref" '.base.ref = $b' <<<"$VALID_PR")" > "$TMP/pr.json"
+  printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
+  env PATH="$TMP/bin:$PATH" \
+    EVENT_PR_NUMBER=400 EVENT_ISSUE_NUMBER= \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
+    GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
+    MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" \
+    bash "$TMP/context.sh" >/dev/null 2>&1 || true
+  if grep -Fxq "status_context=$expected" "$output"; then
+    pass "$name"
+  else
+    fail "$name" "expected status_context=$expected; got $(grep '^status_context=' "$output" || echo none)"
+  fi
+}
+
+run_status_context_case "a main-targeted PR writes the required status context" \
+  main major-release-signoff
+run_status_context_case "a feature-targeted PR reports beside it, not on it" \
+  journey-to-the-shadow-dom major-release-signoff/journey-to-the-shadow-dom
 
 run_context_case "accepts the exact generated release PR and consumed changeset shape" \
   true true "$VALID_PR" "$VALID_COMPARE"
@@ -559,6 +600,13 @@ if grep -qF 'scripts/preview-release.mjs scripts/changeset-eligibility.mjs' "$WO
 else
   fail "the eligibility module is restored from main alongside the detector" \
     "a PR-supplied copy of the changeset eligibility rule could hide its own major"
+fi
+
+if awk '/^  pull_request:/{f=1} f&&/types:/{print;exit}' "$WORKFLOW" | grep -q "edited"; then
+  pass "a retargeted PR is re-evaluated"
+else
+  fail "a retargeted PR is re-evaluated" \
+    "pull_request.edited is not subscribed, so a green result from a feature base survives a retarget to main"
 fi
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"
