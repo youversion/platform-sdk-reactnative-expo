@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-ui
 
-Drop-in YouVersion Bible components for React Native (Expo) apps. Built on the React Web SDK via [Expo DOM Components](https://docs.expo.dev/guides/dom-components/).
+Drop-in YouVersion Bible components for React Native (Expo) apps. Chrome is native. Scripture still renders in a WebView through the React Web SDK and [Expo DOM](https://docs.expo.dev/guides/dom-components/).
 
 ## When to use this package
 

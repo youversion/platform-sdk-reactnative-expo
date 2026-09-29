@@ -15,6 +15,8 @@ tags: [expo-dom, react-native, native-sheet, webview, provider]
 
 # Expo DOM Native Provider And Sheet Pattern
 
+> **Status.** Chrome is native. This note still applies to scripture WebViews, including footnotes.
+
 ## Context
 
 The React Native Expo SDK wraps `@youversion/platform-react-ui` DOM components for native apps. Consumers should get a native-feeling API with one `YouVersionProvider`, while the implementation still has to respect Expo DOM boundaries and keep WebView content warm for footnote sheets.

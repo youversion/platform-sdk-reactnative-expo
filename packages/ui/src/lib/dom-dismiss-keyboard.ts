@@ -1,23 +1,14 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * Dismiss the soft keyboard a DOM picker's search input raised when its native
- * sheet closes.
+ * Blur the focused HTML element inside a DOM WebView.
  *
- * The keyboard belongs to an `<input>` inside the Expo DOM WebView. React
- * Native's `Keyboard.dismiss()` only blurs the focused RN `TextInput` (via
- * `TextInputState`), which knows nothing about a WebView's HTML input, so it is
- * a no-op here. Blurring the focused element is the WebView-native way to drop
- * the IME.
+ * React Native's `Keyboard.dismiss()` only blurs a focused RN `TextInput`, so
+ * it cannot see an `<input>` in the WebView. No current sheet calls this hook.
+ * Version and chapter picker search fields are React Native text fields and
+ * dismiss with `Keyboard.dismiss()`. See ADR 0010.
  *
- * Native passes `isOpen` across the bridge; when it flips to `false` (Cancel,
- * pan-down, backdrop, or displacement all drive the sheet's `isOpen` to false)
- * we blur whatever is focused inside the WebView. This must run from inside the
- * DOM runtime — it is a one-way native→DOM command on close, not bridged UI
- * state. See docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md.
- *
- * Only call this from `'use dom'` components; it relies on the DOM runtime's
- * `document` / `HTMLElement`.
+ * Only call this from `'use dom'` components. It relies on `document`.
  */
 export function blurActiveDomElement(): void {
   const active = document.activeElement

@@ -1,5 +1,7 @@
 # Content-sized body for matchContents embeds
 
+> **Status.** `BibleCard` and `VerseOfTheDay` no longer have their own DOM files. They embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. Reader settings and the version and chapter pickers are native. Footnotes and the reader body still use the sheet DOM defaults.
+
 Expo DOM Components' `dom={{ matchContents: true }}` injects a `ResizeObserver` on `document.body` and applies the reported `{width, height}` to the WebView container. Expo's DOM HTML template, however, pins `html, body { height: 100% }` and `#root { height: 100% }`, so the body always measures the WebView's own frame — never the content. That makes `matchContents` circular: the frame height is reported back as the frame height.
 
 This stayed invisible while embeds sat in `flex: 1` screen containers — the WebView stretched to the full screen, the body reported the full screen, and the card simply painted top-aligned inside a viewport-sized box. Any layout that stops stretching the WebView (a content-sized wrapper, `alignItems: 'center'` on the parent) collapses the frame toward zero, the body reports the collapsed size, and the embed disappears.
