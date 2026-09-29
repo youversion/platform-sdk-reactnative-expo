@@ -7,11 +7,13 @@
  * so a consumer cannot couple to them and an accidental re-export from
  * `index.ts` reds the suite.
  *
- * Only the namespace is inspected. Nothing renders, so the DOM components the
- * native wrappers import stay unmocked — importing them is safe, mounting them
- * is what the layer-3 convention forbids.
+ * The namespace is inspected, plus `theme: 'system'` on the card and verse
+ * props. Nothing renders, so the DOM components the native wrappers import
+ * stay unmocked. Importing them is safe. Mounting them is what the layer-3
+ * convention forbids.
  */
 import * as ui from '../index'
+import type { BibleCardProps, VerseOfTheDayProps } from '../index'
 
 const PUBLIC_COMPONENTS = [
   'BibleCard',
@@ -75,6 +77,13 @@ describe('package exports', () => {
     expect(names).not.toContain('BibleReaderSearchSheet')
     expect(names).not.toContain('useBibleVersionAbbreviation')
     expect(names).not.toContain('useBibleBookTitle')
+  })
+
+  it('accepts theme system on BibleCard and VerseOfTheDay', () => {
+    const card = { reference: 'JHN.3.16', theme: 'system' } satisfies BibleCardProps
+    const verse = { theme: 'system' } satisfies VerseOfTheDayProps
+    expect(card.theme).toBe('system')
+    expect(verse.theme).toBe('system')
   })
 
   it('exports nothing beyond the pinned list', () => {
