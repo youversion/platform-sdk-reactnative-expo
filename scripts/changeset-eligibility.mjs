@@ -17,3 +17,21 @@ export function isChangesetPath(file) {
   if (name.includes('/')) return false
   return !name.startsWith('.') && name.endsWith('.md') && !/^README\.md$/i.test(name)
 }
+
+/**
+ * Does this path belong to a legacy directory-format changeset?
+ *
+ * @changesets/read still treats every directory under `.changeset` as a changeset, reading
+ * its `changes.md` and `changes.json`. The flat-file rule above rejects both, so a major
+ * declared this way is invisible to the detector while Changesets still ships it.
+ *
+ * Nothing in this repo uses the format, so the detector fails closed on it rather than
+ * learning to parse it: a release that declares its major this way asks for a signoff.
+ */
+export function isLegacyChangesetPath(file) {
+  if (!file.startsWith('.changeset/')) return false
+  const rest = file.slice('.changeset/'.length)
+  const [dir, ...tail] = rest.split('/')
+  if (tail.length !== 1 || dir === '' || dir.startsWith('.')) return false
+  return tail[0] === 'changes.md' || tail[0] === 'changes.json'
+}

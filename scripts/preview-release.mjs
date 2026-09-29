@@ -29,7 +29,7 @@ import { tmpdir } from 'node:os'
 import { join, relative, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { isChangesetPath } from './changeset-eligibility.mjs'
+import { isChangesetPath, isLegacyChangesetPath } from './changeset-eligibility.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -163,6 +163,16 @@ function addedChangesetLevels(base) {
     const basePath = fields[i + 1]
     const headPath = isRename ? fields[i + 2] : fields[i + 1]
     i += isRename ? 3 : 2
+    // Fail closed on the legacy directory format rather than parse it: Changesets reads
+    // it, this detector does not, and a major declared that way would otherwise ship
+    // without a signoff.
+    if (isLegacyChangesetPath(headPath)) {
+      touched.push(headPath)
+      for (const pkg of published) {
+        levels.push({ file: headPath, level: 'major', package: pkg })
+      }
+      continue
+    }
     if (!isChangeset(headPath)) continue
     touched.push(headPath)
 
