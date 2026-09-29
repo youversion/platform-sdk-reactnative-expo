@@ -232,7 +232,12 @@ function addedChangesetLevels(base) {
         }
         continue
       }
-      const baseState = legacyDirState(base, dir)
+      // Follow a rename: comparing against the new directory name would find nothing at
+      // base and read an already-declared major as newly introduced.
+      const baseDir = isLegacyChangesetPath(basePath)
+        ? basePath.slice(0, basePath.lastIndexOf('/'))
+        : dir
+      const baseState = legacyDirState(base, baseDir)
       const baseLevels =
         baseState.readable && baseState.levels !== 'unreadable' ? baseState.levels : {}
       for (const [pkg, level] of Object.entries(headState.levels)) {

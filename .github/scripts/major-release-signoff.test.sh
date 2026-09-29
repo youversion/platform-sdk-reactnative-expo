@@ -661,6 +661,14 @@ git -C "$PREVIEW_REPO" commit --quiet -m 'add the missing summary'
 git -C "$PREVIEW_REPO" push --quiet origin pr
 run_preview_case "adding a summary that makes a legacy major readable needs signoff" true 1
 
+# Renaming a legacy directory that already declared its major adds no release intent.
+# Comparing against the new name would find nothing at base and read it as newly introduced.
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+git -C "$PREVIEW_REPO" mv .changeset/legacy-summary-later .changeset/legacy-renamed
+git -C "$PREVIEW_REPO" commit --quiet -m 'rename a legacy changeset directory'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "renaming a legacy directory adds no new major" false 0
+
 if grep -Fq 'Generated release PR; major signoff is enforced on source PRs.' "$WORKFLOW"; then
   pass "generated releases publish an explicit lifecycle-aware success"
 else
