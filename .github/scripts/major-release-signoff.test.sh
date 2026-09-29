@@ -767,20 +767,23 @@ else
     "pull_request.edited is not subscribed, so a green result from a feature base survives a retarget to main"
 fi
 
-if awk '/^  context:/{f=1} f&&/^    needs:/{print;exit}' "$WORKFLOW" |
-  grep -q "invalidate_on_retarget"; then
-  pass "the evaluation waits for the retarget hold"
+# The hold has to be the first step of `context`, before the resolver. As its own job it
+# needed a `needs` edge to avoid racing the evaluation, and that edge propagated its skip to
+# `preview` on ordinary events, so the gate reported unknown impact on every normal push.
+hold_line=$(grep -n 'name: Mark the status pending' "$WORKFLOW" | cut -d: -f1)
+resolve_line=$(grep -n 'name: Resolve PR context' "$WORKFLOW" | tail -1 | cut -d: -f1)
+if [ -n "$hold_line" ] && [ -n "$resolve_line" ] && [ "$hold_line" -lt "$resolve_line" ]; then
+  pass "the retarget hold runs before the context resolver, in the same job"
 else
-  fail "the evaluation waits for the retarget hold" \
-    "context does not need invalidate_on_retarget, so a late pending can strand a signed-off PR"
+  fail "the retarget hold runs before the context resolver, in the same job" \
+    "a stale success from the previous base stands during re-evaluation, or a cross-job edge skips preview"
 fi
 
-if awk '/^  invalidate_on_retarget:/{f=1} f&&/^    if:/{print;exit}' "$WORKFLOW" |
-  grep -q "edited"; then
-  pass "the retarget hold runs on the edited event"
+if ! grep -q 'invalidate_on_retarget' "$WORKFLOW"; then
+  pass "no cross-job dependency reintroduces the skip propagation"
 else
-  fail "the retarget hold runs on the edited event" \
-    "without it a stale success from the previous base stands during re-evaluation"
+  fail "no cross-job dependency reintroduces the skip propagation" \
+    "a separate hold job needs an edge that skips preview on ordinary events"
 fi
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"

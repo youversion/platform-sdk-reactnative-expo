@@ -25,20 +25,40 @@ env:
   STATUS_CONTEXT: major-release-signoff
 
 jobs:
-  # A retarget changes which context this PR is judged on, and the status written under the
-  # old base stays on the SHA until a fresh one replaces it. A PR that was green while
-  # targeting main, moved to a feature branch, then moved back, has a stale unsuffixed
-  # success standing for the whole re-evaluation. Close that window first: mark the context
-  # pending before anything else runs, so a required check cannot be satisfied by the old
-  # answer while the new one is still being computed.
-  invalidate_on_retarget:
-    if: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' }}
-    name: Hold the signoff status while a retarget is re-evaluated
+  context:
+    # issue_comment fires for issues AND PRs across the repo. Skip non-PR
+    # issues and bot comments. Bot runs have isolated concurrency keys above,
+    # because this condition is not evaluated until after concurrency handling.
+    if: ${{ github.event_name != 'issue_comment' || (github.event.issue.pull_request != null && github.event.comment.user.type != 'Bot') }}
+    name: Resolve PR context
     runs-on: ubuntu-latest
     permissions:
+      contents: read
+      pull-requests: read
+      # For the retarget hold below. Resolving context needs no write scope itself.
       statuses: write
+    outputs:
+      base_ref: ${{ steps.pr.outputs.base_ref }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+      status_context: ${{ steps.pr.outputs.status_context }}
+      generated_candidate: ${{ steps.pr.outputs.generated_candidate }}
+      generated_release_pr: ${{ steps.pr.outputs.generated_release_pr }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      is_fork: ${{ steps.pr.outputs.is_fork }}
+      pr_author: ${{ steps.pr.outputs.pr_author }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
     steps:
+      # A retarget changes which context this PR is judged on, and the status written under
+      # the old base stays on the SHA until a fresh one replaces it. A PR green while
+      # targeting main, moved to a feature branch, then moved back, has a stale unsuffixed
+      # success standing for the whole re-evaluation. Hold it pending first, so a required
+      # check cannot be satisfied by the old answer while the new one is computed.
+      #
+      # A step rather than its own job: as a separate job it needed `needs` to avoid racing
+      # the evaluation, and that dependency propagated its skip to `preview` on every
+      # ordinary event, which made the gate report unknown impact on normal pushes.
       - name: Mark the status pending
+        if: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -59,33 +79,6 @@ jobs:
             -f target_url="$RUN_URL" > /dev/null
           echo "Held $CTX pending while the retarget is re-evaluated."
 
-  context:
-    # issue_comment fires for issues AND PRs across the repo. Skip non-PR
-    # issues and bot comments. Bot runs have isolated concurrency keys above,
-    # because this condition is not evaluated until after concurrency handling.
-    # `needs` the hold so the two cannot race: without it the evaluation can publish its
-    # real result first and the hold's `pending` lands after, leaving even a signed-off PR
-    # stuck until some other event reruns the workflow. `always()` because the hold is
-    # skipped on every event except a retarget, and a skipped dependency would otherwise
-    # skip this too.
-    needs: invalidate_on_retarget
-    if: ${{ always() && !cancelled() && (github.event_name != 'issue_comment' || (github.event.issue.pull_request != null && github.event.comment.user.type != 'Bot')) }}
-    name: Resolve PR context
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      base_ref: ${{ steps.pr.outputs.base_ref }}
-      base_sha: ${{ steps.pr.outputs.base_sha }}
-      status_context: ${{ steps.pr.outputs.status_context }}
-      generated_candidate: ${{ steps.pr.outputs.generated_candidate }}
-      generated_release_pr: ${{ steps.pr.outputs.generated_release_pr }}
-      head_sha: ${{ steps.pr.outputs.head_sha }}
-      is_fork: ${{ steps.pr.outputs.is_fork }}
-      pr_author: ${{ steps.pr.outputs.pr_author }}
-      pr_number: ${{ steps.pr.outputs.pr_number }}
-    steps:
       - name: Resolve PR context
         id: pr
         env:
