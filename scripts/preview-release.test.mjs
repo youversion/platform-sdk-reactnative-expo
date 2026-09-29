@@ -25,10 +25,7 @@ test('eligibility matches what Changesets actually reads', async () => {
     'notes.txt',
   ]
   for (const name of names) {
-    writeFileSync(
-      join(dir, '.changeset', name),
-      `---\n'@scope/pkg': major\n---\n\nbreaking\n`,
-    )
+    writeFileSync(join(dir, '.changeset', name), `---\n'@scope/pkg': major\n---\n\nbreaking\n`)
   }
 
   const read = await readChangesets(dir)
