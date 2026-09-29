@@ -255,12 +255,12 @@ run_context_retry_case() {
 # SHA was addressed passes just as happily when the job posts `state=success`,
 # which is the one outcome this job exists to prevent.
 run_unresolved_case() {
-  local name="$1" payload_sha="$2" lsremote_error="$3" expected_sha="$4"
+  local name="$1" payload_sha="$2" lsremote_error="$3" expected_sha="$4" base_ref="${5:-main}"
   local statuses="$TMP/status-calls" call result=0
   : > "$statuses"
   env PATH="$TMP/bin:$PATH" \
-    EVENT_ISSUE_NUMBER=400 PAYLOAD_HEAD_SHA="$payload_sha" \
-    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff STATUS_CONTEXT=major-release-signoff \
+    EVENT_ISSUE_NUMBER=400 PAYLOAD_HEAD_SHA="$payload_sha" PAYLOAD_BASE_REF="$base_ref" \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     RUN_URL=https://example.invalid/run GH_TOKEN=token \
     MOCK_STATUS_CALLS="$statuses" MOCK_LSREMOTE_SHA="$RECOVERED_SHA" \
     MOCK_LSREMOTE_ERROR="$lsremote_error" \
@@ -279,7 +279,8 @@ run_unresolved_case() {
   local problem=""
   [[ "$call" == *"/statuses/$expected_sha"* ]] || problem="wrong target SHA"
   [[ "$call" == *"state=failure"* ]] || problem="${problem:-status was not failure}"
-  [[ "$call" == *"context=major-release-signoff"* ]] || problem="${problem:-wrong context}"
+  [[ "$call" == *"context=${expected_context:-major-release-signoff}"* ]] ||
+    problem="${problem:-wrong context}"
   [[ "$call" == *"target_url=https://example.invalid/run"* ]] || problem="${problem:-no target_url}"
   [[ "$call" == *"Could not resolve PR context"* ]] || problem="${problem:-no description}"
   [ "$result" -ne 0 ] || problem="${problem:-job exited 0}"
@@ -373,6 +374,11 @@ run_context_retry_case "persistent PR API errors stop after three attempts" 3 fa
 run_unresolved_case "a pull_request payload head takes the failing status" "$HEAD_SHA" 0 "$HEAD_SHA"
 run_unresolved_case "an issue_comment recovers the head over git" "" 0 "$RECOVERED_SHA"
 run_unresolved_case "an unrecoverable head posts no status at all" "" 1 ""
+# Two PRs can share a head. A feature-targeted one that cannot resolve its context must not
+# write failure to the context the main-targeted one is judged on.
+expected_context="major-release-signoff/journey" \
+  run_unresolved_case "a feature-targeted failure stays off the required context" \
+    "$HEAD_SHA" 0 "$HEAD_SHA" journey
 
 VERIFY_REPO="$TMP/verify-repo"
 git init --quiet "$VERIFY_REPO"
@@ -580,6 +586,26 @@ git -C "$PREVIEW_REPO" add .changeset/pr-major.md
 git -C "$PREVIEW_REPO" commit --quiet -m 'PR major'
 git -C "$PREVIEW_REPO" push --quiet origin pr
 run_preview_case "stacked PRs require signoff for a newly introduced major" true 1
+
+# Changesets skips a dotfile, so a major sitting in `.changeset/.hidden.md` is not in the
+# base release at all. Renaming it onto an eligible name introduces that major for the
+# first time. Reading the old path for comparison would find the same major there and
+# dismiss it as pre-existing, so the rename slips past the gate.
+cat > "$PREVIEW_REPO/.changeset/.hidden.md" <<'EOF'
+---
+"@youversion/platform-react-native-expo-ui": major
+---
+
+Parked, and invisible to Changesets while it is a dotfile.
+EOF
+git -C "$PREVIEW_REPO" add .changeset/.hidden.md
+git -C "$PREVIEW_REPO" commit --quiet -m 'park a major in an ignored changeset'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+PREVIEW_BASE_SHA=$(git -C "$PREVIEW_REPO" rev-parse HEAD)
+git -C "$PREVIEW_REPO" mv .changeset/.hidden.md .changeset/now-visible.md
+git -C "$PREVIEW_REPO" commit --quiet -m 'rename the ignored changeset onto an eligible name'
+git -C "$PREVIEW_REPO" push --quiet origin pr
+run_preview_case "renaming an ignored changeset onto an eligible name needs signoff" true 1
 
 if grep -Fq 'Generated release PR; major signoff is enforced on source PRs.' "$WORKFLOW"; then
   pass "generated releases publish an explicit lifecycle-aware success"

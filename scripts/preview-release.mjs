@@ -177,7 +177,11 @@ function addedChangesetLevels(base) {
     }
 
     const headLevels = levelsAtRef(head, headPath) ?? {}
-    const baseLevels = levelsAtRef(base, basePath)
+    // Only compare against the old path if Changesets would have read it. Renaming an
+    // ignored file such as `.changeset/.hidden.md` onto an eligible name introduces its
+    // major for the first time; reading the old path would find that same major and
+    // dismiss it as pre-existing.
+    const baseLevels = isChangesetPath(basePath) ? levelsAtRef(base, basePath) : null
     for (const [pkg, level] of Object.entries(headLevels)) {
       if (level !== 'major') continue
       if (baseLevels && baseLevels[pkg] === 'major') continue // already breaking before this PR

@@ -361,10 +361,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           PAYLOAD_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PAYLOAD_BASE_REF: ${{ github.event.pull_request.base.ref }}
           REPOSITORY: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          # `context` failed, so its resolved context is empty. A pull_request payload still
+          # carries the base, and using it matters: two PRs can share a head, so writing this
+          # failure to the required context would red-flag a main-targeted PR because a
+          # feature-targeted one could not resolve. Where the base is unknowable, fall back
+          # to the required context rather than leave a stale green.
+          if [ -n "$PAYLOAD_BASE_REF" ] && [ "$PAYLOAD_BASE_REF" != "main" ]; then
+            RESOLVED_STATUS_CONTEXT="$STATUS_CONTEXT/$PAYLOAD_BASE_REF"
+          fi
           HEAD_SHA="$PAYLOAD_HEAD_SHA"
           if [ -z "$HEAD_SHA" ]; then
             HEAD_SHA=$(git ls-remote \
