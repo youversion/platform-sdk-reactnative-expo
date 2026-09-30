@@ -23,11 +23,11 @@ jobs:
         run: pnpm lint:native-i18n
       - name: Run no-raw-color oxlint regression tests
         run: pnpm lint:no-raw-color
-      # `test:scripts` runs every scripts/*.test.mjs, which includes the iOS tooling
-      # suite, so a separate step for it would run that suite twice. `pnpm test:ios-dev`
-      # stays in package.json as a focused command for local use.
+      # `test:ci-scripts` runs the bash signoff suite plus every scripts/*.test.mjs,
+      # which includes the iOS tooling suite, so a separate step for it would run
+      # that suite twice. `pnpm test:ios-dev` stays in package.json for local use.
       - name: Run repo script regression tests
-        run: pnpm test:scripts
+        run: pnpm test:ci-scripts
 
   typecheck:
     name: Typecheck
