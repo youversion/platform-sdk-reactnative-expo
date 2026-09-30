@@ -52,7 +52,7 @@ export function withEmbedDomDefaults(dom?: DOMProps): DOMProps {
 }
 
 /**
- * Sheet-hosted `matchContents` embeds (footnotes, reader settings). Applies the
+ * Sheet-hosted `matchContents` embeds (footnotes). Applies the
  * same scroll-chrome defaults as screen embeds but leaves container sizing to
  * the NativeSheet / bottom-sheet host (ADR 0007).
  */
