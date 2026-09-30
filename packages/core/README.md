@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-core
 
-Auth, highlights, and storage primitives for the YouVersion Platform React Native (Expo) SDK: installation id, optional PKCE OAuth, token storage, and the Bible highlights hooks.
+Auth, highlights, search, and storage primitives for the YouVersion Platform React Native (Expo) SDK. It covers installation id, optional PKCE OAuth, token storage, Bible search, and the Bible highlights hooks.
 
 ## When to use this package
 
@@ -13,10 +13,11 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ Bible highlights with optimistic writes and an instant local cache (`useHighlights`)
 - ✅ Highlights made offline that survive a relaunch and land on their own
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
+- ✅ Bible search (`useSearch`) and `bibleReferenceFromUsfm` for turning a hit into a book, chapter, and verse
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
-Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package; import `useYVAuth` from core.
+Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package; import `useYVAuth` and `useSearch` from core.
 
 ## Install
 
@@ -176,6 +177,20 @@ const { highlights, apply, isConfirming, confirm, decline, flowError } = useHigh
 Drive a consent prompt from `isConfirming`, and route **every** dismissal path — button, backdrop, pan-down — to `decline()`, or the flow is left waiting on an answer that never comes. The hook renders no UI of its own and runs no sign-in prompt; it calls `signIn()` directly, so a sign-in prompt in front of it is yours to add (`BibleReader` in the UI package ships both prompts already wired).
 
 `apply` resolves the write's own `HighlightWriteOutcome` when a write was issued, `{ status: 'noop' }` when the user abandoned the flow, and an `error` only when the flow itself failed — a cancel or a decline is a user choice, not an error, and never appears in `flowError`. A `queued` write passes straight back to you rather than re-prompting: a user who signs in, grants, and then taps with no service gets their paint.
+
+### Search
+
+`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a USFM reference. `bibleReferenceFromUsfm(usfm, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. `createSearchApi` is not a package export.
+
+```tsx
+import { bibleReferenceFromUsfm, useSearch } from '@youversion/platform-react-native-expo-core'
+
+const search = useSearch()
+const result = await search.verses({ query: 'two fish', bibleId: 111 })
+if (result.ok) {
+  const reference = bibleReferenceFromUsfm(result.value.verses[0]?.id ?? '', 111)
+}
+```
 
 ## License
 

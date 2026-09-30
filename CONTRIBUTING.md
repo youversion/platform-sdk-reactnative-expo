@@ -226,6 +226,7 @@ packages/ui/src/
 
 packages/core/src/
   auth/      PKCE OAuth, token storage, useYVAuth
+  search/    useSearch and bibleReferenceFromUsfm
   storage/   MMKV and SecureStore adapters
 
 apps/example/  Expo Router app consuming both packages via workspace:*
@@ -233,7 +234,7 @@ apps/example/  Expo Router app consuming both packages via workspace:*
 
 ## Project Notes
 
-- **Packages**: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (provider, auth, storage). The example app depends on both; UI re-exports the public component API and wraps the core provider.
+- **Packages**: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (provider, auth, search, storage). The example app depends on both; UI re-exports the public component API and wraps the core provider.
 - **Expo DOM**: DOM components use `'use dom'` and run in Expo's DOM/WebView runtime. Mount Web SDK components only inside those wrappers. Scripture uses them. Toolbar, pickers, settings, and other chrome stay native.
 - **Provider setup**: `GestureHandlerRootView` must wrap `YouVersionProvider` so bottom-sheet gestures have the right native ancestor.
 - **Exports**: keep public exports in each package's `src/index.ts` barrel files. Auth hooks and types live in core; Bible components live in UI.

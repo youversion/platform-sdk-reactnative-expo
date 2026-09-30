@@ -133,7 +133,7 @@ const suppressInactive = Platform.OS === 'android' && !isActive
 
 ## Related
 
-- `docs/solutions/architecture-patterns/version-picker-shell-and-dom-ui-state-2026-05-18.md` — in-sheet UI state (e.g. language panel) must stay in the DOM WebView, not round-trip through native
+- `docs/solutions/architecture-patterns/version-picker-shell-and-dom-ui-state-2026-05-18.md` describes the previous DOM version picker. The live language panel is native. See **Native Bible Version Picker** in `CONTEXT.md`.
 - `packages/ui/src/native/youversion-provider.tsx`
 - `packages/ui/src/native/native-sheet.tsx`
 - `packages/ui/src/native/bible-reader.tsx`

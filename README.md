@@ -26,13 +26,13 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 ## Features
 
 - **Scripture display**: React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android and built-in chapter, version, and settings sheets
+- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android (chapter, version, Search, More) and built-in chapter, version, Search, and settings sheets
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
 - **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides and `useTokens()` for the SDK's own color tokens
-- **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- **Native presentation**: verse actions, footnotes, Search, and the chapter and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
@@ -133,7 +133,7 @@ function CardScreen() {
 }
 ```
 
-`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
+`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. The reference, version control, copyright, and logo are native. Scripture stays in a WebView. `maxWidth` defaults to 700 on that native card. `"100%"` fills the parent and keeps a 600px inner column. `background` sets the card scheme when `theme` is omitted. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 

@@ -7,14 +7,15 @@ problem_type: architecture_pattern
 component: bible-version-picker-sheet
 severity: medium
 applies_when:
-  - Reading why the old DOM version picker kept the language panel out of React Native
-  - The file `packages/ui/src/dom/bible-version-picker-content.tsx` is gone. The picker is native.
+  - Building or debugging the version picker sheet language panel
+  - Deciding what state belongs in React Native vs inside an Expo DOM WebView
+  - Cross-fade or transition inside a sheet does not run on first open
 tags: [expo-dom, version-picker, native-action, webview, css-transition]
 ---
 
 # Version Picker Shell And DOM-Owned UI State
 
-> **Status: Historical.** The DOM shell this note describes was removed. The version picker is native. See `packages/ui/src/native/bible-version-picker-sheet.tsx`, `packages/ui/src/native/bible-version-picker.tsx`, and `packages/ui/src/components/bible/use-version-picker.ts`.
+> The live version picker is native. See **Native Bible Version Picker** in `CONTEXT.md` and the supersession note on [ADR 0005](../../adr/0005-dom-owned-language-panel-in-version-picker.md). This note describes the DOM shell this branch stopped mounting.
 
 ## Context
 

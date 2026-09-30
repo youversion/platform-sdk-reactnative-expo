@@ -21,8 +21,8 @@ The platform-specific surface that displays reusable content, such as a Radix Po
 _Avoid_: Modal, popup
 
 **Native Sheet**:
-The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. A sheet dismisses a React Native text field's keyboard when it passes `onDismissKeyboardStart` and that callback calls `Keyboard.dismiss()`. The version picker sheet does this. `Keyboard.dismiss()` does not see a keyboard raised by an HTML input inside an Expo DOM WebView. `useDismissKeyboardOnClose` blurs that input when `isOpen` becomes false, and no current sheet calls it. See [ADR 0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md).
-_Avoid_: Modal; treating keyboard dismiss as automatic
+The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. Closing it dismisses a keyboard raised by its Expo DOM content only when that content receives `isOpen` and calls `useDismissKeyboardOnClose`. See [ADR 0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md).
+_Avoid_: Modal; treating keyboard dismiss as automatic native `Keyboard.dismiss()`
 
 **Inactive Sheet Inertness**:
 A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.
@@ -83,8 +83,8 @@ The optional informational chapter supplied separately by a book's API payload. 
 _Avoid_: Chapter zero, book introduction
 
 **Version Picker Sheet**:
-A **Native Wrapper** that hosts the native version picker inside one **Native Sheet**. The sheet passes the current `versionId` in and receives a new `versionId` via `onSelect`. `useVersionPicker` keeps navigation between the version list and the language list. The sheet calls `Keyboard.dismiss()` when it starts to close. While `isOpen` is true it mounts the picker. Closing unmounts the picker, which clears scroll, search, and the language panel.
-_Avoid_: Version modal, stacked picker sheets, an Expo DOM version picker
+A **Native Wrapper** that hosts the **Native Bible Version Picker** inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. Both panels stay mounted in React Native. The public `dom` prop is still on the type and the sheet does not pass it anywhere.
+_Avoid_: Version modal, stacked picker sheets, treating the language panel as **DOM-Owned Sheet UI State**
 
 **Version Filter**:
 Optional allowlists on core `YouVersionProvider` — `permittedVersionIds`, `excludedVersionIds`, `permittedLanguageTags` — that restrict which Bible versions and languages the SDK may use. Unset permit list = no restriction; `[]` = permit nothing; exclusion wins; language tags are BCP 47. Native stores and forwards the lists into each Expo DOM web `YouVersionProvider`. Native VOTD chrome and Share apply the same permit, exclude, and language rules to the share payload and header reference so a refused version cannot leak outside the WebView. It still does not export a native `isUsableVersion` helper.
@@ -98,17 +98,21 @@ _Avoid_: Putting locale on core `YouVersionContext`; mapping `locale` to a Bible
 When a persisted or host `versionId` is not permitted, native chrome still passes that id into the WebView and lets the web SDK refuse. Native VOTD Share no-ops and the header reference stays empty. Native does not auto-pick another version, silently fall back to the default version id, or rewrite **Reader Location** / Bible Card version MMKV on refuse. First-open defaults when there is no stored or host id are unchanged.
 _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders; sharing a refused version from native chrome
 
+**Native Bible Version Picker**:
+The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state.
+_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is still registered and the sheet does not render it.
+
 **Version Picker Shell Layout**:
-Retired name for `packages/ui/src/dom/bible-version-picker-content.tsx`. That file is gone. The version picker is native. `packages/ui/src/native/bible-version-picker.tsx` renders `packages/ui/src/components/bible/version-picker-content.tsx`. Panel changes go through `nextPanel` in `useVersionPicker`.
-_Avoid_: Treating this name as the live layout
+The previous Expo DOM wrapper (`dom/bible-version-picker-content.tsx`). **Version Picker Sheet** no longer renders it. See **Native Bible Version Picker**.
+_Avoid_: Treating this wrapper as the live sheet
 
 **DOM-Owned Sheet UI State**:
-Retired for the version picker. The language panel used to stay inside the WebView so the first open could animate. `useVersionPicker` now keeps that panel in React state. Do not bridge `showLanguagePicker`.
-_Avoid_: `showLanguagePicker` bridge props
+UI visibility and animation state that applies only inside one sheet's WebView and must not be lifted to React Native. A **Native Action** round-trip for such state breaks synchronous CSS transitions on first paint. The version picker language panel is not an example of this. That panel is native.
+_Avoid_: Shared WebView-only UI state on native. Putting the version picker language panel back behind a bridge prop.
 
 **Sheet Reset Key**:
-Retired. The version picker no longer takes a `resetKey`. `BibleVersionPickerSheet` mounts the picker only while `isOpen` is true, so each open starts fresh.
-_Avoid_: Adding `resetKey` back. Reserve `openKey` for a repeat open while `isOpen` stays true, such as footnotes.
+A serializable number the previous DOM version picker used to remount its WebView tree on each open. The native **Version Picker Sheet** does not pass one.
+_Avoid_: Using `openKey` for this (reserve **openKey** for repeat-open while `isOpen` stays true, e.g. footnotes)
 
 **Reader Controls**:
 The visible controls around reader content, including chapter navigation, version selection, Search, and settings. On native, those triggers live in the **Native Reader Toolbar**. `showToolbar: false` omits that row and the built-in **Chapter Picker Sheet**, **Version Picker Sheet**, Search sheet, and settings sheet.
@@ -159,8 +163,8 @@ The serializable payload the reader emits on every selection change, cleared sel
 _Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
 
 **Selection Clear Signal**:
-A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as `openKey`, because an imperative ref handle cannot cross the DOM bridge.
-_Avoid_: `ref.clearSelection()`; a boolean "is selected" prop
+A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
+_Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key** (that remounts a picker tree; this one clears a selection)
 
 **Verse Action Sheet**:
 The **Native Sheet** the reader raises over a live **Verse Selection**: the localized reference, Copy, and Share. The **Verse Action Swatches** join them when `auth` is configured on `YouVersionProvider`; a missing config omits the tray — there is no sign-in to offer, and a color tap would no-op. It replaces the Web SDK's in-WebView verse action **Presentation Shell** on iOS and Android, matching what Swift and Kotlin present. Alone among our sheets it is **non-modal**. It has no backdrop, because a backdrop intercepts the second verse tap that extends a selection. The cost is that backdrop-tap-to-dismiss does not exist. The compensation is an upward drop shadow on every themed **Native Sheet**. It is internal, not exported: the reader owns it, and a host building its own action UI has **Verse Selection** plus `useHighlights`. Every exit from it increments the **Selection Clear Signal**, so the selection and the sheet cannot disagree about whether one exists. It yields to the sign-in and consent sheets — displacement would close it and clear the selection a **Pending Highlight** is waiting on. See [ADR 0017](docs/adr/0017-native-verse-action-sheet.md).
