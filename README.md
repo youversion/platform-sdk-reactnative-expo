@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. It wraps the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/), adding native affordances (bottom sheets, navigation, storage) through React Native.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, and the auth button are native. Scripture still renders in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK stay required for those scripture surfaces.
 
 ## Table of Contents
 
@@ -152,7 +152,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, a chapter capsule with previous and next, a separate version capsule, Search, and a More menu live in native chrome. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. Search opens a native sheet. A result tap loads that chapter, scrolls to the verse, and dims the rest of the chapter. `showToolbar={false}` hides that chrome and the built-in chapter, version, Search, and settings sheets. On web, the Web SDK toolbar is unchanged. There is no native Search chrome on web.
+On iOS and Android, a chapter capsule with previous and next, a separate version capsule, Search, and a More menu live in native chrome. Chapter and version presses open the built-in sheets, or your `onChapterPickerPress` and `onVersionPickerPress` callbacks. More opens Fonts & Settings. Search opens a native sheet. A result tap loads that chapter, scrolls to the verse, and dims the rest of the chapter. `showToolbar={false}` hides that chrome and the built-in chapter, version, Search, and settings sheets. On web, the Web SDK toolbar is unchanged. There is no native Search chrome on web.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 

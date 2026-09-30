@@ -25,12 +25,7 @@ function renderShim(props: FilterProps): FilterProps {
   return (element as ReactElement<FilterProps>).props
 }
 
-const VERSION_FILTER_DOM_ENTRIES = [
-  'bible-card.tsx',
-  'bible-reader.tsx',
-  'bible-text-view.tsx',
-  'verse-of-the-day.tsx',
-] as const
+const VERSION_FILTER_DOM_ENTRIES = ['bible-reader.tsx', 'bible-text-view.tsx'] as const
 
 const DOM_ENTRIES = [...VERSION_FILTER_DOM_ENTRIES, 'footnote-content.tsx'] as const
 

@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for composing React Web SDK Bible experiences into React Native Expo apps. Preserves the boundary between Web SDK content, Expo DOM adapters, and native presentation/state.
+Language for composing React Web SDK Bible experiences into React Native Expo apps. Preserves the boundary between Web SDK scripture, Expo DOM adapters, and native chrome.
 
 ## Language
 
@@ -13,7 +13,7 @@ A `'use dom'` wrapper that renders React Web SDK content inside Expo's DOM/WebVi
 _Avoid_: WebView component, DOM view
 
 **Native Wrapper**:
-A React Native component that owns native-facing API, coordination state, and native presentation around one or more Expo DOM components.
+A React Native component that owns the public API and native presentation. Scripture wrappers embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
 _Avoid_: Container, adapter
 
 **Presentation Shell**:
@@ -31,7 +31,7 @@ Implementation note: inactive Gorhom hosts may remain mounted for pre-warming, b
 _Avoid_: Treating a closed sheet host as harmless just because `index={-1}`
 
 **Sheet Surface Parity**:
-A **Native Sheet** requirement: the sheet chrome (handle, rounded corners, header) and its footer must visually match the surfaces the Expo DOM WebView paints beneath them. The two are rendered by different engines but read as one continuous surface, so the chrome matches the WebView background and the footer beneath a search bar matches the WebView's muted search surface. The native color tokens therefore track the Web SDK's themed surfaces rather than being chosen independently.
+A **Native Sheet** requirement: when a sheet hosts scripture in a WebView, the sheet chrome (handle, rounded corners, header) and its footer must match the surfaces that WebView paints. The two are rendered by different engines but read as one continuous surface. The native color tokens therefore track the Web SDK's themed surfaces rather than being chosen independently.
 _Avoid_: Theming the sheet chrome on its own; treating the footer as the same color as the rest of the sheet
 
 **Native-Owned State**:
@@ -39,7 +39,7 @@ State kept outside the Expo DOM runtime so it can coordinate native wrappers, sh
 _Avoid_: Shared DOM state, WebView state
 
 **Native Action**:
-A top-level async function prop passed from React Native into an Expo DOM component across the WebView boundary—for committed outcomes (e.g. select version, close sheet), not in-sheet UI toggles.
+A top-level async function prop passed from React Native into an Expo DOM component across the WebView boundary, for a committed outcome such as a footnote press, not an in-sheet UI toggle.
 _Avoid_: Nested action, callback object; bridging DOM-only visibility or animation state
 
 **Picker Selection**:

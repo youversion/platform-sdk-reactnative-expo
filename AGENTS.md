@@ -1,6 +1,6 @@
 # YouVersion Platform React Native Expo SDK
 
-Wraps `@youversion/platform-react-ui` as Expo DOM components for React Native. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`.
+Native chrome for React Native. Scripture and footnotes still render through Expo DOM and `@youversion/platform-react-ui`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay required for those DOM files. Native code may import Web SDK values.
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 

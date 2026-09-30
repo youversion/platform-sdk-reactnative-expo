@@ -4,12 +4,16 @@ import {
   type FetchBibleContent,
   type Highlight,
 } from '@youversion/platform-react-native-expo-core'
-import type { BibleVersionPickerPressData, FootnoteData } from '@youversion/platform-react-ui'
+import type {
+  BibleCardProps as WebBibleCardProps,
+  BibleVersionPickerPressData,
+  FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import { Button, Card, Text } from '../components/ui'
-import type { BibleCardProps as BibleCardDOMProps } from '../dom/bible-card'
 import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
 import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -41,20 +45,11 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 }
 
 export type BibleCardProps = Omit<
-  BibleCardDOMProps,
-  | 'appKey'
-  | 'apiHost'
-  | 'installationId'
-  | 'fetchBibleContent'
-  | 'onVersionChange'
-  | 'onVersionPickerPress'
-  | 'theme'
-  | 'versionId'
-  | 'highlights'
+  WebBibleCardProps,
+  'highlights' | 'onFootnotePress' | 'onVersionChange' | 'onVersionPickerPress'
 > & {
+  dom?: DOMProps
   theme?: 'light' | 'dark' | 'system'
-  versionId?: number
-  defaultVersionId?: number
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
