@@ -374,9 +374,9 @@ describe('BibleReaderSearchSheet', () => {
     expect(screen.getByText('Cancel')).toBeTruthy()
   })
 
-  it('falls back to * when the version language is missing', async () => {
+  it('skips trending until the version language is known', async () => {
     const stub = searchStub()
-    render(
+    const { rerender } = render(
       <BibleReaderSearchSheet
         isOpen
         onClose={() => {}}
@@ -389,7 +389,24 @@ describe('BibleReaderSearchSheet', () => {
     )
     await flush()
 
-    expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['*'] })
+    expect(screen.queryByText('faith')).toBeNull()
+    expect(stub.trendingQueries).not.toHaveBeenCalled()
+
+    rerender(
+      <BibleReaderSearchSheet
+        isOpen
+        onClose={() => {}}
+        versionId={111}
+        languageTag="es"
+        theme="light"
+        fetchBibleContent={fetchBibleContent}
+        onSelectReference={() => {}}
+      />,
+    )
+    await flush()
+
+    expect(screen.getByText('faith')).toBeTruthy()
+    expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['es'] })
   })
 
   it('loads trending when it opens and submits a suggestion tap', async () => {

@@ -118,12 +118,10 @@ export function useBibleReaderSearch(
   const { versionId, isOpen, fetchBibleContent, languageRanges } = options
   const search = useSearch()
   const languageRangeKey = languageRanges.join(',')
-  const ranges = useMemo(() => {
-    if (languageRangeKey === '') {
-      return ['*']
-    }
-    return languageRangeKey.split(',')
-  }, [languageRangeKey])
+  const ranges = useMemo(
+    () => (languageRangeKey === '' ? [] : languageRangeKey.split(',')),
+    [languageRangeKey],
+  )
 
   const [state, dispatch] = useReducer(searchReducer, undefined, initialSearchState)
   const [scrollGeneration, setScrollGeneration] = useState(0)
@@ -228,6 +226,10 @@ export function useBibleReaderSearch(
       if (current.kind !== 'trending') {
         return
       }
+      if (ranges.length === 0) {
+        dispatch({ type: 'trendingLoaded', epoch: current.epoch, queries: [] })
+        return
+      }
       try {
         const result = await search.trendingQueries({ languageRanges: ranges })
         if (cancelled) {
@@ -252,6 +254,10 @@ export function useBibleReaderSearch(
 
     const loadSuggestions = async () => {
       if (current.kind !== 'suggestions') {
+        return
+      }
+      if (ranges.length === 0) {
+        dispatch({ type: 'suggestionsLoaded', epoch: current.epoch, queries: [] })
         return
       }
       try {

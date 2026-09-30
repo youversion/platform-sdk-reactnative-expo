@@ -18,11 +18,11 @@ function usfm(value: string): Usfm {
 }
 
 describe('bible reader search helpers', () => {
-  it('uses the Bible version language tag, or * when it is missing', () => {
+  it('uses the Bible version language tag and skips search when it is missing', () => {
     expect(languageRangesForVersionLanguage('es')).toEqual(['es'])
-    expect(languageRangesForVersionLanguage(undefined)).toEqual(['*'])
-    expect(languageRangesForVersionLanguage(null)).toEqual(['*'])
-    expect(languageRangesForVersionLanguage('')).toEqual(['*'])
+    expect(languageRangesForVersionLanguage(undefined)).toEqual([])
+    expect(languageRangesForVersionLanguage(null)).toEqual([])
+    expect(languageRangesForVersionLanguage('')).toEqual([])
   })
 
   it('clips a branded query at 100 characters and trims it', () => {

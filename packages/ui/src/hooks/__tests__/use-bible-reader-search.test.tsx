@@ -210,9 +210,9 @@ describe('useBibleReaderSearch', () => {
     expect(stub.suggestedQueries).not.toHaveBeenCalled()
   })
 
-  it('reloads trending when the version language arrives after open', async () => {
+  it('waits to load trending until the version language arrives', async () => {
     const stub = searchStub()
-    const { rerender } = renderHook(
+    const { result, rerender } = renderHook(
       ({ languageRanges }: { languageRanges: readonly string[] }) =>
         useBibleReaderSearch({
           versionId: 111,
@@ -220,15 +220,56 @@ describe('useBibleReaderSearch', () => {
           fetchBibleContent: fetchStub(),
           languageRanges,
         }),
-      { wrapper: wrapperFor(stub), initialProps: { languageRanges: ['*'] } },
+      { wrapper: wrapperFor(stub), initialProps: { languageRanges: [] } },
     )
     await flush()
-    expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['*'] })
+    expect(result.current.view).toEqual({
+      phase: 'browsing',
+      trending: { status: 'done', value: [] },
+      recents: [],
+    })
+    expect(stub.trendingQueries).not.toHaveBeenCalled()
 
     rerender({ languageRanges: ['es'] })
     await flush()
 
-    expect(stub.trendingQueries).toHaveBeenLastCalledWith({ languageRanges: ['es'] })
+    expect(result.current.view).toEqual({
+      phase: 'browsing',
+      trending: { status: 'done', value: ['faith'] },
+      recents: [],
+    })
+    expect(stub.trendingQueries).toHaveBeenCalledWith({ languageRanges: ['es'] })
+  })
+
+  it('does not request suggestions when the version language is missing', async () => {
+    jest.useFakeTimers()
+    const stub = searchStub()
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: [],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    act(() => {
+      result.current.setQuery('love')
+    })
+    await act(async () => {
+      jest.advanceTimersByTime(SEARCH_DEBOUNCE_MS)
+    })
+    await flush()
+
+    expect(stub.suggestedQueries).not.toHaveBeenCalled()
+    expect(result.current.view).toEqual({
+      phase: 'suggesting',
+      suggestions: [],
+      loading: false,
+    })
   })
 
   it('skips suggestions for the query that was just submitted', async () => {

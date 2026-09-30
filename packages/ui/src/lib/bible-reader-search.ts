@@ -35,7 +35,7 @@ export type TitledVerse = {
 
 export function languageRangesForVersionLanguage(languageTag: string | null | undefined): string[] {
   if (languageTag === undefined || languageTag === null || languageTag === '') {
-    return ['*']
+    return []
   }
   return [languageTag]
 }
