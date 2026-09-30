@@ -83,7 +83,7 @@ The optional informational chapter supplied separately by a book's API payload. 
 _Avoid_: Chapter zero, book introduction
 
 **Version Picker Sheet**:
-A **Native Wrapper** that hosts the **Native Bible Version Picker** inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. Both panels stay mounted in React Native. The public `dom` prop is still on the type and the sheet does not pass it anywhere.
+A **Native Wrapper** that hosts the **Native Bible Version Picker** inside one **Native Sheet**. The native side passes the current `versionId` in and receives a new `versionId` via `onSelect`. Both panels stay mounted in React Native. The sheet no longer accepts a `dom` prop.
 _Avoid_: Version modal, stacked picker sheets, treating the language panel as **DOM-Owned Sheet UI State**
 
 **Version Filter**:
@@ -100,10 +100,10 @@ _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; pi
 
 **Native Bible Version Picker**:
 The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state.
-_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is still registered and the sheet does not render it.
+_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is deleted.
 
 **Version Picker Shell Layout**:
-The previous Expo DOM wrapper (`dom/bible-version-picker-content.tsx`). **Version Picker Sheet** no longer renders it. See **Native Bible Version Picker**.
+The previous Expo DOM wrapper (`dom/bible-version-picker-content.tsx`). That file is deleted. See **Native Bible Version Picker**.
 _Avoid_: Treating this wrapper as the live sheet
 
 **DOM-Owned Sheet UI State**:

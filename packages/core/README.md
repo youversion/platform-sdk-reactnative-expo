@@ -185,10 +185,17 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path â
 ```tsx
 import { bibleReferenceFromUsfm, useSearch } from '@youversion/platform-react-native-expo-core'
 
-const search = useSearch()
-const result = await search.verses({ query: 'two fish', bibleId: 111 })
-if (result.ok) {
-  const reference = bibleReferenceFromUsfm(result.value.verses[0]?.id ?? '', 111)
+function VerseSearch() {
+  const search = useSearch()
+
+  async function findVerse() {
+    const result = await search.verses({ query: 'two fish', bibleId: 111 })
+    if (result.ok) {
+      const reference = bibleReferenceFromUsfm(result.value.verses[0]?.id ?? '', 111)
+    }
+  }
+
+  return <Button title="Search" onPress={findVerse} />
 }
 ```
 
