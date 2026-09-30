@@ -53,7 +53,6 @@ import { getImpl, registerDefault } from './component-impls'
 import { RecentIcon, SearchIcon, TrendingIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
-const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 const CHIP_GLYPH_SIZE = 32
 const CHIP_ICON_SIZE = 24
 const RESULT_VIEWABILITY = { itemVisiblePercentThreshold: 1 }
@@ -87,8 +86,7 @@ function BibleReaderSearchSheetImpl({
         fieldRef.current?.blur()
       }}
       theme={theme}
-      enableContentPanningGesture
-      panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
+      enableContentPanningGesture={false}
       contentStyle={styles.sheetContent}
     >
       <ThemeContext.Provider value={theme}>
