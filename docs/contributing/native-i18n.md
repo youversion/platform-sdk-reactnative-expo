@@ -59,16 +59,25 @@ const { t, i18n } = useSdkTranslation()
 />
 ```
 
-A shared string is a top-level key in `sources/common/en.json`. The block below is the platform-specific shape. Use it only when this SDK needs its own wording.
+A shared string is a top-level key in `sources/common/en.json`. The Trans example above uses that shape:
 
-Matching entry in `platform-localization` (`sources/common/en.json`):
+```json
+{
+  "signInWithYouVersion": {
+    "_value": "Sign in with <bold>{{brandName}}</bold>",
+    "_comment": "Sign-in label with brand; {{brandName}} is YouVersion. Keep <bold> markup."
+  }
+}
+```
+
+Use a `reactnative.*` key only when this SDK needs its own wording, and say why in `_comment`:
 
 ```json
 {
   "reactnative": {
-    "signInWithYouVersion": {
-      "_value": "Sign in with <bold>{{brandName}}</bold>",
-      "_comment": ""
+    "applyHighlightAriaLabel": {
+      "_value": "Apply highlight",
+      "_comment": "Spoken label for a highlight colour swatch that applies that colour to the selected verses, in the verse actions sheet."
     }
   }
 }
