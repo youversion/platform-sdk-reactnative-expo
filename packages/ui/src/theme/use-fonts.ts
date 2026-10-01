@@ -28,8 +28,6 @@ export const untitledSerifFallback = {
   'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
-const serifFaceKeys = Object.keys(untitledSerifFallback)
-
 type FontLoadScope = {
   isActive: () => boolean
 }
@@ -45,25 +43,8 @@ async function loadSerifFallbackBestEffort(scope: FontLoadScope): Promise<void> 
   }
 }
 
-async function unloadRegisteredSerifFaces(): Promise<void> {
-  for (const face of serifFaceKeys) {
-    if (!Font.isLoaded(face)) {
-      continue
-    }
-    try {
-      await Font.unloadAsync(face)
-    } catch {
-      // Unload is best-effort; some runtimes only support loadAsync.
-    }
-  }
-}
-
 async function loadSerifWithApiTtfs(apiTtfMap: BrandFontUriMap, scope: FontLoadScope): Promise<void> {
   if (Object.keys(apiTtfMap).length === 0 || !scope.isActive()) {
-    return
-  }
-  await unloadRegisteredSerifFaces()
-  if (!scope.isActive()) {
     return
   }
   await Font.loadAsync({
@@ -137,10 +118,11 @@ type BrandFontReadiness = {
 }
 
 /**
- * Sans readiness opens the provider. Serif readiness tracks when the Untitled
- * Serif face registers bundled Source Serif 4 immediately, then upgrades to
- * Fonts API TTFs after unload when the request succeeds. Settings keep the
- * serif choice visible while the Fonts API request is pending.
+ * Sans readiness opens the provider. Serif readiness flips after one load.
+ * That load uses Fonts API TTFs when the request returns them, and Source
+ * Serif 4 for every face the API did not return. Native Expo Font cannot
+ * unload a face or replace a name that is already loaded, so the fallback
+ * is not registered under the Untitled Serif names before this load.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
@@ -167,7 +149,6 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
         setSerifReady(serifFaceIsRegistered())
       }
     }
-    void loadSerifFallbackBestEffort(scope).finally(refreshSerifReady)
     void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifReady)
     return () => {
       cancelled = true

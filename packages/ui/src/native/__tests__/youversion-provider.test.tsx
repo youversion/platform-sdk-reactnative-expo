@@ -206,13 +206,22 @@ describe('YouVersionProvider brand fonts', () => {
   })
 
   it('holds children until Inter registers, then fetches Untitled Serif with the app key', async () => {
-    jest.mocked(Font.isLoaded).mockReturnValue(false)
+    const registered = new Map<string, unknown>()
+    jest.mocked(Font.isLoaded).mockImplementation((face: string) => registered.has(face))
+    jest.mocked(Font.unloadAsync).mockRejectedValue(new Error('unloadAsync is unavailable on native'))
     let resolveSans: () => void = () => {}
     jest.mocked(Font.loadAsync).mockImplementation((map) => {
       if (map === bundledSans) {
         return new Promise<void>((resolve) => {
           resolveSans = resolve
         })
+      }
+      if (map !== null && typeof map === 'object') {
+        for (const [face, source] of Object.entries(map)) {
+          if (!registered.has(face)) {
+            registered.set(face, source)
+          }
+        }
       }
       return Promise.resolve()
     })
@@ -231,13 +240,14 @@ describe('YouVersionProvider brand fonts', () => {
 
     expect(getByTestId('locale-lng')).toBeTruthy()
 
-    const maps = await waitForFontMaps(3)
+    const maps = await waitForFontMaps(2)
     expect(maps[0]).toEqual(bundledSans)
-    expect(maps[1]).toEqual(untitledSerifFallback)
-    expect(maps[2]).toEqual({
+    expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
     })
+    expect(registered.get('Untitled Serif')).toEqual({ uri: UNTITLED_SERIF_TTF_URI })
+    expect(jest.mocked(Font.unloadAsync)).not.toHaveBeenCalled()
 
     const firstCall = mockFetch.mock.calls[0]
     if (firstCall === undefined) {
@@ -292,8 +302,8 @@ describe('YouVersionProvider brand fonts', () => {
       </YouVersionProvider>,
     )
 
-    const maps = await waitForFontMaps(3)
-    expect(maps[2]).toEqual({
+    const maps = await waitForFontMaps(2)
+    expect(maps[1]).toEqual({
       ...untitledSerifFallback,
       'Untitled Serif': { uri: UNTITLED_SERIF_TTF_URI },
       'Untitled Serif_bold': { uri: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
