@@ -42,7 +42,7 @@
     },
     {
       "path": "packages/ui/src/native/component-impls.ts",
-      "description": "Runtime impl registry that tests swap through stubImpl, setImpl, and getImpl"
+      "description": "In-memory impl registry. Tests replace an entry by calling setImpl."
     },
     {
       "path": "packages/ui/src/test-utils/install-test-impls.tsx",

@@ -79,8 +79,8 @@ Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outsi
 
 ## nativesheet-test-seam
 
-Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImpl, and getImpl from packages/ui/src/test-utils/install-test-impls.tsx, which writes packages/ui/src/native/component-impls.ts, and assert with latestDomProps. They do not mount 'use dom' in RNTL and they do not jest.mock app modules. packages/ui/jest.setup.js may shim native runtimes only.
+Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImpl, and getImpl from packages/ui/src/test-utils/install-test-impls.tsx. Those helpers call setImpl on the registry in packages/ui/src/native/component-impls.ts. Tests assert the bridge with latestDomProps. They do not mount 'use dom' in RNTL and they do not jest.mock app modules. packages/ui/jest.setup.js may shim native runtimes only.
 
 ## public-api-pin
 
-A new package export is a finding unless one of those tests already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
+A new package export is a finding unless packages/ui/src/__tests__/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
