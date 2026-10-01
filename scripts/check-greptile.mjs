@@ -82,6 +82,12 @@ check(
   'public-api-pin rule text does not contain ./sdk-version',
 )
 
+const i18nRule = ruleById('native-i18n-no-hardcoded-strings')
+check(
+  Boolean(i18nRule && typeof i18nRule.rule === 'string' && i18nRule.rule.includes('unprefixed')),
+  'native-i18n rule does not say unprefixed shared keys are the default',
+)
+
 const fontTokenPath = '0009-bridge-safe-font-tokens.md'
 check(readmeText.includes(fontTokenPath), 'README.md does not contain 0009-bridge-safe-font-tokens.md')
 check(

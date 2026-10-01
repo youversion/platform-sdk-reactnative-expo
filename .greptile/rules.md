@@ -5,7 +5,7 @@ Applies to `packages/ui/src/native/**`. Full guide: [docs/contributing/native-i1
 ## Required pattern
 
 - Call `useSdkTranslation()` and render copy with `t('key')` or `<Trans i18nKey="key">`.
-- Add new keys under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Keys are typed via `SdkTranslationKey` after sync.
+- Prefer an unprefixed shared key in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Use `reactnative.*` only when the string belongs to this SDK alone, and say why in `_comment`. Keys are typed via `SdkTranslationKey` after sync.
 
 ## Flag as high severity
 
@@ -57,7 +57,7 @@ Translation JSON under `packages/ui/src/i18n/locales/` (`en.json`, `es.json`, `f
 
 **Correct workflow:**
 
-1. Add the key under `reactnative.*` in platform-localization `sources/common/en.json`.
+1. Add an unprefixed shared key in platform-localization `sources/common/en.json`. Use `reactnative.*` only when the string belongs to this SDK alone, and say why in `_comment`.
 2. Merge the platform-localization PR; CI assembles `dist/reactnative/*.json`.
 3. The **Distribute React Native Localization** workflow syncs assembled files into this repo.
 4. After distribution adds locale JSON files, run `pnpm generate:locale-index` to refresh `packages/ui/src/i18n/locales/index.ts` (auto-generated; do not hand-edit).
