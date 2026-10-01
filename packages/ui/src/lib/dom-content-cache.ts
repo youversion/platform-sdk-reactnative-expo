@@ -47,7 +47,21 @@ export function ensureDomContentCache(): void {
   const passthrough = globalThis.fetch
   if (!passthrough || woven.has(passthrough)) return
 
+  // Expo web runs fetchBibleContent in this same realm, so its fetch is this
+  // wrapper. That call has to reach passthrough.
+  let reentering = false
+  const fetchThroughNative = (action: FetchBibleContent, path: string) => {
+    reentering = true
+    try {
+      return action({ path })
+    } finally {
+      reentering = false
+    }
+  }
+
   const wrappedFetch: typeof globalThis.fetch = async (input, init) => {
+    if (reentering) return passthrough(input, init)
+
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
     let url: URL
     try {
@@ -75,10 +89,8 @@ export function ensureDomContentCache(): void {
     if (signal?.aborted) throw signal.reason
 
     try {
-      const { status, body, contentType } = await raceAbort(
-        fetchBibleContent({ path: url.pathname + url.search }),
-        signal,
-      )
+      const bridge = fetchThroughNative(fetchBibleContent, url.pathname + url.search)
+      const { status, body, contentType } = await raceAbort(bridge, signal)
       return new Response(NULL_BODY_STATUSES.has(status) ? null : body, {
         status,
         headers: contentType === null ? undefined : { 'content-type': contentType },

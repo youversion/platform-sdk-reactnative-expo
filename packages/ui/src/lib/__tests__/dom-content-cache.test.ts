@@ -174,4 +174,35 @@ describe('ensureDomContentCache', () => {
       undefined,
     )
   })
+
+  it('routes a second eligible request through the native action while the first is in flight', async () => {
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    action.mockImplementation(async () => {
+      await gate
+      return { status: 200, body: '{"content":"verse"}', contentType: 'application/json' }
+    })
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+
+    const first = globalThis.fetch(CONTENT_URL)
+    const second = globalThis.fetch(
+      `https://${API_HOST}/v1/bibles/111/chapters/JHN.2?fields=content`,
+    )
+    release()
+    const responses = await Promise.all([first, second])
+
+    expect(action).toHaveBeenCalledTimes(2)
+    expect(action).toHaveBeenNthCalledWith(1, {
+      path: '/v1/bibles/111/chapters/JHN.1?fields=content',
+    })
+    expect(action).toHaveBeenNthCalledWith(2, {
+      path: '/v1/bibles/111/chapters/JHN.2?fields=content',
+    })
+    expect(passthrough).not.toHaveBeenCalled()
+    await expect(responses[0]?.text()).resolves.toBe('{"content":"verse"}')
+    await expect(responses[1]?.text()).resolves.toBe('{"content":"verse"}')
+  })
 })
