@@ -225,11 +225,9 @@ describe('YouVersionProvider brand fonts', () => {
           resolveSans = resolve
         })
       }
-      if (map !== null && typeof map === 'object') {
-        for (const [face, source] of Object.entries(map)) {
-          if (!registered.has(face)) {
-            registered.set(face, source)
-          }
+      for (const [face, source] of Object.entries(map)) {
+        if (!registered.has(face)) {
+          registered.set(face, source)
         }
       }
       return Promise.resolve()
