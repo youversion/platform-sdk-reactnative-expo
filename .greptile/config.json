@@ -2,7 +2,7 @@
   "rules": [
     {
       "id": "native-i18n-no-hardcoded-strings",
-      "rule": "User-visible strings in packages/ui/src/native/** must use useSdkTranslation() with t('key') or <Trans i18nKey=\"key\">. Add every new key under reactnative.* in platform-localization (sources/common/en.json); synced locale JSON arrives via the Distribute React Native Localization workflow. Flag any newly added or changed user-visible English literal in Text children, accessibilityLabel, accessibilityHint, placeholder, alert/Alert strings, and SDK-owned headerTitle values — not just known examples like Cancel, Loading, Books, or Versions. Do not flag packages/ui/src/dom/** (ADR 0009), __tests__/**, *.test.*, consumer-provided prop pass-through, or non-user-facing literals (test IDs, log messages, style tokens, route names). See docs/contributing/native-i18n.md.",
+      "rule": "User-visible strings in packages/ui/src/native/** must use useSdkTranslation() with t('key') or <Trans i18nKey=\"key\">. Add every new key under reactnative.* in platform-localization (sources/common/en.json); synced locale JSON arrives via the Distribute React Native Localization workflow. Flag any newly added or changed user-visible English literal in Text children, accessibilityLabel, accessibilityHint, placeholder, alert/Alert strings, and SDK-owned headerTitle values — not just known examples like Cancel, Loading, Books, or Versions. Do not flag packages/ui/src/dom/** (ADR 0019), __tests__/**, *.test.*, consumer-provided prop pass-through, or non-user-facing literals (test IDs, log messages, style tokens, route names). See docs/contributing/native-i18n.md.",
       "scope": ["packages/ui/src/native/**"],
       "severity": "high",
       "enabled": true
@@ -11,6 +11,47 @@
       "id": "i18n-no-direct-locale-json-edits",
       "rule": "Translation JSON under packages/ui/src/i18n/locales/ (en.json, es.json, fr.json, and any future locale) is generated and synced from the platform-localization repo. Do not hand-edit these files or add/change/remove string values directly in a PR. New keys must be added under reactnative.* in platform-localization (sources/common/en.json) and arrive via the 'Distribute React Native Localization' workflow. Flag any diff that adds or edits string values in these files. Exception: the automated localization sync PR. locales/index.ts is auto-generated via pnpm generate:locale-index — flag hand-edits that do not match the codegen output.",
       "scope": ["packages/ui/src/i18n/locales/**/*.json"],
+      "severity": "high",
+      "enabled": true
+    },
+    {
+      "id": "dom-versus-native",
+      "rule": "Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.",
+      "scope": [
+        "packages/ui/src/native/**",
+        "packages/ui/src/components/**",
+        "packages/ui/src/hooks/**",
+        "packages/ui/src/lib/**",
+        "packages/ui/src/stores/**",
+        "packages/ui/src/theme/**",
+        "packages/ui/src/test-utils/**",
+        "packages/ui/src/index.ts"
+      ],
+      "severity": "high",
+      "enabled": true
+    },
+    {
+      "id": "nativesheet-test-seam",
+      "rule": "Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImpl, and getImpl from packages/ui/src/test-utils/install-test-impls.tsx, which writes packages/ui/src/native/component-impls.ts, and assert with latestDomProps. They do not mount 'use dom' in RNTL and they do not jest.mock app modules. packages/ui/jest.setup.js may shim native runtimes only.",
+      "scope": [
+        "packages/ui/src/**/__tests__/**",
+        "packages/ui/__tests__/**"
+      ],
+      "severity": "high",
+      "enabled": true
+    },
+    {
+      "id": "public-api-pin",
+      "rule": "A new package export is a finding unless one of those tests already pins it. Allowed exports keys are \".\" and \"./package.json\" on both packages, plus \"./sdk-version\" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.",
+      "scope": [
+        "packages/ui/src/index.ts",
+        "packages/core/src/index.ts",
+        "packages/ui/package.json",
+        "packages/core/package.json",
+        "packages/ui/src/__tests__/exports.test.ts",
+        "packages/core/src/highlights/__tests__/exports.test.ts",
+        "packages/core/src/search/__tests__/exports.test.ts"
+      ],
       "severity": "high",
       "enabled": true
     }

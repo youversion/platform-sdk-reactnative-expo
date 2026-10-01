@@ -72,3 +72,15 @@ Flag any PR diff that hand-edits locale JSON string values. Exception: automated
 4. Are SDK-owned sheet headers localized?
 5. Is the change correctly scoped to native only (not DOM)?
 6. Were locale JSON files left untouched (except sync PRs)?
+
+## dom-versus-native
+
+Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.
+
+## nativesheet-test-seam
+
+Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImpl, and getImpl from packages/ui/src/test-utils/install-test-impls.tsx, which writes packages/ui/src/native/component-impls.ts, and assert with latestDomProps. They do not mount 'use dom' in RNTL and they do not jest.mock app modules. packages/ui/jest.setup.js may shim native runtimes only.
+
+## public-api-pin
+
+A new package export is a finding unless one of those tests already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.

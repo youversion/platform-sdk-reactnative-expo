@@ -25,12 +25,36 @@
       "description": "SDK-owned i18next instance and locale prop scope"
     },
     {
-      "path": "docs/adr/0009-deferred-dom-localization.md",
-      "description": "DOM/WebView copy exempt from native i18n — English only"
+      "path": "docs/adr/0019-provider-locale-crosses-dom-bridge.md",
+      "description": "Resolved provider locale crosses the DOM bridge. DOM files do not own i18n keys."
     },
     {
       "path": "docs/adr/0007-app-locale-vs-bible-language-id.md",
       "description": "App locale vs Bible languageId — do not conflate"
+    },
+    {
+      "path": "AGENTS.md",
+      "description": "Agent guardrails for this repo — DOM mount boundary, layer-3 test seams, and public exports"
+    },
+    {
+      "path": "packages/ui/src/native/register-dom-impls.ts",
+      "description": "Production registration of DOM components, including bible-reader, bible-text-view, and footnote-content"
+    },
+    {
+      "path": "packages/ui/src/native/component-impls.ts",
+      "description": "Runtime impl registry that tests swap through stubImpl, setImpl, and getImpl"
+    },
+    {
+      "path": "packages/ui/src/test-utils/install-test-impls.tsx",
+      "description": "Layer-3 helpers that stub DOM, NativeSheet, and sibling sheets through component-impls"
+    },
+    {
+      "path": "packages/ui/src/__tests__/exports.test.ts",
+      "description": "Pins the UI package public exports so a new export fails the suite"
+    },
+    {
+      "path": "docs/adr/0011-compiled-distribution.md",
+      "description": "Compiled package entry and the allowed exports keys"
     }
   ]
 }
