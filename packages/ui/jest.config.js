@@ -14,8 +14,9 @@ module.exports = {
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
   coverageReporters: ['json', 'lcov', 'text', 'clover', 'json-summary'],
+  // linkedom (native scripture parser) is CJS but requires ESM-only css-select and htmlparser2.
   transformIgnorePatterns: [
-    '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|expo-.*|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|jest-expo|@rn-primitives|better-result))',
+    '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|expo-.*|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|jest-expo|@rn-primitives|better-result|css-select|css-what|nth-check|boolbase|domutils|domhandler|dom-serializer|entities|htmlparser2|domelementtype))',
     '/node_modules/react-native-reanimated/plugin/',
   ],
   // `@youversion/platform-react-ui` requires `better-result`, which ships ESM
