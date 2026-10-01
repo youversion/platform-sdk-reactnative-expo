@@ -105,8 +105,12 @@ function sansIsRegistered(): boolean {
   return Object.keys(bundledSans).every((face) => Font.isLoaded(face))
 }
 
+function untitledSerifIsRegistered(): boolean {
+  return Object.keys(untitledSerifFallback).every((face) => Font.isLoaded(face))
+}
+
 function registeredSerifFamily(): SerifFamily {
-  if (!Font.isLoaded(fontFamily.serif) && Font.isLoaded(sourceSerifFamily)) {
+  if (!untitledSerifIsRegistered() && Font.isLoaded(sourceSerifFamily)) {
     return sourceSerifFamily
   }
   return fontFamily.serif
@@ -135,13 +139,14 @@ type BrandFontReadiness = {
 }
 
 /**
- * Sans readiness opens the provider. Each serif load registers one family.
- * Fonts API TTFs register under the Untitled Serif names, with Source Serif 4
- * for every face the API did not return. When the API returns no TTFs or the
- * request fails, Source Serif 4 registers under its own names. Native Expo
- * Font cannot unload a face or replace a loaded name, so keeping the fallback
- * off the Untitled Serif names lets a later load, after an `appKey` or
- * `apiHost` change, still register the API faces.
+ * Sans readiness opens the provider. Fonts API TTFs register under the
+ * Untitled Serif names, with Source Serif 4 for every face the API did not
+ * return. When the API returns no TTFs or any face fails to load, Source
+ * Serif 4 registers under its own names, and native serif text uses it until
+ * every Untitled Serif face has registered. Native Expo Font cannot unload a
+ * face or replace a loaded name, so keeping the fallback off the Untitled
+ * Serif names lets a later load, after an `appKey` or `apiHost` change, still
+ * register the API faces.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)

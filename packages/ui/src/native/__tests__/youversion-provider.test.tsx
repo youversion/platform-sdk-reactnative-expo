@@ -403,6 +403,57 @@ describe('YouVersionProvider brand fonts', () => {
     })
     expect(registered.get('Untitled Serif')).toEqual({ uri: UNTITLED_SERIF_TTF_URI })
   })
+
+  it('keeps Source Serif 4 when one Untitled Serif face fails to load', async () => {
+    jest.spyOn(console, 'error').mockImplementation(() => {})
+    const registered = new Map<string, unknown>()
+    jest.mocked(Font.isLoaded).mockImplementation((face: string) => registered.has(face))
+    jest.mocked(Font.loadAsync).mockImplementation((map) => {
+      for (const [face, source] of Object.entries(map)) {
+        if (face !== 'Untitled Serif_bold' && !registered.has(face)) {
+          registered.set(face, source)
+        }
+      }
+      if (Object.keys(map).includes('Untitled Serif_bold')) {
+        return Promise.reject(new Error('bold.ttf failed to download'))
+      }
+      return Promise.resolve()
+    })
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        id: 1,
+        slug: 'untitled-serif',
+        family: 'Untitled Serif',
+        variants: [
+          {
+            weight: 400,
+            style: 'normal',
+            sources: [{ format: 'ttf', url: UNTITLED_SERIF_TTF_URI }],
+          },
+          {
+            weight: 700,
+            style: 'normal',
+            sources: [
+              { format: 'ttf', url: 'https://cdn.youversion.com/test-fixtures/bold.ttf' },
+            ],
+          },
+        ],
+      }),
+    )
+
+    const { getByTestId } = render(
+      <YouVersionProvider appKey="test-key" hookOverrides={defaultHookOverrides}>
+        <SerifFamilyProbe />
+      </YouVersionProvider>,
+    )
+
+    await waitFor(() => {
+      expect(getByTestId('serif-family').props.children).toBe('Source Serif 4')
+    })
+    expect(registered.get('Untitled Serif')).toEqual({ uri: UNTITLED_SERIF_TTF_URI })
+    expect(registered.has('Untitled Serif_bold')).toBe(false)
+    expect(registered.get('Source Serif 4_bold')).toBe(bundledSerif['Source Serif 4_bold'])
+  })
 })
 
 describe('YouVersionProvider portal host', () => {
