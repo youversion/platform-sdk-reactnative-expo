@@ -28,6 +28,19 @@ export const untitledSerifFallback = {
   'Untitled Serif_bold_italic': SourceSerif4_700Bold_Italic,
 }
 
+const sourceSerifFamily = 'Source Serif 4'
+
+type SerifFamily = typeof fontFamily.serif | typeof sourceSerifFamily
+
+export const bundledSerif = {
+  'Source Serif 4': SourceSerif4_400Regular,
+  'Source Serif 4_italic': SourceSerif4_400Regular_Italic,
+  'Source Serif 4_medium': SourceSerif4_500Medium,
+  'Source Serif 4_medium_italic': SourceSerif4_500Medium_Italic,
+  'Source Serif 4_bold': SourceSerif4_700Bold,
+  'Source Serif 4_bold_italic': SourceSerif4_700Bold_Italic,
+}
+
 type FontLoadScope = {
   isActive: () => boolean
 }
@@ -37,7 +50,7 @@ async function loadSerifFallbackBestEffort(scope: FontLoadScope): Promise<void> 
     return
   }
   try {
-    await Font.loadAsync(untitledSerifFallback)
+    await Font.loadAsync(bundledSerif)
   } catch (cause) {
     console.error('[YouVersion SDK] serif fallback failed to load:', cause)
   }
@@ -92,41 +105,47 @@ function sansIsRegistered(): boolean {
   return Object.keys(bundledSans).every((face) => Font.isLoaded(face))
 }
 
-function serifFaceIsRegistered(): boolean {
-  return Font.isLoaded(fontFamily.serif)
+function registeredSerifFamily(): SerifFamily {
+  if (!Font.isLoaded(fontFamily.serif) && Font.isLoaded(sourceSerifFamily)) {
+    return sourceSerifFamily
+  }
+  return fontFamily.serif
 }
 
-const SerifFontReadyContext = createContext(false)
+const SerifFamilyContext = createContext<SerifFamily>(fontFamily.serif)
 
-export function SerifFontReadyProvider({
-  ready,
+export function SerifFamilyProvider({
+  family,
   children,
 }: {
-  ready: boolean
+  family: SerifFamily
   children: ReactNode
 }): ReactNode {
-  return createElement(SerifFontReadyContext.Provider, { value: ready }, children)
+  return createElement(SerifFamilyContext.Provider, { value: family }, children)
 }
 
-export function useSerifFontReady(): boolean {
-  return useContext(SerifFontReadyContext)
+/** Native serif text names this family; pass it to `fontMapKey` for a weight or style. */
+export function useSerifFamily(): SerifFamily {
+  return useContext(SerifFamilyContext)
 }
 
 type BrandFontReadiness = {
   sansReady: boolean
-  serifReady: boolean
+  serifFamily: SerifFamily
 }
 
 /**
- * Sans readiness opens the provider. Serif readiness flips after one load.
- * That load uses Fonts API TTFs when the request returns them, and Source
- * Serif 4 for every face the API did not return. Native Expo Font cannot
- * unload a face or replace a name that is already loaded, so the fallback
- * is not registered under the Untitled Serif names before this load.
+ * Sans readiness opens the provider. Each serif load registers one family.
+ * Fonts API TTFs register under the Untitled Serif names, with Source Serif 4
+ * for every face the API did not return. When the API returns no TTFs or the
+ * request fails, Source Serif 4 registers under its own names. Native Expo
+ * Font cannot unload a face or replace a loaded name, so keeping the fallback
+ * off the Untitled Serif names lets a later load, after an `appKey` or
+ * `apiHost` change, still register the API faces.
  */
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
-  const [serifReady, setSerifReady] = useState(serifFaceIsRegistered)
+  const [serifFamily, setSerifFamily] = useState(registeredSerifFamily)
 
   useEffect(() => {
     let cancelled = false
@@ -144,16 +163,16 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
       },
     )
     const scope: FontLoadScope = { isActive: () => !cancelled }
-    const refreshSerifReady = (): void => {
+    const refreshSerifFamily = (): void => {
       if (!cancelled) {
-        setSerifReady(serifFaceIsRegistered())
+        setSerifFamily(registeredSerifFamily())
       }
     }
-    void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifReady)
+    void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifFamily)
     return () => {
       cancelled = true
     }
   }, [appKey, apiHost])
 
-  return { sansReady, serifReady }
+  return { sansReady, serifFamily }
 }

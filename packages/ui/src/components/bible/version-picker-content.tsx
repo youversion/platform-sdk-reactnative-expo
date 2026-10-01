@@ -20,6 +20,7 @@ import { useLocale } from '../../i18n/locale-context'
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import type { VersionPickerPanel } from '../../lib/version-picker-panels'
 import { fontMapKey, sansFace } from '../../theme/fonts'
+import { useSerifFamily } from '../../theme/use-fonts'
 import { ClearIcon } from '../icons/clear-icon'
 import { SearchIcon } from '../icons/search-icon'
 import { Button, Text } from '../ui'
@@ -155,7 +156,7 @@ function VersionAbbreviation({ text }: { text: string }): ReactNode {
   const match = /^(.+?)(\d+)$/.exec(text)
   const prefix = match?.[1] ?? text
   const digits = match?.[2]
-  const face = fontMapKey(tokens.fontFamily.serif, 700, 'normal')
+  const face = fontMapKey(useSerifFamily(), 700, 'normal')
   const fontSize = Math.min(fittedSizes.prefix, fittedSizes.digits)
   const textStyle = [
     styles.versionBadgeText,

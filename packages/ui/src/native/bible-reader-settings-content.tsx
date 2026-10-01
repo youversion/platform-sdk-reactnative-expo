@@ -13,6 +13,7 @@ import { INTER_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import type { Tokens } from '../theme'
 import { fontMapKey, sansFace } from '../theme/fonts'
+import { useSerifFamily } from '../theme/use-fonts'
 const CONTROL_RADIUS = 8
 const ROW_GAP = 16
 const LINE_BAR_WIDTH = 32
@@ -72,7 +73,7 @@ export function BibleReaderSettingsContent({
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const theme = useTheme()
-  const serifFamily = fontMapKey(tokens.fontFamily.serif, 400, 'normal')
+  const serifFamily = fontMapKey(useSerifFamily(), 400, 'normal')
   const decreaseDisabled = fontSize <= BIBLE_READER_FONT.MIN
   const increaseDisabled = fontSize >= BIBLE_READER_FONT.MAX
   let seamColor = tokens.background

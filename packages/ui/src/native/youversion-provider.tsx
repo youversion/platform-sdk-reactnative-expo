@@ -10,7 +10,7 @@ import { ThemeContext } from '../hooks/use-theme'
 import { LocaleProvider } from '../i18n/locale-context'
 import { resolveTheme, type Theme } from '../lib/resolve-theme'
 import { SDK_POPOVER_HOST_NAME } from '../lib/sdk-portal-hosts'
-import { SerifFontReadyProvider, useBrandFonts } from '../theme/use-fonts'
+import { SerifFamilyProvider, useBrandFonts } from '../theme/use-fonts'
 import { NativeSheetProvider } from './native-sheet'
 
 export type YouVersionTheme = Theme | 'system'
@@ -49,7 +49,7 @@ export function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
-  const { sansReady, serifReady } = useBrandFonts(appKey, apiHost)
+  const { sansReady, serifFamily } = useBrandFonts(appKey, apiHost)
 
   return (
     <CoreYouVersionProvider
@@ -63,7 +63,7 @@ export function YouVersionProvider({
       permittedLanguageTags={permittedLanguageTags}
     >
       {sansReady ? (
-        <SerifFontReadyProvider ready={serifReady}>
+        <SerifFamilyProvider family={serifFamily}>
           <LocaleProvider locale={locale}>
             <ThemeContext.Provider value={resolvedTheme}>
               <NativeSheetProvider>{children}</NativeSheetProvider>
@@ -72,7 +72,7 @@ export function YouVersionProvider({
             )}
             </ThemeContext.Provider>
           </LocaleProvider>
-        </SerifFontReadyProvider>
+        </SerifFamilyProvider>
       ) : null}
     </CoreYouVersionProvider>
   )
