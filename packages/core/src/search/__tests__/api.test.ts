@@ -282,6 +282,21 @@ describe('createSearchApi', () => {
       expect(forbidden.error).toMatchObject({ kind: 'auth', status: 403 })
     })
 
+    it('returns transient failure for a 404, which means the Bible is unavailable', async () => {
+      mockFetch.mockResolvedValue(errorResponse(404))
+
+      const missingBible = await api().verses({ query: 'zzzznotaword', bibleId: 111 })
+
+      expect(missingBible).toEqual({
+        ok: false,
+        error: {
+          kind: 'transient',
+          status: 404,
+          message: 'HTTP error! status: 404',
+        },
+      })
+    })
+
     it('returns transient failure for 5xx, bad JSON, and network errors', async () => {
       mockFetch.mockResolvedValue(errorResponse(500))
       const serverError = await api().verses({ query: 'love', bibleId: 111 })
