@@ -144,4 +144,34 @@ describe('ensureDomContentCache', () => {
 
     expect(globalThis.fetch).toBe(woven)
   })
+
+  it('lets the native action call global fetch without re-entering the wrapper', async () => {
+    ensureDomContentCache()
+    passthrough.mockResolvedValue(
+      new Response('{"content":"In the beginning"}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const action: FetchBibleContent = async ({ path }) => {
+      const response = await globalThis.fetch(`https://${API_HOST}${path}`)
+      return {
+        status: response.status,
+        body: await response.text(),
+        contentType: response.headers.get('content-type'),
+      }
+    }
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+
+    const response = await globalThis.fetch(CONTENT_URL)
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/json')
+    await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
+    expect(passthrough).toHaveBeenCalledTimes(1)
+    expect(passthrough).toHaveBeenCalledWith(
+      `https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`,
+      undefined,
+    )
+  })
 })
