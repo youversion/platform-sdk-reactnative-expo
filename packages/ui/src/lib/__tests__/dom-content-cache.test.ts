@@ -144,4 +144,65 @@ describe('ensureDomContentCache', () => {
 
     expect(globalThis.fetch).toBe(woven)
   })
+
+  it('lets the native action call global fetch without re-entering the wrapper', async () => {
+    ensureDomContentCache()
+    passthrough.mockResolvedValue(
+      new Response('{"content":"In the beginning"}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const action: FetchBibleContent = async ({ path }) => {
+      const response = await globalThis.fetch(`https://${API_HOST}${path}`)
+      return {
+        status: response.status,
+        body: await response.text(),
+        contentType: response.headers.get('content-type'),
+      }
+    }
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+
+    const response = await globalThis.fetch(CONTENT_URL)
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('content-type')).toBe('application/json')
+    await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
+    expect(passthrough).toHaveBeenCalledTimes(1)
+    expect(passthrough).toHaveBeenCalledWith(
+      `https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`,
+      undefined,
+    )
+  })
+
+  it('routes a second eligible request through the native action while the first is in flight', async () => {
+    let release = () => {}
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
+    action.mockImplementation(async () => {
+      await gate
+      return { status: 200, body: '{"content":"verse"}', contentType: 'application/json' }
+    })
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
+
+    const first = globalThis.fetch(CONTENT_URL)
+    const second = globalThis.fetch(
+      `https://${API_HOST}/v1/bibles/111/chapters/JHN.2?fields=content`,
+    )
+    release()
+    const responses = await Promise.all([first, second])
+
+    expect(action).toHaveBeenCalledTimes(2)
+    expect(action).toHaveBeenNthCalledWith(1, {
+      path: '/v1/bibles/111/chapters/JHN.1?fields=content',
+    })
+    expect(action).toHaveBeenNthCalledWith(2, {
+      path: '/v1/bibles/111/chapters/JHN.2?fields=content',
+    })
+    expect(passthrough).not.toHaveBeenCalled()
+    await expect(responses[0]?.text()).resolves.toBe('{"content":"verse"}')
+    await expect(responses[1]?.text()).resolves.toBe('{"content":"verse"}')
+  })
 })
