@@ -2,9 +2,9 @@
  * Per-sheet BottomSheets, lifted to a root PortalHost and coordinated by a
  * shared active-sheet store.
  *
- * The content is usually an Expo DOM WebView. Keeping each sheet's content in
- * its own stable BottomSheetView avoids pre-warming a WebView inside a tiny
- * hidden wrapper, which breaks matchContents measurement on first open.
+ * Pickers, settings, search, and verse actions are native. Footnotes still
+ * host a scripture WebView. That WebView stays in its own stable
+ * BottomSheetView so the first open is not measured inside a tiny hidden wrapper.
  */
 
 import BottomSheet, {

@@ -1,26 +1,26 @@
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
-import { useTheme } from '../hooks/use-theme'
-import { useLocale } from '../i18n/locale-context'
-import { withSheetDomDefaults } from '../lib/embed-dom-props'
-import { encodeFontFamilyForDom } from '../lib/reader-fonts'
+
+import { ThemeContext, useTheme } from '../hooks/use-theme'
+import { SHEET_SURFACE } from '../lib/native-sheet-theme'
+import type { ThemeInput } from '../lib/resolve-theme'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import { getImpl, registerDefault } from './component-impls'
+import { BibleReaderSettingsContent } from './bible-reader-settings-content'
 import { NativeSheet } from './native-sheet'
 
 export type BibleReaderSettingsSheetProps = {
   isSettingsSheetOpen: boolean
   onClose: () => void
+  theme?: ThemeInput
 }
 
 function BibleReaderSettingsSheetImpl({
   isSettingsSheetOpen,
   onClose,
+  theme: themeOverride,
 }: BibleReaderSettingsSheetProps) {
-  const { appKey } = useYouVersion()
-  const { lng } = useLocale()
-  const theme = useTheme()
+  const theme = useTheme(themeOverride)
   const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
     useReaderSettingsStore()
 
@@ -34,23 +34,24 @@ function BibleReaderSettingsSheetImpl({
       setLineSpacing,
     })
 
-  const BibleReaderSettingsDOM = getImpl('BibleReaderSettings')
-
   return (
-    <NativeSheet isOpen={isSettingsSheetOpen} onClose={onClose} showAndroidLoader theme={theme}>
-      <BibleReaderSettingsDOM
-        dom={withSheetDomDefaults()}
-        appKey={appKey}
-        theme={theme}
-        locale={lng}
-        fontSize={fontSize}
-        fontFamily={encodeFontFamilyForDom(fontFamily)}
-        lineSpacing={lineSpacing}
-        onFontIncreased={onFontIncreased}
-        onFontDecreased={onFontDecreased}
-        onFontSelected={onFontSelected}
-        onLineSpacingChange={onChangeLineSpacing}
-      />
+    <NativeSheet
+      isOpen={isSettingsSheetOpen}
+      onClose={onClose}
+      theme={theme}
+      bottomInsetColor={SHEET_SURFACE[theme]}
+    >
+      <ThemeContext.Provider value={theme}>
+        <BibleReaderSettingsContent
+          fontSize={fontSize}
+          fontFamily={fontFamily}
+          lineSpacing={lineSpacing}
+          onFontIncreased={onFontIncreased}
+          onFontDecreased={onFontDecreased}
+          onFontSelected={onFontSelected}
+          onChangeLineSpacing={onChangeLineSpacing}
+        />
+      </ThemeContext.Provider>
     </NativeSheet>
   )
 }

@@ -36,9 +36,9 @@ The reader's default font family is the CSS stack `"Source Serif 4", serif`, whi
 
 Cross the native ↔ DOM bridge with **quote-free font tokens** instead of the canonical CSS stacks, and resolve back to the canonical string inside the DOM component.
 
-- `lib/reader-fonts.ts` defines `FONT_FAMILY_TOKEN` (`'inter'`, `'source-serif'`) plus `encodeFontFamilyForDom` / `decodeFontFamilyFromDom`.
-- Native wrappers encode at the three crossings that carry the font: `native/bible-reader.tsx` → `dom/bible-reader.tsx`, `native/bible-reader-settings-sheet.tsx` → `dom/bible-reader-settings.tsx`, and `native/bible-text-view.tsx` → `dom/bible-text-view.tsx`.
-- Each DOM component decodes on receipt before handing the value to the Web SDK, so the value it sees is the exact `"Source Serif 4", serif` constant — preserving the byte-for-byte parity `BibleThemeSettingsContent` needs to highlight the active font (see the note in `reader-fonts.ts`).
+- `lib/reader-fonts.ts` defines `FONT_FAMILY_TOKEN` (`'inter'`, `'untitled-serif'`, `'source-serif'`) plus `encodeFontFamilyForDom` / `decodeFontFamilyFromDom`.
+- Native wrappers encode where a font family crosses into a DOM component: `native/bible-reader.tsx`, `native/bible-text-view.tsx`, `native/bible-card.tsx`, and `native/verse-of-the-day.tsx`. Card and verse of the day pass the token into the text-view DOM component. Reader settings stay native in `native/bible-reader-settings-content.tsx` and compare `fontFamily` to `INTER_FONT` and `UNTITLED_SERIF_FONT`.
+- Each DOM component decodes on receipt before handing the value to the Web SDK, so the value it sees is the canonical CSS stack.
 - Unknown values are URI-encoded so `"`, backticks, and `${` cannot break the iOS template-literal injection; encoding runs on both platforms for a single code path.
 
 Only the initial-props injection (native → DOM) is corrupted. The reverse direction (DOM → native callbacks such as `onFontSelected`) is a plain JSON round-trip over `postMessage`, so font selections still carry — and the store still persists — the canonical string. The token lives **only** on the bridge; the store, the persisted MMKV value, and the Web SDK all stay canonical, so there is no persistence migration.
@@ -52,5 +52,5 @@ Only the initial-props injection (native → DOM) is corrupted. The reverse dire
 ## Verification
 
 - Layer-1 unit tests for the encode/decode round-trip and the no-`"` invariant (`lib/__tests__/reader-fonts.test.ts`).
-- The settings-sheet native test asserts the **token** crosses the bridge (`native/__tests__/bible-reader-settings-sheet.test.tsx`).
-- On-device (iPhone simulator, SDK 56 dev build): before the fix the reader was blank; after, it renders John 1 and the pre-warmed settings/picker DOM WebViews mount without the `$$EXPO_DOM_HOST_OS` error.
+- The settings-sheet test checks the native font choice (`native/__tests__/bible-reader-settings-sheet.test.tsx`). It does not assert a token crossing the bridge.
+- On-device (iPhone simulator, SDK 56 dev build): before the fix the reader was blank; after, it renders John 1. Settings and the version picker no longer mount a DOM WebView.

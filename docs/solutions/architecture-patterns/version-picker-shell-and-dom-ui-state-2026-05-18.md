@@ -15,6 +15,8 @@ tags: [expo-dom, version-picker, native-action, webview, css-transition]
 
 # Version Picker Shell And DOM-Owned UI State
 
+> The live version picker is native. See **Native Bible Version Picker** in `CONTEXT.md` and the supersession note on [ADR 0005](../../adr/0005-dom-owned-language-panel-in-version-picker.md). This note describes the DOM shell this branch stopped mounting.
+
 ## Context
 
 **Version Picker Sheet** hosts one Expo DOM WebView with two stacked panels: Bible versions and languages. On web, **BibleVersionPicker** uses a Radix popover and `isLanguagesOpen` for the cross-fade. On mobile, `bible-version-picker-content.tsx` (**Version Picker Shell Layout**) owns the same UX outside the popover.

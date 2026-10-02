@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. It wraps the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) as [Expo DOM Components](https://docs.expo.dev/guides/dom-components/), adding native affordances (bottom sheets, navigation, storage) through React Native.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, and the auth button are native. Scripture renders in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK are required for those scripture surfaces.
 
 ## Table of Contents
 
@@ -26,17 +26,17 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 ## Features
 
 - **Scripture display**: React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android and built-in chapter, version, and settings sheets
+- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android (chapter, version, Search, More) and built-in chapter, version, Search, and settings sheets
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
 - **Verse actions**: selecting a verse in `BibleReader` opens a native bottom sheet with highlight colors, Copy, and Share
 - **Theming**: `light` / `dark` / `system` themes, with per-component overrides and `useTokens()` for the SDK's own color tokens
-- **Native presentation**: verse actions, footnotes, chapter, and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
+- **Native presentation**: verse actions, footnotes, Search, and the chapter and version pickers open in native bottom sheets via `@gorhom/bottom-sheet`
 
 ## Requirements
 
-- Expo SDK 56
+- Expo SDK 57 (React Native 0.86)
 - A YouVersion Platform API key ([register here](https://platform.youversion.com/))
 
 > **Note:** This SDK requires a [dev build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go) due to native module dependencies.
@@ -113,7 +113,7 @@ import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
 function VerseScreen() {
   return (
     <BibleTextView
-      reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
+      reference="JHN.3.16" // passage id: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
       versionId={3034} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
     />
   )
@@ -133,7 +133,7 @@ function CardScreen() {
 }
 ```
 
-`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
+See `BibleCard` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 
@@ -152,9 +152,30 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, avatar, chapter (with prev/next), version, and settings live in a native toolbar. Those presses open the built-in sheets, or your `onChapterPickerPress` / `onVersionPickerPress` callbacks. `showToolbar={false}` hides that row and the built-in chapter, version, and settings sheets. On web, the Web SDK toolbar is unchanged.
+See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
+
+#### Jumping to a passage
+
+Create a `BibleReaderNavigation` object and pass it in. Use one object per Reader. You can call it before the reader mounts. A newer call replaces an older one; the reader consumes each request once.
+
+```tsx
+import { useMemo } from 'react'
+import { BibleReader, createBibleReaderNavigation } from '@youversion/platform-react-native-expo-ui'
+
+function ReaderScreen() {
+  const navigation = useMemo(() => {
+    const readerNavigation = createBibleReaderNavigation()
+    readerNavigation.request({ versionId: 111, bookId: 'JHN', chapter: 3, verse: 16 })
+    return readerNavigation
+  }, [])
+
+  return <BibleReader navigation={navigation} defaultVersionId={3034} />
+}
+```
+
+`request` loads that version / book / chapter without focusing a verse. `focusReference` loads the chapter, scrolls to the verse, and dims the rest of the chapter.
 
 #### Verse actions
 
@@ -259,7 +280,7 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 />
 ```
 
-The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows.
+The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows, along with `BibleChapterPicker`, which renders the native picker without a sheet. See the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for their props.
 
 ### Verse of the Day
 
@@ -356,11 +377,11 @@ function ProfileScreen() {
 }
 ```
 
-It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`), `outline`, `radius` (`'rounded' | 'rectangular'`), `size` (`'default' | 'short' | 'icon'`), and `text` (string, replaces the default localized label).
+See `YouVersionAuthButton` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
 
 #### Signing out
 
-Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s avatar menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
+Both SDK-owned sign-out surfaces — `YouVersionAuthButton` and `BibleReader`'s More menu — ask before signing out, matching the Swift SDK. Sign-out is destructive: it drops the access token, the cached profile, the granted permissions, the cached highlights, and every highlight write still waiting to reach the server. When the queue holds unsent work, the confirmation escalates to "Save your highlights?". Every string is localized through the SDK's own catalog, and there is nothing to enable.
 
 On web the confirmation is skipped and sign-out runs immediately, because React Native Web's `Alert.alert` is a no-op and a prompt there would leave the button doing nothing.
 
