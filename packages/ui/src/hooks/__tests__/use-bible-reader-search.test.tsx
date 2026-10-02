@@ -595,6 +595,37 @@ describe('useBibleReaderSearch', () => {
     expect(useSearchHistoryStore.getState().entries).toEqual(['hope'])
   })
 
+  it('treats a 404 verse search as a failure, not an empty result', async () => {
+    const stub = searchStub({
+      verses: jest.fn(async () => ({
+        ok: false as const,
+        error: {
+          kind: 'transient' as const,
+          status: 404,
+          message: 'Bible version 111 not found',
+        },
+      })),
+    })
+    const { result } = renderHook(
+      () =>
+        useBibleReaderSearch({
+          versionId: 111,
+          isOpen: true,
+          fetchBibleContent: fetchStub(),
+          languageRanges: ['en'],
+        }),
+      { wrapper: wrapperFor(stub) },
+    )
+    await flush()
+
+    await act(async () => {
+      result.current.submit('zzzz')
+    })
+    await flush()
+
+    expect(result.current.view.phase).toBe('failed')
+  })
+
   it('treats zero API hits as empty', async () => {
     const stub = searchStub({
       verses: jest.fn(async () => okVerses([])),
@@ -842,7 +873,10 @@ describe('useBibleReaderSearch', () => {
     expect(verses).toHaveBeenCalledTimes(3)
     expect(result.current.view.phase).toBe('results')
     if (result.current.view.phase === 'results') {
-      expect(result.current.view.verses.map((verse) => verse.usfm)).toEqual(['JHN.3.16', 'PSA.23.1'])
+      expect(result.current.view.verses.map((verse) => verse.usfm)).toEqual([
+        'JHN.3.16',
+        'PSA.23.1',
+      ])
       expect(result.current.view.footer.kind).toBe('none')
     }
   })
