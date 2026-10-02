@@ -113,7 +113,7 @@ import { BibleTextView } from '@youversion/platform-react-native-expo-ui'
 function VerseScreen() {
   return (
     <BibleTextView
-      reference="JHN.3.16" // USFM reference: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
+      reference="JHN.3.16" // passage id: BOOK.CHAPTER.VERSE (or VERSE-VERSE for a range)
       versionId={3034} // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
     />
   )

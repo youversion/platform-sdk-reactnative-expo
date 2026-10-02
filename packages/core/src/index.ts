@@ -46,9 +46,11 @@ export { mmkvStorage } from './storage'
 
 export type { BibleContentRequest, BibleContentResponse, FetchBibleContent } from './bible-content/client'
 
-export { bibleReferenceFromUsfm, SEARCH_USER_INTENT, useSearch } from './search'
+export { biblePassageAnchorFromPassageId } from './passage-anchor'
+export type { BiblePassageAnchor } from './passage-anchor'
+
+export { SEARCH_USER_INTENT, useSearch } from './search'
 export type {
-  BibleReference,
   SearchApiError,
   SearchApiResult,
   SearchTopicsParams,

@@ -1,5 +1,5 @@
 import {
-  bibleReferenceFromUsfm,
+  biblePassageAnchorFromPassageId,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 import {
@@ -141,7 +141,7 @@ function BibleReaderSearchSheetContent({
   }, [fieldRef, isOpen])
 
   const handleSelectVerse = (usfm: TitledVerse['usfm']) => {
-    const reference = bibleReferenceFromUsfm(usfm, versionId)
+    const reference = biblePassageAnchorFromPassageId(usfm, versionId)
     if (reference === null) {
       return
     }
