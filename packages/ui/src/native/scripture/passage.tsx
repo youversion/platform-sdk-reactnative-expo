@@ -63,6 +63,12 @@ const NOTE_ALPHA = 0.5
 const DIM_ALPHA = 0.35
 // Zero-width space: an invisible first character that carries the block's paragraph style.
 const PARAGRAPH_ANCHOR = '\u200b'
+const TRANSPARENT = 'transparent'
+// iOS seats inline views a fixed ~2.8pt above the line box at every size and spacing
+// (measured); likely TextKit's Helvetica 12 fallback descender for the font-less attachment.
+const BOX_SHIFT = 2.8
+// Drops the ghost copy so its underline sits ~0.33em under the baseline, as the DOM does.
+const UNDERLINE_DROP = 0.28
 
 export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
   const resolved = blocks.map((block) => resolveBlock(block.classes, rest.look.fontSize))
@@ -104,33 +110,42 @@ const BlockView = memo(function BlockView({
   onBlockRef,
 }: BlockViewProps): ReactNode {
   const { fontSize } = look
+  const lineBox = rule.size * look.lineSpacing
   const drift = -ATTACHMENT_DRIFT * rule.size * (look.lineSpacing - READER_LINE_SPACING.DEFAULT)
-  const blockDimmed = focus !== null && block.heading
+    const blockDimmed = focus !== null && block.heading
+  const hasSelection = block.verses.some((verse) => selected.has(verse))
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
     return value === 1 ? hex : withAlpha(hex, value)
   }
 
+  // The ghost lays out exactly like the real text but paints only the underline.
   const renderInline = (
     inline: Inline,
     key: number,
     verse: number | null,
     dimmed: boolean,
+    ghost: boolean,
   ): ReactNode => {
-    const fill = verse === null ? undefined : paint.get(verse)
+    const fill = ghost || verse === null ? undefined : paint.get(verse)
     const overInk = fill?.text ?? null
+    const pressable = !ghost && verse !== null
+    // Inline views fill the whole line box so a highlight runs through them;
+    // the content shifts back by the same amount to stay where it was.
+    const box = {
+      height: lineBox,
+      justifyContent: 'flex-end',
+      transform: [{ translateY: BOX_SHIFT }],
+      backgroundColor: background(fill, dimmed),
+    } as const
     if (inline.kind === 'label') {
       return (
         // End padding, not a trailing space: under RTL the space lands on the far side.
         <Pressable
           key={key}
-          disabled={verse === null}
-          onPress={verse === null ? undefined : () => onVersePress(verse)}
-          style={{
-            paddingEnd: fontSize * 0.25,
-            transform: [{ translateY: fontSize * LABEL_RISE + drift }],
-            backgroundColor: background(fill, dimmed),
-          }}
+          disabled={!pressable}
+          onPress={pressable ? () => onVersePress(verse) : undefined}
+          style={{ ...box, paddingEnd: fontSize * 0.25 }}
         >
           <RNText
             allowFontScaling={false}
@@ -138,7 +153,10 @@ const BlockView = memo(function BlockView({
               fontFamily: look.labelFace,
               fontSize: fontSize * LABEL_SCALE,
               lineHeight: fontSize * LABEL_SCALE * 1.2,
-              color: color(overInk ?? look.ink, overInk === null ? LABEL_ALPHA : 1, dimmed),
+              color: ghost
+                ? TRANSPARENT
+                : color(overInk ?? look.ink, overInk === null ? LABEL_ALPHA : 1, dimmed),
+              transform: [{ translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT }],
             }}
           >
             {inline.text}
@@ -152,28 +170,30 @@ const BlockView = memo(function BlockView({
         <Pressable
           key={key}
           hitSlop={8}
+          disabled={ghost}
           accessibilityRole="button"
-          onPress={() => onNotePress(verse, inline.html)}
-          style={{
-            paddingHorizontal: fontSize * 0.2,
-            transform: [{ translateY: drift }],
-            backgroundColor: background(fill, dimmed),
-          }}
+          onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
+          style={{ ...box, paddingHorizontal: fontSize * 0.2 }}
         >
-          <Svg width={size} height={size} viewBox="0 0 20 20">
-            <Path
-              d={NOTE_ICON}
-              fill={color(overInk ?? look.ink, NOTE_ALPHA, dimmed)}
-              fillRule="evenodd"
-            />
-          </Svg>
+          <View style={{ width: size, height: size, transform: [{ translateY: drift - BOX_SHIFT }] }}>
+            {!ghost && (
+              <Svg width={size} height={size} viewBox="0 0 20 20">
+                <Path
+                  d={NOTE_ICON}
+                  fill={color(overInk ?? look.ink, NOTE_ALPHA, dimmed)}
+                  fillRule="evenodd"
+                />
+              </Svg>
+            )}
+          </View>
         </Pressable>
       )
     }
     const chars = resolveChars(inline.classes)
     const weight = chars.weight ?? rule.weight
     const size = chars.scale === null ? rule.size : rule.size * chars.scale
-    const wj = chars.wordsOfJesus && overInk === null ? color(look.wj, 1, dimmed) : undefined
+    const wj =
+      chars.wordsOfJesus && overInk === null && !ghost ? color(look.wj, 1, dimmed) : undefined
     return (
       <RNText
         key={key}
@@ -188,25 +208,18 @@ const BlockView = memo(function BlockView({
     )
   }
 
-  const onLayout = (event: LayoutChangeEvent): void => {
-    onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
-  }
-
-  return (
+  const paragraph = (ghost: boolean): ReactNode => (
     <RNText
-      ref={(node) => onBlockRef(index, node)}
+      ref={ghost ? undefined : (node) => onBlockRef(index, node)}
       allowFontScaling={false}
-      onLayout={onLayout}
       style={{
         fontSize: rule.size,
-        lineHeight: rule.size * look.lineSpacing,
-        color: color(look.ink, 1, blockDimmed),
+        lineHeight: lineBox,
+        color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
         fontFamily: look.face(rule.weight, rule.italic),
         textAlign: rule.align,
         writingDirection: look.rtl ? 'rtl' : 'ltr',
         paddingStart: rule.headIndent,
-        marginTop: collapsedMarginTop(rule, previous, fontSize),
-        marginBottom: blockMarginBottom(rule, fontSize, look.lineSpacing),
       }}
     >
       {/* iOS reads paragraph style (lineHeight) from the first character; an
@@ -215,7 +228,7 @@ const BlockView = memo(function BlockView({
       {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
       {block.segments.map((segment, segmentIndex) => {
         const verse = segment.verse
-        const fill = verse === null ? undefined : paint.get(verse)
+        const fill = ghost || verse === null ? undefined : paint.get(verse)
         const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
         const isSelected = verse !== null && selected.has(verse)
         const ink = fill?.text ?? look.ink
@@ -223,19 +236,53 @@ const BlockView = memo(function BlockView({
           <RNText
             key={segmentIndex}
             suppressHighlighting
-            onPress={verse === null ? undefined : () => onVersePress(verse)}
+            onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
             style={{
-              color: color(ink, 1, dimmed),
+              color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
               backgroundColor: background(fill, dimmed),
-              textDecorationLine: isSelected ? 'underline' : 'none',
+              textDecorationLine: ghost && isSelected ? 'underline' : 'none',
               textDecorationColor: look.underline,
             }}
           >
-            {segment.inlines.map((inline, i) => renderInline(inline, i, verse, dimmed))}
+            {segment.inlines.map((inline, i) => renderInline(inline, i, verse, dimmed, ghost))}
           </RNText>
         )
       })}
     </RNText>
+  )
+
+  const onLayout = (event: LayoutChangeEvent): void => {
+    onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
+  }
+
+  // RN has no underline offset, so a selected block draws its underline on a
+  // transparent copy dropped below the real text; only those blocks pay for it.
+  return (
+    <View
+      onLayout={onLayout}
+      style={{
+        marginTop: collapsedMarginTop(rule, previous, fontSize),
+        marginBottom: blockMarginBottom(rule, fontSize, look.lineSpacing),
+      }}
+    >
+      {paragraph(false)}
+      {hasSelection && (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            transform: [{ translateY: UNDERLINE_DROP * rule.size }],
+          }}
+        >
+          {paragraph(true)}
+        </View>
+      )}
+    </View>
   )
 }, sameBlockState)
 
