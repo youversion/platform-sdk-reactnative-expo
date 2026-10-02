@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-ui
 
-Drop-in YouVersion Bible components for React Native (Expo) apps. Chrome is native. Scripture still renders in a WebView through the React Web SDK and [Expo DOM](https://docs.expo.dev/guides/dom-components/).
+Drop-in YouVersion Bible components for React Native (Expo) apps. Chrome is native. Scripture renders in a WebView through the React Web SDK and [Expo DOM](https://docs.expo.dev/guides/dom-components/).
 
 ## When to use this package
 
@@ -24,7 +24,7 @@ Use `@youversion/platform-react-native-expo-ui` when you need:
 npx expo install @youversion/platform-react-native-expo-ui @youversion/platform-react-native-expo-core
 ```
 
-Requires Expo SDK 57 (React Native 0.86), React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). If you upgrade from SDK 56, rebuild the dev client. Peer dependencies are listed in [`package.json`](./package.json).
+Requires Expo SDK 57 (React Native 0.86), React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). Peer dependencies are listed in [`package.json`](./package.json).
 
 Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
 
