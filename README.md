@@ -133,7 +133,7 @@ function CardScreen() {
 }
 ```
 
-`defaultVersionId` is uncontrolled — the user's version choice is persisted on device. For controlled usage, pass `versionId` with `onVersionChange` instead. The version picker button is hidden by default (matching the React Web SDK); pass `showVersionPicker` to enable it, and note that `onVersionPickerPress` only fires when `showVersionPicker` is set. The reference, version control, copyright, and logo are native. Scripture stays in a WebView. `maxWidth` defaults to 700 on that native card. `"100%"` fills the parent and keeps a 600px inner column. `background` sets the card scheme when `theme` is omitted. Embeds size themselves to their content by default (`matchContents`); pass `dom={{ matchContents: false }}` to opt out and size with flex styles. See the [quick start](https://developers.youversion.com/sdks/react-native-expo/quick-start) for more.
+See `BibleCard` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
 
 > **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
 
@@ -152,7 +152,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-On iOS and Android, a chapter capsule with previous and next, a separate version capsule, Search, and a More menu live in native chrome. Chapter and version presses open the built-in sheets, or your `onChapterPickerPress` and `onVersionPickerPress` callbacks. More opens Fonts & Settings. Search opens a native sheet. A result tap loads that chapter, scrolls to the verse, and dims the rest of the chapter. `showToolbar={false}` hides that chrome and the built-in chapter, version, Search, and settings sheets. On web, the Web SDK toolbar is unchanged. There is no native Search chrome on web.
+See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 
 `BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
 
@@ -280,18 +280,7 @@ To present your own picker UI instead of the built-in sheets, pass `onChapterPic
 />
 ```
 
-The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows. `BibleChapterPicker` renders the native picker without a sheet when your app owns presentation:
-
-```tsx
-<BibleChapterPicker
-  book="JHN"
-  chapter="3"
-  versionId={3034}
-  onSelect={({ book, chapter, versionId }) => {
-    // commit the selected location
-  }}
-/>
-```
+The standalone sheets are also exported (`BibleChapterPickerSheet`, `BibleVersionPickerSheet`, `BibleReaderSettingsSheet`) for advanced flows, along with `BibleChapterPicker`, which renders the native picker without a sheet. See the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for their props.
 
 ### Verse of the Day
 
@@ -388,7 +377,7 @@ function ProfileScreen() {
 }
 ```
 
-It accepts `mode` (`'auto' | 'signIn' | 'signOut'`, default `'auto'` toggles based on auth state), `background` (`'light' | 'dark'`, forces that token scheme; default `'light'`), and `text` (string, replaces the default localized label). The control is a filled, rounded, outlined pill with the Bible App logo beside the localized label (up to two lines). Do not pass `outline`, `radius`, or `size`. Those props are gone.
+See `YouVersionAuthButton` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
 
 #### Signing out
 
