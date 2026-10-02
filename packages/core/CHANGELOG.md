@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-core
 
+## 1.7.0
+
+### Minor Changes
+
+- 7e7fcec: VerseOfTheDay is now hybrid: native chrome (share, attribution, Card surface) wrapping the DOM BibleTextView for scripture (YPE-5440 / RNV2-2). Public props are unchanged. Light/dark resolve on native before they cross the bridge. Share uses the native Share API. Native share and the header reference honor the provider version filter lists, so a refused version cannot leak through Share.
+- dffc732: feat: draw a native Reader toolbar on iOS/Android instead of the in-WebView Web SDK toolbar (YPE-5712 / RNV2-9a). Avatar, chapter (with chevrons), version, and settings open the existing sheets.
+
 ## 1.6.0
 
 ## 1.5.0
