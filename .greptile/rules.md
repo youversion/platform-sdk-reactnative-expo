@@ -5,7 +5,7 @@ Applies to `packages/ui/src/native/**`. Full guide: [docs/contributing/native-i1
 ## Required pattern
 
 - Call `useSdkTranslation()` and render copy with `t('key')` or `<Trans i18nKey="key">`.
-- Add new keys under `reactnative.*` in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Keys are typed via `SdkTranslationKey` after sync.
+- Prefer an unprefixed shared key in [platform-localization](https://github.com/youversion/platform-localization) (`sources/common/en.json`). Use `reactnative.*` only when the string belongs to this SDK alone, and say why in `_comment`. Keys are typed via `SdkTranslationKey` after sync.
 
 ## Flag as high severity
 
@@ -57,7 +57,7 @@ Translation JSON under `packages/ui/src/i18n/locales/` (`en.json`, `es.json`, `f
 
 **Correct workflow:**
 
-1. Add the key under `reactnative.*` in platform-localization `sources/common/en.json`.
+1. Add an unprefixed shared key in platform-localization `sources/common/en.json`. Use `reactnative.*` only when the string belongs to this SDK alone, and say why in `_comment`.
 2. Merge the platform-localization PR; CI assembles `dist/reactnative/*.json`.
 3. The **Distribute React Native Localization** workflow syncs assembled files into this repo.
 4. After distribution adds locale JSON files, run `pnpm generate:locale-index` to refresh `packages/ui/src/i18n/locales/index.ts` (auto-generated; do not hand-edit).
@@ -72,3 +72,15 @@ Flag any PR diff that hand-edits locale JSON string values. Exception: automated
 4. Are SDK-owned sheet headers localized?
 5. Is the change correctly scoped to native only (not DOM)?
 6. Were locale JSON files left untouched (except sync PRs)?
+
+## dom-versus-native
+
+Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.
+
+## nativesheet-test-seam
+
+Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImpl, and resetImpls from packages/ui/src/test-utils/install-test-impls.tsx. Those helpers call setImpl on the registry in packages/ui/src/native/component-impls.ts. getImpl is exported from that registry, and production code reads an entry with it. Tests assert the bridge with latestDomProps. They do not mount 'use dom' in RNTL and they do not jest.mock app modules. packages/ui/jest.setup.js may shim native runtimes only.
+
+## public-api-pin
+
+A new package export is a finding unless packages/ui/src/__tests__/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
