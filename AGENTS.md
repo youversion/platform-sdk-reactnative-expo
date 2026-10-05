@@ -74,3 +74,7 @@ Package entry, `publishConfig`, or tsconfig split: [ADR 0011](docs/adr/0011-comp
 ## Release
 
 Changeset or publish: `PUBLISHING.md`. RN publish failure: `RELEASE-RUNBOOK.md`.
+
+## CI
+
+Workflows live in `.github/workflows/`. A change lands when CI passes. Do not list job names in this file.
