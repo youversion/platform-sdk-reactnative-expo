@@ -65,7 +65,7 @@ Internal design-system primitives (`Text`, `Button`, …) live in `packages/ui/s
 
 ## Localization
 
-Native copy or locale keys: `docs/contributing/native-i18n.md`.
+Native copy or locale keys: `docs/contributing/native-i18n.md`. Do not edit `packages/ui/src/i18n/locales`. Open a pull request on [platform-localization](https://github.com/youversion/platform-localization) that edits `sources/common/en.json`.
 
 ## Distribution
 
