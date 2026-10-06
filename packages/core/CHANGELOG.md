@@ -1,5 +1,18 @@
 # @youversion/platform-react-native-expo-core
 
+## 2.0.0
+
+### Major Changes
+
+- 8bb6a02: Require Expo SDK 57 (`expo >=57.0.0 <58.0.0`, `react-native >=0.86.0`). Expo 56 is no longer supported. Consumers must upgrade Expo and align native peers (`react-native-reanimated >=4.4.0`, `react-native-worklets >=0.9.1`) before installing this release.
+
+### Minor Changes
+
+- 7e7fcec: VerseOfTheDay is now hybrid: native chrome (share, attribution, Card surface) wrapping the DOM BibleTextView for scripture (YPE-5440 / RNV2-2). Public props are unchanged. Light/dark resolve on native before they cross the bridge. Share uses the native Share API. Native share and the header reference honor the provider version filter lists, so a refused version cannot leak through Share.
+- 8bb6a02: feat: wrap platform-core SearchClient (YPE-5746). Public `useSearch` and `biblePassageAnchorFromPassageId`. A verse hit `id` is a passage id.
+- dffc732: feat: draw a native Reader toolbar on iOS/Android instead of the in-WebView Web SDK toolbar (YPE-5712 / RNV2-9a). Avatar, chapter (with chevrons), version, and settings open the existing sheets.
+- 8bb6a02: BibleCard is now hybrid: native Card chrome (reference, version control, copyright, logo) wrapping the DOM BibleTextView for scripture (YPE-5830 / RNV2-3). Public props are unchanged. maxWidth defaults to 700 on the native Card and no longer crosses the bridge.
+
 ## 1.6.0
 
 ## 1.5.0
