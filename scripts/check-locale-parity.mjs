@@ -191,7 +191,7 @@ function checkGuard() {
     console.error(`  - ${file}`)
   }
   console.error(
-    '\nAdd keys in platform-localization and let the Distribute React Native Localization workflow sync files.',
+    '\nOpen a pull request on https://github.com/youversion/platform-localization that edits sources/common/en.json. The Distribute React Native Localization workflow syncs the files into this repo.',
   )
   console.error('See docs/contributing/native-i18n.md')
   console.error(

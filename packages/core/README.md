@@ -13,7 +13,7 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ Bible highlights with optimistic writes and an instant local cache (`useHighlights`)
 - ✅ Highlights made offline that survive a relaunch and land on their own
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
-- ✅ Bible search (`useSearch`) and `bibleReferenceFromUsfm` for turning a hit into a book, chapter, and verse
+- ✅ Bible search (`useSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
@@ -25,7 +25,7 @@ Install this package directly alongside the UI package. The UI package already d
 npx expo install @youversion/platform-react-native-expo-core
 ```
 
-Requires Expo SDK 57 (React Native 0.86), React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). If you upgrade from SDK 56, rebuild the dev client. Peer dependencies are listed in [`package.json`](./package.json).
+Requires Expo SDK 57 (React Native 0.86), React 19, and a [development build](https://docs.expo.dev/develop/development-builds/introduction/) (not Expo Go — the SDK relies on native modules). Peer dependencies are listed in [`package.json`](./package.json).
 
 Get your App Key at [platform.youversion.com](https://platform.youversion.com/).
 
@@ -180,17 +180,17 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path �
 
 ### Search
 
-`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a USFM reference. `bibleReferenceFromUsfm(usfm, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. `createSearchApi` is not a package export.
+`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
-import { bibleReferenceFromUsfm, useSearch } from '@youversion/platform-react-native-expo-core'
+import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
 
 function useFindVerse() {
   const search = useSearch()
 
   return async (query: string) => {
     const result = await search.verses({ query, bibleId: 111 })
-    return result.ok ? bibleReferenceFromUsfm(result.value.verses[0]?.id ?? '', 111) : null
+    return result.ok ? biblePassageAnchorFromPassageId(result.value.verses[0]?.id ?? '', 111) : null
   }
 }
 ```

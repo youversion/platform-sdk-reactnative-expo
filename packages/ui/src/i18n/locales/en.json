@@ -78,5 +78,11 @@
   "decreaseFontSizeAriaLabel": "Decrease font size",
   "increaseFontSizeAriaLabel": "Increase font size",
   "interFontName": "Inter",
-  "untitledSerifFontName": "Untitled Serif"
+  "untitledSerifFontName": "Untitled Serif",
+  "bibleSearchBibleHeading": "Bible",
+  "bibleSearchFilterBoth": "Both",
+  "bibleSearchFilterNewTestament": "New Testament",
+  "bibleSearchFilterOldTestament": "Old Testament",
+  "bibleSearchFiltersButton": "Filters",
+  "generic.requestErrorBody": "This request can’t be completed right now."
 }

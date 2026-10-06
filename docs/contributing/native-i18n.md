@@ -16,7 +16,7 @@ How to add user-visible copy in `packages/ui/src/native/**` without hardcoding E
 
 ## Required pattern
 
-1. Add the English string under `reactnative.*` in [`platform-localization`](https://github.com/youversion/platform-localization) (`sources/common/en.json`).
+1. Add the English string in [`platform-localization`](https://github.com/youversion/platform-localization) `sources/common/en.json`. Use an unprefixed key. That key is shared with Swift, React web, and Android UI. Use `reactnative.*` only when the wording belongs to this SDK alone, and say why in `_comment`.
 2. Call `useSdkTranslation()` in the native component.
 3. Render with `t('key')` or `<Trans i18nKey="key">` for rich text.
 
@@ -72,14 +72,25 @@ const tokens = useTokens()
 </Button.Text>
 ```
 
-Matching entry in `platform-localization` (`sources/common/en.json`):
+A shared string is a top-level key in `sources/common/en.json`. The Trans example above uses that shape:
+
+```json
+{
+  "signInWithYouVersion": {
+    "_value": "Sign in with <bold>{{brandName}}</bold>",
+    "_comment": "Sign-in label with brand; {{brandName}} is YouVersion. Keep <bold> markup."
+  }
+}
+```
+
+Use a `reactnative.*` key only when this SDK needs its own wording, and say why in `_comment`:
 
 ```json
 {
   "reactnative": {
-    "signInWithYouVersion": {
-      "_value": "Sign in with <bold>{{brandName}}</bold>",
-      "_comment": ""
+    "applyHighlightAriaLabel": {
+      "_value": "Apply highlight",
+      "_comment": "Spoken label for a highlight colour swatch that applies that colour to the selected verses, in the verse actions sheet."
     }
   }
 }
@@ -119,7 +130,7 @@ Do not copy production hardcoding patterns into non-test source files.
 
 ## Adding a new locale key
 
-1. Add the key under `reactnative.*` in [`platform-localization`](https://github.com/youversion/platform-localization) `sources/common/en.json` with `_value` and `_comment`.
+1. Add an unprefixed key in [`platform-localization`](https://github.com/youversion/platform-localization) `sources/common/en.json` with `_value` and `_comment`. Use `reactnative.*` only when the wording belongs to this SDK alone, and say why in `_comment`.
 2. Run `npm run generate` in platform-localization (or open a PR — CI validates).
 3. Use the key via `t('yourKey')` or `<Trans i18nKey="yourKey">` in native components.
 4. After merge, the **Distribute React Native Localization** workflow syncs `dist/reactnative/*.json` into `packages/ui/src/i18n/locales/` in this repo.
