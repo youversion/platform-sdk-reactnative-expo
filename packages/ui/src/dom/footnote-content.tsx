@@ -14,6 +14,7 @@ export type FootnoteContentDOMProps = {
   data: FootnoteData
   theme?: 'light' | 'dark'
   fontSize?: number
+  scriptureDirection?: 'ltr' | 'rtl'
   appKey: string
   apiHost: string
   installationId: string
@@ -24,6 +25,7 @@ export default function FootnoteContentDOM({
   data,
   theme = 'light',
   fontSize,
+  scriptureDirection,
   appKey,
   apiHost,
   installationId,
@@ -39,7 +41,12 @@ export default function FootnoteContentDOM({
         {`html, body { background: ${SHEET_SURFACE[theme]}; }
 [data-yv-sdk][data-yv-theme="${theme}"] { --yv-background: ${SHEET_SURFACE[theme]}; }`}
       </style>
-      <WebFootnoteContent {...data} fontSize={fontSize} theme={theme} />
+      <WebFootnoteContent
+        {...data}
+        fontSize={fontSize}
+        theme={theme}
+        scriptureDirection={scriptureDirection}
+      />
     </YouVersionProvider>
   )
 }

@@ -1,9 +1,9 @@
 /**
  * Mirrors the font-family constants in `@youversion/platform-react-ui`'s
- * `lib/verse-html-utils`, which are not currently re-exported from the
- * package's public entry. We need exact string-match parity so that
- * `BibleThemeSettingsContent`'s selected-button highlighting works when we
- * pass these values into the DOM wrapper.
+ * `lib/verse-html-utils`, which are not re-exported from the package's
+ * public entry. Native settings compare the selected font to these strings
+ * in `BibleReaderSettingsContent`. The same strings still cross the Expo DOM
+ * bridge, and the DOM component decodes them before the Web SDK sees them.
  */
 export const INTER_FONT = '"Inter", sans-serif' as const
 export const UNTITLED_SERIF_FONT = '"Untitled Serif", "Source Serif 4", serif' as const

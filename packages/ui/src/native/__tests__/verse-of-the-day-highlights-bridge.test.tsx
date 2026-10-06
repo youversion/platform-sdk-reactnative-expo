@@ -244,17 +244,11 @@ describe('the verse-action event set', () => {
 describe('the DOM scripture surface (unobservable from layer 3)', () => {
   const votdSource = readFileSync(join(__dirname, '../verse-of-the-day.tsx'), 'utf8')
   const textViewSource = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
-  const legacyDomSource = readFileSync(join(__dirname, '../../dom/verse-of-the-day.tsx'), 'utf8')
 
-  it('embeds BibleTextView instead of the full-component VOTD wrapper', () => {
+  it('embeds BibleTextView instead of a full-component VOTD wrapper', () => {
     expect(votdSource).toContain("getImpl('BibleTextViewDom')")
     expect(votdSource).not.toContain("getImpl('VerseOfTheDayDom')")
-  })
-
-  it('keeps the unused full-component DOM wrapper for RNV2-10', () => {
-    expect(legacyDomSource).toContain('VerseOfTheDay')
-    expect(legacyDomSource).not.toMatch(/^\s*accessToken\b/m)
-    expect(legacyDomSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
+    expect(votdSource).not.toContain("from '../dom/verse-of-the-day'")
   })
 
   it('keeps content fetches on the native Bible Content Client', () => {

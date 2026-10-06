@@ -1,8 +1,9 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from '../components/ui'
-import type { VerseOfTheDayProps as VerseOfTheDayDOMProps } from '../dom/verse-of-the-day'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
 import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
@@ -20,10 +21,10 @@ import { useVerseOfTheDayPassageId } from './use-verse-of-the-day-passage-id'
 import { getDayOfYear } from './verse-of-the-day-api'
 import { useVerseOfTheDayShareSource } from './use-verse-of-the-day-share-source'
 
-export type VerseOfTheDayProps = Omit<
-  VerseOfTheDayDOMProps,
-  'appKey' | 'apiHost' | 'installationId' | 'fetchBibleContent' | 'highlights'
->
+export type VerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
+  theme?: 'light' | 'dark' | 'system'
+  dom?: DOMProps
+}
 
 const DEFAULT_FONT_SIZE = 16
 const LARGE_FONT_SIZE = 20

@@ -1,14 +1,12 @@
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
-import type { DOMProps } from 'expo/dom'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
-import { useTheme } from '../hooks/use-theme'
-import { useLocale } from '../i18n/locale-context'
+import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { SHEET_MUTED_BACKGROUND } from '../lib/native-sheet-theme'
+import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import { getImpl, registerDefault } from './component-impls'
+import './bible-chapter-picker'
 import { NativeSheet } from './native-sheet'
 
 const DEFAULT_BOOK = 'JHN'
@@ -24,7 +22,6 @@ export type BibleChapterPickerSheetProps = {
 
   theme?: 'light' | 'dark' | 'system'
   onSelect?: (data: BibleChapterPickerSelectData) => void | Promise<void>
-  dom?: DOMProps
 }
 
 function BibleChapterPickerSheetImpl({
@@ -35,83 +32,41 @@ function BibleChapterPickerSheetImpl({
   versionId = DEFAULT_BIBLE_VERSION_ID,
   theme: themeOverride,
   onSelect,
-  dom,
 }: BibleChapterPickerSheetProps) {
-  const context = useYouVersion()
-  const { lng } = useLocale()
   const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(themeOverride)
   const { height } = useWindowDimensions()
 
-  // Bump resetKey on close so the DOM component remounts its picker tree on the
-  // dismiss transition, resetting scroll position, search query, and language
-  // filter state before the next open. Done in the close handler (an event)
-  // rather than an effect — see https://react.dev/learn/you-might-not-need-an-effect.
-  const [resetKey, setResetKey] = useState(0)
-  const [dismissKeyboardNonce, setDismissKeyboardNonce] = useState(0)
-  const handleDismissKeyboardStart = () => {
-    setDismissKeyboardNonce((n) => n + 1)
-  }
+  if (Platform.OS === 'web') return null
 
-  const handleClose = () => {
-    setResetKey((k) => k + 1)
+  const handleSelect = async (data: BibleChapterPickerSelectData) => {
+    try {
+      await onSelect?.(data)
+    } catch {
+      return
+    }
     onClose()
   }
 
-  if (Platform.OS === 'web') return null
-
-  const pickerDom = {
-    style: styles.dom,
-    hideKeyboardAccessoryView: true,
-    scrollEnabled: false,
-    ...dom,
-  }
-
-  const handleSelect = async (data: BibleChapterPickerSelectData) => {
-    if (onSelect) {
-      try {
-        await Promise.resolve(onSelect(data))
-      } catch {
-        return
-      }
-    }
-    handleClose()
-  }
-
-  const ChapterPickerContentDOM = getImpl('ChapterPickerContent')
+  const Picker = getImpl('BibleChapterPicker')
 
   return (
     <NativeSheet
       isOpen={isOpen}
-      onClose={handleClose}
-      onDismissKeyboardStart={handleDismissKeyboardStart}
+      onClose={onClose}
       enableContentPanningGesture={false}
       theme={resolvedTheme}
-      bottomInsetColor={SHEET_MUTED_BACKGROUND[resolvedTheme]}
+      bottomInsetColor={SHEET_SURFACE[resolvedTheme]}
       contentStyle={styles.content}
       showHeader={true}
       headerTitle={t('booksHeading')}
     >
       <View style={[styles.componentContent, { height: Math.round(height * 0.78) }]}>
-        <ChapterPickerContentDOM
-          dom={pickerDom}
-          appKey={context.appKey}
-          apiHost={context.apiHost}
-          installationId={context.installationId}
-          fetchBibleContent={context.fetchBibleContent}
-          book={book}
-          chapter={chapter}
-          versionId={versionId}
-          theme={resolvedTheme}
-          isOpen={isOpen}
-          dismissKeyboardNonce={dismissKeyboardNonce}
-          resetKey={resetKey}
-          onSelect={handleSelect}
-          permittedVersionIds={context.permittedVersionIds}
-          excludedVersionIds={context.excludedVersionIds}
-          permittedLanguageTags={context.permittedLanguageTags}
-          locale={lng}
-        />
+        {isOpen ? (
+          <ThemeContext.Provider value={resolvedTheme}>
+            <Picker book={book} chapter={chapter} versionId={versionId} onSelect={handleSelect} />
+          </ThemeContext.Provider>
+        ) : null}
       </View>
     </NativeSheet>
   )
@@ -130,8 +85,5 @@ const styles = StyleSheet.create({
   },
   componentContent: {
     width: '100%',
-  },
-  dom: {
-    flex: 1,
   },
 })
