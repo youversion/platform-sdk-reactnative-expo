@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   AccessibilityInfo,
   ActivityIndicator,
+  Platform,
   Text as RNText,
   ScrollView,
   View,
@@ -28,7 +29,7 @@ import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { fontMapKey } from '../theme/fonts'
-import { useSerifFamily } from '../theme/use-fonts'
+import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
@@ -50,6 +51,9 @@ const GUTTER = 16
 const HEADER_TOP = 48
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
+// A system serif until the brand serif registers. Naming the brand face early measures
+// in the system font, and Fabric keeps that measure after the face lands.
+const SERIF_STANDIN = Platform.select({ ios: 'Georgia', default: 'serif' })
 
 /**
  * POC: the `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
@@ -81,6 +85,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const tokens = useTokens()
   const { t } = useSdkTranslation()
   const serifFamily = useSerifFamily()
+  const serifReady = useSerifReady()
 
   const { title: bookTitle, entry, isLoading: isBookLoading } = useBibleBookTitle(versionId, book)
   const { abbreviation } = useBibleVersionAbbreviation(versionId)
@@ -106,13 +111,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       face: (weight, italic) =>
         isSans
           ? fontMapKey(tokens.fontFamily.sans, weight, 'normal')
-          : fontMapKey(serifFamily, weight, italic ? 'italic' : 'normal'),
+          : serifReady
+            ? fontMapKey(serifFamily, weight, italic ? 'italic' : 'normal')
+            : SERIF_STANDIN,
       labelFace: fontMapKey(tokens.fontFamily.sans, 400, 'normal'),
       ink,
       wj: tokens.wj,
       underline: tokens.border,
     }),
-    [fontSize, lineSpacing, passage?.parsed.rtl, isSans, tokens, serifFamily, ink],
+    [fontSize, lineSpacing, passage?.parsed.rtl, isSans, tokens, serifFamily, serifReady, ink],
   )
 
   const paint = useMemo(() => {

@@ -75,6 +75,15 @@ const BOX_SHIFT = 2.8
 // Underline top, in em below the baseline, and its thickness in points.
 const UNDERLINE_OFFSET = 0.37
 const UNDERLINE_THICKNESS = 1
+// Horizontal padding each side of a highlight, in em.
+const HIGHLIGHT_PAD = 0.1
+// iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
+const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
+const NBSP = '\u00a0'
+
+// The real text, the selection underline, and the highlight backdrop. Bright and
+// dimmed highlights paint in separate backdrops so the dimmed one can fade as a group.
+type Layer = 'text' | 'underline' | 'fill' | 'dimFill'
 
 export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
   const resolved = blocks.map((block) => resolveBlock(block.classes, rest.look.fontSize))
@@ -121,25 +130,30 @@ const BlockView = memo(function BlockView({
     -ATTACHMENT_DRIFT *
     rule.size *
     (lineMultiple(look.lineSpacing) - lineMultiple(READER_LINE_SPACING.DEFAULT))
-    const blockDimmed = focus !== null && block.heading
+  const blockDimmed = focus !== null && block.heading
   const hasSelection = block.verses.some((verse) => selected.has(verse))
+  const hasPaint = block.verses.some((verse) => paint.has(verse))
   const [lines, setLines] = useState<readonly TextLine[]>([])
-  const [width, setWidth] = useState(0)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  const [space, setSpace] = useState(0)
+  const measured = hasSelection || hasPaint
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
     return value === 1 ? hex : withAlpha(hex, value)
   }
 
-  // The ghost lays out exactly like the real text but paints only the underline.
+  // A ghost lays out exactly like the real text but paints only its layer.
   const renderInline = (
     inline: Inline,
     key: number,
     verse: number | null,
     dimmed: boolean,
-    ghost: boolean,
+    layer: Layer,
+    last: boolean,
   ): ReactNode => {
-    const fill = ghost || verse === null ? undefined : paint.get(verse)
-    const overInk = fill?.text ?? null
+    const ghost = layer !== 'text'
+    const fill = verse === null ? undefined : paint.get(verse)
+    const overInk = ghost ? null : (fill?.text ?? null)
     const pressable = !ghost && verse !== null
     // Inline views fill the whole line box so a highlight runs through them;
     // the content shifts back by the same amount to stay where it was.
@@ -147,7 +161,7 @@ const BlockView = memo(function BlockView({
       height: lineBox,
       justifyContent: 'flex-end',
       transform: [{ translateY: BOX_SHIFT }],
-      backgroundColor: background(fill, dimmed),
+      backgroundColor: backdrop(layer, fill, dimmed),
     } as const
     if (inline.kind === 'label') {
       return (
@@ -186,7 +200,9 @@ const BlockView = memo(function BlockView({
           onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
           style={{ ...box, paddingHorizontal: fontSize * 0.2 }}
         >
-          <View style={{ width: size, height: size, transform: [{ translateY: drift - BOX_SHIFT }] }}>
+          <View
+            style={{ width: size, height: size, transform: [{ translateY: drift - BOX_SHIFT }] }}
+          >
             {!ghost && (
               <Svg width={size} height={size} viewBox="0 0 20 20">
                 <Path
@@ -229,6 +245,10 @@ const BlockView = memo(function BlockView({
         </Pressable>
       )
     }
+    // A verse's trailing space stays unpainted, so its padded highlight stops short
+    // of the next verse label.
+    const trailing = last ? (/\s+$/.exec(inline.text)?.[0] ?? '') : ''
+    const text = inline.text.slice(0, inline.text.length - trailing.length)
     return (
       <RNText
         key={key}
@@ -238,69 +258,117 @@ const BlockView = memo(function BlockView({
           fontSize: chars.scale === null ? undefined : size,
         }}
       >
-        {chars.smallCaps || rule.smallCaps ? smallCaps(inline.text, size) : inline.text}
+        {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
+        {trailing !== '' && (
+          <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
+            {trailing}
+          </RNText>
+        )}
       </RNText>
     )
   }
 
-  const paragraph = (ghost: boolean): ReactNode => (
-    <RNText
-      ref={ghost ? undefined : (node) => onBlockRef(index, node)}
-      onTextLayout={
-        ghost || !hasSelection
-          ? undefined
-          : (event: TextLayoutEvent) => setLines(event.nativeEvent.lines)
-      }
-      allowFontScaling={false}
-      style={{
-        fontSize: rule.size,
-        lineHeight: lineBox,
-        color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
-        fontFamily: look.face(rule.weight, rule.italic),
-        textAlign: rule.align,
-        writingDirection: look.rtl ? 'rtl' : 'ltr',
-        paddingStart: rule.headIndent,
-      }}
-    >
-      {/* iOS reads paragraph style (lineHeight) from the first character; an
+  const paragraph = (layer: Layer): ReactNode => {
+    const ghost = layer !== 'text'
+    return (
+      <RNText
+        ref={ghost ? undefined : (node) => onBlockRef(index, node)}
+        onTextLayout={
+          ghost || !measured
+            ? undefined
+            : (event: TextLayoutEvent) => setLines(event.nativeEvent.lines)
+        }
+        allowFontScaling={false}
+        style={{
+          fontSize: rule.size,
+          lineHeight: lineBox,
+          color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
+          fontFamily: look.face(rule.weight, rule.italic),
+          textAlign: rule.align,
+          writingDirection: look.rtl ? 'rtl' : 'ltr',
+          paddingStart: rule.headIndent,
+        }}
+      >
+        {/* iOS reads paragraph style (lineHeight) from the first character; an
           inline View there drops it for the whole block, so lead with text. */}
-      {PARAGRAPH_ANCHOR}
-      {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
-      {block.segments.map((segment, segmentIndex) => {
-        const verse = segment.verse
-        const fill = ghost || verse === null ? undefined : paint.get(verse)
-        const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
-        const isSelected = verse !== null && selected.has(verse)
-        const ink = fill?.text ?? look.ink
-        return (
-          <RNText
-            key={segmentIndex}
-            suppressHighlighting
-            onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
-            style={{
-              color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
-              backgroundColor: ghost
-                ? isSelected
-                  ? look.underline
-                  : undefined
-                : background(fill, dimmed),
-            }}
-          >
-            {segment.inlines.map((inline, i) => renderInline(inline, i, verse, dimmed, ghost))}
-          </RNText>
-        )
-      })}
-    </RNText>
-  )
+        {PARAGRAPH_ANCHOR}
+        {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
+        {block.segments.map((segment, segmentIndex) => {
+          const verse = segment.verse
+          const fill = verse === null ? undefined : paint.get(verse)
+          const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
+          const isSelected = verse !== null && selected.has(verse)
+          const ink = fill?.text ?? look.ink
+          return (
+            <RNText
+              key={segmentIndex}
+              suppressHighlighting
+              onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
+              style={{
+                color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
+                backgroundColor:
+                  layer === 'underline'
+                    ? isSelected
+                      ? look.underline
+                      : undefined
+                    : backdrop(layer, fill, dimmed),
+              }}
+            >
+              {segment.inlines.map((inline, i) =>
+                renderInline(inline, i, verse, dimmed, layer, i === segment.inlines.length - 1),
+              )}
+            </RNText>
+          )
+        })}
+      </RNText>
+    )
+  }
 
   const onLayout = (event: LayoutChangeEvent): void => {
     onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
-    setWidth(event.nativeEvent.layout.width)
+    const { width, height } = event.nativeEvent.layout
+    setSize((current) =>
+      current.width === width && current.height === height ? current : { width, height },
+    )
   }
 
+  // Nested text takes no padding, so the backdrop paints highlights from shifted
+  // copies whose union reaches HIGHLIGHT_PAD past each end without reflowing.
+  // Each line clips the backdrop to its text, since iOS runs a wrapped fill to the edge.
+  const pad = HIGHLIGHT_PAD * rule.size
+  const backdropLayers = (focus === null ? FILL_LAYERS.slice(0, 1) : FILL_LAYERS).map((layer) => (
+    <View
+      key={layer}
+      needsOffscreenAlphaCompositing={layer === 'dimFill'}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity: layer === 'dimFill' ? DIM_ALPHA : 1,
+      }}
+    >
+      {/* Centred copy last, so it wins where two colours meet. */}
+      {[-1, 1, 0].map((side) => (
+        <View
+          key={side}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            transform: [{ translateX: side * pad }],
+          }}
+        >
+          {paragraph(layer)}
+        </View>
+      ))}
+    </View>
+  ))
+
   // A text underline breaks around descenders on iOS, so the ghost paints selected
-  // verses as a fill and each line clips it to a strip under its baseline. The clip
-  // also stops at the line's text, since iOS runs a wrapped fill to the edge.
+  // verses as a fill and each line clips it to a strip under its baseline.
   return (
     <View
       onLayout={onLayout}
@@ -309,10 +377,44 @@ const BlockView = memo(function BlockView({
         marginBottom: blockMarginBottom(rule, fontSize),
       }}
     >
-      {paragraph(false)}
+      {hasPaint &&
+        lines.map((line, lineIndex) => {
+          const span = lineSpan(line, space, look.rtl)
+          const left = span.x - pad
+          return (
+            <View
+              key={lineIndex}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                position: 'absolute',
+                top: line.y,
+                left,
+                width: span.width + 2 * pad,
+                height: line.height,
+                overflow: 'hidden',
+              }}
+            >
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -line.y,
+                  left: -left,
+                  width: size.width,
+                  height: size.height,
+                }}
+              >
+                {backdropLayers}
+              </View>
+            </View>
+          )
+        })}
+      {paragraph('text')}
       {hasSelection &&
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
+          const span = lineSpan(line, space, look.rtl)
           return (
             <View
               key={lineIndex}
@@ -322,18 +424,35 @@ const BlockView = memo(function BlockView({
               style={{
                 position: 'absolute',
                 top,
-                left: line.x,
-                width: line.width,
+                left: span.x,
+                width: span.width,
                 height: UNDERLINE_THICKNESS,
                 overflow: 'hidden',
               }}
             >
-              <View style={{ position: 'absolute', top: -top, left: -line.x, width }}>
-                {paragraph(true)}
+              <View style={{ position: 'absolute', top: -top, left: -span.x, width: size.width }}>
+                {paragraph('underline')}
               </View>
             </View>
           )
         })}
+      {measured && TRIM_TRAILING_SPACE && (
+        // One space in the block's face, to trim trailing spaces off each line.
+        <RNText
+          allowFontScaling={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={(event) => setSpace(event.nativeEvent.lines[0]?.width ?? 0)}
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            fontSize: rule.size,
+            fontFamily: look.face(rule.weight, rule.italic),
+          }}
+        >
+          {NBSP}
+        </RNText>
+      )}
     </View>
   )
 }, sameBlockState)
@@ -347,11 +466,27 @@ function underlineTop(line: TextLine, size: number): number {
   return baseline + UNDERLINE_OFFSET * size
 }
 
-function background(fill: HighlightPaint | undefined, dimmed: boolean): string | undefined {
-  if (fill === undefined) {
-    return undefined
-  }
-  return dimmed ? withAlpha(fill.background, DIM_ALPHA) : fill.background
+// The line's text without its trailing spaces, which sit on the left under RTL.
+function lineSpan(line: TextLine, space: number, rtl: boolean): { x: number; width: number } {
+  const trailing = TRIM_TRAILING_SPACE ? (/[ \u00a0]*$/.exec(line.text)?.[0].length ?? 0) : 0
+  const trim = Math.min(trailing * space, line.width)
+  return { x: rtl ? line.x + trim : line.x, width: line.width - trim }
+}
+
+const FILL_LAYERS = ['fill', 'dimFill'] as const
+
+function isFill(layer: Layer): boolean {
+  return layer === 'fill' || layer === 'dimFill'
+}
+
+// Opaque in both backdrops; the dimmed backdrop fades as a whole, so copies never stack.
+function backdrop(
+  layer: Layer,
+  fill: HighlightPaint | undefined,
+  dimmed: boolean,
+): string | undefined {
+  const painted = layer === (dimmed ? 'dimFill' : 'fill')
+  return painted ? fill?.background : undefined
 }
 
 // Fabric iOS misplaces inline-View attachments (labels, note icons) when a
