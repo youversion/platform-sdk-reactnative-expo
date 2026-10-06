@@ -379,7 +379,7 @@ const BlockView = memo(function BlockView({
     >
       {hasPaint &&
         lines.map((line, lineIndex) => {
-          const span = lineSpan(line, space, look.rtl)
+          const span = lineSpan(line, space, look.rtl, rule.headIndent)
           const left = span.x - pad
           return (
             <View
@@ -414,7 +414,7 @@ const BlockView = memo(function BlockView({
       {hasSelection &&
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
-          const span = lineSpan(line, space, look.rtl)
+          const span = lineSpan(line, space, look.rtl, rule.headIndent)
           return (
             <View
               key={lineIndex}
@@ -467,10 +467,16 @@ function underlineTop(line: TextLine, size: number): number {
 }
 
 // The line's text without its trailing spaces, which sit on the left under RTL.
-function lineSpan(line: TextLine, space: number, rtl: boolean): { x: number; width: number } {
+// Line x is measured inside the paragraph's start padding, so LTR shifts past it.
+function lineSpan(
+  line: TextLine,
+  space: number,
+  rtl: boolean,
+  paddingStart: number,
+): { x: number; width: number } {
   const trailing = TRIM_TRAILING_SPACE ? (/[ \u00a0]*$/.exec(line.text)?.[0].length ?? 0) : 0
   const trim = Math.min(trailing * space, line.width)
-  return { x: rtl ? line.x + trim : line.x, width: line.width - trim }
+  return { x: rtl ? line.x + trim : line.x + paddingStart, width: line.width - trim }
 }
 
 const FILL_LAYERS = ['fill', 'dimFill'] as const
