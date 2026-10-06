@@ -1,5 +1,55 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.0.0
+
+### Major Changes
+
+- 8bb6a02: Require Expo SDK 57 (`expo >=57.0.0 <58.0.0`, `react-native >=0.86.0`). Expo 56 is no longer supported. Consumers must upgrade Expo and align native peers (`react-native-reanimated >=4.4.0`, `react-native-worklets >=0.9.1`) before installing this release.
+
+### Minor Changes
+
+- 7e7fcec: VerseOfTheDay is now hybrid: native chrome (share, attribution, Card surface) wrapping the DOM BibleTextView for scripture (YPE-5440 / RNV2-2). Public props are unchanged. Light/dark resolve on native before they cross the bridge. Share uses the native Share API. Native share and the header reference honor the provider version filter lists, so a refused version cannot leak through Share.
+- dffc732: feat: draw a native Reader toolbar on iOS/Android instead of the in-WebView Web SDK toolbar (YPE-5712 / RNV2-9a). Avatar, chapter (with chevrons), version, and settings open the existing sheets.
+- 8bb6a02: feat: add BibleReaderNavigation for chapter jumps (YPE-5745). Host can request a version/book/chapter before the Reader mounts. Scroll-to-verse and focus are not in this release.
+- 8bb6a02: feat: focus a verse from Reader Search
+
+  Search taps and `focusReference` scroll to the verse through the Web SDK. A chapter `request` still opens the chapter without focusing.
+
+- 8bb6a02: feat: add native Reader Search (YPE-5748). Search sheet and a Search icon in the native toolbar. The header has the field and Cancel, the snippet sits above the title, and suggestions use the version language. A result tap loads the chapter; scroll-to-verse stays with YPE-5747.
+- 8bb6a02: BibleCard is now hybrid: native Card chrome (reference, version control, copyright, logo) wrapping the DOM BibleTextView for scripture (YPE-5830 / RNV2-3). Public props are unchanged. maxWidth defaults to 700 on the native Card and no longer crosses the bridge.
+- 8bb6a02: Replace the version picker's Expo DOM content with a native React Native picker that keeps both the versions and language panels mounted on device (YPE-5834).
+
+  `BibleVersionPickerSheet` no longer accepts a `dom` prop. The picker is native, so there is no Expo DOM surface to configure. This ships in the same major release as the Expo SDK 57 peer requirement.
+
+- 8bb6a02: Replace the chapter picker's Expo DOM content with a native React Native picker and export `BibleChapterPicker` for custom presentation (YPE-5836).
+
+  `BibleChapterPickerSheet` no longer accepts a `dom` prop. The picker is native, so there is no Expo DOM surface to configure. This ships in the same major release as the Expo SDK 57 peer requirement.
+
+- 8bb6a02: feat: match native Reader chrome to Swift PR 268 chapter and version capsules (YPE-5953). Previous and next sit in the chapter capsule. The avatar is gone. Fonts and settings, sign-in, and sign-out are in the More menu. `onSettingsPress`, `onSignInPress`, and `onSignOutPress` are unchanged. Open `reader-toolbar-menu`, then `reader-toolbar-settings`, `reader-toolbar-sign-in`, or `reader-toolbar-sign-out`. `reader-toolbar-avatar` and `reader-toolbar-user` are removed. Search is a separate change.
+
+### Patch Changes
+
+- 8bb6a02: Search results scroll inside the sheet. A drag on the list no longer moves the sheet. The handle, the backdrop, and Cancel still close it.
+- 8bb6a02: Untitled Serif from the Fonts API registers on iOS and Android. The bundled Source Serif 4 fallback registers under its own names instead of the Untitled Serif names, because native Expo Font cannot replace a loaded face. When the Fonts API request or one of its font files fails, native serif text uses Source Serif 4, and a later request that succeeds after an `appKey` or `apiHost` change still registers Untitled Serif.
+- 8bb6a02: Search suggestions and trending wait for the Bible version language. A missing language no longer sends `language_ranges[]=*`, which the Search API rejects.
+- b583fc6: Sync localization from platform-localization (1fe6b5d): update 3 keys in en.
+- ea09740: Sync localization from platform-localization (21c52c1): update 7 keys in en.
+- 9b95630: Sync localization from platform-localization (413e2e7): update 1 keys in en.
+- a9ebfe4: Sync localization from platform-localization (b767ef1): update 10 keys in en, es.
+- 5586004: Sync localization from platform-localization (c99c472): update 1 keys in en.
+- 7b5bf5c: Sync localization from platform-localization (d8ad211): update 5 keys in en.
+- 6fd7a23: Sync localization from platform-localization (e4c7700): update 3 keys in en.
+- 4ad729d: Sync localization from platform-localization (ee03e27): update 49 keys in es.
+- a4184af: Sync localization from platform-localization (f7a8ff2): update 5 keys in en.
+- 8bb6a02: YouVersionAuthButton now composes the design-system Button `outline` look for press, radius, type, 1px border, and label color. Fill stays the forced scheme `background` so the Bible App logo stays readable in dark. Padding, logo gap, and logo size match the Swift sign-in button (20 / 12, 8px gap, 24px logo). The pill hugs its content. The host places it. The label can wrap to two lines. `outline`, `radius`, and `size` are no longer public props (YPE-5833 / RNV2-6).
+- 8bb6a02: Render Bible reader font settings as native controls inside the settings sheet (YPE-5835).
+- Updated dependencies [8bb6a02]
+- Updated dependencies [7e7fcec]
+- Updated dependencies [8bb6a02]
+- Updated dependencies [dffc732]
+- Updated dependencies [8bb6a02]
+  - @youversion/platform-react-native-expo-core@2.0.0
+
 ## 1.6.0
 
 ### Minor Changes

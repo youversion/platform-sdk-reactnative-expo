@@ -4,19 +4,24 @@ ensureDomImpls()
 
 export {
   BibleCard,
+  BibleChapterPicker,
   BibleChapterPickerSheet,
   BibleReader,
+  BibleReaderNavigation,
   BibleReaderSettingsSheet,
   BibleTextView,
   BibleVersionPickerSheet,
   VerseOfTheDay,
   YouVersionAuthButton,
   YouVersionProvider,
+  createBibleReaderNavigation,
 } from './native'
 export type {
   BibleCardProps,
+  BibleChapterPickerProps,
   BibleChapterPickerSheetProps,
   BibleReaderHandle,
+  BibleReaderNavigationRequest,
   BibleReaderProps,
   BibleReaderSettingsSheetProps,
   BibleReaderShareData,
