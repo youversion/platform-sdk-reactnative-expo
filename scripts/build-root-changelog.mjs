@@ -245,7 +245,7 @@ const out = [
   'so they share a version number and release together. Each entry below notes which packages',
   'it affected.',
   '',
-  'Generated from the per-package changelogs by `scripts/build-root-changelog.mjs` — edit those,',
+  'Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,',
   'or the changeset, rather than this file.',
   '',
 ]
@@ -279,5 +279,5 @@ if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === process.
       .replace(/\n{3,}/g, '\n\n')
       .trimEnd() + '\n',
   )
-  console.log(`Wrote CHANGELOG.md — ${order.length} versions from ${packages.length} packages.`)
+  console.log(`Wrote CHANGELOG.md: ${order.length} versions from ${packages.length} packages.`)
 }
