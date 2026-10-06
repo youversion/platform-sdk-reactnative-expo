@@ -34,7 +34,7 @@
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "turbo build && pnpm exec changeset publish",
-    "test:ci-scripts": "bash .github/scripts/major-release-signoff.test.sh && node --test scripts/preview-release.test.mjs"
+    "test:ci-scripts": "bash .github/scripts/major-release-signoff.test.sh && node --test scripts/preview-release.test.mjs && node .github/scripts/signoff-token.test.mjs"
   },
   "devDependencies": {
     "@changesets/cli": "2.29.7",

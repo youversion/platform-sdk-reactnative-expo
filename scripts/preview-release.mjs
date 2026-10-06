@@ -22,7 +22,6 @@
 // Usage:
 //   node scripts/preview-release.mjs --base <sha> [--head <sha>]
 import { execFileSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
 import { getPackages } from '@manypkg/get-packages'
 import parseChangeset from '@changesets/parse'
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
@@ -31,6 +30,7 @@ import { join, relative, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { isChangesetPath, isLegacyChangesetPath } from './changeset-eligibility.mjs'
+import { signoffToken } from './signoff-token.mjs'
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -323,45 +323,6 @@ if (versions.length > 1) {
   process.exit(1)
 }
 
-/**
- * A stable identifier for *what a signoff approves*: the release's `.changeset/` state.
- *
- * Pinning the signoff to the head commit meant every push voided it, so a lint fix or a review
- * tweak cost a fresh signoff while changing nothing about the release. That trains people to
- * rubber-stamp the gate, and it is stricter than the repo's own review policy, which keeps
- * approvals across pushes (`dismiss_stale_reviews_on_push: false`).
- *
- * Keyed on every changeset at head plus the resulting version, deliberately wider than "only the
- * changesets declaring major": any changeset edit can move the release, and erring toward asking
- * again is the safe direction. Blob ids come from git, so the hash changes if and only if the
- * content does. Renaming a changeset re-triggers, which is correct: Changesets reads it by path.
- */
-function signoffToken(nextVersion) {
-  const raw = execFileSync('git', ['ls-tree', '-r', '-z', head, '--', '.changeset'], {
-    cwd: REPO_ROOT,
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-  })
-  const entries = raw
-    .split('\0')
-    .filter((line) => line !== '')
-    .map((line) => {
-      // `<mode> <type> <object>\t<path>`
-      const [meta, path] = line.split('\t')
-      const [, , object] = meta.split(/\s+/)
-      return { path, object }
-    })
-    // README.md is not a changeset; keeping it would void signoffs on a docs edit.
-    .filter(({ path }) => isChangesetPath(path) || isLegacyChangesetPath(path))
-    .sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
-    .map(({ path, object }) => `${object} ${path}`)
-
-  return createHash('sha256')
-    .update(`${nextVersion ?? ''}\n${entries.join('\n')}`)
-    .digest('hex')
-    .slice(0, 16)
-}
-
 const { added, levels } = addedChangesetLevels(args.base)
 
 console.log(
@@ -373,6 +334,6 @@ console.log(
     introduced_major: levels.some((l) => l.level === 'major'),
     packages: releases.map((r) => r.name),
     added_changesets: added,
-    signoff_token: signoffToken(versions[0] ?? null),
+    signoff_token: signoffToken({ repoRoot: REPO_ROOT, head, nextVersion: versions[0] ?? null }),
   }),
 )

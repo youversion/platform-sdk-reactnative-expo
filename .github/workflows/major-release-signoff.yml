@@ -296,7 +296,7 @@ jobs:
               while IFS= read -r f; do
                 git cat-file -e "main:$f" 2>/dev/null || rm -f "$f"
               done
-            for f in scripts/preview-release.mjs scripts/changeset-eligibility.mjs \
+            for f in scripts/preview-release.mjs scripts/changeset-eligibility.mjs scripts/signoff-token.mjs \
                      package.json pnpm-lock.yaml \
                      pnpm-workspace.yaml .changeset/config.json; do
               git cat-file -e "main:$f" 2>/dev/null && git checkout main -- "$f"
