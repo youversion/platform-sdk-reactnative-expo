@@ -1,4 +1,4 @@
-import type { BibleReference } from '@youversion/platform-react-native-expo-core'
+import type { BiblePassageAnchor } from '@youversion/platform-react-native-expo-core'
 import { act, renderHook } from '@testing-library/react-native'
 
 import {
@@ -7,14 +7,14 @@ import {
   useConsumedNavigationRequest,
 } from '../bible-reader-navigation'
 
-const JOHN_3_16: BibleReference = {
+const JOHN_3_16: BiblePassageAnchor = {
   versionId: 111,
   bookId: 'JHN',
   chapter: 3,
   verse: 16,
 }
 
-const ROMANS_8_1: BibleReference = {
+const ROMANS_8_1: BiblePassageAnchor = {
   versionId: 59,
   bookId: 'ROM',
   chapter: 8,

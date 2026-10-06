@@ -1,4 +1,4 @@
-import type { BibleReference } from '@youversion/platform-react-native-expo-core'
+import type { BiblePassageAnchor } from '@youversion/platform-react-native-expo-core'
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
 
 /**
@@ -6,7 +6,7 @@ import { useLayoutEffect, useRef, useSyncExternalStore } from 'react'
  * location. Verse focus crosses the DOM bridge as {@link BibleReaderVerseFocus}.
  */
 export type BibleReaderNavigationRequest = {
-  reference: BibleReference
+  reference: BiblePassageAnchor
   showsFullChapter: boolean
   scrollsToVerse: boolean
   shouldFocus: boolean
@@ -29,8 +29,8 @@ export type BibleReaderVerseFocusAcknowledgment = {
   seq: number
 }
 
-/** A chapter reference, plus the original USFM when the caller still has it. */
-export type BibleReaderFocusTarget = BibleReference & {
+/** A chapter reference, plus the original passage id when the caller still has it. */
+export type BibleReaderFocusTarget = BiblePassageAnchor & {
   passageId?: string
 }
 
@@ -57,7 +57,7 @@ type Subscribe = (onStoreChange: () => void) => () => void
 const subscribeNoop: Subscribe = () => () => {}
 const snapshotZero = (): number => 0
 
-function copyReference(reference: BibleReference): BibleReference {
+function copyReference(reference: BiblePassageAnchor): BiblePassageAnchor {
   return {
     versionId: reference.versionId,
     bookId: reference.bookId,
@@ -151,7 +151,7 @@ export class BibleReaderNavigation {
    * Load this version / book / chapter as a full chapter. Does not bump the
    * focus `seq` and does not ask the reader to focus.
    */
-  request(reference: BibleReference): void {
+  request(reference: BiblePassageAnchor): void {
     const copied = copyReference(reference)
     this.#verseFocus = {
       seq: this.#focusSeq,

@@ -1,15 +1,23 @@
-import type { BibleReference } from './types'
+export type BiblePassageAnchor = {
+  versionId: number
+  bookId: string
+  chapter: number
+  /** Absent for a chapter-only passage id. For a verse range, the start verse. */
+  verse?: number
+}
 
 /**
- * Parse a search-hit USFM into a {@link BibleReference}.
+ * Parse a passage id into a {@link BiblePassageAnchor}.
  *
  * Accepts chapter-only (`PSA.23`), a single verse (`JHN.3.16`), and a verse
- * range (`JHN.3.16-17`). Ranges use the start verse as the navigation anchor.
- * Returns `null` only for structurally invalid input, not for "not a single
- * verse".
+ * range (`JHN.3.16-17`). A range keeps the start verse and drops the end.
+ * Returns `null` only for structurally invalid input.
  */
-export function bibleReferenceFromUsfm(usfm: string, versionId: number): BibleReference | null {
-  const parts = usfm.split('.')
+export function biblePassageAnchorFromPassageId(
+  passageId: string,
+  versionId: number,
+): BiblePassageAnchor | null {
+  const parts = passageId.split('.')
   if (parts.length !== 2 && parts.length !== 3) {
     return null
   }

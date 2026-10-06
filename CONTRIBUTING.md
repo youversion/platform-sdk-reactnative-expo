@@ -226,7 +226,8 @@ packages/ui/src/
 
 packages/core/src/
   auth/      PKCE OAuth, token storage, useYVAuth
-  search/    useSearch and bibleReferenceFromUsfm
+  passage-anchor.ts  biblePassageAnchorFromPassageId
+  search/    useSearch
   storage/   MMKV and SecureStore adapters
 
 apps/example/  Expo Router app consuming both packages via workspace:*

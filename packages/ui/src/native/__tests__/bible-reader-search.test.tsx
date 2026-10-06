@@ -1,4 +1,4 @@
-import type { BibleReference } from '@youversion/platform-react-native-expo-core'
+import type { BiblePassageAnchor } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { Pressable, Text, View } from 'react-native'
 
@@ -108,7 +108,7 @@ describe('BibleReader native Search', () => {
       bookId: 'PSA',
       chapter: 23,
       verse: 1,
-    } satisfies BibleReference)
+    } satisfies BiblePassageAnchor)
     expect(screen.getByTestId('book').props.children).toBe('PSA')
     expect(screen.getByTestId('chapter').props.children).toBe('23')
     expect(screen.queryByTestId('mock-search-sheet-open')).toBeNull()

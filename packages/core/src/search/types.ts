@@ -57,11 +57,3 @@ export type SearchTopicsParams = {
   query: string
   languageRanges: string[]
 }
-
-export type BibleReference = {
-  versionId: number
-  bookId: string
-  chapter: number
-  /** Absent for chapter-only hits. For ranges, the start verse (scroll anchor). */
-  verse?: number
-}
