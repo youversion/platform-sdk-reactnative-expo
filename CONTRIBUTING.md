@@ -20,7 +20,7 @@ The sections below are for internal development of this repo.
 
 - Node.js >= 24 (an `.nvmrc` is provided, so `nvm use` picks the right version)
 - pnpm >= 11
-- Expo SDK 56
+- Expo SDK 57
 - A YouVersion Platform API key for running the example app
 - A dev build for native development; Expo Go is not supported
 
@@ -220,12 +220,14 @@ Run `pnpm lint:no-raw-color` to exercise the fixture harness that proves the rul
 
 ```text
 packages/ui/src/
-  dom/     Expo DOM components ("use dom") wrapping the React Web SDK
-  native/  React Native provider, wrappers, picker sheets, and sheet support
+  dom/     Expo DOM scripture surfaces (reader, text view, footnotes)
+  native/  React Native chrome, provider, pickers, settings, and sheets
   lib/     Shared adapters, hooks, constants, and pure logic
 
 packages/core/src/
   auth/      PKCE OAuth, token storage, useYVAuth
+  passage-anchor.ts  biblePassageAnchorFromPassageId
+  search/    useSearch
   storage/   MMKV and SecureStore adapters
 
 apps/example/  Expo Router app consuming both packages via workspace:*
@@ -233,8 +235,8 @@ apps/example/  Expo Router app consuming both packages via workspace:*
 
 ## Project Notes
 
-- **Packages**: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (provider, auth, storage). The example app depends on both; UI re-exports the public component API and wraps the core provider.
-- **Expo DOM**: DOM components use `'use dom'` and run in Expo's DOM/WebView runtime. Do not render React Web SDK components directly in React Native; wrap them as Expo DOM components.
+- **Packages**: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (provider, auth, search, storage). The example app depends on both; UI re-exports the public component API and wraps the core provider.
+- **Expo DOM**: DOM components use `'use dom'` and run in Expo's DOM/WebView runtime. Mount Web SDK components only inside those wrappers. Scripture uses them. Toolbar, pickers, settings, and other chrome stay native.
 - **Provider setup**: `GestureHandlerRootView` must wrap `YouVersionProvider` so bottom-sheet gestures have the right native ancestor.
 - **Exports**: keep public exports in each package's `src/index.ts` barrel files. Auth hooks and types live in core; Bible components live in UI.
 - **Metro**: keep `apps/example/metro.config.js` minimal with `getDefaultConfig(__dirname)` only. Expo SDK 52+ handles monorepo support. `apps/example/index.js` re-exports `expo-router/entry` — required for Metro monorepo resolution; do not inline the entry.

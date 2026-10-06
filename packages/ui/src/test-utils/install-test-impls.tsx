@@ -34,6 +34,7 @@ export function installBibleReaderTestImpls<P extends object>(
   stubImpl('BibleChapterPickerSheet', 'mock-chapter-picker-sheet')
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('BibleReaderSettingsSheet', 'mock-settings-sheet')
+  stubImpl('BibleReaderSearchSheet', 'mock-search-sheet')
   stubImpl('NativeSheet')
   stubImpl('SignInWithYouVersionSheet', 'mock-sign-in-sheet')
   stubImpl('HighlightConsentSheet', 'mock-consent-sheet')

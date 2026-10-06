@@ -6,6 +6,7 @@ import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { z } from 'zod'
 
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../lib/version-usability'
 
 const passageShareSchema = z.object({
   content: z.string(),
@@ -38,37 +39,6 @@ function versionFromResponse(response: BibleContentResponse | null): ParsedVersi
   } catch {
     return null
   }
-}
-
-// Same permit/exclude/language rules as `@youversion/platform-core` version-filters.
-// Those functions read `YouVersionPlatformConfiguration`, which this provider
-// does not write.
-function isVersionIdDecidablyUnusable(
-  versionId: number,
-  filters: InternalVersionFilterProps,
-): boolean {
-  const { excludedVersionIds, permittedVersionIds } = filters
-  if (excludedVersionIds?.includes(versionId)) {
-    return true
-  }
-  return permittedVersionIds !== undefined && !permittedVersionIds.includes(versionId)
-}
-
-function isUsableBibleVersion(
-  candidate: { id: number; languageTag?: string },
-  filters: InternalVersionFilterProps,
-): boolean {
-  if (isVersionIdDecidablyUnusable(candidate.id, filters)) {
-    return false
-  }
-  const { permittedLanguageTags } = filters
-  if (permittedLanguageTags === undefined) {
-    return true
-  }
-  if (candidate.languageTag === undefined) {
-    return false
-  }
-  return permittedLanguageTags.includes(candidate.languageTag)
 }
 
 function shareFromPassage(

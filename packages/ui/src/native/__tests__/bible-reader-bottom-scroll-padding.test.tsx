@@ -6,10 +6,7 @@ import {
   IOS_TAB_BAR_CLEARANCE,
   READER_SCROLL_END_GAP,
 } from '../../lib/reader-bottom-scroll-padding'
-import {
-  installBibleReaderTestImpls,
-  resetImpls,
-} from '../../test-utils/install-test-impls'
+import { installBibleReaderTestImpls, resetImpls } from '../../test-utils/install-test-impls'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
 
