@@ -1,6 +1,8 @@
 // USFM block and character styles from the Swift/Kotlin readers
 // (.claude/plans/native-reader-style-spec.md §2, §4). Native beats Web.
 
+import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+
 type Weight = 400 | 500 | 700
 
 type BlockRule = {
@@ -29,6 +31,7 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['pi', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
   ['pi1', { mB: 0.6, first: 1, head: 2 }],
   ['ipi', { mB: 0.6, first: 1, head: 2 }],
+  ['iex', { first: 1, head: 0 }],
   ['pi2', { first: 1, head: 4 }],
   ['pi3', { first: 1, head: 6 }],
   ['pm', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
@@ -52,9 +55,12 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['qr', { align: 'right', italic: true }],
   ['li', { first: 0, head: 2 }],
   ['li1', { first: 0, head: 2 }],
+  ['ili', { first: 0, head: 2 }],
+  ['ili1', { first: 0, head: 2 }],
   ['lim', { first: 0, head: 2 }],
   ['mi', { first: 0, head: 2 }],
   ['li2', { first: 0, head: 4 }],
+  ['ili2', { first: 0, head: 4 }],
   ['li3', { first: 0, head: 6 }],
   ['li4', { first: 0, head: 8 }],
   ['lh', { mT: 0.5, first: 1 }],
@@ -76,6 +82,7 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['ms4', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['mt1', { ...TITLE, align: 'center', mT: 0.25, mB: 0.5 }],
   ['mt2', { ...TITLE, align: 'center', italic: true, mB: 0.25 }],
+  ['imt', { ...TITLE, align: 'center' }],
   ['imt1', { size: 1.17, weight: 700, align: 'center', mT: 1, mB: 0.25 }],
   ['imt2', { size: 1.08, italic: true, align: 'center', mT: 0.5, mB: 0.25 }],
   ['is1', { size: 1.17, weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
@@ -130,13 +137,28 @@ export function collapsedMarginTop(
   return Math.max(0, block.top - previous.bottom) * fontSize
 }
 
-/** Native readers add the line's extra leading below every block; our spacing is a CSS multiplier. */
-export function blockMarginBottom(
-  block: ResolvedBlock,
-  fontSize: number,
-  lineSpacing: number,
-): number {
-  return block.bottom * fontSize + fontSize * Math.max(0, lineSpacing - 1.2)
+// Swift adds F*frac of leading to the font's natural line (~1.24F for the serif, measured at
+// 18pt); the store keeps the Web multiplier, so each step maps to Swift's fraction.
+const NATURAL_LINE = 1.24
+
+/** Line height as a multiple of the font size. */
+export function lineMultiple(lineSpacing: number): number {
+  switch (lineSpacing) {
+    case READER_LINE_SPACING.SM:
+      return NATURAL_LINE + 0.3
+    case READER_LINE_SPACING.LG:
+      return NATURAL_LINE + 0.6
+    default:
+      return NATURAL_LINE + 0.4
+  }
+}
+
+/**
+ * Swift pads each block by the leading SwiftUI leaves off its last line; RN's
+ * lineHeight already includes it, so only the margin remains.
+ */
+export function blockMarginBottom(block: ResolvedBlock, fontSize: number): number {
+  return block.bottom * fontSize
 }
 
 export type ResolvedChars = {
@@ -146,6 +168,8 @@ export type ResolvedChars = {
   weight: Weight | null
   /** Multiple of the block size, or `null` to inherit. */
   scale: number | null
+  /** Sits on the verse-number baseline offset. */
+  raised: boolean
 }
 
 const ITALIC = new Set([
@@ -170,6 +194,7 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
     italic: false,
     weight: null,
     scale: null,
+    raised: false,
   }
   for (const name of classes) {
     if (name === 'wj') {
@@ -188,6 +213,7 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
       chars.scale = 0.83
     } else if (name === 'ord' || name === 'fv' || name === 'sup') {
       chars.scale = LABEL_SCALE
+      chars.raised = true
     }
   }
   return chars

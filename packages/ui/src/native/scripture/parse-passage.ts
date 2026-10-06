@@ -57,6 +57,10 @@ function walk(doc: Document): Block[] {
 
   for (const el of Array.from(root.children)) {
     const classes = classList(el)
+    // Chapter label ("Psalm 119"); the reader header already shows it, as in Swift and Web.
+    if (classes.includes('cl')) {
+      continue
+    }
     const heading = classes.includes('yv-h') || isHeadingClass(classes)
     const segments: Segment[] = []
     const push = (verse: number | null, inline: Inline): void => {
@@ -121,7 +125,7 @@ function classList(el: Element): string[] {
 }
 
 function isHeadingClass(classes: readonly string[]): boolean {
-  return classes.some((c) => /^(s\d?|ms\d?|mr|r|d|qa|sp|cl)$/.test(c))
+  return classes.some((c) => /^(s\d?|ms\d?|mr|r|d|qa|sp)$/.test(c))
 }
 
 /** Per verse: share text, footnote-sheet HTML, and notes, across every fragment in order. */

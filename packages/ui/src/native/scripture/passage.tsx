@@ -1,10 +1,11 @@
-import { memo, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import {
   Platform,
   Pressable,
   Text as RNText,
   View,
   type LayoutChangeEvent,
+  type TextLayoutEvent,
   type Text as RNTextInstance,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
@@ -17,6 +18,7 @@ import {
   blockMarginBottom,
   collapsedMarginTop,
   LABEL_SCALE,
+  lineMultiple,
   resolveBlock,
   resolveChars,
   type ResolvedBlock,
@@ -53,12 +55,15 @@ type PassageProps = {
   onBlockRef: (index: number, node: RNTextInstance | null) => void
 }
 
-// CSS raises the label 0.2em of the reader size; RN has no baseline offset, so nudge the inline view.
-const LABEL_RISE = Platform.select({ android: -0.13, default: -0.2 })
+// Swift raises the label 0.2em so its top meets the cap height; RN has no baseline
+// offset and seats the inline view lower, so the nudge is larger (measured).
+const LABEL_RISE = Platform.select({ android: -0.25, default: -0.32 })
 // iOS centres the glyphs in an enlarged line box but not the inline views, so
 // LABEL_RISE (tuned at the default spacing) drifts as spacing moves off it.
 const ATTACHMENT_DRIFT = Platform.OS === 'ios' ? 0.5 : 0
-const LABEL_ALPHA = 0.7
+// Swift paints labels in iOS `secondaryLabel` (~#8a8a8e on white); half the ink lands
+// there in both schemes and still follows a custom foreground.
+const LABEL_ALPHA = 0.5
 const NOTE_ALPHA = 0.5
 const DIM_ALPHA = 0.35
 // Zero-width space: an invisible first character that carries the block's paragraph style.
@@ -67,8 +72,9 @@ const TRANSPARENT = 'transparent'
 // iOS seats inline views a fixed ~2.8pt above the line box at every size and spacing
 // (measured); likely TextKit's Helvetica 12 fallback descender for the font-less attachment.
 const BOX_SHIFT = 2.8
-// Drops the ghost copy so its underline sits ~0.33em under the baseline, as the DOM does.
-const UNDERLINE_DROP = 0.28
+// Underline top, in em below the baseline, and its thickness in points.
+const UNDERLINE_OFFSET = 0.37
+const UNDERLINE_THICKNESS = 1
 
 export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
   const resolved = blocks.map((block) => resolveBlock(block.classes, rest.look.fontSize))
@@ -110,10 +116,15 @@ const BlockView = memo(function BlockView({
   onBlockRef,
 }: BlockViewProps): ReactNode {
   const { fontSize } = look
-  const lineBox = rule.size * look.lineSpacing
-  const drift = -ATTACHMENT_DRIFT * rule.size * (look.lineSpacing - READER_LINE_SPACING.DEFAULT)
+  const lineBox = rule.size * lineMultiple(look.lineSpacing)
+  const drift =
+    -ATTACHMENT_DRIFT *
+    rule.size *
+    (lineMultiple(look.lineSpacing) - lineMultiple(READER_LINE_SPACING.DEFAULT))
     const blockDimmed = focus !== null && block.heading
   const hasSelection = block.verses.some((verse) => selected.has(verse))
+  const [lines, setLines] = useState<readonly TextLine[]>([])
+  const [width, setWidth] = useState(0)
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
     return value === 1 ? hex : withAlpha(hex, value)
@@ -194,6 +205,30 @@ const BlockView = memo(function BlockView({
     const size = chars.scale === null ? rule.size : rule.size * chars.scale
     const wj =
       chars.wordsOfJesus && overInk === null && !ghost ? color(look.wj, 1, dimmed) : undefined
+    if (chars.raised) {
+      // Same raise as the verse label; an inline view inherits nothing, so set the ink here.
+      return (
+        <Pressable
+          key={key}
+          disabled={!pressable}
+          onPress={pressable ? () => onVersePress(verse) : undefined}
+          style={box}
+        >
+          <RNText
+            allowFontScaling={false}
+            style={{
+              fontFamily: look.face(weight, chars.italic || rule.italic),
+              fontSize: size,
+              lineHeight: size * 1.2,
+              color: ghost ? TRANSPARENT : (wj ?? color(overInk ?? look.ink, 1, dimmed)),
+              transform: [{ translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT }],
+            }}
+          >
+            {inline.text}
+          </RNText>
+        </Pressable>
+      )
+    }
     return (
       <RNText
         key={key}
@@ -211,6 +246,11 @@ const BlockView = memo(function BlockView({
   const paragraph = (ghost: boolean): ReactNode => (
     <RNText
       ref={ghost ? undefined : (node) => onBlockRef(index, node)}
+      onTextLayout={
+        ghost || !hasSelection
+          ? undefined
+          : (event: TextLayoutEvent) => setLines(event.nativeEvent.lines)
+      }
       allowFontScaling={false}
       style={{
         fontSize: rule.size,
@@ -239,9 +279,11 @@ const BlockView = memo(function BlockView({
             onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
             style={{
               color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
-              backgroundColor: background(fill, dimmed),
-              textDecorationLine: ghost && isSelected ? 'underline' : 'none',
-              textDecorationColor: look.underline,
+              backgroundColor: ghost
+                ? isSelected
+                  ? look.underline
+                  : undefined
+                : background(fill, dimmed),
             }}
           >
             {segment.inlines.map((inline, i) => renderInline(inline, i, verse, dimmed, ghost))}
@@ -253,38 +295,57 @@ const BlockView = memo(function BlockView({
 
   const onLayout = (event: LayoutChangeEvent): void => {
     onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
+    setWidth(event.nativeEvent.layout.width)
   }
 
-  // RN has no underline offset, so a selected block draws its underline on a
-  // transparent copy dropped below the real text; only those blocks pay for it.
+  // A text underline breaks around descenders on iOS, so the ghost paints selected
+  // verses as a fill and each line clips it to a strip under its baseline. The clip
+  // also stops at the line's text, since iOS runs a wrapped fill to the edge.
   return (
     <View
       onLayout={onLayout}
       style={{
         marginTop: collapsedMarginTop(rule, previous, fontSize),
-        marginBottom: blockMarginBottom(rule, fontSize, look.lineSpacing),
+        marginBottom: blockMarginBottom(rule, fontSize),
       }}
     >
       {paragraph(false)}
-      {hasSelection && (
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            transform: [{ translateY: UNDERLINE_DROP * rule.size }],
-          }}
-        >
-          {paragraph(true)}
-        </View>
-      )}
+      {hasSelection &&
+        lines.map((line, lineIndex) => {
+          const top = underlineTop(line, rule.size)
+          return (
+            <View
+              key={lineIndex}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                position: 'absolute',
+                top,
+                left: line.x,
+                width: line.width,
+                height: UNDERLINE_THICKNESS,
+                overflow: 'hidden',
+              }}
+            >
+              <View style={{ position: 'absolute', top: -top, left: -line.x, width }}>
+                {paragraph(true)}
+              </View>
+            </View>
+          )
+        })}
     </View>
   )
 }, sameBlockState)
+
+type TextLine = TextLayoutEvent['nativeEvent']['lines'][number]
+
+// Both platforms centre the glyphs in a line box enlarged by lineHeight.
+function underlineTop(line: TextLine, size: number): number {
+  const descender = Math.abs(line.descender)
+  const baseline = line.y + (line.height + line.ascender - descender) / 2
+  return baseline + UNDERLINE_OFFSET * size
+}
 
 function background(fill: HighlightPaint | undefined, dimmed: boolean): string | undefined {
   if (fill === undefined) {
