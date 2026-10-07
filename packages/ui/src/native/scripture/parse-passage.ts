@@ -196,14 +196,17 @@ function escapeHtml(text: string): string {
 
 // Hebrew through Arabic Extended, plus the presentation forms.
 const RTL_LETTER = /[֐-ࣿיִ-﷿ﹰ-﻿]/
-const LETTER = /\p{L}/u
+const LETTER = /\p{L}/gu
 
 /**
- * The transformer drops the API's direction and the version schema has none,
- * so mirror `dir="auto"`: the first strong letter of the scripture decides.
+ * The transformer drops the API's direction, and the version body has only `language_tag`
+ * (direction sits on the language, an extra request). So the scripture's strong letters vote:
+ * a first-letter rule flips ASV Psalm 119, whose `qc` acrostic lines open with Hebrew.
  */
 export function isRtlText(blocks: readonly Block[]): boolean {
-  // Headings can quote another script (Psalm 119's Hebrew letters), so read scripture only.
+  // Headings can quote another script, so only scripture votes.
+  let rtl = 0
+  let ltr = 0
   for (const block of blocks) {
     if (block.heading) {
       continue
@@ -213,12 +216,15 @@ export function isRtlText(blocks: readonly Block[]): boolean {
         if (inline.kind !== 'text') {
           continue
         }
-        const letter = LETTER.exec(inline.text)
-        if (letter !== null) {
-          return RTL_LETTER.test(letter[0])
+        for (const [letter] of inline.text.matchAll(LETTER)) {
+          if (RTL_LETTER.test(letter)) {
+            rtl += 1
+          } else {
+            ltr += 1
+          }
         }
       }
     }
   }
-  return false
+  return rtl > ltr
 }

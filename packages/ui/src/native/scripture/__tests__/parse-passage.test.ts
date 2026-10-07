@@ -19,4 +19,25 @@ describe('parsePassage', () => {
     expect(texts).toEqual(['Let Israel', ' say,'])
     expect(inlines.map((inline) => inline.kind)).toEqual(['label', 'text', 'note', 'text'])
   })
+
+  it('reads an English passage that opens with a Hebrew acrostic line as LTR', () => {
+    // ASV Psalm 119: the acrostic letter sits in a `qc` line, not a heading.
+    const html =
+      '<div><div class="qc">א ALEPH.</div>' +
+      '<div class="q1"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Blessed are they that are perfect in the way,</div>' +
+      '<div class="q2">Who walk in the law of Jehovah.</div></div>'
+    expect(parsePassage(html).rtl).toBe(false)
+  })
+
+  it('reads a Hebrew passage as RTL', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>בְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁמַיִם וְאֵת הָאָרֶץ</div></div>'
+    expect(parsePassage(html).rtl).toBe(true)
+  })
+
+  it('reads an Arabic passage with a Latin note as RTL', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>(LXX) فِي الْبَدْءِ خَلَقَ اللهُ السَّمَاوَاتِ وَالأَرْضَ</div></div>'
+    expect(parsePassage(html).rtl).toBe(true)
+  })
 })
