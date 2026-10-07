@@ -39,6 +39,15 @@ describe('ensureDomContentCache', () => {
     globalThis.fetch = realFetch
   })
 
+  function mockContentResponse() {
+    passthrough.mockResolvedValue(
+      new Response('{"content":"In the beginning"}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+  }
+
   it('routes an eligible request through the native action and rebuilds the Response', async () => {
     const action: jest.MockedFunction<FetchBibleContent> = jest.fn()
     action.mockResolvedValue({
@@ -167,13 +176,7 @@ describe('ensureDomContentCache', () => {
   })
 
   it('lets the native action call global fetch without re-entering the wrapper', async () => {
-    ensureDomContentCache()
-    passthrough.mockResolvedValue(
-      new Response('{"content":"In the beginning"}', {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    )
+    mockContentResponse()
     const action: FetchBibleContent = async ({ path }) => {
       const response = await globalThis.fetch(`https://${API_HOST}${path}`)
       return {
@@ -190,20 +193,11 @@ describe('ensureDomContentCache', () => {
     expect(response.headers.get('content-type')).toBe('application/json')
     await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
     expect(passthrough).toHaveBeenCalledTimes(1)
-    expect(passthrough).toHaveBeenCalledWith(
-      `https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`,
-      undefined,
-    )
+    expect(passthrough).toHaveBeenCalledWith(CONTENT_URL, undefined)
   })
 
   it('lets the real Bible content client reach the network once', async () => {
-    ensureDomContentCache()
-    passthrough.mockResolvedValue(
-      new Response('{"content":"In the beginning"}', {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      }),
-    )
+    mockContentResponse()
     const fetchBibleContent = createRealBibleContentClient({
       appKey: 'app-key',
       apiHost: API_HOST,
@@ -223,7 +217,7 @@ describe('ensureDomContentCache', () => {
     await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
     expect(passthrough).toHaveBeenCalledTimes(1)
     const [url] = passthrough.mock.calls[0] ?? []
-    expect(url).toBe(`https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`)
+    expect(url).toBe(CONTENT_URL)
   })
 
   it('routes a second eligible request through the native action while the first is in flight', async () => {
