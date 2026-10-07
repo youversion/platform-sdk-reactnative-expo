@@ -66,18 +66,25 @@ const ATTACHMENT_DRIFT = Platform.OS === 'ios' ? 0.5 : 0
 // there in both schemes and still follows a custom foreground.
 const LABEL_ALPHA = 0.5
 // Swift draws its untinted asset (gray20) in a square the height of an 0.8em run,
-// raised a quarter of that, in every scheme and over highlights.
+// raised a quarter of that, in every scheme and over highlights. Android seats inline
+// views higher, so it rises less to sit the same against the glyphs (measured).
 const NOTE_SCALE = 1
-const NOTE_RISE = 0.34
+const NOTE_RISE = Platform.select({ android: 0.14, default: 0.34 })
 const NOTE_LEAD = 0
 const NOTE_TRAIL = 0.08
 const DIM_ALPHA = 0.35
 // Zero-width space: an invisible first character that carries the block's paragraph style.
 const PARAGRAPH_ANCHOR = '\u200b'
-const TRANSPARENT = 'transparent'
+// Android reads colour 0 ('transparent') as unset, so ghost text would fall back to
+// black; alpha 0 with a non-zero channel stays invisible on both platforms.
+const TRANSPARENT = withAlpha(palette.white, 0)
 // iOS seats inline views a fixed ~2.8pt above the line box at every size and spacing
 // (measured); likely TextKit's Helvetica 12 fallback descender for the font-less attachment.
 const BOX_SHIFT = 2.8
+// Android grows a line's ascent to fit an inline view and takes the excess from its
+// descent, which drops the baseline and clips a last line's descenders; capped at the
+// highlight band's ascent, the box stays inside the text's own ascent.
+const CAP_BOX = Platform.OS === 'android'
 // Underline top, in em below the baseline, and its thickness in points.
 const UNDERLINE_OFFSET = 0.37
 const UNDERLINE_THICKNESS = 1
@@ -163,14 +170,29 @@ const BlockView = memo(function BlockView({
     const fill = verse === null ? undefined : paint.get(verse)
     const overInk = ghost ? null : (fill?.text ?? null)
     const pressable = !ghost && verse !== null
-    // Inline views fill the whole line box so a highlight runs through them;
-    // the content shifts back by the same amount to stay where it was.
+    // Inline views fill the line box (Android: the band's ascent) so a highlight runs
+    // through them; the content shifts back by the same amount to stay where it was.
+    const background = backdrop(layer, fill, dimmed)
     const box = {
-      height: lineBox,
+      height: CAP_BOX ? Math.min(lineBox, BAND_ASCENT * rule.size) : lineBox,
       justifyContent: 'flex-end',
       transform: [{ translateY: BOX_SHIFT }],
-      backgroundColor: backdrop(layer, fill, dimmed),
+      backgroundColor: CAP_BOX ? undefined : background,
     } as const
+    // The capped box stops at the baseline, so its fill reaches on through the band's
+    // descent; each line's band window trims the rest.
+    const boxFill = CAP_BOX && background !== undefined && (
+      <View
+        style={{
+          position: 'absolute',
+          top: -BOX_SHIFT,
+          bottom: -BAND_DESCENT * rule.size,
+          left: 0,
+          right: 0,
+          backgroundColor: background,
+        }}
+      />
+    )
     if (inline.kind === 'label') {
       return (
         // End padding, not a trailing space: under RTL the space lands on the far side.
@@ -180,6 +202,7 @@ const BlockView = memo(function BlockView({
           onPress={pressable ? () => onVersePress(verse) : undefined}
           style={{ ...box, paddingEnd: fontSize * 0.25 }}
         >
+          {boxFill}
           <RNText
             allowFontScaling={false}
             style={{
@@ -208,6 +231,7 @@ const BlockView = memo(function BlockView({
           onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
           style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
         >
+          {boxFill}
           <View
             style={{
               width: size,
@@ -414,7 +438,7 @@ const BlockView = memo(function BlockView({
               <View
                 style={{
                   position: 'absolute',
-                  top: -band.top,
+                  top: -sampleTop(line, band.top, band.height),
                   left: -left,
                   width: size.width,
                   height: size.height,
@@ -429,6 +453,7 @@ const BlockView = memo(function BlockView({
       {hasSelection &&
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
+          const sample = sampleTop(line, top, UNDERLINE_THICKNESS)
           const span = lineSpan(line, space, look.rtl, rule.headIndent)
           return (
             <View
@@ -445,7 +470,7 @@ const BlockView = memo(function BlockView({
                 overflow: 'hidden',
               }}
             >
-              <View style={{ position: 'absolute', top: -top, left: -span.x, width: size.width }}>
+              <View style={{ position: 'absolute', top: -sample, left: -span.x, width: size.width }}>
                 {underline}
               </View>
             </View>
@@ -481,6 +506,13 @@ function baselineOf(line: TextLine): number {
 
 function underlineTop(line: TextLine, size: number): number {
   return baselineOf(line) + UNDERLINE_OFFSET * size
+}
+
+// Where a window at `top` reads the ghost's fill. A band or underline strip that spills
+// past its line box (Android at tight spacing) would show the next line's fill, so it
+// reads from the middle of its own line instead.
+function sampleTop(line: TextLine, top: number, height: number): number {
+  return top + height <= line.y + line.height ? top : line.y + (line.height - height) / 2
 }
 
 type Band = { top: number; height: number }
