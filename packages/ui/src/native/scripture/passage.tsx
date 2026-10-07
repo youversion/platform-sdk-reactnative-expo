@@ -11,6 +11,7 @@ import {
 import Svg, { Path } from 'react-native-svg'
 
 import { withAlpha } from '../../lib/color'
+import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import type { HighlightPaint } from './highlight-colors'
 import type { Block, Inline } from './parse-passage'
@@ -64,7 +65,12 @@ const ATTACHMENT_DRIFT = Platform.OS === 'ios' ? 0.5 : 0
 // Swift paints labels in iOS `secondaryLabel` (~#8a8a8e on white); half the ink lands
 // there in both schemes and still follows a custom foreground.
 const LABEL_ALPHA = 0.5
-const NOTE_ALPHA = 0.5
+// Swift draws its untinted asset (gray20) in a square the height of an 0.8em run,
+// raised a quarter of that, in every scheme and over highlights.
+const NOTE_SCALE = 1
+const NOTE_RISE = 0.34
+const NOTE_LEAD = 0
+const NOTE_TRAIL = 0.08
 const DIM_ALPHA = 0.35
 // Zero-width space: an invisible first character that carries the block's paragraph style.
 const PARAGRAPH_ANCHOR = '\u200b'
@@ -192,7 +198,7 @@ const BlockView = memo(function BlockView({
       )
     }
     if (inline.kind === 'note') {
-      const size = fontSize * 1.2
+      const size = fontSize * NOTE_SCALE
       return (
         <Pressable
           key={key}
@@ -200,16 +206,20 @@ const BlockView = memo(function BlockView({
           disabled={ghost}
           accessibilityRole="button"
           onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
-          style={{ ...box, paddingHorizontal: fontSize * 0.2 }}
+          style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
         >
           <View
-            style={{ width: size, height: size, transform: [{ translateY: drift - BOX_SHIFT }] }}
+            style={{
+              width: size,
+              height: size,
+              transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+            }}
           >
             {!ghost && (
               <Svg width={size} height={size} viewBox="0 0 20 20">
                 <Path
                   d={NOTE_ICON}
-                  fill={color(overInk ?? look.ink, NOTE_ALPHA, dimmed)}
+                  fill={color(palette.gray20, 1, dimmed)}
                   fillRule="evenodd"
                 />
               </Svg>
