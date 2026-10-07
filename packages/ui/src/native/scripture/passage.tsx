@@ -77,6 +77,8 @@ const UNDERLINE_OFFSET = 0.37
 const UNDERLINE_THICKNESS = 1
 // Horizontal padding each side of a highlight, in em.
 const HIGHLIGHT_PAD = 0.1
+const BAND_ASCENT = 0.98
+const BAND_DESCENT = 0.26
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
@@ -382,6 +384,7 @@ const BlockView = memo(function BlockView({
       {hasPaint &&
         lines.map((line, lineIndex) => {
           const span = lineSpan(line, space, look.rtl, rule.headIndent)
+          const band = glyphBand(line, rule.size)
           const left = span.x - pad
           return (
             <View
@@ -391,17 +394,17 @@ const BlockView = memo(function BlockView({
               importantForAccessibility="no-hide-descendants"
               style={{
                 position: 'absolute',
-                top: line.y,
+                top: band.top,
                 left,
                 width: span.width + 2 * pad,
-                height: line.height,
+                height: band.height,
                 overflow: 'hidden',
               }}
             >
               <View
                 style={{
                   position: 'absolute',
-                  top: -line.y,
+                  top: -band.top,
                   left: -left,
                   width: size.width,
                   height: size.height,
@@ -462,10 +465,24 @@ const BlockView = memo(function BlockView({
 type TextLine = TextLayoutEvent['nativeEvent']['lines'][number]
 
 // Both platforms centre the glyphs in a line box enlarged by lineHeight.
+function baselineOf(line: TextLine): number {
+  return line.y + (line.height + line.ascender - Math.abs(line.descender)) / 2
+}
+
 function underlineTop(line: TextLine, size: number): number {
-  const descender = Math.abs(line.descender)
-  const baseline = line.y + (line.height + line.ascender - descender) / 2
-  return baseline + UNDERLINE_OFFSET * size
+  return baselineOf(line) + UNDERLINE_OFFSET * size
+}
+
+type Band = { top: number; height: number }
+
+// Swift fills a line's typographic bounds, so line spacing shows as a gap between
+// highlighted lines. iOS line metrics span the whole line box, so the font's ascent
+// and descent are em values measured off Swift's serif.
+function glyphBand(line: TextLine, size: number): Band {
+  return {
+    top: baselineOf(line) - BAND_ASCENT * size,
+    height: (BAND_ASCENT + BAND_DESCENT) * size,
+  }
 }
 
 type LineSpan = { x: number; width: number }
