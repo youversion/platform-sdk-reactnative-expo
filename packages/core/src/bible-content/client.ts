@@ -36,10 +36,15 @@ const DEFAULT_TIMEOUT_MS = 10_000
 // matches across the two packages, so core does not import the UI package.
 const FETCH_PASSTHROUGH = Symbol.for('yv.passthrough')
 
+type FetchWithPassthrough = typeof globalThis.fetch & {
+  [FETCH_PASSTHROUGH]?: typeof globalThis.fetch
+}
+
 function fetchUnderWrapper(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
-  const passthrough = (fetchImpl as { [FETCH_PASSTHROUGH]?: unknown })[FETCH_PASSTHROUGH]
-  if (typeof passthrough !== 'function') return fetchImpl
-  return passthrough as typeof globalThis.fetch
+  // SAFETY: the UI wrapper stores the original fetch on this symbol, or leaves it absent.
+  const passthrough = (fetchImpl as FetchWithPassthrough)[FETCH_PASSTHROUGH]
+  if (passthrough === undefined) return fetchImpl
+  return passthrough
 }
 
 export function createBibleContentClient({

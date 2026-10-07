@@ -109,8 +109,7 @@ export function ensureDomContentCache(): void {
     }
   }
 
-  const tagged = wrappedFetch as { [FETCH_PASSTHROUGH]?: typeof globalThis.fetch }
-  tagged[FETCH_PASSTHROUGH] = passthrough
+  Reflect.set(wrappedFetch, FETCH_PASSTHROUGH, passthrough)
   woven.add(wrappedFetch)
   globalThis.fetch = wrappedFetch
 }

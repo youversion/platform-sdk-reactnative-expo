@@ -53,8 +53,7 @@ describe('createBibleContentClient', () => {
       }),
     )
     const wrapped: jest.MockedFunction<typeof fetch> = jest.fn()
-    const tagged = wrapped as typeof wrapped & { [key: symbol]: typeof fetch }
-    tagged[Symbol.for('yv.passthrough')] = passthrough
+    Reflect.set(wrapped, Symbol.for('yv.passthrough'), passthrough)
     const store = createBibleContentStore({ openInstance: (id) => createMMKV({ id }) })
     const client = createBibleContentClient({
       appKey: 'app-key-1',
