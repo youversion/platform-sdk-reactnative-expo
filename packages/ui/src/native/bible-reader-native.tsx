@@ -23,7 +23,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { chapterLabelForBook, type BookCatalogEntry } from '../lib/bible-book-title'
+import { type BookCatalogEntry } from '../lib/bible-book-title'
 import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -48,7 +48,8 @@ const DEFAULT_FOCUS = {
 const DEFAULT_FONT_SIZE = 16
 const MAX_WIDTH = 700
 const GUTTER = 16
-const HEADER_TOP = 48
+// Swift shows the reference only in the toolbar, so the text opens under its vertical padding.
+const TOP_PADDING = 16
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
 // A system serif until the brand serif registers. Naming the brand face early measures
@@ -345,9 +346,6 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     return () => clearTimeout(timer)
   }, [load.loading])
 
-  // The DOM reader sets the book and chapter header in sans whatever the reader font.
-  const headerFace = fontMapKey(tokens.fontFamily.sans, 400, 'normal')
-  const chapterLabel = chapterLabelForBook(entry, chapter)
   const message = unavailable
     ? t('passageUnavailable')
     : load.error === 'offline'
@@ -373,36 +371,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
             width: '100%',
             maxWidth: MAX_WIDTH + GUTTER * 2,
             paddingHorizontal: GUTTER,
-            paddingTop: HEADER_TOP,
+            paddingTop: TOP_PADDING,
           }}
         >
-          <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <RNText
-              allowFontScaling={false}
-              style={{
-                fontFamily: headerFace,
-                fontSize: fontSize * 1.3,
-                lineHeight: fontSize * 1.3 * 1.25,
-                color: muted,
-                opacity: focusDim === null ? 1 : 0.35,
-              }}
-            >
-              {bookTitle ?? ''}
-            </RNText>
-            <RNText
-              allowFontScaling={false}
-              style={{
-                fontFamily: headerFace,
-                fontSize: fontSize * 2.2,
-                lineHeight: fontSize * 2.2 * 1.2,
-                color: muted,
-                opacity: focusDim === null ? 1 : 0.35,
-              }}
-            >
-              {chapterLabel}
-            </RNText>
-          </View>
-
           {message !== null ? (
             <View style={{ alignItems: 'center', gap: 16 }}>
               <RNText
