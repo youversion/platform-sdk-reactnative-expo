@@ -47,7 +47,9 @@ const DEFAULT_FOCUS = {
 }
 const DEFAULT_FONT_SIZE = 16
 const MAX_WIDTH = 700
-const GUTTER = 16
+// Style spec §5: 32, Kotlin's 32dp (Swift uses 30). The gutter sets the wrap width,
+// so lines break at the same words as the other native readers.
+const GUTTER = 32
 // Swift shows the reference only in the toolbar, so the text opens under its vertical padding.
 const TOP_PADDING = 16
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
@@ -314,7 +316,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
         const offset =
           layout.height < viewportHeight.current
             ? top + layout.height / 2 - viewportHeight.current / 2
-            : top - GUTTER
+            : top - TOP_PADDING
         scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
       }
       if (target !== null) {
@@ -461,7 +463,13 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       {showSpinner && passage !== null && (
         <View
           pointerEvents="none"
-          style={{ position: 'absolute', top: GUTTER, left: 0, right: 0, alignItems: 'center' }}
+          style={{
+            position: 'absolute',
+            top: TOP_PADDING,
+            left: 0,
+            right: 0,
+            alignItems: 'center',
+          }}
         >
           <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
         </View>
