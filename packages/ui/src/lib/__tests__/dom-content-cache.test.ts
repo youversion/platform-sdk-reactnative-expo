@@ -1,6 +1,25 @@
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { ensureDomContentCache, registerBibleContentAction } from '../dom-content-cache'
 
+function createRealBibleContentClient(deps: {
+  appKey: string
+  apiHost: string
+  installationId: string
+  store: {
+    read: () => null
+    write: () => void
+    listVersionIds: () => number[]
+    sweep: () => void
+  }
+}): FetchBibleContent {
+  // Loaded from source so the factory stays off the package namespace.
+  // SAFETY: client.ts exports createBibleContentClient, and that function returns FetchBibleContent.
+  const clientModule = jest.requireActual('../../../../core/src/bible-content/client') as {
+    createBibleContentClient: (next: typeof deps) => FetchBibleContent
+  }
+  return clientModule.createBibleContentClient(deps)
+}
+
 const API_HOST = 'api.youversion.com'
 const CONTENT_URL = `https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`
 
@@ -173,6 +192,36 @@ describe('ensureDomContentCache', () => {
       `https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`,
       undefined,
     )
+  })
+
+  it('lets the real Bible content client reach the network once', async () => {
+    ensureDomContentCache()
+    passthrough.mockResolvedValue(
+      new Response('{"content":"In the beginning"}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const fetchBibleContent = createRealBibleContentClient({
+      appKey: 'app-key',
+      apiHost: API_HOST,
+      installationId: 'inst-1',
+      store: {
+        read: () => null,
+        write: () => {},
+        listVersionIds: () => [],
+        sweep: () => {},
+      },
+    })
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent })
+
+    const response = await globalThis.fetch(CONTENT_URL)
+
+    expect(response.status).toBe(200)
+    await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
+    expect(passthrough).toHaveBeenCalledTimes(1)
+    const [url] = passthrough.mock.calls[0] ?? []
+    expect(url).toBe(`https://${API_HOST}/v1/bibles/111/chapters/JHN.1?fields=content`)
   })
 
   it('routes a second eligible request through the native action while the first is in flight', async () => {
