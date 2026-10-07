@@ -354,7 +354,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       ? t('offlineConnectionLostMessage')
       : load.error === 'unavailable'
         ? t('passageUnavailable')
-        : null
+        : load.error === 'failed'
+          ? t('generic.requestErrorBody')
+          : null
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -390,7 +392,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               >
                 {message}
               </RNText>
-              {!unavailable && (
+              {!unavailable && load.error !== 'unavailable' && (
                 <Button variant="outline" onPress={load.retry}>
                   <Button.Text>{t('retry')}</Button.Text>
                 </Button>

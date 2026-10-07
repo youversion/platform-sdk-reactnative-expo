@@ -15,7 +15,7 @@ export type LoadedPassage = {
   reference: string
 }
 
-export type PassageError = 'offline' | 'unavailable'
+export type PassageError = 'offline' | 'unavailable' | 'failed'
 
 export type PassageLoad = {
   /** The last passage that loaded; it stays up, dimmed, while the next one loads. */
@@ -67,9 +67,15 @@ export function usePassage(
         if (cancelled) {
           return
         }
+        // Only 403/404 mean the version lacks this passage; rate limits, 5xx, and
+        // bad bodies are transient, so they stay retryable instead of reading as missing.
+        if (response.status === 403 || response.status === 404) {
+          setError('unavailable')
+          return
+        }
         const body = response.status === 200 ? parseBody(passageBodySchema, response.body) : null
         if (body === null) {
-          setError('unavailable')
+          setError('failed')
           return
         }
         setPassage({
