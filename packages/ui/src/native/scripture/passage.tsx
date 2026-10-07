@@ -614,14 +614,21 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
   )
 }
 
-// Neither Untitled Serif nor Source Serif answers `fontVariant: small-caps` on
-// iOS, so synthesize it the way browsers do: lowercase runs uppercased at ~0.75.
-function smallCaps(text: string, size: number): ReactNode[] {
+// Neither Untitled Serif nor Source Serif answers `fontVariant: small-caps` on iOS,
+// so uppercase lowercase runs at a smaller size. Swift's `lowercaseSmallCaps()` glyphs
+// are 0.86× cap height and wider than scaled caps, so tracking makes up the width.
+const SMALL_CAP_SCALE = 0.85
+const SMALL_CAP_TRACKING = 0.055
+
+export function smallCaps(text: string, size: number): ReactNode[] {
   return Array.from(text.matchAll(/(\p{Ll}+)|([^\p{Ll}]+)/gu), (match, i) =>
     match[1] === undefined ? (
       match[0]
     ) : (
-      <RNText key={i} style={{ fontSize: size * 0.75 }}>
+      <RNText
+        key={i}
+        style={{ fontSize: size * SMALL_CAP_SCALE, letterSpacing: size * SMALL_CAP_TRACKING }}
+      >
         {match[1].toUpperCase()}
       </RNText>
     ),
