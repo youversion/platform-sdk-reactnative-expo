@@ -40,7 +40,7 @@ export default function ProfileScreen() {
             {userInfo?.email ?? '(no email)'}
           </Text>
           <View style={styles.button}>
-            <YouVersionAuthButton mode="signOut" background={colorScheme} outline />
+            <YouVersionAuthButton mode="signOut" background={colorScheme} />
           </View>
         </View>
       </View>
@@ -49,7 +49,7 @@ export default function ProfileScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
-      <YouVersionAuthButton mode="signIn" background={colorScheme} outline />
+      <YouVersionAuthButton mode="signIn" background={colorScheme} />
     </View>
   )
 }

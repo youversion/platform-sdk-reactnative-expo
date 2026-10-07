@@ -1,5 +1,7 @@
 # Content-sized body for matchContents embeds
 
+> **Status.** `BibleCard` and `VerseOfTheDay` no longer have their own DOM files. They embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. Reader settings and the version and chapter pickers are native. Footnotes still use `withSheetDomDefaults`. The reader body passes its own `readerDom`.
+
 Expo DOM Components' `dom={{ matchContents: true }}` injects a `ResizeObserver` on `document.body` and applies the reported `{width, height}` to the WebView container. Expo's DOM HTML template, however, pins `html, body { height: 100% }` and `#root { height: 100% }`, so the body always measures the WebView's own frame — never the content. That makes `matchContents` circular: the frame height is reported back as the frame height.
 
 This stayed invisible while embeds sat in `flex: 1` screen containers — the WebView stretched to the full screen, the body reported the full screen, and the card simply painted top-aligned inside a viewport-sized box. Any layout that stops stretching the WebView (a content-sized wrapper, `alignItems: 'center'` on the parent) collapses the frame toward zero, the body reports the collapsed size, and the embed disappears.
@@ -8,7 +10,7 @@ This stayed invisible while embeds sat in `flex: 1` screen containers — the We
 
 Embed components that should size to their content — `BibleCard`, `VerseOfTheDay`, and standalone `BibleTextView` — render a `ContentSizedBody` style override (`packages/ui/src/lib/content-sized-body.tsx`) inside their DOM wrappers: `html, body, #root { height: auto }`. Rendered inside `#root`, it follows the template's `#expo-reset` stylesheet in document order and wins the cascade at equal specificity. The body then grows with content and `matchContents` measures real content height, including async re-measures as data loads.
 
-Sheet-hosted DOM content (footnotes, reader settings, pickers) keeps the template's full-height body; its sizing contract is owned by the **Native Sheet** host and `@gorhom/bottom-sheet` dynamic sizing, and is covered by ADR 0006.
+Sheet-hosted DOM content (footnotes) keeps the template's full-height body; its sizing contract is owned by the **Native Sheet** host and `@gorhom/bottom-sheet` dynamic sizing, and is covered by ADR 0006.
 
 ## Embed containerStyle defaults
 
@@ -28,7 +30,7 @@ The native embed wrappers own this contract so consumers can drop the components
 }
 ```
 
-Sheet-hosted `matchContents` embeds (footnotes, reader settings) use `withSheetDomDefaults` instead — same scroll-chrome defaults, no `containerStyle`.
+Sheet-hosted `matchContents` embeds (footnotes) use `withSheetDomDefaults` instead — same scroll-chrome defaults, no `containerStyle`.
 
 `flex: 0` lets the matched height win; `width: '100%'` keeps the DOM viewport width determinate (and overrides the matched width, which is what an embed filling its wrapper wants). A zero-height WKWebView still loads and reports its first measurement on iOS, so no placeholder `minHeight` is required. A content-sized embed has nothing to scroll, so scrolling, the iOS rubber-band bounce, and the Android overscroll glow are disabled by default alongside `matchContents`. Native scroll indicators are hidden via `showsVerticalScrollIndicator` / `showsHorizontalScrollIndicator` because `@expo/dom-webview` on Android does not honor `scrollEnabled` and defaults scrollbars to visible.
 

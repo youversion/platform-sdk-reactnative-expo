@@ -83,5 +83,6 @@
   "bibleSearchFilterBoth": "Both",
   "bibleSearchFilterNewTestament": "New Testament",
   "bibleSearchFilterOldTestament": "Old Testament",
-  "bibleSearchFiltersButton": "Filters"
+  "bibleSearchFiltersButton": "Filters",
+  "generic.requestErrorBody": "This request can’t be completed right now."
 }

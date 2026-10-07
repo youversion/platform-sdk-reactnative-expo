@@ -1,6 +1,6 @@
 # YouVersion Platform React Native Expo SDK
 
-Wraps `@youversion/platform-react-ui` as Expo DOM components for React Native. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`.
+Native chrome for React Native. Scripture and footnotes still render through Expo DOM and `@youversion/platform-react-ui`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay required for those DOM files. Native code may import Web SDK values.
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 
@@ -45,7 +45,7 @@ Content cache, `Cache-Control`, lifetime, or sweep: `CONTEXT.md` and [ADR 0020](
 
 ## Sheets
 
-NativeSheet, pickers, or verse actions: ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md), [0006](docs/adr/0006-inactive-sheet-inertness.md), [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md), [0017](docs/adr/0017-native-verse-action-sheet.md).
+NativeSheet, pickers, or verse actions: `CONTEXT.md` and ADRs [0006](docs/adr/0006-inactive-sheet-inertness.md), [0017](docs/adr/0017-native-verse-action-sheet.md). ADRs [0005](docs/adr/0005-dom-owned-language-panel-in-version-picker.md) and [0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md) record the retired DOM pickers.
 
 ## Design Tokens
 
@@ -74,3 +74,7 @@ Package entry, `publishConfig`, or tsconfig split: [ADR 0011](docs/adr/0011-comp
 ## Release
 
 Changeset or publish: `PUBLISHING.md`. RN publish failure: `RELEASE-RUNBOOK.md`.
+
+## CI
+
+Workflows live in `.github/workflows/`. A change lands when CI passes. Do not list job names in this file.

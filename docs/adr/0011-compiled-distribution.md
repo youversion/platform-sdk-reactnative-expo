@@ -30,7 +30,7 @@ The build tool is [`expo-module-scripts`](https://www.npmjs.com/package/expo-mod
 
 ## Sealed import surface
 
-Both packages declare a root-only `exports` map. The only entry points are `"."` (the package root) and `"./package.json"`; there are no subpath entries, so the supported way to consume either package is `import … from '@youversion/platform-react-native-expo-ui'` / `-core`, and a deep import like `@youversion/platform-react-native-expo-ui/build/dom/bible-card` is not part of the public API.
+Both packages declare a root-only `exports` map. The only entry points are `"."` (the package root) and `"./package.json"`; there are no subpath entries, so the supported way to consume either package is `import … from '@youversion/platform-react-native-expo-ui'` / `-core`, and a deep import like `@youversion/platform-react-native-expo-ui/build/dom/bible-text-view` is not part of the public API.
 
 Why seal it:
 
@@ -41,7 +41,7 @@ Why seal it:
 
 The map is enforced strictly by Node's own resolver and by TypeScript, and loosely by Metro:
 
-- **Node resolution** hard-errors on an unmatched subpath: `require.resolve('@youversion/platform-react-native-expo-ui/build/dom/bible-card')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. Same for any strict `exports`-aware bundler (webpack, Vite, esbuild, Rollup with default settings).
+- **Node resolution** hard-errors on an unmatched subpath: `require.resolve('@youversion/platform-react-native-expo-ui/build/dom/bible-text-view')` throws `ERR_PACKAGE_PATH_NOT_EXPORTED`. Same for any strict `exports`-aware bundler (webpack, Vite, esbuild, Rollup with default settings).
 - **TypeScript** (`moduleResolution` `node16`/`nodenext`/`bundler`) refuses to resolve types for a deep path, so a consumer writing a deep import gets a compile error in-editor and in CI typecheck. This is the primary developer-facing guardrail — the import is rejected before it can ship.
 - **Metro does _not_ enforce it.** Even with `resolver.unstable_enablePackageExports: true` (the Expo SDK 56 default), Metro falls back to plain filesystem resolution for a subpath that the `exports` map does not match, instead of hard-erroring the way Node does. Verified: a fresh SDK 56 app installing the packed tarballs bundles a deep import into `build/dom/*` without error. So at the RN bundler level a determined consumer can still reach internal files at runtime; the `exports` map does not make that physically impossible, it makes it unsupported and type-rejected. If we ever need Metro-level enforcement we would have to remove the files from the tarball or split internals into a separate unpublished package — out of scope here.
 

@@ -21,7 +21,10 @@ export function computeReaderBottomScrollPadding(
   }
   // Android NativeTabs wraps screens in bottom SafeAreaView; only add a small gap when needed.
   if (platform === 'android') {
-    return bottomSafeArea > 0 ? READER_SCROLL_END_GAP : 0
+    if (bottomSafeArea > 0) {
+      return READER_SCROLL_END_GAP
+    }
+    return 0
   }
   return 0
 }

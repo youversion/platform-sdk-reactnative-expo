@@ -1,5 +1,7 @@
 # DOM-side keyboard dismissal on sheet close
 
+> **Superseded for the version and chapter pickers.** Those search fields are React Native `TextInput`s. `BibleVersionPickerSheet` calls `Keyboard.dismiss()` from `onDismissKeyboardStart`. `BibleChapterPickerSheet` mounts picker content only while `isOpen` is true. The DOM blur path below applied when those fields were HTML inputs.
+
 When a picker sheet (version, chapter/book) closes, the soft keyboard raised by its search input must dismiss with it. The input lives inside an Expo DOM WebView, so we dismiss it by blurring `document.activeElement` **inside the DOM runtime**, triggered by the sheet's `isOpen` prop flipping to false — not from the native side.
 
 ## Context
