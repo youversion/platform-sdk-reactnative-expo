@@ -213,8 +213,8 @@ function BibleReaderSearchSheetContent({
             trendingHeading={t('bibleSearchTrendingHeading')}
             recentHeading={t('bibleSearchRecentHeading')}
             emptyCopy={t('noBibleSearchResults')}
-            retryCopy={t('retry')}
-            errorCopy={t('error')}
+            retryCopy={t('bibleSearchRetry', 'Try again')}
+            failureCopy={t('bibleSearchFailure', "We couldn't complete this search. Try again.")}
           />
         </View>
       </View>
@@ -233,7 +233,7 @@ type SearchBodyProps = {
   recentHeading: string
   emptyCopy: string
   retryCopy: string
-  errorCopy: string
+  failureCopy: string
 }
 
 function SearchBody({
@@ -248,7 +248,7 @@ function SearchBody({
   recentHeading,
   emptyCopy,
   retryCopy,
-  errorCopy,
+  failureCopy,
 }: SearchBodyProps): ReactNode {
   if (view.phase === 'browsing') {
     return (
@@ -348,7 +348,7 @@ function SearchBody({
         footer={view.footer}
         loadingLabel={loadingLabel}
         retryCopy={retryCopy}
-        errorCopy={errorCopy}
+        failureCopy={failureCopy}
         onEndReached={view.onEndReached}
         onSelectVerse={onSelectVerse}
       />
@@ -364,27 +364,14 @@ function SearchBody({
   }
 
   return (
-    <View
-      style={styles.statusFill}
+    <SearchFailure
+      fill
+      copy={failureCopy}
+      retryCopy={retryCopy}
+      onRetry={view.onRetry}
       testID="bible-reader-search-error"
-    >
-      <Text
-        accessibilityRole="alert"
-        accessibilityLiveRegion="assertive"
-        style={{ color: tokens.destructive }}
-      >
-        {errorCopy}
-      </Text>
-      <Pressable
-        testID="bible-reader-search-retry"
-        accessibilityRole="button"
-        accessibilityLabel={retryCopy}
-        onPress={view.onRetry}
-        style={styles.retry}
-      >
-        <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
-      </Pressable>
-    </View>
+      retryTestID="bible-reader-search-retry"
+    />
   )
 }
 
@@ -396,7 +383,7 @@ function ResultsList({
   footer,
   loadingLabel,
   retryCopy,
-  errorCopy,
+  failureCopy,
   onEndReached,
   onSelectVerse,
 }: {
@@ -407,7 +394,7 @@ function ResultsList({
   footer: ResultsFooter
   loadingLabel: string
   retryCopy: string
-  errorCopy: string
+  failureCopy: string
   onEndReached: () => void
   onSelectVerse: (usfm: TitledVerse['usfm']) => void
 }): ReactNode {
@@ -466,8 +453,40 @@ function ResultsList({
       keyboardShouldPersistTaps="handled"
       onViewableItemsChanged={handleViewableItemsChanged}
       viewabilityConfig={RESULT_VIEWABILITY}
-      ListFooterComponent={resultsFooter(footer, tokens, loadingLabel, retryCopy, errorCopy)}
+      ListFooterComponent={resultsFooter(footer, tokens, loadingLabel, retryCopy, failureCopy)}
     />
+  )
+}
+
+function SearchFailure({
+  copy,
+  retryCopy,
+  onRetry,
+  fill,
+  testID,
+  retryTestID,
+}: {
+  copy: string
+  retryCopy: string
+  onRetry: () => void
+  fill: boolean
+  testID: string
+  retryTestID: string
+}): ReactElement {
+  return (
+    <View style={fill ? styles.statusFill : styles.status} testID={testID}>
+      <Text variant="muted" accessibilityRole="alert" accessibilityLiveRegion="assertive">
+        {copy}
+      </Text>
+      <Button
+        testID={retryTestID}
+        variant="secondary"
+        accessibilityLabel={retryCopy}
+        onPress={onRetry}
+      >
+        <Button.Text>{retryCopy}</Button.Text>
+      </Button>
+    </View>
   )
 }
 
@@ -476,7 +495,7 @@ function resultsFooter(
   tokens: Tokens,
   loadingLabel: string,
   retryCopy: string,
-  errorCopy: string,
+  failureCopy: string,
 ): ReactElement | null {
   if (footer.kind === 'loading') {
     return (
@@ -487,24 +506,14 @@ function resultsFooter(
   }
   if (footer.kind === 'error') {
     return (
-      <View style={styles.status} testID="bible-reader-search-page-error">
-        <Text
-          accessibilityRole="alert"
-          accessibilityLiveRegion="assertive"
-          style={{ color: tokens.destructive }}
-        >
-          {errorCopy}
-        </Text>
-        <Pressable
-          testID="bible-reader-search-page-retry"
-          accessibilityRole="button"
-          accessibilityLabel={retryCopy}
-          onPress={footer.onRetry}
-          style={styles.retry}
-        >
-          <Text style={{ color: tokens.destructive }}>{retryCopy}</Text>
-        </Pressable>
-      </View>
+      <SearchFailure
+        fill={false}
+        copy={failureCopy}
+        retryCopy={retryCopy}
+        onRetry={footer.onRetry}
+        testID="bible-reader-search-page-error"
+        retryTestID="bible-reader-search-page-retry"
+      />
     )
   }
   return null
@@ -687,11 +696,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 32,
     gap: 12,
-  },
-  retry: {
-    minWidth: 44,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 })

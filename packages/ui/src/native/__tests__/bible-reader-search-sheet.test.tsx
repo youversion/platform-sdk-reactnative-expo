@@ -19,6 +19,7 @@ import {
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 
 import { nonBlankQuery } from '../../lib/bible-reader-search'
+import { getTokens } from '../../theme/tokens'
 import {
   searchHistoryStoreInitialState,
   useSearchHistoryStore,
@@ -183,7 +184,9 @@ describe('BibleReaderSearchSheet', () => {
       wrapper: wrapperFor(stub),
     })
     await flush()
-    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style),
+    ).toMatchObject({
       height: 1310,
     })
 
@@ -193,7 +196,9 @@ describe('BibleReaderSearchSheet', () => {
       </WithInsets>,
     )
     await flush()
-    expect(StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style)).toMatchObject({
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-reader-search-body').props.style),
+    ).toMatchObject({
       height: 1217,
     })
   })
@@ -613,6 +618,8 @@ describe('BibleReaderSearchSheet', () => {
     expect(
       screen.getByText("We're sorry, there are no Bible results for this search."),
     ).toBeTruthy()
+    expect(screen.queryByText("We couldn't complete this search. Try again.")).toBeNull()
+    expect(screen.queryByTestId('bible-reader-search-retry')).toBeNull()
     expect(screen.queryByTestId('bible-reader-search-result-JHN.3.16')).toBeNull()
   })
 
@@ -647,12 +654,23 @@ describe('BibleReaderSearchSheet', () => {
     })
     await flush()
 
-    expect(screen.getByText('Error')).toBeTruthy()
-    expect(screen.getByText('Retry')).toBeTruthy()
-    expect(screen.queryByTestId('bible-reader-search-result-JHN.3.16')).toBeNull()
+    expect(screen.getByText("We couldn't complete this search. Try again.")).toBeTruthy()
+    expect(screen.getByText('Try again')).toBeTruthy()
+    expect(screen.queryByText('Error')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
     expect(
-      StyleSheet.flatten(screen.getByTestId('bible-reader-search-retry').props.style),
-    ).toMatchObject({ minWidth: 44, minHeight: 44 })
+      screen.queryByText("We're sorry, there are no Bible results for this search."),
+    ).toBeNull()
+    expect(screen.queryByTestId('bible-reader-search-result-JHN.3.16')).toBeNull()
+    const tokens = getTokens('light')
+    expect(
+      StyleSheet.flatten(
+        screen.getByText("We couldn't complete this search. Try again.").props.style,
+      ).color,
+    ).toBe(tokens.mutedForeground)
+    expect(StyleSheet.flatten(screen.getByText('Try again').props.style).color).toBe(
+      tokens.foreground,
+    )
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('bible-reader-search-retry'))
@@ -849,9 +867,9 @@ describe('BibleReaderSearchSheet', () => {
     })
     await flush()
 
-    expect(StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color).toBe(
-      '#ffffff',
-    )
+    expect(
+      StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color,
+    ).toBe('#ffffff')
   })
 
   it('paints result text light when the provider is dark and the reader theme is light', async () => {
@@ -874,8 +892,8 @@ describe('BibleReaderSearchSheet', () => {
     })
     await flush()
 
-    expect(StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color).toBe(
-      '#121212',
-    )
+    expect(
+      StyleSheet.flatten(screen.getByText('For God so loved the world').props.style).color,
+    ).toBe('#121212')
   })
 })
