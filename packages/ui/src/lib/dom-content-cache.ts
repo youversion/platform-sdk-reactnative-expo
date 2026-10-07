@@ -47,20 +47,21 @@ export function ensureDomContentCache(): void {
   const passthrough = globalThis.fetch
   if (!passthrough || woven.has(passthrough)) return
 
-  // Expo web runs fetchBibleContent in this same realm, so its fetch is this
-  // wrapper. That call has to reach passthrough.
-  let reentering = false
+  // Expo web runs fetchBibleContent in this realm, so its fetch is this wrapper.
+  // Only the synchronous prefix of the action is covered: the client must call
+  // fetch before its first await (pinned by the real-client test).
+  let insideNativeCall = false
   const fetchThroughNative = (action: FetchBibleContent, path: string) => {
-    reentering = true
+    insideNativeCall = true
     try {
       return action({ path })
     } finally {
-      reentering = false
+      insideNativeCall = false
     }
   }
 
   const wrappedFetch: typeof globalThis.fetch = async (input, init) => {
-    if (reentering) return passthrough(input, init)
+    if (insideNativeCall) return passthrough(input, init)
 
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
     let url: URL
