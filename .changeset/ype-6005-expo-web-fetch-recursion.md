@@ -3,4 +3,4 @@
 '@youversion/platform-react-native-expo-core': patch
 ---
 
-fix: Bible Reader on Expo web no longer overflows the stack while loading scripture (YPE-6005)
+Bible Reader on Expo web no longer overflows the stack while loading scripture (YPE-6005)
