@@ -13,6 +13,8 @@ function createRealBibleContentClient(deps: {
   }
 }): FetchBibleContent {
   // Loaded from source so the factory stays off the package namespace.
+  // This parameter shape has to track client.ts. typeof import() of that file
+  // pulls core sources outside this package's rootDir.
   // SAFETY: client.ts exports createBibleContentClient, and that function returns FetchBibleContent.
   const clientModule = jest.requireActual('../../../../core/src/bible-content/client') as {
     createBibleContentClient: (next: typeof deps) => FetchBibleContent
