@@ -63,9 +63,6 @@ importers:
       '@rn-primitives/portal':
         specifier: 1.4.0
         version: 1.4.0(@types/react@19.2.14)(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
-      '@youversion/platform-core':
-        specifier: 2.13.0
-        version: 2.13.0
       '@youversion/platform-react-native-expo-core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -114,9 +111,6 @@ importers:
       expo-web-browser:
         specifier: 57.0.3
         version: 57.0.3(expo@57.0.23)(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))
-      linkedom:
-        specifier: 0.18.13
-        version: 0.18.13
       react:
         specifier: 19.2.3
         version: 19.2.3
