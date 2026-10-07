@@ -148,9 +148,19 @@ const BlockView = memo(function BlockView({
   const blockDimmed = focus !== null && block.heading
   const hasSelection = block.verses.some((verse) => selected.has(verse))
   const hasPaint = block.verses.some((verse) => paint.has(verse))
-  const [lines, setLines] = useState<readonly TextLine[]>([])
-  const [size, setSize] = useState({ width: 0, height: 0 })
-  const [space, setSpace] = useState(0)
+  // A remount (see blockStateKey) starts from the last layout instead of blank, so a
+  // tap does not flash the highlight away and back.
+  const [measure, setMeasure] = useState<Measure>(() => {
+    const kept = measures.get(block)
+    return kept?.look === look ? kept : { look, lines: [], size: { width: 0, height: 0 }, space: 0 }
+  })
+  const { lines, size, space } = measure
+  const update = (change: Partial<Omit<Measure, 'look'>>): void =>
+    setMeasure((current) => {
+      const next = { ...current, ...change }
+      measures.set(block, next)
+      return next
+    })
   const measured = hasSelection || hasPaint
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
@@ -312,7 +322,7 @@ const BlockView = memo(function BlockView({
         onTextLayout={
           ghost || !measured
             ? undefined
-            : (event: TextLayoutEvent) => setLines(event.nativeEvent.lines)
+            : (event: TextLayoutEvent) => update({ lines: event.nativeEvent.lines })
         }
         allowFontScaling={false}
         style={{
@@ -363,9 +373,9 @@ const BlockView = memo(function BlockView({
   const onLayout = (event: LayoutChangeEvent): void => {
     onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
     const { width, height } = event.nativeEvent.layout
-    setSize((current) =>
-      current.width === width && current.height === height ? current : { width, height },
-    )
+    if (size.width !== width || size.height !== height) {
+      update({ size: { width, height } })
+    }
   }
 
   // Nested text takes no padding, so the backdrop paints highlights from shifted
@@ -482,7 +492,7 @@ const BlockView = memo(function BlockView({
           allowFontScaling={false}
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          onTextLayout={(event) => setSpace(event.nativeEvent.lines[0]?.width ?? 0)}
+          onTextLayout={(event) => update({ space: event.nativeEvent.lines[0]?.width ?? 0 })}
           style={{
             position: 'absolute',
             opacity: 0,
@@ -498,6 +508,16 @@ const BlockView = memo(function BlockView({
 }, sameBlockState)
 
 type TextLine = TextLayoutEvent['nativeEvent']['lines'][number]
+
+type Measure = {
+  look: PassageLook
+  lines: readonly TextLine[]
+  size: { width: number; height: number }
+  space: number
+}
+
+// Last layout per parsed block, valid while its look holds.
+const measures = new WeakMap<Block, Measure>()
 
 // Both platforms centre the glyphs in a line box enlarged by lineHeight.
 function baselineOf(line: TextLine): number {
