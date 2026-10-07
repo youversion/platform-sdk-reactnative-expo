@@ -32,6 +32,10 @@ const NULL_BODY_STATUSES = new Set([101, 204, 205, 304])
 
 const woven = new WeakSet<typeof globalThis.fetch>()
 
+// Same symbol the Bible content client reads in core. Symbol.for matches
+// across the two packages, so core does not import this file.
+const FETCH_PASSTHROUGH = Symbol.for('yv.passthrough')
+
 // The caller's signal cannot cross the bridge, so race it against the bridge
 // call: the WebView side rejects on abort even though native runs to settle.
 function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
@@ -48,8 +52,9 @@ export function ensureDomContentCache(): void {
   if (!passthrough || woven.has(passthrough)) return
 
   // Expo web runs fetchBibleContent in this realm, so its fetch is this wrapper.
-  // Only the synchronous prefix of the action is covered: the client must call
-  // fetch before its first await (pinned by the real-client test).
+  // The Bible content client calls the fetch on FETCH_PASSTHROUGH, so that
+  // request does not depend on this flag. The flag still covers an action that
+  // calls global fetch during the synchronous prefix of the call.
   let insideNativeCall = false
   const fetchThroughNative = (action: FetchBibleContent, path: string) => {
     insideNativeCall = true
@@ -104,6 +109,8 @@ export function ensureDomContentCache(): void {
     }
   }
 
+  const tagged = wrappedFetch as { [FETCH_PASSTHROUGH]?: typeof globalThis.fetch }
+  tagged[FETCH_PASSTHROUGH] = passthrough
   woven.add(wrappedFetch)
   globalThis.fetch = wrappedFetch
 }

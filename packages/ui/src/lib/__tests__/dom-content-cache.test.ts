@@ -220,6 +220,35 @@ describe('ensureDomContentCache', () => {
     expect(url).toBe(CONTENT_URL)
   })
 
+  it('lets the real Bible content client reach the network once when called outside the wrapper', async () => {
+    mockContentResponse()
+    const fetchBibleContent = createRealBibleContentClient({
+      appKey: 'app-key',
+      apiHost: API_HOST,
+      installationId: 'inst-1',
+      store: {
+        read: () => null,
+        write: () => {},
+        listVersionIds: () => [],
+        sweep: () => {},
+      },
+    })
+    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent })
+
+    const result = await fetchBibleContent({
+      path: '/v1/bibles/111/chapters/JHN.1?fields=content',
+    })
+
+    expect(result).toEqual({
+      status: 200,
+      body: '{"content":"In the beginning"}',
+      contentType: 'application/json',
+    })
+    expect(passthrough).toHaveBeenCalledTimes(1)
+    const [url] = passthrough.mock.calls[0] ?? []
+    expect(url).toBe(CONTENT_URL)
+  })
+
   it('routes a second eligible request through the native action while the first is in flight', async () => {
     let release = () => {}
     const gate = new Promise<void>((resolve) => {

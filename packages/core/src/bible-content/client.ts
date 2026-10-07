@@ -32,6 +32,16 @@ const CONTENT_PATH = /^\/v1\/bibles\/(\d+)(\/|$)/
 
 const DEFAULT_TIMEOUT_MS = 10_000
 
+// Same symbol the UI fetch wrapper sets in dom-content-cache.ts. Symbol.for
+// matches across the two packages, so core does not import the UI package.
+const FETCH_PASSTHROUGH = Symbol.for('yv.passthrough')
+
+function fetchUnderWrapper(fetchImpl: typeof globalThis.fetch): typeof globalThis.fetch {
+  const passthrough = (fetchImpl as { [FETCH_PASSTHROUGH]?: unknown })[FETCH_PASSTHROUGH]
+  if (typeof passthrough !== 'function') return fetchImpl
+  return passthrough as typeof globalThis.fetch
+}
+
 export function createBibleContentClient({
   appKey,
   apiHost,
@@ -65,7 +75,7 @@ export function createBibleContentClient({
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), timeoutMs)
     try {
-      const response = await fetchImpl(`https://${apiHost}${path}`, {
+      const response = await fetchUnderWrapper(fetchImpl)(`https://${apiHost}${path}`, {
         headers: {
           'X-YVP-App-Key': appKey,
           'X-YVP-Installation-Id': installationId,

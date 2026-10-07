@@ -44,6 +44,38 @@ describe('createBibleContentClient', () => {
     jest.useRealTimers()
   })
 
+  it('calls the fetch behind yv.passthrough instead of the wrapper', async () => {
+    const passthrough: jest.MockedFunction<typeof fetch> = jest.fn()
+    passthrough.mockResolvedValue(
+      new Response('{"content":"verse"}', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+    const wrapped: jest.MockedFunction<typeof fetch> = jest.fn()
+    const tagged = wrapped as typeof wrapped & { [key: symbol]: typeof fetch }
+    tagged[Symbol.for('yv.passthrough')] = passthrough
+    const store = createBibleContentStore({ openInstance: (id) => createMMKV({ id }) })
+    const client = createBibleContentClient({
+      appKey: 'app-key-1',
+      apiHost: 'api.youversion.com',
+      installationId: 'inst-1',
+      fetch: wrapped,
+      store,
+      now: () => NOW,
+    })
+
+    const result = await client({ path: PATH })
+
+    expect(wrapped).not.toHaveBeenCalled()
+    expect(passthrough).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({
+      status: 200,
+      body: '{"content":"verse"}',
+      contentType: 'application/json',
+    })
+  })
+
   it('fetches with exactly the three YVP headers and passes the response through', async () => {
     const { client, fetchMock } = setup()
     fetchMock.mockResolvedValue(
