@@ -28,6 +28,7 @@ type OpenTag = {
   kind: 'open'
   name: string
   selfClosing: boolean
+  block: boolean
 }
 
 type CloseTag = {
@@ -102,14 +103,14 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
   }
 
   function openTag(tag: OpenTag): void {
-    if (isBlock(tag.name)) {
+    if (tag.block) {
       flush()
     }
     if (tag.selfClosing) {
       return
     }
     const drop = tag.name === 'script' || tag.name === 'style'
-    frames.push({ name: tag.name, block: isBlock(tag.name), drop })
+    frames.push({ name: tag.name, block: tag.block, drop })
     if (!drop) {
       styles.push(applyStyle(currentStyle(), tag.name))
     }
@@ -193,8 +194,21 @@ function plainStyle(): FootnoteStyle {
   }
 }
 
-function isBlock(name: string): boolean {
-  return BLOCK_TAGS.has(name)
+function isBlock(name: string, raw: string): boolean {
+  if (BLOCK_TAGS.has(name)) {
+    return true
+  }
+  // The note sheet paints `.fp` as a block with no margin. The markup is still a span.
+  return classList(raw).includes('fp')
+}
+
+function classList(raw: string): string[] {
+  const match = /\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(raw)
+  const value = match?.[1] ?? match?.[2]
+  if (value === undefined) {
+    return []
+  }
+  return value.split(/\s+/).filter((name) => name.length > 0)
 }
 
 /**
@@ -245,7 +259,7 @@ function parseTag(raw: string): OpenTag | CloseTag | null {
   }
   const name = openName.toLowerCase()
   const selfClosing = /\/\s*>$/.test(raw) || name === 'br'
-  return { kind: 'open', name, selfClosing }
+  return { kind: 'open', name, selfClosing, block: isBlock(name, raw) }
 }
 
 function decodeEntities(value: string): string {

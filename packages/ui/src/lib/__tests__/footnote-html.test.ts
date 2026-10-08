@@ -36,12 +36,15 @@ describe('parseFootnoteHtml', () => {
     ])
   })
 
-  it('keeps a keyword note as one paragraph', () => {
+  it('starts a new paragraph at an fp span', () => {
     expect(
       parseFootnoteHtml(
         '<span class="ft">First paragraph.</span><span class="fp"><span class="fk">Keyword</span> and <span class="fl">label</span>.</span>',
       ),
-    ).toEqual([{ runs: [run('First paragraph.Keyword and label.')] }])
+    ).toEqual([
+      { runs: [run('First paragraph.')] },
+      { runs: [run('Keyword and label.')] },
+    ])
   })
 
   it('keeps a superscript marker and collapses the space before it', () => {

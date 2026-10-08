@@ -73,7 +73,12 @@ describe('FootnoteContent', () => {
       lineHeight: 16,
     })
     expect(flattened('b.')).toBeTruthy()
-    expect(flattened('First paragraph.Keyword')).toMatchObject({
+    expect(flattened('First paragraph.')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
+      fontSize: 12,
+      lineHeight: 16,
+    })
+    expect(flattened('Keyword')).toMatchObject({
       fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
       fontSize: 12,
       lineHeight: 16,

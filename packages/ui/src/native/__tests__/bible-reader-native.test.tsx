@@ -76,7 +76,9 @@ function fetchChapters(
   }
 }
 
-type ReaderOverrides = Partial<ComponentProps<typeof BibleReaderNative>>
+type ReaderOverrides = Partial<
+  Omit<ComponentProps<typeof BibleReaderNative>, 'includeAuth' | 'authRedirectUrl'>
+>
 
 function mount(overrides: ReaderOverrides = {}) {
   const props: ComponentProps<typeof BibleReaderNative> = {
@@ -93,6 +95,7 @@ function mount(overrides: ReaderOverrides = {}) {
     book: 'JHN',
     chapter: '1',
     versionId: VERSION_ID,
+    includeAuth: false,
     ...overrides,
   }
   const view = render(<BibleReaderNative {...props} />, {
