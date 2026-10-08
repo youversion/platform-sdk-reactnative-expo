@@ -1,23 +1,14 @@
-import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
+import type {
+  BibleContentClientDeps,
+  FetchBibleContent,
+} from '@youversion/platform-react-native-expo-core'
 import { ensureDomContentCache, registerBibleContentAction } from '../dom-content-cache'
 
-function createRealBibleContentClient(deps: {
-  appKey: string
-  apiHost: string
-  installationId: string
-  store: {
-    read: () => null
-    write: () => void
-    listVersionIds: () => number[]
-    sweep: () => void
-  }
-}): FetchBibleContent {
+function createRealBibleContentClient(deps: BibleContentClientDeps): FetchBibleContent {
   // Loaded from source so the factory stays off the package namespace.
-  // This parameter shape has to track client.ts. typeof import() of that file
-  // pulls core sources outside this package's rootDir.
   // SAFETY: client.ts exports createBibleContentClient, and that function returns FetchBibleContent.
   const clientModule = jest.requireActual('../../../../core/src/bible-content/client') as {
-    createBibleContentClient: (next: typeof deps) => FetchBibleContent
+    createBibleContentClient: (next: BibleContentClientDeps) => FetchBibleContent
   }
   return clientModule.createBibleContentClient(deps)
 }
@@ -173,27 +164,6 @@ describe('ensureDomContentCache', () => {
     ensureDomContentCache()
 
     expect(globalThis.fetch).toBe(woven)
-  })
-
-  it('lets the native action call global fetch without re-entering the wrapper', async () => {
-    mockContentResponse()
-    const action: FetchBibleContent = async ({ path }) => {
-      const response = await globalThis.fetch(`https://${API_HOST}${path}`)
-      return {
-        status: response.status,
-        body: await response.text(),
-        contentType: response.headers.get('content-type'),
-      }
-    }
-    registerBibleContentAction({ apiHost: API_HOST, fetchBibleContent: action })
-
-    const response = await globalThis.fetch(CONTENT_URL)
-
-    expect(response.status).toBe(200)
-    expect(response.headers.get('content-type')).toBe('application/json')
-    await expect(response.text()).resolves.toBe('{"content":"In the beginning"}')
-    expect(passthrough).toHaveBeenCalledTimes(1)
-    expect(passthrough).toHaveBeenCalledWith(CONTENT_URL, undefined)
   })
 
   it('lets the real Bible content client reach the network once', async () => {

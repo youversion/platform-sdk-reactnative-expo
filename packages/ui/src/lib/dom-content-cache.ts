@@ -51,23 +51,7 @@ export function ensureDomContentCache(): void {
   const passthrough = globalThis.fetch
   if (!passthrough || woven.has(passthrough)) return
 
-  // Expo web runs fetchBibleContent in this realm, so its fetch is this wrapper.
-  // The Bible content client calls the fetch on FETCH_PASSTHROUGH, so that
-  // request does not depend on this flag. The flag still covers an action that
-  // calls global fetch during the synchronous prefix of the call.
-  let insideNativeCall = false
-  const fetchThroughNative = (action: FetchBibleContent, path: string) => {
-    insideNativeCall = true
-    try {
-      return action({ path })
-    } finally {
-      insideNativeCall = false
-    }
-  }
-
   const wrappedFetch: typeof globalThis.fetch = async (input, init) => {
-    if (insideNativeCall) return passthrough(input, init)
-
     const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
     let url: URL
     try {
@@ -95,7 +79,7 @@ export function ensureDomContentCache(): void {
     if (signal?.aborted) throw signal.reason
 
     try {
-      const bridge = fetchThroughNative(fetchBibleContent, url.pathname + url.search)
+      const bridge = fetchBibleContent({ path: url.pathname + url.search })
       const { status, body, contentType } = await raceAbort(bridge, signal)
       return new Response(NULL_BODY_STATUSES.has(status) ? null : body, {
         status,
