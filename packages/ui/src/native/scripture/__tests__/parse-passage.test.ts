@@ -20,6 +20,18 @@ describe('parsePassage', () => {
     expect(inlines.map((inline) => inline.kind)).toEqual(['label', 'text', 'note', 'text'])
   })
 
+  it('keeps the space between a verse-final footnote and the next verse label', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+      'In the beginning. <span class="yv-n f"><span class="ft">Or At first</span></span>' +
+      '<span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>He was</div></div>'
+    const { blocks } = parsePassage(html)
+    const [first, second] = blocks[0]?.segments ?? []
+    expect(first?.inlines.map((inline) => inline.kind)).toEqual(['label', 'text', 'note', 'text'])
+    expect(first?.inlines.at(-1)).toMatchObject({ kind: 'text', text: ' ' })
+    expect(second?.inlines.map((inline) => inline.kind)).toEqual(['label', 'text'])
+  })
+
   it('reads an English passage that opens with a Hebrew acrostic line as LTR', () => {
     // ASV Psalm 119: the acrostic letter sits in a `qc` line, not a heading.
     const html =

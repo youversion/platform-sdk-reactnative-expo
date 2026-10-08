@@ -64,8 +64,8 @@ function walk(doc: Document): Block[] {
     const heading = classes.includes('yv-h') || isHeadingClass(classes)
     const segments: Segment[] = []
     // Core spaces a footnote off the word before it; Swift sets the icon against the
-    // word, so that space moves to after the note.
-    let spaceAfterNote = false
+    // word, so that space moves to after the note. Holds the moved space's classes.
+    let movedSpace: readonly string[] | null = null
     const push = (verse: number | null, given: Inline): void => {
       let inline = given
       const last = segments.at(-1)
@@ -75,12 +75,15 @@ function walk(doc: Document): Block[] {
         if (tail.text === '') {
           last?.inlines.pop()
         }
-        spaceAfterNote = true
-      } else if (spaceAfterNote) {
-        spaceAfterNote = false
-        if (inline.kind === 'text' && !inline.text.startsWith(' ')) {
+        movedSpace = tail.classes
+      } else if (movedSpace !== null && inline.kind !== 'note') {
+        // A label opens the next verse, so the space closes the note's verse instead.
+        if (inline.kind === 'label') {
+          last?.inlines.push({ kind: 'text', text: ' ', classes: movedSpace })
+        } else if (!inline.text.startsWith(' ')) {
           inline = { ...inline, text: ` ${inline.text}` }
         }
+        movedSpace = null
       }
       if (last !== undefined && last.verse === verse) {
         last.inlines.push(inline)
