@@ -1,5 +1,14 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.0.1
+
+### Patch Changes
+
+- db682e2: Reader settings show the font names Inter and Untitled Serif in every language.
+- 7b0c7b8: A failed Bible search shows the same neutral message and Try again button as the web reader. A search with no verses still says there are no Bible results, with no retry.
+- a9f8040: Sync localization from platform-localization (c9807be): update 178 keys in en, es, ig, sr.
+  - @youversion/platform-react-native-expo-core@2.0.1
+
 ## 2.0.0
 
 ### Major Changes
