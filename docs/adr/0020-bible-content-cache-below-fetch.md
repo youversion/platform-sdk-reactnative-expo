@@ -1,6 +1,6 @@
 # 20. The Bible Content Cache sits below `fetch`, served by native, in MMKV
 
-Date: 2026-08-27 (amended 2026-08-29: native performs the request)
+Date: 2026-08-27 (amended 2026-08-29: native performs the request; amended 2026-10-08: Expo web passthrough symbol)
 
 ## Status
 
@@ -20,6 +20,8 @@ The SDK is moving off WebViews toward native rendering. Anything built inside th
 
 **Native owns the request.** The Bible Content Client in core composes the headers from core's own configuration (`X-YVP-App-Key`, `X-YVP-Installation-Id`, `X-YVP-Sdk` — the SDK stamp moves from `ui` into `core`), reads the store, fetches on a miss, parses `Cache-Control`, writes, and returns the response. Nothing the WebView sent is forwarded: native is authoritative on host and headers, so the client's surface is `fetch(path)`, which a native-only reader will call unchanged. An earlier cut of this decision kept the network in the WebView and exposed two cache actions (`readBibleContent` / `writeBibleContent`); it was replaced because it left the HTTP client, header composition, and lifetime parsing in code that will be deleted with the WebView. platform-core's `BibleClient` is not reused: `ApiClient.get` hides the `Response`, so `Cache-Control` cannot be read through it.
 
+**Expo web shares one realm with the client.** `ensureDomContentCache` replaces `globalThis.fetch`, and the client captures that same function. The wrapper stores the original `fetch` on `Symbol.for('yv.passthrough')`. The client calls that function when the symbol is present, so the request reaches the network. A native `fetch` has no symbol, so the client calls it unchanged. The symbol is a property of the fetch implementation, not data the WebView sent. Delete that read with `dom-content-cache.ts`.
+
 **There is no WebView-side network fallback.** A native throw — offline miss, timeout, missing action — rejects the WebView's `fetch` with a `TypeError`, the same shape a browser network error has. A fallback would be a second HTTP client whose only job is to hide bugs in the first.
 
 **The native tier is MMKV, one instance per version.** `yv-bible-content-<versionId>` holds `{ body, expiresAt }` per key; the list of version ids lives in `yv-platform`, the way Swift lists `bible_*` directories. The key is `apiHost + pathname + search`, unhashed; the app key is not part of it. Per-version instances bound what MMKV maps into memory and let the sweep and a future permission pass drop a version in one call. `expo-file-system` was rejected for now to avoid a new native dependency before a downloads tier exists.
@@ -34,7 +36,7 @@ The SDK is moving off WebViews toward native rendering. Anything built inside th
 - The memory tier is per WebView and dies with it; the native tier is the one that carries state across mounts. Once #360 lands, `gcTime` per query is capped at the remaining Content Lifetime so the memory tier can never outlive the header.
 - One Native Action crosses the bridge on every eligible request, carrying the path out and the whole body back. A hit costs one MMKV read and one bridge round trip; a miss adds the network on the native side.
 - Every DOM component carries the action, because eligibility is a path rule, not a component list. BibleCard and Verse of the Day passages are cached like chapters; `/v1/bibles` and `/v1/verse_of_the_days` pass through.
-- When the WebView goes, `dom-content-cache.ts` and the action prop are deleted; the client, the store, the lifetime parser, and the sweep stay.
+- When the WebView goes, `dom-content-cache.ts`, the action prop, and the `yv.passthrough` read in the client are deleted; the client, the store, the lifetime parser, and the sweep stay.
 - Native VOTD now sends `X-YVP-Sdk`, which it did not before.
 - Bible text is backed up with the app and never OS-evicted. Space is bounded by the lifetime rule alone.
 - Switching `apiHost` never serves the other host's text; switching app key on the same host may serve a version the new key cannot see until it expires. A permission-eviction pass (Swift's `removeUnpermittedVersions`) is out of scope here.
