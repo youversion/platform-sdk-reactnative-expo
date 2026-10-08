@@ -75,7 +75,7 @@ Flag any PR diff that hand-edits locale JSON string values. Exception: automated
 
 ## dom-versus-native
 
-Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.
+Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values. `BibleReader` and footnote sheets ship as native text. `dom/bible-reader.tsx` and `dom/footnote-content.tsx` remain for comparison and will be removed. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still use the DOM text view.
 
 ## nativesheet-test-seam
 

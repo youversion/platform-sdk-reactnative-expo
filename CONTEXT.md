@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for composing React Web SDK Bible experiences into React Native Expo apps. Preserves the boundary between Web SDK scripture, Expo DOM adapters, and native chrome.
+Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM. The old `BibleReader` WebView stays for comparison and will be removed.
 
 ## Language
 
@@ -13,7 +13,7 @@ A `'use dom'` wrapper that renders React Web SDK content inside Expo's DOM/WebVi
 _Avoid_: WebView component, DOM view
 
 **Native Wrapper**:
-A React Native component that owns the public API and native presentation. Scripture wrappers embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
+A React Native component that owns the public API and native presentation. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
 _Avoid_: Container, adapter
 
 **Presentation Shell**:
@@ -155,11 +155,11 @@ A write the server has accepted, held in memory until a fetch agrees with it. Wi
 _Avoid_: Highlight Overlay (the separate optimistic layer this replaced — **Cached Highlights** now hold the paint), ownership token / write intent (retired with it; a settling write finds its entries by value)
 
 **Controlled Highlights Latch**:
-The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
+The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The native reader paints highlights itself and does not pass this array into a WebView. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
 _Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
 
 **Verse Selection**:
-The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. On every platform but web the in-WebView verse action UI is off (`verseActions="none"`). This payload is then the only channel native learns about a selection on, and it is what raises the **Verse Action Sheet**. **Selection Clear Signal** is the only way native dismisses one.
+The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). The native reader builds this payload in React Native. The WebView reader still emits it across the DOM bridge. That WebView reader remains for comparison and will be removed. Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. On every platform but web the in-WebView verse action UI is off (`verseActions="none"`). This payload is then the only channel native learns about a selection on, and it is what raises the **Verse Action Sheet**. **Selection Clear Signal** is the only way native dismisses one.
 _Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
 
 **Selection Clear Signal**:

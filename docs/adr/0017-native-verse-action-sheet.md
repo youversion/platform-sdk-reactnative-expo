@@ -5,12 +5,13 @@ Amended: 2026-08-12 — apply is palette-only. Remove follows the ANY rule for v
 Amended: 2026-08-24 — unconfigured auth omits the swatch tray. Copy and Share remain.
 Amended: 2026-08-25 — apply palette is six hexes (YPE-5059). Native dots mix against SHEET_SURFACE.
 Amended: 2026-09-01 — pin `@youversion/platform-react-ui` 2.12.0 so reader fill and WOC match YPE-5058.
+Amended: 2026-10-08. `BibleReader` draws selection and highlights in native text. The WebView reader remains for comparison and will be removed.
 
 ## Status
 
 Accepted
 
-Verse actions are the reference, Copy, and Share, and the highlight swatches when `auth` is configured. A missing `auth` omits the tray so a color tap cannot no-op. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection and the selection payload. It renders controlled highlights. Native owns the paint data ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
+Verse actions are the reference, Copy, and Share, and the highlight swatches when `auth` is configured. A missing `auth` omits the tray so a color tap cannot no-op. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The native reader owns selection, the selection payload, and highlight paint ([ADR 0013](0013-native-highlights-optimistic-layer.md)). The temporary WebView reader still suppresses its popover on iOS and Android with `verseActions="none"`, and it still receives controlled highlights from native.
 
 **Web keeps the popover.** `NativeSheet` renders nothing on web. Suppressing the popover there leaves no verse-action UI. The fork is `lib/resolve-verse-actions.ts`. The `'use dom'` file cannot read the host `Platform.OS`.
 

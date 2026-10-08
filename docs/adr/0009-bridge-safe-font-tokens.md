@@ -1,5 +1,7 @@
 # Bridge-safe font tokens for DOM component props
 
+> **Status.** `BibleReader` sets its font on native text and does not send `fontFamily` across the bridge. `BibleTextView` still uses these tokens. The text below is the original bug.
+
 ## The problem
 
 The Bible reader rendered **blank on iOS** (every time, on the home tab) with this error in the Metro logs:
