@@ -114,7 +114,7 @@ function pressVerse(text: string): void {
   for (const node of nodes) {
     let current: ReactTestInstance | null = node
     while (current !== null) {
-      if (typeof current.props.onPress === 'function') {
+      if (current.props.onPress !== undefined) {
         fireEvent.press(current)
         return
       }
