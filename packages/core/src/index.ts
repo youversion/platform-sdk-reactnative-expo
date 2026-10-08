@@ -44,12 +44,7 @@ export type {
 
 export { mmkvStorage } from './storage'
 
-export type {
-  BibleContentClientDeps,
-  BibleContentRequest,
-  BibleContentResponse,
-  FetchBibleContent,
-} from './bible-content/client'
+export type { BibleContentRequest, BibleContentResponse, FetchBibleContent } from './bible-content/client'
 
 export { biblePassageAnchorFromPassageId } from './passage-anchor'
 export type { BiblePassageAnchor } from './passage-anchor'

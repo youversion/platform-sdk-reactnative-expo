@@ -1,14 +1,23 @@
-import type {
-  BibleContentClientDeps,
-  FetchBibleContent,
-} from '@youversion/platform-react-native-expo-core'
+import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { ensureDomContentCache, registerBibleContentAction } from '../dom-content-cache'
 
-function createRealBibleContentClient(deps: BibleContentClientDeps): FetchBibleContent {
+function createRealBibleContentClient(deps: {
+  appKey: string
+  apiHost: string
+  installationId: string
+  store: {
+    read: () => null
+    write: () => void
+    listVersionIds: () => number[]
+    sweep: () => void
+  }
+}): FetchBibleContent {
   // Loaded from source so the factory stays off the package namespace.
+  // This parameter shape has to track client.ts. typeof import() of that file
+  // pulls core sources outside this package's rootDir.
   // SAFETY: client.ts exports createBibleContentClient, and that function returns FetchBibleContent.
   const clientModule = jest.requireActual('../../../../core/src/bible-content/client') as {
-    createBibleContentClient: (next: BibleContentClientDeps) => FetchBibleContent
+    createBibleContentClient: (next: typeof deps) => FetchBibleContent
   }
   return clientModule.createBibleContentClient(deps)
 }

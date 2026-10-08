@@ -17,7 +17,7 @@ export type BibleContentResponse = {
 
 export type FetchBibleContent = (request: BibleContentRequest) => Promise<BibleContentResponse>
 
-export type BibleContentClientDeps = {
+type BibleContentClientDeps = {
   appKey: string
   apiHost: string
   installationId: string
