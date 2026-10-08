@@ -7,7 +7,6 @@ import { Button } from '../components/ui/button'
 import { Text } from '../components/ui/text'
 import { useTheme, type Theme } from '../hooks/use-theme'
 import { useTokens } from '../hooks/use-tokens'
-import type { SdkTranslationKey } from '../i18n/types'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { INTER_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
@@ -20,12 +19,12 @@ const LINE_BAR_WIDTH = 32
 const LINE_BAR_HEIGHT = 2
 
 const FONT_CHOICES = [
-  { testID: 'font-inter', family: INTER_FONT, nameKey: 'interFontName' },
-  { testID: 'font-serif', family: UNTITLED_SERIF_FONT, nameKey: 'untitledSerifFontName' },
+  { testID: 'font-inter', family: INTER_FONT, name: 'Inter' },
+  { testID: 'font-serif', family: UNTITLED_SERIF_FONT, name: 'Untitled Serif' },
 ] as const satisfies ReadonlyArray<{
   testID: string
   family: FontFamily
-  nameKey: SdkTranslationKey
+  name: string
 }>
 
 export type BibleReaderSettingsContentProps = {
@@ -160,7 +159,7 @@ export function BibleReaderSettingsContent({
             <Button
               key={choice.testID}
               testID={choice.testID}
-              accessibilityLabel={t(choice.nameKey)}
+              accessibilityLabel={choice.name}
               accessibilityState={{ selected }}
               variant="outline"
               onPress={() => {
@@ -177,7 +176,7 @@ export function BibleReaderSettingsContent({
                   {t('font')}
                 </Text>
                 <Text style={[styles.fontName, { color: nameColor }, nameFace]}>
-                  {t(choice.nameKey)}
+                  {choice.name}
                 </Text>
               </View>
             </Button>
