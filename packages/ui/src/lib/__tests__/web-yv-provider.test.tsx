@@ -27,8 +27,6 @@ function renderShim(props: FilterProps): FilterProps {
 
 const VERSION_FILTER_DOM_ENTRIES = ['bible-reader.tsx', 'bible-text-view.tsx'] as const
 
-const DOM_ENTRIES = [...VERSION_FILTER_DOM_ENTRIES, 'footnote-content.tsx'] as const
-
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {
     expect(renderShim({}).additionalHeaders).toEqual({
@@ -98,8 +96,11 @@ describe('web YouVersionProvider', () => {
     },
   )
 
-  it.each(DOM_ENTRIES)('%s source forwards locale onto web YouVersionProvider', (filename) => {
-    const source = readFileSync(join(__dirname, '../../dom', filename), 'utf8')
-    expect(source).toMatch(/locale=\{locale\}/)
-  })
+  it.each(VERSION_FILTER_DOM_ENTRIES)(
+    '%s source forwards locale onto web YouVersionProvider',
+    (filename) => {
+      const source = readFileSync(join(__dirname, '../../dom', filename), 'utf8')
+      expect(source).toMatch(/locale=\{locale\}/)
+    },
+  )
 })
