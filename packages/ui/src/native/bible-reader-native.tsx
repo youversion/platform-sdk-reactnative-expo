@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Platform,
   Text as RNText,
   ScrollView,
   View,
@@ -28,7 +27,7 @@ import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
-import { fontMapKey } from '../theme/fonts'
+import { fontMapKey, SERIF_STANDIN } from '../theme/fonts'
 import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
@@ -37,6 +36,11 @@ import { removeImpl, setImpl } from './component-impls'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
 
 type BibleReaderNativeProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
+
+type BlockLayouts = {
+  key: string | null
+  byIndex: Map<number, { y: number; height: number }>
+}
 
 const DEFAULT_FOCUS = {
   seq: 0,
@@ -54,9 +58,6 @@ const GUTTER = 32
 const TOP_PADDING = 16
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
-// A system serif until the brand serif registers. Naming the brand face early measures
-// in the system font, and Fabric keeps that measure after the face lands.
-const SERIF_STANDIN = Platform.select({ ios: 'Georgia', default: 'serif' })
 
 /**
  * POC: the `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
@@ -240,11 +241,19 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const scrollRef = useRef<ScrollView>(null)
   const viewportHeight = useRef(0)
   const passageTop = useRef(0)
-  const blockLayouts = useRef(new Map<number, { y: number; height: number }>())
+  // Tagged with the passage they measured, so a focus never lands on the last chapter's positions.
+  const blockLayouts = useRef<BlockLayouts>({ key: null, byIndex: new Map() })
   const blockRefs = useRef(new Map<number, RNTextInstance>())
-  const onBlockLayout = useCallback((index: number, y: number, height: number): void => {
-    blockLayouts.current.set(index, { y, height })
-  }, [])
+  const layoutKey = passage?.key ?? null
+  const onBlockLayout = useCallback(
+    (index: number, y: number, height: number): void => {
+      if (blockLayouts.current.key !== layoutKey) {
+        blockLayouts.current = { key: layoutKey, byIndex: new Map() }
+      }
+      blockLayouts.current.byIndex.set(index, { y, height })
+    },
+    [layoutKey],
+  )
   const onBlockRef = useCallback((index: number, node: RNTextInstance | null): void => {
     if (node === null) {
       blockRefs.current.delete(index)
@@ -269,6 +278,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   // ---- Verse focus ----
   const [focusDim, setFocusDim] = useState<VerseFocusDim>(null)
+  const cancelLanding = useRef<() => void>(() => {})
   const handledRef = useRef<HandledVerseFocus>({ stream: focusStream, seq: 0 })
   useEffect(() => {
     if (renderedKey === null || passage === null) {
@@ -304,11 +314,14 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
         : passage.parsed.blocks.findIndex((b) => b.verses.some((v) => target.verses.includes(v)))
     // Block layouts land after commit; poll briefly instead of threading a layout counter.
     let tries = 0
+    let frame: number | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
     const land = (): void => {
-      const layout = blockLayouts.current.get(blockIndex)
+      const layouts = blockLayouts.current
+      const layout = layouts.key === passage.key ? layouts.byIndex.get(blockIndex) : undefined
       if (blockIndex >= 0 && layout === undefined && tries < 10) {
         tries += 1
-        setTimeout(land, 50)
+        timer = setTimeout(land, 50)
         return
       }
       if (layout !== undefined && scrollsToVerse) {
@@ -328,12 +341,23 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       }
       callbacks.current.onVerseFocusApplied?.(ack)
     }
-    requestAnimationFrame(land)
+    // Not cancelled on rerun: the request is already marked handled, so a rerun would drop its ack.
+    cancelLanding.current = () => {
+      if (frame !== null) {
+        cancelAnimationFrame(frame)
+      }
+      if (timer !== null) {
+        clearTimeout(timer)
+      }
+    }
+    frame = requestAnimationFrame(land)
   }, [renderedKey, passage, verseFocus, appliedFocusSeq, focusStream, book, chapter])
 
-  // A version or chapter change drops any focus dim with the old text.
+  // A version or chapter change drops the focus dim with the old text, and cancels a
+  // focus still landing, which would otherwise dim or scroll the new text.
   useEffect(() => {
     setFocusDim(null)
+    return () => cancelLanding.current()
   }, [currentKey])
   const clearDim = useCallback((): void => setFocusDim(null), [])
 
@@ -409,6 +433,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               style={{ opacity: isCurrent ? 1 : 0.4 }}
             >
               <Passage
+                key={passage.key}
                 blocks={passage.parsed.blocks}
                 look={look}
                 selected={selected}

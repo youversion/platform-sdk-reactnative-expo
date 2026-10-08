@@ -11,7 +11,8 @@ import {
   type FootnoteParagraph,
   type FootnoteRun,
 } from '../lib/footnote-html'
-import { sansFace, serifFace } from '../theme/fonts'
+import { sansFace, serifFace, SERIF_STANDIN } from '../theme/fonts'
+import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
 
 const VERSE_FONT_SIZE = 20
 // Web sheet list is text-xs: 0.75rem, line-height 1 / 0.75.
@@ -27,10 +28,11 @@ export default function FootnoteContent({
   data,
   theme = 'light',
   fontSize,
+  scriptureDirection,
 }: FootnoteContentDOMProps): ReactNode {
   return (
     <ThemeContext.Provider value={theme}>
-      <FootnoteBody data={data} fontSize={fontSize} />
+      <FootnoteBody data={data} fontSize={fontSize} rtl={scriptureDirection === 'rtl'} />
     </ThemeContext.Provider>
   )
 }
@@ -38,11 +40,15 @@ export default function FootnoteContent({
 function FootnoteBody({
   data,
   fontSize,
+  rtl,
 }: {
   data: FootnoteContentDOMProps['data']
   fontSize: number | undefined
+  rtl: boolean
 }): ReactNode {
   const tokens = useTokens()
+  const serifFamily = useSerifFamily()
+  const serifReady = useSerifReady()
   const showVerse = data.verseHtml.length > 0
   let heading = data.verseNum
   if (data.reference) {
@@ -52,11 +58,11 @@ function FootnoteBody({
   const verseParagraphs = parseFootnoteHtml(data.verseHtml)
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
-  const serif = tokens.fontFamily.serif
+  const serif = serifReady ? serifFamily : SERIF_STANDIN
   const sans = tokens.fontFamily.sans
 
   return (
-    <View testID="footnote-content" style={styles.body}>
+    <View testID="footnote-content" style={[styles.body, { direction: rtl ? 'rtl' : 'ltr' }]}>
       {showVerse ? (
         <View>
           <Text
@@ -144,7 +150,7 @@ function ParagraphText({
   muted: string
   serif: boolean
 }): ReactNode {
-  const face = serif ? serifFace(family, 400) : sansFace(family, 400)
+  const face = faceFor(family, 400, serif)
   return (
     <Text
       allowFontScaling={false}
@@ -193,7 +199,7 @@ function Superscript({
   const supSize = Math.max(1, Math.round(fontSize * SUP_SIZE_RATIO))
   const raise = Math.round(supSize * SUP_RAISE_EM)
   const weight = run.weight
-  const face = serif ? serifFace(family, weight) : sansFace(family, weight)
+  const face = faceFor(family, weight, serif)
   // A nested Text shares the line, so a shift on it never leaves the baseline.
   // An inline view is positioned with its bottom on that baseline, and a shift on the view raises the letter.
   return (
@@ -201,7 +207,10 @@ function Superscript({
       testID="footnote-superscript"
       style={{ transform: [{ translateY: -raise }], overflow: 'visible' }}
     >
-      <Text allowFontScaling={false} style={{ ...face, color, fontSize: supSize, lineHeight: supSize }}>
+      <Text
+        allowFontScaling={false}
+        style={{ ...face, color, fontSize: supSize, lineHeight: supSize }}
+      >
         {run.text}
       </Text>
     </View>
@@ -216,13 +225,21 @@ function runStyle(
   color: string,
   serif: boolean,
 ): TextStyle {
-  const face = serif ? serifFace(family, run.weight) : sansFace(family, run.weight)
+  const face = faceFor(family, run.weight, serif)
   return {
     ...face,
     color,
     fontSize,
     lineHeight,
   }
+}
+
+function faceFor(family: string, weight: FootnoteRun['weight'], serif: boolean): TextStyle {
+  if (!serif) {
+    return sansFace(family, weight)
+  }
+  // The stand-in is a system face, so it has no mapped weight names.
+  return family === SERIF_STANDIN ? { fontFamily: SERIF_STANDIN } : serifFace(family, weight)
 }
 
 function lineHeightFor(fontSize: number): number {

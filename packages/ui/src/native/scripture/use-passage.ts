@@ -78,12 +78,20 @@ export function usePassage(
           setError('failed')
           return
         }
+        // Parse here, not in the chain: a throw on bad markup is a content failure, not offline.
+        let parsed: ParsedPassage
+        try {
+          parsed = parsePassage(body.content)
+        } catch {
+          setError('failed')
+          return
+        }
         setPassage({
           key,
           versionId,
           book,
           chapter,
-          parsed: parsePassage(body.content),
+          parsed,
           reference: body.reference ?? `${book} ${chapter}`,
         })
       })

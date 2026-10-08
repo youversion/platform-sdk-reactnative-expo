@@ -4,7 +4,8 @@ import { StyleSheet } from 'react-native'
 
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
-import { fontMapKey } from '../../theme/fonts'
+import { fontMapKey, SERIF_STANDIN } from '../../theme/fonts'
+import { SerifFamilyProvider } from '../../theme/use-fonts'
 import FootnoteContent from '../footnote-content'
 
 const light = getTokens('light')
@@ -54,7 +55,9 @@ describe('FootnoteContent', () => {
       fontSize: 17,
       lineHeight: 17,
     })
-    expect(StyleSheet.flatten(screen.getByTestId('footnote-superscript').props.style)).toMatchObject({
+    expect(
+      StyleSheet.flatten(screen.getByTestId('footnote-superscript').props.style),
+    ).toMatchObject({
       transform: [{ translateY: -9 }],
     })
     expect(flattened('1:5 Or understood')).toMatchObject({
@@ -109,6 +112,42 @@ describe('FootnoteContent', () => {
     })
     expect(flattened('John 1:5')).toMatchObject({ color: dark.foreground })
     expect(flattened('1:5 Or understood')).toMatchObject({ color: dark.foreground })
+  })
+
+  it('lays the sheet out right to left for rtl scripture', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} scriptureDirection="rtl" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(StyleSheet.flatten(screen.getByTestId('footnote-content').props.style)).toMatchObject({
+      direction: 'rtl',
+    })
+  })
+
+  it('names the Source Serif 4 fallback when Untitled Serif did not register', () => {
+    render(
+      <SerifFamilyProvider family="Source Serif 4">
+        <FootnoteContent {...sheetProps(johnNote)} />
+      </SerifFamilyProvider>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+      fontFamily: fontMapKey('Source Serif 4', 400, 'normal'),
+    })
+  })
+
+  it('uses the system serif stand-in until the serif load settles', () => {
+    render(
+      <SerifFamilyProvider family={light.fontFamily.serif} ready={false}>
+        <FootnoteContent {...sheetProps(johnNote)} />
+      </SerifFamilyProvider>,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+      fontFamily: SERIF_STANDIN,
+    })
   })
 
   it('hides the verse block when the note has no verse html', () => {

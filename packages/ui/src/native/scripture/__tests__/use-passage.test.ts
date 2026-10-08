@@ -22,6 +22,14 @@ function renderPassage(fetchBibleContent: FetchBibleContent) {
   return renderHook(() => usePassage(fetchBibleContent, 111, 'GEN', '1', true))
 }
 
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {}
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
+}
+
 async function settled(fetchBibleContent: FetchBibleContent) {
   const hook = renderPassage(fetchBibleContent)
   await waitFor(() => expect(hook.result.current.loading).toBe(false))
@@ -74,6 +82,29 @@ describe('usePassage', () => {
 
     await waitFor(() => expect(result.current.passage).not.toBeNull())
     expect(fetchBibleContent).toHaveBeenCalledTimes(2)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('drops a response that resolves after the chapter changed', async () => {
+    const first = deferred<BibleContentResponse>()
+    const fetchBibleContent = jest
+      .fn<Promise<BibleContentResponse>, Parameters<FetchBibleContent>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce({ status: 200, body: VALID_BODY, contentType: 'application/json' })
+    const { result, rerender } = renderHook(
+      ({ chapter }: { chapter: string }) =>
+        usePassage(fetchBibleContent, 111, 'GEN', chapter, true),
+      { initialProps: { chapter: '1' } },
+    )
+
+    rerender({ chapter: '2' })
+    await waitFor(() => expect(result.current.passage?.key).toBe('111:GEN.2'))
+
+    await act(async () => {
+      first.resolve({ status: 503, body: '', contentType: null })
+      await first.promise
+    })
+    expect(result.current.passage?.key).toBe('111:GEN.2')
     expect(result.current.error).toBeNull()
   })
 })

@@ -1,6 +1,7 @@
 ---
 '@youversion/platform-react-native-expo-ui': minor
-'@youversion/platform-react-native-expo-core': minor
 ---
 
-Footnote sheets render on native text. Marker taps still open the same sheet, and italic notes, bold locators, and verse superscripts stay visible (YPE-5832 / RNV2-5).
+Footnote sheets render on native text. Marker taps still open the same sheet, with bold locators, verse superscripts, and right-to-left scripture direction (YPE-5832 / RNV2-5).
+
+`BibleReader` can also render its body on native text, behind a temporary switch: `unstable_setReaderRenderer('native')`. The switch is for testing and goes away once native text is the default.
