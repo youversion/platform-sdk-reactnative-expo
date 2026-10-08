@@ -618,8 +618,9 @@ jobs:
           }
           NORM_TEMPLATE=$(normalize "$TEMPLATE_PHRASE")
 
-          # A signoff approves a release, so it names that release: the `.changeset/` state plus
-          # the resulting version, digested by `signoffToken` in scripts/preview-release.mjs.
+          # A signoff approves a release, so it names that release: the changesets this PR
+          # touches, `.changeset/config.json` and the resulting version, digested by
+          # `signoffToken` in scripts/signoff-token.mjs.
           # Naming the head SHA instead voided the signoff on every push, so a lint fix cost a
           # fresh one while changing nothing about what was approved. Comparing timestamps is not
           # an option either: `committer.date` is attacker-controlled, so a backdated commit could
