@@ -10,6 +10,16 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.0.1
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ db682e2: Reader settings show the font names Inter and Untitled Serif in every language.
+
+- _(@youversion/platform-react-native-expo-ui)_ 7b0c7b8: A failed Bible search shows the same neutral message and Try again button as the web reader. A search with no verses still says there are no Bible results, with no retry.
+
+- _(@youversion/platform-react-native-expo-ui)_ a9f8040: Sync localization from platform-localization (c9807be): update 178 keys in en, es, ig, sr.
+
 ## 2.0.0
 
 ### Major Changes
