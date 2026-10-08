@@ -90,20 +90,18 @@ describe('BibleReaderSettingsSheet', () => {
   })
 
   it('renders the font controls with readable font names', () => {
-    const { getByTestId, getByRole, getByText, getAllByText, queryByText } = render(<SheetHarness isOpen />, {
+    const { getByTestId, getByRole, getByText, getAllByText } = render(<SheetHarness isOpen />, {
       wrapper,
     })
 
     expect(getByRole('button', { name: en.decreaseFontSizeAriaLabel })).toBeTruthy()
     expect(getByRole('button', { name: en.increaseFontSizeAriaLabel })).toBeTruthy()
     expect(getByRole('button', { name: en.changeLineSpacingAriaLabel })).toBeTruthy()
-    expect(getByRole('button', { name: en.interFontName })).toBeTruthy()
-    expect(getByRole('button', { name: en.untitledSerifFontName })).toBeTruthy()
+    expect(getByRole('button', { name: 'Inter' })).toBeTruthy()
+    expect(getByRole('button', { name: 'Untitled Serif' })).toBeTruthy()
     expect(getAllByText('Font')).toHaveLength(2)
     expect(getByText('Inter')).toBeTruthy()
     expect(getByText('Untitled Serif')).toBeTruthy()
-    expect(queryByText('interFontName')).toBeNull()
-    expect(queryByText('untitledSerifFontName')).toBeNull()
     expect(flattenedTextStyle(getByText('Inter').props.style).fontFamily).toBe('Inter')
     expect(flattenedTextStyle(getByText('Untitled Serif').props.style).fontFamily).toBe(
       'Untitled Serif',
@@ -277,6 +275,19 @@ describe('BibleReaderSettingsSheet', () => {
     expect(getAllByText(es.font)).toHaveLength(2)
     expect(getByText('Inter')).toBeTruthy()
     expect(getByText('Untitled Serif')).toBeTruthy()
-    expect(getByTestId('font-serif').props.accessibilityLabel).toBe(en.untitledSerifFontName)
+    expect(getByTestId('font-inter').props.accessibilityLabel).toBe('Inter')
+    expect(getByTestId('font-serif').props.accessibilityLabel).toBe('Untitled Serif')
+  })
+
+  it('keeps font brand names when the catalog translates them', () => {
+    const { getByTestId, getByText, queryByText } = render(<SheetHarness isOpen />, {
+      wrapper: youVersionProviderWrapper('light', 'ig'),
+    })
+
+    expect(getByText('Inter')).toBeTruthy()
+    expect(getByText('Untitled Serif')).toBeTruthy()
+    expect(getByTestId('font-inter').props.accessibilityLabel).toBe('Inter')
+    expect(getByTestId('font-serif').props.accessibilityLabel).toBe('Untitled Serif')
+    expect(queryByText("Serif N'enweghị Aha")).toBeNull()
   })
 })
