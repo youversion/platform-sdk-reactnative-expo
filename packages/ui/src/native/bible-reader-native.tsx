@@ -341,7 +341,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       }
       callbacks.current.onVerseFocusApplied?.(ack)
     }
-    // Not cancelled on rerun: the request is already marked handled, so a rerun would drop its ack.
+    // A newer request supersedes one still landing; its higher seq acks both. Reruns
+    // without a new request return above, so a pending landing keeps its ack.
+    cancelLanding.current()
     cancelLanding.current = () => {
       if (frame !== null) {
         cancelAnimationFrame(frame)
