@@ -121,6 +121,8 @@ export type FocusTarget = {
   verses: readonly number[]
 }
 
+const MAX_FOCUS_VERSES = 250
+
 /** `JHN.3.16` or `JHN.3.16-18`; a chapter-only id focuses nothing. */
 export function parseFocusPassageId(passageId: string): FocusTarget | null {
   const match = /^([^.]+)\.([^.]+)\.(\d+)(?:-(\d+))?$/.exec(passageId.trim())
@@ -132,7 +134,11 @@ export function parseFocusPassageId(passageId: string): FocusTarget | null {
     return null
   }
   const start = Number(startText)
-  const end = endText === undefined ? start : Math.max(start, Number(endText))
+  // Clamped so a malformed range cannot build a huge array; no chapter runs past 176 verses.
+  const end = Math.min(
+    endText === undefined ? start : Math.max(start, Number(endText)),
+    start + MAX_FOCUS_VERSES - 1,
+  )
   const verses: number[] = []
   for (let verse = start; verse <= end; verse += 1) {
     verses.push(verse)

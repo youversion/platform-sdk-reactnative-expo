@@ -14,6 +14,12 @@ describe('footnoteMarker', () => {
 })
 
 describe('parseFootnoteHtml', () => {
+  it('decodes typographic named entities', () => {
+    expect(
+      parseFootnoteHtml('<span class="ft">&ldquo;Or&rdquo; &mdash; see&hellip;</span>'),
+    ).toEqual([{ runs: [run('\u201COr\u201D \u2014 see\u2026')] }])
+  })
+
   it('keeps a note as plain text when the markup is only reader classes', () => {
     expect(
       parseFootnoteHtml(

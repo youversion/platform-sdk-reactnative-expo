@@ -27,7 +27,7 @@ import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
-import { fontMapKey, SERIF_STANDIN } from '../theme/fonts'
+import { fontMapKey, sansFace, SERIF_STANDIN } from '../theme/fonts'
 import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
@@ -118,7 +118,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
           : serifReady
             ? fontMapKey(serifFamily, weight, italic ? 'italic' : 'normal')
             : SERIF_STANDIN,
-      labelFace: fontMapKey(tokens.fontFamily.sans, 400, 'normal'),
+      labelFace: sansFace(tokens.fontFamily.sans, 400),
       ink,
       wj: tokens.wj,
       underline: tokens.border,
@@ -126,11 +126,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     [fontSize, lineSpacing, passage?.parsed.rtl, isSans, tokens, serifFamily, serifReady, ink],
   )
 
+  // Scoped to the rendered passage: the old chapter stays up while the next one loads.
   const paint = useMemo(() => {
+    if (passage === null) {
+      return new Map<number, HighlightPaint>()
+    }
     const colors = deriveServerColors(Array.isArray(highlights) ? highlights : [], {
-      versionId,
-      book,
-      chapter,
+      versionId: passage.versionId,
+      book: passage.book,
+      chapter: passage.chapter,
     })
     const byColor = new Map<string, HighlightPaint>()
     const map = new Map<number, HighlightPaint>()
@@ -141,7 +145,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       map.set(Number(verse), fill)
     }
     return map
-  }, [highlights, versionId, book, chapter, theme, background, tokens.primaryForeground])
+  }, [highlights, passage, theme, background, tokens.primaryForeground])
 
   // ---- Selection ----
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
@@ -409,7 +413,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               <RNText
                 allowFontScaling={false}
                 style={{
-                  fontFamily: look.labelFace,
+                  ...look.labelFace,
                   fontSize: 16,
                   lineHeight: 24,
                   color: muted,
@@ -457,7 +461,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
                 maxWidth: 280,
                 paddingTop: 16,
                 marginBottom: 48,
-                fontFamily: look.labelFace,
+                ...look.labelFace,
                 fontSize: 12,
                 lineHeight: 16,
                 color: muted,
@@ -477,7 +481,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
                       }
                     }}
                     style={{
-                      fontFamily: fontMapKey(tokens.fontFamily.sans, 700, 'normal'),
+                      ...sansFace(tokens.fontFamily.sans, 700),
                       textDecorationLine: 'underline',
                     }}
                   >

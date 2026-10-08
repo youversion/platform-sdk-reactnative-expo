@@ -199,7 +199,8 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
     const refreshSerifFamily = (): void => {
       if (!cancelled) {
         setSerifFamily(registeredSerifFamily())
-        setSerifReady(true)
+        // A failed load leaves only the stand-in, which is already showing.
+        setSerifReady(serifIsRegistered())
       }
     }
     void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifFamily)

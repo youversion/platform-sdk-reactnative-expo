@@ -256,15 +256,31 @@ function decodeEntities(value: string): string {
     if (body.startsWith('#')) {
       return fromCodePoint(Number.parseInt(body.slice(1), 10), match)
     }
-    if (body === 'amp') return '&'
-    if (body === 'lt') return '<'
-    if (body === 'gt') return '>'
-    if (body === 'quot') return '"'
-    if (body === 'apos') return "'"
-    if (body === 'nbsp') return ' '
-    return match
+    return NAMED_ENTITIES.get(body) ?? match
   })
 }
+
+// The named references footnote HTML carries in practice; the rest pass through as written.
+const NAMED_ENTITIES = new Map([
+  ['amp', '&'],
+  ['lt', '<'],
+  ['gt', '>'],
+  ['quot', '"'],
+  ['apos', "'"],
+  ['nbsp', ' '],
+  ['mdash', '\u2014'],
+  ['ndash', '\u2013'],
+  ['lsquo', '\u2018'],
+  ['rsquo', '\u2019'],
+  ['ldquo', '\u201C'],
+  ['rdquo', '\u201D'],
+  ['hellip', '\u2026'],
+  ['middot', '\u00B7'],
+  ['para', '\u00B6'],
+  ['sect', '\u00A7'],
+  ['dagger', '\u2020'],
+  ['thinsp', '\u2009'],
+])
 
 function fromCodePoint(code: number, fallback: string): string {
   if (!Number.isInteger(code) || code < 0 || code > 0x10ffff) {

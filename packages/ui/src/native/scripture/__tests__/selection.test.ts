@@ -93,4 +93,8 @@ describe('parseFocusPassageId', () => {
   it('returns null for a chapter-only id', () => {
     expect(parseFocusPassageId('JHN.3')).toBeNull()
   })
+
+  it('caps a malformed range', () => {
+    expect(parseFocusPassageId('PSA.119.1-999999999')?.verses).toHaveLength(250)
+  })
 })

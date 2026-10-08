@@ -7,6 +7,7 @@ import {
   type LayoutChangeEvent,
   type TextLayoutEvent,
   type Text as RNTextInstance,
+  type TextStyle,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 
@@ -34,7 +35,7 @@ export type PassageLook = {
   rtl: boolean
   /** Registered face for a reader-font weight and slant. */
   face: (weight: Weight, italic: boolean) => string
-  labelFace: string
+  labelFace: TextStyle
   /** `#rrggbb`, so alphas can be applied. */
   ink: string
   wj: string
@@ -216,7 +217,7 @@ const BlockView = memo(function BlockView({
           <RNText
             allowFontScaling={false}
             style={{
-              fontFamily: look.labelFace,
+              ...look.labelFace,
               fontSize: fontSize * LABEL_SCALE,
               lineHeight: fontSize * LABEL_SCALE * 1.2,
               color: ghost
