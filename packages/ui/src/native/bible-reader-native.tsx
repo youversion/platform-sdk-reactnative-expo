@@ -122,8 +122,19 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       ink,
       wj: tokens.wj,
       underline: tokens.border,
+      background,
     }),
-    [fontSize, lineSpacing, passage?.parsed.rtl, isSans, tokens, serifFamily, serifReady, ink],
+    [
+      fontSize,
+      lineSpacing,
+      passage?.parsed.rtl,
+      isSans,
+      tokens,
+      serifFamily,
+      serifReady,
+      ink,
+      background,
+    ],
   )
 
   // Scoped to the rendered passage: the old chapter stays up while the next one loads.

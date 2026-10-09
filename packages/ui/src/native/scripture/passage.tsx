@@ -40,6 +40,7 @@ export type PassageLook = {
   ink: string
   wj: string
   underline: string
+  background: string
 }
 
 export type VerseFocusDim = ReadonlySet<number> | null
@@ -380,9 +381,19 @@ const BlockView = memo(function BlockView({
   }
 
   // Nested text takes no padding, so the backdrop paints highlights from shifted
-  // copies whose union reaches HIGHLIGHT_PAD past each end without reflowing.
-  // Each line clips the backdrop to its text, since iOS runs a wrapped fill to the edge.
+  // copies whose union reaches HIGHLIGHT_PAD past each end without reflowing. The
+  // centred copy is last so it wins where two colours meet. A line whose sample is
+  // not its band top keeps its own clipped copy so the window still shows the
+  // translated sample, not the natural pixels at that y.
   const pad = HIGHLIGHT_PAD * rule.size
+  let windows: LineWindow[] = []
+  if (hasPaint) {
+    windows = lines.map((line) =>
+      lineWindow(line, space, look.rtl, rule.headIndent, pad, rule.size),
+    )
+  }
+  const shareBackdrop =
+    windows.length > 0 && windows.every((opening) => opening.sample === opening.top)
   const backdropLayers = (focus === null ? FILL_LAYERS.slice(0, 1) : FILL_LAYERS).map((layer) => (
     <View
       key={layer}
@@ -396,7 +407,6 @@ const BlockView = memo(function BlockView({
         opacity: layer === 'dimFill' ? DIM_ALPHA : 1,
       }}
     >
-      {/* Centred copy last, so it wins where two colours meet. */}
       {[-1, 1, 0].map((side) => (
         <View
           key={side}
@@ -426,40 +436,70 @@ const BlockView = memo(function BlockView({
         marginBottom: blockMarginBottom(rule, fontSize),
       }}
     >
+      {shareBackdrop && (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: size.width,
+            height: size.height,
+            overflow: 'hidden',
+          }}
+        >
+          {backdropLayers}
+        </View>
+      )}
+      {shareBackdrop &&
+        coverRects(size, windows).map((rect, coverIndex) => (
+          <View
+            key={coverIndex}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              left: rect.x,
+              top: rect.y,
+              width: rect.width,
+              height: rect.height,
+              backgroundColor: look.background,
+            }}
+          />
+        ))}
       {hasPaint &&
-        lines.map((line, lineIndex) => {
-          const span = lineSpan(line, space, look.rtl, rule.headIndent)
-          const band = glyphBand(line, rule.size)
-          const left = span.x - pad
-          return (
+        !shareBackdrop &&
+        windows.map((opening, lineIndex) => (
+          <View
+            key={lineIndex}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              top: opening.top,
+              left: opening.left,
+              width: opening.width,
+              height: opening.height,
+              overflow: 'hidden',
+            }}
+          >
             <View
-              key={lineIndex}
-              pointerEvents="none"
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
               style={{
                 position: 'absolute',
-                top: band.top,
-                left,
-                width: span.width + 2 * pad,
-                height: band.height,
-                overflow: 'hidden',
+                top: -opening.sample,
+                left: -opening.left,
+                width: size.width,
+                height: size.height,
               }}
             >
-              <View
-                style={{
-                  position: 'absolute',
-                  top: -sampleTop(line, band.top, band.height),
-                  left: -left,
-                  width: size.width,
-                  height: size.height,
-                }}
-              >
-                {backdropLayers}
-              </View>
+              {backdropLayers}
             </View>
-          )
-        })}
+          </View>
+        ))}
       {text}
       {hasSelection &&
         lines.map((line, lineIndex) => {
@@ -532,7 +572,11 @@ function underlineTop(line: TextLine, size: number): number {
 // Where a window at `top` reads the ghost's fill. A band or underline strip that spills
 // past its line box (Android at tight spacing) would show the next line's fill, so it
 // reads from the middle of its own line instead.
-function sampleTop(line: TextLine, top: number, height: number): number {
+export function sampleTop(
+  line: { y: number; height: number },
+  top: number,
+  height: number,
+): number {
   return top + height <= line.y + line.height ? top : line.y + (line.height - height) / 2
 }
 
@@ -556,6 +600,82 @@ function lineSpan(line: TextLine, space: number, rtl: boolean, paddingStart: num
   const trailing = TRIM_TRAILING_SPACE ? (/[ \u00a0]*$/.exec(line.text)?.[0].length ?? 0) : 0
   const trim = Math.min(trailing * space, line.width)
   return { x: rtl ? line.x + trim : line.x + paddingStart, width: line.width - trim }
+}
+
+export type LineWindow = {
+  left: number
+  top: number
+  width: number
+  height: number
+  sample: number
+}
+
+export type CoverRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export function lineWindow(
+  line: TextLine,
+  space: number,
+  rtl: boolean,
+  paddingStart: number,
+  pad: number,
+  size: number,
+): LineWindow {
+  const span = lineSpan(line, space, rtl, paddingStart)
+  const band = glyphBand(line, size)
+  const left = span.x - pad
+  const top = band.top
+  const width = span.width + 2 * pad
+  const height = band.height
+  return {
+    left,
+    top,
+    width,
+    height,
+    sample: sampleTop(line, top, height),
+  }
+}
+
+export function coverRects(
+  box: { width: number; height: number },
+  windows: readonly LineWindow[],
+): CoverRect[] {
+  const covers: CoverRect[] = []
+  const push = (x: number, y: number, width: number, height: number): void => {
+    const left = Math.max(x, 0)
+    const top = Math.max(y, 0)
+    const right = Math.min(x + width, box.width)
+    const bottom = Math.min(y + height, box.height)
+    const nextWidth = right - left
+    const nextHeight = bottom - top
+    if (nextWidth <= 0 || nextHeight <= 0) {
+      return
+    }
+    covers.push({ x: left, y: top, width: nextWidth, height: nextHeight })
+  }
+
+  let y = 0
+  for (const opening of windows) {
+    push(0, y, box.width, opening.top - y)
+    y = opening.top + opening.height
+  }
+  push(0, y, box.width, box.height - y)
+
+  for (const opening of windows) {
+    push(0, opening.top, opening.left, opening.height)
+    push(
+      opening.left + opening.width,
+      opening.top,
+      box.width - (opening.left + opening.width),
+      opening.height,
+    )
+  }
+
+  return covers
 }
 
 const FILL_LAYERS = ['fill', 'dimFill'] as const
