@@ -27,8 +27,8 @@ import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
-import { fontMapKey, sansFace, SERIF_STANDIN } from '../theme/fonts'
-import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
+import { sansFace } from '../theme/fonts'
+import { useSerifFace } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
@@ -90,8 +90,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   } = props
   const tokens = useTokens()
   const { t } = useSdkTranslation()
-  const serifFamily = useSerifFamily()
-  const serifReady = useSerifReady()
+  const serifFaceFor = useSerifFace()
 
   const { title: bookTitle, entry, isLoading: isBookLoading } = useBibleBookTitle(versionId, book)
   const { abbreviation } = useBibleVersionAbbreviation(versionId)
@@ -116,10 +115,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       // Inter ships no italic here, so sans keeps the upright face.
       face: (weight, italic) =>
         isSans
-          ? fontMapKey(tokens.fontFamily.sans, weight, 'normal')
-          : serifReady
-            ? fontMapKey(serifFamily, weight, italic ? 'italic' : 'normal')
-            : SERIF_STANDIN,
+          ? sansFace(tokens.fontFamily.sans, weight)
+          : serifFaceFor(weight, italic ? 'italic' : 'normal'),
       labelFace: sansFace(tokens.fontFamily.sans, 400),
       ink,
       wj: tokens.wj,
@@ -132,8 +129,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       passage?.parsed.rtl,
       isSans,
       tokens,
-      serifFamily,
-      serifReady,
+      serifFaceFor,
       ink,
       background,
     ],

@@ -34,8 +34,8 @@ export type PassageLook = {
   fontSize: number
   lineSpacing: number
   rtl: boolean
-  /** Registered face for a reader-font weight and slant. */
-  face: (weight: Weight, italic: boolean) => string
+  /** Text style naming the reader-font face for a weight and slant. */
+  face: (weight: Weight, italic: boolean) => TextStyle
   labelFace: TextStyle
   /** `#rrggbb`, so alphas can be applied. */
   ink: string
@@ -291,7 +291,7 @@ const BlockView = memo(function BlockView({
           <RNText
             allowFontScaling={false}
             style={{
-              fontFamily: look.face(weight, chars.italic || rule.italic),
+              ...look.face(weight, chars.italic || rule.italic),
               fontSize: size,
               lineHeight: size * 1.2,
               color: ghost ? TRANSPARENT : (wj ?? color(overInk ?? look.ink, 1, dimmed)),
@@ -311,7 +311,7 @@ const BlockView = memo(function BlockView({
       <RNText
         key={key}
         style={{
-          fontFamily: look.face(weight, chars.italic || rule.italic),
+          ...look.face(weight, chars.italic || rule.italic),
           color: wj,
           fontSize: chars.scale === null ? undefined : size,
         }}
@@ -341,7 +341,7 @@ const BlockView = memo(function BlockView({
           fontSize: rule.size,
           lineHeight: lineBox,
           color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
-          fontFamily: look.face(rule.weight, rule.italic),
+          ...look.face(rule.weight, rule.italic),
           textAlign: rule.align,
           writingDirection: look.rtl ? 'rtl' : 'ltr',
           paddingStart: rule.headIndent + highlightEndRoom(look.fontSize),
@@ -573,7 +573,7 @@ const BlockView = memo(function BlockView({
             position: 'absolute',
             opacity: 0,
             fontSize: rule.size,
-            fontFamily: look.face(rule.weight, rule.italic),
+            ...look.face(rule.weight, rule.italic),
           }}
         >
           {NBSP}
@@ -742,7 +742,7 @@ function backdrop(
 function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): string {
   const { look } = state
   const focused = state.focus === null ? 'n' : 'f'
-  const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false)}|${look.ink}|`
+  const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false).fontFamily}|${look.ink}|`
   return (
     looks +
     focused +

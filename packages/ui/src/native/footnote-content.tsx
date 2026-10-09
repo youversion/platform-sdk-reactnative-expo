@@ -1,16 +1,9 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import type { TextStyle } from 'react-native'
 
 import { Text } from '../components/ui'
-
-type FootnoteContentProps = {
-  data: FootnoteData
-  theme?: 'light' | 'dark'
-  fontSize?: number
-  scriptureDirection?: 'ltr' | 'rtl'
-}
 import { ThemeContext, useTokens } from '../hooks'
 import {
   footnoteMarker,
@@ -18,8 +11,17 @@ import {
   type FootnoteParagraph,
   type FootnoteRun,
 } from '../lib/footnote-html'
-import { sansFace, serifFace, SERIF_STANDIN } from '../theme/fonts'
-import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
+import { sansFace } from '../theme/fonts'
+import { useSerifFace } from '../theme/use-fonts'
+
+type FootnoteContentProps = {
+  data: FootnoteData
+  theme?: 'light' | 'dark'
+  fontSize?: number
+  scriptureDirection?: 'ltr' | 'rtl'
+}
+
+type FaceFor = (weight: FootnoteRun['weight']) => TextStyle
 
 const VERSE_FONT_SIZE = 20
 // Web sheet list is text-xs: 0.75rem, line-height 1 / 0.75.
@@ -54,19 +56,19 @@ function FootnoteBody({
   rtl: boolean
 }): ReactNode {
   const tokens = useTokens()
-  const serifFamily = useSerifFamily()
-  const serifReady = useSerifReady()
+  const serifFaceFor = useSerifFace()
   const showVerse = data.verseHtml.length > 0
   let heading = data.verseNum
   if (data.reference) {
     heading = `${data.reference}:${data.verseNum}`
   }
   const verseSize = fontSize ?? VERSE_FONT_SIZE
-  const verseParagraphs = parseFootnoteHtml(data.verseHtml)
+  const verseParagraphs = useMemo(() => parseFootnoteHtml(data.verseHtml), [data.verseHtml])
+  const noteParagraphs = useMemo(() => data.notes.map(parseFootnoteHtml), [data.notes])
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
-  const serif = serifReady ? serifFamily : SERIF_STANDIN
   const sans = tokens.fontFamily.sans
+  const sansFor: FaceFor = (weight) => sansFace(sans, weight)
 
   return (
     <View testID="footnote-content" style={[styles.body, { direction: rtl ? 'rtl' : 'ltr' }]}>
@@ -88,12 +90,11 @@ function FootnoteBody({
               <ParagraphText
                 key={index}
                 paragraph={paragraph}
-                family={serif}
+                faceFor={serifFaceFor}
                 fontSize={verseSize}
                 lineHeight={lineHeightFor(verseSize)}
                 color={foreground}
                 muted={muted}
-                serif
               />
             ))}
           </View>
@@ -119,16 +120,15 @@ function FootnoteBody({
                 {label}
               </Text>
               <View style={styles.noteCopy}>
-                {parseFootnoteHtml(note).map((paragraph, paragraphIndex) => (
+                {(noteParagraphs[index] ?? []).map((paragraph, paragraphIndex) => (
                   <ParagraphText
                     key={paragraphIndex}
                     paragraph={paragraph}
-                    family={sans}
+                    faceFor={sansFor}
                     fontSize={NOTE_FONT_SIZE}
                     lineHeight={NOTE_LINE_HEIGHT}
                     color={foreground}
                     muted={muted}
-                    serif={false}
                   />
                 ))}
               </View>
@@ -142,22 +142,20 @@ function FootnoteBody({
 
 function ParagraphText({
   paragraph,
-  family,
+  faceFor,
   fontSize,
   lineHeight,
   color,
   muted,
-  serif,
 }: {
   paragraph: FootnoteParagraph
-  family: string
+  faceFor: FaceFor
   fontSize: number
   lineHeight: number
   color: string
   muted: string
-  serif: boolean
 }): ReactNode {
-  const face = faceFor(family, 400, serif)
+  const face = faceFor(400)
   return (
     <Text
       allowFontScaling={false}
@@ -169,10 +167,9 @@ function ParagraphText({
             <Superscript
               key={index}
               run={run}
-              family={family}
+              faceFor={faceFor}
               fontSize={fontSize}
               color={muted}
-              serif={serif}
             />
           )
         }
@@ -180,7 +177,7 @@ function ParagraphText({
           <Text
             key={index}
             allowFontScaling={false}
-            style={runStyle(run, family, fontSize, lineHeight, color, serif)}
+            style={{ ...faceFor(run.weight), color, fontSize, lineHeight }}
           >
             {run.text}
           </Text>
@@ -192,21 +189,18 @@ function ParagraphText({
 
 function Superscript({
   run,
-  family,
+  faceFor,
   fontSize,
   color,
-  serif,
 }: {
   run: FootnoteRun
-  family: string
+  faceFor: FaceFor
   fontSize: number
   color: string
-  serif: boolean
 }): ReactNode {
   const supSize = Math.max(1, Math.round(fontSize * SUP_SIZE_RATIO))
   const raise = Math.round(supSize * SUP_RAISE_EM)
-  const weight = run.weight
-  const face = faceFor(family, weight, serif)
+  const face = faceFor(run.weight)
   // A nested Text shares the line, so a shift on it never leaves the baseline.
   // An inline view is positioned with its bottom on that baseline, and a shift on the view raises the letter.
   return (
@@ -222,31 +216,6 @@ function Superscript({
       </Text>
     </View>
   )
-}
-
-function runStyle(
-  run: FootnoteRun,
-  family: string,
-  fontSize: number,
-  lineHeight: number,
-  color: string,
-  serif: boolean,
-): TextStyle {
-  const face = faceFor(family, run.weight, serif)
-  return {
-    ...face,
-    color,
-    fontSize,
-    lineHeight,
-  }
-}
-
-function faceFor(family: string, weight: FootnoteRun['weight'], serif: boolean): TextStyle {
-  if (!serif) {
-    return sansFace(family, weight)
-  }
-  // The stand-in is a system face, so it has no mapped weight names.
-  return family === SERIF_STANDIN ? { fontFamily: SERIF_STANDIN } : serifFace(family, weight)
 }
 
 function lineHeightFor(fontSize: number): number {

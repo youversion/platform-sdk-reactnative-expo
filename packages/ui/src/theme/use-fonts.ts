@@ -11,13 +11,23 @@ import * as Font from 'expo-font'
 import {
   createContext,
   createElement,
+  useCallback,
   useContext,
   useEffect,
   useState,
   type ReactNode,
 } from 'react'
+import type { TextStyle } from 'react-native'
 
-import { buildFontMap, fetchUntitledSerifFont, pickTtfSources, type BrandFontUriMap } from './fonts'
+import {
+  buildFontMap,
+  fetchUntitledSerifFont,
+  pickTtfSources,
+  serifFace,
+  SERIF_STANDIN,
+  type BrandFontUriMap,
+  type FontFace,
+} from './fonts'
 import { fontFamily } from './scales'
 
 export const bundledSans = {
@@ -154,9 +164,22 @@ export function useSerifFamily(): SerifFamily {
   return useContext(SerifFamilyContext)
 }
 
-/** False until the serif load settles; a face named before then measures in the system font. */
-export function useSerifReady(): boolean {
-  return useContext(SerifReadyContext)
+export type SerifFaceFor = (weight: FontFace['weight'], style?: FontFace['style']) => TextStyle
+
+/**
+ * Serif text style for a weight and slant. Until the serif load settles it names the
+ * system stand-in, which has no mapped faces, so weight and slant go on as style props.
+ */
+export function useSerifFace(): SerifFaceFor {
+  const family = useSerifFamily()
+  const ready = useContext(SerifReadyContext)
+  return useCallback(
+    (weight, style = 'normal') =>
+      ready
+        ? serifFace(family, weight, style)
+        : { fontFamily: SERIF_STANDIN, fontWeight: `${weight}`, fontStyle: style },
+    [family, ready],
+  )
 }
 
 type BrandFontReadiness = {
