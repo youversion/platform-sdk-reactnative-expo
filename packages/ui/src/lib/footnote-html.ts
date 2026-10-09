@@ -10,13 +10,9 @@ export type FootnoteParagraph = {
 
 const LETTERS = 'abcdefghijklmnopqrstuvwxyz'
 
-const PLAIN: FootnoteRun = {
-  text: '',
-  weight: 400,
-  sup: false,
-}
-
 type FootnoteStyle = Omit<FootnoteRun, 'text'>
+
+const BASE_STYLE: FootnoteStyle = { weight: 400, sup: false }
 
 type Frame = {
   name: string
@@ -78,7 +74,7 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
   const paragraphs: FootnoteParagraph[] = []
   const runs: FootnoteRun[] = []
   const frames: Frame[] = []
-  const styles: FootnoteStyle[] = [plainStyle()]
+  const styles: FootnoteStyle[] = [BASE_STYLE]
 
   function flush(): void {
     const trimmed = trimRuns(runs)
@@ -98,8 +94,9 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
     return false
   }
 
+  // closeTag never pops the base style, so the fallback only satisfies the index type.
   function currentStyle(): FootnoteStyle {
-    return styles[styles.length - 1] ?? plainStyle()
+    return styles.at(-1) ?? BASE_STYLE
   }
 
   function openTag(tag: OpenTag): void {
@@ -185,13 +182,6 @@ export function parseFootnoteHtml(html: string): FootnoteParagraph[] {
 
   flush()
   return paragraphs
-}
-
-function plainStyle(): FootnoteStyle {
-  return {
-    weight: PLAIN.weight,
-    sup: PLAIN.sup,
-  }
 }
 
 function isBlock(name: string, raw: string): boolean {
