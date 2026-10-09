@@ -1,6 +1,6 @@
 # Inactive sheet inertness
 
-> **Status.** Picker, settings, and search sheets are native. Footnote content is still a pre-warmed DOM WebView. The text below records the inert-host decision.
+> **Status.** Picker, settings, and search sheets are native. Footnote content is native text. The text below records the inert-host decision, including the old footnote WebView.
 
 The default **Native Sheet** model keeps each sheet's Expo DOM content mounted inside its own closed `BottomSheet` host. This pre-warms the WebView and avoids remounting sheet content on first open.
 

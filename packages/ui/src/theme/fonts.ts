@@ -1,4 +1,4 @@
-import type { TextStyle } from 'react-native'
+import { Platform, type TextStyle } from 'react-native'
 import { z } from 'zod'
 
 import { fontFamily } from './scales'
@@ -6,6 +6,12 @@ import { fontFamily } from './scales'
 export const DEFAULT_API_HOST = 'api.youversion.com'
 
 export const UNTITLED_SERIF_FONT_ID = 1
+
+/**
+ * A system serif until the brand serif registers. Naming the brand face early measures
+ * in the system font, and Fabric keeps that measure after the face lands.
+ */
+export const SERIF_STANDIN = Platform.select({ ios: 'Georgia', default: 'serif' })
 
 /** Hosts named in YPE-5266 / web ADR 0004. Font.loadAsync fetches whatever URI we pass. */
 const ALLOWED_FONT_FILE_HOSTS = new Set(['api.youversion.com', 'cdn.youversion.com'])
@@ -78,6 +84,14 @@ export function fontMapKey(
  */
 export function sansFace(family: string, weight: FontFace['weight']): TextStyle {
   return { fontFamily: fontMapKey(family, weight, 'normal') }
+}
+
+export function serifFace(
+  family: string,
+  weight: FontFace['weight'],
+  style: FontFace['style'] = 'normal',
+): TextStyle {
+  return { fontFamily: fontMapKey(family, weight, style) }
 }
 
 function isAllowedFontFileUrl(url: string): boolean {

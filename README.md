@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, and the auth button are native. Scripture renders in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK are required for those scripture surfaces.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, the auth button, and `BibleReader` are native. `BibleReader` draws the chapter and its footnotes with native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still render their passage in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). The previous `BibleReader` WebView remains for comparison and will be removed. `@expo/dom-webview` and the Web SDK stay required for the passages that still use them.
 
 ## Table of Contents
 
@@ -26,7 +26,7 @@ A React Native SDK for displaying Bible content in Expo apps on iOS and Android.
 ## Features
 
 - **Scripture display**: React Native components for Bible passages with `BibleTextView` and `BibleCard`
-- **Bible Reader**: a complete reading experience with `BibleReader`, including a native toolbar on iOS/Android (chapter, version, Search, More) and built-in chapter, version, Search, and settings sheets
+- **Bible Reader**: a complete reading experience with `BibleReader`. The chapter is native text. The toolbar is native on iOS and Android (chapter, version, Search, More), with built-in chapter, version, Search, and settings sheets
 - **Verse of the Day**: built-in `VerseOfTheDay` component
 - **Sign in**: optional PKCE OAuth via `YouVersionProvider` and `useYVAuth` (`@youversion/platform-react-native-expo-core`)
 - **Highlights**: `useHighlights` for optimistic highlight writes backed by an instant local cache (`@youversion/platform-react-native-expo-core`); a highlight made offline keeps its paint, survives a relaunch, and lands on its own
@@ -97,7 +97,7 @@ The same resolved scheme drives the SDK's own native chrome through design token
 
 The provider also loads brand fonts (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Children wait for bundled Inter; Untitled Serif still loads in the background from the YouVersion Fonts API — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, or that request fails, native serif falls back to Source Serif 4.
 
-Light and dark inside a WebView follow the resolved `theme` on that WebView's `YouVersionProvider`. Reader font size and family are Web SDK props — `fontFamily` crosses the native bridge as a quote-free token ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
+`BibleReader` sets font size, line spacing, and font family on its own text. Light and dark inside a WebView follow the resolved `theme` on that WebView's `YouVersionProvider`. `BibleTextView` still receives `fontFamily` across the native bridge as a quote-free token ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
 
 Native and in-WebView SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 
@@ -135,14 +135,16 @@ function CardScreen() {
 
 See `BibleCard` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
 
-> **Note:** Scripture content is fetched from YouVersion servers; the underlying WebView caches responses for repeat reads.
+> **Note:** Scripture content is fetched from YouVersion servers. The WebView behind `BibleTextView` caches responses for repeat reads.
 
 ### Bible Reader
 
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader } from '@youversion/platform-react-native-expo-ui'
+import { BibleReader, unstable_setReaderRenderer } from '@youversion/platform-react-native-expo-ui'
+
+unstable_setReaderRenderer('native')
 
 // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
 function ReaderScreen() {
@@ -151,6 +153,8 @@ function ReaderScreen() {
 ```
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
+
+The chapter is native text. The call above selects it before the first `BibleReader` mounts. Until that call, the reader still uses the WebView. `unstable_setReaderRenderer('dom')` mounts that WebView for comparison. The WebView reader will be removed when the comparison is done. Remount `BibleReader` after changing the switch.
 
 See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 

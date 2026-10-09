@@ -1,6 +1,6 @@
 # Reuse Web SDK content with native presentation
 
-> **Status.** Chrome is native. Scripture still reuses the Web SDK through Expo DOM in `dom/bible-reader.tsx`, `dom/bible-text-view.tsx`, and `dom/footnote-content.tsx`. The text below is the original decision.
+> **Status.** Chrome, `BibleReader`, and footnote sheets are native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still reuse the Web SDK through Expo DOM. `dom/bible-reader.tsx` remains for comparison and will be removed. The text below is the original decision.
 
 We reuse complex Bible UI from `@youversion/platform-react-ui` through Expo DOM components, but native wrappers own mobile presentation and coordination state. This means mobile interactions should reuse Web SDK content and semantic payloads while replacing web-only presentation shells, such as Radix Popover, with native surfaces like `NativeSheet`.
 

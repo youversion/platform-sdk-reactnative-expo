@@ -38,6 +38,10 @@ export function setImpl(key: ImplKey, impl: ImplComponent): void {
   overrides.set(key, impl)
 }
 
+export function removeImpl(key: ImplKey): void {
+  overrides.delete(key)
+}
+
 export function resetImpls(): void {
   overrides.clear()
 }

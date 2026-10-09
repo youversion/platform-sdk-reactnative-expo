@@ -11,8 +11,8 @@ import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { INTER_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import type { Tokens } from '../theme'
-import { fontMapKey, sansFace } from '../theme/fonts'
-import { useSerifFamily } from '../theme/use-fonts'
+import { sansFace } from '../theme/fonts'
+import { useSerifFace } from '../theme/use-fonts'
 const CONTROL_RADIUS = 8
 const ROW_GAP = 16
 const LINE_BAR_WIDTH = 32
@@ -72,7 +72,7 @@ export function BibleReaderSettingsContent({
   const { t } = useSdkTranslation()
   const tokens = useTokens()
   const theme = useTheme()
-  const serifFamily = fontMapKey(useSerifFamily(), 400, 'normal')
+  const serifFaceFor = useSerifFace()
   const decreaseDisabled = fontSize <= BIBLE_READER_FONT.MIN
   const increaseDisabled = fontSize >= BIBLE_READER_FONT.MAX
   let seamColor = tokens.background
@@ -153,7 +153,7 @@ export function BibleReaderSettingsContent({
           }
           let nameFace: TextStyle = sansFace(tokens.fontFamily.sans, 400)
           if (choice.family === UNTITLED_SERIF_FONT) {
-            nameFace = { fontFamily: serifFamily }
+            nameFace = serifFaceFor(400)
           }
           return (
             <Button

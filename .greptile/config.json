@@ -16,7 +16,7 @@
     },
     {
       "id": "dom-versus-native",
-      "rule": "Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx, bible-text-view.tsx, and footnote-content.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.",
+      "rule": "Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. Allowed DOM entries are bible-reader.tsx and bible-text-view.tsx. packages/ui/src/native/register-dom-impls.ts may register those entries. Native code may import Web SDK values.",
       "scope": [
         "packages/ui/src/native/**",
         "packages/ui/src/components/**",

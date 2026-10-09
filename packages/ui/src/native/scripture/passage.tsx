@@ -1,0 +1,787 @@
+import { memo, useState, type ReactNode } from 'react'
+import {
+  PixelRatio,
+  Platform,
+  Pressable,
+  Text as RNText,
+  View,
+  type LayoutChangeEvent,
+  type TextLayoutEvent,
+  type Text as RNTextInstance,
+  type TextStyle,
+} from 'react-native'
+import Svg, { Path } from 'react-native-svg'
+
+import { withAlpha } from '../../lib/color'
+import { palette } from '../../theme/palette'
+import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import type { HighlightPaint } from './highlight-colors'
+import type { Block, Inline } from './parse-passage'
+import {
+  blockMarginBottom,
+  collapsedMarginTop,
+  LABEL_SCALE,
+  lineMultiple,
+  resolveBlock,
+  resolveChars,
+  type ResolvedBlock,
+} from './styles'
+
+type Weight = 400 | 500 | 700
+
+/** Everything a block needs that does not change per verse. One object per settings change. */
+export type PassageLook = {
+  fontSize: number
+  lineSpacing: number
+  rtl: boolean
+  /** Text style naming the reader-font face for a weight and slant. */
+  face: (weight: Weight, italic: boolean) => TextStyle
+  labelFace: TextStyle
+  /** `#rrggbb`, so alphas can be applied. */
+  ink: string
+  wj: string
+  underline: string
+  background: string
+}
+
+export type VerseFocusDim = ReadonlySet<number> | null
+
+type PassageProps = {
+  blocks: readonly Block[]
+  look: PassageLook
+  selected: ReadonlySet<number>
+  paint: ReadonlyMap<number, HighlightPaint>
+  /** Verses kept bright while a focus dims the rest; `null` dims nothing. */
+  focus: VerseFocusDim
+  onVersePress: (verse: number) => void
+  onNotePress: (verse: number | null, html: string) => void
+  onBlockLayout: (index: number, y: number, height: number) => void
+  onBlockRef: (index: number, node: RNTextInstance | null) => void
+}
+
+// Swift raises the label 0.2em so its top meets the cap height; RN has no baseline
+// offset and seats the inline view lower, so the nudge is larger (measured).
+const LABEL_RISE = Platform.select({ android: -0.25, default: -0.32 })
+// iOS centres the glyphs in an enlarged line box but not the inline views, so
+// LABEL_RISE (tuned at the default spacing) drifts as spacing moves off it.
+const ATTACHMENT_DRIFT = Platform.OS === 'ios' ? 0.5 : 0
+// Swift paints labels in iOS `secondaryLabel` (~#8a8a8e on white); half the ink lands
+// there in both schemes and still follows a custom foreground.
+const LABEL_ALPHA = 0.5
+// Swift draws its untinted asset (gray20) in a square the height of an 0.8em run,
+// raised a quarter of that, in every scheme and over highlights. Android seats inline
+// views higher, so it rises less to sit the same against the glyphs (measured).
+// Kept inside the highlight band, so the bubble does not cross the top of the paint.
+const NOTE_SCALE = 1
+const NOTE_RISE = Platform.select({ android: 0.08, default: 0.28 })
+const NOTE_LEAD = 0
+const NOTE_TRAIL = 0.08
+const DIM_ALPHA = 0.35
+// Zero-width space: an invisible first character that carries the block's paragraph style.
+const PARAGRAPH_ANCHOR = '\u200b'
+// Android reads colour 0 ('transparent') as unset, so ghost text would fall back to
+// black; alpha 0 with a non-zero channel stays invisible on both platforms.
+const TRANSPARENT = withAlpha(palette.white, 0)
+// iOS seats inline views a fixed ~2.8pt above the line box at every size and spacing
+// (measured); likely TextKit's Helvetica 12 fallback descender for the font-less attachment.
+const BOX_SHIFT = 2.8
+// Android grows a line's ascent to fit an inline view and takes the excess from its
+// descent, which drops the baseline and clips a last line's descenders; capped at the
+// highlight band's ascent, the box stays inside the text's own ascent.
+const CAP_BOX = Platform.OS === 'android'
+// Underline top, in em below the baseline, and its thickness in points.
+const UNDERLINE_OFFSET = 0.37
+const UNDERLINE_THICKNESS = 1
+// How far a highlight runs past each end of its line. 0.1em fits in a verse's
+// trailing space, so the paint stops short of the next verse number.
+// Nested text takes no padding, so the backdrop shifts by this. The reader gives
+// the column this much extra width and the paragraph pads the words back.
+const HIGHLIGHT_PAD = 0.1
+
+export function highlightEndRoom(size: number): number {
+  return HIGHLIGHT_PAD * size
+}
+const BAND_ASCENT = 0.98
+const BAND_DESCENT = 0.26
+// iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
+const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
+const NBSP = '\u00a0'
+
+// The real text, the selection underline, and the highlight backdrop. Bright and
+// dimmed highlights paint in separate backdrops so the dimmed one can fade as a group.
+type Layer = 'text' | 'underline' | 'fill' | 'dimFill'
+
+export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
+  const resolved = blocks.map((block) => resolveBlock(block.classes, rest.look.fontSize))
+  return (
+    <View style={{ direction: rest.look.rtl ? 'rtl' : 'ltr' }}>
+      {blocks.map((block, index) => (
+        <BlockView
+          key={`${index}:${blockStateKey(block, rest)}`}
+          index={index}
+          block={block}
+          rule={resolved[index] ?? resolveBlock([], rest.look.fontSize)}
+          previous={index > 0 ? (resolved[index - 1] ?? null) : null}
+          {...rest}
+        />
+      ))}
+    </View>
+  )
+}
+
+type BlockViewProps = Omit<PassageProps, 'blocks'> & {
+  index: number
+  block: Block
+  rule: ResolvedBlock
+  previous: ResolvedBlock | null
+}
+
+const BlockView = memo(function BlockView({
+  index,
+  block,
+  rule,
+  previous,
+  look,
+  selected,
+  paint,
+  focus,
+  onVersePress,
+  onNotePress,
+  onBlockLayout,
+  onBlockRef,
+}: BlockViewProps): ReactNode {
+  const { fontSize } = look
+  const lineBox = rule.size * lineMultiple(look.lineSpacing)
+  const drift =
+    -ATTACHMENT_DRIFT *
+    rule.size *
+    (lineMultiple(look.lineSpacing) - lineMultiple(READER_LINE_SPACING.DEFAULT))
+  const blockDimmed = focus !== null && block.heading
+  const hasSelection = block.verses.some((verse) => selected.has(verse))
+  const hasPaint = block.verses.some((verse) => paint.has(verse))
+  // A remount (see blockStateKey) starts from the last layout instead of blank, so a
+  // tap does not flash the highlight away and back.
+  const [measure, setMeasure] = useState<Measure>(() => {
+    const kept = measures.get(block)
+    return kept?.look === look ? kept : { look, lines: [], size: { width: 0, height: 0 }, space: 0 }
+  })
+  const { lines, size, space } = measure
+  const update = (change: Partial<Omit<Measure, 'look'>>): void =>
+    setMeasure((current) => {
+      const next = { ...current, ...change }
+      measures.set(block, next)
+      return next
+    })
+  const measured = hasSelection || hasPaint
+  const color = (hex: string, alpha: number, dimmed: boolean): string => {
+    const value = dimmed ? alpha * DIM_ALPHA : alpha
+    return value === 1 ? hex : withAlpha(hex, value)
+  }
+
+  // A ghost lays out exactly like the real text but paints only its layer.
+  const renderInline = (
+    inline: Inline,
+    key: number,
+    verse: number | null,
+    dimmed: boolean,
+    layer: Layer,
+    last: boolean,
+  ): ReactNode => {
+    const ghost = layer !== 'text'
+    const fill = verse === null ? undefined : paint.get(verse)
+    const overInk = ghost ? null : (fill?.text ?? null)
+    const pressable = !ghost && verse !== null
+    // Inline views fill the line box (Android: the band's ascent) so a highlight runs
+    // through them; the content shifts back by the same amount to stay where it was.
+    const background = backdrop(layer, fill, dimmed)
+    const box = {
+      height: CAP_BOX ? Math.min(lineBox, BAND_ASCENT * rule.size) : lineBox,
+      justifyContent: 'flex-end',
+      transform: [{ translateY: BOX_SHIFT }],
+      backgroundColor: CAP_BOX ? undefined : background,
+    } as const
+    // The capped box stops at the baseline, so its fill reaches on through the band's
+    // descent; each line's band window trims the rest.
+    const boxFill = CAP_BOX && background !== undefined && (
+      <View
+        style={{
+          position: 'absolute',
+          top: -BOX_SHIFT,
+          bottom: -BAND_DESCENT * rule.size,
+          left: 0,
+          right: 0,
+          backgroundColor: background,
+        }}
+      />
+    )
+    if (inline.kind === 'label') {
+      return (
+        // End padding, not a trailing space: under RTL the space lands on the far side.
+        <Pressable
+          key={key}
+          disabled={!pressable}
+          onPress={pressable ? () => onVersePress(verse) : undefined}
+          style={{ ...box, paddingEnd: fontSize * 0.25 }}
+        >
+          {boxFill}
+          <RNText
+            allowFontScaling={false}
+            style={{
+              ...look.labelFace,
+              fontSize: fontSize * LABEL_SCALE,
+              lineHeight: fontSize * LABEL_SCALE * 1.2,
+              color: ghost
+                ? TRANSPARENT
+                : color(overInk ?? look.ink, overInk === null ? LABEL_ALPHA : 1, dimmed),
+              transform: [{ translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT }],
+            }}
+          >
+            {inline.text}
+          </RNText>
+        </Pressable>
+      )
+    }
+    if (inline.kind === 'note') {
+      const size = fontSize * NOTE_SCALE
+      return (
+        <Pressable
+          key={key}
+          hitSlop={8}
+          disabled={ghost}
+          accessibilityRole="button"
+          onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
+          style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
+        >
+          {boxFill}
+          <View
+            style={{
+              width: size,
+              height: size,
+              transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+            }}
+          >
+            {!ghost && (
+              <Svg width={size} height={size} viewBox="0 0 20 20">
+                <Path
+                  d={NOTE_ICON}
+                  fill={color(palette.gray20, 1, dimmed)}
+                  fillRule="evenodd"
+                />
+              </Svg>
+            )}
+          </View>
+        </Pressable>
+      )
+    }
+    const chars = resolveChars(inline.classes)
+    const weight = chars.weight ?? rule.weight
+    const size = chars.scale === null ? rule.size : rule.size * chars.scale
+    const wj =
+      chars.wordsOfJesus && overInk === null && !ghost ? color(look.wj, 1, dimmed) : undefined
+    if (chars.raised) {
+      // Same raise as the verse label; an inline view inherits nothing, so set the ink here.
+      return (
+        <Pressable
+          key={key}
+          disabled={!pressable}
+          onPress={pressable ? () => onVersePress(verse) : undefined}
+          style={box}
+        >
+          {boxFill}
+          <RNText
+            allowFontScaling={false}
+            style={{
+              ...look.face(weight, chars.italic || rule.italic),
+              fontSize: size,
+              lineHeight: size * 1.2,
+              color: ghost ? TRANSPARENT : (wj ?? color(overInk ?? look.ink, 1, dimmed)),
+              transform: [{ translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT }],
+            }}
+          >
+            {inline.text}
+          </RNText>
+        </Pressable>
+      )
+    }
+    // A verse's trailing space stays unpainted, so its padded highlight stops short
+    // of the next verse label.
+    const trailing = last ? (/\s+$/.exec(inline.text)?.[0] ?? '') : ''
+    const text = inline.text.slice(0, inline.text.length - trailing.length)
+    return (
+      <RNText
+        key={key}
+        style={{
+          ...look.face(weight, chars.italic || rule.italic),
+          color: wj,
+          fontSize: chars.scale === null ? undefined : size,
+        }}
+      >
+        {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
+        {trailing !== '' && (
+          <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
+            {trailing}
+          </RNText>
+        )}
+      </RNText>
+    )
+  }
+
+  const paragraph = (layer: Layer): ReactNode => {
+    const ghost = layer !== 'text'
+    return (
+      <RNText
+        ref={ghost ? undefined : (node) => onBlockRef(index, node)}
+        onTextLayout={
+          ghost || !measured
+            ? undefined
+            : (event: TextLayoutEvent) => update({ lines: event.nativeEvent.lines })
+        }
+        allowFontScaling={false}
+        style={{
+          fontSize: rule.size,
+          lineHeight: lineBox,
+          color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
+          ...look.face(rule.weight, rule.italic),
+          textAlign: rule.align,
+          writingDirection: look.rtl ? 'rtl' : 'ltr',
+          paddingStart: rule.headIndent + highlightEndRoom(look.fontSize),
+          paddingEnd: highlightEndRoom(look.fontSize),
+        }}
+      >
+        {/* iOS reads paragraph style (lineHeight) from the first character; an
+          inline View there drops it for the whole block, so lead with text. */}
+        {PARAGRAPH_ANCHOR}
+        {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
+        {block.segments.map((segment, segmentIndex) => {
+          const verse = segment.verse
+          const fill = verse === null ? undefined : paint.get(verse)
+          const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
+          const isSelected = verse !== null && selected.has(verse)
+          const ink = fill?.text ?? look.ink
+          return (
+            <RNText
+              key={segmentIndex}
+              suppressHighlighting
+              onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
+              style={{
+                color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
+                backgroundColor:
+                  layer === 'underline'
+                    ? isSelected
+                      ? look.underline
+                      : undefined
+                    : backdrop(layer, fill, dimmed),
+              }}
+            >
+              {segment.inlines.map((inline, i) =>
+                renderInline(inline, i, verse, dimmed, layer, i === segment.inlines.length - 1),
+              )}
+            </RNText>
+          )
+        })}
+      </RNText>
+    )
+  }
+
+  const onLayout = (event: LayoutChangeEvent): void => {
+    onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
+    const { width, height } = event.nativeEvent.layout
+    if (size.width !== width || size.height !== height) {
+      update({ size: { width, height } })
+    }
+  }
+
+  // Nested text takes no padding, so the backdrop paints highlights from shifted
+  // copies whose union reaches the end room past each end without reflowing. The
+  // centred copy is last so it wins where two colours meet. A line whose sample is
+  // not its band top keeps its own clipped copy so the window still shows the
+  // translated sample, not the natural pixels at that y.
+  const room = highlightEndRoom(look.fontSize)
+  const pad = highlightEndRoom(rule.size)
+  let windows: LineWindow[] = []
+  if (hasPaint) {
+    windows = lines.map((line) =>
+      lineWindow(line, space, look.rtl, rule.headIndent + room, room, pad, rule.size),
+    )
+  }
+  const shareBackdrop =
+    windows.length > 0 && windows.every((opening) => opening.sample === opening.top)
+  const backdropLayers = (focus === null ? FILL_LAYERS.slice(0, 1) : FILL_LAYERS).map((layer) => (
+    <View
+      key={layer}
+      needsOffscreenAlphaCompositing={layer === 'dimFill'}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        opacity: layer === 'dimFill' ? DIM_ALPHA : 1,
+      }}
+    >
+      {[-1, 1, 0].map((side) => (
+        <View
+          key={side}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            transform: [{ translateX: side * pad }],
+          }}
+        >
+          {paragraph(layer)}
+        </View>
+      ))}
+    </View>
+  ))
+
+  const text = paragraph('text')
+  // A text underline breaks around descenders on iOS, so the ghost paints selected
+  // verses as a fill and each line clips it to a strip under its baseline.
+  const underline = hasSelection ? paragraph('underline') : null
+  return (
+    <View
+      onLayout={onLayout}
+      style={{
+        marginTop: collapsedMarginTop(rule, previous, fontSize),
+        marginBottom: blockMarginBottom(rule, fontSize),
+      }}
+    >
+      {shareBackdrop && (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: size.width,
+            height: size.height,
+            overflow: 'hidden',
+          }}
+        >
+          {backdropLayers}
+        </View>
+      )}
+      {shareBackdrop &&
+        coverRects(size, windows, 1 / PixelRatio.get()).map((rect, coverIndex) => (
+          <View
+            key={coverIndex}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              left: rect.x,
+              top: rect.y,
+              width: rect.width,
+              height: rect.height,
+              backgroundColor: look.background,
+            }}
+          />
+        ))}
+      {hasPaint &&
+        !shareBackdrop &&
+        windows.map((opening, lineIndex) => (
+          <View
+            key={lineIndex}
+            pointerEvents="none"
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{
+              position: 'absolute',
+              top: opening.top,
+              left: opening.left,
+              width: opening.width,
+              height: opening.height,
+              overflow: 'hidden',
+            }}
+          >
+            <View
+              style={{
+                position: 'absolute',
+                top: -opening.sample,
+                left: -opening.left,
+                width: size.width,
+                height: size.height,
+              }}
+            >
+              {backdropLayers}
+            </View>
+          </View>
+        ))}
+      {text}
+      {hasSelection &&
+        lines.map((line, lineIndex) => {
+          const top = underlineTop(line, rule.size)
+          const sample = sampleTop(line, top, UNDERLINE_THICKNESS)
+          const span = lineSpan(
+            line,
+            space,
+            look.rtl,
+            rule.headIndent + highlightEndRoom(look.fontSize),
+            highlightEndRoom(look.fontSize),
+          )
+          return (
+            <View
+              key={lineIndex}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                position: 'absolute',
+                top,
+                left: span.x,
+                width: span.width,
+                height: UNDERLINE_THICKNESS,
+                overflow: 'hidden',
+              }}
+            >
+              <View style={{ position: 'absolute', top: -sample, left: -span.x, width: size.width }}>
+                {underline}
+              </View>
+            </View>
+          )
+        })}
+      {measured && TRIM_TRAILING_SPACE && (
+        // One space in the block's face, to trim trailing spaces off each line.
+        <RNText
+          allowFontScaling={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          onTextLayout={(event) => update({ space: event.nativeEvent.lines[0]?.width ?? 0 })}
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            fontSize: rule.size,
+            ...look.face(rule.weight, rule.italic),
+          }}
+        >
+          {NBSP}
+        </RNText>
+      )}
+    </View>
+  )
+}, sameBlockState)
+
+type TextLine = TextLayoutEvent['nativeEvent']['lines'][number]
+
+type Measure = {
+  look: PassageLook
+  lines: readonly TextLine[]
+  size: { width: number; height: number }
+  space: number
+}
+
+// Last layout per parsed block, valid while its look holds.
+const measures = new WeakMap<Block, Measure>()
+
+// Both platforms centre the glyphs in a line box enlarged by lineHeight.
+function baselineOf(line: TextLine): number {
+  return line.y + (line.height + line.ascender - Math.abs(line.descender)) / 2
+}
+
+function underlineTop(line: TextLine, size: number): number {
+  return baselineOf(line) + UNDERLINE_OFFSET * size
+}
+
+// Where a window at `top` reads the ghost's fill. A band or underline strip that spills
+// past its line box (Android at tight spacing) would show the next line's fill, so it
+// reads from the middle of its own line instead.
+export function sampleTop(
+  line: { y: number; height: number },
+  top: number,
+  height: number,
+): number {
+  return top + height <= line.y + line.height ? top : line.y + (line.height - height) / 2
+}
+
+type Band = { top: number; height: number }
+
+// Swift fills a line's typographic bounds, so line spacing shows as a gap between
+// highlighted lines. iOS line metrics span the whole line box, so the font's ascent
+// and descent are em values measured off Swift's serif.
+function glyphBand(line: TextLine, size: number): Band {
+  return {
+    top: baselineOf(line) - BAND_ASCENT * size,
+    height: (BAND_ASCENT + BAND_DESCENT) * size,
+  }
+}
+
+type LineSpan = { x: number; width: number }
+
+// The line's text without its trailing spaces, which sit on the left under RTL.
+// Line x is measured inside the padding, so each side shifts back out to the block.
+function lineSpan(
+  line: TextLine,
+  space: number,
+  rtl: boolean,
+  paddingStart: number,
+  paddingEnd: number,
+): LineSpan {
+  const trailing = TRIM_TRAILING_SPACE ? (/[ \u00a0]*$/.exec(line.text)?.[0].length ?? 0) : 0
+  const trim = Math.min(trailing * space, line.width)
+  const x = rtl ? line.x + trim + paddingEnd : line.x + paddingStart
+  return { x, width: line.width - trim }
+}
+
+export type LineWindow = {
+  left: number
+  top: number
+  width: number
+  height: number
+  sample: number
+}
+
+export type CoverRect = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export function lineWindow(
+  line: TextLine,
+  space: number,
+  rtl: boolean,
+  paddingStart: number,
+  paddingEnd: number,
+  pad: number,
+  size: number,
+): LineWindow {
+  const span = lineSpan(line, space, rtl, paddingStart, paddingEnd)
+  const band = glyphBand(line, size)
+  const left = span.x - pad
+  const top = band.top
+  const width = span.width + 2 * pad
+  const height = band.height
+  return {
+    left,
+    top,
+    width,
+    height,
+    sample: sampleTop(line, top, height),
+  }
+}
+
+// Covers that share a fractional edge can each round away from it and leave a pixel
+// row of backdrop showing, so side covers and the last cover overlap by `seam`.
+export function coverRects(
+  box: { width: number; height: number },
+  windows: readonly LineWindow[],
+  seam = 0,
+): CoverRect[] {
+  const covers: CoverRect[] = []
+  const push = (x: number, y: number, width: number, height: number): void => {
+    const left = Math.max(x, 0)
+    const top = Math.max(y, 0)
+    const right = Math.min(x + width, box.width)
+    const bottom = Math.min(y + height, box.height + seam)
+    const nextWidth = right - left
+    const nextHeight = bottom - top
+    if (nextWidth <= 0 || nextHeight <= 0) {
+      return
+    }
+    covers.push({ x: left, y: top, width: nextWidth, height: nextHeight })
+  }
+
+  let y = 0
+  for (const opening of windows) {
+    push(0, y, box.width, opening.top - y)
+    y = opening.top + opening.height
+  }
+  push(0, y, box.width, box.height + seam - y)
+
+  for (const opening of windows) {
+    const top = opening.top - seam
+    const height = opening.height + 2 * seam
+    push(0, top, opening.left, height)
+    push(opening.left + opening.width, top, box.width - (opening.left + opening.width), height)
+  }
+
+  return covers
+}
+
+const FILL_LAYERS = ['fill', 'dimFill'] as const
+
+function isFill(layer: Layer): boolean {
+  return layer === 'fill' || layer === 'dimFill'
+}
+
+// Opaque in both backdrops; the dimmed backdrop fades as a whole, so copies never stack.
+function backdrop(
+  layer: Layer,
+  fill: HighlightPaint | undefined,
+  dimmed: boolean,
+): string | undefined {
+  const painted = layer === (dimmed ? 'dimFill' : 'fill')
+  return painted ? fill?.background : undefined
+}
+
+// Fabric iOS misplaces inline-View attachments (labels, note icons) when a
+// paragraph re-renders in place; a remount lays them out fresh.
+function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): string {
+  const { look } = state
+  const focused = state.focus === null ? 'n' : 'f'
+  const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false).fontFamily}|${look.ink}|`
+  return (
+    looks +
+    focused +
+    block.verses
+      .map(
+        (verse) =>
+          `${state.selected.has(verse) ? 's' : ''}${state.paint.get(verse)?.background ?? ''}${state.focus?.has(verse) ? 'f' : ''}`,
+      )
+      .join(',')
+  )
+}
+
+/** Skips a block when nothing about its own verses changed, so a tap repaints one paragraph. */
+function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
+  if (
+    a.block !== b.block ||
+    a.look !== b.look ||
+    a.rule.top !== b.rule.top ||
+    a.previous?.bottom !== b.previous?.bottom ||
+    a.onVersePress !== b.onVersePress ||
+    a.onNotePress !== b.onNotePress ||
+    a.onBlockLayout !== b.onBlockLayout ||
+    a.onBlockRef !== b.onBlockRef ||
+    (a.focus === null) !== (b.focus === null)
+  ) {
+    return false
+  }
+  return a.block.verses.every(
+    (verse) =>
+      a.selected.has(verse) === b.selected.has(verse) &&
+      a.paint.get(verse) === b.paint.get(verse) &&
+      (a.focus?.has(verse) ?? false) === (b.focus?.has(verse) ?? false),
+  )
+}
+
+// Neither Untitled Serif nor Source Serif answers `fontVariant: small-caps` on iOS,
+// so uppercase lowercase runs at a smaller size. Swift's `lowercaseSmallCaps()` glyphs
+// are 0.86× cap height and wider than scaled caps, so tracking makes up the width.
+const SMALL_CAP_SCALE = 0.85
+const SMALL_CAP_TRACKING = 0.055
+
+export function smallCaps(text: string, size: number): ReactNode[] {
+  return Array.from(text.matchAll(/(\p{Ll}+)|([^\p{Ll}]+)/gu), (match, i) =>
+    match[1] === undefined ? (
+      match[0]
+    ) : (
+      <RNText
+        key={i}
+        style={{ fontSize: size * SMALL_CAP_SCALE, letterSpacing: size * SMALL_CAP_TRACKING }}
+      >
+        {match[1].toUpperCase()}
+      </RNText>
+    ),
+  )
+}
+
+// Web SDK footnote glyph (20×20 note bubble).
+const NOTE_ICON =
+  'M5.00033 4.16667C4.09255 4.16667 3.33366 4.92556 3.33366 5.83333V12.5C3.33366 13.4078 4.09255 14.1667 5.00033 14.1667H6.66699C7.12723 14.1667 7.50033 14.5398 7.50033 15V16.0282L10.4049 14.2854C10.5344 14.2077 10.6826 14.1667 10.8337 14.1667H15.0003C15.9081 14.1667 16.667 13.4078 16.667 12.5V5.83333C16.667 4.92556 15.9081 4.16667 15.0003 4.16667H5.00033ZM5.00033 2.5H15.0003C16.8159 2.5 18.3337 4.01778 18.3337 5.83333V12.5C18.3337 14.3156 16.8159 15.8333 15.0003 15.8333H11.0645L7.09574 18.2146C6.55059 18.5417 5.83366 18.1357 5.83366 17.5V15.8333H5.00033C3.18477 15.8333 1.66699 14.3156 1.66699 12.5V5.83333C1.66699 4.01778 3.18477 2.5 5.00033 2.5ZM5.83366 7.5C5.83366 7.03976 6.20675 6.66667 6.66699 6.66667H13.3337C13.7939 6.66667 14.167 7.03976 14.167 7.5C14.167 7.96024 13.7939 8.33333 13.3337 8.33333H6.66699C6.20675 8.33333 5.83366 7.96024 5.83366 7.5ZM5.83366 10.8333C5.83366 10.3731 6.20675 10 6.66699 10H11.667C12.1272 10 12.5003 10.3731 12.5003 10.8333C12.5003 11.2936 12.1272 11.6667 11.667 11.6667H6.66699C6.20675 11.6667 5.83366 11.2936 5.83366 10.8333Z'

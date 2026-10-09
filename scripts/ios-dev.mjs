@@ -429,7 +429,11 @@ async function dev(options) {
   console.log(`Simulator: ${simulator.name} (${simulator.udid})`)
 
   try {
-    run('open', ['-a', 'Simulator'])
+    // Xcode 27 replaced Simulator.app with DeviceHub. The window is only a viewer;
+    // bootstatus below boots the device either way.
+    if (capture('open', ['-a', 'Simulator']) === null) {
+      capture('open', ['-b', 'com.apple.dt.Devices'])
+    }
     await runChild('xcrun', ['simctl', 'bootstatus', simulator.udid, '-b'], {
       label: 'Simulator boot',
     })
