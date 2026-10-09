@@ -71,8 +71,9 @@ const LABEL_ALPHA = 0.5
 // Swift draws its untinted asset (gray20) in a square the height of an 0.8em run,
 // raised a quarter of that, in every scheme and over highlights. Android seats inline
 // views higher, so it rises less to sit the same against the glyphs (measured).
+// Kept inside the highlight band, so the bubble does not cross the top of the paint.
 const NOTE_SCALE = 1
-const NOTE_RISE = Platform.select({ android: 0.14, default: 0.34 })
+const NOTE_RISE = Platform.select({ android: 0.08, default: 0.28 })
 const NOTE_LEAD = 0
 const NOTE_TRAIL = 0.08
 const DIM_ALPHA = 0.35
@@ -91,14 +92,14 @@ const CAP_BOX = Platform.OS === 'android'
 // Underline top, in em below the baseline, and its thickness in points.
 const UNDERLINE_OFFSET = 0.37
 const UNDERLINE_THICKNESS = 1
-// How far a highlight runs past each end of its line: 0.1em, plus 3 points.
+// How far a highlight runs past each end of its line. 0.1em fits in a verse's
+// trailing space, so the paint stops short of the next verse number.
 // Nested text takes no padding, so the backdrop shifts by this. The reader gives
 // the column this much extra width and the paragraph pads the words back.
 const HIGHLIGHT_PAD = 0.1
-const HIGHLIGHT_PAD_POINTS = 3
 
 export function highlightEndRoom(size: number): number {
-  return HIGHLIGHT_PAD * size + HIGHLIGHT_PAD_POINTS
+  return HIGHLIGHT_PAD * size
 }
 const BAND_ASCENT = 0.98
 const BAND_DESCENT = 0.26
