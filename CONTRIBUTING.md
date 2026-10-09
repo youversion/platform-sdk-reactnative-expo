@@ -86,6 +86,11 @@ pnpm doctor:ios
 > - `expo-modules-jsi` must be ≥ 56.0.13 — earlier versions fail to compile `JavaScriptRuntime.swift`. Pinned via `pnpm-lock.yaml`; do not let `expo install --fix` walk it back.
 > - `react-native-svg`'s `RNSVGFilters` resource bundle ships at iOS 12.4, which Xcode 27 rejects. `apps/example/plugins/with-resource-bundle-deployment-target.js` lifts it during prebuild. Delete the plugin once react-native-svg releases [#3022](https://github.com/software-mansion/react-native-svg/pull/3022).
 
+> **Reanimated pin.** Keep `react-native-reanimated` at `4.5.3` or newer in the
+> example app. Expo 57's recommended `4.5.1` can move native sheets offscreen
+> after a delayed React render. Do not let `expo install --fix` walk it back.
+> Rebuild the native app after changing the version.
+
 ### Device builds on BrowserStack
 
 When an approved collaborator on `platform-sdk-reactnative-expo_automation`

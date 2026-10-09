@@ -56,20 +56,21 @@ npx expo install @gorhom/bottom-sheet @expo/dom-webview \
   expo-application expo-clipboard expo-crypto expo-font expo-network expo-secure-store expo-web-browser \
   react-dom \
   react-native-gesture-handler react-native-mmkv \
-  react-native-nitro-modules react-native-reanimated \
+  react-native-nitro-modules react-native-reanimated@4.5.3 \
   react-native-safe-area-context react-native-svg \
   react-native-worklets
 ```
 
 Expo, React, and React Native are also peer dependencies, but they are expected to be provided by your Expo app.
 
-For Expo 57, pin `react-native-reanimated` to `4.5.3` or a compatible newer patch
-after installing peers, and rebuild the native app. Expo's recommended `4.5.1`
-contains a settled-animation defect that can move native sheets offscreen after
-a delayed React render. Version `4.5.3` includes the
+For Expo 57, the install command pins `react-native-reanimated` to `4.5.3`
+(or use a compatible newer patch). Expo's recommended `4.5.1` contains a
+settled-animation defect that can move native sheets offscreen after a delayed
+React render. Version `4.5.3` includes the
 [upstream correction](https://github.com/software-mansion/react-native-reanimated/pull/9987)
 and supports the example's React Native `0.86.3` and Worklets `0.10.1`.
-Do not let `expo install --fix` downgrade it; keep the JS and native versions aligned.
+Rebuild the native app after installing. Do not let `expo install --fix`
+downgrade it; keep the JS and native versions aligned.
 
 See [`packages/ui/package.json`](./packages/ui/package.json) and [`packages/core/package.json`](./packages/core/package.json) `peerDependencies` for the canonical lists.
 
