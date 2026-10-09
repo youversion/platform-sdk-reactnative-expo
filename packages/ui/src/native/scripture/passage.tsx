@@ -287,6 +287,7 @@ const BlockView = memo(function BlockView({
           onPress={pressable ? () => onVersePress(verse) : undefined}
           style={box}
         >
+          {boxFill}
           <RNText
             allowFontScaling={false}
             style={{
