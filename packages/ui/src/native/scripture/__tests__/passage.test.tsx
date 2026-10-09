@@ -59,6 +59,15 @@ describe('coverRects', () => {
       { x: 90, y: 30, width: 10, height: 20 },
     ])
   })
+
+  it('overlaps side covers and the last cover by the seam, leaving the window open', () => {
+    expect(coverRects({ width: 100, height: 50 }, [windowAt(10, 10, 80, 20)], 1)).toEqual([
+      { x: 0, y: 0, width: 100, height: 10 },
+      { x: 0, y: 30, width: 100, height: 21 },
+      { x: 0, y: 9, width: 10, height: 22 },
+      { x: 90, y: 9, width: 10, height: 22 },
+    ])
+  })
 })
 
 describe('sampleTop', () => {

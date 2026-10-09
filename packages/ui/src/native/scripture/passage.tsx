@@ -466,7 +466,7 @@ const BlockView = memo(function BlockView({
         </View>
       )}
       {shareBackdrop &&
-        coverRects(size, windows).map((rect, coverIndex) => (
+        coverRects(size, windows, 1 / PixelRatio.get()).map((rect, coverIndex) => (
           <View
             key={coverIndex}
             pointerEvents="none"
@@ -482,23 +482,6 @@ const BlockView = memo(function BlockView({
             }}
           />
         ))}
-      {shareBackdrop && size.height > 0 && Platform.OS === 'android' && (
-        // The last line's highlight draws one pixel past the block. The cover
-        // stops at the measured height, so that pixel shows as a streak.
-        <View
-          pointerEvents="none"
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: size.height - 1 / PixelRatio.get(),
-            width: size.width,
-            height: 2 / PixelRatio.get(),
-            backgroundColor: look.background,
-          }}
-        />
-      )}
       {hasPaint &&
         !shareBackdrop &&
         windows.map((opening, lineIndex) => (
@@ -683,16 +666,19 @@ export function lineWindow(
   }
 }
 
+// Covers that share a fractional edge can each round away from it and leave a pixel
+// row of backdrop showing, so side covers and the last cover overlap by `seam`.
 export function coverRects(
   box: { width: number; height: number },
   windows: readonly LineWindow[],
+  seam = 0,
 ): CoverRect[] {
   const covers: CoverRect[] = []
   const push = (x: number, y: number, width: number, height: number): void => {
     const left = Math.max(x, 0)
     const top = Math.max(y, 0)
     const right = Math.min(x + width, box.width)
-    const bottom = Math.min(y + height, box.height)
+    const bottom = Math.min(y + height, box.height + seam)
     const nextWidth = right - left
     const nextHeight = bottom - top
     if (nextWidth <= 0 || nextHeight <= 0) {
@@ -706,16 +692,13 @@ export function coverRects(
     push(0, y, box.width, opening.top - y)
     y = opening.top + opening.height
   }
-  push(0, y, box.width, box.height - y)
+  push(0, y, box.width, box.height + seam - y)
 
   for (const opening of windows) {
-    push(0, opening.top, opening.left, opening.height)
-    push(
-      opening.left + opening.width,
-      opening.top,
-      box.width - (opening.left + opening.width),
-      opening.height,
-    )
+    const top = opening.top - seam
+    const height = opening.height + 2 * seam
+    push(0, top, opening.left, height)
+    push(opening.left + opening.width, top, box.width - (opening.left + opening.width), height)
   }
 
   return covers
