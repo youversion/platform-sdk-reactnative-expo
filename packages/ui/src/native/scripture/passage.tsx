@@ -1,5 +1,6 @@
 import { memo, useState, type ReactNode } from 'react'
 import {
+  PixelRatio,
   Platform,
   Pressable,
   Text as RNText,
@@ -90,8 +91,15 @@ const CAP_BOX = Platform.OS === 'android'
 // Underline top, in em below the baseline, and its thickness in points.
 const UNDERLINE_OFFSET = 0.37
 const UNDERLINE_THICKNESS = 1
-// Horizontal padding each side of a highlight, in em.
+// How far a highlight runs past each end of its line: 0.1em, plus 3 points.
+// Nested text takes no padding, so the backdrop shifts by this. The reader gives
+// the column this much extra width and the paragraph pads the words back.
 const HIGHLIGHT_PAD = 0.1
+const HIGHLIGHT_PAD_POINTS = 3
+
+export function highlightEndRoom(size: number): number {
+  return HIGHLIGHT_PAD * size + HIGHLIGHT_PAD_POINTS
+}
 const BAND_ASCENT = 0.98
 const BAND_DESCENT = 0.26
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
@@ -334,7 +342,8 @@ const BlockView = memo(function BlockView({
           fontFamily: look.face(rule.weight, rule.italic),
           textAlign: rule.align,
           writingDirection: look.rtl ? 'rtl' : 'ltr',
-          paddingStart: rule.headIndent,
+          paddingStart: rule.headIndent + highlightEndRoom(look.fontSize),
+          paddingEnd: highlightEndRoom(look.fontSize),
         }}
       >
         {/* iOS reads paragraph style (lineHeight) from the first character; an
@@ -381,15 +390,16 @@ const BlockView = memo(function BlockView({
   }
 
   // Nested text takes no padding, so the backdrop paints highlights from shifted
-  // copies whose union reaches HIGHLIGHT_PAD past each end without reflowing. The
+  // copies whose union reaches the end room past each end without reflowing. The
   // centred copy is last so it wins where two colours meet. A line whose sample is
   // not its band top keeps its own clipped copy so the window still shows the
   // translated sample, not the natural pixels at that y.
-  const pad = HIGHLIGHT_PAD * rule.size
+  const room = highlightEndRoom(look.fontSize)
+  const pad = highlightEndRoom(rule.size)
   let windows: LineWindow[] = []
   if (hasPaint) {
     windows = lines.map((line) =>
-      lineWindow(line, space, look.rtl, rule.headIndent, pad, rule.size),
+      lineWindow(line, space, look.rtl, rule.headIndent + room, room, pad, rule.size),
     )
   }
   const shareBackdrop =
@@ -470,6 +480,23 @@ const BlockView = memo(function BlockView({
             }}
           />
         ))}
+      {shareBackdrop && size.height > 0 && Platform.OS === 'android' && (
+        // The last line's highlight draws one pixel past the block. The cover
+        // stops at the measured height, so that pixel shows as a streak.
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: size.height - 1 / PixelRatio.get(),
+            width: size.width,
+            height: 2 / PixelRatio.get(),
+            backgroundColor: look.background,
+          }}
+        />
+      )}
       {hasPaint &&
         !shareBackdrop &&
         windows.map((opening, lineIndex) => (
@@ -505,7 +532,13 @@ const BlockView = memo(function BlockView({
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
           const sample = sampleTop(line, top, UNDERLINE_THICKNESS)
-          const span = lineSpan(line, space, look.rtl, rule.headIndent)
+          const span = lineSpan(
+            line,
+            space,
+            look.rtl,
+            rule.headIndent + highlightEndRoom(look.fontSize),
+            highlightEndRoom(look.fontSize),
+          )
           return (
             <View
               key={lineIndex}
@@ -595,11 +628,18 @@ function glyphBand(line: TextLine, size: number): Band {
 type LineSpan = { x: number; width: number }
 
 // The line's text without its trailing spaces, which sit on the left under RTL.
-// Line x is measured inside the paragraph's start padding, so LTR shifts past it.
-function lineSpan(line: TextLine, space: number, rtl: boolean, paddingStart: number): LineSpan {
+// Line x is measured inside the padding, so each side shifts back out to the block.
+function lineSpan(
+  line: TextLine,
+  space: number,
+  rtl: boolean,
+  paddingStart: number,
+  paddingEnd: number,
+): LineSpan {
   const trailing = TRIM_TRAILING_SPACE ? (/[ \u00a0]*$/.exec(line.text)?.[0].length ?? 0) : 0
   const trim = Math.min(trailing * space, line.width)
-  return { x: rtl ? line.x + trim : line.x + paddingStart, width: line.width - trim }
+  const x = rtl ? line.x + trim + paddingEnd : line.x + paddingStart
+  return { x, width: line.width - trim }
 }
 
 export type LineWindow = {
@@ -622,10 +662,11 @@ export function lineWindow(
   space: number,
   rtl: boolean,
   paddingStart: number,
+  paddingEnd: number,
   pad: number,
   size: number,
 ): LineWindow {
-  const span = lineSpan(line, space, rtl, paddingStart)
+  const span = lineSpan(line, space, rtl, paddingStart, paddingEnd)
   const band = glyphBand(line, size)
   const left = span.x - pad
   const top = band.top

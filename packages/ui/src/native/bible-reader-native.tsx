@@ -30,7 +30,7 @@ import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { fontMapKey, sansFace, SERIF_STANDIN } from '../theme/fonts'
 import { useSerifFamily, useSerifReady } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
-import { Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
+import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
 import { removeImpl, setImpl } from './component-impls'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
@@ -52,7 +52,9 @@ const DEFAULT_FOCUS = {
 const DEFAULT_FONT_SIZE = 16
 const MAX_WIDTH = 700
 // Style spec §5: 32, Kotlin's 32dp (Swift uses 30). The gutter sets the wrap width,
-// so lines break at the same words as the other native readers.
+// so lines break at the same words as the other native readers. The highlight pad
+// is subtracted here and added back on the paragraph, so the words stay put and a
+// full line's highlight can run past them.
 const GUTTER = 32
 // Swift shows the reference only in the toolbar, so the text opens under its vertical padding.
 const TOP_PADDING = 16
@@ -415,7 +417,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
             alignSelf: 'center',
             width: '100%',
             maxWidth: MAX_WIDTH + GUTTER * 2,
-            paddingHorizontal: GUTTER,
+            paddingHorizontal: GUTTER - highlightEndRoom(fontSize),
             paddingTop: TOP_PADDING,
           }}
         >
