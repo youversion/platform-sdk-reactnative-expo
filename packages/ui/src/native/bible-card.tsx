@@ -309,6 +309,7 @@ function BibleCardBody({
           <FootnoteContent
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
+            versionAbbreviation={metadata?.abbreviation}
             scriptureDirection={scriptureDirection}
           />
         </NativeSheet>

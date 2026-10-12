@@ -1,4 +1,4 @@
-import { parsePassage } from '../parse-passage'
+import { parseNoteHtml, parsePassage } from '../parse-passage'
 
 describe('parsePassage', () => {
   it('drops the chapter label block', () => {
@@ -51,5 +51,71 @@ describe('parsePassage', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>(LXX) فِي الْبَدْءِ خَلَقَ اللهُ السَّمَاوَاتِ وَالأَرْضَ</div></div>'
     expect(parsePassage(html).rtl).toBe(true)
+  })
+})
+
+describe('parseNoteHtml', () => {
+  it('keeps the USFM classes on each run, as the passage does', () => {
+    expect(
+      parseNoteHtml(
+        '<span class="fr">1:16 </span><span class="ft">The Greek word for </span><span class="fqa">brothers and sisters</span>',
+      ),
+    ).toEqual([
+      [
+        { text: '1:16 ', classes: ['fr'] },
+        { text: 'The Greek word for ', classes: ['ft'] },
+        { text: 'brothers and sisters', classes: ['fqa'] },
+      ],
+    ])
+  })
+
+  it('starts a new paragraph at an fp span', () => {
+    expect(
+      parseNoteHtml(
+        '<span class="ft">First paragraph.</span><span class="fp"><span class="fk">Keyword</span> text.</span>',
+      ),
+    ).toEqual([
+      [{ text: 'First paragraph.', classes: ['ft'] }],
+      [
+        { text: 'Keyword', classes: ['fp', 'fk'] },
+        { text: ' text.', classes: ['fp'] },
+      ],
+    ])
+  })
+
+  it('maps sup, b, and i tags onto their USFM classes and decodes entities', () => {
+    expect(parseNoteHtml('&ldquo;Or&rdquo; <b>bold</b> <i>it</i><sup>a</sup>')).toEqual([
+      [
+        { text: '\u201COr\u201D ', classes: [] },
+        { text: 'bold', classes: ['bd'] },
+        { text: ' ', classes: [] },
+        { text: 'it', classes: ['it'] },
+        { text: 'a', classes: ['sup'] },
+      ],
+    ])
+  })
+
+  it('returns no paragraphs for empty html', () => {
+    expect(parseNoteHtml('')).toEqual([])
+    expect(parseNoteHtml('   ')).toEqual([])
+  })
+})
+
+describe('collectVerses', () => {
+  it('keeps the character classes in the footnote-sheet verse html', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span>' +
+      'He said, <span class="wj">Truly</span><span class="yv-n f"><span class="ft">Or</span></span></div></div>'
+    const verse = parsePassage(html).verses.get(5)
+    expect(verse?.html).toBe(
+      'He said, <span class="wj">Truly</span><sup class="yv:text-muted-foreground">a</sup>',
+    )
+    expect(parseNoteHtml(verse?.html ?? '')).toEqual([
+      [
+        { text: 'He said, ', classes: [] },
+        { text: 'Truly', classes: ['wj'] },
+        { text: 'a', classes: ['yv:text-muted-foreground', 'sup'] },
+      ],
+    ])
   })
 })

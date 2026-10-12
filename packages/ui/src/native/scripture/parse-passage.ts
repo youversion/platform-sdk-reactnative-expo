@@ -21,7 +21,7 @@ export type Block = {
 export type VerseInfo = {
   /** Share text: every fragment, labels and notes dropped, whitespace collapsed. */
   text: string
-  /** Footnote-sheet HTML: escaped text with `<sup>` letters where the notes sat. */
+  /** Footnote-sheet HTML: classed text spans, with `<sup>` letters where the notes sat. */
   html: string
   notes: string[]
 }
@@ -175,7 +175,7 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
       for (const inline of inlines) {
         if (inline.kind === 'text') {
           text += inline.text
-          html += escapeHtml(inline.text)
+          html += classedSpan(inline.text, inline.classes)
         } else if (inline.kind === 'note') {
           html += `<sup class="yv:text-muted-foreground">${footnoteMarker(notes.length)}</sup>`
           notes.push(inline.html)
@@ -191,6 +191,81 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
     })
   }
   return verses
+}
+
+export type NoteRun = { text: string; classes: readonly string[] }
+
+// USFM styling arrives as classes; these tags carry it in markup instead.
+const TAG_CLASS = new Map([
+  ['SUP', 'sup'],
+  ['B', 'bd'],
+  ['STRONG', 'bd'],
+  ['I', 'it'],
+  ['EM', 'it'],
+])
+
+/**
+ * Footnote and footnote-sheet verse HTML through the passage walker, one run list per
+ * paragraph. Swift breaks a note before each `fp`.
+ */
+export function parseNoteHtml(html: string): NoteRun[][] {
+  const { document } = parseHTML(`<!doctype html><html><body><div>${html}</div></body></html>`)
+  const body = document.body
+  const source = body.firstElementChild
+  if (source === null) {
+    return []
+  }
+  for (const el of Array.from(source.querySelectorAll('sup, b, strong, i, em'))) {
+    const extra = TAG_CLASS.get(el.tagName.toUpperCase())
+    el.setAttribute('class', [...classList(el), extra].join(' '))
+  }
+  let paragraph = document.createElement('div')
+  body.appendChild(paragraph)
+  for (const node of Array.from(source.childNodes)) {
+    // SAFETY: nodeType 1 is ELEMENT_NODE.
+    if (node.nodeType === 1 && classList(node as Element).includes('fp')) {
+      paragraph = document.createElement('div')
+      body.appendChild(paragraph)
+    }
+    paragraph.appendChild(node)
+  }
+  source.remove()
+
+  return walk(document).flatMap((block) => {
+    const runs: NoteRun[] = []
+    for (const segment of block.segments) {
+      for (const inline of segment.inlines) {
+        if (inline.kind !== 'text') {
+          continue
+        }
+        // linkedom splits a text node at each entity.
+        const previous = runs.at(-1)
+        if (previous !== undefined && previous.classes.join(' ') === inline.classes.join(' ')) {
+          previous.text += inline.text
+        } else {
+          runs.push({ text: inline.text, classes: inline.classes })
+        }
+      }
+    }
+    const first = runs[0]
+    if (first !== undefined) {
+      first.text = first.text.trimStart()
+    }
+    const last = runs.at(-1)
+    if (last !== undefined) {
+      last.text = last.text.trimEnd()
+    }
+    const kept = runs.filter((run) => run.text !== '')
+    return kept.length > 0 ? [kept] : []
+  })
+}
+
+function classedSpan(text: string, all: readonly string[]): string {
+  const classes = all.filter((c) => c !== 'yv-v')
+  if (classes.length === 0) {
+    return escapeHtml(text)
+  }
+  return `<span class="${classes.join(' ')}">${escapeHtml(text)}</span>`
 }
 
 function escapeHtml(text: string): string {

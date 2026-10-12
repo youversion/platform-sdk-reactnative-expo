@@ -980,7 +980,8 @@ export function BibleReader({
           <FootnoteContent
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
-            fontSize={fontSize}
+            versionAbbreviation={versionAbbreviation}
+            lineSpacing={lineSpacing}
           />
         </NativeSheet>
       )}

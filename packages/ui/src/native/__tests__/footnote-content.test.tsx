@@ -2,14 +2,17 @@ import { render, screen } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { StyleSheet } from 'react-native'
 
+import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { fontMapKey, SERIF_STANDIN } from '../../theme/fonts'
 import { SerifFamilyProvider } from '../../theme/use-fonts'
 import FootnoteContent from '../footnote-content'
+import { lineMultiple } from '../scripture/styles'
 
 const light = getTokens('light')
 const dark = getTokens('dark')
+const DEFAULT_LINE_HEIGHT = 16 * lineMultiple(READER_LINE_SPACING.DEFAULT)
 
 const johnNote: FootnoteData = {
   verseNum: '5',
@@ -27,84 +30,74 @@ function flattened(text: string) {
 }
 
 describe('FootnoteContent', () => {
-  it('shows the reference, verse, raised marker, and a plain note', () => {
-    render(<FootnoteContent {...sheetProps(johnNote)} fontSize={22} />, {
+  it('renders the verse and notes in serif with the scripture character styles, as Swift does', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} versionAbbreviation="NIV" />, {
       wrapper: youVersionProviderWrapper(),
     })
 
-    expect(flattened('John 1:5')).toMatchObject({
+    expect(flattened('John 1:5 NIV')).toMatchObject({
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.sans, 700, 'normal'),
       fontSize: light.typography.base.fontSize,
     })
-    expect(screen.getByText('John 1:5').props.allowFontScaling).toBe(false)
-    expect(screen.getByText('He then added, "Very truly I tell you,"').props.allowFontScaling).toBe(
-      false,
-    )
-    expect(screen.getByText('1:5 Or understood').props.allowFontScaling).toBe(false)
-    expect(screen.getByText('a').props.allowFontScaling).toBe(false)
-    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+    expect(screen.getByText('John 1:5 NIV').props.allowFontScaling).toBe(false)
+    expect(flattened('He then added, ')).toMatchObject({
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
-      fontSize: 22,
-      lineHeight: 33,
+      fontSize: 16,
+      lineHeight: DEFAULT_LINE_HEIGHT,
     })
+    // Swift's sheet paints words of Jesus in the text color.
+    expect(flattened('"Very truly I tell you,"')).toMatchObject({ color: light.foreground })
     const marker = screen.getByText('a')
+    expect(marker.props.allowFontScaling).toBe(false)
     expect(StyleSheet.flatten(marker.props.style)).toMatchObject({
       color: light.mutedForeground,
-      fontSize: 17,
-      lineHeight: 17,
+      fontSize: 10,
+      lineHeight: 10,
     })
     expect(
       StyleSheet.flatten(screen.getByTestId('footnote-superscript').props.style),
-    ).toMatchObject({
-      transform: [{ translateY: -9 }],
-    })
-    expect(flattened('1:5 Or understood')).toMatchObject({
+    ).toMatchObject({ transform: [{ translateY: -5 }] })
+
+    expect(flattened('Or')).toMatchObject({
       color: light.foreground,
-      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
-      fontSize: 12,
-      lineHeight: 16,
+      fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
+      fontSize: 16,
+      lineHeight: DEFAULT_LINE_HEIGHT,
+    })
+    expect(flattened('understood')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.serif, 400, 'italic'),
+      fontSize: 16,
     })
     expect(flattened('a.')).toMatchObject({
-      color: light.foreground,
-      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
-      fontSize: 12,
-      lineHeight: 16,
+      fontFamily: fontMapKey(light.fontFamily.sans, 500, 'normal'),
+      fontSize: 11,
     })
     expect(flattened('b.')).toBeTruthy()
     expect(flattened('First paragraph.')).toMatchObject({
-      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
-      fontSize: 12,
-      lineHeight: 16,
+      fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
     })
     expect(flattened('Keyword')).toMatchObject({
-      fontFamily: fontMapKey(light.fontFamily.sans, 400, 'normal'),
-      fontSize: 12,
-      lineHeight: 16,
+      fontFamily: fontMapKey(light.fontFamily.serif, 500, 'italic'),
     })
   })
 
-  it('uses a 20px verse face when the host does not pass fontSize', () => {
-    render(
-      <FootnoteContent
-        {...sheetProps({
-          verseNum: '3',
-          notes: [],
-          verseHtml: '<p>footnote</p>',
-        })}
-      />,
-      { wrapper: youVersionProviderWrapper() },
-    )
-
-    expect(flattened('footnote')).toMatchObject({
-      fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
-      fontSize: 20,
-      lineHeight: 30,
-      color: light.foreground,
+  it('takes its line height from the reader line spacing', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} lineSpacing={READER_LINE_SPACING.LG} />, {
+      wrapper: youVersionProviderWrapper(),
     })
-    expect(screen.getByText('3')).toBeTruthy()
-    expect(screen.queryByTestId('footnote-note-a')).toBeNull()
+
+    const lineHeight = 16 * lineMultiple(READER_LINE_SPACING.LG)
+    expect(flattened('He then added, ')).toMatchObject({ lineHeight })
+    expect(flattened('Or')).toMatchObject({ lineHeight })
+    expect(flattened('a.')).toMatchObject({ lineHeight })
+  })
+
+  it('omits the version from the heading when the host has none', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} />, { wrapper: youVersionProviderWrapper() })
+
+    expect(screen.getByText('John 1:5')).toBeTruthy()
   })
 
   it('paints the verse with the dark token when the sheet theme is dark', () => {
@@ -112,11 +105,9 @@ describe('FootnoteContent', () => {
       wrapper: youVersionProviderWrapper('light'),
     })
 
-    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
-      color: dark.foreground,
-    })
+    expect(flattened('He then added, ')).toMatchObject({ color: dark.foreground })
     expect(flattened('John 1:5')).toMatchObject({ color: dark.foreground })
-    expect(flattened('1:5 Or understood')).toMatchObject({ color: dark.foreground })
+    expect(flattened('Or')).toMatchObject({ color: dark.foreground })
   })
 
   it('lays the sheet out right to left for rtl scripture', () => {
@@ -137,7 +128,7 @@ describe('FootnoteContent', () => {
       { wrapper: youVersionProviderWrapper() },
     )
 
-    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+    expect(flattened('He then added, ')).toMatchObject({
       fontFamily: fontMapKey('Source Serif 4', 400, 'normal'),
     })
   })
@@ -150,7 +141,7 @@ describe('FootnoteContent', () => {
       { wrapper: youVersionProviderWrapper() },
     )
 
-    expect(flattened('He then added, "Very truly I tell you,"')).toMatchObject({
+    expect(flattened('He then added, ')).toMatchObject({
       fontFamily: SERIF_STANDIN,
     })
   })
