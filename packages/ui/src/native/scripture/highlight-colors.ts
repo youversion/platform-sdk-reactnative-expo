@@ -1,16 +1,41 @@
-/** `#rgb` or `#rrggbb` (any case) as lowercase `#rrggbb`; anything else is `null`. */
+const NAMED: ReadonlyMap<string, readonly number[]> = new Map([
+  ['white', [255, 255, 255]],
+  ['black', [0, 0, 0]],
+])
+
+function rgbHex(parts: readonly number[]): string {
+  return `#${parts.map((part) => part.toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * A host colour as lowercase `#rrggbb`, or `null` when it is not one we can mix.
+ * Accepts `#rgb[a]`, `#rrggbb[aa]`, `rgb()`/`rgba()` with 0–255 channels, `white`, and `black`.
+ * Alpha is dropped: the reader paints opaque.
+ */
 export function toHex6(color: string): string | null {
   const value = color.trim().toLowerCase()
-  const long = /^#([0-9a-f]{6})$/.exec(value)
-  if (long !== null) {
-    return value
+  const named = NAMED.get(value)
+  if (named !== undefined) {
+    return rgbHex(named)
   }
-  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(value)
-  if (short === null) {
+  const long = /^#([0-9a-f]{6})(?:[0-9a-f]{2})?$/.exec(value)
+  if (long !== null) {
+    return `#${long[1]}`
+  }
+  const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])[0-9a-f]?$/.exec(value)
+  if (short !== null) {
+    const [, r = '0', g = '0', b = '0'] = short
+    return `#${r}${r}${g}${g}${b}${b}`
+  }
+  const rgb = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*(?:,\s*[\d.]+%?\s*)?\)$/.exec(value)
+  if (rgb === null) {
     return null
   }
-  const [, r = '0', g = '0', b = '0'] = short
-  return `#${r}${r}${g}${g}${b}${b}`
+  const parts = rgb.slice(1, 4).map(Number)
+  if (parts.some((part) => part > 255)) {
+    return null
+  }
+  return rgbHex(parts)
 }
 
 function channels(hex6: string): [number, number, number] {

@@ -42,9 +42,26 @@ describe('isDarkHighlightHex', () => {
 })
 
 describe('toHex6', () => {
-  it('expands short hex, lowercases, and rejects non-hex', () => {
+  it('expands short hex and lowercases', () => {
     expect(toHex6('#ABC')).toBe('#aabbcc')
     expect(toHex6('#00909F')).toBe('#00909f')
-    expect(toHex6('rgb(0, 0, 0)')).toBeNull()
+    expect(toHex6('rgb(0, 0, 0)')).toBe('#000000')
+  })
+
+  it('reads the formats hosts pass, dropping alpha', () => {
+    expect(toHex6('#00909F80')).toBe('#00909f')
+    expect(toHex6('#abc8')).toBe('#aabbcc')
+    expect(toHex6('rgb(250, 245, 235)')).toBe('#faf5eb')
+    expect(toHex6('rgba(250,245,235,0.5)')).toBe('#faf5eb')
+    expect(toHex6(' White ')).toBe('#ffffff')
+    expect(toHex6('black')).toBe('#000000')
+  })
+
+  it('rejects what it cannot mix', () => {
+    expect(toHex6('rgb(256, 0, 0)')).toBeNull()
+    expect(toHex6('hsl(0, 0%, 100%)')).toBeNull()
+    expect(toHex6('rebeccapurple')).toBeNull()
+    expect(toHex6('transparent')).toBeNull()
+    expect(toHex6('#abcde')).toBeNull()
   })
 })

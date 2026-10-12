@@ -102,8 +102,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const isCurrent = passage !== null && passage.key === currentKey
 
   // Colours: overrides win over tokens; the mix and alpha helpers need #rrggbb.
-  const background = toHex6(backgroundColor ?? '') ?? tokens.background
-  const ink = toHex6(foregroundColor ?? '') ?? tokens.foreground
+  const background = hostColor(backgroundColor, 'backgroundColor') ?? tokens.background
+  const ink = hostColor(foregroundColor, 'foregroundColor') ?? tokens.foreground
   const muted = foregroundColor === undefined ? tokens.mutedForeground : ink
 
   const isSans = decodeFontFamilyFromDom(fontFamily) === INTER_FONT
@@ -519,6 +519,23 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       )}
     </View>
   )
+}
+
+const warnedColors = new Set<string>()
+
+/** A host colour as `#rrggbb`; one the mixer cannot read warns once in development and falls back. */
+function hostColor(color: string | undefined, prop: string): string | null {
+  if (color === undefined) {
+    return null
+  }
+  const hex = toHex6(color)
+  if (hex === null && __DEV__ && !warnedColors.has(color)) {
+    warnedColors.add(color)
+    console.warn(
+      `BibleReader: ${prop} "${color}" is not a colour the native reader can read; using the theme colour. Pass hex or rgb().`,
+    )
+  }
+  return hex
 }
 
 /** Web's `chapterUnavailable`: the catalog lists chapters and this one (nor the intro) is not among them. */
