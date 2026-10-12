@@ -19,6 +19,12 @@ describe('resolveBlock', () => {
     expect(block.firstIndent).toBe(F * 0.75)
     expect(block.headIndent).toBe(0)
   })
+
+  it('keeps aligned blocks off the gutters, as Swift spacers do', () => {
+    expect(resolveBlock(['ms1'], F).alignInset).toEqual({ start: 8, end: 8 })
+    expect(resolveBlock(['qr'], F).alignInset).toEqual({ start: 8, end: 0 })
+    expect(resolveBlock(['p'], F).alignInset).toEqual({ start: 0, end: 0 })
+  })
 })
 
 describe('resolveChars', () => {

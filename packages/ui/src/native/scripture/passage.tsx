@@ -344,8 +344,8 @@ const BlockView = memo(function BlockView({
           ...look.face(rule.weight, rule.italic),
           textAlign: rule.align,
           writingDirection: look.rtl ? 'rtl' : 'ltr',
-          paddingStart: rule.headIndent + highlightEndRoom(look.fontSize),
-          paddingEnd: highlightEndRoom(look.fontSize),
+          paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
+          paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
         }}
       >
         {/* iOS reads paragraph style (lineHeight) from the first character; an
@@ -401,7 +401,15 @@ const BlockView = memo(function BlockView({
   let windows: LineWindow[] = []
   if (hasPaint) {
     windows = lines.map((line) =>
-      lineWindow(line, space, look.rtl, rule.headIndent + room, room, pad, rule.size),
+      lineWindow(
+        line,
+        space,
+        look.rtl,
+        rule.headIndent + rule.alignInset.start + room,
+        rule.alignInset.end + room,
+        pad,
+        rule.size,
+      ),
     )
   }
   const shareBackdrop =
@@ -521,8 +529,8 @@ const BlockView = memo(function BlockView({
             line,
             space,
             look.rtl,
-            rule.headIndent + highlightEndRoom(look.fontSize),
-            highlightEndRoom(look.fontSize),
+            rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
+            rule.alignInset.end + highlightEndRoom(look.fontSize),
           )
           return (
             <View

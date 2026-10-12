@@ -99,7 +99,13 @@ export type ResolvedBlock = {
   bottom: number
   firstIndent: number
   headIndent: number
+  /** Room each side of a centred or right-aligned block, before the highlight end room. */
+  alignInset: { start: number; end: number }
 }
+
+// Swift aligns a block inside `HStack { Spacer(); text; Spacer() }`; each spacer keeps
+// its 8pt minimum (a stack adds no spacing beside a spacer), so the text never reaches the gutter.
+const SPACER_INSET = 8
 
 /** Merges every class's rule, later classes winning, then resolves pt values for font size `F`. */
 export function resolveBlock(classes: readonly string[], fontSize: number): ResolvedBlock {
@@ -122,6 +128,10 @@ export function resolveBlock(classes: readonly string[], fontSize: number): Reso
     bottom: rule.mB ?? 0,
     firstIndent: centred ? 0 : fontSize * 0.25 * Math.min(Math.max((rule.first ?? 0) * 3, 0), 24),
     headIndent: centred ? 0 : 8 * (rule.head ?? 0),
+    alignInset: {
+      start: rule.align === undefined ? 0 : SPACER_INSET,
+      end: centred ? SPACER_INSET : 0,
+    },
   }
 }
 
