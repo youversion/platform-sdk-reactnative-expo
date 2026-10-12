@@ -283,24 +283,32 @@ const LETTER = /\p{L}/gu
  */
 export function isRtlText(blocks: readonly Block[]): boolean {
   // Headings can quote another script, so only scripture votes.
-  let rtl = 0
-  let ltr = 0
+  const texts: string[] = []
   for (const block of blocks) {
     if (block.heading) {
       continue
     }
     for (const segment of block.segments) {
       for (const inline of segment.inlines) {
-        if (inline.kind !== 'text') {
-          continue
+        if (inline.kind === 'text') {
+          texts.push(inline.text)
         }
-        for (const [letter] of inline.text.matchAll(LETTER)) {
-          if (RTL_LETTER.test(letter)) {
-            rtl += 1
-          } else {
-            ltr += 1
-          }
-        }
+      }
+    }
+  }
+  return isRtlRuns(texts)
+}
+
+/** The same strong-letter vote over plain strings, for footnote sheets that arrive without a direction. */
+export function isRtlRuns(texts: Iterable<string>): boolean {
+  let rtl = 0
+  let ltr = 0
+  for (const text of texts) {
+    for (const [letter] of text.matchAll(LETTER)) {
+      if (RTL_LETTER.test(letter)) {
+        rtl += 1
+      } else {
+        ltr += 1
       }
     }
   }

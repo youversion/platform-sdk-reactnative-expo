@@ -8,7 +8,7 @@ import { footnoteMarker } from '../lib/footnote-html'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace, type FontFace } from '../theme/fonts'
 import { useSerifFace, type SerifFaceFor } from '../theme/use-fonts'
-import { parseNoteHtml, type NoteRun } from './scripture/parse-passage'
+import { isRtlRuns, parseNoteHtml, type NoteRun } from './scripture/parse-passage'
 import { smallCaps } from './scripture/passage'
 import { LABEL_SCALE, lineMultiple, resolveChars } from './scripture/styles'
 
@@ -41,7 +41,7 @@ export default function FootnoteContent({
       <FootnoteBody
         data={data}
         versionAbbreviation={versionAbbreviation}
-        rtl={scriptureDirection === 'rtl'}
+        direction={scriptureDirection}
         lineHeight={VERSE_FONT_SIZE * lineMultiple(lineSpacing)}
       />
     </ThemeContext.Provider>
@@ -51,12 +51,12 @@ export default function FootnoteContent({
 function FootnoteBody({
   data,
   versionAbbreviation,
-  rtl,
+  direction,
   lineHeight,
 }: {
   data: FootnoteData
   versionAbbreviation: string | undefined
-  rtl: boolean
+  direction: 'ltr' | 'rtl' | undefined
   lineHeight: number
 }): ReactNode {
   const tokens = useTokens()
@@ -71,6 +71,14 @@ function FootnoteBody({
   }
   const verseParagraphs = useMemo(() => parseNoteHtml(data.verseHtml), [data.verseHtml])
   const noteParagraphs = useMemo(() => data.notes.map(parseNoteHtml), [data.notes])
+  // FootnoteData carries no direction, so a host that does not know it lets the text vote.
+  const rtl = useMemo(() => {
+    if (direction !== undefined) {
+      return direction === 'rtl'
+    }
+    const paragraphs = verseParagraphs.length > 0 ? verseParagraphs : noteParagraphs.flat()
+    return isRtlRuns(paragraphs.flat().map((run) => run.text))
+  }, [direction, verseParagraphs, noteParagraphs])
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
 
