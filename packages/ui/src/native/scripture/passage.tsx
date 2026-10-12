@@ -1,4 +1,4 @@
-import { memo, useState, type ReactNode } from 'react'
+import { memo, useMemo, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -112,7 +112,12 @@ const NBSP = '\u00a0'
 type Layer = 'text' | 'underline' | 'fill' | 'dimFill'
 
 export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
-  const resolved = blocks.map((block) => resolveBlock(block.classes, rest.look.fontSize))
+  const { fontSize } = rest.look
+  // Stable across taps, so the memoized blocks keep their `rule` and `previous` props.
+  const resolved = useMemo(
+    () => blocks.map((block) => resolveBlock(block.classes, fontSize)),
+    [blocks, fontSize],
+  )
   return (
     <View style={{ direction: rest.look.rtl ? 'rtl' : 'ltr' }}>
       {blocks.map((block, index) => (
