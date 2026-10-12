@@ -63,7 +63,7 @@ const SPINNER_DELAY_MS = 250
 const NO_VERSES: ReadonlyMap<number, { text: string }> = new Map()
 
 /**
- * POC: the `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
+ * The `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
  * Same props as the DOM impl, so the host swaps it through the impl registry.
  */
 export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
@@ -547,8 +547,8 @@ function isChapterMissing(entry: BookCatalogEntry | null, chapter: string): bool
 }
 
 /**
- * POC switch: draw `BibleReader` scripture with native `<Text>` or the Expo DOM reader.
- * Default is `'dom'`. Remount the reader after a change so it picks up the new impl.
+ * Draw `BibleReader` scripture with native `<Text>` or the Expo DOM reader. Default is `'dom'`
+ * until the WebView reader is removed. Remount the reader after a change so it picks up the new impl.
  */
 export function unstable_setReaderRenderer(renderer: 'dom' | 'native'): void {
   if (renderer === 'native') {
