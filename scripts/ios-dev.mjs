@@ -247,6 +247,22 @@ export function buildExpoEnvironment(port) {
   }
 }
 
+// Xcode 27 moved Simulator out of Developer/Applications and replaced it with DeviceHub.
+const SIMULATOR_APP_CANDIDATES = [
+  'Applications/Simulator.app',
+  '../Applications/Simulator.app',
+  '../Applications/DeviceHub.app',
+]
+
+export function resolveSimulatorApp(developerDir, exists = existsSync) {
+  if (!developerDir) return null
+  for (const relativePath of SIMULATOR_APP_CANDIDATES) {
+    const appPath = join(developerDir, relativePath)
+    if (exists(appPath)) return appPath
+  }
+  return null
+}
+
 function readSimulators() {
   const output = capture('xcrun', ['simctl', 'list', 'devices', 'available', '-j'])
   if (!output) {
@@ -427,9 +443,15 @@ async function dev(options) {
   console.log(`Repository: ${REPO_ROOT}`)
   console.log(`Commit: ${capture('git', ['rev-parse', '--short', 'HEAD'])}`)
   console.log(`Simulator: ${simulator.name} (${simulator.udid})`)
+  const simulatorApp = resolveSimulatorApp(capture('xcode-select', ['-p']))
+  if (!simulatorApp) {
+    throw new Error(
+      'Simulator app was not found. Xcode 27 ships DeviceHub instead. Install Xcode, then run `sudo xcode-select -s /Applications/Xcode.app`.',
+    )
+  }
 
   try {
-    run('open', ['-a', 'Simulator'])
+    run('open', [simulatorApp])
     await runChild('xcrun', ['simctl', 'bootstatus', simulator.udid, '-b'], {
       label: 'Simulator boot',
     })
