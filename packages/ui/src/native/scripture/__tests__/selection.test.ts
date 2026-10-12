@@ -1,9 +1,9 @@
 import { buildVerseSelection, formatVerseNumbers, parseFocusPassageId } from '../selection'
 
 const texts = new Map([
-  [16, 'For God so loved the world'],
-  [17, 'For God did not send his Son'],
-  [19, 'This is the verdict'],
+  [16, { text: 'For God so loved the world' }],
+  [17, { text: 'For God did not send his Son' }],
+  [19, { text: 'This is the verdict' }],
 ])
 
 const base = {

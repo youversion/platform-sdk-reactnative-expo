@@ -60,6 +60,7 @@ const GUTTER = 32
 const TOP_PADDING = 16
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
+const NO_VERSES: ReadonlyMap<number, { text: string }> = new Map()
 
 /**
  * POC: the `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
@@ -172,10 +173,6 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       return
     }
     const now = latest.current
-    const verseTexts = new Map<number, string>()
-    for (const [verse, info] of now.passage?.parsed.verses ?? []) {
-      verseTexts.set(verse, info.text)
-    }
     const selection = buildVerseSelection({
       versionId: now.versionId,
       book: now.book,
@@ -183,7 +180,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       verses,
       bookTitle: now.bookTitle,
       versionAbbreviation: now.abbreviation,
-      verseTexts,
+      verseTexts: now.passage?.parsed.verses ?? NO_VERSES,
     })
     Promise.resolve(handler(selection)).catch(console.error)
   }, [])

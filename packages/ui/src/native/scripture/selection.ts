@@ -66,7 +66,7 @@ export type VerseSelectionInput = {
   bookTitle: string | null
   versionAbbreviation: string | null
   /** Clean text per verse, every fragment joined. */
-  verseTexts: ReadonlyMap<number, string>
+  verseTexts: ReadonlyMap<number, { text: string }>
 }
 
 /** The `onVerseSelect` payload; empty selections carry `''` and `null` like the DOM reader. */
@@ -96,7 +96,7 @@ function buildShareData(
   bookName: string,
 ): BibleReaderShareData {
   const verseText = joinVerseTexts(
-    verses.map((verse) => ({ verse, text: input.verseTexts.get(verse) ?? '' })),
+    verses.map((verse) => ({ verse, text: input.verseTexts.get(verse)?.text ?? '' })),
   )
   const reference = buildVerseReference(
     bookName,
