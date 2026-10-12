@@ -83,5 +83,6 @@
   "decreaseFontSizeAriaLabel": "Disminuir tamaño de letra",
   "increaseFontSizeAriaLabel": "Aumentar tamaño de letra",
   "interFontName": "Inter",
-  "untitledSerifFontName": "Untitled Serif"
+  "untitledSerifFontName": "Untitled Serif",
+  "generic.requestErrorBody": "Esta solicitud no se puede completar en este momento."
 }
