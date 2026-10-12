@@ -439,7 +439,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               )}
             </View>
           ) : passage === null ? (
-            <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
+            showSpinner && <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
           ) : (
             <View
               onLayout={(event: LayoutChangeEvent) => {
