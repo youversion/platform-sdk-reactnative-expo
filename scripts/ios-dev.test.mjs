@@ -5,6 +5,8 @@ import { createServer as createHttpServer } from 'node:http'
 import { createServer } from 'node:net'
 import { test } from 'node:test'
 
+import { join } from 'node:path'
+
 import {
   assertNotInterrupted,
   buildDevClientUrl,
@@ -16,6 +18,7 @@ import {
   metroIsReady,
   parseArguments,
   parseAvailableIphones,
+  resolveSimulatorApp,
   stopChildren,
 } from './ios-dev.mjs'
 
@@ -82,6 +85,20 @@ test('parseAvailableIphones prefers a booted iPhone and excludes unavailable dev
       { name: 'iPhone 16 Pro', udid: 'old-shutdown' },
     ],
   )
+})
+
+test('resolveSimulatorApp prefers Simulator and falls back to DeviceHub', () => {
+  const developerDir = '/Xcode.app/Contents/Developer'
+  assert.equal(
+    resolveSimulatorApp(developerDir, (appPath) => appPath.endsWith('/Developer/Applications/Simulator.app')),
+    join(developerDir, 'Applications/Simulator.app'),
+  )
+  assert.equal(
+    resolveSimulatorApp(developerDir, (appPath) => appPath.endsWith('/DeviceHub.app')),
+    join(developerDir, '../Applications/DeviceHub.app'),
+  )
+  assert.equal(resolveSimulatorApp(developerDir, () => false), null)
+  assert.equal(resolveSimulatorApp(null, () => true), null)
 })
 
 test('chooseSimulator targets an explicit name or UDID instead of the booted default', () => {
