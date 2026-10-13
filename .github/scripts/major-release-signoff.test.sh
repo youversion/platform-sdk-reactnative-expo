@@ -3,8 +3,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WORKFLOW="$ROOT/.github/workflows/major-release-signoff-evaluate.yml"
-TRIGGER="$ROOT/.github/workflows/major-release-signoff.yml"
+WORKFLOW="$ROOT/.github/workflows/major-release-signoff.yml"
+TRIGGER="$ROOT/.github/workflows/major-release-signoff-trigger.yml"
 GATE="$ROOT/.github/workflows/major-release-signoff-gate.yml"
 TMP=$(mktemp -d)
 passes=0
@@ -22,13 +22,13 @@ fail() {
 }
 
 extract_step() {
-  local name="$1"
+  local name="$1" file="${2:-$WORKFLOW}"
   awk -v target="      - name: $name" '
     $0 == target { found = 1; next }
     found && $0 == "        run: |" { capture = 1; next }
     capture && ($0 ~ /^      - name:/ || $0 ~ /^  [[:alnum:]_-]+:/) { exit }
     capture { sub(/^          /, ""); print }
-  ' "$WORKFLOW"
+  ' "$file"
 }
 
 extract_step "Resolve PR context" > "$TMP/context.sh"
@@ -38,6 +38,7 @@ extract_step "Decide whether a signoff is required" > "$TMP/decision.sh"
 extract_step "Regenerate and verify release contents" > "$TMP/verify.sh"
 extract_step "Post an unresolved status" > "$TMP/unresolved.sh"
 extract_step "Mark the status pending" > "$TMP/retarget-hold.sh"
+extract_step "Find the PRs to evaluate" "$GATE" > "$TMP/resolve.sh"
 
 TOOLING_SOURCE="$TMP/tooling-source"
 TOOLING_WORK="$TMP/tooling-work"
@@ -109,7 +110,10 @@ chmod +x "$TMP/bin/sleep"
 cat > "$TMP/bin/gh" <<'EOF'
 #!/usr/bin/env bash
 set -u
-if [[ "$2" == *"/pulls/"* ]]; then
+if [ "$2" = "--paginate" ] && [[ "$3" == *"/pulls?state=open"* ]]; then
+  echo called >> "${MOCK_LIST_CALLS:-/dev/null}"
+  jq -c "$5" "$MOCK_OPEN_PRS_FILE"
+elif [[ "$2" == *"/pulls/"* ]]; then
   echo called >> "${MOCK_PULL_CALLS:-/dev/null}"
   if [ "${MOCK_PULL_ERROR:-0}" = "1" ]; then exit 1; fi
   if [ -n "${MOCK_PULL_CALLS:-}" ] &&
@@ -176,20 +180,14 @@ VALID_COMPARE=$(jq -n --arg base "$BASE_SHA" '{
 
 run_context_case() {
   local name="$1" expected_release_pr="$2" expected_candidate="$3" pr_json="$4" compare_json="$5"
-  local event_kind="${6:-pull_request}"
   local output="$TMP/output" pr_file="$TMP/pr.json" compare_file="$TMP/compare.json"
-  local event_pr_number=400 event_issue_number=
-  if [ "$event_kind" = "issue_comment" ]; then
-    event_pr_number=
-    event_issue_number=400
-  fi
   : > "$output"
   : > "$TMP/compare-calls"
   : > "$TMP/pull-calls"
   printf '%s\n' "$pr_json" > "$pr_file"
   printf '%s\n' "$compare_json" > "$compare_file"
   if PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER="$event_pr_number" EVENT_ISSUE_NUMBER="$event_issue_number" \
+    PR_NUMBER=400 \
     REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$pr_file" MOCK_COMPARE_FILE="$compare_file" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" bash "$TMP/context.sh" >/dev/null 2>&1 &&
@@ -210,7 +208,7 @@ run_context_error_case() {
   printf '%s\n' "$VALID_PR" > "$TMP/pr.json"
   printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
   if env PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
+    PR_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" "$error_var"=1 \
     bash "$TMP/context.sh" >/dev/null 2>&1; then
@@ -237,7 +235,7 @@ run_context_retry_case() {
   printf '%s\n' "$VALID_PR" > "$TMP/pr.json"
   printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
   if env PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER= EVENT_ISSUE_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
+    PR_NUMBER=400 REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" \
     MOCK_PULL_FAILURES="$pull_failures" \
@@ -258,11 +256,11 @@ run_context_retry_case() {
 # SHA was addressed passes just as happily when the job posts `state=success`,
 # which is the one outcome this job exists to prevent.
 run_unresolved_case() {
-  local name="$1" payload_sha="$2" lsremote_error="$3" expected_sha="$4" base_ref="${5:-main}"
+  local name="$1" input_sha="$2" lsremote_error="$3" expected_sha="$4" base_ref="${5:-main}"
   local statuses="$TMP/status-calls" call result=0
   : > "$statuses"
   env PATH="$TMP/bin:$PATH" \
-    EVENT_ISSUE_NUMBER=400 PAYLOAD_HEAD_SHA="$payload_sha" PAYLOAD_BASE_REF="$base_ref" \
+    PR_NUMBER=400 HEAD_SHA="$input_sha" BASE_REF="$base_ref" \
     REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     RUN_URL=https://example.invalid/run GH_TOKEN=token \
     MOCK_STATUS_CALLS="$statuses" MOCK_LSREMOTE_SHA="$RECOVERED_SHA" \
@@ -307,7 +305,7 @@ run_status_context_case() {
   printf '%s\n' "$(jq --arg b "$base_ref" '.base.ref = $b' <<<"$VALID_PR")" > "$TMP/pr.json"
   printf '%s\n' "$VALID_COMPARE" > "$TMP/compare.json"
   env PATH="$TMP/bin:$PATH" \
-    EVENT_PR_NUMBER=400 EVENT_ISSUE_NUMBER= \
+    PR_NUMBER=400 \
     REPOSITORY=youversion/platform-sdk-reactnative-expo STATUS_CONTEXT=major-release-signoff \
     GITHUB_OUTPUT="$output" MOCK_PR_FILE="$TMP/pr.json" MOCK_COMPARE_FILE="$TMP/compare.json" \
     MOCK_COMPARE_CALLS="$TMP/compare-calls" MOCK_PULL_CALLS="$TMP/pull-calls" \
@@ -355,8 +353,6 @@ run_status_context_case "a feature-targeted PR reports beside it, not on it" \
 
 run_context_case "accepts the exact generated release PR and consumed changeset shape" \
   true true "$VALID_PR" "$VALID_COMPARE"
-run_context_case "human issue comments resolve the current PR identity and head" \
-  true true "$VALID_PR" "$VALID_COMPARE" issue_comment
 
 for field in login id type; do
   case "$field" in
@@ -401,10 +397,10 @@ run_context_retry_case "transient PR API errors recover on retry" 2 success 3
 run_context_retry_case "persistent PR API errors stop after three attempts" 3 failure 3
 
 # The whole point of the unresolved job: a failed context must still land a failing status
-# on the head, whichever event triggered it. issue_comment payloads carry no SHA, so it
+# on the head, whichever event triggered it. A comment evaluation is given no SHA, so it
 # comes from the git ref instead of the REST call that just failed.
-run_unresolved_case "a pull_request payload head takes the failing status" "$HEAD_SHA" 0 "$HEAD_SHA"
-run_unresolved_case "an issue_comment recovers the head over git" "" 0 "$RECOVERED_SHA"
+run_unresolved_case "a PR-event head takes the failing status" "$HEAD_SHA" 0 "$HEAD_SHA"
+run_unresolved_case "a comment evaluation recovers the head over git" "" 0 "$RECOVERED_SHA"
 run_unresolved_case "an unrecoverable head posts no status at all" "" 1 ""
 # Two PRs can share a head. A feature-targeted one that cannot resolve its context must not
 # write failure to the context the main-targeted one is judged on.
@@ -500,11 +496,9 @@ run_decision_case "failed ordinary previews remain blocked, not major" \
 if pnpm exec prettier --check "$WORKFLOW" "$TRIGGER" "$GATE" >/dev/null; then
   pass "workflow YAML parses and is formatted"
 else
-  fail "workflow YAML parses and is formatted" "prettier rejected $WORKFLOW"
+  fail "workflow YAML parses and is formatted" "prettier rejected a signoff workflow"
 fi
 
-# Bot comments are dropped before the job that holds the per-PR concurrency group, so the
-# gate's own comments cannot cancel an evaluation in flight.
 if awk '/^  resolve:/{f=1} f && /^    name:/{exit} f' "$GATE" |
   grep -Fq "github.event.comment.user.type != 'Bot'"; then
   pass "bot comments never reach the evaluation concurrency group"
@@ -524,12 +518,54 @@ else
 fi
 if ! grep -qE '^  (pull_request|pull_request_target):' "$WORKFLOW" "$GATE" \
   && grep -q '^  workflow_call:' "$WORKFLOW" \
-  && grep -q 'uses: ./.github/workflows/major-release-signoff-evaluate.yml' "$GATE"; then
+  && grep -q 'uses: ./.github/workflows/major-release-signoff.yml' "$GATE"; then
   pass "status writers only run from the default branch"
 else
   fail "status writers only run from the default branch" \
     "the evaluation is reachable from a PR-authored workflow run"
 fi
+
+# The gate decides which PRs to evaluate from the API, never from the trigger run.
+run_resolve_case() {
+  local name="$1" event="$2" open_prs="$3" expected="$4" expected_list_calls="$5"
+  local output="$TMP/output" calls="$TMP/list-calls" got
+  : > "$output"
+  : > "$calls"
+  printf '%s\n' "$open_prs" > "$TMP/open-prs.json"
+  env PATH="$TMP/bin:$PATH" \
+    EVENT_NAME="$event" HEAD_SHA="$HEAD_SHA" ISSUE_NUMBER=400 \
+    REPOSITORY=youversion/platform-sdk-reactnative-expo GH_TOKEN=token GITHUB_OUTPUT="$output" \
+    MOCK_OPEN_PRS_FILE="$TMP/open-prs.json" MOCK_LIST_CALLS="$calls" \
+    bash "$TMP/resolve.sh" >/dev/null 2>&1 || true
+  got=$(sed -n 's/^prs=//p' "$output")
+  if jq -e --argjson want "$expected" '. == $want' <<<"${got:-null}" >/dev/null 2>&1 &&
+    [ "$(wc -l < "$calls" | tr -d ' ')" = "$expected_list_calls" ]; then
+    pass "$name"
+  else
+    fail "$name" "expected $expected with $expected_list_calls list call(s); got '${got}' with $(wc -l < "$calls" | tr -d ' ')"
+  fi
+}
+
+open_pr() {
+  jq -cn --argjson n "$1" --arg sha "$2" --arg base "$3" --arg repo "$4" \
+    '{number: $n, head: {sha: $sha, repo: {full_name: $repo}}, base: {ref: $base}}'
+}
+SAME_REPO=youversion/platform-sdk-reactnative-expo
+OTHER_SHA=$(printf '%040d' 7)
+
+run_resolve_case "a push evaluates the PR whose head it is" workflow_run \
+  "[$(open_pr 400 "$HEAD_SHA" main "$SAME_REPO"), $(open_pr 401 "$OTHER_SHA" main "$SAME_REPO")]" \
+  "[{\"number\":400,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"main\"}]" 1
+run_resolve_case "PRs sharing a head are each evaluated against their own base" workflow_run \
+  "[$(open_pr 400 "$HEAD_SHA" main "$SAME_REPO"), $(open_pr 402 "$HEAD_SHA" journey "$SAME_REPO")]" \
+  "[{\"number\":400,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"main\"},{\"number\":402,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"journey\"}]" 1
+run_resolve_case "a fork PR is found by its head SHA" workflow_run \
+  "[$(open_pr 403 "$HEAD_SHA" main someone/fork)]" \
+  "[{\"number\":403,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"main\"}]" 1
+run_resolve_case "a run superseded by a newer push evaluates nothing" workflow_run \
+  "[$(open_pr 400 "$OTHER_SHA" main "$SAME_REPO")]" "[]" 1
+run_resolve_case "a comment evaluates its own PR without trusting a head" issue_comment \
+  "[]" '[{"number":400,"head_sha":"","base_ref":""}]' 0
 
 if grep -Fq \
   "needs.context.outputs.generated_release_pr != 'true'" \
