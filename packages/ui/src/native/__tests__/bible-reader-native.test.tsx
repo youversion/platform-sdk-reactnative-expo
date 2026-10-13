@@ -54,6 +54,47 @@ function chapterBody(sentence: string): string {
   return JSON.stringify({ content: html, reference: 'John 1' })
 }
 
+function fetchVersions(versions: Record<number, { sentence: string }>): FetchBibleContent {
+  return async ({ path }) => {
+    const passageMatch = /\/passages\/[^.]+\.([^?]+)/.exec(path)
+    const versionId = /\/v1\/bibles\/(\d+)\//.exec(path)
+    const version = versionId === null ? undefined : versions[Number(versionId[1])]
+    const chapter = passageMatch?.[1]
+    if (version === undefined || chapter !== '1') {
+      return { status: 404, body: '', contentType: 'application/json' }
+    }
+    return {
+      status: 200,
+      body: chapterBody(version.sentence),
+      contentType: 'application/json',
+    }
+  }
+}
+
+/** Version names load through the provider's fetch, separate from the chapter prop. */
+function stubVersionNames(names: Record<number, string>): () => void {
+  const prior = global.fetch
+  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input)
+    const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
+    if (match !== null && !url.includes('/books')) {
+      const abbreviation = names[Number(match[1])]
+      if (abbreviation !== undefined) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ abbreviation, language_tag: 'en' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+          }),
+        )
+      }
+    }
+    return prior(input, init)
+  })
+  return () => {
+    global.fetch = prior
+  }
+}
+
 function fetchChapters(
   chapters: Record<string, { status: number; sentence?: string }>,
 ): FetchBibleContent {
@@ -147,6 +188,95 @@ describe('BibleReaderNative', () => {
     await screen.findByText('The earth was')
 
     expect(onVerseSelect).toHaveBeenLastCalledWith(CLEARED)
+  })
+
+  it('does not relabel the open selection when a visited version is chosen', async () => {
+    const otherId = 111
+    const restoreNames = stubVersionNames({
+      [VERSION_ID]: 'BSB',
+      [otherId]: 'RVR',
+    })
+    const onVerseSelect = jest.fn()
+    try {
+      const reader = mount({
+        onVerseSelect,
+        fetchBibleContent: fetchVersions({
+          [VERSION_ID]: { sentence: 'In the beginning' },
+          [otherId]: { sentence: 'Al principio' },
+        }),
+      })
+
+      await screen.findByText('In the beginning')
+      reader.update({ versionId: otherId })
+      await screen.findByText('Al principio')
+      reader.update({ versionId: VERSION_ID })
+      await screen.findByText('In the beginning')
+      pressVerse('In the beginning')
+
+      const before = onVerseSelect.mock.calls.length
+      reader.update({ versionId: otherId })
+      await screen.findByText('Al principio')
+
+      const duringSwitch = onVerseSelect.mock.calls
+        .slice(before)
+        .map((call) => call[0] as BibleReaderVerseSelection)
+      const stillSelected = duringSwitch.filter((selection) => selection.verses.length > 0)
+      expect(stillSelected).toEqual([])
+      expect(duringSwitch.at(-1)).toEqual({
+        versionId: otherId,
+        book: 'JHN',
+        chapter: '1',
+        verses: [],
+        passageIds: [],
+        reference: '',
+        shareData: null,
+      })
+    } finally {
+      restoreNames()
+    }
+  })
+
+  it('resends the selection once the version name arrives', async () => {
+    let releaseName = () => {}
+    const nameArrives = new Promise<void>((resolve) => {
+      releaseName = resolve
+    })
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return nameArrives.then(
+          () =>
+            new Response(JSON.stringify({ abbreviation: 'BSB', language_tag: 'en' }), {
+              status: 200,
+              headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+            }),
+        )
+      }
+      return prior(input, init)
+    })
+    const onVerseSelect = jest.fn()
+    try {
+      mount({ onVerseSelect })
+
+      await screen.findByText('In the beginning')
+      pressVerse('In the beginning')
+      expect(onVerseSelect).toHaveBeenCalledWith(JOHN_1)
+
+      releaseName()
+      await waitFor(() => {
+        expect(onVerseSelect).toHaveBeenLastCalledWith({
+          ...JOHN_1,
+          shareData: {
+            ...JOHN_1.shareData,
+            reference: 'JHN 1:1 BSB',
+            text: '“In the beginning”\n\nJHN 1:1 BSB',
+          },
+        })
+      })
+    } finally {
+      global.fetch = prior
+    }
   })
 
   it('reports a verse focus once the chapter is on screen', async () => {

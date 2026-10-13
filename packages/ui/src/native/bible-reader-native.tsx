@@ -198,11 +198,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   )
 
   // The sheet's reference reads "JHN 3:16" until the names land, so resend once they do.
+  // A cached name can arrive on the same turn as navigation, while the previous passage
+  // is still loaded and this effect still sees the old selection.
   useEffect(() => {
-    if (latest.current.selected.size > 0) {
-      emit(latest.current.selected)
+    const now = latest.current
+    if (now.selected.size === 0 || now.passage?.key !== currentKey) {
+      return
     }
-  }, [bookTitle, abbreviation, emit])
+    emit(now.selected)
+  }, [bookTitle, abbreviation, currentKey, emit])
 
   // Navigation clears the selection and tells the host, which closes the verse sheet.
   const locationRef = useRef(currentKey)
