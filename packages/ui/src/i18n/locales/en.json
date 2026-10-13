@@ -84,5 +84,6 @@
   "bibleSearchFilterNewTestament": "New Testament",
   "bibleSearchFilterOldTestament": "Old Testament",
   "bibleSearchFiltersButton": "Filters",
-  "generic.requestErrorBody": "This request can’t be completed right now."
+  "generic.requestErrorBody": "This request can’t be completed right now.",
+  "footnoteAriaLabel": "Footnote"
 }
