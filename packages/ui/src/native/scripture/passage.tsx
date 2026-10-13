@@ -333,6 +333,11 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
+    // Ordinary blocks resolve to 'left'. iOS keeps that explicit left when the passage is rtl.
+    let textAlign = rule.align
+    if (textAlign === 'left' && look.rtl) {
+      textAlign = 'right'
+    }
     return (
       <RNText
         ref={ghost ? undefined : (node) => onBlockRef(index, node)}
@@ -347,7 +352,7 @@ const BlockView = memo(function BlockView({
           lineHeight: lineBox,
           color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
           ...look.face(rule.weight, rule.italic),
-          textAlign: rule.align,
+          textAlign,
           writingDirection: look.rtl ? 'rtl' : 'ltr',
           paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
           paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),

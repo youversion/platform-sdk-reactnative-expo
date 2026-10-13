@@ -1,6 +1,17 @@
+import { render, screen } from '@testing-library/react-native'
 import { isValidElement } from 'react'
+import { StyleSheet } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
-import { coverRects, sampleTop, smallCaps, type LineWindow } from '../passage'
+import type { Block } from '../parse-passage'
+import {
+  Passage,
+  coverRects,
+  sampleTop,
+  smallCaps,
+  type LineWindow,
+  type PassageLook,
+} from '../passage'
 
 type RunProps = { style: { fontSize: number; letterSpacing: number }; children: string }
 
@@ -77,5 +88,78 @@ describe('sampleTop', () => {
 
   it('does not use the natural top when the band extends past the line box', () => {
     expect(sampleTop({ y: 10, height: 10 }, 8, 16)).toBe(7)
+  })
+})
+
+const LOOK: PassageLook = {
+  fontSize: 20,
+  lineSpacing: 1.7,
+  rtl: false,
+  face: () => ({}),
+  labelFace: {},
+  ink: '#000000',
+  wj: '#ff0000',
+  underline: '#cccccc',
+  background: '#ffffff',
+}
+
+function block(classes: string[], text: string): Block {
+  return {
+    classes,
+    heading: false,
+    verses: [],
+    segments: [{ verse: null, inlines: [{ kind: 'text', text, classes: [] }] }],
+  }
+}
+
+function textAligns(sentence: string): string[] {
+  return screen.getAllByText(sentence).map((node) => {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const align = StyleSheet.flatten(current.props.style)?.textAlign
+      if (align !== undefined) {
+        return align
+      }
+      current = current.parent
+    }
+    throw new Error(`no textAlign for ${sentence}`)
+  })
+}
+
+function renderBlock(classes: string[], text: string, rtl: boolean): void {
+  render(
+    <Passage
+      blocks={[block(classes, text)]}
+      look={{ ...LOOK, rtl }}
+      selected={new Set()}
+      paint={new Map()}
+      focus={null}
+      onVersePress={() => undefined}
+      onNotePress={() => undefined}
+      onBlockLayout={() => undefined}
+      onBlockRef={() => undefined}
+    />,
+  )
+}
+
+describe('paragraph alignment', () => {
+  it('starts an ordinary right-to-left paragraph on the right', () => {
+    renderBlock(['p'], 'בראשית', true)
+    expect(textAligns('בראשית')).toEqual(['right'])
+  })
+
+  it('keeps an ordinary left-to-right paragraph on the left', () => {
+    renderBlock(['p'], 'In the beginning', false)
+    expect(textAligns('In the beginning')).toEqual(['left'])
+  })
+
+  it('keeps a centred line centred in a right-to-left passage', () => {
+    renderBlock(['qc'], 'סלה', true)
+    expect(textAligns('סלה')).toEqual(['center'])
+  })
+
+  it('keeps an explicit right line on the right in a right-to-left passage', () => {
+    renderBlock(['qr'], 'סלה', true)
+    expect(textAligns('סלה')).toEqual(['right'])
   })
 })
