@@ -71,11 +71,22 @@ function fetchVersions(versions: Record<number, { sentence: string }>): FetchBib
   }
 }
 
+/** A fetch target as a URL string. A `Request` stringifies to `[object Object]`. */
+function fetchUrl(input: RequestInfo | URL): string {
+  if (input instanceof URL) {
+    return input.href
+  }
+  if (input instanceof Request) {
+    return input.url
+  }
+  return input
+}
+
 /** Version names load through the provider's fetch, separate from the chapter prop. */
 function stubVersionNames(names: Record<number, string>): () => void {
   const prior = global.fetch
   global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input)
+    const url = fetchUrl(input)
     const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
     if (match !== null && !url.includes('/books')) {
       const abbreviation = names[Number(match[1])]
@@ -217,6 +228,7 @@ describe('BibleReaderNative', () => {
       reader.update({ versionId: otherId })
       await screen.findByText('Al principio')
 
+      // SAFETY: the reader only calls onVerseSelect with a BibleReaderVerseSelection.
       const duringSwitch = onVerseSelect.mock.calls
         .slice(before)
         .map((call) => call[0] as BibleReaderVerseSelection)
@@ -243,7 +255,7 @@ describe('BibleReaderNative', () => {
     })
     const prior = global.fetch
     global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
+      const url = fetchUrl(input)
       if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
         return nameArrives.then(
           () =>
