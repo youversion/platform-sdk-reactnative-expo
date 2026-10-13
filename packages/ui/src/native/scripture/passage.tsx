@@ -248,6 +248,7 @@ const BlockView = memo(function BlockView({
     }
     if (inline.kind === 'note') {
       const size = fontSize * NOTE_SCALE
+      // Accessible name is a follow-up. Web's `footnoteAriaLabel` is not in the synced locales yet.
       return (
         <Pressable
           key={key}
