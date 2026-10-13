@@ -213,7 +213,7 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
       chars.smallCaps = true
     } else if (ITALIC.has(name)) {
       chars.italic = true
-    } else if (name === 'bd') {
+    } else if (name === 'bd' || name === 'fr') {
       chars.weight = 700
     } else if (name === 'bdit' || name === 'fk' || name === 'fl') {
       chars.weight = 500

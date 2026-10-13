@@ -60,6 +60,10 @@ describe('FootnoteContent', () => {
       StyleSheet.flatten(screen.getByTestId('footnote-superscript').props.style),
     ).toMatchObject({ transform: [{ translateY: -5 }] })
 
+    expect(flattened('1:5')).toMatchObject({
+      fontFamily: fontMapKey(light.fontFamily.serif, 700, 'normal'),
+      fontSize: 16,
+    })
     expect(flattened('Or')).toMatchObject({
       color: light.foreground,
       fontFamily: fontMapKey(light.fontFamily.serif, 400, 'normal'),
