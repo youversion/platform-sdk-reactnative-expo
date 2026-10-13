@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, the auth button, and `BibleReader` are native. `BibleReader` draws the chapter and its footnotes with native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still render their passage in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). The previous `BibleReader` WebView remains for comparison and will be removed. `@expo/dom-webview` and the Web SDK stay required for the passages that still use them.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, the auth button, and `BibleReader` are native. `BibleReader` draws the chapter and its footnotes with native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still render their passage in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK stay required for the passages that still use them.
 
 ## Table of Contents
 
@@ -161,7 +161,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-The chapter is native text. That is the default. `unstable_setReaderRenderer('dom')` mounts the WebView reader for comparison. The WebView reader will be removed when the comparison is done. Remount `BibleReader` after changing the switch.
+The chapter is native text.
 
 See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 

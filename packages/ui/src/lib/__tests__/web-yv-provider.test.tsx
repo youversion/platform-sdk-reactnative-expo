@@ -25,7 +25,7 @@ function renderShim(props: FilterProps): FilterProps {
   return (element as ReactElement<FilterProps>).props
 }
 
-const VERSION_FILTER_DOM_ENTRIES = ['bible-reader.tsx', 'bible-text-view.tsx'] as const
+const VERSION_FILTER_DOM_ENTRIES = ['bible-text-view.tsx'] as const
 
 describe('web YouVersionProvider', () => {
   it('injects the x-yvp-sdk header when consumer passes no additionalHeaders', () => {

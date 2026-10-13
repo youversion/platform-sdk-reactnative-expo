@@ -225,7 +225,7 @@ Run `pnpm lint:no-raw-color` to exercise the fixture harness that proves the rul
 
 ```text
 packages/ui/src/
-  dom/     Comparison WebView reader, plus BibleTextView. The chapter defaults to native text. Footnotes are native.
+  dom/     BibleTextView. The chapter and footnotes are native text.
   native/  Reader body, footnotes, chrome, provider, pickers, settings, and sheets
   lib/     Shared adapters, hooks, constants, and pure logic
 
@@ -241,7 +241,7 @@ apps/example/  Expo Router app consuming both packages via workspace:*
 ## Project Notes
 
 - **Packages**: `@youversion/platform-react-native-expo-ui` (components) and `@youversion/platform-react-native-expo-core` (provider, auth, search, storage). The example app depends on both; UI re-exports the public component API and wraps the core provider.
-- **Expo DOM**: DOM components use `'use dom'` and run in Expo's DOM/WebView runtime. Mount Web SDK components only inside those wrappers. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still use them. `BibleReader` and footnote sheets draw native text. The WebView `BibleReader` stays for comparison during this change and will be removed. Toolbar, pickers, settings, and other chrome stay native.
+- **Expo DOM**: DOM components use `'use dom'` and run in Expo's DOM/WebView runtime. Mount Web SDK components only inside those wrappers. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still use them. `BibleReader` and footnote sheets draw native text. Toolbar, pickers, settings, and other chrome stay native.
 - **Provider setup**: `GestureHandlerRootView` must wrap `YouVersionProvider` so bottom-sheet gestures have the right native ancestor.
 - **Exports**: keep public exports in each package's `src/index.ts` barrel files. Auth hooks and types live in core; Bible components live in UI.
 - **Metro**: keep `apps/example/metro.config.js` minimal with `getDefaultConfig(__dirname)` only. Expo SDK 52+ handles monorepo support. `apps/example/index.js` re-exports `expo-router/entry` — required for Metro monorepo resolution; do not inline the entry.

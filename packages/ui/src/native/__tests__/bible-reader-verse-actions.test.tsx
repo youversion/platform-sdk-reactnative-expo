@@ -576,14 +576,14 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
 })
 
 /**
- * Web keeps the in-WebView popover, so the native sheet must stay out of its
- * way. `NativeSheet` already returns `null` there, but the reader also declines
- * to mount the sheet at all — the two have to agree, or a future `NativeSheet`
- * that renders something on web would put two verse-action UIs on screen.
+ * Web has no verse-action sheet. `NativeSheet` returns null there, and the
+ * reader also declines to mount the sheet. The two have to agree, or a future
+ * `NativeSheet` that renders on web would show a sheet on a surface this SDK
+ * does not support.
  *
- * The other half of this fork, `verseActions="popover"` reaching the WebView, is
- * pinned at layer 1 in `lib/__tests__/resolve-verse-actions.test.ts`. It is read
- * once at module load, so flipping `Platform.OS` inside a test cannot move it.
+ * The web `verseActions` value is pinned at layer 1 in
+ * `lib/__tests__/resolve-verse-actions.test.ts`. It is read once at module load,
+ * so flipping `Platform.OS` inside a test cannot move it.
  */
 describe('BibleReader verse action sheet — web', () => {
   const originalOs = Platform.OS

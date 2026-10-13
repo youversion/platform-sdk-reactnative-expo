@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM. The old `BibleReader` WebView stays for comparison and will be removed.
+Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
 
 ## Language
 
@@ -159,11 +159,11 @@ The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM C
 _Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
 
 **Verse Selection**:
-The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). The native reader builds this payload in React Native. The WebView reader still emits it across the DOM bridge. That WebView reader remains for comparison and will be removed. Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. On every platform but web the in-WebView verse action UI is off (`verseActions="none"`). This payload is then the only channel native learns about a selection on, and it is what raises the **Verse Action Sheet**. **Selection Clear Signal** is the only way native dismisses one.
+The serializable payload the reader emits on every selection change, cleared selections included (`verses: []`). The native reader builds this payload in React Native. Carries the **Highlight Scope** triple plus `verses`, per-verse `passageIds`, a localized `reference` for display, and `shareData`. This payload raises the **Verse Action Sheet**. **Selection Clear Signal** is the only way native dismisses one.
 _Avoid_: Verse press, tap event; keying off the payload's location fields when `verses` is empty (a clear from navigation carries the _destination_)
 
 **Selection Clear Signal**:
-A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the WebView. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
+A serializable counter the **Native Wrapper** increments to clear the reader's current **Verse Selection** from outside the chapter text. Mount value is the baseline, so mounting never clears. Same nonce idiom as **Sheet Reset Key** and `openKey`, and for the same reason: an imperative ref handle cannot cross the DOM bridge.
 _Avoid_: `ref.clearSelection()`; a boolean "is selected" prop; **Sheet Reset Key** (that remounts a picker tree; this one clears a selection)
 
 **Verse Action Sheet**:

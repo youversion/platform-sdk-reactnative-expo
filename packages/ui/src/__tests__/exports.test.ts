@@ -48,7 +48,6 @@ describe('package exports', () => {
     expect(ui.useSignOutGuard).toEqual(expect.any(Function))
     expect(ui.getTokens).toEqual(expect.any(Function))
     expect(ui.useTokens).toEqual(expect.any(Function))
-    expect(ui.unstable_setReaderRenderer).toEqual(expect.any(Function))
   })
 
   it('keeps the SDK-owned sheets internal', () => {
@@ -94,7 +93,6 @@ describe('package exports', () => {
         'BibleReaderNavigation',
         'createBibleReaderNavigation',
         'getTokens',
-        'unstable_setReaderRenderer',
         'useSignOutGuard',
         'useTokens',
       ].sort(),

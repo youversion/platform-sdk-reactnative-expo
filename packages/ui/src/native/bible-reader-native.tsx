@@ -12,7 +12,6 @@ import {
 } from 'react-native'
 
 import { Button } from '../components/ui'
-import type { BibleReaderProps } from '../dom/bible-reader'
 import {
   applyMountedVerseFocus,
   handledSeqForStream,
@@ -29,12 +28,15 @@ import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace } from '../theme/fonts'
 import { useSerifFace } from '../theme/use-fonts'
+import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
 
-type BibleReaderNativeProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
+type BibleReaderNativeProps = BibleReaderBodyProps &
+  InternalVersionFilterProps &
+  InternalLocaleProps
 
 type BlockLayouts = {
   key: string | null
@@ -61,10 +63,7 @@ const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
 const NO_VERSES: ReadonlyMap<number, { text: string }> = new Map()
 
-/**
- * The `BibleReaderDom` contract drawn with React Native `<Text>`, no WebView.
- * Same props as the DOM impl, so the host swaps it through the impl registry.
- */
+/** Chapter text drawn with React Native `<Text>`. */
 export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const {
     fetchBibleContent,
