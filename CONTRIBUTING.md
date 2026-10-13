@@ -225,7 +225,7 @@ Run `pnpm lint:no-raw-color` to exercise the fixture harness that proves the rul
 
 ```text
 packages/ui/src/
-  dom/     Temporary WebView reader, plus BibleTextView. Footnotes are native.
+  dom/     Comparison WebView reader, plus BibleTextView. The chapter defaults to native text. Footnotes are native.
   native/  Reader body, footnotes, chrome, provider, pickers, settings, and sheets
   lib/     Shared adapters, hooks, constants, and pure logic
 

@@ -151,9 +151,7 @@ See `BibleCard` in the [component reference](https://developers.youversion.com/s
 `BibleReader` gives you a full Bible reading experience, ready to drop in as a tab or full screen:
 
 ```tsx
-import { BibleReader, unstable_setReaderRenderer } from '@youversion/platform-react-native-expo-ui'
-
-unstable_setReaderRenderer('native')
+import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 
 // 3034 = Berean Standard Bible (BSB); find other IDs at platform.youversion.com
 function ReaderScreen() {
@@ -163,7 +161,7 @@ function ReaderScreen() {
 
 `BibleReader` is stateful — it owns the current `versionId` and coordinates its built-in chapter and version picker sheets. It also paints the signed-in user's highlights on its own, provided your `auth` config requests the `highlights` permission — there is no prop to pass.
 
-The chapter is native text. The call above selects it before the first `BibleReader` mounts. Until that call, the reader still uses the WebView. `unstable_setReaderRenderer('dom')` mounts that WebView for comparison. The WebView reader will be removed when the comparison is done. Remount `BibleReader` after changing the switch.
+The chapter is native text. That is the default. `unstable_setReaderRenderer('dom')` mounts the WebView reader for comparison. The WebView reader will be removed when the comparison is done. Remount `BibleReader` after changing the switch.
 
 See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 

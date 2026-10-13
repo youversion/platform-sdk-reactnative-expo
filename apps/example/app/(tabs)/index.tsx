@@ -1,8 +1,6 @@
-import { BibleReader, unstable_setReaderRenderer } from '@youversion/platform-react-native-expo-ui'
+import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
-unstable_setReaderRenderer('native')
 
 export default function BibleScreen() {
   const { top } = useSafeAreaInsets()

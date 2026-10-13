@@ -32,7 +32,6 @@ import { useSerifFace } from '../theme/use-fonts'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
 import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
-import { removeImpl, setImpl } from './component-impls'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
 
 type BibleReaderNativeProps = BibleReaderProps & InternalVersionFilterProps & InternalLocaleProps
@@ -550,14 +549,3 @@ function isChapterMissing(entry: BookCatalogEntry | null, chapter: string): bool
   return !entry.chapters.some((c) => c.id === chapter)
 }
 
-/**
- * Draw `BibleReader` scripture with native `<Text>` or the Expo DOM reader. Default is `'dom'`
- * until the WebView reader is removed. Remount the reader after a change so it picks up the new impl.
- */
-export function unstable_setReaderRenderer(renderer: 'dom' | 'native'): void {
-  if (renderer === 'native') {
-    setImpl('BibleReaderDom', BibleReaderNative)
-  } else {
-    removeImpl('BibleReaderDom')
-  }
-}
