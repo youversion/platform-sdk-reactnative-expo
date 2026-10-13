@@ -1,5 +1,7 @@
 # @youversion/platform-react-native-expo-core
 
+## 2.0.1
+
 ## 2.0.0
 
 ### Major Changes

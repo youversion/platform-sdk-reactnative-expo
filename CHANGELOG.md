@@ -10,6 +10,26 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.0.1
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 245646d: Require React Native Reanimated 4.5.3 or newer to include the upstream fix for
+  settled animations reverting to their initial position after a delayed React
+  render. Update the example app to 4.5.3. Consumers must update their compatible
+  Reanimated dependency and rebuild the native app; a JavaScript-only update is
+  not sufficient. The configured fixed release group keeps core and UI aligned.
+
+- _(@youversion/platform-react-native-expo-ui)_ db682e2: Reader settings show the font names Inter and Untitled Serif in every language.
+
+- _(@youversion/platform-react-native-expo-ui)_ 7b0c7b8: A failed Bible search shows the same neutral message and Try again button as the web reader. A search with no verses still says there are no Bible results, with no retry.
+
+- _(@youversion/platform-react-native-expo-ui)_ a27f1a4: Sync localization from platform-localization (237cba4): update 1 keys in es.
+
+- _(@youversion/platform-react-native-expo-ui)_ 04bce0e: Sync localization from platform-localization (2b7ad89): update 1 keys in en.
+
+- _(@youversion/platform-react-native-expo-ui)_ a9f8040: Sync localization from platform-localization (c9807be): update 178 keys in en, es, ig, sr.
+
 ## 2.0.0
 
 ### Major Changes
