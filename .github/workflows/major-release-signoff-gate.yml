@@ -1,0 +1,78 @@
+name: Major Release Signoff Gate
+
+# workflow_run and issue_comment both run the default branch's copy of a workflow, so this
+# file and the evaluation it calls cannot be rewritten by the PR being judged. The trigger
+# run tells us only that something changed: which PRs to evaluate comes from the API.
+on:
+  workflow_run:
+    workflows: ['Major Release Signoff']
+    types: [completed]
+  issue_comment:
+    # `deleted` ensures the gate re-runs when a signoff comment is removed,
+    # so a previously-cached `success` status doesn't outlive its evidence.
+    types: [created, edited, deleted]
+
+permissions: {}
+
+jobs:
+  resolve:
+    # issue_comment fires for issues AND PRs across the repo. Skip non-PR issues and bot
+    # comments, so this workflow's own comments do not re-trigger an evaluation.
+    if: >-
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.event == 'pull_request') ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       github.event.comment.user.type != 'Bot')
+    name: Find the PRs to evaluate
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      prs: ${{ steps.prs.outputs.prs }}
+    steps:
+      - name: Find the PRs to evaluate
+        id: prs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            PRS=$(jq -cn --argjson n "$ISSUE_NUMBER" '[{number: $n, head_sha: "", base_ref: ""}]')
+          else
+            # Every open PR whose current head is this SHA. Two PRs can share a head and are
+            # judged under different contexts, and a run superseded by a newer push matches
+            # nothing. workflow_run.pull_requests is not used: it is empty for forks.
+            PRS=$(gh api --paginate "repos/$REPOSITORY/pulls?state=open&per_page=100" \
+              --jq ".[] | select(.head.sha == \"$HEAD_SHA\") | {number, head_sha: .head.sha, base_ref: .base.ref}" |
+              jq -cs .)
+          fi
+          echo "prs=$PRS" >> "$GITHUB_OUTPUT"
+          echo "Evaluating: $PRS"
+
+  evaluate:
+    if: needs.resolve.outputs.prs != '[]'
+    name: Evaluate PR ${{ matrix.pr.number }}
+    needs: resolve
+    strategy:
+      fail-fast: false
+      matrix:
+        pr: ${{ fromJSON(needs.resolve.outputs.prs) }}
+    # Newest event wins per PR. Bot comments never reach this job, so this workflow's own
+    # comments cannot cancel an evaluation in flight.
+    concurrency:
+      group: major-release-signoff-${{ matrix.pr.number }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    uses: ./.github/workflows/major-release-signoff-evaluate.yml
+    with:
+      pr_number: ${{ matrix.pr.number }}
+      head_sha: ${{ matrix.pr.head_sha }}
+      base_ref: ${{ matrix.pr.base_ref }}

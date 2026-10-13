@@ -3,7 +3,9 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-WORKFLOW="$ROOT/.github/workflows/major-release-signoff.yml"
+WORKFLOW="$ROOT/.github/workflows/major-release-signoff-evaluate.yml"
+TRIGGER="$ROOT/.github/workflows/major-release-signoff.yml"
+GATE="$ROOT/.github/workflows/major-release-signoff-gate.yml"
 TMP=$(mktemp -d)
 passes=0
 failures=0
@@ -495,18 +497,38 @@ run_decision_case "ordinary major previews still require signoff" \
 run_decision_case "failed ordinary previews remain blocked, not major" \
   'blocked=release preview did not succeed (failure)' false false skipped '' failure ''
 
-if pnpm exec prettier --check "$WORKFLOW" >/dev/null; then
+if pnpm exec prettier --check "$WORKFLOW" "$TRIGGER" "$GATE" >/dev/null; then
   pass "workflow YAML parses and is formatted"
 else
   fail "workflow YAML parses and is formatted" "prettier rejected $WORKFLOW"
 fi
 
-if grep -Fq \
-  "github.event.comment.user.type == 'Bot' && format('bot-{0}', github.run_id) || 'evaluation'" \
-  "$WORKFLOW"; then
-  pass "bot comments retain an isolated pre-job concurrency key"
+# Bot comments are dropped before the job that holds the per-PR concurrency group, so the
+# gate's own comments cannot cancel an evaluation in flight.
+if awk '/^  resolve:/{f=1} f && /^    name:/{exit} f' "$GATE" |
+  grep -Fq "github.event.comment.user.type != 'Bot'"; then
+  pass "bot comments never reach the evaluation concurrency group"
 else
-  fail "bot comments retain an isolated pre-job concurrency key" "isolated concurrency expression is missing"
+  fail "bot comments never reach the evaluation concurrency group" "resolve does not skip bot comments"
+fi
+
+# The trust boundary itself (YPE-6015). A pull_request run executes the PR's copy of its
+# workflow, so the file on that trigger must hold no scopes and the evaluation must only be
+# reachable from workflow_run and issue_comment, which always run main's copy.
+if grep -q '^permissions: {}$' "$TRIGGER" && ! grep -qE '^ +(statuses|pull-requests|contents):' "$TRIGGER" \
+  && ! grep -q 'uses: ./' "$TRIGGER"; then
+  pass "the pull_request trigger holds no scopes and evaluates nothing"
+else
+  fail "the pull_request trigger holds no scopes and evaluates nothing" \
+    "a PR could rewrite whatever this file runs and keep the scopes it declares"
+fi
+if ! grep -qE '^  (pull_request|pull_request_target):' "$WORKFLOW" "$GATE" \
+  && grep -q '^  workflow_call:' "$WORKFLOW" \
+  && grep -q 'uses: ./.github/workflows/major-release-signoff-evaluate.yml' "$GATE"; then
+  pass "status writers only run from the default branch"
+else
+  fail "status writers only run from the default branch" \
+    "the evaluation is reachable from a PR-authored workflow run"
 fi
 
 if grep -Fq \
@@ -761,7 +783,7 @@ else
     "a PR-supplied copy of the changeset eligibility rule could hide its own major"
 fi
 
-if awk '/^  pull_request:/{f=1} f&&/types:/{print;exit}' "$WORKFLOW" | grep -q "edited"; then
+if awk '/^  pull_request:/{f=1} f&&/types:/{print;exit}' "$TRIGGER" | grep -q "edited"; then
   pass "a retargeted PR is re-evaluated"
 else
   fail "a retargeted PR is re-evaluated" \
