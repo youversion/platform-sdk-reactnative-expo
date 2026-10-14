@@ -12,6 +12,7 @@ import {
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 
+import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { withAlpha } from '../../lib/color'
 import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
@@ -155,6 +156,7 @@ const BlockView = memo(function BlockView({
   onBlockLayout,
   onBlockRef,
 }: BlockViewProps): ReactNode {
+  const { t } = useSdkTranslation()
   const { fontSize } = look
   const lineBox = rule.size * lineMultiple(look.lineSpacing)
   const drift =
@@ -248,13 +250,13 @@ const BlockView = memo(function BlockView({
     }
     if (inline.kind === 'note') {
       const size = fontSize * NOTE_SCALE
-      // Accessible name is a follow-up. Web's `footnoteAriaLabel` is not in the synced locales yet.
       return (
         <Pressable
           key={key}
           hitSlop={8}
           disabled={ghost}
           accessibilityRole="button"
+          accessibilityLabel={t('footnoteAriaLabel')}
           onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
           style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
         >

@@ -3,6 +3,7 @@ import { isValidElement } from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
+import { LocaleProvider } from '../../../i18n/locale-context'
 import type { Block } from '../parse-passage'
 import {
   Passage,
@@ -128,17 +129,19 @@ function textAligns(sentence: string): string[] {
 
 function renderBlock(classes: string[], text: string, rtl: boolean): void {
   render(
-    <Passage
-      blocks={[block(classes, text)]}
-      look={{ ...LOOK, rtl }}
-      selected={new Set()}
-      paint={new Map()}
-      focus={null}
-      onVersePress={() => undefined}
-      onNotePress={() => undefined}
-      onBlockLayout={() => undefined}
-      onBlockRef={() => undefined}
-    />,
+    <LocaleProvider locale="en">
+      <Passage
+        blocks={[block(classes, text)]}
+        look={{ ...LOOK, rtl }}
+        selected={new Set()}
+        paint={new Map()}
+        focus={null}
+        onVersePress={() => undefined}
+        onNotePress={() => undefined}
+        onBlockLayout={() => undefined}
+        onBlockRef={() => undefined}
+      />
+    </LocaleProvider>,
   )
 }
 
@@ -161,5 +164,31 @@ describe('paragraph alignment', () => {
   it('keeps an explicit right line on the right in a right-to-left passage', () => {
     renderBlock(['qr'], 'סלה', true)
     expect(textAligns('סלה')).toEqual(['right'])
+  })
+
+  it('names the footnote button with the shared label', () => {
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={[
+            {
+              classes: ['p'],
+              heading: false,
+              verses: [1],
+              segments: [{ verse: 1, inlines: [{ kind: 'note', html: '<span>Or</span>' }] }],
+            },
+          ]}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    expect(screen.getByLabelText('Footnote')).toBeTruthy()
   })
 })
