@@ -13,5 +13,5 @@
     // The example compiles UI source. This declaration types the wordmark png imports.
     "../../packages/ui/src/png.d.ts"
   ],
-  "exclude": ["../../node_modules"]
+  "exclude": ["../../node_modules", "src/audio/session.test.ts"]
 }
