@@ -1,6 +1,13 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useMemo, type ReactNode } from 'react'
-import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import {
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '../components/ui'
@@ -67,7 +74,8 @@ function FootnoteBody({
   const serifFaceFor = useSerifFace()
   const { height: windowHeight } = useWindowDimensions()
   const { top, bottom } = useSafeAreaInsets()
-  const maxHeight = Math.max(0, windowHeight - top - bottom - SHEET_HANDLE_HEIGHT)
+  const topGap = Math.max(top, Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0)
+  const maxHeight = Math.max(0, windowHeight - topGap - bottom - SHEET_HANDLE_HEIGHT)
   const showVerse = data.verseHtml.length > 0
   let heading = data.verseNum
   if (data.reference) {
