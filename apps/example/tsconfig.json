@@ -11,7 +11,8 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     // The example compiles UI source. This declaration types the wordmark png imports.
-    "../../packages/ui/src/png.d.ts"
+    "../../packages/ui/src/png.d.ts",
+    "src/audio/react-dom.d.ts"
   ],
   "exclude": ["../../node_modules", "src/audio/session.test.ts"]
 }
