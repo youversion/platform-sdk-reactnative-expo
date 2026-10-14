@@ -381,6 +381,12 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     )
     handledRef.current = { stream: focusStream, seq: handled }
     if (requested === null) {
+      // request() keeps this seq and sets shouldFocus false. A landing already
+      // scheduled would still scroll, dim, and acknowledge the old focus.
+      if (!verseFocus.shouldFocus) {
+        cancelLanding.current()
+        setFocusDim(null)
+      }
       return
     }
     const { scrollsToVerse } = requested

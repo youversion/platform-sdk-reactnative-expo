@@ -500,6 +500,23 @@ describe('BibleReaderNative', () => {
     expect(screen.queryByText('In the beginning')).toBeNull()
   })
 
+  it('does not land a focus after a same-chapter request drops it', async () => {
+    const onVerseFocusApplied = jest.fn()
+    const reader = mount()
+
+    await screen.findByText('In the beginning')
+    reader.update({ verseFocus: FOCUS, onVerseFocusApplied })
+    reader.update({
+      verseFocus: { ...FOCUS, shouldFocus: false, scrollsToVerse: false },
+    })
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 700)
+    })
+
+    expect(onVerseFocusApplied).not.toHaveBeenCalled()
+  })
+
   it('shows the unavailable message without Retry for a missing chapter, and Retry when the request fails', async () => {
     mount({
       fetchBibleContent: fetchChapters({ '1': { status: 404 } }),
