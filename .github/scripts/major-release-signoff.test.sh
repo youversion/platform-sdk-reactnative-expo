@@ -118,9 +118,12 @@ elif [[ "$2" == *"/pulls/"* ]]; then
   if [ "${MOCK_PULL_ERROR:-0}" = "1" ]; then exit 1; fi
   if [ -n "${MOCK_PULL_CALLS:-}" ] &&
     [ "$(wc -l < "$MOCK_PULL_CALLS")" -le "${MOCK_PULL_FAILURES:-0}" ]; then exit 1; fi
-  cat "$MOCK_PR_FILE"
+  if [ "${3:-}" = "--jq" ]; then jq -c "$4" "$MOCK_PR_FILE"; else cat "$MOCK_PR_FILE"; fi
 elif [[ "$2" == *"/statuses/"* ]]; then
   echo "$*" >> "${MOCK_STATUS_CALLS:-/dev/null}"
+elif [[ "$2" == *"/branches-where-head" ]]; then
+  [ "${MOCK_TIPS_ERROR:-0}" = "1" ] && exit 1
+  echo "${MOCK_BRANCH_TIPS:-0}"
 elif [[ "$2" == *"/compare/"* ]]; then
   echo called >> "$MOCK_COMPARE_CALLS"
   if [ "${MOCK_COMPARE_ERROR:-0}" = "1" ]; then exit 1; fi
@@ -257,6 +260,7 @@ run_context_retry_case() {
 # which is the one outcome this job exists to prevent.
 run_unresolved_case() {
   local name="$1" input_sha="$2" lsremote_error="$3" expected_sha="$4" base_ref="${5:-main}"
+  local script="${6:-$TMP/unresolved.sh}" description="${7:-Could not resolve PR context}"
   local statuses="$TMP/status-calls" call result=0
   : > "$statuses"
   env PATH="$TMP/bin:$PATH" \
@@ -265,7 +269,7 @@ run_unresolved_case() {
     RUN_URL=https://example.invalid/run GH_TOKEN=token \
     MOCK_STATUS_CALLS="$statuses" MOCK_LSREMOTE_SHA="$RECOVERED_SHA" \
     MOCK_LSREMOTE_ERROR="$lsremote_error" \
-    bash "$TMP/unresolved.sh" >/dev/null 2>&1 || result=$?
+    bash "$script" >/dev/null 2>&1 || result=$?
   call=$(cat "$statuses")
 
   if [ -z "$expected_sha" ]; then
@@ -283,7 +287,7 @@ run_unresolved_case() {
   [[ "$call" == *"context=${expected_context:-major-release-signoff}"* ]] ||
     problem="${problem:-wrong context}"
   [[ "$call" == *"target_url=https://example.invalid/run"* ]] || problem="${problem:-no target_url}"
-  [[ "$call" == *"Could not resolve PR context"* ]] || problem="${problem:-no description}"
+  [[ "$call" == *"$description"* ]] || problem="${problem:-no description}"
   [ "$result" -ne 0 ] || problem="${problem:-job exited 0}"
 
   if [ -z "$problem" ]; then
@@ -529,10 +533,11 @@ fi
 run_resolve_case() {
   local name="$1" event="$2" open_prs="$3" expected="$4" expected_list_calls="$5"
   local output="$TMP/output" calls="$TMP/list-calls" got
+  shift 5
   : > "$output"
   : > "$calls"
   printf '%s\n' "$open_prs" > "$TMP/open-prs.json"
-  env PATH="$TMP/bin:$PATH" \
+  env PATH="$TMP/bin:$PATH" "$@" \
     EVENT_NAME="$event" HEAD_SHA="$HEAD_SHA" ISSUE_NUMBER=400 \
     REPOSITORY=youversion/platform-sdk-reactnative-expo GH_TOKEN=token GITHUB_OUTPUT="$output" \
     MOCK_OPEN_PRS_FILE="$TMP/open-prs.json" MOCK_LIST_CALLS="$calls" \
@@ -565,7 +570,26 @@ run_resolve_case "a fork PR is found by its head SHA" workflow_run \
 run_resolve_case "a run superseded by a newer push evaluates nothing" workflow_run \
   "[$(open_pr 400 "$OTHER_SHA" main "$SAME_REPO")]" "[]" 1
 run_resolve_case "a comment evaluates its own PR without trusting a head" issue_comment \
-  "[]" '[{"number":400,"head_sha":"","base_ref":""}]' 0
+  "[]" '[{"number":400,"head_sha":"","base_ref":""}]' 0 MOCK_PULL_ERROR=1
+# Every PR at a SHA shares its status, so a fork at a branch tip here must not write it.
+run_resolve_case "a fork at the tip of a branch here is left to that branch's PR" workflow_run \
+  "[$(open_pr 400 "$HEAD_SHA" main "$SAME_REPO"), $(open_pr 403 "$HEAD_SHA" main someone/fork)]" \
+  "[{\"number\":400,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"main\"}]" 1 MOCK_BRANCH_TIPS=1
+run_resolve_case "a fork that cannot be checked is still evaluated" workflow_run \
+  "[$(open_pr 403 "$HEAD_SHA" main someone/fork)]" \
+  "[{\"number\":403,\"head_sha\":\"$HEAD_SHA\",\"base_ref\":\"main\"}]" 1 MOCK_TIPS_ERROR=1
+printf '%s\n' "$(open_pr 403 "$HEAD_SHA" main someone/fork)" > "$TMP/fork-pr.json"
+run_resolve_case "a comment on a fork at a branch tip here evaluates nothing" issue_comment \
+  "[]" "[]" 0 MOCK_PR_FILE="$TMP/fork-pr.json" MOCK_BRANCH_TIPS=1
+printf '%s\n' "$(open_pr 400 "$HEAD_SHA" main "$SAME_REPO")" > "$TMP/same-repo-pr.json"
+run_resolve_case "a comment on a same-repo PR at a branch tip is evaluated" issue_comment \
+  "[]" '[{"number":400,"head_sha":"","base_ref":""}]' 0 \
+  MOCK_PR_FILE="$TMP/same-repo-pr.json" MOCK_BRANCH_TIPS=1
+
+# A failed resolve evaluates nothing, so the pushed SHA has to be failed directly.
+extract_step "Post a failing status on the pushed commit" "$GATE" > "$TMP/resolve-failed.sh"
+run_unresolved_case "a failed resolve fails the required context on the pushed SHA" \
+  "$HEAD_SHA" 0 "$HEAD_SHA" main "$TMP/resolve-failed.sh" "Could not find the PRs at this commit"
 
 if grep -Fq \
   "needs.context.outputs.generated_release_pr != 'true'" \

@@ -43,16 +43,60 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "issue_comment" ]; then
-            PRS=$(jq -cn --argjson n "$ISSUE_NUMBER" '[{number: $n, head_sha: "", base_ref: ""}]')
+            # head_sha stays empty, so the evaluation looks the head up itself. `sha` is read
+            # only for the fork check below; if the PR cannot be read, evaluate it anyway.
+            PRS=$(gh api "repos/$REPOSITORY/pulls/$ISSUE_NUMBER" \
+              --jq '[{number, head_sha: "", base_ref: "", sha: .head.sha, head_repo: .head.repo.full_name}]') ||
+              PRS=$(jq -cn --argjson n "$ISSUE_NUMBER" '[{number: $n, head_sha: "", base_ref: ""}]')
           else
             # Every open PR whose current head is this SHA. Two PRs can share a head and are
             # judged under different contexts, and a run superseded by a newer push matches
             # nothing. workflow_run.pull_requests is not used: it is empty for forks.
             PRS=$(gh api --paginate "repos/$REPOSITORY/pulls?state=open&per_page=100" \
-              --jq ".[] | select(.head.sha == \"$HEAD_SHA\") | {number, head_sha: .head.sha, base_ref: .base.ref}" |
+              --jq ".[] | select(.head.sha == \"$HEAD_SHA\") | {number, head_sha: .head.sha, base_ref: .base.ref, head_repo: .head.repo.full_name}" |
               jq -cs .)
           fi
-          echo "prs=$PRS" >> "$GITHUB_OUTPUT"
+          # Every PR at a SHA shares its status, and a fork is judged fail-closed. Skip a fork
+          # at a branch tip here: its code is that branch's, and the branch's PR owns the status.
+          SKIP='[]'
+          while read -r NUMBER SHA; do
+            TIPS=$(gh api "repos/$REPOSITORY/commits/$SHA/branches-where-head" --jq length) || TIPS=0
+            if [ "$TIPS" -gt 0 ]; then
+              echo "Skipping fork PR $NUMBER: its head is a branch tip here."
+              SKIP=$(jq -c --argjson n "$NUMBER" '. + [$n]' <<<"$SKIP")
+            fi
+          done < <(jq -r --arg repo "$REPOSITORY" \
+            '.[] | select((.sha // .head_sha) != "" and .head_repo != $repo) | "\(.number) \(.sha // .head_sha)"' <<<"$PRS")
+          jq -c --argjson skip "$SKIP" \
+            'map(select(.number as $n | $skip | index($n) | not) | {number, head_sha, base_ref})' <<<"$PRS" |
+            sed 's/^/prs=/' >> "$GITHUB_OUTPUT"
+
+  # When `resolve` fails nothing is evaluated, and whatever status the pushed SHA already
+  # has stands, including a green from before a retarget. Fail it instead. The base is
+  # unknown here, so this takes the required context.
+  unresolved:
+    if: always() && !cancelled() && needs.resolve.result == 'failure' && github.event_name == 'workflow_run'
+    name: Signoff status when the PRs are unresolved
+    needs: resolve
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Post a failing status on the pushed commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$REPOSITORY/statuses/$HEAD_SHA" \
+            -f state=failure \
+            -f context=major-release-signoff \
+            -f description="Could not find the PRs at this commit; release impact is unknown." \
+            -f target_url="$RUN_URL" > /dev/null
+          echo "Posted a failing status: the PRs at $HEAD_SHA could not be resolved."
+          exit 1
 
   evaluate:
     if: needs.resolve.outputs.prs != '[]'

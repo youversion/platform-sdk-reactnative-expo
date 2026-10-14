@@ -260,6 +260,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.head_sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Restore release tooling from the base branch
         # The PR supplies changeset *data* only. The detector that reads it, the dependency
