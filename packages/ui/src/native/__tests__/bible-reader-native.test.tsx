@@ -10,6 +10,7 @@ import type { BibleReaderVerseFocus } from '../bible-reader-navigation'
 const VERSION_ID = 3034
 const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
 const REQUEST_FAILED = 'This request can’t be completed right now.'
+const OFFLINE = 'We’re having difficulties with your connection.'
 
 const JOHN_1: BibleReaderVerseSelection = {
   versionId: VERSION_ID,
@@ -571,6 +572,40 @@ describe('BibleReaderNative', () => {
       expect(passageRequested(fetchBibleContent)).toBe(false)
     } finally {
       restore()
+    }
+  })
+
+  it('offers retry when a language lookup fails, then shows an allowed chapter', async () => {
+    let failLookup = true
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        if (failLookup) {
+          return Promise.reject(new Error('offline'))
+        }
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB', language_tag: 'en' }))
+      }
+      return prior(input, init)
+    })
+    const fetchBibleContent = jest.fn(
+      fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } }),
+    )
+    try {
+      mount({ fetchBibleContent, permittedLanguageTags: ['en'] })
+
+      await screen.findByText(OFFLINE)
+      expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+      expect(screen.queryByText('In the beginning')).toBeNull()
+      expect(passageRequested(fetchBibleContent)).toBe(false)
+
+      failLookup = false
+      fireEvent.press(screen.getByText('Retry'))
+
+      await screen.findByText('In the beginning')
+      expect(screen.queryByText(OFFLINE)).toBeNull()
+    } finally {
+      global.fetch = prior
     }
   })
 

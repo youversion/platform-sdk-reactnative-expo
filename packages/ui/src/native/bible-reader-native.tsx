@@ -100,6 +100,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     abbreviation,
     languageId,
     isLoading: isVersionLoading,
+    error: versionError,
+    retry: retryVersion,
   } = useBibleVersionAbbreviation(versionId)
   const copyright = useVersionCopyright(fetchBibleContent, versionId)
   const unavailable = !isBookLoading && isChapterMissing(entry, chapter)
@@ -108,9 +110,14 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // The tag in flight can still belong to the previous version. Waiting avoids painting
   // this chapter before the provider's language list can refuse it.
   const awaitingLanguage = permittedLanguageTags !== undefined && !idRefused && isVersionLoading
+  // A failed lookup has no tag yet. That is not a confirmed language refusal, and it
+  // has to stay retryable or an allowed chapter never comes back.
+  const versionLookupBlocked = permittedLanguageTags !== undefined && !idRefused && versionError !== null
   const languageRefused =
     permittedLanguageTags !== undefined &&
+    !idRefused &&
     !isVersionLoading &&
+    versionError === null &&
     !isUsableBibleVersion({ id: versionId, languageTag: languageId ?? undefined }, versionFilters)
   const refused = idRefused || languageRefused
   const load = usePassage(
@@ -118,7 +125,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     versionId,
     book,
     chapter,
-    !unavailable && !refused && !awaitingLanguage,
+    !unavailable && !refused && !awaitingLanguage && !versionLookupBlocked,
   )
   const currentKey = passageKey(versionId, book, chapter)
   const passage = load.passage
@@ -458,15 +465,22 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     return () => clearTimeout(timer)
   }, [load.loading, awaitingLanguage])
 
+  const lookupMessage = !versionLookupBlocked
+    ? null
+    : versionError === 'offline'
+      ? t('offlineConnectionLostMessage')
+      : t('generic.requestErrorBody')
   const message = refused || unavailable
     ? t('passageUnavailable')
-    : load.error === 'offline'
-      ? t('offlineConnectionLostMessage')
-      : load.error === 'unavailable'
-        ? t('passageUnavailable')
-        : load.error === 'failed'
-          ? t('generic.requestErrorBody')
-          : null
+    : lookupMessage !== null
+      ? lookupMessage
+      : load.error === 'offline'
+        ? t('offlineConnectionLostMessage')
+        : load.error === 'unavailable'
+          ? t('passageUnavailable')
+          : load.error === 'failed'
+            ? t('generic.requestErrorBody')
+            : null
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -502,8 +516,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               >
                 {message}
               </RNText>
-              {!refused && !unavailable && load.error !== 'unavailable' && (
-                <Button variant="outline" onPress={load.retry}>
+              {!refused && !unavailable && (versionLookupBlocked || load.error !== 'unavailable') && (
+                <Button variant="outline" onPress={versionLookupBlocked ? retryVersion : load.retry}>
                   <Button.Text>{t('retry')}</Button.Text>
                 </Button>
               )}
