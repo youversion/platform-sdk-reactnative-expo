@@ -303,6 +303,33 @@ describe('BibleReaderNative', () => {
     })
   })
 
+  it('waits to focus until the requested version is on screen', async () => {
+    const otherId = 111
+    const onVerseFocusApplied = jest.fn()
+    const reader = mount({
+      onVerseFocusApplied,
+      fetchBibleContent: fetchVersions({
+        [VERSION_ID]: { sentence: 'In the beginning' },
+        [otherId]: { sentence: 'Al principio' },
+      }),
+    })
+
+    await screen.findByText('In the beginning')
+    reader.update({ verseFocus: { ...FOCUS, versionId: otherId } })
+
+    // Landing retries for half a second. Waiting past that shows the old version never reports.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 700)
+    })
+    expect(onVerseFocusApplied).not.toHaveBeenCalled()
+
+    reader.update({ versionId: otherId })
+    await screen.findByText('Al principio')
+    await waitFor(() => {
+      expect(onVerseFocusApplied).toHaveBeenCalledWith({ stream: 0, seq: 1 })
+    })
+  })
+
   it('does not report a verse focus after the chapter changes', async () => {
     const onVerseFocusApplied = jest.fn()
     const reader = mount()

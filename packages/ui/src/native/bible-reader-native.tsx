@@ -300,7 +300,10 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     const matches =
       target === null ||
       (target.book.toUpperCase() === book.toUpperCase() && target.chapter === chapter)
-    if (!matches) {
+    // A host that owns versionId can deliver this focus while the previous
+    // version is still on screen. Consuming it now would skip the scroll
+    // once the requested version arrives.
+    if (!matches || verseFocus.versionId !== passage.versionId) {
       return
     }
     let requested: { scrollsToVerse: boolean } | null = null
