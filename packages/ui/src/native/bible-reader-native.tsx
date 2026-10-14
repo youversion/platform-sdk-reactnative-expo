@@ -25,6 +25,7 @@ import { type BookCatalogEntry } from '../lib/bible-book-title'
 import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../lib/version-usability'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace } from '../theme/fonts'
 import { useSerifFace } from '../theme/use-fonts'
@@ -86,16 +87,39 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     backgroundColor,
     foregroundColor,
     bottomScrollPadding = 0,
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
   } = props
   const tokens = useTokens()
   const { t } = useSdkTranslation()
   const serifFaceFor = useSerifFace()
 
   const { title: bookTitle, entry, isLoading: isBookLoading } = useBibleBookTitle(versionId, book)
-  const { abbreviation } = useBibleVersionAbbreviation(versionId)
+  const {
+    abbreviation,
+    languageId,
+    isLoading: isVersionLoading,
+  } = useBibleVersionAbbreviation(versionId)
   const copyright = useVersionCopyright(fetchBibleContent, versionId)
   const unavailable = !isBookLoading && isChapterMissing(entry, chapter)
-  const load = usePassage(fetchBibleContent, versionId, book, chapter, !unavailable)
+  const versionFilters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
+  const idRefused = isVersionIdDecidablyUnusable(versionId, versionFilters)
+  // The tag in flight can still belong to the previous version. Waiting avoids painting
+  // this chapter before the provider's language list can refuse it.
+  const awaitingLanguage = permittedLanguageTags !== undefined && !idRefused && isVersionLoading
+  const languageRefused =
+    permittedLanguageTags !== undefined &&
+    !isVersionLoading &&
+    !isUsableBibleVersion({ id: versionId, languageTag: languageId ?? undefined }, versionFilters)
+  const refused = idRefused || languageRefused
+  const load = usePassage(
+    fetchBibleContent,
+    versionId,
+    book,
+    chapter,
+    !unavailable && !refused && !awaitingLanguage,
+  )
   const currentKey = passageKey(versionId, book, chapter)
   const passage = load.passage
   const isCurrent = passage !== null && passage.key === currentKey
@@ -157,8 +181,26 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   // ---- Selection ----
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
-  const latest = useRef({ versionId, book, chapter, bookTitle, abbreviation, passage, selected })
-  latest.current = { versionId, book, chapter, bookTitle, abbreviation, passage, selected }
+  const latest = useRef({
+    versionId,
+    book,
+    chapter,
+    bookTitle,
+    abbreviation,
+    passage,
+    selected,
+    refused,
+  })
+  latest.current = {
+    versionId,
+    book,
+    chapter,
+    bookTitle,
+    abbreviation,
+    passage,
+    selected,
+    refused,
+  }
 
   // Hosts pass fresh callbacks each render; read them through a ref so effects keyed on
   // `emit` do not refire (and loop) every time the host rerenders from a selection.
@@ -185,6 +227,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   const onVersePress = useCallback(
     (verse: number): void => {
+      if (latest.current.refused) {
+        return
+      }
       const next = new Set(latest.current.selected)
       if (!next.delete(verse)) {
         next.add(verse)
@@ -200,11 +245,19 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // is still loaded and this effect still sees the old selection.
   useEffect(() => {
     const now = latest.current
-    if (now.selected.size === 0 || now.passage?.key !== currentKey) {
+    if (now.refused || now.selected.size === 0 || now.passage?.key !== currentKey) {
       return
     }
     emit(now.selected)
-  }, [bookTitle, abbreviation, currentKey, emit])
+  }, [bookTitle, abbreviation, currentKey, emit, refused])
+
+  useEffect(() => {
+    if (!refused || latest.current.selected.size === 0) {
+      return
+    }
+    setSelected(EMPTY_SELECTION)
+    emit(EMPTY_SELECTION)
+  }, [refused, emit])
 
   // Navigation clears the selection and tells the host, which closes the verse sheet.
   const locationRef = useRef(currentKey)
@@ -293,6 +346,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const cancelLanding = useRef<() => void>(() => {})
   const handledRef = useRef<HandledVerseFocus>({ stream: focusStream, seq: 0 })
   useEffect(() => {
+    if (refused) {
+      cancelLanding.current()
+      setFocusDim(null)
+      return
+    }
     if (renderedKey === null || passage === null) {
       return
     }
@@ -369,7 +427,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       }
     }
     frame = requestAnimationFrame(land)
-  }, [renderedKey, passage, verseFocus, appliedFocusSeq, focusStream, book, chapter])
+  }, [renderedKey, passage, verseFocus, appliedFocusSeq, focusStream, book, chapter, refused])
 
   // A version or chapter change drops the focus dim with the old text, and cancels a
   // focus still landing, which would otherwise dim or scroll the new text.
@@ -382,15 +440,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // ---- Loading spinner, delayed so cache hits do not flash ----
   const [showSpinner, setShowSpinner] = useState(false)
   useEffect(() => {
-    if (!load.loading) {
+    if (!load.loading && !awaitingLanguage) {
       setShowSpinner(false)
       return
     }
     const timer = setTimeout(() => setShowSpinner(true), SPINNER_DELAY_MS)
     return () => clearTimeout(timer)
-  }, [load.loading])
+  }, [load.loading, awaitingLanguage])
 
-  const message = unavailable
+  const message = refused || unavailable
     ? t('passageUnavailable')
     : load.error === 'offline'
       ? t('offlineConnectionLostMessage')
@@ -434,13 +492,13 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               >
                 {message}
               </RNText>
-              {!unavailable && load.error !== 'unavailable' && (
+              {!refused && !unavailable && load.error !== 'unavailable' && (
                 <Button variant="outline" onPress={load.retry}>
                   <Button.Text>{t('retry')}</Button.Text>
                 </Button>
               )}
             </View>
-          ) : passage === null ? (
+          ) : passage === null || (awaitingLanguage && passage.key === currentKey) ? (
             showSpinner && <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
           ) : (
             <View
@@ -465,7 +523,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
             </View>
           )}
 
-          {message === null && isCurrent && copyright.copyright !== null && (
+          {message === null && !awaitingLanguage && isCurrent && copyright.copyright !== null && (
             <RNText
               allowFontScaling={false}
               style={{

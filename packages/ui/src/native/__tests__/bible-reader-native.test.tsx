@@ -39,6 +39,16 @@ const CLEARED: BibleReaderVerseSelection = {
   shareData: null,
 }
 
+const CLEARED_CHAPTER: BibleReaderVerseSelection = {
+  versionId: VERSION_ID,
+  book: 'JHN',
+  chapter: '1',
+  verses: [],
+  passageIds: [],
+  reference: '',
+  shareData: null,
+}
+
 const FOCUS: BibleReaderVerseFocus = {
   seq: 1,
   versionId: VERSION_ID,
@@ -83,7 +93,10 @@ function fetchUrl(input: RequestInfo | URL): string {
 }
 
 /** Version names load through the provider's fetch, separate from the chapter prop. */
-function stubVersionNames(names: Record<number, string>): () => void {
+function stubVersionNames(
+  names: Record<number, string>,
+  languageTags: Record<number, string> = {},
+): () => void {
   const prior = global.fetch
   global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
     const url = fetchUrl(input)
@@ -92,10 +105,16 @@ function stubVersionNames(names: Record<number, string>): () => void {
       const abbreviation = names[Number(match[1])]
       if (abbreviation !== undefined) {
         return Promise.resolve(
-          new Response(JSON.stringify({ abbreviation, language_tag: 'en' }), {
-            status: 200,
-            headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-          }),
+          new Response(
+            JSON.stringify({
+              abbreviation,
+              language_tag: languageTags[Number(match[1])] ?? 'en',
+            }),
+            {
+              status: 200,
+              headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+            },
+          ),
         )
       }
     }
@@ -363,4 +382,75 @@ describe('BibleReaderNative', () => {
     expect(await screen.findByText(REQUEST_FAILED)).toBeTruthy()
     expect(screen.getByText('Retry')).toBeTruthy()
   })
+
+  it('hides an excluded version and does not load its chapter', async () => {
+    const fetchBibleContent = jest.fn(
+      fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } }),
+    )
+    mount({ fetchBibleContent, excludedVersionIds: [VERSION_ID] })
+
+    await screen.findByText(UNAVAILABLE)
+    expect(screen.queryByText('In the beginning')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+    expect(passageRequested(fetchBibleContent)).toBe(false)
+  })
+
+  it('hides scripture when the permit list is empty', async () => {
+    const fetchBibleContent = jest.fn(
+      fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } }),
+    )
+    mount({ fetchBibleContent, permittedVersionIds: [] })
+
+    await screen.findByText(UNAVAILABLE)
+    expect(screen.queryByText('In the beginning')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+    expect(passageRequested(fetchBibleContent)).toBe(false)
+  })
+
+  it('hides scripture when the version language is outside the provider list', async () => {
+    const restore = stubVersionNames({ [VERSION_ID]: 'RVR' }, { [VERSION_ID]: 'es' })
+    const fetchBibleContent = jest.fn(
+      fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } }),
+    )
+    try {
+      mount({ fetchBibleContent, permittedLanguageTags: ['en'] })
+
+      await screen.findByText(UNAVAILABLE)
+      expect(screen.queryByText('In the beginning')).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequested(fetchBibleContent)).toBe(false)
+    } finally {
+      restore()
+    }
+  })
+
+  it('shows scripture when the version language is on the provider list', async () => {
+    const restore = stubVersionNames({ [VERSION_ID]: 'BSB' }, { [VERSION_ID]: 'en' })
+    try {
+      mount({ permittedLanguageTags: ['en'] })
+      await screen.findByText('In the beginning')
+    } finally {
+      restore()
+    }
+  })
+
+  it('hides a loaded chapter and clears its selection when the version becomes excluded', async () => {
+    const onVerseSelect = jest.fn()
+    const reader = mount({ onVerseSelect })
+
+    await screen.findByText('In the beginning')
+    pressVerse('In the beginning')
+    expect(onVerseSelect).toHaveBeenCalledWith(JOHN_1)
+
+    reader.update({ excludedVersionIds: [VERSION_ID] })
+
+    await screen.findByText(UNAVAILABLE)
+    expect(screen.queryByText('In the beginning')).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+    expect(onVerseSelect).toHaveBeenLastCalledWith(CLEARED_CHAPTER)
+  })
 })
+
+function passageRequested(fetchBibleContent: jest.MockedFunction<FetchBibleContent>): boolean {
+  return fetchBibleContent.mock.calls.some(([request]) => request.path.includes('/passages/'))
+}
