@@ -29,6 +29,56 @@ const JOHN_1: BibleReaderVerseSelection = {
   },
 }
 
+const JOHN_LABELED: BibleReaderVerseSelection = {
+  ...JOHN_1,
+  reference: 'John 1:1',
+  shareData: {
+    text: '“In the beginning”\n\nJohn 1:1 BSB',
+    reference: 'John 1:1 BSB',
+    verseText: 'In the beginning',
+    verses: [1],
+    book: 'JHN',
+    chapter: '1',
+    versionId: VERSION_ID,
+  },
+}
+
+const OTHER_UNLABELED: BibleReaderVerseSelection = {
+  versionId: 112,
+  book: 'JHN',
+  chapter: '1',
+  verses: [1],
+  passageIds: ['JHN.1.1'],
+  reference: 'JHN 1:1',
+  shareData: {
+    text: '“Al principio”\n\nJHN 1:1',
+    reference: 'JHN 1:1',
+    verseText: 'Al principio',
+    verses: [1],
+    book: 'JHN',
+    chapter: '1',
+    versionId: 112,
+  },
+}
+
+const OTHER_LABELED: BibleReaderVerseSelection = {
+  versionId: 112,
+  book: 'JHN',
+  chapter: '1',
+  verses: [1],
+  passageIds: ['JHN.1.1'],
+  reference: 'Juan 1:1',
+  shareData: {
+    text: '“Al principio”\n\nJuan 1:1 RVR',
+    reference: 'Juan 1:1 RVR',
+    verseText: 'Al principio',
+    verses: [1],
+    book: 'JHN',
+    chapter: '1',
+    versionId: 112,
+  },
+}
+
 const CLEARED: BibleReaderVerseSelection = {
   versionId: VERSION_ID,
   book: 'JHN',
@@ -82,6 +132,15 @@ function fetchVersions(versions: Record<number, { sentence: string }>): FetchBib
 }
 
 /** A fetch target as a URL string. A `Request` stringifies to `[object Object]`. */
+function metadataResponse(body: string): Promise<Response> {
+  return Promise.resolve(
+    new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    }),
+  )
+}
+
 function fetchUrl(input: RequestInfo | URL): string {
   if (input instanceof URL) {
     return input.href
@@ -304,6 +363,80 @@ describe('BibleReaderNative', () => {
             text: '“In the beginning”\n\nJHN 1:1 BSB',
           },
         })
+      })
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('does not label a new selection with the previous version name', async () => {
+    const otherId = 112
+    let releaseOther = () => {}
+    const otherArrives = new Promise<void>((resolve) => {
+      releaseOther = resolve
+    })
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      const versionMatch = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
+      if (versionMatch !== null && !url.includes('/books')) {
+        const id = Number(versionMatch[1])
+        if (id === VERSION_ID) {
+          return metadataResponse(JSON.stringify({ abbreviation: 'BSB', language_tag: 'en' }))
+        }
+        if (id === otherId) {
+          return otherArrives.then(() =>
+            metadataResponse(JSON.stringify({ abbreviation: 'RVR', language_tag: 'es' })),
+          )
+        }
+      }
+      const booksMatch = /\/v1\/bibles\/(\d+)\/books(?:\?|$)/.exec(url)
+      if (booksMatch !== null) {
+        const id = Number(booksMatch[1])
+        if (id === VERSION_ID) {
+          return metadataResponse(
+            JSON.stringify({
+              data: [{ id: 'JHN', title: 'John', chapters: [{ id: '1', title: '1' }] }],
+            }),
+          )
+        }
+        if (id === otherId) {
+          return otherArrives.then(() =>
+            metadataResponse(
+              JSON.stringify({
+                data: [{ id: 'JHN', title: 'Juan', chapters: [{ id: '1', title: '1' }] }],
+              }),
+            ),
+          )
+        }
+      }
+      return prior(input, init)
+    })
+    const onVerseSelect = jest.fn()
+    try {
+      const reader = mount({
+        onVerseSelect,
+        fetchBibleContent: fetchVersions({
+          [VERSION_ID]: { sentence: 'In the beginning' },
+          [otherId]: { sentence: 'Al principio' },
+        }),
+      })
+
+      await screen.findByText('In the beginning')
+      pressVerse('In the beginning')
+      await waitFor(() => {
+        expect(onVerseSelect).toHaveBeenLastCalledWith(JOHN_LABELED)
+      })
+
+      reader.update({ versionId: otherId })
+      await screen.findByText('Al principio')
+      pressVerse('Al principio')
+
+      expect(onVerseSelect).toHaveBeenLastCalledWith(OTHER_UNLABELED)
+
+      releaseOther()
+      await waitFor(() => {
+        expect(onVerseSelect).toHaveBeenLastCalledWith(OTHER_LABELED)
       })
     } finally {
       global.fetch = prior

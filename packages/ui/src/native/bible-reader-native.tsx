@@ -180,13 +180,17 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   }, [highlights, passage, theme, background, tokens.primaryForeground])
 
   // ---- Selection ----
+  // The name hooks keep the previous version's label while the next one loads.
+  // A share from that window cannot be taken back, so the payload waits.
+  const shareBookTitle = isBookLoading ? null : bookTitle
+  const shareAbbreviation = isVersionLoading ? null : abbreviation
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({
     versionId,
     book,
     chapter,
-    bookTitle,
-    abbreviation,
+    bookTitle: shareBookTitle,
+    abbreviation: shareAbbreviation,
     passage,
     selected,
     refused,
@@ -195,8 +199,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     versionId,
     book,
     chapter,
-    bookTitle,
-    abbreviation,
+    bookTitle: shareBookTitle,
+    abbreviation: shareAbbreviation,
     passage,
     selected,
     refused,
@@ -249,7 +253,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       return
     }
     emit(now.selected)
-  }, [bookTitle, abbreviation, currentKey, emit, refused])
+  }, [shareBookTitle, shareAbbreviation, currentKey, emit, refused])
 
   useEffect(() => {
     if (!refused || latest.current.selected.size === 0) {
