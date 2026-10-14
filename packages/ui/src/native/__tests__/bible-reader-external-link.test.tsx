@@ -48,7 +48,7 @@ describe('BibleReader external link handling', () => {
   beforeEach(async () => {
     latestDomProps = {}
     installBibleReaderTestImpls()
-    setImpl('BibleReaderDom', MockDOM)
+    setImpl('BibleReaderNative', MockDOM)
     jest.spyOn(WebBrowser, 'openBrowserAsync').mockResolvedValue(dismissedBrowser())
     mmkvStorage.clearAll()
     useReaderLocationStore.setState(readerLocationStoreInitialState)

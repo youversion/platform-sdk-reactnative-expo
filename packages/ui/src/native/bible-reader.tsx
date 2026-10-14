@@ -784,7 +784,7 @@ export function BibleReader({
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
-  const BibleReaderDOM = getImpl('BibleReaderDom')
+  const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
   const readerDom = useMemo(
@@ -855,7 +855,7 @@ export function BibleReader({
             />
           ) : null}
           <View style={{ flex: 1 }}>
-            <BibleReaderDOM
+            <BibleReaderNative
               {...authProps}
               appKey={context.appKey}
               apiHost={context.apiHost}

@@ -9,6 +9,6 @@ describe('reader renderer', () => {
   })
 
   it('draws the chapter with native text', () => {
-    expect(getImpl('BibleReaderDom')).toBe(BibleReaderNative)
+    expect(getImpl('BibleReaderNative')).toBe(BibleReaderNative)
   })
 })

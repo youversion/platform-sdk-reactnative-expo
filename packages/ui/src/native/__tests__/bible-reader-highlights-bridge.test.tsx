@@ -116,7 +116,7 @@ beforeEach(async () => {
   }
   stubHighlights([])
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   mmkvStorage.clearAll()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   await useReaderLocationStore.persist.rehydrate()

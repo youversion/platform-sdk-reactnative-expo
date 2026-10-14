@@ -208,7 +208,7 @@ beforeEach(() => {
   stubImpl('BibleChapterPickerSheet', 'mock-chapter-picker-sheet')
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('BibleReaderSettingsSheet', 'mock-settings-sheet')
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
 })

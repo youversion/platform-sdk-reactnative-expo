@@ -223,7 +223,7 @@ beforeEach(() => {
   stubHighlightPermissionFlow()
   testHookOverrides.useYVAuth = null
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   setImpl('NativeSheet', MockNativeSheet)
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })

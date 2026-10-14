@@ -9,7 +9,7 @@ let registered = false
 export function ensureDomImpls(): void {
   if (registered) return
   registered = true
-  registerDefault('BibleReaderDom', BibleReaderNative)
+  registerDefault('BibleReaderNative', BibleReaderNative)
   registerDefault('BibleTextViewDom', BibleTextViewDom)
   registerDefault('FootnoteContent', FootnoteContent)
 }

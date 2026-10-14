@@ -102,7 +102,7 @@ describe('BibleReader Reader Location persistence', () => {
     latestReaderDomProps = {}
     stubDeviceLocale('xx-XX', 'xx')
     installBibleReaderTestImpls()
-    setImpl('BibleReaderDom', MockDOM)
+    setImpl('BibleReaderNative', MockDOM)
     await resetReaderLocationStore()
   })
 

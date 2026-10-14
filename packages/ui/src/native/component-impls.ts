@@ -4,7 +4,7 @@ export type ImplKey =
   | 'BibleAppLogo'
   | 'BibleChapterPicker'
   | 'BibleChapterPickerSheet'
-  | 'BibleReaderDom'
+  | 'BibleReaderNative'
   | 'BibleReaderSearchSheet'
   | 'BibleReaderSettingsSheet'
   | 'BibleTextViewDom'
@@ -36,10 +36,6 @@ export function getImpl(key: ImplKey): ImplComponent {
 
 export function setImpl(key: ImplKey, impl: ImplComponent): void {
   overrides.set(key, impl)
-}
-
-export function removeImpl(key: ImplKey): void {
-  overrides.delete(key)
 }
 
 export function resetImpls(): void {
