@@ -510,10 +510,12 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
           pointerEvents="none"
           style={{
             position: 'absolute',
-            top: TOP_PADDING,
-            left: 0,
+            top: 0,
             right: 0,
+            bottom: 0,
+            left: 0,
             alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
           <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
