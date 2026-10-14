@@ -974,6 +974,7 @@ export function BibleReader({
             theme={resolvedTheme}
             versionAbbreviation={versionAbbreviation}
             lineSpacing={lineSpacing}
+            fontSize={fontSize}
           />
         </NativeSheet>
       )}

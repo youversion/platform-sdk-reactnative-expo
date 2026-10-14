@@ -316,6 +316,7 @@ function BibleCardBody({
             theme={resolvedTheme}
             versionAbbreviation={metadata?.abbreviation}
             scriptureDirection={scriptureDirection}
+            fontSize={DEFAULT_FONT_SIZE}
           />
         </NativeSheet>
       )}

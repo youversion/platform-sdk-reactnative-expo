@@ -28,11 +28,11 @@ type FootnoteContentProps = {
   scriptureDirection?: 'ltr' | 'rtl'
   /** The reader's line spacing, so the sheet keeps its leading. */
   lineSpacing?: number
+  /** Passage size from the host. Omitted hosts keep Swift's 16pt sheet. */
+  fontSize?: number
 }
 
-// Swift's footnote sheet renders verse and notes in Untitled Serif at a fixed 16pt, whatever the
-// reader size; `.footnote` only sizes the marker.
-const VERSE_FONT_SIZE = 16
+const DEFAULT_FONT_SIZE = 16
 // YouVersionFonts.labelSmall: system 11 medium.
 const LABEL_FONT_SIZE = 11
 const SUP_RAISE_EM = 0.5
@@ -46,6 +46,7 @@ export default function FootnoteContent({
   versionAbbreviation,
   scriptureDirection,
   lineSpacing = READER_LINE_SPACING.DEFAULT,
+  fontSize = DEFAULT_FONT_SIZE,
 }: FootnoteContentProps): ReactNode {
   return (
     <ThemeContext.Provider value={theme}>
@@ -53,7 +54,8 @@ export default function FootnoteContent({
         data={data}
         versionAbbreviation={versionAbbreviation}
         direction={scriptureDirection}
-        lineHeight={VERSE_FONT_SIZE * lineMultiple(lineSpacing)}
+        fontSize={fontSize}
+        lineHeight={fontSize * lineMultiple(lineSpacing)}
       />
     </ThemeContext.Provider>
   )
@@ -63,11 +65,13 @@ function FootnoteBody({
   data,
   versionAbbreviation,
   direction,
+  fontSize,
   lineHeight,
 }: {
   data: FootnoteData
   versionAbbreviation: string | undefined
   direction: 'ltr' | 'rtl' | undefined
+  fontSize: number
   lineHeight: number
 }): ReactNode {
   const tokens = useTokens()
@@ -123,7 +127,7 @@ function FootnoteBody({
                 key={index}
                 runs={runs}
                 faceFor={serifFaceFor}
-                fontSize={VERSE_FONT_SIZE}
+                fontSize={fontSize}
                 lineHeight={lineHeight}
                 color={foreground}
                 muted={muted}
@@ -160,7 +164,7 @@ function FootnoteBody({
                     key={paragraphIndex}
                     runs={runs}
                     faceFor={serifFaceFor}
-                    fontSize={VERSE_FONT_SIZE}
+                    fontSize={fontSize}
                     lineHeight={lineHeight}
                     color={foreground}
                     muted={muted}

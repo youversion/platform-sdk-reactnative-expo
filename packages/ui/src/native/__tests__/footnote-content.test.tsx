@@ -176,6 +176,16 @@ describe('FootnoteContent', () => {
     expect(screen.getByText('Only note')).toBeTruthy()
     expect(screen.getByText('a.')).toBeTruthy()
   })
+
+  it('sizes the verse and notes from the configured font size', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} fontSize={20} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    const lineHeight = 20 * lineMultiple(READER_LINE_SPACING.DEFAULT)
+    expect(flattened('He then added, ')).toMatchObject({ fontSize: 20, lineHeight })
+    expect(flattened('Or')).toMatchObject({ fontSize: 20, lineHeight })
+  })
 })
 
 function sheetProps(data: FootnoteData) {

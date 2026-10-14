@@ -226,6 +226,17 @@ describe('BibleTextView', () => {
     expect(latestTextViewDomProps.dom).toEqual({ matchContents: false })
   })
 
+  it('gives the footnote sheet the configured font size', () => {
+    const { getByTestId } = render(
+      <BibleTextView reference="JHN.1.1" versionId={3034} fontSize={20} />,
+      { wrapper: wrapper() },
+    )
+
+    fireEvent.press(getByTestId('mock-footnote-trigger'))
+
+    expect(getByTestId('mock-footnote-font-size').children).toContain('20')
+  })
+
   it('opens the native footnote sheet with footnote data when no consumer handler is provided', () => {
     const { getByTestId, queryByTestId } = render(
       <BibleTextView reference="JHN.1.1" versionId={3034} />,

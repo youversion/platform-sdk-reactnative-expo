@@ -94,6 +94,7 @@ export function BibleTextView({
               <FootnoteContent
                 data={footnoteData ?? EMPTY_FOOTNOTE}
                 theme={resolvedTheme}
+                fontSize={fontSize}
               />
             </NativeSheet>
           )}
