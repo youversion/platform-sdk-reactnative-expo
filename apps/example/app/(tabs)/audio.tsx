@@ -22,9 +22,13 @@ const TRACKS = [
 
 const PLAYLIST = {
   sources: TRACKS.map((track) => ({ uri: track.uri, name: track.title })),
-  updateInterval: 250,
+  // Expo uses this for progress bars. Faster updates make the bar less jumpy once a seek lands.
+  updateInterval: 100,
   loop: 'none',
 } as const
+
+const SEEK_MATCH_SECONDS = 0.5
+const SEEK_HOLD_LIMIT_MS = 1000
 
 export default function AudioScreen() {
   const { top, bottom } = useSafeAreaInsets()
@@ -32,7 +36,25 @@ export default function AudioScreen() {
   const theme = colorTheme[scheme]
   const playlist = useAudioPlaylist(PLAYLIST)
   const status = useAudioPlaylistStatus(playlist)
-  const [scrubTime, setScrubTime] = useState<number | null>(null)
+  const [previewTime, setPreviewTime] = useState<number | null>(null)
+  const [heldTime, setHeldTime] = useState<number | null>(null)
+  const seekGeneration = useRef(0)
+  const heldTarget = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      seekGeneration.current += 1
+    }
+  }, [])
+
+  useEffect(() => {
+    const target = heldTarget.current
+    if (target === null) return
+    const gap = Math.abs(status.currentTime - target)
+    if (gap > SEEK_MATCH_SECONDS) return
+    heldTarget.current = null
+    setHeldTime(null)
+  }, [status.currentTime])
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -43,9 +65,37 @@ export default function AudioScreen() {
 
   const track = TRACKS[status.currentIndex]
   const title = track ? track.title : 'Audio'
-  const shownTime = scrubTime === null ? status.currentTime : scrubTime
+  let shownTime = status.currentTime
+  if (heldTime !== null) {
+    shownTime = heldTime
+  }
+  if (previewTime !== null) {
+    shownTime = previewTime
+  }
   const atLastTrack = status.currentIndex >= TRACKS.length - 1
-  const atFirstMoment = status.currentIndex <= 0 && status.currentTime <= 3
+  const atFirstMoment = status.currentIndex <= 0 && shownTime <= 3
+
+  function releaseSeekHold() {
+    seekGeneration.current += 1
+    heldTarget.current = null
+    setPreviewTime(null)
+    setHeldTime(null)
+  }
+
+  function commitSeek(seconds: number) {
+    const next = clamp(seconds, 0, status.duration)
+    const generation = seekGeneration.current + 1
+    seekGeneration.current = generation
+    heldTarget.current = next
+    setPreviewTime(null)
+    setHeldTime(next)
+    void playlist.seekTo(next)
+    setTimeout(() => {
+      if (seekGeneration.current !== generation) return
+      heldTarget.current = null
+      setHeldTime(null)
+    }, SEEK_HOLD_LIMIT_MS)
+  }
 
   function togglePlayback() {
     if (status.playing) {
@@ -57,23 +107,24 @@ export default function AudioScreen() {
 
   function stop() {
     playlist.pause()
-    void playlist.seekTo(0)
+    commitSeek(0)
   }
 
   function skipBy(delta: number) {
-    const next = clamp(status.currentTime + delta, 0, status.duration)
-    void playlist.seekTo(next)
+    commitSeek(shownTime + delta)
   }
 
   function goToPreviousTrack() {
-    if (status.currentTime > 3) {
-      void playlist.seekTo(0)
+    if (shownTime > 3) {
+      commitSeek(0)
       return
     }
+    releaseSeekHold()
     playlist.previous()
   }
 
   function playTrack(index: number) {
+    releaseSeekHold()
     playlist.skipTo(index)
     playlist.play()
   }
@@ -92,6 +143,7 @@ export default function AudioScreen() {
 
   return (
     <ScrollView
+      directionalLockEnabled
       style={{ backgroundColor: theme.bg }}
       contentContainerStyle={[styles.content, { paddingTop: top + 24, paddingBottom: bottom + 32 }]}
     >
@@ -114,10 +166,8 @@ export default function AudioScreen() {
           duration={status.duration}
           fill={theme.fg}
           track={theme.line}
-          onPreview={setScrubTime}
-          onSeek={(seconds) => {
-            void playlist.seekTo(seconds)
-          }}
+          onPreview={setPreviewTime}
+          onSeek={commitSeek}
         />
 
         <View style={styles.transport}>
@@ -131,7 +181,10 @@ export default function AudioScreen() {
           <Control
             label="Next"
             disabled={atLastTrack}
-            onPress={() => playlist.next()}
+            onPress={() => {
+              releaseSeekHold()
+              playlist.next()
+            }}
             theme={theme}
           />
         </View>
@@ -187,7 +240,7 @@ function Scrubber({
   onSeek: (seconds: number) => void
 }) {
   const width = useRef(0)
-  const [dragSeconds, setDragSeconds] = useState<number | null>(null)
+  const latest = useRef(position)
 
   function secondsFor(x: number): number {
     if (width.current <= 0 || duration <= 0) return 0
@@ -195,13 +248,15 @@ function Scrubber({
     return ratio * duration
   }
 
-  let shown = position
-  if (dragSeconds !== null) {
-    shown = dragSeconds
+  function previewAt(x: number) {
+    const seconds = secondsFor(x)
+    latest.current = seconds
+    onPreview(seconds)
   }
+
   let ratio = 0
   if (duration > 0) {
-    ratio = clamp(shown / duration, 0, 1)
+    ratio = clamp(position / duration, 0, 1)
   }
 
   return (
@@ -214,31 +269,27 @@ function Scrubber({
       }}
       onStartShouldSetResponder={() => duration > 0}
       onMoveShouldSetResponder={() => duration > 0}
+      onResponderTerminationRequest={() => false}
       onResponderGrant={(event) => {
-        const seconds = secondsFor(event.nativeEvent.locationX)
-        setDragSeconds(seconds)
-        onPreview(seconds)
+        previewAt(event.nativeEvent.locationX)
       }}
       onResponderMove={(event) => {
-        const seconds = secondsFor(event.nativeEvent.locationX)
-        setDragSeconds(seconds)
-        onPreview(seconds)
+        previewAt(event.nativeEvent.locationX)
       }}
-      onResponderRelease={(event) => {
-        const seconds = secondsFor(event.nativeEvent.locationX)
-        setDragSeconds(null)
-        onPreview(null)
-        onSeek(seconds)
+      onResponderRelease={() => {
+        onSeek(latest.current)
       }}
       onResponderTerminate={() => {
-        setDragSeconds(null)
         onPreview(null)
       }}
     >
-      <View style={[styles.scrubTrack, { backgroundColor: track }]}>
+      <View pointerEvents="none" style={[styles.scrubTrack, { backgroundColor: track }]}>
         <View style={[styles.scrubFill, { backgroundColor: fill, width: `${ratio * 100}%` }]} />
       </View>
-      <View style={[styles.scrubThumb, { backgroundColor: fill, left: `${ratio * 100}%` }]} />
+      <View
+        pointerEvents="none"
+        style={[styles.scrubThumb, { backgroundColor: fill, left: `${ratio * 100}%` }]}
+      />
     </View>
   )
 }
