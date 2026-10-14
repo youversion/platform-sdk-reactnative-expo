@@ -1,6 +1,7 @@
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useMemo, type ReactNode } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Text } from '../components/ui'
 import { ThemeContext, useTokens } from '../hooks'
@@ -28,6 +29,9 @@ const VERSE_FONT_SIZE = 16
 // YouVersionFonts.labelSmall: system 11 medium.
 const LABEL_FONT_SIZE = 11
 const SUP_RAISE_EM = 0.5
+// Gorhom's default handle. NativeSheet draws the bottom safe area under the
+// content, so this height plus both insets is the space the sheet cannot use.
+const SHEET_HANDLE_HEIGHT = 24
 
 export default function FootnoteContent({
   data,
@@ -61,6 +65,9 @@ function FootnoteBody({
 }): ReactNode {
   const tokens = useTokens()
   const serifFaceFor = useSerifFace()
+  const { height: windowHeight } = useWindowDimensions()
+  const { top, bottom } = useSafeAreaInsets()
+  const maxHeight = Math.max(0, windowHeight - top - bottom - SHEET_HANDLE_HEIGHT)
   const showVerse = data.verseHtml.length > 0
   let heading = data.verseNum
   if (data.reference) {
@@ -83,7 +90,12 @@ function FootnoteBody({
   const muted = tokens.mutedForeground
 
   return (
-    <View testID="footnote-content" style={[styles.body, { direction: rtl ? 'rtl' : 'ltr' }]}>
+    <ScrollView
+      testID="footnote-content"
+      nestedScrollEnabled
+      style={{ maxHeight, direction: rtl ? 'rtl' : 'ltr' }}
+      contentContainerStyle={styles.body}
+    >
       {showVerse ? (
         <View>
           <Text
@@ -151,7 +163,7 @@ function FootnoteBody({
           )
         })}
       </View>
-    </View>
+    </ScrollView>
   )
 }
 

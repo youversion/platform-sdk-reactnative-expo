@@ -305,7 +305,12 @@ function BibleCardBody({
         />
       )}
       {showFootnoteSheet && (
-        <NativeSheet isOpen={!!footnoteData} onClose={onCloseFootnote} theme={resolvedTheme}>
+        <NativeSheet
+          isOpen={!!footnoteData}
+          onClose={onCloseFootnote}
+          theme={resolvedTheme}
+          enableContentPanningGesture={false}
+        >
           <FootnoteContent
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}

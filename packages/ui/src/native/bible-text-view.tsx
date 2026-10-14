@@ -89,6 +89,7 @@ export function BibleTextView({
               openKey={footnoteOpenKey}
               onClose={() => setFootnoteData(null)}
               theme={resolvedTheme}
+              enableContentPanningGesture={false}
             >
               <FootnoteContent
                 data={footnoteData ?? EMPTY_FOOTNOTE}

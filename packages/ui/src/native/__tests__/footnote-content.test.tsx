@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { StyleSheet } from 'react-native'
 
+import { mockWindowDimensions } from '../../../jest.window-dimensions-mock'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
@@ -122,6 +123,14 @@ describe('FootnoteContent', () => {
     expect(StyleSheet.flatten(screen.getByTestId('footnote-content').props.style)).toMatchObject({
       direction: 'rtl',
     })
+  })
+
+  it('caps the body below the screen so a long note can scroll', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} />, { wrapper: youVersionProviderWrapper() })
+
+    const { maxHeight } = StyleSheet.flatten(screen.getByTestId('footnote-content').props.style)
+    expect(maxHeight).toBeGreaterThan(0)
+    expect(maxHeight).toBeLessThan(mockWindowDimensions.height)
   })
 
   it('names the Source Serif 4 fallback when Untitled Serif did not register', () => {
