@@ -575,6 +575,30 @@ describe('BibleReaderNative', () => {
     }
   })
 
+  it('hides scripture when a language list is set and the version has no language tag', async () => {
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB' }))
+      }
+      return prior(input, init)
+    })
+    const fetchBibleContent = jest.fn(
+      fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } }),
+    )
+    try {
+      mount({ fetchBibleContent, permittedLanguageTags: ['en'] })
+
+      await screen.findByText(UNAVAILABLE)
+      expect(screen.queryByText('In the beginning')).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequested(fetchBibleContent)).toBe(false)
+    } finally {
+      global.fetch = prior
+    }
+  })
+
   it('offers retry when a language lookup fails, then shows an allowed chapter', async () => {
     let failLookup = true
     const prior = global.fetch
