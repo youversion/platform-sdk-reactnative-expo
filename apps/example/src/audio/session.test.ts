@@ -11,14 +11,19 @@ import {
   formatRate,
   formatRemaining,
   formatSleep,
+  labelForVersion,
   loadPhaseAfterWait,
+  narratorHeading,
   nextChapterIndex,
-  nextPlaybackRate,
-  nextSleepMinutes,
+  openDrawer,
   pressToolbar,
+  showNarratorSelector,
   sleepDeadline,
+  sleepLabels,
   sleepShouldPause,
+  speedLabels,
   toolbarIcon,
+  toolbarShowsPlayButton,
   verseAtTime,
 } from './session.ts'
 
@@ -48,23 +53,50 @@ test('skip clamps to the track', () => {
   assert.equal(clampSeconds(40 + 15, 100), 55)
 })
 
-test('speed cycles from 1x through 2x and back to 0.75x', () => {
+test('speed choices run from 0.75x to 2x and 1x is the plain label', () => {
+  assert.deepEqual(speedLabels(), ['0.75x', '1x', '1.25x', '1.5x', '1.75x', '2x'])
   assert.equal(formatRate(1), '1x')
-  assert.equal(nextPlaybackRate(1), 1.25)
-  assert.equal(nextPlaybackRate(2), 0.75)
   assert.equal(formatRate(0.75), '0.75x')
+  assert.equal(formatRate(2), '2x')
 })
 
-test('sleep timer cycles off, 5, 15, 30, 60, then off', () => {
+test('sleep choices are Off, 5m, 10m, 15m, 30m, 1h, and 2h', () => {
+  assert.deepEqual(sleepLabels(), ['Off', '5m', '10m', '15m', '30m', '1h', '2h'])
   assert.equal(formatSleep(null), 'Off')
-  assert.equal(nextSleepMinutes(null), 5)
-  assert.equal(nextSleepMinutes(5), 15)
-  assert.equal(nextSleepMinutes(60), null)
-  assert.equal(formatSleep(15), '15m')
-  assert.equal(sleepDeadline(1_000, 5), 301_000)
-  assert.equal(sleepShouldPause(301_000, 301_000), true)
-  assert.equal(sleepShouldPause(300_999, 301_000), false)
-  assert.equal(sleepShouldPause(301_000, null), false)
+  assert.equal(formatSleep(10), '10m')
+  assert.equal(formatSleep(60), '1h')
+  assert.equal(formatSleep(120), '2h')
+  assert.equal(sleepDeadline(1_000, 120), 7_201_000)
+  assert.equal(sleepShouldPause(7_201_000, 7_201_000), true)
+  assert.equal(sleepShouldPause(7_200_999, 7_201_000), false)
+  assert.equal(sleepShouldPause(7_201_000, null), false)
+})
+
+test('the reader version 3034 is labeled BSB, and an unknown id stays numeric', () => {
+  assert.equal(labelForVersion(3034), 'BSB')
+  assert.equal(labelForVersion(111), '111')
+})
+
+test('the narrator sheet appears only when more than one recording exists', () => {
+  assert.equal(showNarratorSelector([]), false)
+  assert.equal(showNarratorSelector([{ id: 'only', title: 'Only voice' }]), false)
+  assert.equal(
+    showNarratorSelector([
+      { id: 'a', title: 'BSB Reader' },
+      { id: 'b', title: 'BSB Dramatized' },
+    ]),
+    true,
+  )
+  assert.equal(narratorHeading('BSB'), 'Viewing Audio Bibles for BSB')
+})
+
+test('hiding the floating play button removes it, and the pill can still open the drawer', () => {
+  assert.equal(toolbarShowsPlayButton(false), true)
+  assert.equal(toolbarShowsPlayButton(true), false)
+  const idle = { kind: 'idle' } as const
+  assert.deepEqual(openDrawer(idle), { kind: 'session', drawer: 'open', transport: 'paused' })
+  const playing = { kind: 'session', drawer: 'closed', transport: 'playing' } as const
+  assert.deepEqual(openDrawer(playing), { kind: 'session', drawer: 'open', transport: 'playing' })
 })
 
 test('a stream that never loads becomes an error instead of staying on loading', () => {

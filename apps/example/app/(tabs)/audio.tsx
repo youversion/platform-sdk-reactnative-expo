@@ -13,8 +13,13 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg'
 
 import {
   AUDIO_CHAPTERS,
+  DEFAULT_NARRATOR_ID,
+  MOCK_NARRATORS,
   OPENING_CHAPTER_INDEX,
+  PLAYBACK_RATES,
+  READER_VERSION_ID,
   SKIP_SECONDS,
+  SLEEP_MENU,
   chapterAt,
   clampSeconds,
   collapseDrawer,
@@ -23,25 +28,30 @@ import {
   formatRate,
   formatRemaining,
   formatSleep,
+  labelForVersion,
   loadPhaseAfterWait,
+  narratorHeading,
   nextChapterIndex,
-  nextPlaybackRate,
-  nextSleepMinutes,
+  openDrawer,
   pressToolbar,
+  showNarratorSelector,
   sleepDeadline,
   sleepShouldPause,
   toolbarIcon,
+  toolbarShowsPlayButton,
   verseAtTime,
   type AudioChapter,
   type Chrome,
   type LoadPhase,
+  type Narrator,
   type PlaybackRate,
   type SleepMinutes,
 } from '../../src/audio/session'
 import { ChromeFrame } from '../../src/audio/chrome-frame'
 
 const STATUS_TICK_MS = 200
-const READER_VERSION_ID = 3034
+
+type AudioSheet = 'speed' | 'sleep' | 'narrator'
 
 type Clock = {
   currentTime: number
@@ -68,6 +78,9 @@ export default function AudioScreen() {
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [rate, setRate] = useState<PlaybackRate>(1)
   const [sleepMinutes, setSleepMinutes] = useState<SleepMinutes | null>(null)
+  const [narratorId, setNarratorId] = useState<string>(DEFAULT_NARRATOR_ID)
+  const [playButtonHidden, setPlayButtonHidden] = useState(false)
+  const [sheet, setSheet] = useState<AudioSheet | null>(null)
   const [sleepEndsAt, setSleepEndsAt] = useState<number | null>(null)
   const [clock, setClock] = useState<Clock>({ currentTime: 0, duration: 0 })
   const [previewTime, setPreviewTime] = useState<number | null>(null)
@@ -235,25 +248,45 @@ export default function AudioScreen() {
     loadChapter(chapterIndex)
   }
 
-  function onSpeed() {
-    const next = nextPlaybackRate(rate)
-    setRate(next)
-    playerRef.current?.setPlaybackRate(next)
+  function onOpenSheet(next: AudioSheet) {
+    setSheet((current) => (current === next ? null : next))
   }
 
-  function onSleep() {
-    const next = nextSleepMinutes(sleepMinutes)
+  function onPickRate(next: PlaybackRate) {
+    setRate(next)
+    playerRef.current?.setPlaybackRate(next)
+    setSheet(null)
+  }
+
+  function onPickSleep(next: SleepMinutes | null) {
     setSleepMinutes(next)
     if (next === null) {
       setSleepEndsAt(null)
-      return
+    } else {
+      setSleepEndsAt(sleepDeadline(Date.now(), next))
     }
-    setSleepEndsAt(sleepDeadline(Date.now(), next))
+    setSheet(null)
+  }
+
+  function onPickNarrator(next: string) {
+    setNarratorId(next)
+    setSheet(null)
+  }
+
+  function onTogglePlayButton() {
+    setPlayButtonHidden((hidden) => !hidden)
+  }
+
+  function onOpenFromPill() {
+    setChrome((current) => openDrawer(current))
   }
 
   const open = drawerIsOpen(chrome)
   const icon = toolbarIcon(chrome)
   const verse = verseAtTime(chapter.mockVerseTimings, shownTime)
+  const version = labelForVersion(READER_VERSION_ID)
+  const showPlayButton = toolbarShowsPlayButton(playButtonHidden)
+  const narrator = narratorById(narratorId)
   const sans = tokens.fontFamily.sans
   const titleFace = `${sans}_bold`
   const mediumFace = `${sans}_medium`
@@ -273,12 +306,17 @@ export default function AudioScreen() {
         <ChromeFrame>
           <Drawer
             chapter={chapter}
+            version={version}
             icon={icon}
             verse={verse}
             shownTime={shownTime}
             duration={clock.duration}
             rate={rate}
             sleepMinutes={sleepMinutes}
+            narrator={narrator}
+            showNarrators={showNarratorSelector(MOCK_NARRATORS)}
+            playButtonHidden={playButtonHidden}
+            sheet={sheet}
             loadPhase={loadPhase}
             canGoPrevious={chapterIndex > 0}
             canGoNext={chapterIndex < AUDIO_CHAPTERS.length - 1}
@@ -290,8 +328,11 @@ export default function AudioScreen() {
             onChapterStep={onChapterStep}
             onSeek={onSeek}
             onPreview={setPreviewTime}
-            onSpeed={onSpeed}
-            onSleep={onSleep}
+            onOpenSheet={onOpenSheet}
+            onPickRate={onPickRate}
+            onPickSleep={onPickSleep}
+            onPickNarrator={onPickNarrator}
+            onTogglePlayButton={onTogglePlayButton}
             onRetry={onRetry}
           />
         </ChromeFrame>
@@ -301,11 +342,14 @@ export default function AudioScreen() {
             <LoadNotice loadPhase={loadPhase} bodyFace={sans} onRetry={onRetry} />
             <Toolbar
               chapter={chapter}
+              version={version}
               icon={icon}
+              showPlayButton={showPlayButton}
               progress={clock.duration > 0 ? shownTime / clock.duration : 0}
               titleFace={mediumFace}
               bodyFace={sans}
               onPress={onToolbarPress}
+              onOpen={onOpenFromPill}
             />
           </View>
         </ChromeFrame>
@@ -368,25 +412,38 @@ function LoadNotice({
   )
 }
 
+function narratorById(id: string): Narrator {
+  for (const narrator of MOCK_NARRATORS) {
+    if (narrator.id === id) return narrator
+  }
+  return MOCK_NARRATORS[0]
+}
+
 function Toolbar({
   chapter,
+  version,
   icon,
+  showPlayButton,
   progress,
   titleFace,
   bodyFace,
   onPress,
+  onOpen,
 }: {
   chapter: AudioChapter
+  version: string
   icon: 'play' | 'pause'
+  showPlayButton: boolean
   progress: number
   titleFace: string
   bodyFace: string
   onPress: () => void
+  onOpen: () => void
 }) {
   const tokens = useTokens()
   let label = 'Play'
   if (icon === 'pause') label = 'Pause'
-  return (
+  const pill = (
     <View
       style={[
         styles.pill,
@@ -397,13 +454,15 @@ function Toolbar({
         },
       ]}
     >
-      <RoundTransport
-        icon={icon}
-        label={label}
-        progress={progress}
-        size={40}
-        onPress={onPress}
-      />
+      {showPlayButton ? (
+        <RoundTransport
+          icon={icon}
+          label={label}
+          progress={progress}
+          size={40}
+          onPress={onPress}
+        />
+      ) : null}
       <View style={styles.chapterSlot}>
         <Text
           style={[
@@ -444,21 +503,32 @@ function Toolbar({
             { color: tokens.foreground, fontFamily: titleFace },
           ]}
         >
-          {chapter.versionLabel}
+          {version}
         </Text>
       </View>
     </View>
+  )
+  if (showPlayButton) return pill
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel="Open player" onPress={onOpen}>
+      {pill}
+    </Pressable>
   )
 }
 
 function Drawer({
   chapter,
+  version,
   icon,
   verse,
   shownTime,
   duration,
   rate,
   sleepMinutes,
+  narrator,
+  showNarrators,
+  playButtonHidden,
+  sheet,
   loadPhase,
   canGoPrevious,
   canGoNext,
@@ -470,17 +540,25 @@ function Drawer({
   onChapterStep,
   onSeek,
   onPreview,
-  onSpeed,
-  onSleep,
+  onOpenSheet,
+  onPickRate,
+  onPickSleep,
+  onPickNarrator,
+  onTogglePlayButton,
   onRetry,
 }: {
   chapter: AudioChapter
+  version: string
   icon: 'play' | 'pause'
   verse: number | null
   shownTime: number
   duration: number
   rate: PlaybackRate
   sleepMinutes: SleepMinutes | null
+  narrator: Narrator
+  showNarrators: boolean
+  playButtonHidden: boolean
+  sheet: AudioSheet | null
   loadPhase: LoadPhase
   canGoPrevious: boolean
   canGoNext: boolean
@@ -492,8 +570,11 @@ function Drawer({
   onChapterStep: (direction: -1 | 1) => void
   onSeek: (seconds: number) => void
   onPreview: (seconds: number | null) => void
-  onSpeed: () => void
-  onSleep: () => void
+  onOpenSheet: (next: AudioSheet) => void
+  onPickRate: (next: PlaybackRate) => void
+  onPickSleep: (next: SleepMinutes | null) => void
+  onPickNarrator: (next: string) => void
+  onTogglePlayButton: () => void
   onRetry: () => void
 }) {
   const tokens = useTokens()
@@ -536,7 +617,7 @@ function Drawer({
               { color: tokens.mutedForeground, fontFamily: bodyFace },
             ]}
           >
-            {chapter.versionLabel}
+            {version}
           </Text>
           <Text
             style={[
@@ -546,6 +627,22 @@ function Drawer({
           >
             Mock timing
           </Text>
+          {showNarrators ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Narrator ${narrator.title}`}
+              onPress={() => onOpenSheet('narrator')}
+            >
+              <Text
+                style={[
+                  tokens.typography.sm,
+                  { color: tokens.foreground, fontFamily: mediumFace },
+                ]}
+              >
+                {narrator.title}
+              </Text>
+            </Pressable>
+          ) : null}
         </View>
         <View style={styles.chevronButton} />
       </View>
@@ -592,8 +689,44 @@ function Drawer({
         onSeek={onSeek}
       />
 
+      {sheet === 'speed' ? (
+        <ChoiceList
+          label="Playback speed"
+          bodyFace={bodyFace}
+          titleFace={titleFace}
+          rows={PLAYBACK_RATES.map((choice) => ({
+            id: formatRate(choice),
+            label: formatRate(choice),
+            selected: choice === rate,
+            onPress: () => onPickRate(choice),
+          }))}
+        />
+      ) : null}
+      {sheet === 'sleep' ? (
+        <ChoiceList
+          label="Sleep timer"
+          bodyFace={bodyFace}
+          titleFace={titleFace}
+          rows={SLEEP_MENU.map((choice) => ({
+            id: choice.label,
+            label: choice.label,
+            selected: choice.minutes === sleepMinutes,
+            onPress: () => onPickSleep(choice.minutes),
+          }))}
+        />
+      ) : null}
+      {sheet === 'narrator' ? (
+        <NarratorSheet
+          version={version}
+          narratorId={narrator.id}
+          bodyFace={bodyFace}
+          titleFace={titleFace}
+          onPick={onPickNarrator}
+        />
+      ) : null}
+
       <View style={styles.bottomRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Speed ${formatRate(rate)}`} onPress={onSpeed}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Speed ${formatRate(rate)}`} onPress={() => onOpenSheet('speed')}>
           <Text
             style={[
               styles.speed,
@@ -607,7 +740,7 @@ function Drawer({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Sleep timer ${formatSleep(sleepMinutes)}`}
-          onPress={onSleep}
+          onPress={() => onOpenSheet('sleep')}
           style={styles.sleep}
         >
           <ClockIcon color={tokens.foreground} />
@@ -621,6 +754,133 @@ function Drawer({
           </Text>
         </Pressable>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={playButtonHidden ? 'Show play button' : 'Hide play button'}
+        onPress={onTogglePlayButton}
+      >
+        <Text
+          style={[
+            tokens.typography.sm,
+            { color: tokens.foreground, fontFamily: mediumFace },
+          ]}
+        >
+          {playButtonHidden ? 'Show play button' : 'Hide play button'}
+        </Text>
+      </Pressable>
+    </View>
+  )
+}
+
+function ChoiceList({
+  label,
+  rows,
+  bodyFace,
+  titleFace,
+}: {
+  label: string
+  rows: readonly { id: string; label: string; selected: boolean; onPress: () => void }[]
+  bodyFace: string
+  titleFace: string
+}) {
+  const tokens = useTokens()
+  return (
+    <View
+      accessibilityLabel={label}
+      style={[
+        styles.menu,
+        {
+          backgroundColor: tokens.card,
+          borderColor: tokens.border,
+          borderRadius: tokens.radius.surface,
+        },
+      ]}
+    >
+      {rows.map((row) => (
+        <Pressable
+          key={row.id}
+          accessibilityRole="button"
+          accessibilityLabel={row.selected ? `${row.label} selected` : row.label}
+          accessibilityState={{ selected: row.selected }}
+          onPress={row.onPress}
+          style={styles.menuRow}
+        >
+          <Text
+            style={[
+              styles.check,
+              tokens.typography.base,
+              { color: tokens.foreground, fontFamily: titleFace },
+            ]}
+          >
+            {row.selected ? '✓' : ''}
+          </Text>
+          <Text
+            style={[
+              tokens.typography.base,
+              { color: tokens.foreground, fontFamily: bodyFace },
+            ]}
+          >
+            {row.label}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  )
+}
+
+function NarratorSheet({
+  version,
+  narratorId,
+  bodyFace,
+  titleFace,
+  onPick,
+}: {
+  version: string
+  narratorId: string
+  bodyFace: string
+  titleFace: string
+  onPick: (id: string) => void
+}) {
+  const tokens = useTokens()
+  return (
+    <View accessibilityLabel="Narrator list" style={styles.narratorSheet}>
+      <ChoiceList
+        label="Narrators"
+        bodyFace={bodyFace}
+        titleFace={titleFace}
+        rows={MOCK_NARRATORS.map((choice) => ({
+          id: choice.id,
+          label: choice.title,
+          selected: choice.id === narratorId,
+          onPress: () => onPick(choice.id),
+        }))}
+      />
+      <Text
+        style={[
+          tokens.typography.sm,
+          { color: tokens.mutedForeground, fontFamily: bodyFace },
+        ]}
+      >
+        {narratorHeading(version)}
+      </Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="Switch Version" onPress={() => undefined}>
+        <Text
+          style={[
+            tokens.typography.base,
+            { color: tokens.foreground, fontFamily: titleFace },
+          ]}
+        >
+          Switch Version
+        </Text>
+      </Pressable>
+      <Text
+        style={[
+          tokens.typography.sm,
+          { color: tokens.mutedForeground, fontFamily: bodyFace },
+        ]}
+      >
+        Mock
+      </Text>
     </View>
   )
 }
@@ -1048,6 +1308,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  menu: {
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  menuRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+  },
+  check: {
+    width: 16,
+  },
+  narratorSheet: {
+    gap: 8,
   },
   skipMark: {
     width: 28,
