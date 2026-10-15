@@ -3,9 +3,25 @@ import { LABEL_SCALE, resolveBlock, resolveChars } from '../styles'
 const F = 20
 
 describe('resolveBlock', () => {
-  it('centres an intro major title at the title size', () => {
+  it('draws an intro major title left-aligned in bold at the title size', () => {
     const block = resolveBlock(['imt'], F)
-    expect(block).toMatchObject({ align: 'center', size: F * 1.17, weight: 500 })
+    expect(block).toMatchObject({ align: 'left', size: F * 1.17, weight: 700 })
+  })
+
+  it('gives a later section heading 1em of space above', () => {
+    expect(resolveBlock(['s1'], F).top).toBe(1)
+  })
+
+  it('keeps a parallel reference left-aligned with a half-em bottom', () => {
+    expect(resolveBlock(['r'], F)).toMatchObject({ align: 'left', bottom: 0.5 })
+  })
+
+  it('draws a major title large and bold, left-aligned', () => {
+    expect(resolveBlock(['mt1'], F)).toMatchObject({
+      size: F * 1.6,
+      weight: 700,
+      align: 'left',
+    })
   })
 
   it('indents poetry in em so a larger font steps further in', () => {
@@ -45,7 +61,11 @@ describe('resolveChars', () => {
     expect(resolveChars(['nd']).raised).toBe(false)
   })
 
-  it('draws a translator addition in bold italic', () => {
-    expect(resolveChars(['add'])).toMatchObject({ italic: true, weight: 700 })
+  it('draws a translator addition in italic at the body weight', () => {
+    expect(resolveChars(['add'])).toMatchObject({ italic: true, weight: null })
+  })
+
+  it('draws a bold-italic run in medium italic', () => {
+    expect(resolveChars(['bdit'])).toMatchObject({ weight: 500, italic: true })
   })
 })

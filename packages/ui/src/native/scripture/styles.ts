@@ -67,26 +67,26 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['lh', { mT: 0.5, first: 1 }],
   ['nb', { first: 0, head: 0 }],
   ['d', { align: 'center', italic: true, mT: 0.6, mB: 1.2 }],
-  ['s', { ...TITLE, mT: 0, mB: 0.25, first: 0, head: 0 }],
-  ['s1', { ...TITLE, mT: 0, mB: 0.25, first: 0, head: 0 }],
+  ['s', { ...TITLE, mT: 1, mB: 0.25, first: 0, head: 0 }],
+  ['s1', { ...TITLE, mT: 1, mB: 0.25, first: 0, head: 0 }],
   ['s2', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
   ['s3', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
   ['s4', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
   ['sp', { ...TITLE, italic: true, mT: 0.5, mB: 0.5 }],
   ['sr', { ...SUBTITLE, align: 'center', mB: 0.25 }],
-  ['r', { align: 'center', italic: true, mT: 0, mB: 0.25 }],
+  ['r', { italic: true, mT: 0, mB: 0.5 }],
   ['mr', { ...TITLE, align: 'center', italic: true, mT: 0, mB: 0.6 }],
   ['ms', { ...SUBTITLE, align: 'center', mT: 0, mB: 0.6 }],
   ['ms1', { ...TITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms2', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms3', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms4', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
-  ['mt1', { ...TITLE, align: 'center', mT: 0.25, mB: 0.5 }],
-  ['mt2', { ...TITLE, align: 'center', italic: true, mB: 0.25 }],
-  ['imt', { ...TITLE, align: 'center' }],
-  ['imt1', { size: 1.17, weight: 700, align: 'center', mT: 1, mB: 0.25 }],
-  ['imt2', { size: 1.08, italic: true, align: 'center', mT: 0.5, mB: 0.25 }],
-  ['is1', { size: 1.17, weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
+  ['mt1', { size: 1.6, weight: 700, mT: 0.25, mB: 0.5 }],
+  ['mt2', { size: 1.3, weight: 500, italic: true, mB: 0.25 }],
+  ['imt', { ...TITLE, weight: 700 }],
+  ['imt1', { size: 1.17, weight: 700, mT: 1, mB: 0.25 }],
+  ['imt2', { size: 1.08, italic: true, mT: 0.5, mB: 0.25 }],
+  ['is1', { size: 1.17, weight: 700, mT: 0.5, mB: 0.5 }],
 ])
 
 export type ResolvedBlock = {
@@ -186,6 +186,7 @@ export type ResolvedChars = {
 const ITALIC = new Set([
   'tl',
   'it',
+  'add',
   'em',
   'fq',
   'fqa',
@@ -209,9 +210,6 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
   for (const name of classes) {
     if (name === 'wj') {
       chars.wordsOfJesus = true
-    } else if (name === 'add') {
-      chars.italic = true
-      chars.weight = 700
     } else if (name === 'nd' || name === 'sc') {
       chars.smallCaps = true
     } else if (ITALIC.has(name)) {
