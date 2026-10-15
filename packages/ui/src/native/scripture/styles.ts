@@ -1,5 +1,6 @@
-// USFM block and character styles from the Swift/Kotlin readers
-// (.claude/plans/native-reader-style-spec.md §2, §4). Native beats Web.
+// USFM block and character styles from the format tool's reader
+// (yvp-bible-format `bible-reader-overrides.css`). Indents are em, so they
+// grow with the font. Poetry is 2/4/6/8em. Lists step 2/3/4/5em.
 
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 
@@ -15,7 +16,7 @@ type BlockRule = {
   /** Margins in em. */
   mT?: number
   mB?: number
-  /** First-line indent units (0.75em each) and whole-block indent units (8pt each). */
+  /** First-line indent in em, and whole-block indent in em. */
   first?: number
   head?: number
 }
@@ -28,12 +29,12 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['ip', { mB: 0.6, first: 1, head: 0 }],
   ['m', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
   ['im', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
-  ['pi', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
-  ['pi1', { mB: 0.6, first: 1, head: 2 }],
-  ['ipi', { mB: 0.6, first: 1, head: 2 }],
+  ['pi', { mT: 0.5, mB: 0.5, first: 1, head: 0 }],
+  ['pi1', { mB: 0.6, first: 1, head: 0 }],
+  ['ipi', { mB: 0.6, first: 1, head: 1 }],
   ['iex', { first: 1, head: 0 }],
-  ['pi2', { first: 1, head: 4 }],
-  ['pi3', { first: 1, head: 6 }],
+  ['pi2', { first: 2, head: 1 }],
+  ['pi3', { first: 4, head: 3 }],
   ['pm', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
   ['pmc', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
   ['pmo', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
@@ -45,7 +46,7 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['q2', { first: 0, head: 4 }],
   ['q3', { first: 0, head: 6 }],
   ['q4', { first: 0, head: 8 }],
-  ['qm', { mT: 0.5, mB: 0.5, head: 0 }],
+  ['qm', { mT: 0.5, mB: 0.5, head: 2 }],
   ['qm1', { mT: 0.5, mB: 0.5, head: 2 }],
   ['qm2', { mT: 0.5, mB: 0.5, head: 4 }],
   ['qm3', { mT: 0.5, mB: 0.5, head: 6 }],
@@ -57,12 +58,12 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['li1', { first: 0, head: 2 }],
   ['ili', { first: 0, head: 2 }],
   ['ili1', { first: 0, head: 2 }],
-  ['lim', { first: 0, head: 2 }],
+  ['lim', { first: 0, head: 3 }],
   ['mi', { first: 0, head: 2 }],
-  ['li2', { first: 0, head: 4 }],
-  ['ili2', { first: 0, head: 4 }],
-  ['li3', { first: 0, head: 6 }],
-  ['li4', { first: 0, head: 8 }],
+  ['li2', { first: 0, head: 3 }],
+  ['ili2', { first: 0, head: 3 }],
+  ['li3', { first: 0, head: 4 }],
+  ['li4', { first: 0, head: 5 }],
   ['lh', { mT: 0.5, first: 1 }],
   ['nb', { first: 0, head: 0 }],
   ['d', { align: 'center', italic: true, mT: 0.6, mB: 1.2 }],
@@ -107,7 +108,7 @@ export type ResolvedBlock = {
 // its 8pt minimum (a stack adds no spacing beside a spacer), so the text never reaches the gutter.
 const SPACER_INSET = 8
 
-/** Merges every class's rule, later classes winning, then resolves pt values for font size `F`. */
+/** Merges every class's rule, later classes winning, then resolves px for font size `F`. */
 export function resolveBlock(classes: readonly string[], fontSize: number): ResolvedBlock {
   const rule: BlockRule = {}
   for (const name of classes) {
@@ -126,8 +127,8 @@ export function resolveBlock(classes: readonly string[], fontSize: number): Reso
     align: rule.align ?? 'left',
     top: rule.mT ?? 0,
     bottom: rule.mB ?? 0,
-    firstIndent: centred ? 0 : fontSize * 0.25 * Math.min(Math.max((rule.first ?? 0) * 3, 0), 24),
-    headIndent: centred ? 0 : 8 * (rule.head ?? 0),
+    firstIndent: centred ? 0 : fontSize * (rule.first ?? 0),
+    headIndent: centred ? 0 : fontSize * (rule.head ?? 0),
     alignInset: {
       start: rule.align === undefined ? 0 : SPACER_INSET,
       end: centred ? SPACER_INSET : 0,
@@ -185,7 +186,6 @@ export type ResolvedChars = {
 const ITALIC = new Set([
   'tl',
   'it',
-  'add',
   'em',
   'fq',
   'fqa',
@@ -209,6 +209,9 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
   for (const name of classes) {
     if (name === 'wj') {
       chars.wordsOfJesus = true
+    } else if (name === 'add') {
+      chars.italic = true
+      chars.weight = 700
     } else if (name === 'nd' || name === 'sc') {
       chars.smallCaps = true
     } else if (ITALIC.has(name)) {
