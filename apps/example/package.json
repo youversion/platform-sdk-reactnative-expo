@@ -14,7 +14,8 @@
     "build:ios-release": "expo run:ios --variant release",
     "build:android-release": "expo run:android --variant release",
     "build:android": "expo run:android",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/audio/session.test.ts"
   },
   "dependencies": {
     "@expo/dom-webview": "57.0.1",
@@ -25,6 +26,7 @@
     "@youversion/platform-react-native-expo-ui": "workspace:*",
     "expo": "57.0.23",
     "expo-application": "57.0.3",
+    "expo-audio": "57.0.5",
     "expo-build-properties": "57.0.20",
     "expo-clipboard": "57.0.2",
     "expo-crypto": "57.0.3",
