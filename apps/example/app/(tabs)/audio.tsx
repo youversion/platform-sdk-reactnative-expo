@@ -1,14 +1,14 @@
-import { BibleReader, useTokens } from '@youversion/platform-react-native-expo-ui'
+import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio'
-import { memo, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Platform,
   Pressable,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
 
 import {
@@ -39,7 +39,6 @@ import {
   sleepShouldPause,
   toolbarIcon,
   toolbarShowsPlayButton,
-  verseAtTime,
   type AudioChapter,
   type Chrome,
   type LoadPhase,
@@ -51,6 +50,18 @@ import { ChromeFrame } from '../../src/audio/chrome-frame'
 
 const STATUS_TICK_MS = 200
 
+/** iOS tab bar floats over the screen. Safe area is only the home indicator. */
+const IOS_TAB_BAR_CONTENT_HEIGHT = 49
+const TOOLBAR_BOTTOM_GAP = 12
+
+function useAudioChromeInset(): number {
+  const { bottom } = useSafeAreaInsets()
+  if (Platform.OS === 'ios') {
+    return IOS_TAB_BAR_CONTENT_HEIGHT + bottom
+  }
+  return 0
+}
+
 type AudioSheet = 'speed' | 'sleep' | 'narrator'
 
 type Clock = {
@@ -58,20 +69,9 @@ type Clock = {
   duration: number
 }
 
-const ReaderPane = memo(function ReaderPane({ book, chapter }: { book: string; chapter: string }) {
-  return (
-    <BibleReader
-      showToolbar={false}
-      book={book}
-      chapter={chapter}
-      versionId={READER_VERSION_ID}
-    />
-  )
-})
-
 export default function AudioScreen() {
   const tokens = useTokens()
-  const { height: windowHeight } = useWindowDimensions()
+  const chromeInset = useAudioChromeInset()
   const [chapterIndex, setChapterIndex] = useState(OPENING_CHAPTER_INDEX)
   const [chrome, setChrome] = useState<Chrome>({ kind: 'idle' })
   const [loadPhase, setLoadPhase] = useState<LoadPhase>({ kind: 'loading' })
@@ -197,6 +197,7 @@ export default function AudioScreen() {
   }
 
   function onCollapse() {
+    setSheet(null)
     setChrome((current) => collapseDrawer(current))
   }
 
@@ -283,7 +284,6 @@ export default function AudioScreen() {
 
   const open = drawerIsOpen(chrome)
   const icon = toolbarIcon(chrome)
-  const verse = verseAtTime(chapter.mockVerseTimings, shownTime)
   const version = labelForVersion(READER_VERSION_ID)
   const showPlayButton = toolbarShowsPlayButton(playButtonHidden)
   const narrator = narratorById(narratorId)
@@ -292,23 +292,13 @@ export default function AudioScreen() {
   const mediumFace = `${sans}_medium`
 
   return (
-    <View
-      style={[
-        styles.screen,
-        { backgroundColor: tokens.background },
-        Platform.OS === 'web' ? { height: windowHeight } : null,
-      ]}
-    >
-      <View style={styles.reader}>
-        <ReaderPane book={chapter.bookId} chapter={String(chapter.chapter)} />
-      </View>
+    <View style={[styles.screen, { backgroundColor: tokens.background }]}>
       {open ? (
         <ChromeFrame>
           <Drawer
             chapter={chapter}
             version={version}
             icon={icon}
-            verse={verse}
             shownTime={shownTime}
             duration={clock.duration}
             rate={rate}
@@ -338,7 +328,7 @@ export default function AudioScreen() {
         </ChromeFrame>
       ) : (
         <ChromeFrame>
-          <View style={styles.toolbarDock}>
+          <View style={[styles.toolbarDock, { bottom: TOOLBAR_BOTTOM_GAP + chromeInset }]}>
             <LoadNotice loadPhase={loadPhase} bodyFace={sans} onRetry={onRetry} />
             <Toolbar
               chapter={chapter}
@@ -346,10 +336,13 @@ export default function AudioScreen() {
               icon={icon}
               showPlayButton={showPlayButton}
               progress={clock.duration > 0 ? shownTime / clock.duration : 0}
+              canGoPrevious={chapterIndex > 0}
+              canGoNext={chapterIndex < AUDIO_CHAPTERS.length - 1}
               titleFace={mediumFace}
               bodyFace={sans}
               onPress={onToolbarPress}
               onOpen={onOpenFromPill}
+              onChapterStep={onChapterStep}
             />
           </View>
         </ChromeFrame>
@@ -425,25 +418,50 @@ function Toolbar({
   icon,
   showPlayButton,
   progress,
+  canGoPrevious,
+  canGoNext,
   titleFace,
   bodyFace,
   onPress,
   onOpen,
+  onChapterStep,
 }: {
   chapter: AudioChapter
   version: string
   icon: 'play' | 'pause'
   showPlayButton: boolean
   progress: number
+  canGoPrevious: boolean
+  canGoNext: boolean
   titleFace: string
   bodyFace: string
   onPress: () => void
   onOpen: () => void
+  onChapterStep: (direction: -1 | 1) => void
 }) {
   const tokens = useTokens()
   let label = 'Play'
   if (icon === 'pause') label = 'Pause'
-  const pill = (
+  let leading = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Open player"
+      onPress={onOpen}
+      style={styles.openSlot}
+    />
+  )
+  if (showPlayButton) {
+    leading = (
+      <RoundTransport
+        icon={icon}
+        label={label}
+        progress={progress}
+        size={40}
+        onPress={onPress}
+      />
+    )
+  }
+  return (
     <View
       style={[
         styles.pill,
@@ -454,16 +472,16 @@ function Toolbar({
         },
       ]}
     >
-      {showPlayButton ? (
-        <RoundTransport
-          icon={icon}
-          label={label}
-          progress={progress}
-          size={40}
-          onPress={onPress}
-        />
-      ) : null}
-      <View style={styles.chapterSlot}>
+      {leading}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Previous chapter"
+        accessibilityState={{ disabled: !canGoPrevious }}
+        disabled={!canGoPrevious}
+        hitSlop={8}
+        onPress={() => onChapterStep(-1)}
+        style={!canGoPrevious ? styles.iconDisabled : null}
+      >
         <Text
           style={[
             tokens.typography.lg,
@@ -472,6 +490,13 @@ function Toolbar({
         >
           ‹
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open player"
+        onPress={onOpen}
+        style={styles.chapterSlot}
+      >
         <Text
           numberOfLines={1}
           style={[
@@ -482,6 +507,16 @@ function Toolbar({
         >
           {chapter.title}
         </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Next chapter"
+        accessibilityState={{ disabled: !canGoNext }}
+        disabled={!canGoNext}
+        hitSlop={8}
+        onPress={() => onChapterStep(1)}
+        style={!canGoNext ? styles.iconDisabled : null}
+      >
         <Text
           style={[
             tokens.typography.lg,
@@ -490,29 +525,25 @@ function Toolbar({
         >
           ›
         </Text>
-      </View>
-      <View
-        style={[
-          styles.versionSlot,
-          { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
-        ]}
-      >
-        <Text
+      </Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open player" onPress={onOpen}>
+        <View
           style={[
-            tokens.typography.sm,
-            { color: tokens.foreground, fontFamily: titleFace },
+            styles.versionSlot,
+            { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
           ]}
         >
-          {version}
-        </Text>
-      </View>
+          <Text
+            style={[
+              tokens.typography.sm,
+              { color: tokens.foreground, fontFamily: titleFace },
+            ]}
+          >
+            {version}
+          </Text>
+        </View>
+      </Pressable>
     </View>
-  )
-  if (showPlayButton) return pill
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Open player" onPress={onOpen}>
-      {pill}
-    </Pressable>
   )
 }
 
@@ -520,7 +551,6 @@ function Drawer({
   chapter,
   version,
   icon,
-  verse,
   shownTime,
   duration,
   rate,
@@ -550,7 +580,6 @@ function Drawer({
   chapter: AudioChapter
   version: string
   icon: 'play' | 'pause'
-  verse: number | null
   shownTime: number
   duration: number
   rate: PlaybackRate
@@ -578,6 +607,7 @@ function Drawer({
   onRetry: () => void
 }) {
   const tokens = useTokens()
+  const chromeInset = useAudioChromeInset()
   let centerLabel = 'Play'
   if (icon === 'pause') centerLabel = 'Pause'
   return (
@@ -589,6 +619,7 @@ function Drawer({
           borderColor: tokens.border,
           borderTopLeftRadius: tokens.radius.surface,
           borderTopRightRadius: tokens.radius.surface,
+          paddingBottom: 16 + chromeInset,
         },
       ]}
     >
@@ -681,7 +712,6 @@ function Drawer({
       </View>
 
       <Scrubber
-        verse={verse}
         position={shownTime}
         duration={duration}
         bodyFace={bodyFace}
@@ -886,14 +916,12 @@ function NarratorSheet({
 }
 
 function Scrubber({
-  verse,
   position,
   duration,
   bodyFace,
   onPreview,
   onSeek,
 }: {
-  verse: number | null
   position: number
   duration: number
   bodyFace: string
@@ -911,34 +939,8 @@ function Scrubber({
     return clampSeconds((locationX / width) * duration, duration)
   }
 
-  let bubble = `Verse ${verse ?? ''}`
-  if (verse === null) bubble = ''
-
   return (
     <View style={styles.scrubBlock}>
-      <View style={[styles.bubbleRow, { marginLeft: `${bounded * 100}%` }]}>
-        {verse === null ? null : (
-          <View
-            style={[
-              styles.bubble,
-              {
-                backgroundColor: tokens.card,
-                borderColor: tokens.border,
-                borderRadius: tokens.radius.surface,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                tokens.typography.sm,
-                { color: tokens.foreground, fontFamily: bodyFace },
-              ]}
-            >
-              {bubble}
-            </Text>
-          </View>
-        )}
-      </View>
       <View style={styles.scrubRow}>
         <Text
           style={[
@@ -1172,14 +1174,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
-  reader: {
-    flex: 1,
-  },
   toolbarDock: {
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 12,
     zIndex: 2,
     gap: 8,
   },
@@ -1206,12 +1204,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  openSlot: {
+    width: 40,
+    height: 40,
+  },
   chapterSlot: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
   },
   chapterLabel: {
     flexShrink: 1,
@@ -1232,7 +1232,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 16,
     gap: 12,
   },
   drawerHeader: {
@@ -1265,16 +1264,6 @@ const styles = StyleSheet.create({
   },
   scrubBlock: {
     gap: 4,
-  },
-  bubbleRow: {
-    height: 28,
-    alignItems: 'flex-start',
-  },
-  bubble: {
-    marginLeft: -36,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
   },
   scrubRow: {
     flexDirection: 'row',
