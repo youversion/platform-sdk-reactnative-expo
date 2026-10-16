@@ -47,7 +47,6 @@ describe('BibleCard version picker integration', () => {
     latestDomProps = {}
     stubImpl('FootnoteContent', 'mock-footnote')
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
-    setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
     setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
     setImpl(
       'BibleVersionPickerSheet',
