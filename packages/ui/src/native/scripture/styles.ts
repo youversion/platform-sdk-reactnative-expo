@@ -33,6 +33,9 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['pi1', { mB: 0.6, first: 1, head: 0 }],
   ['ipi', { mB: 0.6, first: 1, head: 1 }],
   ['iex', { first: 1, head: 0 }],
+  ['imi', { mB: 0.6, first: 0, head: 2 }],
+  ['ipq', { italic: true, first: 1, head: 2 }],
+  ['ipr', { italic: true, align: 'right' }],
   ['pi2', { first: 2, head: 1 }],
   ['pi3', { first: 4, head: 3 }],
   ['pm', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
@@ -59,12 +62,17 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['ili', { first: 0, head: 2 }],
   ['ili1', { first: 0, head: 2 }],
   ['lim', { first: 0, head: 3 }],
+  ['lim1', { first: 0, head: 3 }],
   ['mi', { first: 0, head: 2 }],
   ['li2', { first: 0, head: 3 }],
   ['ili2', { first: 0, head: 3 }],
   ['li3', { first: 0, head: 4 }],
   ['li4', { first: 0, head: 5 }],
   ['lh', { mT: 0.5, first: 1 }],
+  ['io', { head: 2 }],
+  ['io1', { head: 2 }],
+  ['io2', { head: 3 }],
+  ['io3', { head: 4 }],
   ['nb', { first: 0, head: 0 }],
   ['d', { align: 'center', italic: true, mT: 0.6, mB: 1.2 }],
   ['s', { ...TITLE, mT: 1, mB: 0.25, first: 0, head: 0 }],
@@ -81,12 +89,21 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['ms2', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms3', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms4', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
+  ['mt', { size: 1.6, weight: 700, mT: 0.25, mB: 0.5 }],
   ['mt1', { size: 1.6, weight: 700, mT: 0.25, mB: 0.5 }],
   ['mt2', { size: 1.3, weight: 500, italic: true, mB: 0.25 }],
   ['imt', { ...TITLE, weight: 700 }],
   ['imt1', { size: 1.17, weight: 700, mT: 1, mB: 0.25 }],
   ['imt2', { size: 1.08, italic: true, mT: 0.5, mB: 0.25 }],
+  ['imte', { weight: 700, mT: 1, mB: 0.25 }],
+  ['imte1', { weight: 700, mT: 1, mB: 0.25 }],
+  ['imte2', { italic: true, align: 'center', mT: 0.5, mB: 0.15 }],
+  ['iot', { weight: 700, mT: 0.5, mB: 0.5 }],
   ['is1', { size: 1.17, weight: 700, mT: 0.5, mB: 0.5 }],
+  ['is2', { weight: 700, mT: 0.5, mB: 0.5 }],
+  ['cd', { italic: true }],
+  ['qd', { italic: true }],
+  ['pr', { align: 'right' }],
 ])
 
 export type ResolvedBlock = {
@@ -114,8 +131,8 @@ export function resolveBlock(classes: readonly string[], fontSize: number): Reso
   for (const name of classes) {
     Object.assign(rule, BLOCK_RULES.get(name))
   }
-  // `r` inside a `yv-h` header is the medium italic parallel-passage line.
-  if (classes.includes('r') && classes.includes('yv-h')) {
+  // `r` and `cd` inside a `yv-h` header are the medium italic line.
+  if ((classes.includes('r') || classes.includes('cd')) && classes.includes('yv-h')) {
     rule.weight = 500
   }
   const centred = rule.align === 'center'
@@ -196,6 +213,8 @@ const ITALIC = new Set([
   'bk',
   'sig',
   'litl',
+  'sls',
+  'iqt',
 ])
 
 export function resolveChars(classes: readonly string[]): ResolvedChars {
@@ -214,7 +233,7 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
       chars.smallCaps = true
     } else if (ITALIC.has(name)) {
       chars.italic = true
-    } else if (name === 'bd' || name === 'fr') {
+    } else if (name === 'bd' || name === 'k' || name === 'fr') {
       chars.weight = 700
     } else if (name === 'bdit' || name === 'fk' || name === 'fl') {
       chars.weight = 500
