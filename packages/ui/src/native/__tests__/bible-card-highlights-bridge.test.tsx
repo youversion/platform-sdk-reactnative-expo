@@ -75,7 +75,6 @@ beforeEach(async () => {
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('NativeSheet')
   setImpl('BibleTextViewDom', MockDOM)
-  setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
   jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockReturnValue(new Promise(() => undefined))
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
