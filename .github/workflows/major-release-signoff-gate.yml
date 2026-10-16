@@ -28,6 +28,7 @@ jobs:
     name: Find the PRs to evaluate
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       prs: ${{ steps.prs.outputs.prs }}
