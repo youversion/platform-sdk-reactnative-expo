@@ -37,7 +37,7 @@ import type { ChapterPickerLoadState } from './use-chapter-picker'
 const SIDE_PADDING = 20
 const CHAPTER_COLUMNS = 5
 const CHIP_INSET = 2
-const CHIP_RADIUS = 4
+const CHIP_RADIUS = 6
 const CHAPTER_HEIGHT = 48
 const MOTION_DURATION = 200
 
