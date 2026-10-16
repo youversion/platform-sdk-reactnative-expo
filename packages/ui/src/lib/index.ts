@@ -1,5 +1,5 @@
 export { applySDKConfig, clearAuthResidue } from './dom-apply'
 export { ContentSizedBody } from './content-sized-body'
-export { withEmbedDomDefaults, withSheetDomDefaults } from './embed-dom-props'
+export { withEmbedDomDefaults } from './embed-dom-props'
 export { toWebError, type DomError } from './dom-error'
 export { createVariants, type VariantProps } from './variants'

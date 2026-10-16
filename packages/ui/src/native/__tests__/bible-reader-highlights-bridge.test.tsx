@@ -12,8 +12,6 @@ import { act, fireEvent, render } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -118,7 +116,7 @@ beforeEach(async () => {
   }
   stubHighlights([])
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   mmkvStorage.clearAll()
   useReaderLocationStore.setState(readerLocationStoreInitialState)
   await useReaderLocationStore.persist.rehydrate()
@@ -318,54 +316,5 @@ describe('clearSelectionSignal', () => {
 
     rerender(<BibleReader clearSelectionSignal={0} />)
     expect(lastDomProps().clearSelectionSignal).toBe(0)
-  })
-})
-
-/**
- * `verseActions` is applied inside the `'use dom'` file, on the Web SDK root —
- * it is consumed there rather than re-emitted, so no test that mocks the DOM
- * component (i.e. every layer-3 test) can observe what the reader root receives,
- * and this repo has no jsdom project to render the real thing in. This reads the
- * source instead. Crude, but the line it guards is the one that keeps a second
- * verse-action popover from stacking over the native sheet on iOS and Android,
- * keeps the Web SDK's own highlight writes switched off, and leaves web with
- * verse actions at all; leaving it with no regression guard was the worse trade.
- */
-describe('the DOM component source (unobservable from layer 3)', () => {
-  const source = readFileSync(join(__dirname, '../../dom/bible-reader.tsx'), 'utf8')
-
-  it('forwards the host-chosen verseActions to the Web SDK reader root', () => {
-    // Both assertions are anchored to a line that is nothing but the JSX prop.
-    // A plain substring check would also be satisfied by that file's JSDoc,
-    // which discusses `verseActions` and both of its values in prose — so
-    // deleting the real prop, or re-hardcoding it, would leave this green.
-    expect(source).toMatch(/^\s*verseActions=\{verseActions\}$/m)
-    // Re-hardcoding the literal is the specific regression: it un-fixes web,
-    // where `NativeSheet` renders nothing and the popover is the only verse
-    // action UI, and `resolveVerseActions` goes dead with no test failing.
-    expect(source).not.toMatch(/^\s*verseActions="none"$/m)
-  })
-
-  it('wires no Web SDK highlight-intent or copy/share handlers', () => {
-    expect(source).not.toContain('onHighlightApply')
-    expect(source).not.toContain('onHighlightRemove')
-    expect(source).not.toContain('onCopy=')
-    expect(source).not.toContain('onShare=')
-  })
-
-  it('neither declares nor applies an accessToken prop', () => {
-    // Anchored to a line that starts with the identifier, so the file's prose
-    // about why the token is gone cannot satisfy either assertion. This catches
-    // both the type member (`accessToken: string | null`) and the destructure.
-    expect(source).not.toMatch(/^\s*accessToken\b/m)
-    // The applier itself: re-adding it is how the token would get back into
-    // WebView `localStorage`, where iOS keeps it on disk across relaunch.
-    expect(source).not.toContain('applyAuthToken')
-  })
-
-  it('still clears the residue prior versions left in WebView storage', () => {
-    // Upgrading installs carry an `accessToken` key written by an older SDK
-    // version. Dropping this call would strand it there for good.
-    expect(source).toMatch(/^\s*clearAuthResidue\(\)$/m)
   })
 })

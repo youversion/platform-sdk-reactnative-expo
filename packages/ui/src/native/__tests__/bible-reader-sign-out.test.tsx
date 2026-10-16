@@ -78,7 +78,7 @@ beforeEach(() => {
   signOut.mockClear()
   mmkvStorage.clearAll()
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   jest.spyOn(Alert, 'alert').mockImplementation(() => undefined)
 })
 

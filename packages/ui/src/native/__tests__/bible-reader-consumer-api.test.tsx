@@ -100,7 +100,7 @@ beforeEach(() => {
   refreshHighlights.mockClear()
   latestReaderDomProps = {}
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   setImpl(
     'BibleVerseActionSheet',
     (props: {

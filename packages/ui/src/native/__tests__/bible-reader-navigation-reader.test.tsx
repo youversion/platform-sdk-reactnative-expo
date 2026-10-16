@@ -75,7 +75,7 @@ describe('BibleReader navigation', () => {
     latestReaderDomProps = {}
     appliedFocusSeqs.length = 0
     installBibleReaderTestImpls()
-    setImpl('BibleReaderDom', MockDOM)
+    setImpl('BibleReaderNative', MockDOM)
     await resetReaderLocationStore()
   })
 

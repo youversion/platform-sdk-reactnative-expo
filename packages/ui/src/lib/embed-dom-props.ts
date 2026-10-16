@@ -50,16 +50,3 @@ export function withEmbedDomDefaults(dom?: DOMProps): DOMProps {
       : EMBED_CONTAINER_STYLE,
   }
 }
-
-/**
- * Sheet-hosted `matchContents` embeds (footnotes). Applies the
- * same scroll-chrome defaults as screen embeds but leaves container sizing to
- * the NativeSheet / bottom-sheet host (ADR 0007).
- */
-export function withSheetDomDefaults(dom?: DOMProps): DOMProps {
-  return {
-    ...MATCH_CONTENTS_SCROLL_CHROME,
-    ...dom,
-    matchContents: dom?.matchContents ?? true,
-  }
-}
