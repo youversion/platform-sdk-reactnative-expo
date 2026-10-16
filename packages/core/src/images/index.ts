@@ -1,8 +1,8 @@
 export { createImagesApi, type CreateImagesApiConfig, type ImagesApi } from './api'
 export type {
+  GetImagesOptions,
   ImagesApiError,
   ImagesApiResult,
-  ListImagesParams,
   YouVersionImage,
   YouVersionImagePage,
 } from './types'

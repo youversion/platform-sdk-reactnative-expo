@@ -69,9 +69,9 @@ export type {
 
 export { useImages } from './images'
 export type {
+  GetImagesOptions,
   ImagesApiError,
   ImagesApiResult,
-  ListImagesParams,
   UseImagesResult,
   YouVersionImage,
   YouVersionImagePage,

@@ -239,8 +239,8 @@ _Avoid_: Query persistence (the Web SDK's query client is private and its persis
 _Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; a parallel Search HTTP client or DTO layer
 
 **Images**:
-Local HTTP client for verse images. `@youversion/platform-core` 2.13.0 has no `ImagesClient`, so this repo owns the client. Requests use `/v1-beta/images` because the API is not on production. Public operations: `list`, `get`. Snake_case wire fields map to camelCase at the boundary. Thrown client errors become RN `Result` (`auth` / `transient` / `invalid-parameter`). The wrapper stays internal.
-_Avoid_: Exporting the HTTP wrapper; treating Images as Bible Content; a production `/v1/images` path until the API ships there
+`createImagesApi` wraps `@youversion/platform-core` `ImagesClient` the way search wraps `SearchClient`. Public operations: `list`, `get`. The client is constructed with `{ beta: true }`, so requests go to `/v1-beta/images` until the API is on production. Types alias the shared image DTOs (`image_url`, `passage_id`, and a `Collection`). Thrown client errors become RN `Result` (`auth` / `transient` / `invalid-parameter`). The wrapper stays internal. Images are a normal JSON API, not **Bible Content Cache**.
+_Avoid_: Exporting the HTTP wrapper; a second image parser in this repo; treating Images as Bible Content; a production `/v1/images` path until the API ships there
 
 **Search Sheet**:
 The native Reader Search UI. Internal, like **BibleVerseActionSheet** — not on the package namespace. The Search icon lives on the **Native Reader Toolbar**. Suggestions and trending use the active Bible version `language_tag`, or `*` when that tag is missing — not the app UI locale. A result tap dismisses the sheet and uses **Reader Navigation** to load that chapter, scroll to the verse, and dim the rest of the chapter.

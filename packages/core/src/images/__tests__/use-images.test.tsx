@@ -57,10 +57,10 @@ describe('useImages', () => {
     expect(result.current.list).toEqual(expect.any(Function))
     expect(result.current.get).toEqual(expect.any(Function))
 
-    const page = await result.current.list({ passageId: 'JHN.3.16' })
+    const page = await result.current.list({ passage_id: 'JHN.3.16' })
     expect(page).toEqual({
       ok: true,
-      value: { images: [], nextPageToken: null, totalSize: null },
+      value: { data: [], next_page_token: null },
     })
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1-beta/images')
   })
@@ -69,19 +69,19 @@ describe('useImages', () => {
     const stub: UseImagesResult = {
       list: jest.fn(async () => ({
         ok: true as const,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })),
       get: jest.fn(async () => ({
         ok: true as const,
         value: {
           id: 'stub',
-          imageUrl: 'https://cdn.example.com/stub.jpg',
-          passageId: 'JHN.3.16',
+          image_url: 'https://cdn.example.com/stub.jpg',
+          passage_id: 'JHN.3.16',
           attribution: 'stub',
-          languageTag: 'en',
+          language_tag: 'en',
           width: 1,
           height: 1,
-          aspectRatio: 1,
+          aspect_ratio: 1,
         },
       })),
     }
@@ -93,10 +93,10 @@ describe('useImages', () => {
     })
 
     expect(result.current).toBe(stub)
-    const page = await result.current.list({ passageId: 'JHN.3.16' })
+    const page = await result.current.list({ passage_id: 'JHN.3.16' })
     expect(page).toEqual({
       ok: true,
-      value: { images: [], nextPageToken: null, totalSize: null },
+      value: { data: [], next_page_token: null },
     })
     expect(mockFetch).not.toHaveBeenCalled()
   })

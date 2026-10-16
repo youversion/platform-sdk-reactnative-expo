@@ -82,27 +82,16 @@ describe('createImagesApi', () => {
       )
 
       const result = await api().list({
-        passageId: 'JHN.3.16',
-        languageRanges: ['en-US', 'pt_BR'],
+        passage_id: 'JHN.3.16',
+        language_ranges: ['en-US', 'pt_BR'],
       })
 
       expect(result).toEqual({
         ok: true,
         value: {
-          images: [
-            {
-              id: 'img-1',
-              imageUrl: 'https://cdn.example.com/img-1.jpg',
-              passageId: 'JHN.3.16',
-              attribution: 'YouVersion',
-              languageTag: 'en-US',
-              width: 1200,
-              height: 800,
-              aspectRatio: 1.5,
-            },
-          ],
-          nextPageToken: 'next',
-          totalSize: 1,
+          data: [SAMPLE_IMAGE],
+          next_page_token: 'next',
+          total_size: 1,
         },
       })
 
@@ -116,22 +105,22 @@ describe('createImagesApi', () => {
     it('returns an empty page when data is an empty array', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ data: [] }))
 
-      const result = await api().list({ passageId: 'JHN.3.16' })
+      const result = await api().list({ passage_id: 'JHN.3.16' })
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })
     })
 
     it('returns an empty page on 204', async () => {
       mockFetch.mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }))
 
-      const result = await api().list({ passageId: 'JHN.3.16' })
+      const result = await api().list({ passage_id: 'JHN.3.16' })
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })
     })
 
@@ -139,14 +128,14 @@ describe('createImagesApi', () => {
       mockFetch.mockResolvedValue(jsonResponse({ data: [], next_page_token: null, total_size: 0 }))
 
       const result = await api().list({
-        passageId: 'JHN.3.16',
-        pageSize: 10,
-        pageToken: 'cursor-1',
+        passage_id: 'JHN.3.16',
+        page_size: 10,
+        page_token: 'cursor-1',
       })
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: 0 },
+        value: { data: [], next_page_token: null, total_size: 0 },
       })
 
       const { url } = lastRequest()
@@ -154,29 +143,29 @@ describe('createImagesApi', () => {
       expect(url.searchParams.get('page_token')).toBe('cursor-1')
     })
 
-    it('leaves totalSize null when the wire omits total_size', async () => {
+    it('omits total_size when the wire omits it', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ data: [] }))
 
       const result = await api().list({})
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })
       expect(lastRequest().url.searchParams.has('passage_id')).toBe(false)
     })
 
-    it('returns a numeric total_size as totalSize', async () => {
+    it('keeps a numeric total_size, including zero', async () => {
       mockFetch.mockResolvedValue(jsonResponse({ data: [SAMPLE_IMAGE], total_size: 42 }))
 
-      const result = await api().list({ passageId: 'JHN.3.16' })
+      const result = await api().list({ passage_id: 'JHN.3.16' })
 
       expect(result.ok).toBe(true)
       if (!result.ok) return
-      expect(result.value.totalSize).toBe(42)
+      expect(result.value.total_size).toBe(42)
     })
 
-    it('maps an empty next_page_token and a null total_size to null', async () => {
+    it('turns an empty next_page_token into null and drops a null total_size', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse({ data: [], next_page_token: '', total_size: null }),
       )
@@ -185,14 +174,14 @@ describe('createImagesApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })
     })
 
     it('maps 401 to auth without throwing', async () => {
       mockFetch.mockResolvedValue(errorResponse(401))
 
-      const result = await api().list({ passageId: 'JHN.3.16' })
+      const result = await api().list({ passage_id: 'JHN.3.16' })
 
       expect(result.ok).toBe(false)
       if (result.ok) return
@@ -202,7 +191,7 @@ describe('createImagesApi', () => {
     it('maps 400 for a chapter id to transient with status 400', async () => {
       mockFetch.mockResolvedValue(errorResponse(400))
 
-      const result = await api().list({ passageId: 'JHN.3' })
+      const result = await api().list({ passage_id: 'JHN.3' })
 
       expect(result).toEqual({
         ok: false,
@@ -215,18 +204,18 @@ describe('createImagesApi', () => {
       expect(lastRequest().url.searchParams.get('passage_id')).toBe('JHN.3')
     })
 
-    it('maps invalid pageSize and empty languageRanges to invalid-parameter without fetching', async () => {
-      const pageSizeZero = await api().list({ pageSize: 0 })
+    it('maps invalid page_size and empty language_ranges to invalid-parameter without fetching', async () => {
+      const pageSizeZero = await api().list({ page_size: 0 })
       expect(pageSizeZero.ok).toBe(false)
       if (pageSizeZero.ok) return
       expect(pageSizeZero.error.kind).toBe('invalid-parameter')
 
-      const pageSizeHigh = await api().list({ pageSize: 100 })
+      const pageSizeHigh = await api().list({ page_size: 100 })
       expect(pageSizeHigh.ok).toBe(false)
       if (pageSizeHigh.ok) return
       expect(pageSizeHigh.error.kind).toBe('invalid-parameter')
 
-      const emptyRanges = await api().list({ languageRanges: [] })
+      const emptyRanges = await api().list({ language_ranges: [] })
       expect(emptyRanges.ok).toBe(false)
       if (emptyRanges.ok) return
       expect(emptyRanges.error.kind).toBe('invalid-parameter')
@@ -243,7 +232,7 @@ describe('createImagesApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: { images: [], nextPageToken: null, totalSize: null },
+        value: { data: [], next_page_token: null },
       })
     })
 
@@ -263,31 +252,21 @@ describe('createImagesApi', () => {
       const badPayload = await api().list({})
       expect(badPayload.ok).toBe(false)
       if (badPayload.ok) return
-      expect(badPayload.error).toEqual({
-        kind: 'transient',
-        message: 'Unexpected images API response',
-      })
+      expect(badPayload.error.kind).toBe('transient')
+      if (badPayload.error.kind !== 'transient') return
+      expect(badPayload.error.message.startsWith('Unexpected images API response')).toBe(true)
     })
   })
 
   describe('get', () => {
-    it('encodes the id once and returns the camelCase record', async () => {
+    it('encodes the id once and returns the image record', async () => {
       mockFetch.mockResolvedValue(jsonResponse(SAMPLE_IMAGE))
 
       const result = await api().get('photo/1')
 
       expect(result).toEqual({
         ok: true,
-        value: {
-          id: 'img-1',
-          imageUrl: 'https://cdn.example.com/img-1.jpg',
-          passageId: 'JHN.3.16',
-          attribution: 'YouVersion',
-          languageTag: 'en-US',
-          width: 1200,
-          height: 800,
-          aspectRatio: 1.5,
-        },
+        value: SAMPLE_IMAGE,
       })
 
       expect(String(mockFetch.mock.calls[0]?.[0])).toBe(
@@ -319,10 +298,11 @@ describe('createImagesApi', () => {
 
       const result = await api().get('img-1')
 
-      expect(result).toEqual({
-        ok: false,
-        error: { kind: 'transient', message: 'Unexpected images API response' },
-      })
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error.kind).toBe('transient')
+      if (result.error.kind !== 'transient') return
+      expect(result.error.message.startsWith('Unexpected images API response')).toBe(true)
     })
   })
 
