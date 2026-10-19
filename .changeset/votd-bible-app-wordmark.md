@@ -2,4 +2,4 @@
 '@youversion/platform-react-native-expo-ui': patch
 ---
 
-Verse of the Day shows the Bible App wordmark, with black text in light theme and white text in dark.
+Verse of the Day and Bible Card show the Bible App wordmark. Light theme uses black text. Dark theme uses white text. The translated name is no longer drawn as text beside the icon.
