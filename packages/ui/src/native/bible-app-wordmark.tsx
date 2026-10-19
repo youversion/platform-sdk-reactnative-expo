@@ -4,6 +4,7 @@ import { useTheme, type Theme } from '../hooks'
 import blackText from '../../assets/bible-app-wordmark-black-text.png'
 import whiteText from '../../assets/bible-app-wordmark-white-text.png'
 
+// "Bible App" is a trademark, so this label stays in English.
 const UNTRANSLATED_WORDMARK_TEXT = 'Bible App'
 
 const WORDMARK_HEIGHT = 24
