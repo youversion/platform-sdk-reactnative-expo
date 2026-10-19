@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react'
 import { Image, StyleSheet, type ImageSourcePropType } from 'react-native'
 import { useTheme, type Theme } from '../hooks'
+import blackText from '../../assets/bible-app-wordmark-black-text.png'
+import whiteText from '../../assets/bible-app-wordmark-white-text.png'
 
 const UNTRANSLATED_WORDMARK_TEXT = 'Bible App'
 
 const SOURCE_BY_THEME = {
-  light: require('../../assets/bible-app-wordmark-black-text.png'),
-  dark: require('../../assets/bible-app-wordmark-white-text.png'),
+  light: blackText,
+  dark: whiteText,
 } satisfies Record<Theme, ImageSourcePropType>
 
 type BibleAppWordmarkProps = {
