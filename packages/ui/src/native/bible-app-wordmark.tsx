@@ -39,6 +39,7 @@ export function BibleAppWordmark({ testID }: BibleAppWordmarkProps): ReactNode {
 const styles = StyleSheet.create({
   wordmark: {
     height: WORDMARK_HEIGHT,
-    aspectRatio: WORDMARK_PIXEL_WIDTH / WORDMARK_PIXEL_HEIGHT,
+    // Image applies the file's pixel width first. aspectRatio does not replace it.
+    width: (WORDMARK_HEIGHT * WORDMARK_PIXEL_WIDTH) / WORDMARK_PIXEL_HEIGHT,
   },
 })
