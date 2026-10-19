@@ -6,6 +6,10 @@ import whiteText from '../../assets/bible-app-wordmark-white-text.png'
 
 const UNTRANSLATED_WORDMARK_TEXT = 'Bible App'
 
+const WORDMARK_HEIGHT = 24
+const WORDMARK_PIXEL_WIDTH = 660
+const WORDMARK_PIXEL_HEIGHT = 156
+
 const SOURCE_BY_THEME = {
   light: blackText,
   dark: whiteText,
@@ -33,7 +37,7 @@ export function BibleAppWordmark({ testID }: BibleAppWordmarkProps): ReactNode {
 
 const styles = StyleSheet.create({
   wordmark: {
-    height: 24,
-    width: (24 * 660) / 156,
+    height: WORDMARK_HEIGHT,
+    aspectRatio: WORDMARK_PIXEL_WIDTH / WORDMARK_PIXEL_HEIGHT,
   },
 })
