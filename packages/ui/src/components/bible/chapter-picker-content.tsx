@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
   retryButton: { paddingHorizontal: 16, paddingVertical: 8 },
   retryLabel: { textDecorationLine: 'underline' },
   bookContainer: { overflow: 'hidden' },
-  bookRow: { borderRadius: 14, overflow: 'hidden' },
+  bookRow: { borderRadius: CHIP_RADIUS, overflow: 'hidden' },
   bookPressable: { minHeight: 58, justifyContent: 'center', paddingHorizontal: 16 },
   bookTitle: { fontSize: 18, lineHeight: 26 },
   pressed: { opacity: 0.65 },
