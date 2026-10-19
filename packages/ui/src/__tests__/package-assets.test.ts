@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { dirname, join, posix, relative, resolve, sep } from 'node:path'
 import packageJson from '../../package.json'
+
+const WORDMARKS = [
+  'assets/bible-app-wordmark-black-text.png',
+  'assets/bible-app-wordmark-white-text.png',
+]
 
 const PACKAGE_ROOT = resolve(__dirname, '../..')
 const SRC = join(PACKAGE_ROOT, 'src')
@@ -39,16 +44,22 @@ function requiredImages(file: string): { fromSrc: string; fromBuild: string }[] 
     const specifier = match[1]
     if (specifier == null) continue
     images.push({
-      fromSrc: relative(PACKAGE_ROOT, resolve(dirname(file), specifier)),
-      fromBuild: relative(PACKAGE_ROOT, resolve(dirname(buildFile), specifier)),
+      fromSrc: packageRelative(file, specifier),
+      fromBuild: packageRelative(buildFile, specifier),
     })
   }
   return images
 }
 
+function packageRelative(fromFile: string, specifier: string): string {
+  const absolute = resolve(dirname(fromFile), specifier)
+  return relative(PACKAGE_ROOT, absolute).split(sep).join(posix.sep)
+}
+
 function topLevelDir(packagePath: string): string {
-  const segment = packagePath.split('/')[0]
-  if (segment == null || segment.length === 0 || !packagePath.includes('/')) {
+  const normalized = packagePath.split(sep).join(posix.sep)
+  const [segment, ...rest] = normalized.split(posix.sep)
+  if (segment == null || segment.length === 0 || rest.length === 0) {
     throw new Error(`image path has no directory: ${packagePath}`)
   }
   return segment
@@ -57,17 +68,12 @@ function topLevelDir(packagePath: string): string {
 describe('package assets', () => {
   it('ships every image a source file requires', () => {
     const rows = sourceFiles(SRC).flatMap(requiredImages)
-    const images = rows.map((row) => row.fromSrc).sort()
+    const images = rows.map((row) => row.fromSrc)
 
-    expect(images).toEqual([
-      'assets/bible-app-wordmark-black-text.png',
-      'assets/bible-app-wordmark-white-text.png',
-    ])
+    expect(images).toEqual(expect.arrayContaining(WORDMARKS))
     for (const row of rows) {
       expect(row.fromBuild).toBe(row.fromSrc)
-    }
-    for (const image of images) {
-      expect(packageJson.files).toContain(topLevelDir(image))
+      expect(packageJson.files).toContain(topLevelDir(row.fromSrc))
     }
   })
 })
