@@ -29,6 +29,26 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
+// TODO(YPE-6190): replace YouVersionImageSearchResult, YouVersionUnifiedSearchField, and YouVersionUnifiedSearchResults with aliases of SearchImageHit, SearchUnifiedField, and SearchUnifiedResponse from @youversion/platform-core once React #446 publishes searchUnified, then delete UnifiedSearchHits.
+export type YouVersionImageSearchResult = {
+  id: string
+  passageId: string
+}
+
+type UnifiedSearchHits = {
+  verses: YouVersionVerseSearchResult[]
+  topics: YouVersionSearchTopic[]
+  images: YouVersionImageSearchResult[]
+}
+
+export type YouVersionUnifiedSearchField = keyof UnifiedSearchHits
+
+export type YouVersionUnifiedSearchResults = {
+  verses: YouVersionVerseSearchResult[]
+  topics: YouVersionSearchTopic[]
+  images: YouVersionImageSearchResult[]
+}
+
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
   | { kind: 'transient'; status?: number; message: string }
@@ -56,4 +76,12 @@ export type SearchVersesParams = {
 export type SearchTopicsParams = {
   query: string
   languageRanges: string[]
+}
+
+export type SearchUnifiedParams = {
+  query: string
+  bibleId: number
+  languageRanges: string[]
+  fields?: YouVersionUnifiedSearchField[]
+  userIntent?: YouVersionSearchUserIntent
 }
