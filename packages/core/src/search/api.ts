@@ -10,13 +10,16 @@ import {
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
+import { buildUnifiedSearchCall, requestUnifiedSearch } from './unified'
 import type {
   SearchApiError,
   SearchApiResult,
   SearchTopicsParams,
+  SearchUnifiedParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
+  YouVersionUnifiedSearchResults,
 } from './types'
 
 export type CreateSearchApiConfig = {
@@ -36,6 +39,7 @@ export type SearchApi = {
   ) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
+  unified: (params: SearchUnifiedParams) => Promise<SearchApiResult<YouVersionUnifiedSearchResults>>
 }
 
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
@@ -61,6 +65,11 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     },
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
+    },
+    unified(params) {
+      // TODO(YPE-6190): replace the local stub with client.searchUnified(call.query, call.bibleId, call.languageRanges, call.options) once React #446 publishes, then delete the requestUnifiedSearch import.
+      const call = buildUnifiedSearchCall(params)
+      return catchAsResult(() => requestUnifiedSearch(client, call))
     },
   }
 }

@@ -15,6 +15,9 @@ describe('search package exports', () => {
   it('keeps the client wrapper and the Result seam internal', () => {
     const names = Object.keys(core)
     expect(names).not.toContain('createSearchApi')
+    expect(names).not.toContain('buildUnifiedSearchCall')
+    expect(names).not.toContain('mapUnifiedSearchImages')
+    expect(names).not.toContain('requestUnifiedSearch')
     expect(names).not.toContain('ok')
     expect(names).not.toContain('err')
   })

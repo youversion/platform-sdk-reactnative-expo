@@ -375,4 +375,20 @@ describe('createSearchApi', () => {
       expect(mockFetch).not.toHaveBeenCalled()
     })
   })
+
+  describe('unified', () => {
+    it('returns a transient failure and does not call fetch', async () => {
+      // TODO(YPE-6190): replace it with fetch-mocked unified search cases once React #446 publishes, then delete this transient-only case.
+      const result = await api().unified({
+        query: 'love',
+        bibleId: 111,
+        languageRanges: ['en'],
+      })
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error.kind).toBe('transient')
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+  })
 })
