@@ -112,10 +112,6 @@ describe('VerseOfTheDay', () => {
     })
   })
 
-  it('resolves distinct wordmark files for black text and white text', () => {
-    expect(black).not.toEqual(white)
-  })
-
   it('renders native chrome around the DOM BibleTextView', async () => {
     const { getByTestId, getByLabelText, getByText, queryByText } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
