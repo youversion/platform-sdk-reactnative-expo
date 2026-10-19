@@ -528,6 +528,7 @@ const styles = StyleSheet.create({
   sortBar: {
     flexDirection: 'row',
     marginHorizontal: SIDE_PADDING,
+    marginTop: 12,
     marginBottom: 12,
     padding: 4,
     borderWidth: 1,
