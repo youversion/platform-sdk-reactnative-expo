@@ -15,6 +15,8 @@ import {
   loadPhaseAfterWait,
   narratorHeading,
   nextChapterIndex,
+  nextFollowedVerse,
+  nextListening,
   openDrawer,
   pressToolbar,
   showNarratorSelector,
@@ -25,6 +27,7 @@ import {
   toolbarIcon,
   toolbarShowsPlayButton,
   verseAtTime,
+  verseStartSeconds,
 } from './session.ts'
 
 const timings = [
@@ -37,6 +40,21 @@ test('verseAtTime returns the verse whose window contains the second', () => {
   assert.equal(verseAtTime(timings, 14), 3)
   assert.equal(verseAtTime(timings, 8), null)
   assert.equal(verseAtTime(timings, 22), null)
+})
+
+test('nextFollowedVerse reports a verse only when the window changes', () => {
+  assert.equal(nextFollowedVerse(timings, 0, null), 1)
+  assert.equal(nextFollowedVerse(timings, 1, 1), null)
+  assert.equal(nextFollowedVerse(timings, 14, 1), 3)
+  assert.equal(nextFollowedVerse(timings, 8, 1), null)
+  assert.equal(nextFollowedVerse(timings, 22, 3), null)
+  assert.equal(nextFollowedVerse(timings, 0, 3), 1)
+})
+
+test('verseStartSeconds returns that verse window start', () => {
+  assert.equal(verseStartSeconds(timings, 1), 0)
+  assert.equal(verseStartSeconds(timings, 3), 14)
+  assert.equal(verseStartSeconds(timings, 2), null)
 })
 
 test('clock labels use elapsed minutes and a leading minus for time left', () => {
@@ -145,4 +163,123 @@ test('chapter changes stay inside the sample list and open on Hebrews 11', () =>
   assert.equal(nextChapterIndex(0, 3, -1), 0)
   assert.equal(nextChapterIndex(1, 3, 1), 2)
   assert.equal(nextChapterIndex(2, 3, 1), 2)
+})
+
+const playing = { kind: 'session', drawer: 'open', transport: 'playing' } as const
+const paused = { kind: 'session', drawer: 'open', transport: 'paused' } as const
+const idle = { kind: 'idle' } as const
+
+test('a playing track advances once when it finishes and pauses on the last chapter', () => {
+  const advanced = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: false },
+    { chapterIndex: 1, chrome: playing },
+    3,
+  )
+  assert.equal(advanced.listening.chapterIndex, 2)
+  assert.deepEqual(advanced.listening.chrome, playing)
+  assert.equal(advanced.finishConsumed, true)
+  assert.equal(advanced.load, true)
+
+  const repeated = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: advanced.finishConsumed },
+    { chapterIndex: advanced.listening.chapterIndex, chrome: advanced.listening.chrome },
+    3,
+  )
+  assert.equal(repeated.listening.chapterIndex, 2)
+  assert.equal(repeated.load, false)
+  assert.equal(repeated.finishConsumed, true)
+  assert.deepEqual(repeated.listening.chrome, playing)
+
+  const ended = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: false },
+    { chapterIndex: 2, chrome: { kind: 'session', drawer: 'closed', transport: 'playing' } },
+    3,
+  )
+  assert.equal(ended.listening.chapterIndex, 2)
+  assert.deepEqual(ended.listening.chrome, {
+    kind: 'session',
+    drawer: 'closed',
+    transport: 'paused',
+  })
+  assert.equal(ended.finishConsumed, true)
+  assert.equal(ended.load, false)
+
+  const fromStart = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: false },
+    { chapterIndex: 0, chrome: playing },
+    3,
+  )
+  assert.equal(fromStart.listening.chapterIndex, 1)
+  assert.equal(fromStart.load, true)
+  assert.deepEqual(fromStart.listening.chrome, playing)
+})
+
+test('finish and failure leave a paused, failed, or idle player on the same chapter', () => {
+  const alreadyPaused = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: false },
+    { chapterIndex: 1, chrome: paused },
+    3,
+  )
+  assert.equal(alreadyPaused.listening.chapterIndex, 1)
+  assert.deepEqual(alreadyPaused.listening.chrome, paused)
+  assert.equal(alreadyPaused.load, false)
+  assert.equal(alreadyPaused.finishConsumed, true)
+
+  const failedAtEnd = nextListening(
+    { didJustFinish: true, failed: true, finishConsumed: false },
+    { chapterIndex: 1, chrome: playing },
+    3,
+  )
+  assert.equal(failedAtEnd.listening.chapterIndex, 1)
+  assert.deepEqual(failedAtEnd.listening.chrome, paused)
+  assert.equal(failedAtEnd.load, false)
+  assert.equal(failedAtEnd.finishConsumed, true)
+
+  const failedWhilePlaying = nextListening(
+    { didJustFinish: false, failed: true, finishConsumed: false },
+    { chapterIndex: 1, chrome: playing },
+    3,
+  )
+  assert.equal(failedWhilePlaying.listening.chapterIndex, 1)
+  assert.deepEqual(failedWhilePlaying.listening.chrome, paused)
+  assert.equal(failedWhilePlaying.load, false)
+  assert.equal(failedWhilePlaying.finishConsumed, false)
+
+  const finishedIdle = nextListening(
+    { didJustFinish: true, failed: false, finishConsumed: false },
+    { chapterIndex: 1, chrome: idle },
+    3,
+  )
+  assert.equal(finishedIdle.listening.chapterIndex, 1)
+  assert.deepEqual(finishedIdle.listening.chrome, idle)
+  assert.equal(finishedIdle.load, false)
+  assert.equal(finishedIdle.finishConsumed, true)
+
+  const cleared = nextListening(
+    { didJustFinish: false, failed: false, finishConsumed: true },
+    { chapterIndex: 1, chrome: playing },
+    3,
+  )
+  assert.equal(cleared.finishConsumed, false)
+  assert.equal(cleared.load, false)
+  assert.equal(cleared.listening.chapterIndex, 1)
+  assert.deepEqual(cleared.listening.chrome, playing)
+})
+
+test('Hebrews 11 uses forty even windows and the neighboring chapters stay short', () => {
+  const hebrews11 = chapterAt(1)
+  assert.equal(hebrews11.chapter, 11)
+  assert.equal(hebrews11.uri, 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3')
+  assert.equal(hebrews11.mockVerseTimings.length, 40)
+  for (const [index, timing] of hebrews11.mockVerseTimings.entries()) {
+    assert.equal(timing.verse, index + 1)
+    assert.equal(timing.startSeconds, index * 10)
+    assert.equal(timing.endSeconds, (index + 1) * 10)
+  }
+  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 0), 1)
+  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 10), 2)
+  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 390), 40)
+  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 400), null)
+  assert.equal(chapterAt(0).mockVerseTimings.length, 2)
+  assert.equal(chapterAt(2).mockVerseTimings.length, 2)
 })
