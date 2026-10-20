@@ -528,6 +528,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Tighter than the heading line height (28) so the number sits in the chip.
   chapterLabel: { lineHeight: 22, textAlign: 'center' },
   emptyChapters: { paddingHorizontal: 16, paddingVertical: 18 },
   sortBar: {
