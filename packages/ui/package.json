@@ -29,6 +29,7 @@
   },
   "files": [
     "build",
+    "assets",
     "README.md",
     "LICENSE"
   ],

@@ -80,7 +80,6 @@ beforeEach(() => {
   useHighlightsMock.mockClear()
   stubHighlights([])
   setImpl('BibleTextViewDom', MockDOM)
-  setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
   useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup(null))
   useVerseOfTheDayShareSourceSpy.mockReturnValue({
     shareSource: null,
