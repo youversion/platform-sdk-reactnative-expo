@@ -58,18 +58,24 @@ const HEBREWS_10: AudioChapter = {
   ],
 }
 
+function hebrews11VerseTimings(): readonly VerseTiming[] {
+  const timings: VerseTiming[] = []
+  for (let verse = 1; verse <= 40; verse += 1) {
+    timings.push({
+      verse,
+      startSeconds: (verse - 1) * 10,
+      endSeconds: verse * 10,
+    })
+  }
+  return timings
+}
+
 const HEBREWS_11: AudioChapter = {
   bookId: 'HEB',
   chapter: 11,
   title: 'Hebrews 11',
   uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  mockVerseTimings: [
-    { verse: 1, startSeconds: 0, endSeconds: 12 },
-    { verse: 2, startSeconds: 12, endSeconds: 22 },
-    { verse: 3, startSeconds: 22, endSeconds: 36 },
-    { verse: 4, startSeconds: 36, endSeconds: 52 },
-    { verse: 5, startSeconds: 52, endSeconds: 70 },
-  ],
+  mockVerseTimings: hebrews11VerseTimings(),
 }
 
 const HEBREWS_12: AudioChapter = {
@@ -106,6 +112,87 @@ export function verseAtTime(timings: readonly VerseTiming[], seconds: number): n
     }
   }
   return null
+}
+
+export function nextFollowedVerse(
+  timings: readonly VerseTiming[],
+  seconds: number,
+  previousVerse: number | null,
+): number | null {
+  const verse = verseAtTime(timings, seconds)
+  if (verse === null) return null
+  if (verse === previousVerse) return null
+  return verse
+}
+
+export function verseStartSeconds(timings: readonly VerseTiming[], verse: number): number | null {
+  for (const timing of timings) {
+    if (timing.verse === verse) return timing.startSeconds
+  }
+  return null
+}
+
+export type Listening = {
+  chapterIndex: number
+  chrome: Chrome
+}
+
+export type TrackEnd = {
+  didJustFinish: boolean
+  failed: boolean
+  finishConsumed: boolean
+}
+
+export type ListeningStep = {
+  listening: Listening
+  finishConsumed: boolean
+  load: boolean
+}
+
+function chromeWithTransport(chrome: Chrome, transport: 'playing' | 'paused'): Chrome {
+  if (chrome.kind !== 'session' || chrome.transport === transport) return chrome
+  return { kind: 'session', drawer: chrome.drawer, transport }
+}
+
+export function nextListening(track: TrackEnd, listening: Listening, count: number): ListeningStep {
+  const { didJustFinish, failed, finishConsumed } = track
+  const { chapterIndex, chrome } = listening
+
+  if (failed) {
+    let consumed = finishConsumed
+    if (didJustFinish) consumed = true
+    return {
+      listening: { chapterIndex, chrome: chromeWithTransport(chrome, 'paused') },
+      finishConsumed: consumed,
+      load: false,
+    }
+  }
+
+  if (didJustFinish && finishConsumed) {
+    return { listening, finishConsumed: true, load: false }
+  }
+
+  if (didJustFinish && (chrome.kind === 'idle' || chrome.transport === 'paused')) {
+    return { listening, finishConsumed: true, load: false }
+  }
+
+  if (didJustFinish) {
+    const chapterIndexNext = nextChapterIndex(chapterIndex, count, 1)
+    if (chapterIndexNext === chapterIndex) {
+      return {
+        listening: { chapterIndex, chrome: chromeWithTransport(chrome, 'paused') },
+        finishConsumed: true,
+        load: false,
+      }
+    }
+    return {
+      listening: { chapterIndex: chapterIndexNext, chrome },
+      finishConsumed: true,
+      load: true,
+    }
+  }
+
+  return { listening, finishConsumed: false, load: false }
 }
 
 export function formatClock(seconds: number): string {
