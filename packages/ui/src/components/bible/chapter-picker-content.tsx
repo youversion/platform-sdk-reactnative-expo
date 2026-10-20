@@ -39,6 +39,7 @@ const CHAPTER_COLUMNS = 5
 const CHIP_INSET = 2
 const CHIP_RADIUS = 6
 const CHAPTER_HEIGHT = 48
+const SCROLL_MARGIN = 8
 const MOTION_DURATION = 200
 
 const accordionTransition = LinearTransition.duration(MOTION_DURATION)
@@ -334,9 +335,11 @@ export function ChapterPickerContent({
     pendingExpandedBookId.current = null
     const viewportTop = scrollY.current
     const viewportBottom = viewportTop + listHeight.current
-    if (top >= viewportTop + CHIP_INSET && firstChapterBottom <= viewportBottom - CHIP_INSET) return
+    if (top >= viewportTop + SCROLL_MARGIN && firstChapterBottom <= viewportBottom - SCROLL_MARGIN) {
+      return
+    }
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, top - CHIP_INSET), animated: true })
+      scrollRef.current?.scrollTo({ y: Math.max(0, top - SCROLL_MARGIN), animated: true })
     })
   }
 
