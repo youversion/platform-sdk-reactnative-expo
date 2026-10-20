@@ -16,10 +16,10 @@ describe('resolveBlock', () => {
     expect(resolveBlock(['r'], F)).toMatchObject({ align: 'left', bottom: 0.5 })
   })
 
-  it('draws a major title large and bold, left-aligned', () => {
+  it('draws a major title large and medium, left-aligned', () => {
     expect(resolveBlock(['mt1'], F)).toMatchObject({
       size: F * 1.6,
-      weight: 700,
+      weight: 500,
       align: 'left',
     })
   })
@@ -43,18 +43,25 @@ describe('resolveBlock', () => {
     expect(block.headIndent).toBe(0)
   })
 
-  it('draws a level-2 intro heading bold with half-em space above and below', () => {
+  it('centers a level-2 intro heading, bold, with half-em space above and below', () => {
     expect(resolveBlock(['is2'], F)).toMatchObject({
       weight: 700,
-      align: 'left',
+      align: 'center',
+      top: 0.5,
+      bottom: 0.5,
+      size: F,
+    })
+    expect(resolveBlock(['iot'], F)).toMatchObject({
+      weight: 700,
+      align: 'center',
       top: 0.5,
       bottom: 0.5,
       size: F,
     })
   })
 
-  it('draws an intro ending title bold, with a full em above', () => {
-    expect(resolveBlock(['imte'], F)).toMatchObject({ weight: 700, top: 1, bottom: 0.25, align: 'left' })
+  it('centers an intro ending title, bold, with a full em above', () => {
+    expect(resolveBlock(['imte'], F)).toMatchObject({ weight: 700, top: 1, bottom: 0.25, align: 'center' })
     expect(resolveBlock(['imte1'], F)).toMatchObject(resolveBlock(['imte'], F))
   })
 
