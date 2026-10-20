@@ -3,7 +3,7 @@
 // Tailwind steps. Add a role only with the component that needs it.
 export const radius = Object.freeze({
   surface: 16,
-  chip: 6,
+  chip: 4,
   full: 9999,
 } as const)
 

@@ -9,7 +9,7 @@ describe('getTokens', () => {
     const { radius } = getTokens('light')
 
     expect(radius.surface).toBe(16)
-    expect(radius.chip).toBe(6)
+    expect(radius.chip).toBe(4)
     expect(radius.full).toBe(9999)
   })
 
