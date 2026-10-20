@@ -32,6 +32,7 @@ import {
   loadPhaseAfterWait,
   narratorHeading,
   nextChapterIndex,
+  nextListening,
   openDrawer,
   pressToolbar,
   showNarratorSelector,
@@ -47,6 +48,7 @@ import {
   type SleepMinutes,
 } from '../../src/audio/session'
 import { ChromeFrame } from '../../src/audio/chrome-frame'
+import { GuidedReader } from '../../src/audio/guided-reader'
 
 const STATUS_TICK_MS = 200
 
@@ -91,10 +93,13 @@ export default function AudioScreen() {
   const failedRef = useRef(false)
   const rateRef = useRef(rate)
   const chromeRef = useRef(chrome)
+  const chapterIndexRef = useRef(chapterIndex)
+  const finishConsumedRef = useRef(false)
   const heldTarget = useRef<number | null>(null)
   const seekGeneration = useRef(0)
   rateRef.current = rate
   chromeRef.current = chrome
+  chapterIndexRef.current = chapterIndex
 
   const chapter = chapterAt(chapterIndex)
 
@@ -121,12 +126,25 @@ export default function AudioScreen() {
           loadPhaseAfterWait(phase, status.isLoaded, 0, failedRef.current),
         )
       }
-      if (status.didJustFinish || failedRef.current) {
-        setChrome((current) => {
-          if (current.kind !== 'session') return current
-          if (current.transport === 'paused') return current
-          return { kind: 'session', drawer: current.drawer, transport: 'paused' }
-        })
+      const step = nextListening(
+        {
+          didJustFinish: status.didJustFinish,
+          failed: failedRef.current,
+          finishConsumed: finishConsumedRef.current,
+        },
+        { chapterIndex: chapterIndexRef.current, chrome: chromeRef.current },
+        AUDIO_CHAPTERS.length,
+      )
+      finishConsumedRef.current = step.finishConsumed
+      if (step.listening.chrome !== chromeRef.current) {
+        chromeRef.current = step.listening.chrome
+        setChrome(step.listening.chrome)
+        applyTransport(step.listening.chrome)
+      }
+      if (step.load) {
+        chapterIndexRef.current = step.listening.chapterIndex
+        setChapterIndex(step.listening.chapterIndex)
+        loadChapter(step.listening.chapterIndex)
       }
     })
     return () => {
@@ -176,8 +194,9 @@ export default function AudioScreen() {
     return () => clearInterval(id)
   }, [sleepEndsAt])
 
-  let shownTime = clock.currentTime
-  if (heldTime !== null) shownTime = heldTime
+  let playhead = clock.currentTime
+  if (heldTime !== null) playhead = heldTime
+  let shownTime = playhead
   if (previewTime !== null) shownTime = previewTime
 
   function applyTransport(next: Chrome) {
@@ -293,6 +312,7 @@ export default function AudioScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.background }]}>
+      <GuidedReader chapter={chapter} followSeconds={playhead} onSeek={onSeek} />
       {open ? (
         <ChromeFrame>
           <Drawer
