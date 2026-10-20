@@ -5,6 +5,13 @@
       "@/*": ["./*"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    // The example compiles UI source. This declaration types the wordmark png imports.
+    "../../packages/ui/src/png.d.ts"
+  ],
   "exclude": ["../../node_modules"]
 }

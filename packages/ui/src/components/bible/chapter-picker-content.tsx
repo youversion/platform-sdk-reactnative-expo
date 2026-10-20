@@ -35,8 +35,11 @@ import type { ChapterPickerBook, ChapterPickerOrder } from './chapter-picker-mod
 import type { ChapterPickerLoadState } from './use-chapter-picker'
 
 const SIDE_PADDING = 20
-const GRID_GAP = 8
+const CHAPTER_COLUMNS = 5
+const CHIP_GAP = 4
+const CHIP_INSET = CHIP_GAP / 2
 const CHAPTER_HEIGHT = 48
+const SCROLL_MARGIN = 8
 const MOTION_DURATION = 200
 
 const accordionTransition = LinearTransition.duration(MOTION_DURATION)
@@ -163,7 +166,7 @@ function BookRow({
         reportMeasuredLayouts()
       }}
     >
-      <Animated.View style={[styles.bookRow, selectedStyle]}>
+      <Animated.View style={[styles.bookRow, { borderRadius: tokens.radius.chip }, selectedStyle]}>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded, selected }}
@@ -200,7 +203,6 @@ function BookRow({
                   label={book.intro.title}
                   accessibilityLabel={`${book.title} ${book.intro.title}`}
                   disabled={pendingChapterId !== null}
-                  gridIndex={0}
                   selected={selected && selectedChapter === book.intro.id}
                   icon={<InfoIcon color={tokens.foreground} />}
                   onLayout={(event) => recordChapterLayout(book.intro?.id ?? '', true, event)}
@@ -213,7 +215,6 @@ function BookRow({
                   label={item.title}
                   accessibilityLabel={`${book.title} ${item.title}`}
                   disabled={pendingChapterId !== null}
-                  gridIndex={index + (book.intro === null ? 0 : 1)}
                   selected={selected && selectedChapter === item.id}
                   onLayout={(event) =>
                     recordChapterLayout(item.id, index === 0 && book.intro === null, event)
@@ -233,7 +234,6 @@ function ChapterButton({
   label,
   accessibilityLabel,
   disabled,
-  gridIndex,
   selected,
   icon,
   onLayout,
@@ -242,7 +242,6 @@ function ChapterButton({
   label: string
   accessibilityLabel: string
   disabled: boolean
-  gridIndex: number
   selected: boolean
   icon?: ReactNode
   onLayout?: (event: LayoutChangeEvent) => void
@@ -257,18 +256,24 @@ function ChapterButton({
       disabled={disabled}
       onLayout={onLayout}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.chapterButton,
-        gridIndex % 5 !== 4 && styles.chapterButtonSpacing,
-        { backgroundColor: tokens.muted, borderRadius: tokens.radius.surface },
-        pressed && styles.pressed,
-      ]}
+      style={({ pressed }) => [styles.chapterButton, pressed && styles.pressed]}
     >
-      {icon ?? (
-        <Text variant="body" style={[styles.chapterLabel, { color: tokens.foreground }]}>
-          {label}
-        </Text>
-      )}
+      <View
+        style={[
+          styles.chapterFace,
+          { backgroundColor: tokens.muted, borderRadius: tokens.radius.chip },
+        ]}
+      >
+        {icon ?? (
+          <Text
+            allowFontScaling={false}
+            variant="heading"
+            style={[styles.chapterLabel, { color: tokens.foreground }]}
+          >
+            {label}
+          </Text>
+        )}
+      </View>
     </Pressable>
   )
 }
@@ -331,9 +336,11 @@ export function ChapterPickerContent({
     pendingExpandedBookId.current = null
     const viewportTop = scrollY.current
     const viewportBottom = viewportTop + listHeight.current
-    if (top >= viewportTop + GRID_GAP && firstChapterBottom <= viewportBottom - GRID_GAP) return
+    if (top >= viewportTop + SCROLL_MARGIN && firstChapterBottom <= viewportBottom - SCROLL_MARGIN) {
+      return
+    }
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: Math.max(0, top - GRID_GAP), animated: true })
+      scrollRef.current?.scrollTo({ y: Math.max(0, top - SCROLL_MARGIN), animated: true })
     })
   }
 
@@ -502,7 +509,7 @@ const styles = StyleSheet.create({
   retryButton: { paddingHorizontal: 16, paddingVertical: 8 },
   retryLabel: { textDecorationLine: 'underline' },
   bookContainer: { overflow: 'hidden' },
-  bookRow: { borderRadius: 14, overflow: 'hidden' },
+  bookRow: { overflow: 'hidden' },
   bookPressable: { minHeight: 58, justifyContent: 'center', paddingHorizontal: 16 },
   bookTitle: { fontSize: 18, lineHeight: 26 },
   pressed: { opacity: 0.65 },
@@ -510,20 +517,24 @@ const styles = StyleSheet.create({
   chapterGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    rowGap: GRID_GAP,
+    margin: -CHIP_INSET,
   },
   chapterButton: {
-    width: '18.4%',
-    height: CHAPTER_HEIGHT,
+    width: `${100 / CHAPTER_COLUMNS}%`,
+    padding: CHIP_INSET,
+  },
+  chapterFace: {
+    minHeight: CHAPTER_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chapterButtonSpacing: { marginRight: '2%' },
-  chapterLabel: { width: '100%', fontSize: 16, lineHeight: 20, textAlign: 'center' },
+  // Tighter than the heading line height (28) so the number sits in the chip.
+  chapterLabel: { lineHeight: 22, textAlign: 'center' },
   emptyChapters: { paddingHorizontal: 16, paddingVertical: 18 },
   sortBar: {
     flexDirection: 'row',
     marginHorizontal: SIDE_PADDING,
+    marginTop: 12,
     marginBottom: 12,
     padding: 4,
     borderWidth: 1,

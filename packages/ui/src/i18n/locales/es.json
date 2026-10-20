@@ -84,5 +84,6 @@
   "increaseFontSizeAriaLabel": "Aumentar tamaño de letra",
   "interFontName": "Inter",
   "untitledSerifFontName": "Untitled Serif",
-  "generic.requestErrorBody": "Esta solicitud no se puede completar en este momento."
+  "generic.requestErrorBody": "Esta solicitud no se puede completar en este momento.",
+  "footnoteAriaLabel": "Nota al pie"
 }

@@ -28,6 +28,9 @@ import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
 import { YouVersionProvider } from '../youversion-provider'
 
+const black = require('../../../assets/bible-app-wordmark-black-text.png')
+const white = require('../../../assets/bible-app-wordmark-white-text.png')
+
 const sampleFootnote: FootnoteData = {
   verseNum: '3',
   notes: [],
@@ -143,7 +146,6 @@ describe('BibleCard', () => {
     stubDeviceLocale('xx-XX', 'xx')
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
-    setImpl('BibleAppLogo', () => <View testID="bible-app-logo" />)
     setImpl('BibleVersionPickerSheet', () => <View testID="mock-version-picker-sheet-stub" />)
     setImpl(
       'NativeSheet',
@@ -182,7 +184,7 @@ describe('BibleCard', () => {
   })
 
   it('renders native chrome around the DOM BibleTextView', async () => {
-    const { getByTestId, getByText, queryByTestId } = await renderAndSettle(
+    const { getByTestId, getByText, queryByTestId, queryByText } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
       { wrapper: wrapper() },
     )
@@ -190,10 +192,23 @@ describe('BibleCard', () => {
     expect(getByTestId('bible-card')).toBeTruthy()
     expect(getByText('John 3:16 NIV')).toBeTruthy()
     expect(getByText('NIV copyright')).toBeTruthy()
-    expect(getByTestId('bible-card-attribution')).toBeTruthy()
-    expect(getByText('Bible App')).toBeTruthy()
+    const { source, accessibilityLabel } = getByTestId('bible-card-attribution').props
+    expect(source).toEqual(black)
+    expect(accessibilityLabel).toBe('Bible App')
+    expect(queryByText('Bible App')).toBeNull()
     expect(getByTestId('mock-btv-dom')).toBeTruthy()
     expect(queryByTestId('bible-card-version')).toBeNull()
+  })
+
+  it('keeps the Bible App name when the catalog translates it', async () => {
+    const { getByTestId, queryByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      { wrapper: wrapper('light', 'es') },
+    )
+
+    expect(getByTestId('bible-card-attribution').props.accessibilityLabel).toBe('Bible App')
+    expect(queryByText('Biblia App')).toBeNull()
+    expect(queryByText('Bible App')).toBeNull()
   })
 
   it('exposes the passage reference as an accessible heading', async () => {
@@ -214,6 +229,7 @@ describe('BibleCard', () => {
     expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
       backgroundColor: getTokens('dark').card,
     })
+    expect(getByTestId('bible-card-attribution').props.source).toEqual(white)
     expect(latestDomProps.theme).toBe('dark')
   })
 

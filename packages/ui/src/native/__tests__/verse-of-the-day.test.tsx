@@ -15,6 +15,9 @@ import * as votdApi from '../verse-of-the-day-api'
 import * as votdShare from '../verse-of-the-day-share'
 import { YouVersionProvider } from '../youversion-provider'
 
+const black = require('../../../assets/bible-app-wordmark-black-text.png')
+const white = require('../../../assets/bible-app-wordmark-white-text.png')
+
 const sampleShareData: VerseOfTheDayShareData = {
   text: 'For God so loved the world...\n\nJohn 3:16 NIV',
   reference: 'John 3:16 NIV',
@@ -85,7 +88,6 @@ describe('VerseOfTheDay', () => {
     latestDomProps = {}
     stubDeviceLocale('xx-XX', 'xx')
     setImpl('BibleTextViewDom', MockBibleTextViewDOM)
-    setImpl('BibleAppLogo', (props) => <View testID="bible-app-logo" {...props} />)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.3.16')
     jest.spyOn(votdShare, 'getVerseOfTheDayShareSource').mockResolvedValue(sampleShareData)
@@ -111,9 +113,9 @@ describe('VerseOfTheDay', () => {
   })
 
   it('renders native chrome around the DOM BibleTextView', async () => {
-    const { getByTestId, getByLabelText, getByText } = await renderAndSettle(
+    const { getByTestId, getByLabelText, getByText, queryByText } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
-      { wrapper: wrapper() },
+      { wrapper: wrapper('light') },
     )
 
     expect(getByTestId('verse-of-the-day')).toBeTruthy()
@@ -121,9 +123,29 @@ describe('VerseOfTheDay', () => {
     expect(getByText('John 3:16 NIV')).toBeTruthy()
     expect(getByLabelText('Share')).toBeTruthy()
     expect(getByTestId('verse-of-the-day-sun')).toBeTruthy()
-    expect(getByTestId('verse-of-the-day-attribution')).toBeTruthy()
-    expect(getByText('Bible App')).toBeTruthy()
+    const { source, accessibilityLabel } = getByTestId('verse-of-the-day-attribution').props
+    expect(source).toEqual(black)
+    expect(accessibilityLabel).toBe('Bible App')
+    expect(queryByText('Bible App')).toBeNull()
     expect(getByTestId('mock-btv-dom')).toBeTruthy()
+  })
+
+  it('paints the white-text wordmark when theme="dark" overrides a light app', async () => {
+    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} theme="dark" />, {
+      wrapper: wrapper('light'),
+    })
+
+    expect(getByTestId('verse-of-the-day-attribution').props.source).toEqual(white)
+  })
+
+  it('keeps the Bible App name when the catalog translates it', async () => {
+    const { getByTestId, queryByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper('light', 'es'),
+    })
+
+    expect(getByTestId('verse-of-the-day-attribution').props.accessibilityLabel).toBe('Bible App')
+    expect(queryByText('Biblia App')).toBeNull()
+    expect(queryByText('Bible App')).toBeNull()
   })
 
   it('paints the card surface from the light tokens', async () => {
@@ -289,10 +311,9 @@ describe('VerseOfTheDay', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValue(sampleShareData)
 
-    const { getByTestId, queryByText } = await renderAndSettle(
-      <VerseOfTheDay versionId={3034} />,
-      { wrapper: wrapper() },
-    )
+    const { getByTestId, queryByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
     expect(queryByText(sampleShareData.reference)).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
 

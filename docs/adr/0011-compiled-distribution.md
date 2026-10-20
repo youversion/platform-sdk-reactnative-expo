@@ -25,8 +25,8 @@ The build tool is [`expo-module-scripts`](https://www.npmjs.com/package/expo-mod
 ## What we ship
 
 - Top-level `main` / `types` stay `src/index.ts`, so in-repo Metro resolves TypeScript directly — no build step for local dev or the example app (`workspace:*`).
-- `publishConfig` swaps `main` / `types` to `build/`, and `files: ["build"]` keeps source out of the tarball, so the published package ships compiled JS plus real `.d.ts`.
-- Releases MUST go through `pnpm changeset publish` (the configured pipeline). `pnpm publish` applies the `publishConfig` field overrides; raw `npm publish` does not — `main` would stay `src/index.ts` while `files: ["build"]` excludes `src/`, so the tarball would be broken (entry point missing or unable to resolve its imports), not a clean source ship. See [PUBLISHING.md](../../PUBLISHING.md).
+- `publishConfig` swaps `main` / `types` to `build/`. `files` keeps `src/` out of the tarball. Core ships `build`, `README.md`, and `LICENSE`. The UI package also ships `assets`, which holds the Bible App wordmark images. Compiled JS and `.d.ts` still come from `build/`.
+- Releases MUST go through `pnpm changeset publish` (the configured pipeline). `pnpm publish` applies the `publishConfig` field overrides. Raw `npm publish` does not. `main` would stay `src/index.ts` while `files` excludes `src/`, so the tarball would be broken (entry point missing or unable to resolve its imports), not a clean source ship. See [PUBLISHING.md](../../PUBLISHING.md).
 
 ## Sealed import surface
 

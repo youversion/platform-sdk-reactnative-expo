@@ -82,5 +82,7 @@
   "decreaseFontSizeAriaLabel": "Smanjiti veličinu fonta",
   "increaseFontSizeAriaLabel": "Povećati veličinu fonta",
   "interFontName": "Inter",
-  "untitledSerifFontName": "Untitled Serif"
+  "untitledSerifFontName": "Untitled Serif",
+  "generic.requestErrorBody": "Ovaj zahtev trenutno nije moguće izvršiti.",
+  "footnoteAriaLabel": "Fusnota"
 }

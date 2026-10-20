@@ -24,7 +24,7 @@ import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
-import { BibleAppLogo } from './bible-app-logo'
+import { BibleAppWordmark } from './bible-app-wordmark'
 import { getBibleCardMetadata, type BibleCardMetadata } from './bible-card-metadata'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { getImpl } from './component-impls'
@@ -283,15 +283,7 @@ function BibleCardBody({
             >
               {metadata?.copyright ?? ''}
             </Text>
-            <View
-              accessibilityRole="image"
-              accessibilityLabel={t('bibleApp')}
-              style={styles.attribution}
-              testID="bible-card-attribution"
-            >
-              <BibleAppLogo size={24} />
-              <Text variant="muted">{t('bibleApp')}</Text>
-            </View>
+            <BibleAppWordmark testID="bible-card-attribution" />
           </Card.Footer>
         </View>
       </Card>
@@ -522,10 +514,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontSize: 8,
     lineHeight: 12,
-  },
-  attribution: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
 })
