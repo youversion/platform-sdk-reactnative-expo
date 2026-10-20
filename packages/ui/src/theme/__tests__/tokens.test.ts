@@ -5,10 +5,11 @@ import { palette } from '../palette'
 import { getTokens } from '../tokens'
 
 describe('getTokens', () => {
-  it('names radius by role: web rounded-2xl surfaces and pill controls', () => {
+  it('names radius by role', () => {
     const { radius } = getTokens('light')
 
     expect(radius.surface).toBe(16)
+    expect(radius.chip).toBe(6)
     expect(radius.full).toBe(9999)
   })
 

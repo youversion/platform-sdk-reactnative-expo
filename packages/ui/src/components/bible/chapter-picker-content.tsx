@@ -36,8 +36,8 @@ import type { ChapterPickerLoadState } from './use-chapter-picker'
 
 const SIDE_PADDING = 20
 const CHAPTER_COLUMNS = 5
-const CHIP_INSET = 2
-const CHIP_RADIUS = 6
+const CHIP_GAP = 4
+const CHIP_INSET = CHIP_GAP / 2
 const CHAPTER_HEIGHT = 48
 const SCROLL_MARGIN = 8
 const MOTION_DURATION = 200
@@ -166,7 +166,7 @@ function BookRow({
         reportMeasuredLayouts()
       }}
     >
-      <Animated.View style={[styles.bookRow, selectedStyle]}>
+      <Animated.View style={[styles.bookRow, { borderRadius: tokens.radius.chip }, selectedStyle]}>
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded, selected }}
@@ -258,16 +258,17 @@ function ChapterButton({
       onPress={onPress}
       style={({ pressed }) => [styles.chapterButton, pressed && styles.pressed]}
     >
-      <View style={[styles.chapterFace, { backgroundColor: tokens.muted }]}>
+      <View
+        style={[
+          styles.chapterFace,
+          { backgroundColor: tokens.muted, borderRadius: tokens.radius.chip },
+        ]}
+      >
         {icon ?? (
           <Text
             allowFontScaling={false}
-            variant="body"
-            style={[
-              styles.chapterLabel,
-              { color: tokens.foreground },
-              sansFace(tokens.fontFamily.sans, 700),
-            ]}
+            variant="heading"
+            style={[styles.chapterLabel, { color: tokens.foreground }]}
           >
             {label}
           </Text>
@@ -508,7 +509,7 @@ const styles = StyleSheet.create({
   retryButton: { paddingHorizontal: 16, paddingVertical: 8 },
   retryLabel: { textDecorationLine: 'underline' },
   bookContainer: { overflow: 'hidden' },
-  bookRow: { borderRadius: CHIP_RADIUS, overflow: 'hidden' },
+  bookRow: { overflow: 'hidden' },
   bookPressable: { minHeight: 58, justifyContent: 'center', paddingHorizontal: 16 },
   bookTitle: { fontSize: 18, lineHeight: 26 },
   pressed: { opacity: 0.65 },
@@ -516,18 +517,18 @@ const styles = StyleSheet.create({
   chapterGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    margin: -CHIP_INSET,
   },
   chapterButton: {
     width: `${100 / CHAPTER_COLUMNS}%`,
     padding: CHIP_INSET,
   },
   chapterFace: {
-    height: CHAPTER_HEIGHT,
-    borderRadius: CHIP_RADIUS,
+    minHeight: CHAPTER_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chapterLabel: { fontSize: 18, lineHeight: 22, textAlign: 'center' },
+  chapterLabel: { lineHeight: 22, textAlign: 'center' },
   emptyChapters: { paddingHorizontal: 16, paddingVertical: 18 },
   sortBar: {
     flexDirection: 'row',
