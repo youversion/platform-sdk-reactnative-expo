@@ -260,6 +260,7 @@ function ChapterButton({
       <View style={[styles.chapterFace, { backgroundColor: tokens.muted }]}>
         {icon ?? (
           <Text
+            allowFontScaling={false}
             variant="body"
             style={[
               styles.chapterLabel,
