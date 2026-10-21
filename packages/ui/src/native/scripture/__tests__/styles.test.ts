@@ -3,44 +3,93 @@ import { LABEL_SCALE, resolveBlock, resolveChars } from '../styles'
 const F = 20
 
 describe('resolveBlock', () => {
-  it('draws an intro major title left-aligned in bold at the title size', () => {
+  it('centers an intro major title at the medium title size', () => {
     const block = resolveBlock(['imt'], F)
-    expect(block).toMatchObject({ align: 'left', size: F * 1.17, weight: 700 })
+    expect(block).toMatchObject({ align: 'center', size: F * 1.17, weight: 500 })
   })
 
-  it('gives a later section heading 1em of space above', () => {
-    expect(resolveBlock(['s1'], F).top).toBe(1)
+  it('sets a section heading flush with the block above', () => {
+    expect(resolveBlock(['s1'], F).top).toBe(0)
   })
 
-  it('keeps a parallel reference left-aligned with a half-em bottom', () => {
-    expect(resolveBlock(['r'], F)).toMatchObject({ align: 'left', bottom: 0.5 })
+  it('centers a parallel reference with a quarter-em bottom', () => {
+    expect(resolveBlock(['r'], F)).toMatchObject({ align: 'center', bottom: 0.25 })
   })
 
-  it('draws a major title large and medium, left-aligned', () => {
+  it('centers a main title at the medium title size', () => {
     expect(resolveBlock(['mt1'], F)).toMatchObject({
-      size: F * 1.6,
+      size: F * 1.17,
       weight: 500,
-      align: 'left',
+      align: 'center',
+    })
+    expect(resolveBlock(['mt2'], F)).toMatchObject({
+      size: F * 1.17,
+      italic: true,
+      align: 'center',
     })
   })
 
-  it('indents poetry in em so a larger font steps further in', () => {
-    expect(resolveBlock(['q1'], F).headIndent).toBe(2 * F)
-    expect(resolveBlock(['q2'], F).headIndent).toBe(4 * F)
-    expect(resolveBlock(['q1'], 18).headIndent).toBe(36)
+  it('centers every intro heading level', () => {
+    for (const name of ['imt1', 'imt2', 'imt3', 'imt4', 'is', 'is1']) {
+      expect(resolveBlock([name], F).align).toBe('center')
+    }
   })
 
-  it('steps lists one em at a time, with level 2 at 3em', () => {
-    expect(resolveBlock(['li1'], F).headIndent).toBe(2 * F)
-    expect(resolveBlock(['li2'], F).headIndent).toBe(3 * F)
-    expect(resolveBlock(['ili1'], F).headIndent).toBe(resolveBlock(['li1'], F).headIndent)
-    expect(resolveBlock(['ili2'], F).headIndent).toBe(resolveBlock(['li2'], F).headIndent)
+  it('indents blocks in 8pt steps whatever the font size', () => {
+    expect(resolveBlock(['q1'], F).headIndent).toBe(16)
+    expect(resolveBlock(['q2'], F).headIndent).toBe(32)
+    expect(resolveBlock(['q1'], 30).headIndent).toBe(16)
+  })
+
+  it('steps lists and their intro aliases like poetry', () => {
+    for (const [name, head] of [
+      ['li1', 16],
+      ['li2', 32],
+      ['li3', 48],
+      ['li4', 64],
+      ['ili3', 48],
+      ['ili4', 64],
+      ['lim', 16],
+    ] as const) {
+      expect(resolveBlock([name], F).headIndent).toBe(head)
+    }
+  })
+
+  it('indents intro poetry like poetry', () => {
+    for (const level of ['', '1', '2', '3', '4']) {
+      expect(resolveBlock([`iq${level}`], F).headIndent).toBe(
+        resolveBlock([`q${level}`], F).headIndent,
+      )
+    }
+  })
+
+  it('indents the first line 0.75em per unit', () => {
+    expect(resolveBlock(['p'], F).firstIndent).toBe(0.75 * F)
+    expect(resolveBlock(['pi2'], F)).toMatchObject({ firstIndent: 0.75 * F, headIndent: 32 })
   })
 
   it('gives an intro explanation a first-line indent and no block indent', () => {
     const block = resolveBlock(['iex'], F)
-    expect(block.firstIndent).toBe(F)
+    expect(block.firstIndent).toBe(0.75 * F)
     expect(block.headIndent).toBe(0)
+  })
+
+  it('sets an embedded poetic line flush', () => {
+    expect(resolveBlock(['qm'], F).headIndent).toBe(0)
+    expect(resolveBlock(['pi'], F)).toMatchObject({ firstIndent: 0, headIndent: 0 })
+  })
+
+  it('quotes an intro passage in italic with a full em around it', () => {
+    expect(resolveBlock(['imq'], F)).toMatchObject({
+      italic: true,
+      top: 1,
+      bottom: 1,
+      headIndent: 16,
+    })
+  })
+
+  it('drops the first-line indent inside a heading', () => {
+    expect(resolveBlock(['p', 'yv-h'], F).firstIndent).toBe(0)
   })
 
   it('centers a level-2 intro heading, bold, with half-em space above and below', () => {
@@ -61,7 +110,12 @@ describe('resolveBlock', () => {
   })
 
   it('centers an intro ending title, bold, with a full em above', () => {
-    expect(resolveBlock(['imte'], F)).toMatchObject({ weight: 700, top: 1, bottom: 0.25, align: 'center' })
+    expect(resolveBlock(['imte'], F)).toMatchObject({
+      weight: 700,
+      top: 1,
+      bottom: 0.25,
+      align: 'center',
+    })
     expect(resolveBlock(['imte1'], F)).toMatchObject(resolveBlock(['imte'], F))
   })
 
@@ -74,16 +128,21 @@ describe('resolveBlock', () => {
     })
   })
 
-  it('indents an intro outline one em deeper at each level', () => {
-    expect(resolveBlock(['io'], F).headIndent).toBe(2 * F)
-    expect(resolveBlock(['io1'], F).headIndent).toBe(2 * F)
-    expect(resolveBlock(['io2'], F).headIndent).toBe(3 * F)
-    expect(resolveBlock(['io3'], F).headIndent).toBe(4 * F)
+  it('indents an intro outline one step deeper at each level', () => {
+    expect(resolveBlock(['io'], F).headIndent).toBe(16)
+    expect(resolveBlock(['io1'], F).headIndent).toBe(16)
+    expect(resolveBlock(['io2'], F).headIndent).toBe(24)
+    expect(resolveBlock(['io3'], F).headIndent).toBe(32)
+    expect(resolveBlock(['io4'], F).headIndent).toBe(32)
   })
 
-  it('indents an intro paragraph two em and quotes it in italic', () => {
-    expect(resolveBlock(['imi'], F)).toMatchObject({ firstIndent: 0, headIndent: 2 * F, bottom: 0.6 })
-    expect(resolveBlock(['ipq'], F)).toMatchObject({ italic: true, firstIndent: F, headIndent: 2 * F })
+  it('indents an intro paragraph and quotes it in italic', () => {
+    expect(resolveBlock(['imi'], F)).toMatchObject({ firstIndent: 0, headIndent: 16, bottom: 0.6 })
+    expect(resolveBlock(['ipq'], F)).toMatchObject({
+      italic: true,
+      firstIndent: 0.75 * F,
+      headIndent: 16,
+    })
     expect(resolveBlock(['ipr'], F)).toMatchObject({ italic: true, align: 'right' })
   })
 
@@ -100,6 +159,7 @@ describe('resolveBlock', () => {
   it('italicizes a poetic closing note and right-aligns a paragraph', () => {
     expect(resolveBlock(['qd'], F).italic).toBe(true)
     expect(resolveBlock(['pr'], F).align).toBe('right')
+    expect(resolveBlock(['cls'], F).align).toBe('right')
   })
 
   it('keeps aligned blocks off the gutters, as Swift spacers do', () => {
@@ -130,7 +190,11 @@ describe('resolveChars', () => {
   })
 
   it('draws a keyword in bold', () => {
-    expect(resolveChars(['k'])).toMatchObject({ weight: 700, italic: false })
+    expect(resolveChars(['k'])).toMatchObject({ weight: 700, italic: null })
+  })
+
+  it('sets a proper name upright at the body weight', () => {
+    expect(resolveChars(['pn'])).toMatchObject({ weight: 400, italic: false })
   })
 
   it('draws a bold-italic run in medium italic', () => {

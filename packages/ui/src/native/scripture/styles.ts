@@ -1,6 +1,6 @@
-// USFM block and character styles from the format tool's reader
-// (yvp-bible-format `bible-reader-overrides.css`). Indents are em, so they
-// grow with the font. Poetry is 2/4/6/8em. Lists step 2/3/4/5em.
+// USFM block and character styles from the Swift reader
+// (`BibleVersionRenderingStyles.swift`). Native beats Web: where the format
+// tool disagrees, Swift wins.
 
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 
@@ -16,7 +16,7 @@ type BlockRule = {
   /** Margins in em. */
   mT?: number
   mB?: number
-  /** First-line indent in em, and whole-block indent in em. */
+  /** First-line indent units (0.75em each) and whole-block indent units (8pt each). */
   first?: number
   head?: number
 }
@@ -29,19 +29,22 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['ip', { mB: 0.6, first: 1, head: 0 }],
   ['m', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
   ['im', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
-  ['pi', { mT: 0.5, mB: 0.5, first: 1, head: 0 }],
-  ['pi1', { mB: 0.6, first: 1, head: 0 }],
-  ['ipi', { mB: 0.6, first: 1, head: 1 }],
+  ['pi', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
+  ['pi1', { mB: 0.6, first: 1, head: 2 }],
+  ['ipi', { mB: 0.6, first: 1, head: 2 }],
   ['iex', { first: 1, head: 0 }],
   ['imi', { mB: 0.6, first: 0, head: 2 }],
+  ['imq', { italic: true, mT: 1, mB: 1, first: 0, head: 2 }],
   ['ipq', { italic: true, first: 1, head: 2 }],
   ['ipr', { italic: true, align: 'right' }],
-  ['pi2', { first: 2, head: 1 }],
-  ['pi3', { first: 4, head: 3 }],
+  ['pi2', { first: 1, head: 4 }],
+  ['pi3', { first: 1, head: 6 }],
   ['pm', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
   ['pmc', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
   ['pmo', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
   ['pmr', { align: 'right', mB: 0.5 }],
+  ['pr', { align: 'right' }],
+  ['cls', { align: 'right' }],
   ['pc', { align: 'center', smallCaps: true, mB: 0.6 }],
   ['po', { mT: 0.25, mB: 0.25, first: 1 }],
   ['q', { first: 0, head: 2 }],
@@ -49,61 +52,73 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['q2', { first: 0, head: 4 }],
   ['q3', { first: 0, head: 6 }],
   ['q4', { first: 0, head: 8 }],
-  ['qm', { mT: 0.5, mB: 0.5, head: 2 }],
-  ['qm1', { mT: 0.5, mB: 0.5, head: 2 }],
-  ['qm2', { mT: 0.5, mB: 0.5, head: 4 }],
-  ['qm3', { mT: 0.5, mB: 0.5, head: 6 }],
-  ['qm4', { mT: 0.5, mB: 0.5, head: 8 }],
-  ['qa', { ...TITLE, italic: true, mT: 0.5, mB: 0.5 }],
+  ['iq', { first: 0, head: 2 }],
+  ['iq1', { first: 0, head: 2 }],
+  ['iq2', { first: 0, head: 4 }],
+  ['iq3', { first: 0, head: 6 }],
+  ['iq4', { first: 0, head: 8 }],
+  ['qm', { mT: 0.5, mB: 0.5, first: 0, head: 0 }],
+  ['qm1', { mT: 0.5, mB: 0.5, first: 0, head: 2 }],
+  ['qm2', { mT: 0.5, mB: 0.5, first: 0, head: 4 }],
+  ['qm3', { mT: 0.5, mB: 0.5, first: 0, head: 6 }],
+  ['qm4', { mT: 0.5, mB: 0.5, first: 0, head: 8 }],
+  ['qa', { ...TITLE, italic: true, mT: 0.5, mB: 0.5, head: 0 }],
   ['qc', { align: 'center', mT: 0, mB: 0 }],
+  ['qd', { italic: true }],
   ['qr', { align: 'right', italic: true }],
   ['li', { first: 0, head: 2 }],
   ['li1', { first: 0, head: 2 }],
   ['ili', { first: 0, head: 2 }],
   ['ili1', { first: 0, head: 2 }],
-  ['lim', { first: 0, head: 3 }],
-  ['lim1', { first: 0, head: 3 }],
+  ['li2', { first: 0, head: 4 }],
+  ['ili2', { first: 0, head: 4 }],
+  ['li3', { first: 0, head: 6 }],
+  ['ili3', { first: 0, head: 6 }],
+  ['li4', { first: 0, head: 8 }],
+  ['ili4', { first: 0, head: 8 }],
+  ['lim', { first: 0, head: 2 }],
+  ['lim1', { first: 0, head: 2 }],
   ['mi', { first: 0, head: 2 }],
-  ['li2', { first: 0, head: 3 }],
-  ['ili2', { first: 0, head: 3 }],
-  ['li3', { first: 0, head: 4 }],
-  ['li4', { first: 0, head: 5 }],
   ['lh', { mT: 0.5, first: 1 }],
   ['io', { head: 2 }],
   ['io1', { head: 2 }],
   ['io2', { head: 3 }],
   ['io3', { head: 4 }],
+  ['io4', { head: 4 }],
   ['nb', { first: 0, head: 0 }],
   ['d', { align: 'center', italic: true, mT: 0.6, mB: 1.2 }],
-  ['s', { ...TITLE, mT: 1, mB: 0.25, first: 0, head: 0 }],
-  ['s1', { ...TITLE, mT: 1, mB: 0.25, first: 0, head: 0 }],
-  ['s2', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
-  ['s3', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
-  ['s4', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5 }],
-  ['sp', { ...TITLE, italic: true, mT: 0.5, mB: 0.5 }],
+  ['cd', { italic: true }],
+  ['s', { ...TITLE, mT: 0, mB: 0.25, first: 0, head: 0 }],
+  ['s1', { ...TITLE, mT: 0, mB: 0.25, first: 0, head: 0 }],
+  ['s2', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5, first: 0, head: 0 }],
+  ['s3', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5, first: 0, head: 0 }],
+  ['s4', { ...SUBTITLE, italic: true, mT: 0.5, mB: 0.5, first: 0, head: 0 }],
+  ['sp', { ...TITLE, italic: true, mT: 0.5, mB: 0.5, first: 0, head: 0 }],
   ['sr', { ...SUBTITLE, align: 'center', mB: 0.25 }],
-  ['r', { italic: true, mT: 0, mB: 0.5 }],
+  ['r', { align: 'center', italic: true, mT: 0, mB: 0.25 }],
   ['mr', { ...TITLE, align: 'center', italic: true, mT: 0, mB: 0.6 }],
   ['ms', { ...SUBTITLE, align: 'center', mT: 0, mB: 0.6 }],
   ['ms1', { ...TITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms2', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms3', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
   ['ms4', { ...SUBTITLE, align: 'center', mT: 0.5, mB: 0.5 }],
-  ['mt', { size: 1.6, weight: 500, mT: 0.25, mB: 0.5 }],
-  ['mt1', { size: 1.6, weight: 500, mT: 0.25, mB: 0.5 }],
-  ['mt2', { size: 1.3, weight: 500, italic: true, mB: 0.25 }],
-  ['imt', { ...TITLE, weight: 700 }],
-  ['imt1', { size: 1.17, weight: 700, mT: 1, mB: 0.25 }],
-  ['imt2', { size: 1.08, italic: true, mT: 0.5, mB: 0.25 }],
+  ['mt', { ...TITLE, align: 'center', mT: 0.25, mB: 0.5 }],
+  ['mt1', { ...TITLE, align: 'center', mT: 0.25, mB: 0.5 }],
+  ['mt2', { ...TITLE, align: 'center', italic: true, mB: 0.25 }],
+  ['imt', { ...TITLE, align: 'center' }],
+  ['imt1', { size: 1.17, weight: 700, align: 'center', mT: 1, mB: 0.25 }],
+  ['imt2', { size: 1.08, italic: true, align: 'center', mT: 0.5, mB: 0.25 }],
+  ['imt3', { align: 'center', mT: 0.15, mB: 0.15 }],
+  ['imt4', { ...SUBTITLE, align: 'center', mT: 1 / 3 }],
   ['imte', { weight: 700, align: 'center', mT: 1, mB: 0.25 }],
   ['imte1', { weight: 700, align: 'center', mT: 1, mB: 0.25 }],
   ['imte2', { italic: true, align: 'center', mT: 0.5, mB: 0.15 }],
-  ['iot', { weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
-  ['is1', { size: 1.17, weight: 700, mT: 0.5, mB: 0.5 }],
+  ['is', { ...SUBTITLE, align: 'center', mT: 0.5 }],
+  ['is1', { size: 1.17, weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
   ['is2', { weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
-  ['cd', { italic: true }],
-  ['qd', { italic: true }],
-  ['pr', { align: 'right' }],
+  ['iot', { weight: 700, align: 'center', mT: 0.5, mB: 0.5 }],
+  ['yv-h', { first: 0 }],
+  ['yvh', { first: 0 }],
 ])
 
 export type ResolvedBlock = {
@@ -125,7 +140,7 @@ export type ResolvedBlock = {
 // its 8pt minimum (a stack adds no spacing beside a spacer), so the text never reaches the gutter.
 const SPACER_INSET = 8
 
-/** Merges every class's rule, later classes winning, then resolves px for font size `F`. */
+/** Merges every class's rule, later classes winning, then resolves pt values for font size `F`. */
 export function resolveBlock(classes: readonly string[], fontSize: number): ResolvedBlock {
   const rule: BlockRule = {}
   for (const name of classes) {
@@ -144,8 +159,9 @@ export function resolveBlock(classes: readonly string[], fontSize: number): Reso
     align: rule.align ?? 'left',
     top: rule.mT ?? 0,
     bottom: rule.mB ?? 0,
-    firstIndent: centred ? 0 : fontSize * (rule.first ?? 0),
-    headIndent: centred ? 0 : fontSize * (rule.head ?? 0),
+    // Swift pads the first line with 3 no-break spaces per unit, capped at 24.
+    firstIndent: centred ? 0 : fontSize * 0.25 * Math.min(Math.max((rule.first ?? 0) * 3, 0), 24),
+    headIndent: centred ? 0 : 8 * (rule.head ?? 0),
     alignInset: {
       start: rule.align === undefined ? 0 : SPACER_INSET,
       end: centred ? SPACER_INSET : 0,
@@ -192,7 +208,8 @@ export function blockMarginBottom(block: ResolvedBlock, fontSize: number): numbe
 export type ResolvedChars = {
   wordsOfJesus: boolean
   smallCaps: boolean
-  italic: boolean
+  /** `null` inherits the block's slant. */
+  italic: boolean | null
   weight: Weight | null
   /** Multiple of the block size, or `null` to inherit. */
   scale: number | null
@@ -221,7 +238,7 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
   const chars: ResolvedChars = {
     wordsOfJesus: false,
     smallCaps: false,
-    italic: false,
+    italic: null,
     weight: null,
     scale: null,
     raised: false,
@@ -235,6 +252,10 @@ export function resolveChars(classes: readonly string[]): ResolvedChars {
       chars.italic = true
     } else if (name === 'bd' || name === 'k' || name === 'fr') {
       chars.weight = 700
+    } else if (name === 'pn') {
+      // Swift sets a proper name in the plain body face, even inside a styled block.
+      chars.weight = 400
+      chars.italic = false
     } else if (name === 'bdit' || name === 'fk' || name === 'fl') {
       chars.weight = 500
       chars.italic = true

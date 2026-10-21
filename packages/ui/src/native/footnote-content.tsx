@@ -202,7 +202,7 @@ function ParagraphText({
       {runs.map((run, index) => {
         // The scripture character styles; Swift's sheet paints words of Jesus in the text color.
         const chars = resolveChars(run.classes)
-        const face = faceFor(chars.weight ?? 400, slantOf(chars.italic))
+        const face = faceFor(chars.weight ?? 400, slantOf(chars.italic ?? false))
         if (chars.raised) {
           return (
             <Superscript

@@ -270,11 +270,7 @@ const BlockView = memo(function BlockView({
           >
             {!ghost && (
               <Svg width={size} height={size} viewBox="0 0 20 20">
-                <Path
-                  d={NOTE_ICON}
-                  fill={color(palette.gray20, 1, dimmed)}
-                  fillRule="evenodd"
-                />
+                <Path d={NOTE_ICON} fill={color(palette.gray20, 1, dimmed)} fillRule="evenodd" />
               </Svg>
             )}
           </View>
@@ -299,7 +295,7 @@ const BlockView = memo(function BlockView({
           <RNText
             allowFontScaling={false}
             style={{
-              ...look.face(weight, chars.italic || rule.italic),
+              ...look.face(weight, chars.italic ?? rule.italic),
               fontSize: size,
               lineHeight: size * 1.2,
               color: ghost ? TRANSPARENT : (wj ?? color(overInk ?? look.ink, 1, dimmed)),
@@ -319,7 +315,7 @@ const BlockView = memo(function BlockView({
       <RNText
         key={key}
         style={{
-          ...look.face(weight, chars.italic || rule.italic),
+          ...look.face(weight, chars.italic ?? rule.italic),
           color: wj,
           fontSize: chars.scale === null ? undefined : size,
         }}
@@ -560,7 +556,9 @@ const BlockView = memo(function BlockView({
                 overflow: 'hidden',
               }}
             >
-              <View style={{ position: 'absolute', top: -sample, left: -span.x, width: size.width }}>
+              <View
+                style={{ position: 'absolute', top: -sample, left: -span.x, width: size.width }}
+              >
                 {underline}
               </View>
             </View>
