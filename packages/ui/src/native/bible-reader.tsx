@@ -38,7 +38,10 @@ import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
-import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
+import {
+  computeReaderBottomScrollPadding,
+  READER_SCROLL_END_GAP,
+} from '../lib/reader-bottom-scroll-padding'
 import {
   reportHighlightWriteError,
   type HighlightWriteError,
@@ -215,6 +218,12 @@ export type BibleReaderProps = Omit<
    * `request` loads the chapter. `focusReference` also focuses the verse.
    */
   navigation?: BibleReaderNavigation
+  /**
+   * Height of host chrome floating over the reader's bottom edge, such as an
+   * audio player. Verse focus centers in the space above it, and the chapter
+   * end scrolls clear of it.
+   */
+  bottomInset?: number
 }
 
 export function BibleReader({
@@ -248,6 +257,7 @@ export function BibleReader({
   dom,
   ref,
   navigation,
+  bottomInset = 0,
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
@@ -782,7 +792,10 @@ export function BibleReader({
   // Pad the chapter so the closing copyright clears the tab bar and home indicator.
   // NativeTabs adjusts ScrollViews automatically, but the reader opts out. Clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
-  const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
+  const systemPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
+  const bottomScrollPadding = systemPadding + bottomInset
+  // Everything over the bottom edge except the end gap: the bars plus the host's chrome.
+  const focusBottomInset = Math.max(0, systemPadding - READER_SCROLL_END_GAP) + bottomInset
 
   const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
@@ -900,6 +913,7 @@ export function BibleReader({
               backgroundColor={backgroundColor}
               foregroundColor={foregroundColor}
               bottomScrollPadding={bottomScrollPadding}
+              focusBottomInset={focusBottomInset}
               dom={readerDom}
             />
           </View>

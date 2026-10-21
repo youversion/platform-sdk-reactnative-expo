@@ -37,7 +37,10 @@ import { passageKey, usePassage, useVersionCopyright } from './scripture/use-pas
 
 type BibleReaderNativeProps = BibleReaderBodyProps &
   InternalVersionFilterProps &
-  InternalLocaleProps
+  InternalLocaleProps & {
+    /** Height covered at the bottom (bars, host chrome). Verse focus centers above it. */
+    focusBottomInset?: number
+  }
 
 type BlockLayouts = {
   key: string | null
@@ -87,6 +90,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     backgroundColor,
     foregroundColor,
     bottomScrollPadding = 0,
+    focusBottomInset = 0,
     permittedVersionIds,
     excludedVersionIds,
     permittedLanguageTags,
@@ -317,6 +321,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const scrollRef = useRef<ScrollView>(null)
   const viewportHeight = useRef(0)
   const passageTop = useRef(0)
+  // A ref, so a player opening or closing does not rerun the focus effect and re-scroll.
+  const focusBottomInsetRef = useRef(focusBottomInset)
+  focusBottomInsetRef.current = focusBottomInset
   // Tagged with the passage they measured, so a focus never lands on the last chapter's positions.
   const blockLayouts = useRef<BlockLayouts>({ key: null, byIndex: new Map() })
   const blockRefs = useRef(new Map<number, RNTextInstance>())
@@ -416,10 +423,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       }
       if (layout !== undefined && scrollsToVerse) {
         const top = passageTop.current + layout.y
+        const visible = Math.max(0, viewportHeight.current - focusBottomInsetRef.current)
         const offset =
-          layout.height < viewportHeight.current
-            ? top + layout.height / 2 - viewportHeight.current / 2
-            : top - TOP_PADDING
+          layout.height < visible ? top + layout.height / 2 - visible / 2 : top - TOP_PADDING
         scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
       }
       // A verse this text omits (NIV Matthew 17:21) matches no block; dimming would dim every
