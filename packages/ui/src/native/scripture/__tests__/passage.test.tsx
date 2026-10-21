@@ -10,6 +10,7 @@ import {
   coverRects,
   sampleTop,
   smallCaps,
+  verseSpan,
   type LineWindow,
   type PassageLook,
 } from '../passage'
@@ -30,6 +31,84 @@ describe('smallCaps', () => {
   it('leaves capitals, spaces, and punctuation at full size', () => {
     const runs = smallCaps('the LORD, God', 20)
     expect(runs.filter((run) => !isValidElement(run))).toEqual([' LORD, G'])
+  })
+})
+
+type Line = Parameters<typeof verseSpan>[2][number]
+
+// Lines 30pt apart with the glyph band centred; only y and text matter to the span.
+function line(index: number, text: string): Line {
+  return {
+    x: 0,
+    y: index * 30,
+    width: 100,
+    height: 30,
+    ascender: 20,
+    descender: -6,
+    capHeight: 14,
+    xHeight: 10,
+    text,
+  }
+}
+
+describe('verseSpan', () => {
+  const twoVerses: Block = {
+    classes: ['p'],
+    heading: false,
+    verses: [1, 2],
+    segments: [
+      {
+        verse: 1,
+        inlines: [
+          { kind: 'label', text: '1' },
+          { kind: 'text', text: 'In the beginning ', classes: [] },
+        ],
+      },
+      {
+        verse: 2,
+        inlines: [
+          { kind: 'label', text: '2' },
+          { kind: 'text', text: 'the earth was formless.', classes: [] },
+        ],
+      },
+    ],
+  }
+  // Anchor and label are one character each; verse 1 ends mid-line 1, verse 2 wraps to line 2.
+  const lines = [
+    line(0, '\u200b\ufffcIn the '),
+    line(1, 'beginning \ufffcthe earth '),
+    line(2, 'was formless.'),
+  ]
+
+  it('spans only the lines that hold the verse', () => {
+    const first = verseSpan(twoVerses, 1, lines, false, 20)
+    const second = verseSpan(twoVerses, 2, lines, false, 20)
+    if (first === null || second === null) throw new Error('expected spans')
+    expect(first.top).toBeLessThan(30)
+    expect(first.top + first.height).toBeLessThan(60)
+    expect(second.top).toBeGreaterThan(30)
+    expect(second.top + second.height).toBeGreaterThan(60)
+  })
+
+  it('does not reach the next line for a trailing space that wrapped', () => {
+    const wrapped = [
+      line(0, '\u200b\ufffcIn the beginning'),
+      line(1, ' \ufffcthe earth was formless.'),
+    ]
+    const span = verseSpan(twoVerses, 1, wrapped, false, 20)
+    if (span === null) throw new Error('expected a span')
+    expect(span.top + span.height).toBeLessThan(30)
+  })
+
+  it('spans the whole block when the line text does not add up', () => {
+    const short = [line(0, 'In the'), line(1, 'formless.')]
+    const span = verseSpan(twoVerses, 2, short, false, 20)
+    const whole = verseSpan(twoVerses, 1, short, false, 20)
+    expect(span).toEqual(whole)
+  })
+
+  it('is null before the lines are measured', () => {
+    expect(verseSpan(twoVerses, 1, [], false, 20)).toBeNull()
   })
 })
 
@@ -136,10 +215,12 @@ function renderBlock(classes: string[], text: string, rtl: boolean): void {
         selected={new Set()}
         paint={new Map()}
         focus={null}
+        spokenVerse={null}
         onVersePress={() => undefined}
         onNotePress={() => undefined}
         onBlockLayout={() => undefined}
         onBlockRef={() => undefined}
+        onSpokenLayout={() => undefined}
       />
     </LocaleProvider>,
   )
@@ -182,10 +263,12 @@ describe('paragraph alignment', () => {
           selected={new Set()}
           paint={new Map()}
           focus={null}
+          spokenVerse={null}
           onVersePress={() => undefined}
           onNotePress={() => undefined}
           onBlockLayout={() => undefined}
           onBlockRef={() => undefined}
+          onSpokenLayout={() => undefined}
         />
       </LocaleProvider>,
     )

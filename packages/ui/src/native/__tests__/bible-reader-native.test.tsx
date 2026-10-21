@@ -267,6 +267,18 @@ describe('BibleReaderNative', () => {
     expect(onVerseSelect).toHaveBeenCalledWith(JOHN_1)
   })
 
+  it('hands the tap to onVersePress instead of selecting', async () => {
+    const onVerseSelect = jest.fn()
+    const onVersePress = jest.fn()
+    mount({ onVerseSelect, onVersePress })
+
+    await screen.findByText('In the beginning')
+    pressVerse('In the beginning')
+
+    expect(onVersePress).toHaveBeenCalledWith(1)
+    expect(onVerseSelect).not.toHaveBeenCalled()
+  })
+
   it('clears the selection when the chapter changes', async () => {
     const onVerseSelect = jest.fn()
     const reader = mount({ onVerseSelect })

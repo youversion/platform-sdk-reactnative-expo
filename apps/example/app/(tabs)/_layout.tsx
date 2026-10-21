@@ -31,6 +31,10 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Card</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="audio">
+        <NativeTabs.Trigger.Label>Audio</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="music.note" md="music_note" />
+      </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person.fill" md="person" />

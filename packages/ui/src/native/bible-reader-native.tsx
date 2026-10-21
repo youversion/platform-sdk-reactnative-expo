@@ -31,13 +31,27 @@ import { sansFace } from '../theme/fonts'
 import { useSerifFace } from '../theme/use-fonts'
 import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
-import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
+import {
+  highlightEndRoom,
+  Passage,
+  type Band,
+  type PassageLook,
+  type VerseFocusDim,
+} from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
 
 type BibleReaderNativeProps = BibleReaderBodyProps &
   InternalVersionFilterProps &
-  InternalLocaleProps
+  InternalLocaleProps & {
+    /** Height covered at the bottom (bars, host chrome). Verse focus centers above it. */
+    focusBottomInset?: number
+  }
+
+type SpokenSpans = {
+  key: string | null
+  byIndex: Map<number, Band>
+}
 
 type BlockLayouts = {
   key: string | null
@@ -63,6 +77,10 @@ const TOP_PADDING = 16
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const SPINNER_DELAY_MS = 250
 const NO_VERSES: ReadonlyMap<number, { text: string }> = new Map()
+// The spoken verse stays put while it reads inside this band of the visible height,
+// so the text scrolls only when the voice nears an edge, not on every verse.
+const FOLLOW_BAND_TOP = 0.15
+const FOLLOW_BAND_BOTTOM = 0.8
 
 /** Chapter text drawn with React Native `<Text>`. */
 export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
@@ -87,6 +105,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     backgroundColor,
     foregroundColor,
     bottomScrollPadding = 0,
+    focusBottomInset = 0,
+    spokenVerse = null,
+    onVersePress: hostVersePress,
     permittedVersionIds,
     excludedVersionIds,
     permittedLanguageTags,
@@ -112,7 +133,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const awaitingLanguage = permittedLanguageTags !== undefined && !idRefused && isVersionLoading
   // A failed lookup has no tag yet. That is not a confirmed language refusal, and it
   // has to stay retryable or an allowed chapter never comes back.
-  const versionLookupBlocked = permittedLanguageTags !== undefined && !idRefused && versionError !== null
+  const versionLookupBlocked =
+    permittedLanguageTags !== undefined && !idRefused && versionError !== null
   const languageRefused =
     permittedLanguageTags !== undefined &&
     !idRefused &&
@@ -153,16 +175,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       underline: tokens.border,
       background,
     }),
-    [
-      fontSize,
-      lineSpacing,
-      passage?.parsed.rtl,
-      isSans,
-      tokens,
-      serifFaceFor,
-      ink,
-      background,
-    ],
+    [fontSize, lineSpacing, passage?.parsed.rtl, isSans, tokens, serifFaceFor, ink, background],
   )
 
   // Scoped to the rendered passage: the old chapter stays up while the next one loads.
@@ -215,8 +228,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   // Hosts pass fresh callbacks each render; read them through a ref so effects keyed on
   // `emit` do not refire (and loop) every time the host rerenders from a selection.
-  const callbacks = useRef({ onVerseSelect, onFootnotePress, onVerseFocusApplied })
-  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied }
+  const callbacks = useRef({ onVerseSelect, onFootnotePress, onVerseFocusApplied, hostVersePress })
+  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied, hostVersePress }
 
   const emit = useCallback((verses: ReadonlySet<number>): void => {
     const handler = callbacks.current.onVerseSelect
@@ -238,6 +251,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   const onVersePress = useCallback(
     (verse: number): void => {
+      const host = callbacks.current.hostVersePress
+      if (host !== undefined) {
+        host(verse)
+        return
+      }
       if (latest.current.refused) {
         return
       }
@@ -316,7 +334,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // ---- Scroll and layout ----
   const scrollRef = useRef<ScrollView>(null)
   const viewportHeight = useRef(0)
+  const scrollY = useRef(0)
   const passageTop = useRef(0)
+  // A ref, so a player opening or closing does not rerun the focus effect and re-scroll.
+  const focusBottomInsetRef = useRef(focusBottomInset)
+  focusBottomInsetRef.current = focusBottomInset
   // Tagged with the passage they measured, so a focus never lands on the last chapter's positions.
   const blockLayouts = useRef<BlockLayouts>({ key: null, byIndex: new Map() })
   const blockRefs = useRef(new Map<number, RNTextInstance>())
@@ -330,6 +352,68 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     },
     [layoutKey],
   )
+
+  // ---- Spoken verse ----
+  const spokenSpans = useRef<SpokenSpans>({ key: null, byIndex: new Map() })
+  const followFrame = useRef<number | null>(null)
+  const follow = useCallback((tries = 0): void => {
+    followFrame.current = null
+    const spans = spokenSpans.current
+    const layouts = blockLayouts.current
+    if (spans.byIndex.size === 0 || spans.key !== layouts.key) {
+      return
+    }
+    let top = Infinity
+    let bottom = -Infinity
+    for (const [index, span] of spans.byIndex) {
+      const layout = layouts.byIndex.get(index)
+      if (layout === undefined) {
+        // Block layouts can land after the bar measures; retry like the focus landing.
+        if (tries < 10) {
+          setTimeout(() => follow(tries + 1), 50)
+        }
+        return
+      }
+      top = Math.min(top, passageTop.current + layout.y + span.top)
+      bottom = Math.max(bottom, passageTop.current + layout.y + span.top + span.height)
+    }
+    const visible = Math.max(0, viewportHeight.current - focusBottomInsetRef.current)
+    const inBand =
+      top >= scrollY.current + visible * FOLLOW_BAND_TOP &&
+      bottom <= scrollY.current + visible * FOLLOW_BAND_BOTTOM
+    if (inBand) {
+      return
+    }
+    const height = bottom - top
+    const offset = height < visible ? top + height / 2 - visible / 2 : top - TOP_PADDING
+    scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
+  }, [])
+  const onSpokenLayout = useCallback(
+    (index: number, span: Band | null): void => {
+      if (spokenSpans.current.key !== layoutKey) {
+        spokenSpans.current = { key: layoutKey, byIndex: new Map() }
+      }
+      if (span === null) {
+        spokenSpans.current.byIndex.delete(index)
+        return
+      }
+      spokenSpans.current.byIndex.set(index, span)
+      // A verse that crosses blocks reports once per block; one frame gathers them.
+      if (followFrame.current === null) {
+        followFrame.current = requestAnimationFrame(() => follow())
+      }
+    },
+    [layoutKey, follow],
+  )
+  useEffect(
+    () => () => {
+      if (followFrame.current !== null) {
+        cancelAnimationFrame(followFrame.current)
+      }
+    },
+    [],
+  )
+
   const onBlockRef = useCallback((index: number, node: RNTextInstance | null): void => {
     if (node === null) {
       blockRefs.current.delete(index)
@@ -416,10 +500,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       }
       if (layout !== undefined && scrollsToVerse) {
         const top = passageTop.current + layout.y
+        const visible = Math.max(0, viewportHeight.current - focusBottomInsetRef.current)
         const offset =
-          layout.height < viewportHeight.current
-            ? top + layout.height / 2 - viewportHeight.current / 2
-            : top - TOP_PADDING
+          layout.height < visible ? top + layout.height / 2 - visible / 2 : top - TOP_PADDING
         scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
       }
       // A verse this text omits (NIV Matthew 17:21) matches no block; dimming would dim every
@@ -469,17 +552,18 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     : versionError === 'offline'
       ? t('offlineConnectionLostMessage')
       : t('generic.requestErrorBody')
-  const message = refused || unavailable
-    ? t('passageUnavailable')
-    : lookupMessage !== null
-      ? lookupMessage
-      : load.error === 'offline'
-        ? t('offlineConnectionLostMessage')
-        : load.error === 'unavailable'
-          ? t('passageUnavailable')
-          : load.error === 'failed'
-            ? t('generic.requestErrorBody')
-            : null
+  const message =
+    refused || unavailable
+      ? t('passageUnavailable')
+      : lookupMessage !== null
+        ? lookupMessage
+        : load.error === 'offline'
+          ? t('offlineConnectionLostMessage')
+          : load.error === 'unavailable'
+            ? t('passageUnavailable')
+            : load.error === 'failed'
+              ? t('generic.requestErrorBody')
+              : null
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -488,6 +572,10 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
         onLayout={(event) => {
           viewportHeight.current = event.nativeEvent.layout.height
         }}
+        onScroll={(event) => {
+          scrollY.current = event.nativeEvent.contentOffset.y
+        }}
+        scrollEventThrottle={32}
         onTouchStart={focusDim === null ? undefined : clearDim}
         onScrollBeginDrag={focusDim === null ? undefined : clearDim}
         contentContainerStyle={{ paddingBottom: bottomScrollPadding }}
@@ -515,11 +603,16 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               >
                 {message}
               </RNText>
-              {!refused && !unavailable && (versionLookupBlocked || load.error !== 'unavailable') && (
-                <Button variant="outline" onPress={versionLookupBlocked ? retryVersion : load.retry}>
-                  <Button.Text>{t('retry')}</Button.Text>
-                </Button>
-              )}
+              {!refused &&
+                !unavailable &&
+                (versionLookupBlocked || load.error !== 'unavailable') && (
+                  <Button
+                    variant="outline"
+                    onPress={versionLookupBlocked ? retryVersion : load.retry}
+                  >
+                    <Button.Text>{t('retry')}</Button.Text>
+                  </Button>
+                )}
             </View>
           ) : passage === null || (awaitingLanguage && passage.key === currentKey) ? (
             showSpinner && <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />
@@ -538,10 +631,12 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
                 selected={selected}
                 paint={paint}
                 focus={focusDim}
+                spokenVerse={isCurrent ? spokenVerse : null}
                 onVersePress={onVersePress}
                 onNotePress={onNotePress}
                 onBlockLayout={onBlockLayout}
                 onBlockRef={onBlockRef}
+                onSpokenLayout={onSpokenLayout}
               />
             </View>
           )}
@@ -633,4 +728,3 @@ function isChapterMissing(entry: BookCatalogEntry | null, chapter: string): bool
   }
   return !entry.chapters.some((c) => c.id === chapter)
 }
-
