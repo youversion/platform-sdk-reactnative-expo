@@ -54,6 +54,8 @@ export type BibleReaderBodyProps = {
    * each object, so a replacement must not inherit the previous high-water mark.
    */
   focusStream?: number
+  /** Verse being read aloud. The native reader marks it with a bar and keeps it in view. */
+  spokenVerse?: number | null
   /** The host stores this seq so a later reload does not refocus. */
   onVerseFocusApplied?: (acknowledgment: BibleReaderVerseFocusAcknowledgment) => void
   theme?: 'light' | 'dark'

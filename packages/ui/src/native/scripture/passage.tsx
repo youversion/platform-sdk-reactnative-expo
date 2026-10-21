@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -54,10 +54,14 @@ type PassageProps = {
   paint: ReadonlyMap<number, HighlightPaint>
   /** Verses kept bright while a focus dims the rest; `null` dims nothing. */
   focus: VerseFocusDim
+  /** Verse being read aloud; a bar marks its lines. `null` marks nothing. */
+  spokenVerse: number | null
   onVersePress: (verse: number) => void
   onNotePress: (verse: number | null, html: string) => void
   onBlockLayout: (index: number, y: number, height: number) => void
   onBlockRef: (index: number, node: RNTextInstance | null) => void
+  /** The spoken verse's lines in this block, block-relative; `null` once it leaves. */
+  onSpokenLayout: (index: number, span: Band | null) => void
 }
 
 // Swift raises the label 0.2em so its top meets the cap height; RN has no baseline
@@ -107,6 +111,11 @@ const BAND_DESCENT = 0.26
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
+// The spoken-verse bar, set in the gutter this far before the column's text edge.
+const SPOKEN_BAR_WIDTH = 3
+const SPOKEN_BAR_GAP = 12
+// iOS reports an inline view as one object replacement character in a line's text.
+const ATTACHMENT_LENGTH = 1
 
 // The real text, the selection underline, and the highlight backdrop. Bright and
 // dimmed highlights paint in separate backdrops so the dimmed one can fade as a group.
@@ -151,10 +160,12 @@ const BlockView = memo(function BlockView({
   selected,
   paint,
   focus,
+  spokenVerse,
   onVersePress,
   onNotePress,
   onBlockLayout,
   onBlockRef,
+  onSpokenLayout,
 }: BlockViewProps): ReactNode {
   const { t } = useSdkTranslation()
   const { fontSize } = look
@@ -166,6 +177,7 @@ const BlockView = memo(function BlockView({
   const blockDimmed = focus !== null && block.heading
   const hasSelection = block.verses.some((verse) => selected.has(verse))
   const hasPaint = block.verses.some((verse) => paint.has(verse))
+  const spoken = spokenVerse !== null && block.verses.includes(spokenVerse) ? spokenVerse : null
   // A remount (see blockStateKey) starts from the last layout instead of blank, so a
   // tap does not flash the highlight away and back.
   const [measure, setMeasure] = useState<Measure>(() => {
@@ -179,7 +191,7 @@ const BlockView = memo(function BlockView({
       measures.set(block, next)
       return next
     })
-  const measured = hasSelection || hasPaint
+  const measured = hasSelection || hasPaint || spoken !== null
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
     return value === 1 ? hex : withAlpha(hex, value)
@@ -453,6 +465,17 @@ const BlockView = memo(function BlockView({
     </View>
   ))
 
+  const spokenSpan =
+    spoken === null ? null : verseSpan(block, spoken, lines, rule.firstIndent > 0, rule.size)
+  const spokenTop = spokenSpan?.top ?? null
+  const spokenHeight = spokenSpan?.height ?? null
+  useEffect(() => {
+    onSpokenLayout(
+      index,
+      spokenTop === null || spokenHeight === null ? null : { top: spokenTop, height: spokenHeight },
+    )
+  }, [index, spokenTop, spokenHeight, onSpokenLayout])
+
   const text = paragraph('text')
   // A text underline breaks around descenders on iOS, so the ghost paints selected
   // verses as a fill and each line clips it to a strip under its baseline.
@@ -564,6 +587,22 @@ const BlockView = memo(function BlockView({
             </View>
           )
         })}
+      {spokenSpan !== null && (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{
+            position: 'absolute',
+            top: spokenSpan.top,
+            height: spokenSpan.height,
+            start: highlightEndRoom(look.fontSize) - SPOKEN_BAR_GAP - SPOKEN_BAR_WIDTH,
+            width: SPOKEN_BAR_WIDTH,
+            borderRadius: SPOKEN_BAR_WIDTH / 2,
+            backgroundColor: look.ink,
+          }}
+        />
+      )}
       {measured && TRIM_TRAILING_SPACE && (
         // One space in the block's face, to trim trailing spaces off each line.
         <RNText
@@ -617,7 +656,7 @@ export function sampleTop(
   return top + height <= line.y + line.height ? top : line.y + (line.height - height) / 2
 }
 
-type Band = { top: number; height: number }
+export type Band = { top: number; height: number }
 
 // Swift fills a line's typographic bounds, so line spacing shows as a gap between
 // highlighted lines. iOS line metrics span the whole line box, so the font's ascent
@@ -627,6 +666,62 @@ function glyphBand(line: TextLine, size: number): Band {
     top: baselineOf(line) - BAND_ASCENT * size,
     height: (BAND_ASCENT + BAND_DESCENT) * size,
   }
+}
+
+// Lines report text, not offsets, so each line's start comes from summing the lines
+// before it against the paragraph's own characters. If the sums disagree (a platform
+// that counts inline views differently), the bar spans the whole block.
+export function verseSpan(
+  block: Block,
+  verse: number,
+  lines: readonly TextLine[],
+  leadingIndent: boolean,
+  size: number,
+): Band | null {
+  const first = lines[0]
+  const last = lines[lines.length - 1]
+  if (first === undefined || last === undefined) {
+    return null
+  }
+  let offset = PARAGRAPH_ANCHOR.length + (leadingIndent ? ATTACHMENT_LENGTH : 0)
+  let start = -1
+  let end = -1
+  for (const segment of block.segments) {
+    for (const inline of segment.inlines) {
+      const flowing = inline.kind === 'text' && !resolveChars(inline.classes).raised
+      const length = flowing ? inline.text.length : ATTACHMENT_LENGTH
+      if (segment.verse === verse) {
+        if (start < 0) {
+          start = offset
+        }
+        // A trailing space can wrap onto the next line; it does not pull the bar down.
+        const visible = flowing ? inline.text.trimEnd().length : length
+        end = Math.max(end, offset + visible)
+      }
+      offset += length
+    }
+  }
+  const counted = lines.reduce((sum, line) => sum + line.text.length, 0)
+  let top = first
+  let bottom = last
+  if (start >= 0 && counted === offset) {
+    let lineStart = 0
+    let found = false
+    for (const line of lines) {
+      const lineEnd = lineStart + line.text.length
+      if (lineEnd > start && lineStart < end) {
+        if (!found) {
+          top = line
+          found = true
+        }
+        bottom = line
+      }
+      lineStart = lineEnd
+    }
+  }
+  const upper = glyphBand(top, size)
+  const lower = glyphBand(bottom, size)
+  return { top: upper.top, height: lower.top + lower.height - upper.top }
 }
 
 type LineSpan = { x: number; width: number }
@@ -744,10 +839,12 @@ function backdrop(
 function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): string {
   const { look } = state
   const focused = state.focus === null ? 'n' : 'f'
+  const spoken = state.spokenVerse !== null && block.verses.includes(state.spokenVerse) ? 'a' : ''
   const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false).fontFamily}|${look.ink}|`
   return (
     looks +
     focused +
+    spoken +
     block.verses
       .map(
         (verse) =>
@@ -768,6 +865,8 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
     a.onNotePress !== b.onNotePress ||
     a.onBlockLayout !== b.onBlockLayout ||
     a.onBlockRef !== b.onBlockRef ||
+    a.onSpokenLayout !== b.onSpokenLayout ||
+    spokenIn(a) !== spokenIn(b) ||
     (a.focus === null) !== (b.focus === null)
   ) {
     return false
@@ -778,6 +877,11 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
       a.paint.get(verse) === b.paint.get(verse) &&
       (a.focus?.has(verse) ?? false) === (b.focus?.has(verse) ?? false),
   )
+}
+
+function spokenIn(props: BlockViewProps): number | null {
+  const verse = props.spokenVerse
+  return verse !== null && props.block.verses.includes(verse) ? verse : null
 }
 
 // Neither Untitled Serif nor Source Serif answers `fontVariant: small-caps` on iOS,

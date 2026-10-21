@@ -224,6 +224,12 @@ export type BibleReaderProps = Omit<
    * end scrolls clear of it.
    */
   bottomInset?: number
+  /**
+   * Verse in the shown chapter being read aloud, such as by an audio player. A bar
+   * marks its lines, and the reader scrolls when it nears the edge of the visible
+   * text. `null` marks nothing. Native only.
+   */
+  spokenVerse?: number | null
 }
 
 export function BibleReader({
@@ -258,6 +264,7 @@ export function BibleReader({
   ref,
   navigation,
   bottomInset = 0,
+  spokenVerse = null,
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
@@ -914,6 +921,7 @@ export function BibleReader({
               foregroundColor={foregroundColor}
               bottomScrollPadding={bottomScrollPadding}
               focusBottomInset={focusBottomInset}
+              spokenVerse={spokenVerse}
               dom={readerDom}
             />
           </View>
