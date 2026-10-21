@@ -17,10 +17,12 @@ import {
 export function GuidedReader({
   chapter,
   followSeconds,
+  bottomInset,
   onSeek,
 }: {
   chapter: AudioChapter
   followSeconds: number
+  bottomInset: number
   onSeek: (seconds: number) => void
 }) {
   const { top } = useSafeAreaInsets()
@@ -67,6 +69,7 @@ export function GuidedReader({
         showToolbar={false}
         onVerseSelect={onVerseSelect}
         clearSelectionSignal={clearSelectionSignal}
+        bottomInset={bottomInset}
       />
     </View>
   )

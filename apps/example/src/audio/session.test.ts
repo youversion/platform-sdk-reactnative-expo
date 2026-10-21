@@ -25,7 +25,6 @@ import {
   sleepShouldPause,
   speedLabels,
   toolbarIcon,
-  toolbarShowsPlayButton,
   verseAtTime,
   verseStartSeconds,
 } from './session.ts'
@@ -108,9 +107,7 @@ test('the narrator sheet appears only when more than one recording exists', () =
   assert.equal(narratorHeading('BSB'), 'Viewing Audio Bibles for BSB')
 })
 
-test('hiding the floating play button removes it, and the pill can still open the drawer', () => {
-  assert.equal(toolbarShowsPlayButton(false), true)
-  assert.equal(toolbarShowsPlayButton(true), false)
+test('the pill opens the drawer without changing the transport', () => {
   const idle = { kind: 'idle' } as const
   assert.deepEqual(openDrawer(idle), { kind: 'session', drawer: 'open', transport: 'paused' })
   const playing = { kind: 'session', drawer: 'closed', transport: 'playing' } as const

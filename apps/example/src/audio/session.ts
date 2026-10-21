@@ -1,4 +1,4 @@
-export const SKIP_SECONDS = 15
+export const SKIP_SECONDS = 30
 export const LOAD_LIMIT_MS = 8_000
 export const LOAD_ERROR_MESSAGE = "This chapter's audio didn't load."
 
@@ -239,10 +239,6 @@ export function showNarratorSelector(narrators: readonly Narrator[]): boolean {
 
 export function narratorHeading(version: string): string {
   return `Viewing Audio Bibles for ${version}`
-}
-
-export function toolbarShowsPlayButton(hidden: boolean): boolean {
-  return hidden === false
 }
 
 export function clampSeconds(seconds: number, duration: number): number {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   Platform,
   Pressable,
+  type LayoutChangeEvent,
   StyleSheet,
   Text,
   View,
@@ -39,7 +40,7 @@ import {
   sleepDeadline,
   sleepShouldPause,
   toolbarIcon,
-  toolbarShowsPlayButton,
+  verseAtTime,
   type AudioChapter,
   type Chrome,
   type LoadPhase,
@@ -81,12 +82,13 @@ export default function AudioScreen() {
   const [rate, setRate] = useState<PlaybackRate>(1)
   const [sleepMinutes, setSleepMinutes] = useState<SleepMinutes | null>(null)
   const [narratorId, setNarratorId] = useState<string>(DEFAULT_NARRATOR_ID)
-  const [playButtonHidden, setPlayButtonHidden] = useState(false)
   const [sheet, setSheet] = useState<AudioSheet | null>(null)
   const [sleepEndsAt, setSleepEndsAt] = useState<number | null>(null)
   const [clock, setClock] = useState<Clock>({ currentTime: 0, duration: 0 })
   const [previewTime, setPreviewTime] = useState<number | null>(null)
   const [heldTime, setHeldTime] = useState<number | null>(null)
+  // The player card's height above the tab bar, so the followed verse lands above it.
+  const [chromeHeight, setChromeHeight] = useState(0)
 
   const playerRef = useRef<ReturnType<typeof createAudioPlayer> | null>(null)
   const loadedRef = useRef(false)
@@ -293,10 +295,6 @@ export default function AudioScreen() {
     setSheet(null)
   }
 
-  function onTogglePlayButton() {
-    setPlayButtonHidden((hidden) => !hidden)
-  }
-
   function onOpenFromPill() {
     setChrome((current) => openDrawer(current))
   }
@@ -304,7 +302,6 @@ export default function AudioScreen() {
   const open = drawerIsOpen(chrome)
   const icon = toolbarIcon(chrome)
   const version = labelForVersion(READER_VERSION_ID)
-  const showPlayButton = toolbarShowsPlayButton(playButtonHidden)
   const narrator = narratorById(narratorId)
   const sans = tokens.fontFamily.sans
   const titleFace = `${sans}_bold`
@@ -312,7 +309,12 @@ export default function AudioScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: tokens.background }]}>
-      <GuidedReader chapter={chapter} followSeconds={playhead} onSeek={onSeek} />
+      <GuidedReader
+        chapter={chapter}
+        followSeconds={playhead}
+        bottomInset={chromeHeight}
+        onSeek={onSeek}
+      />
       {open ? (
         <ChromeFrame>
           <Drawer
@@ -325,7 +327,6 @@ export default function AudioScreen() {
             sleepMinutes={sleepMinutes}
             narrator={narrator}
             showNarrators={showNarratorSelector(MOCK_NARRATORS)}
-            playButtonHidden={playButtonHidden}
             sheet={sheet}
             loadPhase={loadPhase}
             canGoPrevious={chapterIndex > 0}
@@ -342,24 +343,27 @@ export default function AudioScreen() {
             onPickRate={onPickRate}
             onPickSleep={onPickSleep}
             onPickNarrator={onPickNarrator}
-            onTogglePlayButton={onTogglePlayButton}
             onRetry={onRetry}
+            onLayout={(event) => setChromeHeight(DRAWER_GAP + event.nativeEvent.layout.height)}
           />
         </ChromeFrame>
       ) : (
         <ChromeFrame>
-          <View style={[styles.toolbarDock, { bottom: TOOLBAR_BOTTOM_GAP + chromeInset }]}>
+          <View
+            style={[styles.toolbarDock, { bottom: TOOLBAR_BOTTOM_GAP + chromeInset }]}
+            onLayout={(event) =>
+              setChromeHeight(TOOLBAR_BOTTOM_GAP + event.nativeEvent.layout.height)
+            }
+          >
             <LoadNotice loadPhase={loadPhase} bodyFace={sans} onRetry={onRetry} />
             <Toolbar
               chapter={chapter}
               version={version}
               icon={icon}
-              showPlayButton={showPlayButton}
               progress={clock.duration > 0 ? shownTime / clock.duration : 0}
               canGoPrevious={chapterIndex > 0}
               canGoNext={chapterIndex < AUDIO_CHAPTERS.length - 1}
               titleFace={mediumFace}
-              bodyFace={sans}
               onPress={onToolbarPress}
               onOpen={onOpenFromPill}
               onChapterStep={onChapterStep}
@@ -432,16 +436,24 @@ function narratorById(id: string): Narrator {
   return MOCK_NARRATORS[0]
 }
 
+function floatingShadow(color: string) {
+  return {
+    shadowColor: color,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  }
+}
+
 function Toolbar({
   chapter,
   version,
   icon,
-  showPlayButton,
   progress,
   canGoPrevious,
   canGoNext,
   titleFace,
-  bodyFace,
   onPress,
   onOpen,
   onChapterStep,
@@ -449,119 +461,100 @@ function Toolbar({
   chapter: AudioChapter
   version: string
   icon: 'play' | 'pause'
-  showPlayButton: boolean
   progress: number
   canGoPrevious: boolean
   canGoNext: boolean
   titleFace: string
-  bodyFace: string
   onPress: () => void
   onOpen: () => void
   onChapterStep: (direction: -1 | 1) => void
 }) {
   const tokens = useTokens()
+  const shadow = floatingShadow(tokens.foreground)
   let label = 'Play'
   if (icon === 'pause') label = 'Pause'
-  let leading = (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Open player"
-      onPress={onOpen}
-      style={styles.openSlot}
-    />
-  )
-  if (showPlayButton) {
-    leading = (
-      <RoundTransport
-        icon={icon}
-        label={label}
-        progress={progress}
-        size={40}
-        onPress={onPress}
-      />
-    )
-  }
   return (
-    <View
-      style={[
-        styles.pill,
-        {
-          backgroundColor: tokens.background,
-          borderColor: tokens.border,
-          borderRadius: tokens.radius.full,
-        },
-      ]}
-    >
-      {leading}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Previous chapter"
-        accessibilityState={{ disabled: !canGoPrevious }}
-        disabled={!canGoPrevious}
-        hitSlop={8}
-        onPress={() => onChapterStep(-1)}
-        style={!canGoPrevious ? styles.iconDisabled : null}
+    <View style={styles.toolbarRow}>
+      <View
+        style={[
+          styles.roundFloat,
+          shadow,
+          { backgroundColor: tokens.popover, borderRadius: tokens.radius.full },
+        ]}
       >
-        <Text
-          style={[
-            tokens.typography.lg,
-            { color: tokens.foreground, fontFamily: bodyFace },
-          ]}
+        <RoundTransport
+          icon={icon}
+          label={label}
+          progress={progress}
+          size={FLOAT_SIZE}
+          onPress={onPress}
+        />
+      </View>
+      <View
+        style={[
+          styles.pill,
+          shadow,
+          { backgroundColor: tokens.popover, borderRadius: tokens.radius.full },
+        ]}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Previous chapter"
+          accessibilityState={{ disabled: !canGoPrevious }}
+          disabled={!canGoPrevious}
+          hitSlop={8}
+          onPress={() => onChapterStep(-1)}
+          style={[styles.pillChevron, !canGoPrevious ? styles.iconDisabled : null]}
         >
-          ‹
-        </Text>
-      </Pressable>
+          <Chevron color={tokens.foreground} direction="left" />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Open player"
+          onPress={onOpen}
+          style={styles.chapterSlot}
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.chapterLabel,
+              tokens.typography.base,
+              { color: tokens.foreground, fontFamily: titleFace },
+            ]}
+          >
+            {chapter.title}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Next chapter"
+          accessibilityState={{ disabled: !canGoNext }}
+          disabled={!canGoNext}
+          hitSlop={8}
+          onPress={() => onChapterStep(1)}
+          style={[styles.pillChevron, !canGoNext ? styles.iconDisabled : null]}
+        >
+          <Chevron color={tokens.foreground} direction="right" />
+        </Pressable>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Open player"
         onPress={onOpen}
-        style={styles.chapterSlot}
+        style={[
+          styles.roundFloat,
+          shadow,
+          { backgroundColor: tokens.popover, borderRadius: tokens.radius.full },
+        ]}
       >
         <Text
-          numberOfLines={1}
           style={[
-            styles.chapterLabel,
-            tokens.typography.base,
+            tokens.typography.sm,
             { color: tokens.foreground, fontFamily: titleFace },
           ]}
         >
-          {chapter.title}
+          {version}
         </Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Next chapter"
-        accessibilityState={{ disabled: !canGoNext }}
-        disabled={!canGoNext}
-        hitSlop={8}
-        onPress={() => onChapterStep(1)}
-        style={!canGoNext ? styles.iconDisabled : null}
-      >
-        <Text
-          style={[
-            tokens.typography.lg,
-            { color: tokens.foreground, fontFamily: bodyFace },
-          ]}
-        >
-          ›
-        </Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel="Open player" onPress={onOpen}>
-        <View
-          style={[
-            styles.versionSlot,
-            { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
-          ]}
-        >
-          <Text
-            style={[
-              tokens.typography.sm,
-              { color: tokens.foreground, fontFamily: titleFace },
-            ]}
-          >
-            {version}
-          </Text>
-        </View>
       </Pressable>
     </View>
   )
@@ -577,7 +570,6 @@ function Drawer({
   sleepMinutes,
   narrator,
   showNarrators,
-  playButtonHidden,
   sheet,
   loadPhase,
   canGoPrevious,
@@ -594,8 +586,8 @@ function Drawer({
   onPickRate,
   onPickSleep,
   onPickNarrator,
-  onTogglePlayButton,
   onRetry,
+  onLayout,
 }: {
   chapter: AudioChapter
   version: string
@@ -606,7 +598,6 @@ function Drawer({
   sleepMinutes: SleepMinutes | null
   narrator: Narrator
   showNarrators: boolean
-  playButtonHidden: boolean
   sheet: AudioSheet | null
   loadPhase: LoadPhase
   canGoPrevious: boolean
@@ -623,23 +614,32 @@ function Drawer({
   onPickRate: (next: PlaybackRate) => void
   onPickSleep: (next: SleepMinutes | null) => void
   onPickNarrator: (next: string) => void
-  onTogglePlayButton: () => void
   onRetry: () => void
+  onLayout: (event: LayoutChangeEvent) => void
 }) {
   const tokens = useTokens()
   const chromeInset = useAudioChromeInset()
   let centerLabel = 'Play'
   if (icon === 'pause') centerLabel = 'Pause'
+  const versionText = (
+    <Text
+      style={[
+        styles.versionCaption,
+        { color: tokens.mutedForeground, fontFamily: bodyFace },
+      ]}
+    >
+      {version}
+    </Text>
+  )
   return (
     <View
+      onLayout={onLayout}
       style={[
         styles.drawer,
+        floatingShadow(tokens.foreground),
         {
-          backgroundColor: tokens.background,
-          borderColor: tokens.border,
-          borderTopLeftRadius: tokens.radius.surface,
-          borderTopRightRadius: tokens.radius.surface,
-          paddingBottom: 16 + chromeInset,
+          backgroundColor: tokens.popover,
+          bottom: DRAWER_GAP + chromeInset,
         },
       ]}
     >
@@ -651,51 +651,26 @@ function Drawer({
           onPress={onCollapse}
           style={styles.chevronButton}
         >
-          <ChevronDown color={tokens.foreground} />
+          <ChevronDown color={tokens.mutedForeground} />
         </Pressable>
-        <View style={styles.headerCopy}>
-          <Text
-            style={[
-              tokens.typography.lg,
-              { color: tokens.foreground, fontFamily: titleFace },
-            ]}
+        <Text
+          numberOfLines={1}
+          style={[styles.drawerTitle, { color: tokens.foreground, fontFamily: mediumFace }]}
+        >
+          {chapter.title}
+        </Text>
+        {showNarrators ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${version}, narrator ${narrator.title}`}
+            hitSlop={8}
+            onPress={() => onOpenSheet('narrator')}
           >
-            {chapter.title}
-          </Text>
-          <Text
-            style={[
-              tokens.typography.sm,
-              { color: tokens.mutedForeground, fontFamily: bodyFace },
-            ]}
-          >
-            {version}
-          </Text>
-          <Text
-            style={[
-              tokens.typography.sm,
-              { color: tokens.mutedForeground, fontFamily: bodyFace },
-            ]}
-          >
-            Mock timing
-          </Text>
-          {showNarrators ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Narrator ${narrator.title}`}
-              onPress={() => onOpenSheet('narrator')}
-            >
-              <Text
-                style={[
-                  tokens.typography.sm,
-                  { color: tokens.foreground, fontFamily: mediumFace },
-                ]}
-              >
-                {narrator.title}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-        <View style={styles.chevronButton} />
+            {versionText}
+          </Pressable>
+        ) : (
+          versionText
+        )}
       </View>
 
       <LoadNotice loadPhase={loadPhase} bodyFace={bodyFace} onRetry={onRetry} />
@@ -708,19 +683,30 @@ function Drawer({
         >
           <ChapterSkip color={tokens.foreground} direction="previous" />
         </IconButton>
-        <IconButton label="Back 15 seconds" onPress={() => onSeek(shownTime - SKIP_SECONDS)}>
-          <SkipMark color={tokens.foreground} label="15" />
+        <IconButton
+          label={`Back ${SKIP_SECONDS} seconds`}
+          onPress={() => onSeek(shownTime - SKIP_SECONDS)}
+        >
+          <SkipMark color={tokens.foreground} face={titleFace} label={String(SKIP_SECONDS)} />
         </IconButton>
         <RoundTransport
           icon={icon}
           label={centerLabel}
           progress={0}
-          size={58}
+          size={64}
           filled
           onPress={onToolbarPress}
         />
-        <IconButton label="Forward 15 seconds" onPress={() => onSeek(shownTime + SKIP_SECONDS)}>
-          <SkipMark color={tokens.foreground} label="15" forward />
+        <IconButton
+          label={`Forward ${SKIP_SECONDS} seconds`}
+          onPress={() => onSeek(shownTime + SKIP_SECONDS)}
+        >
+          <SkipMark
+            color={tokens.foreground}
+            face={titleFace}
+            label={String(SKIP_SECONDS)}
+            forward
+          />
         </IconButton>
         <IconButton
           label="Next chapter"
@@ -730,14 +716,6 @@ function Drawer({
           <ChapterSkip color={tokens.foreground} direction="next" />
         </IconButton>
       </View>
-
-      <Scrubber
-        position={shownTime}
-        duration={duration}
-        bodyFace={bodyFace}
-        onPreview={onPreview}
-        onSeek={onSeek}
-      />
 
       {sheet === 'speed' ? (
         <ChoiceList
@@ -776,48 +754,35 @@ function Drawer({
       ) : null}
 
       <View style={styles.bottomRow}>
-        <Pressable accessibilityRole="button" accessibilityLabel={`Speed ${formatRate(rate)}`} onPress={() => onOpenSheet('speed')}>
-          <Text
-            style={[
-              styles.speed,
-              tokens.typography.base,
-              { color: tokens.foreground, fontFamily: mediumFace },
-            ]}
-          >
-            {formatRate(rate)}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Speed ${formatRate(rate)}`}
+          hitSlop={8}
+          onPress={() => onOpenSheet('speed')}
+          style={styles.speed}
+        >
+          <Text style={[styles.speedText, { color: tokens.foreground, fontFamily: titleFace }]}>
+            {formatRate(rate).toUpperCase()}
           </Text>
         </Pressable>
+        <Scrubber
+          chapter={chapter}
+          position={shownTime}
+          duration={duration}
+          bodyFace={bodyFace}
+          mediumFace={mediumFace}
+          onPreview={onPreview}
+          onSeek={onSeek}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Sleep timer ${formatSleep(sleepMinutes)}`}
+          hitSlop={8}
           onPress={() => onOpenSheet('sleep')}
-          style={styles.sleep}
         >
           <ClockIcon color={tokens.foreground} />
-          <Text
-            style={[
-              tokens.typography.sm,
-              { color: tokens.mutedForeground, fontFamily: bodyFace },
-            ]}
-          >
-            {formatSleep(sleepMinutes)}
-          </Text>
         </Pressable>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={playButtonHidden ? 'Show play button' : 'Hide play button'}
-        onPress={onTogglePlayButton}
-      >
-        <Text
-          style={[
-            tokens.typography.sm,
-            { color: tokens.foreground, fontFamily: mediumFace },
-          ]}
-        >
-          {playButtonHidden ? 'Show play button' : 'Hide play button'}
-        </Text>
-      </Pressable>
     </View>
   )
 }
@@ -936,22 +901,29 @@ function NarratorSheet({
 }
 
 function Scrubber({
+  chapter,
   position,
   duration,
   bodyFace,
+  mediumFace,
   onPreview,
   onSeek,
 }: {
+  chapter: AudioChapter
   position: number
   duration: number
   bodyFace: string
+  mediumFace: string
   onPreview: (seconds: number | null) => void
   onSeek: (seconds: number) => void
 }) {
   const tokens = useTokens()
   const widthRef = useRef(1)
+  const [trackWidth, setTrackWidth] = useState(0)
   const fraction = duration > 0 ? position / duration : 0
   const bounded = unitInterval(fraction)
+  const thumbX = bounded * trackWidth
+  const verse = verseAtTime(chapter.mockVerseTimings, position)
 
   function secondsFor(locationX: number) {
     const width = widthRef.current
@@ -960,63 +932,83 @@ function Scrubber({
   }
 
   return (
-    <View style={styles.scrubBlock}>
-      <View style={styles.scrubRow}>
-        <Text
-          style={[
-            styles.time,
-            tokens.typography.sm,
-            { color: tokens.mutedForeground, fontFamily: bodyFace },
-          ]}
-        >
-          {formatClock(position)}
-        </Text>
+    <View style={styles.scrubRow}>
+      <Text style={[styles.time, { color: tokens.foreground, fontFamily: bodyFace }]}>
+        {formatClock(position)}
+      </Text>
+      <View
+        accessibilityRole="adjustable"
+        accessibilityLabel="Playback position"
+        accessibilityValue={{ text: formatClock(position) }}
+        style={styles.meterHit}
+        onLayout={(event) => {
+          widthRef.current = event.nativeEvent.layout.width
+          setTrackWidth(event.nativeEvent.layout.width)
+        }}
+        onStartShouldSetResponder={() => true}
+        onMoveShouldSetResponder={() => true}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={(event) => {
+          onPreview(secondsFor(event.nativeEvent.locationX))
+        }}
+        onResponderMove={(event) => {
+          onPreview(secondsFor(event.nativeEvent.locationX))
+        }}
+        onResponderRelease={(event) => {
+          onPreview(null)
+          onSeek(secondsFor(event.nativeEvent.locationX))
+        }}
+      >
         <View
-          accessibilityRole="adjustable"
-          accessibilityLabel="Playback position"
-          accessibilityValue={{ text: formatClock(position) }}
-          style={styles.meterHit}
-          onLayout={(event) => {
-            widthRef.current = event.nativeEvent.layout.width
-          }}
-          onStartShouldSetResponder={() => true}
-          onMoveShouldSetResponder={() => true}
-          onResponderTerminationRequest={() => false}
-          onResponderGrant={(event) => {
-            onPreview(secondsFor(event.nativeEvent.locationX))
-          }}
-          onResponderMove={(event) => {
-            onPreview(secondsFor(event.nativeEvent.locationX))
-          }}
-          onResponderRelease={(event) => {
-            onPreview(null)
-            onSeek(secondsFor(event.nativeEvent.locationX))
-          }}
+          pointerEvents="none"
+          style={[
+            styles.meterTrack,
+            { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
+          ]}
         >
           <View
             style={[
-              styles.meterTrack,
-              { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
+              styles.meterFill,
+              { backgroundColor: tokens.foreground, width: `${bounded * 100}%` },
+            ]}
+          />
+        </View>
+        <View
+          pointerEvents="none"
+          style={[
+            styles.thumb,
+            {
+              left: thumbX - THUMB_SIZE / 2,
+              backgroundColor: tokens.foreground,
+              borderRadius: tokens.radius.full,
+            },
+          ]}
+        />
+        {verse !== null && trackWidth > 0 ? (
+          <View
+            pointerEvents="none"
+            style={[
+              styles.verseTip,
+              floatingShadow(tokens.foreground),
+              {
+                left: thumbX - VERSE_TIP_WIDTH / 2,
+                backgroundColor: tokens.popover,
+                borderRadius: tokens.radius.full,
+              },
             ]}
           >
-            <View
-              style={[
-                styles.meterFill,
-                { backgroundColor: tokens.foreground, width: `${bounded * 100}%` },
-              ]}
-            />
+            <Text
+              numberOfLines={1}
+              style={[styles.verseTipText, { color: tokens.foreground, fontFamily: mediumFace }]}
+            >
+              {`Verse ${verse}`}
+            </Text>
           </View>
-        </View>
-        <Text
-          style={[
-            styles.time,
-            tokens.typography.sm,
-            { color: tokens.mutedForeground, fontFamily: bodyFace },
-          ]}
-        >
-          {formatRemaining(position, duration)}
-        </Text>
+        ) : null}
       </View>
+      <Text style={[styles.time, { color: tokens.foreground, fontFamily: bodyFace }]}>
+        {formatRemaining(position, duration)}
+      </Text>
     </View>
   )
 }
@@ -1042,11 +1034,11 @@ function RoundTransport({
   const circumference = 2 * Math.PI * radius
   const bounded = unitInterval(progress)
   const iconColor = filled ? tokens.background : tokens.foreground
-  const disc = filled ? tokens.foreground : tokens.card
+  const disc = filled ? tokens.foreground : tokens.popover
   const playLeft = size * 0.38
-  const playTop = size * 0.28
-  const playBottom = size * 0.72
-  const playTip = size * 0.72
+  const playTop = size * 0.3
+  const playBottom = size * 0.7
+  const playTip = size * 0.7
   const playMid = size * 0.5
   return (
     <Pressable
@@ -1057,45 +1049,47 @@ function RoundTransport({
     >
       <Svg width={size} height={size}>
         <Circle cx={size / 2} cy={size / 2} r={radius} fill={disc} />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          stroke={tokens.border}
-          strokeWidth={stroke}
-          fill="none"
-        />
         {filled ? null : (
-          <Circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            stroke={tokens.foreground}
-            strokeWidth={stroke}
-            fill="none"
-            strokeDasharray={`${circumference} ${circumference}`}
-            strokeDashoffset={circumference * (1 - bounded)}
-            rotation={-90}
-            originX={size / 2}
-            originY={size / 2}
-          />
+          <>
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={tokens.muted}
+              strokeWidth={stroke}
+              fill="none"
+            />
+            <Circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              stroke={tokens.foreground}
+              strokeWidth={stroke}
+              fill="none"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={circumference * (1 - bounded)}
+              rotation={-90}
+              originX={size / 2}
+              originY={size / 2}
+            />
+          </>
         )}
         {icon === 'pause' ? (
           <>
             <Rect
-              x={size * 0.32}
-              y={size * 0.28}
-              width={size * 0.12}
-              height={size * 0.44}
-              rx={1}
+              x={size * 0.35}
+              y={size * 0.31}
+              width={size * 0.1}
+              height={size * 0.38}
+              rx={size * 0.02}
               fill={iconColor}
             />
             <Rect
-              x={size * 0.56}
-              y={size * 0.28}
-              width={size * 0.12}
-              height={size * 0.44}
-              rx={1}
+              x={size * 0.55}
+              y={size * 0.31}
+              width={size * 0.1}
+              height={size * 0.38}
+              rx={size * 0.02}
               fill={iconColor}
             />
           </>
@@ -1103,6 +1097,9 @@ function RoundTransport({
           <Path
             d={`M ${playLeft} ${playTop} L ${playLeft} ${playBottom} L ${playTip} ${playMid} Z`}
             fill={iconColor}
+            stroke={iconColor}
+            strokeLinejoin="round"
+            strokeWidth={size * 0.03}
           />
         )}
       </Svg>
@@ -1138,7 +1135,29 @@ function IconButton({
 function ChevronDown({ color }: { color: string }) {
   return (
     <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Path d="M6 9l6 6 6-6" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
+      <Path
+        d="M6 9l6 6 6-6"
+        stroke={color}
+        strokeWidth={2}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  )
+}
+
+function Chevron({ color, direction }: { color: string; direction: 'left' | 'right' }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24">
+      <Path
+        d={direction === 'left' ? 'M15 5l-7 7 7 7' : 'M9 5l7 7-7 7'}
+        stroke={color}
+        strokeWidth={2.2}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </Svg>
   )
 }
@@ -1146,31 +1165,50 @@ function ChevronDown({ color }: { color: string }) {
 function ChapterSkip({ color, direction }: { color: string; direction: 'previous' | 'next' }) {
   const previous = direction === 'previous'
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24">
-      {previous ? <Rect x="5" y="6" width="2" height="12" fill={color} /> : null}
-      <Path d={previous ? 'M18 6 L10 12 L18 18 Z' : 'M6 6 L14 12 L6 18 Z'} fill={color} />
-      {previous ? null : <Rect x="17" y="6" width="2" height="12" fill={color} />}
+    <Svg width={28} height={28} viewBox="0 0 28 28">
+      <Rect x={previous ? 5 : 20} y="6" width="3" height="16" rx="1" fill={color} />
+      <Path
+        d={previous ? 'M22 7 L10 14 L22 21 Z' : 'M6 7 L18 14 L6 21 Z'}
+        fill={color}
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinejoin="round"
+      />
     </Svg>
   )
 }
 
-function SkipMark({ color, label, forward }: { color: string; label: string; forward?: boolean }) {
+function SkipMark({
+  color,
+  face,
+  label,
+  forward,
+}: {
+  color: string
+  face: string
+  label: string
+  forward?: boolean
+}) {
+  // Drawn as rewind (counter-clockwise, arrowhead at top pointing left);
+  // forward mirrors it.
   const glyph = (
-    <Svg width={22} height={22} viewBox="0 0 24 24">
+    <Svg width={30} height={30} viewBox="0 0 30 30">
       <Path
-        d="M12 5a7 7 0 1 0 6.3 4"
+        d="M10 6.3 A10 10 0 1 0 15 5"
         stroke={color}
-        strokeWidth={1.8}
+        strokeWidth={2}
         fill="none"
         strokeLinecap="round"
       />
-      <Path d="M16 4l3.2 4.2L14.8 10" stroke={color} strokeWidth={1.8} fill="none" />
+      <Path d="M11 5 L16 1.8 L16 8.2 Z" fill={color} />
     </Svg>
   )
   return (
     <View style={styles.skipMark}>
       {forward ? <View style={styles.flip}>{glyph}</View> : glyph}
-      <Text style={[styles.skipDigits, { color }]}>{label}</Text>
+      <View pointerEvents="none" style={styles.skipDigitsFrame}>
+        <Text style={[styles.skipDigits, { color, fontFamily: face }]}>{label}</Text>
+      </View>
     </View>
   )
 }
@@ -1183,12 +1221,17 @@ function unitInterval(value: number): number {
 
 function ClockIcon({ color }: { color: string }) {
   return (
-    <Svg width={24} height={24} viewBox="0 0 24 24">
-      <Circle cx="12" cy="12" r="8" stroke={color} strokeWidth={1.8} fill="none" />
-      <Path d="M12 8v4.5l3 2" stroke={color} strokeWidth={1.8} fill="none" strokeLinecap="round" />
+    <Svg width={26} height={26} viewBox="0 0 24 24">
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={2} fill="none" />
+      <Path d="M12 7v5l3 2" stroke={color} strokeWidth={2} fill="none" strokeLinecap="round" />
     </Svg>
   )
 }
+
+const FLOAT_SIZE = 48
+const DRAWER_GAP = 8
+const THUMB_SIZE = 16
+const VERSE_TIP_WIDTH = 76
 
 const styles = StyleSheet.create({
   screen: {
@@ -1215,63 +1258,76 @@ const styles = StyleSheet.create({
   errorText: {
     flex: 1,
   },
-  pill: {
-    minHeight: 52,
-    borderWidth: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  toolbarRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  openSlot: {
-    width: 40,
-    height: 40,
+  roundFloat: {
+    width: FLOAT_SIZE,
+    height: FLOAT_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pill: {
+    flex: 1,
+    height: FLOAT_SIZE,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pillChevron: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   chapterSlot: {
     flex: 1,
+    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
   },
   chapterLabel: {
     flexShrink: 1,
   },
-  versionSlot: {
-    minWidth: 50,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-  },
   drawer: {
     position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: DRAWER_GAP,
+    right: DRAWER_GAP,
     zIndex: 2,
-    borderTopWidth: 1,
+    borderRadius: 28,
     paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 12,
+    paddingTop: 16,
+    paddingBottom: 20,
+    gap: 16,
   },
   drawerHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    paddingHorizontal: 40,
   },
   chevronButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
     width: 32,
     height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCopy: {
-    flex: 1,
-    alignItems: 'center',
+  drawerTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  versionCaption: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   transport: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 4,
   },
   iconButton: {
     width: 44,
@@ -1282,16 +1338,28 @@ const styles = StyleSheet.create({
   iconDisabled: {
     opacity: 0.35,
   },
-  scrubBlock: {
-    gap: 4,
-  },
-  scrubRow: {
+  bottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
+    paddingTop: 20,
+  },
+  speed: {
+    minWidth: 28,
+  },
+  speedText: {
+    fontSize: 15,
+    lineHeight: 20,
+  },
+  scrubRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   time: {
-    minWidth: 44,
+    fontSize: 13,
+    lineHeight: 18,
   },
   meterHit: {
     flex: 1,
@@ -1305,18 +1373,23 @@ const styles = StyleSheet.create({
   meterFill: {
     height: 4,
   },
-  bottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  thumb: {
+    position: 'absolute',
+    top: (28 - THUMB_SIZE) / 2,
+    width: THUMB_SIZE,
+    height: THUMB_SIZE,
   },
-  speed: {
-    minWidth: 48,
-  },
-  sleep: {
-    flexDirection: 'row',
+  verseTip: {
+    position: 'absolute',
+    bottom: 30,
+    width: VERSE_TIP_WIDTH,
+    height: 26,
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'center',
+  },
+  verseTipText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   menu: {
     borderWidth: 1,
@@ -1336,15 +1409,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skipMark: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  skipDigitsFrame: {
+    position: 'absolute',
+    top: 1,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   skipDigits: {
-    position: 'absolute',
-    fontSize: 8,
-    lineHeight: 10,
+    fontSize: 10,
+    lineHeight: 12,
   },
   flip: {
     transform: [{ scaleX: -1 }],
