@@ -107,6 +107,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     bottomScrollPadding = 0,
     focusBottomInset = 0,
     spokenVerse = null,
+    onVersePress: hostVersePress,
     permittedVersionIds,
     excludedVersionIds,
     permittedLanguageTags,
@@ -227,8 +228,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   // Hosts pass fresh callbacks each render; read them through a ref so effects keyed on
   // `emit` do not refire (and loop) every time the host rerenders from a selection.
-  const callbacks = useRef({ onVerseSelect, onFootnotePress, onVerseFocusApplied })
-  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied }
+  const callbacks = useRef({ onVerseSelect, onFootnotePress, onVerseFocusApplied, hostVersePress })
+  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied, hostVersePress }
 
   const emit = useCallback((verses: ReadonlySet<number>): void => {
     const handler = callbacks.current.onVerseSelect
@@ -250,6 +251,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   const onVersePress = useCallback(
     (verse: number): void => {
+      const host = callbacks.current.hostVersePress
+      if (host !== undefined) {
+        host(verse)
+        return
+      }
       if (latest.current.refused) {
         return
       }

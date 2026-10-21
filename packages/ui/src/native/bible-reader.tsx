@@ -230,6 +230,11 @@ export type BibleReaderProps = Omit<
    * text. `null` marks nothing. Native only.
    */
   spokenVerse?: number | null
+  /**
+   * When set, a verse tap calls this with the verse number instead of selecting
+   * it, so no verse action sheet opens. An audio player uses it to seek. Native only.
+   */
+  onVersePress?: (verse: number) => void
 }
 
 export function BibleReader({
@@ -265,6 +270,7 @@ export function BibleReader({
   navigation,
   bottomInset = 0,
   spokenVerse = null,
+  onVersePress,
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
@@ -922,6 +928,7 @@ export function BibleReader({
               bottomScrollPadding={bottomScrollPadding}
               focusBottomInset={focusBottomInset}
               spokenVerse={spokenVerse}
+              onVersePress={onVersePress}
               dom={readerDom}
             />
           </View>

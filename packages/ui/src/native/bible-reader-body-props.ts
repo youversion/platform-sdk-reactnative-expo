@@ -56,6 +56,8 @@ export type BibleReaderBodyProps = {
   focusStream?: number
   /** Verse being read aloud. The native reader marks it with a bar and keeps it in view. */
   spokenVerse?: number | null
+  /** When set, a verse tap calls this instead of selecting the verse. Native only. */
+  onVersePress?: (verse: number) => void
   /** The host stores this seq so a later reload does not refocus. */
   onVerseFocusApplied?: (acknowledgment: BibleReaderVerseFocusAcknowledgment) => void
   theme?: 'light' | 'dark'
