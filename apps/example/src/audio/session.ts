@@ -114,17 +114,6 @@ export function verseAtTime(timings: readonly VerseTiming[], seconds: number): n
   return null
 }
 
-export function nextFollowedVerse(
-  timings: readonly VerseTiming[],
-  seconds: number,
-  previousVerse: number | null,
-): number | null {
-  const verse = verseAtTime(timings, seconds)
-  if (verse === null) return null
-  if (verse === previousVerse) return null
-  return verse
-}
-
 export function verseStartSeconds(timings: readonly VerseTiming[], verse: number): number | null {
   for (const timing of timings) {
     if (timing.verse === verse) return timing.startSeconds

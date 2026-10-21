@@ -15,7 +15,6 @@ import {
   loadPhaseAfterWait,
   narratorHeading,
   nextChapterIndex,
-  nextFollowedVerse,
   nextListening,
   openDrawer,
   pressToolbar,
@@ -39,15 +38,6 @@ test('verseAtTime returns the verse whose window contains the second', () => {
   assert.equal(verseAtTime(timings, 14), 3)
   assert.equal(verseAtTime(timings, 8), null)
   assert.equal(verseAtTime(timings, 22), null)
-})
-
-test('nextFollowedVerse reports a verse only when the window changes', () => {
-  assert.equal(nextFollowedVerse(timings, 0, null), 1)
-  assert.equal(nextFollowedVerse(timings, 1, 1), null)
-  assert.equal(nextFollowedVerse(timings, 14, 1), 3)
-  assert.equal(nextFollowedVerse(timings, 8, 1), null)
-  assert.equal(nextFollowedVerse(timings, 22, 3), null)
-  assert.equal(nextFollowedVerse(timings, 0, 3), 1)
 })
 
 test('verseStartSeconds returns that verse window start', () => {
