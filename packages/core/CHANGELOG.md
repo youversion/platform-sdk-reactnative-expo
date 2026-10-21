@@ -1,5 +1,11 @@
 # @youversion/platform-react-native-expo-core
 
+## 2.1.0
+
+### Minor Changes
+
+- 862597e: No changes in core. This version matches `@youversion/platform-react-native-expo-ui` 2.1.0.
+
 ## 2.0.0
 
 ### Major Changes
