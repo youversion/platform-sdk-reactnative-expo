@@ -1,8 +1,4 @@
-import {
-  BibleReader,
-  type BibleReaderVerseSelection,
-} from '@youversion/platform-react-native-expo-ui'
-import { useState } from 'react'
+import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -20,16 +16,9 @@ export function GuidedReader({
   onSeek: (seconds: number) => void
 }) {
   const { top } = useSafeAreaInsets()
-  const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
   const spokenVerse = verseAtTime(chapter.mockVerseTimings, followSeconds)
 
-  async function onVerseSelect(selection: BibleReaderVerseSelection): Promise<void> {
-    const { book, chapter: selectedChapter, verses } = selection
-    const verse = verses[0]
-    if (verse === undefined) return
-    if (book !== chapter.bookId) return
-    if (selectedChapter !== String(chapter.chapter)) return
-    setClearSelectionSignal((signal) => signal + 1)
+  function onVersePress(verse: number): void {
     const start = verseStartSeconds(chapter.mockVerseTimings, verse)
     if (start === null) return
     onSeek(start)
@@ -42,8 +31,7 @@ export function GuidedReader({
         chapter={String(chapter.chapter)}
         versionId={READER_VERSION_ID}
         showToolbar={false}
-        onVerseSelect={onVerseSelect}
-        clearSelectionSignal={clearSelectionSignal}
+        onVersePress={onVersePress}
         bottomInset={bottomInset}
         spokenVerse={spokenVerse}
       />
