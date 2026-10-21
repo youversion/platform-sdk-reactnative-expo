@@ -253,20 +253,22 @@ test('finish and failure leave a paused, failed, or idle player on the same chap
   assert.deepEqual(cleared.listening.chrome, playing)
 })
 
-test('Hebrews 11 uses forty even windows and the neighboring chapters stay short', () => {
+test('Hebrews 11 times all forty verses back to back after the intro', () => {
   const hebrews11 = chapterAt(1)
   assert.equal(hebrews11.chapter, 11)
-  assert.equal(hebrews11.uri, 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3')
-  assert.equal(hebrews11.mockVerseTimings.length, 40)
-  for (const [index, timing] of hebrews11.mockVerseTimings.entries()) {
+  assert.equal(hebrews11.uri, 'https://audio.bible.helloao.org/api/BSB/HEB/11/audio/souer.mp3')
+  const timings = hebrews11.mockVerseTimings
+  assert.equal(timings.length, 40)
+  for (const [index, timing] of timings.entries()) {
     assert.equal(timing.verse, index + 1)
-    assert.equal(timing.startSeconds, index * 10)
-    assert.equal(timing.endSeconds, (index + 1) * 10)
+    assert.ok(timing.startSeconds < timing.endSeconds)
+    const next = timings[index + 1]
+    if (next !== undefined) assert.equal(timing.endSeconds, next.startSeconds)
   }
-  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 0), 1)
-  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 10), 2)
-  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 390), 40)
-  assert.equal(verseAtTime(hebrews11.mockVerseTimings, 400), null)
+  assert.equal(verseAtTime(timings, 0), null)
+  assert.equal(verseAtTime(timings, 4.85), 1)
+  assert.equal(verseAtTime(timings, 306), 40)
+  assert.equal(verseAtTime(timings, 307), null)
   assert.equal(chapterAt(0).mockVerseTimings.length, 2)
   assert.equal(chapterAt(2).mockVerseTimings.length, 2)
 })

@@ -51,38 +51,71 @@ const HEBREWS_10: AudioChapter = {
   bookId: 'HEB',
   chapter: 10,
   title: 'Hebrews 10',
-  uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  uri: 'https://audio.bible.helloao.org/api/BSB/HEB/10/audio/souer.mp3',
   mockVerseTimings: [
     { verse: 1, startSeconds: 0, endSeconds: 15 },
     { verse: 2, startSeconds: 15, endSeconds: 30 },
   ],
 }
 
-function hebrews11VerseTimings(): readonly VerseTiming[] {
-  const timings: VerseTiming[] = []
-  for (let verse = 1; verse <= 40; verse += 1) {
-    timings.push({
-      verse,
-      startSeconds: (verse - 1) * 10,
-      endSeconds: verse * 10,
-    })
-  }
-  return timings
-}
+// Timed from the Souer narration: verse ends fit to its pauses. Each verse runs to
+// the next one's start so the bar holds through the breath between them.
+const HEBREWS_11_VERSE_TIMINGS: readonly VerseTiming[] = [
+  { verse: 1, startSeconds: 4.85, endSeconds: 10.5 },
+  { verse: 2, startSeconds: 10.5, endSeconds: 12.88 },
+  { verse: 3, startSeconds: 12.88, endSeconds: 20.65 },
+  { verse: 4, startSeconds: 20.65, endSeconds: 32.59 },
+  { verse: 5, startSeconds: 32.59, endSeconds: 44.12 },
+  { verse: 6, startSeconds: 44.12, endSeconds: 53.67 },
+  { verse: 7, startSeconds: 53.67, endSeconds: 65.21 },
+  { verse: 8, startSeconds: 65.21, endSeconds: 73.89 },
+  { verse: 9, startSeconds: 73.89, endSeconds: 83.33 },
+  { verse: 10, startSeconds: 83.33, endSeconds: 88.89 },
+  { verse: 11, startSeconds: 88.89, endSeconds: 98.06 },
+  { verse: 12, startSeconds: 98.06, endSeconds: 107.93 },
+  { verse: 13, startSeconds: 107.93, endSeconds: 120.28 },
+  { verse: 14, startSeconds: 120.28, endSeconds: 125.45 },
+  { verse: 15, startSeconds: 125.45, endSeconds: 130.95 },
+  { verse: 16, startSeconds: 130.95, endSeconds: 139.59 },
+  { verse: 17, startSeconds: 139.59, endSeconds: 148.33 },
+  { verse: 18, startSeconds: 148.33, endSeconds: 153.11 },
+  { verse: 19, startSeconds: 153.11, endSeconds: 159.87 },
+  { verse: 20, startSeconds: 159.87, endSeconds: 164.35 },
+  { verse: 21, startSeconds: 164.35, endSeconds: 171.03 },
+  { verse: 22, startSeconds: 171.03, endSeconds: 178.05 },
+  { verse: 23, startSeconds: 178.05, endSeconds: 187.21 },
+  { verse: 24, startSeconds: 187.21, endSeconds: 191.95 },
+  { verse: 25, startSeconds: 191.95, endSeconds: 197.95 },
+  { verse: 26, startSeconds: 197.95, endSeconds: 204.04 },
+  { verse: 27, startSeconds: 204.04, endSeconds: 211.35 },
+  { verse: 28, startSeconds: 211.35, endSeconds: 219.59 },
+  { verse: 29, startSeconds: 219.59, endSeconds: 227.52 },
+  { verse: 30, startSeconds: 227.52, endSeconds: 233.33 },
+  { verse: 31, startSeconds: 233.33, endSeconds: 242.1 },
+  { verse: 32, startSeconds: 242.1, endSeconds: 250.04 },
+  { verse: 33, startSeconds: 250.04, endSeconds: 256.19 },
+  { verse: 34, startSeconds: 256.19, endSeconds: 264.68 },
+  { verse: 35, startSeconds: 264.68, endSeconds: 273.51 },
+  { verse: 36, startSeconds: 273.51, endSeconds: 278.25 },
+  { verse: 37, startSeconds: 278.25, endSeconds: 287.8 },
+  { verse: 38, startSeconds: 287.8, endSeconds: 294.45 },
+  { verse: 39, startSeconds: 294.45, endSeconds: 299.76 },
+  { verse: 40, startSeconds: 299.76, endSeconds: 306.05 },
+]
 
 const HEBREWS_11: AudioChapter = {
   bookId: 'HEB',
   chapter: 11,
   title: 'Hebrews 11',
-  uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  mockVerseTimings: hebrews11VerseTimings(),
+  uri: 'https://audio.bible.helloao.org/api/BSB/HEB/11/audio/souer.mp3',
+  mockVerseTimings: HEBREWS_11_VERSE_TIMINGS,
 }
 
 const HEBREWS_12: AudioChapter = {
   bookId: 'HEB',
   chapter: 12,
   title: 'Hebrews 12',
-  uri: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+  uri: 'https://audio.bible.helloao.org/api/BSB/HEB/12/audio/souer.mp3',
   mockVerseTimings: [
     { verse: 1, startSeconds: 0, endSeconds: 18 },
     { verse: 2, startSeconds: 18, endSeconds: 36 },
