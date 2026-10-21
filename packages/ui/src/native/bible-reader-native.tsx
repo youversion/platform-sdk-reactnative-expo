@@ -422,10 +422,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
             : top - TOP_PADDING
         scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
       }
-      // A verse this text omits (NIV Matthew 17:21) matches no block; dimming would dim every verse.
-      if (target !== null && blockIndex >= 0) {
-        setFocusDim(new Set(target.verses))
-      }
+      // A verse this text omits (NIV Matthew 17:21) matches no block; dimming would dim every
+      // verse. Clear instead, so an earlier focus does not stay bright.
+      setFocusDim(target !== null && blockIndex >= 0 ? new Set(target.verses) : null)
       const node = blockRefs.current.get(blockIndex)
       if (node !== undefined) {
         AccessibilityInfo.sendAccessibilityEvent(node, 'focus')

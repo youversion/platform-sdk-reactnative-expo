@@ -2,6 +2,7 @@ import type { FetchBibleContent } from '@youversion/platform-react-native-expo-c
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import type { ComponentProps } from 'react'
+import { StyleSheet, type ColorValue, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderNative } from '../bible-reader-native'
@@ -516,6 +517,49 @@ describe('BibleReaderNative', () => {
     })
 
     expect(onVerseFocusApplied).not.toHaveBeenCalled()
+  })
+
+  it('clears the dim when a later focus targets a verse the text omits', async () => {
+    const twoVerses: FetchBibleContent = async () => ({
+      status: 200,
+      body: JSON.stringify({
+        content:
+          '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+          'In the beginning</div><div class="p"><span class="yv-v" v="2"></span>' +
+          '<span class="yv-vlbl">2</span>He was with God</div></div>',
+        reference: 'John 1',
+      }),
+      contentType: 'application/json',
+    })
+    const onVerseFocusApplied = jest.fn()
+    const reader = mount({ fetchBibleContent: twoVerses, onVerseFocusApplied })
+    // Ink sits on the paragraph's Text, above the run that holds the words.
+    const colorOf = (text: string): ColorValue | undefined => {
+      let node: ReactTestInstance | null = screen.getByText(text)
+      while (node !== null) {
+        const style: TextStyle | undefined = StyleSheet.flatten(node.props.style)
+        const color = style?.color
+        if (color !== undefined) {
+          return color
+        }
+        node = node.parent
+      }
+      return undefined
+    }
+
+    await screen.findByText('He was with God')
+    const bright = colorOf('He was with God')
+    expect(bright).toBeDefined()
+    reader.update({ verseFocus: FOCUS })
+    await waitFor(() => {
+      expect(colorOf('He was with God')).not.toEqual(bright)
+    })
+
+    reader.update({ verseFocus: { ...FOCUS, seq: 2, passageId: 'JHN.1.9' } })
+    await waitFor(() => {
+      expect(onVerseFocusApplied).toHaveBeenCalledWith({ stream: 0, seq: 2 })
+    })
+    expect(colorOf('He was with God')).toEqual(bright)
   })
 
   it('shows the unavailable message without Retry for a missing chapter, and Retry when the request fails', async () => {
