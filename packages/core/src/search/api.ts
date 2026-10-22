@@ -31,27 +31,22 @@ export type CreateSearchApiConfig = {
 }
 
 export type SearchApi = {
-  suggestedQueries: (
-    params: SuggestedQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
-  trendingQueries: (
-    params: TrendingQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
+  suggestedQueries: (params: SuggestedQueriesParams) => Promise<SearchApiResult<SearchQueries>>
+  trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
   unified: (params: SearchUnifiedParams) => Promise<SearchApiResult<YouVersionUnifiedSearchResults>>
 }
 
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
-  const client = new SearchClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: config.additionalHeaders,
-      timeout: config.timeout,
-    }),
-  )
+  const http = new ApiClient({
+    appKey: config.appKey,
+    apiHost: config.apiHost ?? DEFAULT_API_HOST,
+    installationId: config.installationId,
+    additionalHeaders: config.additionalHeaders,
+    timeout: config.timeout,
+  })
+  const client = new SearchClient(http)
 
   return {
     suggestedQueries({ query, languageRanges }) {
@@ -67,9 +62,8 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
     },
     unified(params) {
-      // TODO(YPE-6190): replace the local stub with client.searchUnified(call.query, call.bibleId, call.languageRanges, call.options) once React #446 publishes, then delete the requestUnifiedSearch import.
       const call = buildUnifiedSearchCall(params)
-      return catchAsResult(() => requestUnifiedSearch(client, call))
+      return catchAsResult(() => requestUnifiedSearch(http, call))
     },
   }
 }

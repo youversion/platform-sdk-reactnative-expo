@@ -29,7 +29,6 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
-// TODO(YPE-6190): replace YouVersionImageSearchResult, YouVersionUnifiedSearchField, and YouVersionUnifiedSearchResults with aliases of SearchImageHit, SearchUnifiedField, and SearchUnifiedResponse from @youversion/platform-core once React #446 publishes searchUnified, then delete UnifiedSearchHits.
 export type YouVersionImageSearchResult = {
   id: string
   passageId: string

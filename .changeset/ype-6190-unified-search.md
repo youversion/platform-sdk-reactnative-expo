@@ -2,4 +2,4 @@
 '@youversion/platform-react-native-expo-core': minor
 ---
 
-Add `useSearch().unified` for verse, topic, and image search (YPE-6190). Live image results wait on `@youversion/platform-core` `searchUnified`.
+Add `useSearch().unified` for verse, topic, and image search. Calls go to `/v1/search-unified` (YPE-6190).
