@@ -1,24 +1,11 @@
 import type { Collection } from '@youversion/platform-core'
 
 import type { Result } from '../result'
+import type { Image } from './schema'
 
-export type GetImagesOptions = {
-  passage_id?: string
-  language_ranges?: readonly string[]
-  page_size?: number
-  page_token?: string | null
-}
+export type { GetImagesOptions } from './schema'
 
-export type YouVersionImage = {
-  id: string
-  image_url: string
-  passage_id: string
-  attribution: string
-  language_tag: string
-  width: number
-  height: number
-  aspect_ratio: number
-}
+export type YouVersionImage = Image
 
 export type YouVersionImagePage = Collection<YouVersionImage>
 
