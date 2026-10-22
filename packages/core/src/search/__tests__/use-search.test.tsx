@@ -42,7 +42,7 @@ describe('useSearch', () => {
     )
   })
 
-  it('reads provider config and returns the four operations', async () => {
+  it('reads provider config and returns the five operations', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
         status: 200,
@@ -58,13 +58,16 @@ describe('useSearch', () => {
     expect(result.current.trendingQueries).toEqual(expect.any(Function))
     expect(result.current.verses).toEqual(expect.any(Function))
     expect(result.current.topics).toEqual(expect.any(Function))
+    expect(result.current.unified).toEqual(expect.any(Function))
 
     const trending = await result.current.trendingQueries({ languageRanges: ['en'] })
     expect(trending).toEqual({
       ok: true,
       value: { queries: [{ text: 'love', source: 'trending' }] },
     })
-    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/search-queries')
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
+      'https://api.example.com/v1/search-queries',
+    )
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
@@ -82,14 +85,23 @@ describe('useSearch', () => {
         ok: true as const,
         value: { topics: [], didYouMean: [], totalSize: 0 },
       })),
+      unified: jest.fn(async () => ({
+        ok: true as const,
+        value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
+      })),
     }
 
     const { result } = renderHook(() => useSearch(), {
-      wrapper: ({ children }) => <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>,
+      wrapper: ({ children }) => (
+        <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>
+      ),
     })
 
     expect(result.current).toBe(stub)
-    const suggested = await result.current.suggestedQueries({ query: 'love', languageRanges: ['en'] })
+    const suggested = await result.current.suggestedQueries({
+      query: 'love',
+      languageRanges: ['en'],
+    })
     expect(suggested).toEqual({ ok: true, value: { queries: [{ text: 'stub' }] } })
     expect(mockFetch).not.toHaveBeenCalled()
   })

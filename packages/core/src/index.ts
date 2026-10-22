@@ -54,6 +54,7 @@ export type {
   SearchApiError,
   SearchApiResult,
   SearchTopicsParams,
+  SearchUnifiedParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
@@ -63,7 +64,8 @@ export type {
   YouVersionSearchTopic,
   YouVersionSearchUserIntent,
   YouVersionTopicSearchResults,
+  YouVersionUnifiedSearchField,
+  YouVersionUnifiedSearchResults,
   YouVersionVerseSearchResult,
   YouVersionVerseSearchResults,
 } from './search'
-

@@ -43,7 +43,20 @@ type TopicsJson = {
   total_size: number
 }
 
-type SearchJson = SearchQueriesJson | VersesJson | TopicsJson
+type UnifiedImageRecord = {
+  id?: string | number | null
+  passage_id?: string | number | null
+} | null
+
+type UnifiedJson = {
+  verses?: VerseRecord[]
+  topics?: TopicRecord[]
+  images?: UnifiedImageRecord[]
+  user_intent?: string | null
+  did_you_mean?: string[]
+}
+
+type SearchJson = SearchQueriesJson | VersesJson | TopicsJson | UnifiedJson
 
 type LastRequest = {
   url: URL
@@ -368,6 +381,107 @@ describe('createSearchApi', () => {
       expect(longQuery.error.kind).toBe('invalid-parameter')
 
       const emptyRanges = await api().topics({ query: 'love', languageRanges: [] })
+      expect(emptyRanges.ok).toBe(false)
+      if (emptyRanges.ok) return
+      expect(emptyRanges.error.kind).toBe('invalid-parameter')
+
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('unified', () => {
+    it('GETs /v1/search-unified and maps verses, topics, and images', async () => {
+      mockFetch.mockResolvedValue(
+        jsonResponse({
+          verses: [{ reference: 'JHN.3.16' }, { reference: 'BAD' }],
+          topics: [
+            { id: 7, text: 'Love', subtopics: ['charity'] },
+            { text: 'missing id', subtopics: [] },
+          ],
+          images: [
+            { id: 'img-1', passage_id: 'JHN.3.16' },
+            { id: 1, passage_id: 'JHN.3.16' },
+            null,
+          ],
+          user_intent: 'topical',
+          did_you_mean: ['love'],
+        }),
+      )
+
+      const result = await api().unified({
+        query: 'love',
+        bibleId: 111,
+        languageRanges: ['en_US', 'es'],
+        fields: ['verses', 'topics', 'verses'],
+        userIntent: 'topical',
+      })
+
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          verses: [{ id: 'JHN.3.16' }],
+          topics: [{ id: 7, text: 'Love', subtopics: ['charity'] }],
+          images: [
+            { id: 'img-1', passage_id: 'JHN.3.16' },
+            { id: 1, passage_id: 'JHN.3.16' },
+            null,
+          ],
+          userIntent: 'topical',
+          didYouMean: ['love'],
+          searchInsteadFor: null,
+        },
+      })
+
+      const { url, init } = lastRequest()
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-unified')
+      expect(url.searchParams.get('query')).toBe('love')
+      expect(url.searchParams.get('bible_id')).toBe('111')
+      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'es'])
+      expect(url.searchParams.getAll('fields[]')).toEqual(['verses', 'topics'])
+      expect(url.searchParams.get('user_intent')).toBe('topical')
+      expect(url.searchParams.has('page_size')).toBe(false)
+      expect(url.searchParams.has('page_token')).toBe(false)
+      expect(init.method).toBe('GET')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+    })
+
+    it('omits fields and user_intent when unset and fills missing lists with []', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ verses: [], topics: [] }))
+
+      const result = await api().unified({
+        query: 'hope',
+        bibleId: 111,
+        languageRanges: ['en'],
+      })
+
+      expect(result).toEqual({
+        ok: true,
+        value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
+      })
+
+      const { url } = lastRequest()
+      expect(url.pathname).toBe('/v1/search-unified')
+      expect(url.searchParams.has('fields[]')).toBe(false)
+      expect(url.searchParams.has('user_intent')).toBe(false)
+    })
+
+    it('maps an empty query or empty language ranges to invalid-parameter without fetching', async () => {
+      const emptyQuery = await api().unified({
+        query: '   ',
+        bibleId: 111,
+        languageRanges: ['en'],
+      })
+      expect(emptyQuery.ok).toBe(false)
+      if (emptyQuery.ok) return
+      expect(emptyQuery.error.kind).toBe('invalid-parameter')
+
+      const emptyRanges = await api().unified({
+        query: 'love',
+        bibleId: 111,
+        languageRanges: [],
+      })
       expect(emptyRanges.ok).toBe(false)
       if (emptyRanges.ok) return
       expect(emptyRanges.error.kind).toBe('invalid-parameter')
