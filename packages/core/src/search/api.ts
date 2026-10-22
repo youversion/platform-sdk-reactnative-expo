@@ -10,7 +10,7 @@ import {
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { buildUnifiedSearchCall, requestUnifiedSearch } from './unified'
+import { searchUnified, type SearchUnifiedOptions } from './search-unified'
 import type {
   SearchApiError,
   SearchApiResult,
@@ -61,9 +61,15 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
     },
-    unified(params) {
-      const call = buildUnifiedSearchCall(params)
-      return catchAsResult(() => requestUnifiedSearch(http, call))
+    unified({ query, bibleId, languageRanges, fields, userIntent }) {
+      let options: SearchUnifiedOptions = {}
+      if (fields !== undefined) {
+        options = { ...options, fields }
+      }
+      if (userIntent !== undefined) {
+        options = { ...options, userIntent }
+      }
+      return catchAsResult(() => searchUnified(http, query, bibleId, languageRanges, options))
     },
   }
 }

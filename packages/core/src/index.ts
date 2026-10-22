@@ -59,7 +59,6 @@ export type {
   SuggestedQueriesParams,
   TrendingQueriesParams,
   UseSearchResult,
-  YouVersionImageSearchResult,
   YouVersionSearchQueries,
   YouVersionSearchQuery,
   YouVersionSearchTopic,
@@ -70,4 +69,3 @@ export type {
   YouVersionVerseSearchResult,
   YouVersionVerseSearchResults,
 } from './search'
-

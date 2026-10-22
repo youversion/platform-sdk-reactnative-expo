@@ -8,7 +8,6 @@ export {
   type SearchVersesParams,
   type SuggestedQueriesParams,
   type TrendingQueriesParams,
-  type YouVersionImageSearchResult,
   type YouVersionSearchQueries,
   type YouVersionSearchQuery,
   type YouVersionSearchTopic,

@@ -8,6 +8,11 @@ import type {
 } from '@youversion/platform-core'
 
 import type { Result } from '../result'
+import type {
+  SearchUnifiedField,
+  SearchUnifiedOptions,
+  SearchUnifiedResponse,
+} from './search-unified-schema'
 
 /**
  * Server-supplied search intent. A string wrapper, not an enum: known
@@ -29,24 +34,9 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
-export type YouVersionImageSearchResult = {
-  id: string
-  passageId: string
-}
+export type YouVersionUnifiedSearchField = SearchUnifiedField
 
-type UnifiedSearchHits = {
-  verses: YouVersionVerseSearchResult[]
-  topics: YouVersionSearchTopic[]
-  images: YouVersionImageSearchResult[]
-}
-
-export type YouVersionUnifiedSearchField = keyof UnifiedSearchHits
-
-export type YouVersionUnifiedSearchResults = {
-  verses: YouVersionVerseSearchResult[]
-  topics: YouVersionSearchTopic[]
-  images: YouVersionImageSearchResult[]
-}
+export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
@@ -81,6 +71,6 @@ export type SearchUnifiedParams = {
   query: string
   bibleId: number
   languageRanges: string[]
-  fields?: YouVersionUnifiedSearchField[]
-  userIntent?: YouVersionSearchUserIntent
+  fields?: SearchUnifiedOptions['fields']
+  userIntent?: SearchUnifiedOptions['userIntent']
 }

@@ -412,7 +412,7 @@ describe('createSearchApi', () => {
         query: 'love',
         bibleId: 111,
         languageRanges: ['en_US', 'es'],
-        fields: ['verses', 'topics', 'images', 'verses'],
+        fields: ['verses', 'topics', 'verses'],
         userIntent: 'topical',
       })
 
@@ -421,7 +421,14 @@ describe('createSearchApi', () => {
         value: {
           verses: [{ id: 'JHN.3.16' }],
           topics: [{ id: 7, text: 'Love', subtopics: ['charity'] }],
-          images: [{ id: 'img-1', passageId: 'JHN.3.16' }],
+          images: [
+            { id: 'img-1', passage_id: 'JHN.3.16' },
+            { id: 1, passage_id: 'JHN.3.16' },
+            null,
+          ],
+          userIntent: 'topical',
+          didYouMean: ['love'],
+          searchInsteadFor: null,
         },
       })
 
@@ -430,7 +437,7 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('query')).toBe('love')
       expect(url.searchParams.get('bible_id')).toBe('111')
       expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'es'])
-      expect(url.searchParams.getAll('fields[]')).toEqual(['verses', 'topics', 'images'])
+      expect(url.searchParams.getAll('fields[]')).toEqual(['verses', 'topics'])
       expect(url.searchParams.get('user_intent')).toBe('topical')
       expect(url.searchParams.has('page_size')).toBe(false)
       expect(url.searchParams.has('page_token')).toBe(false)
@@ -451,7 +458,7 @@ describe('createSearchApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: { verses: [], topics: [], images: [] },
+        value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
       })
 
       const { url } = lastRequest()
