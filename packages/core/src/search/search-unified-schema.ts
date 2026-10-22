@@ -190,7 +190,7 @@ export type SearchUnifiedResponse = Readonly<z.infer<typeof SearchUnifiedRespons
 
 type EnsureSearchUnifiedFieldArrays<T extends Record<SearchUnifiedField, true>> = T
 
-type _SearchUnifiedFieldCoverage = EnsureSearchUnifiedFieldArrays<{
+export type _SearchUnifiedFieldCoverage = EnsureSearchUnifiedFieldArrays<{
   [K in SearchUnifiedField]: SearchUnifiedResponse[K] extends readonly unknown[] ? true : false
 }>
 
