@@ -195,6 +195,23 @@ function useFindVerse() {
 }
 ```
 
+### Images
+
+`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item uses the shared image fields, including `image_url` and `passage_id`. `createImagesApi` is not a package export.
+
+```tsx
+import { useImages } from '@youversion/platform-react-native-expo-core'
+
+function usePassageImages(passageId: string) {
+  const { list } = useImages()
+
+  return async () => {
+    const result = await list({ passage_id: passageId })
+    return result.ok ? result.value.data : []
+  }
+}
+```
+
 ## License
 
 This SDK is licensed under [Apache 2.0](./LICENSE).
