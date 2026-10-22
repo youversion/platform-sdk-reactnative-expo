@@ -72,7 +72,7 @@ const api = () =>
 
 describe('createImagesApi', () => {
   describe('list', () => {
-    it('GETs /v1-beta/images with passage_id and language_ranges[] unchanged in case', async () => {
+    it('GETs /v1/images with passage_id and normalized language_ranges[]', async () => {
       mockFetch.mockResolvedValue(
         jsonResponse({
           data: [SAMPLE_IMAGE],
@@ -96,10 +96,12 @@ describe('createImagesApi', () => {
       })
 
       const { url, init } = lastRequest()
-      expect(url.origin + url.pathname).toBe('https://api.example.com/v1-beta/images')
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/images')
       expect(url.searchParams.get('passage_id')).toBe('JHN.3.16')
-      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-US', 'pt_BR'])
+      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'pt-br'])
       expect(init.method).toBe('GET')
+      expect(new Headers(init.headers).get('X-YVP-App-Key')).toBe('appkey')
+      expect(new Headers(init.headers).get('X-YVP-Installation-Id')).toBe('inst-1')
     })
 
     it('returns an empty page when data is an empty array', async () => {
@@ -166,9 +168,7 @@ describe('createImagesApi', () => {
     })
 
     it('turns an empty next_page_token into null and drops a null total_size', async () => {
-      mockFetch.mockResolvedValue(
-        jsonResponse({ data: [], next_page_token: '', total_size: null }),
-      )
+      mockFetch.mockResolvedValue(jsonResponse({ data: [], next_page_token: '', total_size: null }))
 
       const result = await api().list({})
 
@@ -270,7 +270,7 @@ describe('createImagesApi', () => {
       })
 
       expect(String(mockFetch.mock.calls[0]?.[0])).toBe(
-        'https://api.example.com/v1-beta/images/photo%2F1',
+        'https://api.example.com/v1/images/photo%2F1',
       )
     })
 

@@ -62,7 +62,7 @@ describe('useImages', () => {
       ok: true,
       value: { data: [], next_page_token: null },
     })
-    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1-beta/images')
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/images')
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {

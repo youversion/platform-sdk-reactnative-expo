@@ -197,7 +197,7 @@ function useFindVerse() {
 
 ### Images
 
-`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1-beta/images` until the API is on production. A list item uses the shared image fields, including `image_url` and `passage_id`. `createImagesApi` is not a package export.
+`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item uses the shared image fields, including `image_url` and `passage_id`. `createImagesApi` is not a package export.
 
 ```tsx
 import { useImages } from '@youversion/platform-react-native-expo-core'

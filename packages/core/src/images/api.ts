@@ -1,16 +1,16 @@
-import {
-  ApiClient,
-  ImagesClient,
-  getHttpStatus,
-  type Collection,
-  type GetImagesOptions,
-  type Image,
-} from '@youversion/platform-core'
+import { ApiClient, getHttpStatus } from '@youversion/platform-core'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import type { ImagesApiError, ImagesApiResult } from './types'
+import { ImagesClient } from './client'
+import type {
+  GetImagesOptions,
+  ImagesApiError,
+  ImagesApiResult,
+  YouVersionImage,
+  YouVersionImagePage,
+} from './types'
 
 export type CreateImagesApiConfig = {
   appKey: string
@@ -21,8 +21,8 @@ export type CreateImagesApiConfig = {
 }
 
 export type ImagesApi = {
-  list: (options?: GetImagesOptions) => Promise<ImagesApiResult<Collection<Image>>>
-  get: (imageId: string) => Promise<ImagesApiResult<Image>>
+  list: (options?: GetImagesOptions) => Promise<ImagesApiResult<YouVersionImagePage>>
+  get: (imageId: string) => Promise<ImagesApiResult<YouVersionImage>>
 }
 
 export function createImagesApi(config: CreateImagesApiConfig): ImagesApi {
@@ -34,8 +34,6 @@ export function createImagesApi(config: CreateImagesApiConfig): ImagesApi {
       additionalHeaders: config.additionalHeaders,
       timeout: config.timeout,
     }),
-    // The Images API is not on production yet.
-    { beta: true },
   )
 
   return {
