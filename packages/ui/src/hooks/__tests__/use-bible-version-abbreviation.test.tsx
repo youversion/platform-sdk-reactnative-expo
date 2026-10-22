@@ -2,7 +2,19 @@ import { act, renderHook, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
-import { useBibleVersionAbbreviation } from '../use-bible-version-abbreviation'
+import {
+  useBibleVersionAbbreviation,
+  type BibleVersionAbbreviation,
+} from '../use-bible-version-abbreviation'
+
+function shown(value: BibleVersionAbbreviation) {
+  return {
+    abbreviation: value.abbreviation,
+    languageId: value.languageId,
+    isLoading: value.isLoading,
+    error: value.error,
+  }
+}
 
 const fetchMock = jest.mocked(global.fetch)
 const defaultFetchImpl = fetchMock.getMockImplementation()
@@ -95,9 +107,9 @@ describe('useBibleVersionAbbreviation', () => {
 
     const { result } = renderHook(() => useBibleVersionAbbreviation(111), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
+    expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: true, error: null })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false, error: null })
     })
   })
 
@@ -126,9 +138,9 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     rerender({ versionId: 128 })
-    expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: true })
+    expect(shown(result.current)).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: true, error: null })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false, error: null })
     })
   })
 
@@ -157,7 +169,12 @@ describe('useBibleVersionAbbreviation', () => {
     // its language too. Once the lookup settles empty, the toolbar shows Select version.
     rerender({ versionId: 128 })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+      expect(shown(result.current)).toEqual({
+        abbreviation: null,
+        languageId: null,
+        isLoading: false,
+        error: 'offline',
+      })
     })
   })
 
@@ -190,7 +207,7 @@ describe('useBibleVersionAbbreviation', () => {
     })
 
     rerender({ versionId: 111 })
-    expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+    expect(shown(result.current)).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false, error: null })
     await waitFor(() => {
       expect(result.current.abbreviation).toBe('NIV')
     })
@@ -222,7 +239,7 @@ describe('useBibleVersionAbbreviation', () => {
 
     rerender({ versionId: 128 })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false, error: null })
     })
 
     // The cache has to agree with the live lookup: same version, same pair.
@@ -231,7 +248,7 @@ describe('useBibleVersionAbbreviation', () => {
       expect(result.current.abbreviation).toBe('NIV')
     })
     rerender({ versionId: 128 })
-    expect(result.current).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false })
+    expect(shown(result.current)).toEqual({ abbreviation: 'NVI', languageId: null, isLoading: false, error: null })
   })
 
   it('does not fetch when disabled', () => {
@@ -239,7 +256,7 @@ describe('useBibleVersionAbbreviation', () => {
       wrapper: wrapper(),
     })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+    expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: false, error: null })
     expect(fetchMock.mock.calls.some(([input]) => isVersionUrl(urlFromFetchInput(input)))).toBe(
       false,
     )
@@ -286,7 +303,7 @@ describe('useBibleVersionAbbreviation', () => {
 
     rerender({ enabled: true })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NIV', languageId: 'en', isLoading: false, error: null })
     })
     expect(versionCalls).toBe(1)
   })
@@ -302,11 +319,53 @@ describe('useBibleVersionAbbreviation', () => {
 
     const { result } = renderHook(() => useBibleVersionAbbreviation(3034), { wrapper: wrapper() })
 
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: true })
+    expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: true, error: null })
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)
     })
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+    expect(shown(result.current)).toEqual({
+      abbreviation: null,
+      languageId: null,
+      isLoading: false,
+      error: 'offline',
+    })
+  })
+
+  it('loads the version after a failed lookup is retried', async () => {
+    let fail = true
+    fetchMock.mockImplementation((input: RequestInfo | URL) => {
+      const url = urlFromFetchInput(input)
+      if (isVersionUrl(url) && url.includes('/3034')) {
+        if (fail) {
+          return Promise.reject(new Error('network down'))
+        }
+        return versionResponse('BSB', 'en')
+      }
+      if (url.includes('/v1/fonts/')) {
+        return fontResponse()
+      }
+      return Promise.reject(new Error(`unexpected fetch in UI tests: ${url}`))
+    })
+
+    const { result } = renderHook(() => useBibleVersionAbbreviation(3034), { wrapper: wrapper() })
+
+    await waitFor(() => {
+      expect(result.current.error).toBe('offline')
+    })
+
+    fail = false
+    act(() => {
+      result.current.retry()
+    })
+
+    await waitFor(() => {
+      expect(shown(result.current)).toEqual({
+        abbreviation: 'BSB',
+        languageId: 'en',
+        isLoading: false,
+        error: null,
+      })
+    })
   })
 
   it('treats language_tag without abbreviation as a settled success and caches it', async () => {
@@ -330,17 +389,17 @@ describe('useBibleVersionAbbreviation', () => {
     )
 
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: null, languageId: 'en', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: null, languageId: 'en', isLoading: false, error: null })
     })
 
     rerender({ versionId: 128 })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false, error: null })
     })
     rerender({ versionId: 111 })
-    expect(result.current).toEqual({ abbreviation: null, languageId: 'en', isLoading: false })
+    expect(shown(result.current)).toEqual({ abbreviation: null, languageId: 'en', isLoading: false, error: null })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: null, languageId: 'en', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: null, languageId: 'en', isLoading: false, error: null })
     })
   })
 
@@ -365,17 +424,17 @@ describe('useBibleVersionAbbreviation', () => {
     )
 
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: false, error: null })
     })
 
     rerender({ versionId: 128 })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: 'NVI', languageId: 'es', isLoading: false, error: null })
     })
     rerender({ versionId: 111 })
-    expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+    expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: false, error: null })
     await waitFor(() => {
-      expect(result.current).toEqual({ abbreviation: null, languageId: null, isLoading: false })
+      expect(shown(result.current)).toEqual({ abbreviation: null, languageId: null, isLoading: false, error: null })
     })
   })
 

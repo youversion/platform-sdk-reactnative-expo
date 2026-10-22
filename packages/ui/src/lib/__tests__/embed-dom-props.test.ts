@@ -1,4 +1,4 @@
-import { withEmbedDomDefaults, withSheetDomDefaults } from '../embed-dom-props'
+import { withEmbedDomDefaults } from '../embed-dom-props'
 
 const SCROLL_CHROME = {
   scrollEnabled: false,
@@ -11,11 +11,6 @@ const SCROLL_CHROME = {
 const EMBED_DEFAULTS = {
   matchContents: true,
   containerStyle: { flex: 0, width: '100%' },
-  ...SCROLL_CHROME,
-}
-
-const SHEET_DEFAULTS = {
-  matchContents: true,
   ...SCROLL_CHROME,
 }
 
@@ -57,32 +52,5 @@ describe('withEmbedDomDefaults', () => {
 
   it('keeps an explicit matchContents: true equivalent to the default', () => {
     expect(withEmbedDomDefaults({ matchContents: true })).toEqual(withEmbedDomDefaults())
-  })
-})
-
-describe('withSheetDomDefaults', () => {
-  it('enables matchContents and scroll-chrome defaults when no dom prop is given', () => {
-    expect(withSheetDomDefaults()).toEqual(SHEET_DEFAULTS)
-  })
-
-  it('does not apply embed containerStyle', () => {
-    expect(withSheetDomDefaults().containerStyle).toBeUndefined()
-  })
-
-  it('lets the consumer override scroll-chrome defaults', () => {
-    expect(
-      withSheetDomDefaults({ showsVerticalScrollIndicator: true, injectedJavaScript: 'true;' }),
-    ).toEqual({
-      ...SHEET_DEFAULTS,
-      showsVerticalScrollIndicator: true,
-      injectedJavaScript: 'true;',
-    })
-  })
-
-  it('keeps an explicit matchContents: false when the consumer opts out', () => {
-    expect(withSheetDomDefaults({ matchContents: false })).toEqual({
-      ...SCROLL_CHROME,
-      matchContents: false,
-    })
   })
 })
