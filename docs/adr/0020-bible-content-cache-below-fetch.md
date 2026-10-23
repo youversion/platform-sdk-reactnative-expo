@@ -2,7 +2,8 @@
 
 Date: 2026-08-27 (amended 2026-08-29: native performs the request)
 Amended: 2026-10-08. `BibleReader` calls the Bible Content Client directly.
-Amended: 2026-11-03. `BibleTextView` calls the Bible Content Client directly. The WebView fetch interception remains for `BibleCard` and `VerseOfTheDay`.
+Amended: 2026-11-03. `BibleTextView` calls the Bible Content Client directly.
+Amended: 2026-10-23. `BibleCard` and `VerseOfTheDay` call the Bible Content Client directly too.
 
 ## Status
 

@@ -1,6 +1,6 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import { Platform, Pressable, Text, View } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
@@ -8,24 +8,14 @@ import {
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
 import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
+import {
+  installBibleContentFetch,
+  type BibleContentFetchStub,
+} from '../../test-utils/stub-bible-content-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import { getTokens } from '../../theme'
 import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
-
-type LatestDomProps = {
-  versionId?: number
-}
-
-let latestDomProps: LatestDomProps = {}
-
-function MockBibleTextViewDOM(props: LatestDomProps) {
-  latestDomProps = props
-  return (
-    <View testID="mock-btv-dom">
-      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-    </View>
-  )
-}
 
 const wrapper = youVersionProviderWrapper()
 
@@ -43,10 +33,11 @@ async function resetBibleCardVersionStore() {
 }
 
 describe('BibleCard version picker integration', () => {
+  let fetchStub: BibleContentFetchStub
+
   beforeEach(async () => {
-    latestDomProps = {}
+    fetchStub = installBibleContentFetch()
     stubImpl('FootnoteContent', 'mock-footnote')
-    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
     setImpl(
       'BibleVersionPickerSheet',
@@ -83,6 +74,7 @@ describe('BibleCard version picker integration', () => {
   })
 
   afterEach(() => {
+    fetchStub.restore()
     resetImpls()
     jest.restoreAllMocks()
   })
@@ -103,9 +95,12 @@ describe('BibleCard version picker integration', () => {
   })
 
   it('updates versionId when version picker selects a version', async () => {
-    const { getByTestId } = await renderAndSettle(<BibleCard reference="JHN.1.1" showVersionPicker />, {
-      wrapper,
-    })
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" showVersionPicker />,
+      {
+        wrapper,
+      },
+    )
 
     await act(async () => {
       fireEvent.press(getByTestId('bible-card-version'))
@@ -115,13 +110,17 @@ describe('BibleCard version picker integration', () => {
       fireEvent.press(getByTestId('select-version'))
     })
 
-    expect(latestDomProps.versionId).toBe(59)
+    await waitFor(() => {
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1'))).toBe(true)
+    })
   })
 
-  it('passes versionId seed to BibleTextView when store is empty', async () => {
+  it('requests the seeded version when the store is empty', async () => {
     await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={100} />, { wrapper })
 
-    expect(latestDomProps.versionId).toBe(100)
+    await waitFor(() => {
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/100/passages/JHN.1'))).toBe(true)
+    })
   })
 
   it('does not render version picker sheet when consumer provides onVersionPickerPress', async () => {
@@ -256,9 +255,16 @@ describe('BibleCard version picker integration', () => {
     expect(queryByTestId('bible-card-version')).toBeNull()
   })
 
-  it('resolves system theme to provider theme', async () => {
-    await renderAndSettle(<BibleCard reference="JHN.1.1" theme="system" />, { wrapper })
+  it('resolves system theme to the provider theme', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" theme="system" />,
+      {
+        wrapper,
+      },
+    )
 
-    expect(latestDomProps.versionId).toBeDefined()
+    expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+      backgroundColor: getTokens('light').card,
+    })
   })
 })
