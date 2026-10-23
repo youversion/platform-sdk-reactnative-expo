@@ -208,7 +208,7 @@ describe('PassageEmbed', () => {
   })
 
   it('opens a footnote from the verse', async () => {
-    const onFootnotePress = jest.fn<(data: FootnoteData) => void>()
+    const onFootnotePress = jest.fn<void, [FootnoteData]>()
     const { getByLabelText } = render(
       <PassageEmbed
         reference="JHN.1.1"
