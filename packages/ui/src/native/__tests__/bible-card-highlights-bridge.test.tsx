@@ -1,44 +1,28 @@
 /**
- * Layer 3 — the native → Expo DOM contract for paint-only highlights on
- * BibleCard.
- *
- * Native owns Cached Highlights and the token. The wrapper subscribes at
- * Highlight Scope (the already-resolved native versionId plus the parsed
- * chapter) and always hands the DOM component a `Highlight[]` so the Web SDK
- * can latch Controlled Highlights Latch. No apply, no remove, no verse-action
- * UI, no token in the WebView.
+ * BibleCard subscribes at Highlight Scope and paints with native text.
+ * It does not hand highlights to a WebView, and it does not apply or remove them.
  */
-import { render } from '@testing-library/react-native'
+import { render, waitFor } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { View } from 'react-native'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
+import en from '../../i18n/locales/en.json'
 import { emptyHighlights } from '../../test-utils/default-hook-overrides'
-import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
+import { resetImpls, stubImpl } from '../../test-utils/install-test-impls'
+import {
+  installBibleContentFetch,
+  type BibleContentFetchStub,
+} from '../../test-utils/stub-bible-content-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
-
-type CapturedDomProps = {
-  highlights?: unknown
-  reference?: string
-  versionId?: number
-}
-
-/** Every render's props, so "always an array" can be checked, not just "eventually". */
-let mockDomPropsHistory: CapturedDomProps[] = []
-
-function MockDOM(props: CapturedDomProps) {
-  mockDomPropsHistory.push(props)
-  return <View testID="mock-dom" />
-}
 
 const YELLOW = 'fffe00'
 
@@ -59,81 +43,51 @@ const wrapper = youVersionProviderWrapper('light', undefined, {
   useHighlights: useHighlightsMock,
 })
 
-function lastDomProps(): CapturedDomProps {
-  const props = mockDomPropsHistory.at(-1)
-  if (props === undefined) {
-    throw new Error('The DOM component never rendered.')
-  }
-  return props
-}
+let fetchStub: BibleContentFetchStub
 
 beforeEach(async () => {
-  mockDomPropsHistory = []
+  fetchStub = installBibleContentFetch()
   useHighlightsMock.mockClear()
   stubHighlights([])
   stubImpl('FootnoteContent', 'mock-footnote')
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('NativeSheet')
-  setImpl('BibleTextViewDom', MockDOM)
-  jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockReturnValue(new Promise(() => undefined))
+  jest
+    .spyOn(bibleCardMetadata, 'getBibleCardMetadata')
+    .mockReturnValue(new Promise(() => undefined))
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
   await useBibleCardVersionStore.persist.rehydrate()
 })
 
 afterEach(() => {
+  fetchStub.restore()
   resetImpls()
   jest.restoreAllMocks()
 })
 
-describe('the Controlled Highlights Latch', () => {
-  it('hands the DOM component the hook’s cache snapshot on the very first render', () => {
-    const data = [highlight('JHN.3.16')]
-    stubHighlights(data)
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
-
-    expect(mockDomPropsHistory.length).toBeGreaterThan(0)
-    expect(mockDomPropsHistory[0]?.highlights).toEqual(data)
-  })
-
-  it('never renders with an undefined highlights prop, on any render', () => {
+describe('native scripture', () => {
+  it('draws the verse while a highlight for that verse is in scope', async () => {
     stubHighlights([highlight('JHN.3.16')])
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
+    const { getByText } = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
 
-    expect(mockDomPropsHistory.length).toBeGreaterThan(0)
-    for (const props of mockDomPropsHistory) {
-      expect(Array.isArray(props.highlights)).toBe(true)
-    }
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
   })
 
-  it('sends no access token across the bridge, on any render', () => {
-    stubHighlights([highlight('JHN.3.16')])
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
+  it('draws the verse when nothing is highlighted', async () => {
+    const { getByText } = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
 
-    expect(mockDomPropsHistory.length).toBeGreaterThan(0)
-    for (const props of mockDomPropsHistory) {
-      expect(props).not.toHaveProperty('accessToken')
-    }
-  })
-
-  it('passes an empty hook result through as [], never undefined', () => {
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
-    expect(lastDomProps().highlights).toEqual([])
-  })
-
-  it('forwards the hook’s highlights verbatim, with no adapter in between', () => {
-    const data = [highlight('JHN.3.16'), highlight('JHN.3.17-18')]
-    stubHighlights(data)
-
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
-
-    expect(lastDomProps().highlights).toEqual(data)
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
   })
 })
 
 describe('the highlights subscription scope', () => {
-  it('subscribes at Highlight Scope for a verse-range USFM', () => {
-    render(<BibleCard reference="JHN.1.1-4" versionId={111} />, { wrapper })
+  it('subscribes at Highlight Scope for a verse-range USFM', async () => {
+    const { getByText } = render(<BibleCard reference="JHN.1.1-4" versionId={111} />, { wrapper })
 
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 111,
@@ -141,11 +95,14 @@ describe('the highlights subscription scope', () => {
       chapter: '1',
       enabled: true,
     })
+    await waitFor(() => {
+      expect(getByText('In the beginning')).toBeTruthy()
+    })
   })
 
-  it('re-scopes when the native versionId changes', () => {
+  it('re-scopes when the native versionId changes', async () => {
     const onVersionChange = jest.fn()
-    const { rerender } = render(
+    const { getByText, rerender } = render(
       <BibleCard reference="JHN.3.16" versionId={111} onVersionChange={onVersionChange} />,
       { wrapper },
     )
@@ -156,6 +113,9 @@ describe('the highlights subscription scope', () => {
       chapter: '3',
       enabled: true,
     })
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
 
     rerender(<BibleCard reference="JHN.3.16" versionId={222} onVersionChange={onVersionChange} />)
 
@@ -165,46 +125,36 @@ describe('the highlights subscription scope', () => {
       chapter: '3',
       enabled: true,
     })
+    await waitFor(() => {
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/222/passages/JHN.3'))).toBe(true)
+    })
   })
 
-  it('passes [] and does not fetch when the USFM is invalid', () => {
-    render(<BibleCard reference="not-usfm" versionId={111} />, { wrapper })
+  it('shows the passage as unavailable and does not fetch when the USFM is invalid', () => {
+    const { getByText, queryByText } = render(<BibleCard reference="not-usfm" versionId={111} />, {
+      wrapper,
+    })
 
-    expect(lastDomProps().highlights).toEqual([])
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
+    expect(queryByText('For God so loved')).toBeNull()
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 1,
       book: '_',
       chapter: '0',
       enabled: false,
     })
+    expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
   })
 })
 
-describe('the verse-action event set', () => {
-  it('sends no highlight-intent or copy/share handlers across the bridge', () => {
-    render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
-
-    const props = lastDomProps()
-    expect(props).not.toHaveProperty('onHighlightApply')
-    expect(props).not.toHaveProperty('onHighlightRemove')
-    expect(props).not.toHaveProperty('onCopy')
-    expect(props).not.toHaveProperty('onShare')
-  })
-})
-
-describe('the DOM scripture surface (unobservable from layer 3)', () => {
+describe('native scripture ownership', () => {
   const cardSource = readFileSync(join(__dirname, '../bible-card.tsx'), 'utf8')
-  const textViewSource = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
 
-  it('embeds BibleTextView instead of a full-component BibleCard wrapper', () => {
-    expect(cardSource).toContain("getImpl('BibleTextViewDom')")
-    expect(cardSource).not.toContain("getImpl('BibleCardDom')")
+  it('draws scripture with PassageEmbed and does not apply highlights', () => {
+    expect(cardSource).toContain('PassageEmbed')
+    expect(cardSource).not.toContain('BibleTextViewDom')
     expect(cardSource).not.toContain("from '../dom/bible-card'")
-  })
-
-  it('keeps content fetches on the native Bible Content Client', () => {
-    expect(textViewSource).toContain('registerBibleContentAction')
-    expect(textViewSource).toContain('fetchBibleContent')
-    expect(textViewSource).not.toMatch(/BibleClient/)
+    expect(cardSource).not.toContain('onHighlightApply')
+    expect(cardSource).not.toContain('onHighlightRemove')
   })
 })
