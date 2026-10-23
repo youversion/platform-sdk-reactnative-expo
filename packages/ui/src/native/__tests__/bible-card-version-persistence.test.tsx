@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -10,28 +10,18 @@ import {
 } from '../../stores/bible-card-version-store'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
+import {
+  installBibleContentFetch,
+  type BibleContentFetchStub,
+} from '../../test-utils/stub-bible-content-fetch'
+import en from '../../i18n/locales/en.json'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
 import { YouVersionProvider } from '../youversion-provider'
 
-type LatestDomProps = {
-  versionId?: number
-}
-
 type PersistedCardVersion = {
   state: { versionId?: number }
-}
-
-let latestDomProps: LatestDomProps = {}
-
-function MockBibleTextViewDOM(props: LatestDomProps) {
-  latestDomProps = props
-  return (
-    <View testID="mock-btv-dom">
-      <Text testID="version-id">{String(props.versionId ?? 'none')}</Text>
-    </View>
-  )
 }
 
 const wrapper = youVersionProviderWrapper()
@@ -72,10 +62,11 @@ async function seedBibleCardVersion(versionId: number) {
 }
 
 describe('BibleCard version persistence', () => {
+  let fetchStub: BibleContentFetchStub
+
   beforeEach(async () => {
-    latestDomProps = {}
+    fetchStub = installBibleContentFetch()
     stubImpl('FootnoteContent', 'mock-footnote')
-    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('NativeSheet', () => <View testID="mock-footnote-sheet-stub" />)
     setImpl(
       'BibleVersionPickerSheet',
@@ -104,6 +95,7 @@ describe('BibleCard version persistence', () => {
   })
 
   afterEach(() => {
+    fetchStub.restore()
     resetImpls()
     jest.restoreAllMocks()
   })
@@ -111,9 +103,12 @@ describe('BibleCard version persistence', () => {
   it('hydrates uncontrolled state from MMKV on mount', async () => {
     await seedBibleCardVersion(59)
 
-    await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper })
+    const { getByText } = await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper })
 
-    expect(latestDomProps.versionId).toBe(59)
+    await waitFor(() => {
+      expect(getByText('In the beginning')).toBeTruthy()
+    })
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1'))).toBe(true)
   })
 
   it('persists picker selection to MMKV', async () => {
@@ -172,15 +167,22 @@ describe('BibleCard version persistence', () => {
 
     await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
 
-    expect(latestDomProps.versionId).toBe(59)
+    await waitFor(() => {
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1'))).toBe(true)
+    })
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/'))).toBe(false)
   })
 
-  it('passes a stored versionId into BibleTextView when version filter lists would refuse it', async () => {
+  it('keeps a stored version when filters refuse it and does not load the verse', async () => {
     await seedBibleCardVersion(59)
 
-    await renderAndSettle(<BibleCard reference="JHN.1.1" />, { wrapper: refuseFilterWrapper })
+    const { getByText, queryByText } = await renderAndSettle(<BibleCard reference="JHN.1.1" />, {
+      wrapper: refuseFilterWrapper,
+    })
 
-    expect(latestDomProps.versionId).toBe(59)
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
+    expect(queryByText('In the beginning')).toBeNull()
+    expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
 
     const raw = mmkvStorage.getString(BIBLE_CARD_VERSION_PERSIST_KEY)
     expect(raw).toBeTruthy()
@@ -192,11 +194,14 @@ describe('BibleCard version persistence', () => {
     expect(parsed.state.versionId).toBe(59)
   })
 
-  it('passes a host versionId into BibleTextView when version filter lists would refuse it', async () => {
-    await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={59} />, {
-      wrapper: refuseFilterWrapper,
-    })
+  it('does not load a host version the filters refuse and does not rewrite it', async () => {
+    const { getByText, queryByText } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" versionId={59} />,
+      { wrapper: refuseFilterWrapper },
+    )
 
-    expect(latestDomProps.versionId).toBe(59)
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
+    expect(queryByText('In the beginning')).toBeNull()
+    expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
   })
 })

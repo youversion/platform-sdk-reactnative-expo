@@ -1,6 +1,6 @@
 # Bridge-safe font tokens for DOM component props
 
-> **Status.** `BibleReader` sets its font on native text and does not send `fontFamily` across the bridge. `BibleTextView` still uses these tokens. The text below is the original bug.
+> **Status.** `BibleReader`, `BibleCard`, and `VerseOfTheDay` set their font on native text and do not send `fontFamily` across the bridge. `BibleTextView` still uses these tokens. The text below is the original bug.
 
 ## The problem
 

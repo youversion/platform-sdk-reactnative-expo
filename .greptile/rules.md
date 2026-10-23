@@ -75,7 +75,7 @@ Flag any PR diff that hand-edits locale JSON string values. Exception: automated
 
 ## dom-versus-native
 
-Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. The allowed DOM entry is bible-text-view.tsx. packages/ui/src/native/register-dom-impls.ts may register that entry. Native code may import Web SDK values. `BibleReader` and footnote sheets ship as native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still use the DOM text view.
+Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/\*\* is a finding. The allowed DOM entry is bible-text-view.tsx. packages/ui/src/native/register-dom-impls.ts may register that entry. Native code may import Web SDK values. `BibleReader`, footnote sheets, `BibleCard`, and `VerseOfTheDay` ship as native text. `BibleTextView` still uses the DOM text view.
 
 ## nativesheet-test-seam
 
@@ -83,4 +83,4 @@ Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImp
 
 ## public-api-pin
 
-A new package export is a finding unless packages/ui/src/__tests__/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
+A new package export is a finding unless packages/ui/src/**tests**/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.

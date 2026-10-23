@@ -1,26 +1,24 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'
-import {
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
+import en from '../../i18n/locales/en.json'
+import es from '../../i18n/locales/es.json'
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
-import { FONT_FAMILY_TOKEN } from '../../lib/reader-fonts'
 import {
   bibleCardVersionStoreInitialState,
   useBibleCardVersionStore,
 } from '../../stores/bible-card-version-store'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import {
+  installBibleContentFetch,
+  type BibleContentFetchStub,
+} from '../../test-utils/stub-bible-content-fetch'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
@@ -31,64 +29,12 @@ import { YouVersionProvider } from '../youversion-provider'
 const black = require('../../../assets/bible-app-wordmark-black-text.png')
 const white = require('../../../assets/bible-app-wordmark-white-text.png')
 
-const sampleFootnote: FootnoteData = {
-  verseNum: '3',
-  notes: [],
-  verseHtml: '<p>footnote</p>',
-}
-
 const sampleMetadata = {
   reference: 'John 3:16',
   abbreviation: 'NIV',
   copyright: 'NIV copyright',
   languageTag: 'en',
 }
-
-const EMBED_DEFAULTS = {
-  matchContents: true,
-  containerStyle: { flex: 0, width: '100%' },
-  scrollEnabled: false,
-  bounces: false,
-  overScrollMode: 'never',
-  showsVerticalScrollIndicator: false,
-  showsHorizontalScrollIndicator: false,
-} as const
-
-type EmbedDomProps = {
-  matchContents?: boolean
-  containerStyle?: StyleProp<ViewStyle>
-  scrollEnabled?: boolean
-  bounces?: boolean
-  overScrollMode?: string
-  showsVerticalScrollIndicator?: boolean
-  showsHorizontalScrollIndicator?: boolean
-}
-
-type LatestDomProps = {
-  appKey?: string
-  apiHost?: string
-  fetchBibleContent?: unknown
-  reference?: string
-  versionId?: number
-  theme?: string
-  locale?: string
-  fontSize?: number
-  fontFamily?: string
-  showVerseNumbers?: boolean
-  highlights?: unknown
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-  maxWidth?: number | '100%'
-  showVersionPicker?: boolean
-  onVersionChange?: unknown
-  onVersionPickerPress?: unknown
-  dom?: EmbedDomProps
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-  scriptureDirection?: 'ltr' | 'rtl'
-}
-
-let latestDomProps: LatestDomProps = {}
 
 async function renderAndSettle(...args: Parameters<typeof render>) {
   const result = render(...args)
@@ -97,27 +43,40 @@ async function renderAndSettle(...args: Parameters<typeof render>) {
   return result
 }
 
-function MockBibleTextViewDOM(props: LatestDomProps) {
-  latestDomProps = props
-  return (
-    <View testID="mock-btv-dom">
-      <Text testID="mock-app-key">{props.appKey}</Text>
-      <Text testID="mock-reference">{props.reference ?? ''}</Text>
-      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
-      <Text testID="mock-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
-      <Text testID="mock-font-family">{props.fontFamily ?? ''}</Text>
-      <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
-      <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
-      <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
-      <Pressable
-        testID="mock-footnote-trigger"
-        onPress={() => void props.onFootnotePress?.(sampleFootnote)}
-      >
-        <Text>footnote</Text>
-      </Pressable>
-    </View>
-  )
+function fontSizeOf(node: ReactTestInstance): number | undefined {
+  let current: ReactTestInstance | null = node
+  while (current !== null) {
+    const size = flattenedTextStyle(current).fontSize
+    if (size !== undefined) {
+      return size
+    }
+    current = current.parent
+  }
+  return undefined
+}
+
+function fontFamilyOf(node: ReactTestInstance): string | undefined {
+  let current: ReactTestInstance | null = node
+  while (current !== null) {
+    const family = flattenedTextStyle(current).fontFamily
+    if (family !== undefined) {
+      return family
+    }
+    current = current.parent
+  }
+  return undefined
+}
+
+function flattenedTextStyle(node: ReactTestInstance): TextStyle {
+  // SAFETY: StyleSheet.flatten returns the merged RN style object for this node.
+  return (StyleSheet.flatten(node.props.style) ?? {}) as TextStyle
+}
+
+async function pressFootnote(): Promise<void> {
+  await waitFor(() => {
+    expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+  })
+  fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
 }
 
 function MockFootnoteContent(props: {
@@ -140,11 +99,11 @@ function snapshotHasReaderWidthToken(snapshot: string): boolean {
 
 describe('BibleCard', () => {
   const originalOs = Platform.OS
+  let fetchStub: BibleContentFetchStub
 
   beforeEach(async () => {
-    latestDomProps = {}
+    fetchStub = installBibleContentFetch()
     stubDeviceLocale('xx-XX', 'xx')
-    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     setImpl('FootnoteContent', MockFootnoteContent)
     setImpl('BibleVersionPickerSheet', () => <View testID="mock-version-picker-sheet-stub" />)
     setImpl(
@@ -174,6 +133,7 @@ describe('BibleCard', () => {
   })
 
   afterEach(() => {
+    fetchStub.restore()
     resetImpls()
     jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
@@ -183,7 +143,7 @@ describe('BibleCard', () => {
     })
   })
 
-  it('renders native chrome around the DOM BibleTextView', async () => {
+  it('renders native chrome around the verse', async () => {
     const { getByTestId, getByText, queryByTestId, queryByText } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
       { wrapper: wrapper() },
@@ -196,7 +156,10 @@ describe('BibleCard', () => {
     expect(source).toEqual(black)
     expect(accessibilityLabel).toBe('Bible App')
     expect(queryByText('Bible App')).toBeNull()
-    expect(getByTestId('mock-btv-dom')).toBeTruthy()
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    expect(getByText('16')).toBeTruthy()
     expect(queryByTestId('bible-card-version')).toBeNull()
   })
 
@@ -230,7 +193,6 @@ describe('BibleCard', () => {
       backgroundColor: getTokens('dark').card,
     })
     expect(getByTestId('bible-card-attribution').props.source).toEqual(white)
-    expect(latestDomProps.theme).toBe('dark')
   })
 
   it('clears chrome metadata synchronously when reference changes', async () => {
@@ -243,14 +205,16 @@ describe('BibleCard', () => {
     expect(getByText('John 3:16 NIV')).toBeTruthy()
 
     let resolveNewMetadata: (value: typeof sampleMetadata) => void = () => {}
-    jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockImplementation((_fetch, _versionId, passageId) => {
-      if (passageId === 'GEN.1.1') {
-        return new Promise((resolve) => {
-          resolveNewMetadata = resolve
-        })
-      }
-      return Promise.resolve(sampleMetadata)
-    })
+    jest
+      .spyOn(bibleCardMetadata, 'getBibleCardMetadata')
+      .mockImplementation((_fetch, _versionId, passageId) => {
+        if (passageId === 'GEN.1.1') {
+          return new Promise((resolve) => {
+            resolveNewMetadata = resolve
+          })
+        }
+        return Promise.resolve(sampleMetadata)
+      })
 
     rerender(
       <TestWrapper>
@@ -289,23 +253,22 @@ describe('BibleCard', () => {
     })
   })
 
-  it('forwards appKey from YouVersionProvider and passage props to BibleTextView', async () => {
-    const { getByTestId } = await renderAndSettle(
-      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />,
+  it('requests the chapter through the Bible content client', async () => {
+    const { getByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
       { wrapper: wrapper() },
     )
 
-    expect(getByTestId('mock-app-key').children).toContain('test-key')
-    expect(getByTestId('mock-reference').children).toContain('JHN.3.16')
-    expect(getByTestId('mock-version-id').children).toContain('3034')
-    expect(getByTestId('mock-show-verse-numbers').children).toContain('0')
-    expect(getByTestId('mock-dom-match-contents').children).toContain('1')
-    expect(latestDomProps.apiHost).toBe('api.youversion.com')
-    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
-    expect(latestDomProps).not.toHaveProperty('showVersionPicker')
-    expect(latestDomProps).not.toHaveProperty('onVersionPickerPress')
-    expect(latestDomProps).not.toHaveProperty('onVersionChange')
-    expect(latestDomProps).not.toHaveProperty('maxWidth')
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    expect(getByText('16')).toBeTruthy()
+    expect(
+      fetchStub.urls.some((url) =>
+        url.startsWith('https://api.youversion.com/v1/bibles/3034/passages/JHN.3?'),
+      ),
+    ).toBe(true)
+    expect(fetchStub.appKeys).toContain('test-key')
   })
 
   function versionFilterWrapper(lists: {
@@ -328,18 +291,21 @@ describe('BibleCard', () => {
     return FilterWrapper
   }
 
-  it('forwards version filter lists from YouVersionProvider to BibleTextView', async () => {
-    await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
-      wrapper: versionFilterWrapper({
-        permittedVersionIds: [111],
-        excludedVersionIds: [3034],
-        permittedLanguageTags: ['en'],
-      }),
-    })
+  it('does not request a verse the provider filters refuse', async () => {
+    const { getByText, queryByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      {
+        wrapper: versionFilterWrapper({
+          permittedVersionIds: [111],
+          excludedVersionIds: [3034],
+          permittedLanguageTags: ['en'],
+        }),
+      },
+    )
 
-    expect(latestDomProps.permittedVersionIds).toEqual([111])
-    expect(latestDomProps.excludedVersionIds).toEqual([3034])
-    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
+    expect(queryByText('For God so loved')).toBeNull()
+    expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
   })
 
   it('passes provider version filters into chrome metadata lookups', async () => {
@@ -365,7 +331,7 @@ describe('BibleCard', () => {
   it('hides chrome metadata when the version is refused by provider filters', async () => {
     jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockResolvedValue(null)
 
-    const { queryByText, queryByTestId } = await renderAndSettle(
+    const { getByText, queryByText } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
       {
         wrapper: versionFilterWrapper({
@@ -376,7 +342,8 @@ describe('BibleCard', () => {
 
     expect(queryByText('John 3:16 NIV')).toBeNull()
     expect(queryByText('NIV copyright')).toBeNull()
-    expect(queryByTestId('mock-btv-dom')).toBeTruthy()
+    expect(queryByText('For God so loved')).toBeNull()
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
   })
 
   it('clears chrome metadata synchronously when provider filters tighten', async () => {
@@ -452,42 +419,37 @@ describe('BibleCard', () => {
     expect(getByText('John 3:16 NIV')).toBeTruthy()
   })
 
-  it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {
-    await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
-      wrapper: wrapper('light', 'es'),
-    })
-
-    expect(latestDomProps.locale).toBe('es')
-  })
-
-  it('forwards device-resolved locale to BibleTextView when provider locale is omitted', async () => {
-    stubDeviceLocale('es-MX', 'es')
-
-    await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
-      wrapper: wrapper(),
-    })
-
-    expect(latestDomProps.locale).toBe('es')
-  })
-
-  it('applies the embed dom defaults when no dom prop is passed', async () => {
-    await renderAndSettle(<BibleCard reference="JHN.3.16" versionId={3034} />, {
-      wrapper: wrapper(),
-    })
-
-    expect(latestDomProps.dom).toEqual(EMBED_DEFAULTS)
-  })
-
-  it('merges a consumer containerStyle after the embed defaults', async () => {
-    await renderAndSettle(
-      <BibleCard reference="JHN.3.16" versionId={3034} dom={{ containerStyle: { width: 300 } }} />,
-      { wrapper: wrapper() },
+  it('shows a failed verse in the provider locale', async () => {
+    fetchStub.passageStatus = 503
+    const { getByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      {
+        wrapper: wrapper('light', 'es'),
+      },
     )
 
-    expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
+    await waitFor(() => {
+      expect(getByText(es['generic.requestErrorBody'])).toBeTruthy()
+    })
   })
 
-  it('caps the native Card at 700 by default and does not forward maxWidth to BibleTextView', async () => {
+  it('shows a failed verse in the device locale when the provider omits one', async () => {
+    fetchStub.passageStatus = 503
+    stubDeviceLocale('es-MX', 'es')
+
+    const { getByText } = await renderAndSettle(
+      <BibleCard reference="JHN.3.16" versionId={3034} />,
+      {
+        wrapper: wrapper(),
+      },
+    )
+
+    await waitFor(() => {
+      expect(getByText(es['generic.requestErrorBody'])).toBeTruthy()
+    })
+  })
+
+  it('caps the native Card at 700 by default', async () => {
     const { getByTestId, toJSON } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
       { wrapper: wrapper() },
@@ -496,8 +458,6 @@ describe('BibleCard', () => {
     expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
       maxWidth: 700,
     })
-    expect(latestDomProps.maxWidth).toBeUndefined()
-    expect(snapshotHasReaderWidthToken(JSON.stringify(latestDomProps))).toBe(false)
     expect(snapshotHasReaderWidthToken(JSON.stringify(toJSON()))).toBe(false)
   })
 
@@ -510,7 +470,6 @@ describe('BibleCard', () => {
     expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
       maxWidth: 480,
     })
-    expect(latestDomProps.maxWidth).toBeUndefined()
   })
 
   it('applies maxWidth 100% on the native Card', async () => {
@@ -522,7 +481,6 @@ describe('BibleCard', () => {
     expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
       maxWidth: '100%',
     })
-    expect(latestDomProps.maxWidth).toBeUndefined()
   })
 
   it('keeps a centered 600px inner column when maxWidth is 100%', async () => {
@@ -556,37 +514,40 @@ describe('BibleCard', () => {
     )
   })
 
-  it('forwards a component-level theme override to BibleTextView as light or dark', async () => {
+  it('paints the card from a component theme override', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="GEN.1.1" versionId={1} theme="dark" />,
       { wrapper: wrapper('light') },
     )
 
-    expect(getByTestId('mock-theme').children).toContain('dark')
     expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
       backgroundColor: getTokens('dark').card,
     })
   })
 
-  it('resolves theme="system" to the provider theme before passing to BibleTextView', async () => {
+  it('resolves theme="system" to the provider theme', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} theme="system" />,
       { wrapper: wrapper('light') },
     )
 
-    expect(getByTestId('mock-theme').children).toContain('light')
+    expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+      backgroundColor: getTokens('light').card,
+    })
   })
 
-  it('uses the provider-resolved theme when BibleCard does not set theme', async () => {
+  it('uses the provider theme when BibleCard does not set one', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} />,
       { wrapper: wrapper('dark') },
     )
 
-    expect(getByTestId('mock-theme').children).toContain('dark')
+    expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+      backgroundColor: getTokens('dark').card,
+    })
   })
 
-  it('uses provider-resolved theme when provider theme is system and color scheme is dark', async () => {
+  it('uses the color scheme when the provider theme is system', async () => {
     const spy = jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark')
 
     const { getByTestId } = await renderAndSettle(
@@ -595,20 +556,26 @@ describe('BibleCard', () => {
     )
 
     try {
-      expect(getByTestId('mock-theme').children).toContain('dark')
+      expect(StyleSheet.flatten(getByTestId('bible-card').props.style)).toMatchObject({
+        backgroundColor: getTokens('dark').card,
+      })
     } finally {
       spy.mockRestore()
     }
   })
 
-  it('encodes the serif face and a 16px verse', async () => {
-    const { getByTestId } = await renderAndSettle(
+  it('draws the verse at 16px in a serif face', async () => {
+    const { getByText } = await renderAndSettle(
       <BibleCard reference="JHN.3.16" versionId={3034} />,
       { wrapper: wrapper() },
     )
 
-    expect(getByTestId('mock-font-size').children).toContain('16')
-    expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.UNTITLED_SERIF)
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    const verse = getByText('For God so loved')
+    expect(fontSizeOf(verse)).toBe(16)
+    expect(fontFamilyOf(verse)).not.toBe('Inter')
   })
 
   it('shows the version control when showVersionPicker is true', async () => {
@@ -635,53 +602,50 @@ describe('BibleCard', () => {
 
     expect(queryByTestId('footnote-sheet')).toBeNull()
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
 
     expect(getByTestId('footnote-sheet')).toBeTruthy()
-    expect(getByTestId('mock-footnote-verse').children).toContain('3')
+    expect(getByTestId('mock-footnote-verse').children).toContain('1')
   })
 
-  it('passes scriptureDirection to the scripture view and the footnote sheet', async () => {
+  it('passes scriptureDirection to the footnote sheet', async () => {
     const { getByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} scriptureDirection="rtl" />,
       { wrapper: wrapper() },
     )
 
-    expect(latestDomProps.scriptureDirection).toBe('rtl')
-
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
 
     expect(getByTestId('mock-footnote-direction').children).toContain('rtl')
   })
 
   it('invokes consumer onFootnotePress and does not mount the default footnote sheet', async () => {
     const consumer = jest.fn().mockResolvedValue(undefined)
-    const { getByTestId, queryByTestId } = await renderAndSettle(
+    const { queryByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} onFootnotePress={consumer} />,
       { wrapper: wrapper() },
     )
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
 
     expect(consumer).toHaveBeenCalledTimes(1)
-    expect(consumer).toHaveBeenCalledWith(sampleFootnote)
+    expect(consumer).toHaveBeenCalledWith(expect.objectContaining({ verseNum: '1' }))
     expect(queryByTestId('footnote-sheet')).toBeNull()
   })
 
-  it('does not wire footnote handling on web', async () => {
+  it('does not open a footnote sheet on web', async () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
       value: 'web',
     })
 
-    const { getByTestId, queryByTestId } = await renderAndSettle(
+    const { queryByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} />,
       { wrapper: wrapper() },
     )
 
-    expect(getByTestId('mock-has-footnote-handler').children).toContain('no')
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
     expect(queryByTestId('footnote-sheet')).toBeNull()
   })
 
@@ -691,7 +655,7 @@ describe('BibleCard', () => {
       { wrapper: wrapper() },
     )
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
     expect(getByTestId('footnote-sheet')).toBeTruthy()
 
     fireEvent.press(getByTestId('footnote-sheet-close'))
@@ -704,7 +668,7 @@ describe('BibleCard', () => {
       { wrapper: wrapper('light') },
     )
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
 
     expect(getByTestId('mock-footnote-theme').children).toContain('light')
   })

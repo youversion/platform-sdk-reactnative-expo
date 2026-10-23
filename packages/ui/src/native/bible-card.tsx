@@ -9,18 +9,13 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
-import type { DOMProps } from 'expo/dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
 import { Button, Card, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
-import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withEmbedDomDefaults } from '../lib/embed-dom-props'
-import type { InternalLocaleProps } from '../lib/locale-props'
-import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
@@ -31,6 +26,7 @@ import { getImpl } from './component-impls'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
+import { PassageEmbed } from './scripture/passage-embed'
 
 const DEFAULT_FONT_SIZE = 16
 const DEFAULT_MAX_WIDTH = 700
@@ -47,7 +43,6 @@ export type BibleCardProps = Omit<
   WebBibleCardProps,
   'highlights' | 'onFootnotePress' | 'onVersionChange' | 'onVersionPickerPress'
 > & {
-  dom?: DOMProps
   theme?: 'light' | 'dark' | 'system'
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
@@ -65,12 +60,8 @@ type BibleCardBodyProps = Omit<
   | 'showVersionPicker'
   | 'background'
 > &
-  InternalVersionFilterProps &
-  InternalLocaleProps & {
+  InternalVersionFilterProps & {
     highlights: Highlight[]
-    appKey: string
-    apiHost: string
-    installationId: string
     fetchBibleContent: FetchBibleContent
     resolvedTheme: Theme
     versionId: number | undefined
@@ -182,14 +173,10 @@ function useBibleCardChromeMetadata(
 
 function BibleCardBody({
   highlights,
-  appKey,
-  apiHost,
-  installationId,
   fetchBibleContent,
   permittedVersionIds,
   excludedVersionIds,
   permittedLanguageTags,
-  locale,
   resolvedTheme,
   versionId,
   onVersionPickerPress,
@@ -203,7 +190,6 @@ function BibleCardBody({
   showFootnoteSheet,
   footnoteData,
   onCloseFootnote,
-  dom,
   reference,
   scriptureDirection,
   maxWidth = DEFAULT_MAX_WIDTH,
@@ -214,7 +200,6 @@ function BibleCardBody({
     excludedVersionIds,
     permittedLanguageTags,
   })
-  const BibleTextViewDOM = getImpl('BibleTextViewDom')
   const FootnoteContent = getImpl('FootnoteContent')
   const tokens = useTokens()
   const title =
@@ -223,8 +208,7 @@ function BibleCardBody({
       : metadata.abbreviation == null
         ? metadata.reference
         : `${metadata.reference} ${metadata.abbreviation}`
-  const versionPickerDisabled =
-    versionPickerRequiresLanguageId && metadata?.languageTag == null
+  const versionPickerDisabled = versionPickerRequiresLanguageId && metadata?.languageTag == null
   const isFullBleed = maxWidth === '100%'
 
   return (
@@ -252,26 +236,16 @@ function BibleCardBody({
             }}
           />
           <Card.Content>
-            <BibleTextViewDOM
-              reference={reference}
-              versionId={versionId}
-              showVerseNumbers={false}
-              fontSize={DEFAULT_FONT_SIZE}
-              fontFamily={encodeFontFamilyForDom(UNTITLED_SERIF_FONT)}
-              highlights={highlights}
-              appKey={appKey}
-              apiHost={apiHost}
-              installationId={installationId}
-              fetchBibleContent={fetchBibleContent}
-              permittedVersionIds={permittedVersionIds}
-              excludedVersionIds={excludedVersionIds}
-              permittedLanguageTags={permittedLanguageTags}
-              locale={locale}
-              theme={resolvedTheme}
-              scriptureDirection={scriptureDirection}
-              dom={withEmbedDomDefaults(dom)}
-              onFootnotePress={onFootnotePress}
-            />
+            {versionId === undefined ? null : (
+              <PassageEmbed
+                reference={reference}
+                versionId={versionId}
+                highlights={highlights}
+                fontSize={DEFAULT_FONT_SIZE}
+                font="serif"
+                onFootnotePress={onFootnotePress}
+              />
+            )}
           </Card.Content>
           <Card.Footer style={styles.footer}>
             <Text
@@ -378,11 +352,9 @@ export function BibleCard({
   onFootnotePress: consumerOnFootnotePress,
   // Matches the React Web SDK default (BibleCard hides the version picker unless opted in).
   showVersionPicker = false,
-  dom,
   ...props
 }: BibleCardProps): ReactNode {
   const context = useYouVersion()
-  const { lng } = useLocale()
   // Web SDK `background` forces the surface scheme when `theme` is omitted.
   const resolvedTheme = useTheme(themeOverride ?? background)
 
@@ -446,14 +418,10 @@ export function BibleCard({
         <BibleCardBody
           {...props}
           highlights={highlights}
-          appKey={context.appKey}
-          apiHost={context.apiHost}
-          installationId={context.installationId}
           fetchBibleContent={context.fetchBibleContent}
           permittedVersionIds={context.permittedVersionIds}
           excludedVersionIds={context.excludedVersionIds}
           permittedLanguageTags={context.permittedLanguageTags}
-          locale={lng}
           resolvedTheme={resolvedTheme}
           versionId={versionId}
           onVersionPickerPress={handleVersionPickerPress}
@@ -469,7 +437,6 @@ export function BibleCard({
           showFootnoteSheet={showFootnoteSheet}
           footnoteData={footnoteData}
           onCloseFootnote={() => setFootnoteData(null)}
-          dom={dom}
         />
       )}
     </HighlightsPaint>

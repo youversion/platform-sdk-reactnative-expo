@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
+Language for the React Native Expo SDK. `BibleReader`, footnote sheets, `BibleCard`, and `VerseOfTheDay` draw native text. `BibleTextView` still embeds the Web SDK through Expo DOM.
 
 ## Language
 
@@ -13,7 +13,7 @@ A `'use dom'` wrapper that renders React Web SDK content inside Expo's DOM/WebVi
 _Avoid_: WebView component, DOM view
 
 **Native Wrapper**:
-A React Native component that owns the public API and native presentation. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
+A React Native component that owns the public API and native presentation. `BibleReader`, footnote sheets, `BibleCard`, and `VerseOfTheDay` draw native text. `BibleTextView` still embeds an Expo DOM component. Pickers, settings, search, and the auth button do not.
 _Avoid_: Container, adapter
 
 **Presentation Shell**:
@@ -87,15 +87,15 @@ A **Native Wrapper** that hosts the **Native Bible Version Picker** inside one *
 _Avoid_: Version modal, stacked picker sheets, treating the language panel as **DOM-Owned Sheet UI State**
 
 **Version Filter**:
-Optional allowlists on core `YouVersionProvider` — `permittedVersionIds`, `excludedVersionIds`, `permittedLanguageTags` — that restrict which Bible versions and languages the SDK may use. Unset permit list = no restriction; `[]` = permit nothing; exclusion wins; language tags are BCP 47. Native stores and forwards the lists into each Expo DOM web `YouVersionProvider`. Native VOTD chrome and Share apply the same permit, exclude, and language rules to the share payload and header reference so a refused version cannot leak outside the WebView. It still does not export a native `isUsableVersion` helper.
+Optional allowlists on core `YouVersionProvider` — `permittedVersionIds`, `excludedVersionIds`, `permittedLanguageTags` — that restrict which Bible versions and languages the SDK may use. Unset permit list = no restriction; `[]` = permit nothing; exclusion wins; language tags are BCP 47. Native stores the lists and forwards them into each Expo DOM web `YouVersionProvider`. `BibleTextView` still forwards them that way. `BibleCard` and `VerseOfTheDay` refuse a version in native code and do not request the passage. Native VOTD chrome and Share apply the same permit, exclude, and language rules to the share payload and header reference. It still does not export a native `isUsableVersion` helper.
 _Avoid_: Per-component filter props; a public native `isUsableVersion` helper; renaming to platform-configuration types
 
 **Provider Locale**:
-Resolved SDK language code (`useLocale().lng`, e.g. `es-MX` → `es`) forwarded from Expo `YouVersionProvider` into each DOM web `YouVersionProvider` as `locale`. Native chrome and in-WebView copy follow it. It is not Bible `languageId` / `versionId`.
+Resolved SDK language code (`useLocale().lng`, e.g. `es-MX` → `es`) forwarded from Expo `YouVersionProvider` into each DOM web `YouVersionProvider` as `locale`. Native chrome and in-WebView copy follow it. `BibleCard` and `VerseOfTheDay` scripture errors use the same native strings. They do not pass a locale into a WebView. It is not Bible `languageId` / `versionId`.
 _Avoid_: Putting locale on core `YouVersionContext`; mapping `locale` to a Bible translation; adding `defaultLanguageId` on BibleReader here
 
 **Version Refuse**:
-When a persisted or host `versionId` is not permitted, native chrome still passes that id into the WebView and lets the web SDK refuse. Native VOTD Share no-ops and the header reference stays empty. Native does not auto-pick another version, silently fall back to the default version id, or rewrite **Reader Location** / Bible Card version MMKV on refuse. First-open defaults when there is no stored or host id are unchanged.
+When a persisted or host `versionId` is not permitted, `BibleTextView` still passes that id into the WebView and lets the web SDK refuse. `BibleCard` and `VerseOfTheDay` show the native unavailable passage and do not request it. Native VOTD Share no-ops and the header reference stays empty. Native does not auto-pick another version, silently fall back to the default version id, or rewrite **Reader Location** / Bible Card version MMKV on refuse. First-open defaults when there is no stored or host id are unchanged.
 _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders; sharing a refused version from native chrome
 
 **Native Bible Version Picker**:
@@ -155,7 +155,7 @@ A write the server has accepted, held in memory until a fetch agrees with it. Wi
 _Avoid_: Highlight Overlay (the separate optimistic layer this replaced — **Cached Highlights** now hold the paint), ownership token / write intent (retired with it; a settling write finds its entries by value)
 
 **Controlled Highlights Latch**:
-The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The native reader paints highlights itself and does not pass this array into a WebView. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
+The **Native Wrapper** always supplying a `highlights` array to its **Expo DOM Component**, never `undefined`. The native reader, `BibleCard`, and `VerseOfTheDay` paint highlights themselves and do not pass this array into a WebView. `BibleTextView` still supplies the array to its DOM component. The Web SDK reader decides at first mount whether its highlight slice is controlled, and only the controlled branch makes no network calls, keeps no local store, and exposes no auth surface. So the array's _presence on the mount render_ is the guarantee, and `[]` is a legitimate value meaning "controlled, nothing highlighted". Missing it on that first render is what hands the WebView back the ability to write highlights with the token native gave it; dropping it later only un-paints, because the SDK reads `highlights ?? []` after the latch is set. Both are bugs — the first is unrecoverable and silent, which is why the DOM wrapper coerces a non-array to `[]` rather than trusting the type alone.
 _Avoid_: Treating an empty highlights array as "nothing to pass"; a conditional or optional `highlights` prop; "controlled mode" alone (names the Web SDK's state, not our obligation)
 
 **Verse Selection**:

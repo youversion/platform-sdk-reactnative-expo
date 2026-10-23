@@ -6,6 +6,7 @@ Amended: 2026-09-08 — primitives go through `sansFace` (YPE-5637).
 Amended: 2026-09-08 — `YouVersionProvider` holds children until Inter registers; `sansFace` always names the mapped face.
 Amended: 2026-09-08 — hex tokens stay native; only resolved `theme` and ADR 0009 font tokens cross the DOM bridge (YPE-5442).
 Amended: 2026-09-14 — `VerseOfTheDay` resolves through `useTheme` like its siblings (YPE-5440).
+Amended: 2026-10-23 — `BibleCard` and `VerseOfTheDay` paint scripture with native tokens. They do not send `theme` across a DOM bridge (YPE-6224).
 
 ## Status
 
