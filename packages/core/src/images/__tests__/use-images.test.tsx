@@ -84,16 +84,18 @@ describe('useImages', () => {
       )
     }
 
-    const { result, rerender } = renderHook(() => useImages(), { wrapper: Wrapper })
+    const { result, rerender } = renderHook((_props: undefined) => useImages(), {
+      wrapper: Wrapper,
+    })
     const firstList = result.current.list
     const firstGet = result.current.get
 
-    rerender()
+    rerender(undefined)
     expect(result.current.list).toBe(firstList)
     expect(result.current.get).toBe(firstGet)
 
     appKey = 'other-key'
-    rerender()
+    rerender(undefined)
     expect(result.current.list).not.toBe(firstList)
     expect(result.current.get).not.toBe(firstGet)
 
@@ -101,7 +103,7 @@ describe('useImages', () => {
     const nextGet = result.current.get
 
     apiHost = 'other.example.com'
-    rerender()
+    rerender(undefined)
     expect(result.current.list).not.toBe(nextList)
     expect(result.current.get).not.toBe(nextGet)
   })
