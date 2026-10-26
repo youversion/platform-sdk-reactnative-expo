@@ -1,11 +1,10 @@
-import type { Collection } from '@youversion/platform-core'
+import type { Collection, VerseImage } from '@youversion/platform-core'
 
 import type { Result } from '../result'
-import type { Image } from './schema'
 
-export type { GetImagesOptions } from './schema'
+export type { GetImagesOptions } from '@youversion/platform-core'
 
-export type YouVersionImage = Image
+export type YouVersionImage = VerseImage
 
 export type YouVersionImagePage = Collection<YouVersionImage>
 

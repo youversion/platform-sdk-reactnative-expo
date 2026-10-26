@@ -1,9 +1,8 @@
-import { ApiClient, getHttpStatus } from '@youversion/platform-core'
+import { ApiClient, ImagesClient, getHttpStatus } from '@youversion/platform-core'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { ImagesClient } from './client'
 import type {
   GetImagesOptions,
   ImagesApiError,
