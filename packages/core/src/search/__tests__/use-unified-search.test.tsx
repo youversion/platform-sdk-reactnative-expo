@@ -180,6 +180,53 @@ describe('useUnifiedSearch', () => {
     expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
   })
 
+  it('keeps refetch and reuses the client across rerenders', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(loveWire))
+    const { result, rerender } = renderHook(() => useUnifiedSearch(ready), { wrapper: Wrapper })
+    await waitFor(() => expect(result.current.data).toEqual(loveSnapshot))
+    const refetch = result.current.refetch
+    const calls = mockFetch.mock.calls.length
+
+    rerender(undefined)
+    expect(result.current.refetch).toBe(refetch)
+    expect(mockFetch.mock.calls.length).toBe(calls)
+  })
+
+  it('ignores a response that resolves after the query changes', async () => {
+    const first = deferredResponse()
+    const second = deferredResponse()
+    mockFetch.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
+
+    const { result, rerender } = renderHook(
+      (props: UseUnifiedSearchProps) => useUnifiedSearch(props),
+      { wrapper: Wrapper, initialProps: ready },
+    )
+    expect(result.current.loading).toBe(true)
+
+    rerender({ ...ready, query: 'hope' })
+    await act(async () => {
+      first.resolve(jsonResponse(loveWire))
+    })
+
+    expect(result.current.data).toBeNull()
+    expect(result.current.loading).toBe(true)
+
+    second.resolve(jsonResponse(hopeWire))
+    await waitFor(() => expect(result.current.data).toEqual(hopeSnapshot))
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('ignores a response that resolves after unmount', async () => {
+    const pending = deferredResponse()
+    mockFetch.mockReturnValue(pending.promise)
+    const { unmount } = renderHook(() => useUnifiedSearch(ready), { wrapper: Wrapper })
+
+    unmount()
+    await act(async () => {
+      pending.resolve(jsonResponse(loveWire))
+    })
+  })
+
   it('keeps the previous snapshot while the next query loads', async () => {
     const pending = deferredResponse()
     mockFetch
@@ -443,11 +490,21 @@ describe('useUnifiedSearch', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it.each<[number, 'auth' | 'transient']>([
+  it('maps HTTP 400 to invalid-parameter', async () => {
+    mockFetch.mockResolvedValue(new Response('', { status: 400 }))
+    const { result } = renderHook(() => useUnifiedSearch(ready), { wrapper: Wrapper })
+
+    await waitFor(() => expect(result.current.error?.kind).toBe('invalid-parameter'))
+    expect(result.current.error).not.toHaveProperty('status')
+    expect(result.current.data).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
+  it.each<[number, 'auth' | 'not-found' | 'transient']>([
     [401, 'auth'],
     [403, 'auth'],
-    [400, 'transient'],
-    [404, 'transient'],
+    [404, 'not-found'],
+    [408, 'transient'],
     [429, 'transient'],
     [500, 'transient'],
   ])('maps HTTP %s to %s', async (status, kind) => {

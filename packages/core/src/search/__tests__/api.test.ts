@@ -282,7 +282,7 @@ describe('createSearchApi', () => {
       expect(forbidden.error).toMatchObject({ kind: 'auth', status: 403 })
     })
 
-    it('returns transient failure for a 404, which means the Bible is unavailable', async () => {
+    it('returns not-found for a 404, which means the Bible is unavailable', async () => {
       mockFetch.mockResolvedValue(errorResponse(404))
 
       const missingBible = await api().verses({ query: 'zzzznotaword', bibleId: 111 })
@@ -290,9 +290,32 @@ describe('createSearchApi', () => {
       expect(missingBible).toEqual({
         ok: false,
         error: {
-          kind: 'transient',
+          kind: 'not-found',
           status: 404,
           message: 'HTTP error! status: 404',
+        },
+      })
+    })
+
+    it('maps 400 to invalid-parameter and keeps 429 transient', async () => {
+      mockFetch.mockResolvedValue(errorResponse(400))
+      const rejected = await api().verses({ query: 'love', bibleId: 111 })
+      expect(rejected).toEqual({
+        ok: false,
+        error: {
+          kind: 'invalid-parameter',
+          message: 'HTTP error! status: 400',
+        },
+      })
+
+      mockFetch.mockResolvedValue(errorResponse(429))
+      const retryable = await api().verses({ query: 'love', bibleId: 111 })
+      expect(retryable).toEqual({
+        ok: false,
+        error: {
+          kind: 'transient',
+          status: 429,
+          message: 'HTTP error! status: 429',
         },
       })
     })

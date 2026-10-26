@@ -220,9 +220,11 @@ function ImageHits({ query }: { query: string }) {
 
 `data` always includes `verses`, `topics`, `images`, `didYouMean`, and `searchInsteadFor`. A collection the response leaves out comes back as `[]`. `searchInsteadFor` is `null` when the response leaves it out. `YouVersionImageSearchResult` is `{ id, passageId }`. `id` is an opaque string. `passageId` is a verse or a verse range such as `1CO.13.4-7`. The hit has no image URL. Pass `passageId` to `biblePassageAnchorFromPassageId`.
 
+The response has no total. A verse whose reference is not a USFM passage is left out. A topic that leaves out `id` is left out. An image with an empty id, a non-string id, or a passage that is not USFM is left out. `verses.length`, `topics.length`, and `images.length` count only the rows that remain.
+
 `keepPreviousData` defaults to true, so the previous snapshot from this same app key, API host, and installation id stays up while the next query loads. A change of any of those three drops that snapshot. `enabled: false` skips the request.
 
-`error.kind` is `auth` for HTTP 401 and 403, `transient` for any other HTTP status, a malformed body, or a transport failure, and `invalid-parameter` when the client rejects the bible id, a field name, or the request intent before the call.
+`error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. `invalid-parameter` is also what the client returns when it rejects the bible id, a field name, or the request intent before the call. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure.
 
 `hookOverrides.useUnifiedSearch` replaces the hook. Return `{ data, loading, error, refetch }` from it. While the override is set, the hook returns that value and skips the network.
 

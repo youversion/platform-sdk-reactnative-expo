@@ -82,13 +82,36 @@ function toSearchApiError(caught: Error): SearchApiError {
     return { kind: 'auth', status, message }
   }
 
+  if (status === 404) {
+    return { kind: 'not-found', status, message }
+  }
+
+  if (isClientError(status)) {
+    return { kind: 'invalid-parameter', message }
+  }
+
   if (status === undefined && isZodError(caught)) {
     return { kind: 'invalid-parameter', message }
   }
 
-  return status === undefined
-    ? { kind: 'transient', message }
-    : { kind: 'transient', status, message }
+  if (status === undefined) {
+    return { kind: 'transient', message }
+  }
+
+  return { kind: 'transient', status, message }
+}
+
+function isClientError(status: number | undefined): boolean {
+  if (status === undefined) {
+    return false
+  }
+  if (status === 401 || status === 403 || status === 404) {
+    return false
+  }
+  if (status === 408 || status === 429) {
+    return false
+  }
+  return status >= 400 && status < 500
 }
 
 function isZodError(caught: Error): boolean {
