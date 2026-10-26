@@ -61,6 +61,10 @@ function toImagesApiError(caught: Error): ImagesApiError {
     return { kind: 'auth', status, message }
   }
 
+  if (status === 404) {
+    return { kind: 'not-found', status, message }
+  }
+
   if (status === undefined && isZodError(caught)) {
     return { kind: 'invalid-parameter', message }
   }

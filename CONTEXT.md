@@ -239,7 +239,7 @@ _Avoid_: Query persistence (the Web SDK's query client is private and its persis
 _Avoid_: Exporting the HTTP wrapper; treating Search as Bible Content; a parallel Search HTTP client or DTO layer
 
 **Images**:
-`createImagesApi` wraps `@youversion/platform-core` `ImagesClient` the way highlights wraps `HighlightsClient`. Public operations: `list`, `get`. Requests go to `/v1/images`. `YouVersionImage` aliases `VerseImage` (`image_url`, `passage_id`, and a `Collection`). Thrown client errors become RN `Result` (`auth` / `transient` / `invalid-parameter`). The wrapper stays internal. Images are a normal JSON API, not **Bible Content Cache**.
+`createImagesApi` wraps `@youversion/platform-core` `ImagesClient` the way highlights wraps `HighlightsClient`. Public operations: `list`, `get`. Requests go to `/v1/images`. `YouVersionImage` aliases `VerseImage` (`image_url`, `passage_id`, and a `Collection`). Thrown client errors become RN `Result` (`auth` / `not-found` / `transient` / `invalid-parameter`). `not-found` is an HTTP 404. The wrapper stays internal. Images are a normal JSON API, not **Bible Content Cache**.
 _Avoid_: Exporting the HTTP wrapper; treating Images as Bible Content; a parallel Images HTTP client or DTO layer
 
 **Search Sheet**:

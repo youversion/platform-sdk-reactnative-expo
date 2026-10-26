@@ -274,6 +274,21 @@ describe('createImagesApi', () => {
       )
     })
 
+    it('maps a missing image to not-found', async () => {
+      mockFetch.mockResolvedValue(errorResponse(404))
+
+      const result = await api().get('missing')
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          kind: 'not-found',
+          status: 404,
+          message: 'HTTP error! status: 404',
+        },
+      })
+    })
+
     it('maps a blank id to invalid-parameter without fetching', async () => {
       const empty = await api().get('')
       expect(empty.ok).toBe(false)
