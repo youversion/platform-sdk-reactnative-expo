@@ -62,10 +62,6 @@ export function emptySearch(): UseSearchResult {
     trendingQueries: async () => ({ ok: true, value: { queries: [] } }),
     verses: async () => ({ ok: true, value: { verses: [], didYouMean: [] } }),
     topics: async () => ({ ok: true, value: { topics: [], didYouMean: [], totalSize: 0 } }),
-    unified: async () => ({
-      ok: true,
-      value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
-    }),
   }
 }
 

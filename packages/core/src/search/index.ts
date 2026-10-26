@@ -4,7 +4,6 @@ export {
   type SearchApiError,
   type SearchApiResult,
   type SearchTopicsParams,
-  type SearchUnifiedParams,
   type SearchVersesParams,
   type SuggestedQueriesParams,
   type TrendingQueriesParams,
@@ -19,3 +18,9 @@ export {
   type YouVersionVerseSearchResults,
 } from './types'
 export { useSearch, type UseSearchResult } from './use-search'
+export {
+  useUnifiedSearch,
+  type UseUnifiedSearchOptions,
+  type UseUnifiedSearchProps,
+  type UseUnifiedSearchResult,
+} from './use-unified-search'

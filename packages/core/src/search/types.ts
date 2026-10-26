@@ -63,11 +63,3 @@ export type SearchTopicsParams = {
   query: string
   languageRanges: string[]
 }
-
-export type SearchUnifiedParams = {
-  query: string
-  bibleId: number
-  languageRanges: string[]
-  fields?: SearchUnifiedOptions['fields']
-  userIntent?: SearchUnifiedOptions['userIntent']
-}

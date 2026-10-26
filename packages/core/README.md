@@ -13,7 +13,7 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ Bible highlights with optimistic writes and an instant local cache (`useHighlights`)
 - ✅ Highlights made offline that survive a relaunch and land on their own
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
-- ✅ Bible search (`useSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
+- ✅ Bible search (`useSearch`, `useUnifiedSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
@@ -180,7 +180,7 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path �
 
 ### Search
 
-`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, `topics`, and `unified` each return `{ ok: true, value }` or `{ ok: false, error }`. `unified` searches verses, topics, and images together. Pass `fields` as `verses`, `topics`, or `images` to limit that call. An image hit is `{ id, passageId }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `useUnifiedSearch({ query, bibleId, languageRanges }, { enabled, keepPreviousData })` reads verses, topics, and images in one snapshot. It returns `{ data, loading, error, refetch }`. `error` is `auth`, `transient`, or `invalid-parameter`. Pass `fields` as `verses`, `topics`, or `images` to limit that call. An image hit is `{ id, passageId }`. `keepPreviousData` defaults to true, so the previous snapshot stays up while the next query loads. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
 import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'

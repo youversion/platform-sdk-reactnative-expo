@@ -51,10 +51,6 @@ function searchStub(overrides: Partial<UseSearchResult> = {}): UseSearchResult {
       ok: true as const,
       value: { topics: [], didYouMean: [], totalSize: 0 },
     })),
-    unified: jest.fn(async () => ({
-      ok: true as const,
-      value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
-    })),
     ...overrides,
   }
 }

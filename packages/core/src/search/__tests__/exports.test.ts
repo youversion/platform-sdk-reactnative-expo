@@ -3,6 +3,7 @@ import * as core from '../../index'
 describe('search package exports', () => {
   it('exposes the search hook and the passage anchor helper', () => {
     expect(core.useSearch).toEqual(expect.any(Function))
+    expect(core.useUnifiedSearch).toEqual(expect.any(Function))
     expect(core.biblePassageAnchorFromPassageId).toEqual(expect.any(Function))
     expect(core.SEARCH_USER_INTENT).toEqual({
       reference: 'reference',

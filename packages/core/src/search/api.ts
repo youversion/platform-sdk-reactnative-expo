@@ -4,7 +4,6 @@ import {
   getHttpStatus,
   type SearchQueries,
   type SearchTopicsResponse,
-  type SearchUnifiedOptions,
   type SearchVersesResponse,
 } from '@youversion/platform-core'
 
@@ -15,11 +14,9 @@ import type {
   SearchApiError,
   SearchApiResult,
   SearchTopicsParams,
-  SearchUnifiedParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
-  YouVersionUnifiedSearchResults,
 } from './types'
 
 export type CreateSearchApiConfig = {
@@ -35,10 +32,9 @@ export type SearchApi = {
   trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
-  unified: (params: SearchUnifiedParams) => Promise<SearchApiResult<YouVersionUnifiedSearchResults>>
 }
 
-export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
+export function createSearchClient(config: CreateSearchApiConfig): SearchClient {
   const http = new ApiClient({
     appKey: config.appKey,
     apiHost: config.apiHost ?? DEFAULT_API_HOST,
@@ -46,7 +42,11 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     additionalHeaders: config.additionalHeaders,
     timeout: config.timeout,
   })
-  const client = new SearchClient(http)
+  return new SearchClient(http)
+}
+
+export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
+  const client = createSearchClient(config)
 
   return {
     suggestedQueries({ query, languageRanges }) {
@@ -61,20 +61,12 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
     },
-    unified({ query, bibleId, languageRanges, fields, userIntent }) {
-      let options: SearchUnifiedOptions = {}
-      if (fields !== undefined) {
-        options = { ...options, fields }
-      }
-      if (userIntent !== undefined) {
-        options = { ...options, userIntent }
-      }
-      return catchAsResult(() => client.searchUnified(query, bibleId, languageRanges, options))
-    },
   }
 }
 
-async function catchAsResult<Value>(run: () => Promise<Value>): Promise<SearchApiResult<Value>> {
+export async function catchAsResult<Value>(
+  run: () => Promise<Value>,
+): Promise<SearchApiResult<Value>> {
   try {
     return ok(await run())
   } catch (caught) {

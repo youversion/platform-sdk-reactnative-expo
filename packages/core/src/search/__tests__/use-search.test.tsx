@@ -42,7 +42,7 @@ describe('useSearch', () => {
     )
   })
 
-  it('reads provider config and returns the five operations', async () => {
+  it('reads provider config and returns the four operations', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
         status: 200,
@@ -58,7 +58,6 @@ describe('useSearch', () => {
     expect(result.current.trendingQueries).toEqual(expect.any(Function))
     expect(result.current.verses).toEqual(expect.any(Function))
     expect(result.current.topics).toEqual(expect.any(Function))
-    expect(result.current.unified).toEqual(expect.any(Function))
 
     const trending = await result.current.trendingQueries({ languageRanges: ['en'] })
     expect(trending).toEqual({
@@ -84,10 +83,6 @@ describe('useSearch', () => {
       topics: jest.fn(async () => ({
         ok: true as const,
         value: { topics: [], didYouMean: [], totalSize: 0 },
-      })),
-      unified: jest.fn(async () => ({
-        ok: true as const,
-        value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
       })),
     }
 
