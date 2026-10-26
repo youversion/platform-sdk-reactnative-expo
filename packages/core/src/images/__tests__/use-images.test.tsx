@@ -65,6 +65,47 @@ describe('useImages', () => {
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/images')
   })
 
+  it('keeps list and get until appKey or apiHost changes', () => {
+    let appKey = 'app-key'
+    let apiHost = 'api.example.com'
+
+    function Wrapper({ children }: { children: ReactNode }) {
+      return (
+        <YouVersionContext.Provider
+          value={{
+            appKey,
+            apiHost,
+            installationId: 'install-1',
+            fetchBibleContent: jest.fn(),
+          }}
+        >
+          {children}
+        </YouVersionContext.Provider>
+      )
+    }
+
+    const { result, rerender } = renderHook(() => useImages(), { wrapper: Wrapper })
+    const firstList = result.current.list
+    const firstGet = result.current.get
+
+    rerender()
+    expect(result.current.list).toBe(firstList)
+    expect(result.current.get).toBe(firstGet)
+
+    appKey = 'other-key'
+    rerender()
+    expect(result.current.list).not.toBe(firstList)
+    expect(result.current.get).not.toBe(firstGet)
+
+    const nextList = result.current.list
+    const nextGet = result.current.get
+
+    apiHost = 'other.example.com'
+    rerender()
+    expect(result.current.list).not.toBe(nextList)
+    expect(result.current.get).not.toBe(nextGet)
+  })
+
   it('returns the hookOverrides stub instead of calling fetch', async () => {
     const stub: UseImagesResult = {
       list: jest.fn(async () => ({
