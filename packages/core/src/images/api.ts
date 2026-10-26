@@ -66,7 +66,7 @@ function toImagesApiError(caught: Error): ImagesApiError {
   }
 
   if (isClientError(status)) {
-    return { kind: 'invalid-parameter', message }
+    return { kind: 'invalid-parameter', status, message }
   }
 
   if (status === undefined && isZodError(caught)) {
@@ -80,7 +80,7 @@ function toImagesApiError(caught: Error): ImagesApiError {
   return { kind: 'transient', status, message }
 }
 
-function isClientError(status: number | undefined): boolean {
+function isClientError(status: number | undefined): status is number {
   if (status === undefined) return false
   if (status === 401 || status === 403 || status === 404) return false
   if (status === 408 || status === 429) return false

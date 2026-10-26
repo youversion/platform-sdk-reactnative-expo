@@ -197,10 +197,29 @@ describe('createImagesApi', () => {
         ok: false,
         error: {
           kind: 'invalid-parameter',
+          status: 400,
           message: 'HTTP error! status: 400',
         },
       })
       expect(lastRequest().url.searchParams.get('passage_id')).toBe('JHN.3')
+    })
+
+    it.each([
+      [408, 'transient'],
+      [429, 'transient'],
+      [422, 'invalid-parameter'],
+      [500, 'transient'],
+    ] as const)('maps HTTP %s to %s', async (status, kind) => {
+      mockFetch.mockResolvedValue(errorResponse(status))
+
+      const result = await api().list({ passage_id: 'JHN.3' })
+
+      expect(result.ok).toBe(false)
+      if (result.ok) return
+      expect(result.error.kind).toBe(kind)
+      if (result.error.kind === 'transient' || result.error.kind === 'invalid-parameter') {
+        expect(result.error.status).toBe(status)
+      }
     })
 
     it('maps invalid page_size and empty language_ranges to invalid-parameter without fetching', async () => {
@@ -208,6 +227,9 @@ describe('createImagesApi', () => {
       expect(pageSizeZero.ok).toBe(false)
       if (pageSizeZero.ok) return
       expect(pageSizeZero.error.kind).toBe('invalid-parameter')
+      if (pageSizeZero.error.kind === 'invalid-parameter') {
+        expect(pageSizeZero.error.status).toBeUndefined()
+      }
 
       const pageSizeHigh = await api().list({ page_size: 100 })
       expect(pageSizeHigh.ok).toBe(false)
