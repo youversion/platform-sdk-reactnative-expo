@@ -188,7 +188,7 @@ describe('createImagesApi', () => {
       expect(result.error).toMatchObject({ kind: 'auth', status: 401 })
     })
 
-    it('maps 400 for a chapter id to transient with status 400', async () => {
+    it('maps 400 for a chapter id to invalid-parameter', async () => {
       mockFetch.mockResolvedValue(errorResponse(400))
 
       const result = await api().list({ passage_id: 'JHN.3' })
@@ -196,8 +196,7 @@ describe('createImagesApi', () => {
       expect(result).toEqual({
         ok: false,
         error: {
-          kind: 'transient',
-          status: 400,
+          kind: 'invalid-parameter',
           message: 'HTTP error! status: 400',
         },
       })
