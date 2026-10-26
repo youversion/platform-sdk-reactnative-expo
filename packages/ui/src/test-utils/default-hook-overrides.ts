@@ -64,7 +64,7 @@ export function emptySearch(): UseSearchResult {
     topics: async () => ({ ok: true, value: { topics: [], didYouMean: [], totalSize: 0 } }),
     unified: async () => ({
       ok: true,
-      value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
+      value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
     }),
   }
 }

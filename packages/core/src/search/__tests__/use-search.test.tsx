@@ -87,7 +87,7 @@ describe('useSearch', () => {
       })),
       unified: jest.fn(async () => ({
         ok: true as const,
-        value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
+        value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
       })),
     }
 

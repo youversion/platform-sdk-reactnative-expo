@@ -132,7 +132,7 @@ describe('createSearchApi', () => {
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
     })
 
     it('returns empty queries on 204 without treating it as an error', async () => {
@@ -239,7 +239,7 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('page_token')).toBe('current-token')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
     })
 
     it('omits user_intent when unset and preserves future server values', async () => {
@@ -400,6 +400,8 @@ describe('createSearchApi', () => {
           ],
           images: [
             { id: 'img-1', passage_id: 'JHN.3.16' },
+            { id: '', passage_id: 'JHN.3.16' },
+            { id: 'img-2', passage_id: 'not-usfm' },
             { id: 1, passage_id: 'JHN.3.16' },
             null,
           ],
@@ -412,7 +414,7 @@ describe('createSearchApi', () => {
         query: 'love',
         bibleId: 111,
         languageRanges: ['en_US', 'es'],
-        fields: ['verses', 'topics', 'verses'],
+        fields: ['verses', 'topics', 'images', 'verses'],
         userIntent: 'topical',
       })
 
@@ -421,11 +423,7 @@ describe('createSearchApi', () => {
         value: {
           verses: [{ id: 'JHN.3.16' }],
           topics: [{ id: 7, text: 'Love', subtopics: ['charity'] }],
-          images: [
-            { id: 'img-1', passage_id: 'JHN.3.16' },
-            { id: 1, passage_id: 'JHN.3.16' },
-            null,
-          ],
+          images: [{ id: 'img-1', passageId: 'JHN.3.16' }],
           userIntent: 'topical',
           didYouMean: ['love'],
           searchInsteadFor: null,
@@ -437,14 +435,14 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('query')).toBe('love')
       expect(url.searchParams.get('bible_id')).toBe('111')
       expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'es'])
-      expect(url.searchParams.getAll('fields[]')).toEqual(['verses', 'topics'])
+      expect(url.searchParams.getAll('fields[]')).toEqual(['verses', 'topics', 'images'])
       expect(url.searchParams.get('user_intent')).toBe('topical')
       expect(url.searchParams.has('page_size')).toBe(false)
       expect(url.searchParams.has('page_token')).toBe(false)
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
     })
 
     it('omits fields and user_intent when unset and fills missing lists with []', async () => {
@@ -458,7 +456,7 @@ describe('createSearchApi', () => {
 
       expect(result).toEqual({
         ok: true,
-        value: { verses: [], topics: [], didYouMean: [], searchInsteadFor: null },
+        value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
       })
 
       const { url } = lastRequest()

@@ -180,7 +180,7 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path â
 
 ### Search
 
-`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, `topics`, and `unified` each return `{ ok: true, value }` or `{ ok: false, error }`. `unified` searches verses, topics, and images together. Pass `fields` as `verses`, `topics`, or `images` to limit that call. An image hit is `{ id, passageId }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
 import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'

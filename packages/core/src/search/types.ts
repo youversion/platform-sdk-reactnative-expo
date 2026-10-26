@@ -1,18 +1,15 @@
 import type {
+  SearchClient,
   SearchQueries,
   SearchQuery,
   SearchTopic,
   SearchTopicsResponse,
+  SearchUnifiedOptions,
   SearchVerseHit,
   SearchVersesResponse,
 } from '@youversion/platform-core'
 
 import type { Result } from '../result'
-import type {
-  SearchUnifiedField,
-  SearchUnifiedOptions,
-  SearchUnifiedResponse,
-} from './search-unified-schema'
 
 /**
  * Server-supplied search intent. A string wrapper, not an enum: known
@@ -34,9 +31,9 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
-export type YouVersionUnifiedSearchField = SearchUnifiedField
+export type YouVersionUnifiedSearchField = NonNullable<SearchUnifiedOptions['fields']>[number]
 
-export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
+export type YouVersionUnifiedSearchResults = Awaited<ReturnType<SearchClient['searchUnified']>>
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }

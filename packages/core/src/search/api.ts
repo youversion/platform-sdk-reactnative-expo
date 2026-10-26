@@ -4,13 +4,13 @@ import {
   getHttpStatus,
   type SearchQueries,
   type SearchTopicsResponse,
+  type SearchUnifiedOptions,
   type SearchVersesResponse,
 } from '@youversion/platform-core'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { searchUnified, type SearchUnifiedOptions } from './search-unified'
 import type {
   SearchApiError,
   SearchApiResult,
@@ -69,7 +69,7 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
       if (userIntent !== undefined) {
         options = { ...options, userIntent }
       }
-      return catchAsResult(() => searchUnified(http, query, bibleId, languageRanges, options))
+      return catchAsResult(() => client.searchUnified(query, bibleId, languageRanges, options))
     },
   }
 }
