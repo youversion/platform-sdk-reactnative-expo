@@ -1,3 +1,4 @@
+import type { SearchUnifiedParams } from '../../index'
 import { createSearchApi } from '../api'
 import { SEARCH_USER_INTENT } from '../types'
 
@@ -43,7 +44,16 @@ type TopicsJson = {
   total_size: number
 }
 
-type SearchJson = SearchQueriesJson | VersesJson | TopicsJson
+type UnifiedJson = {
+  verses?: unknown[]
+  topics?: unknown[]
+  images?: unknown[]
+  user_intent?: string | null
+  did_you_mean?: string[]
+  search_instead_for?: string | null
+}
+
+type SearchJson = SearchQueriesJson | VersesJson | TopicsJson | UnifiedJson
 
 type LastRequest = {
   url: URL
@@ -85,6 +95,161 @@ const api = () =>
   })
 
 describe('createSearchApi', () => {
+  describe('unified', () => {
+    it('serializes mixed fields and returns shared verse, topic, and image DTOs', async () => {
+      mockFetch.mockResolvedValue(
+        jsonResponse({
+          verses: [{ reference: 'JHN.3.16' }, { reference: 'bad-reference' }, null],
+          topics: [{ id: null, text: 'Love', subtopics: ['grace'] }],
+          images: [
+            { id: 'opaque+/=id', passage_id: '1CO.13.4-7', image_url: 'not-search-metadata' },
+            { id: '', passage_id: 'JHN.3.16' },
+            { id: 'bad-passage', passage_id: 'not-usfm' },
+            { id: 'missing-passage' },
+          ],
+          user_intent: 'future-intent',
+          did_you_mean: ['love'],
+          search_instead_for: 'love',
+        }),
+      )
+
+      expect(
+        await api().unified({
+          query: ' love & hope ',
+          bibleId: 111,
+          languageRanges: ['EN_us', 'es', '*'],
+          fields: ['images', 'verses', 'topics', 'images'],
+          userIntent: SEARCH_USER_INTENT.topical,
+        }),
+      ).toEqual({
+        ok: true,
+        value: {
+          verses: [{ id: 'JHN.3.16' }],
+          topics: [{ id: null, text: 'Love', subtopics: ['grace'] }],
+          images: [{ id: 'opaque+/=id', passageId: '1CO.13.4-7' }],
+          userIntent: 'future-intent',
+          didYouMean: ['love'],
+          searchInsteadFor: 'love',
+        },
+      })
+      const { url, init } = lastRequest()
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-unified')
+      expect(url.searchParams.get('query')).toBe('love & hope')
+      expect(url.searchParams.get('bible_id')).toBe('111')
+      expect(url.searchParams.getAll('language_ranges[]')).toEqual(['en-us', 'es', '*'])
+      expect(url.searchParams.getAll('fields[]')).toEqual(['images', 'verses', 'topics'])
+      expect(url.searchParams.get('user_intent')).toBe('topical')
+      expect(url.searchParams.has('page_size')).toBe(false)
+      expect(url.searchParams.has('page_token')).toBe(false)
+      expect(init.method).toBe('GET')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
+    })
+
+    it('supports image-only responses without inventing full image metadata', async () => {
+      mockFetch.mockResolvedValue(
+        jsonResponse({ images: [{ id: 'art-2', passage_id: 'PSA.23.1' }] }),
+      )
+      expect(
+        await api().unified({
+          query: 'peace',
+          bibleId: 206,
+          languageRanges: ['es'],
+          fields: ['images'],
+        }),
+      ).toEqual({
+        ok: true,
+        value: {
+          images: [{ id: 'art-2', passageId: 'PSA.23.1' }],
+          verses: [],
+          topics: [],
+          didYouMean: [],
+          searchInsteadFor: null,
+        },
+      })
+      expect(lastRequest().url.searchParams.getAll('fields[]')).toEqual(['images'])
+    })
+
+    it('keeps service defaults and accepts legacy responses without images', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ verses: [{ reference: 'ROM.8.28' }] }))
+      expect(await api().unified({ query: 'hope', bibleId: 111, languageRanges: ['en'] })).toEqual({
+        ok: true,
+        value: {
+          verses: [{ id: 'ROM.8.28' }],
+          topics: [],
+          images: [],
+          didYouMean: [],
+          searchInsteadFor: null,
+        },
+      })
+      expect(lastRequest().url.searchParams.has('fields[]')).toBe(false)
+      expect(lastRequest().url.searchParams.has('user_intent')).toBe(false)
+    })
+
+    it('maps invalid inputs to invalid-parameter before fetching', async () => {
+      const params = { query: 'love', bibleId: 111, languageRanges: ['en'] }
+      const cases = [
+        { query: '' },
+        { query: 'a'.repeat(101) },
+        { bibleId: 0 },
+        { languageRanges: [] },
+        { languageRanges: ['en--US'] },
+        { fields: [] },
+        // @ts-expect-error Unsupported fields must fail both the public type and runtime validation.
+        { fields: ['videos'] } satisfies Partial<SearchUnifiedParams>,
+        // @ts-expect-error Unified Search accepts only known request intents, unlike response intents.
+        { userIntent: 'future-intent' } satisfies Partial<SearchUnifiedParams>,
+      ]
+      for (const invalid of cases) {
+        // @ts-expect-error Exercise runtime validation for JavaScript callers as well.
+        expect(await api().unified({ ...params, ...invalid })).toMatchObject({
+          ok: false,
+          error: { kind: 'invalid-parameter' },
+        })
+      }
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it.each([401, 403, 400, 404, 429, 500])(
+      'maps HTTP %i through the existing Result model',
+      async (status) => {
+        mockFetch.mockResolvedValue(errorResponse(status))
+        expect(
+          await api().unified({ query: 'love', bibleId: 111, languageRanges: ['en'] }),
+        ).toMatchObject({
+          ok: false,
+          error: { kind: status === 401 || status === 403 ? 'auth' : 'transient', status },
+        })
+      },
+    )
+
+    it('maps malformed responses and transport failures to transient errors', async () => {
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ images: 'not-an-array' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      expect(
+        await api().unified({ query: 'love', bibleId: 111, languageRanges: ['en'] }),
+      ).toMatchObject({
+        ok: false,
+        error: {
+          kind: 'transient',
+          message: expect.stringContaining('Unexpected search-unified API response'),
+        },
+      })
+      mockFetch.mockRejectedValue(new TypeError('Network request failed'))
+      expect(
+        await api().unified({ query: 'love', bibleId: 111, languageRanges: ['en'] }),
+      ).toMatchObject({
+        ok: false,
+        error: { kind: 'transient' },
+      })
+    })
+  })
+
   describe('suggestedQueries', () => {
     it('GETs search-queries with query, language ranges, and YVP headers', async () => {
       mockFetch.mockResolvedValue(
@@ -119,7 +284,7 @@ describe('createSearchApi', () => {
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
     })
 
     it('returns empty queries on 204 without treating it as an error', async () => {
@@ -226,7 +391,7 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('page_token')).toBe('current-token')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.16.0')
     })
 
     it('omits user_intent when unset and preserves future server values', async () => {

@@ -1,8 +1,12 @@
 import type {
+  SearchImageHit,
   SearchQueries,
   SearchQuery,
   SearchTopic,
   SearchTopicsResponse,
+  SearchUnifiedField,
+  SearchUnifiedOptions,
+  SearchUnifiedResponse,
   SearchVerseHit,
   SearchVersesResponse,
 } from '@youversion/platform-core'
@@ -28,6 +32,9 @@ export type YouVersionVerseSearchResult = SearchVerseHit
 export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
+export type YouVersionSearchUnifiedField = SearchUnifiedField
+export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
+export type YouVersionImageSearchResult = SearchImageHit
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
@@ -56,4 +63,10 @@ export type SearchVersesParams = {
 export type SearchTopicsParams = {
   query: string
   languageRanges: string[]
+}
+
+export type SearchUnifiedParams = SearchUnifiedOptions & {
+  query: string
+  bibleId: number
+  languageRanges: readonly string[]
 }

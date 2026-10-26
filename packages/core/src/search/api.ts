@@ -4,6 +4,7 @@ import {
   getHttpStatus,
   type SearchQueries,
   type SearchTopicsResponse,
+  type SearchUnifiedResponse,
   type SearchVersesResponse,
 } from '@youversion/platform-core'
 
@@ -14,6 +15,7 @@ import type {
   SearchApiError,
   SearchApiResult,
   SearchTopicsParams,
+  SearchUnifiedParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
@@ -28,14 +30,11 @@ export type CreateSearchApiConfig = {
 }
 
 export type SearchApi = {
-  suggestedQueries: (
-    params: SuggestedQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
-  trendingQueries: (
-    params: TrendingQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
+  suggestedQueries: (params: SuggestedQueriesParams) => Promise<SearchApiResult<SearchQueries>>
+  trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
+  unified: (params: SearchUnifiedParams) => Promise<SearchApiResult<SearchUnifiedResponse>>
 }
 
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
@@ -61,6 +60,9 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     },
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
+    },
+    unified({ query, bibleId, languageRanges, ...options }) {
+      return catchAsResult(() => client.searchUnified(query, bibleId, languageRanges, options))
     },
   }
 }

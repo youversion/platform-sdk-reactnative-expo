@@ -180,10 +180,13 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path â
 
 ### Search
 
-`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, `topics`, and `unified` each return `{ ok: true, value }` or `{ ok: false, error }`. Errors use the existing `auth`, `transient`, and `invalid-parameter` kinds. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
-import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
+import {
+  biblePassageAnchorFromPassageId,
+  useSearch,
+} from '@youversion/platform-react-native-expo-core'
 
 function useFindVerse() {
   const search = useSearch()
@@ -194,6 +197,34 @@ function useFindVerse() {
   }
 }
 ```
+
+#### Unified Search
+
+Use `unified` to search verses, topics, and images in one unpaginated request to `/v1/search-unified`:
+
+```tsx
+function useFindVerseArt() {
+  const search = useSearch()
+
+  return (query: string) =>
+    search.unified({
+      query,
+      bibleId: 111,
+      languageRanges: ['en'],
+      fields: ['images', 'verses'],
+      userIntent: 'topical',
+    })
+}
+```
+
+- `query`, `bibleId`, and `languageRanges` are required. Queries accept 1 to 100 graphemes after trimming. Language ranges are ordered and normalized, for example `en_US` becomes `en-us`.
+- `fields` optionally selects `verses`, `topics`, or `images`. Use `['images']` for image-only search. If you omit `fields`, the service chooses the fields. An empty selection is invalid.
+- `userIntent` optionally accepts `reference`, `text`, `topical`, or `unknown`. If you omit it, the service defaults to `unknown`. Unknown response intent strings are preserved.
+- The shared `YouVersionUnifiedSearchResults` DTO always includes `verses`, `topics`, `images`, `didYouMean`, and nullable `searchInsteadFor`. Omitted result collections become empty arrays, including `images` on older responses. Malformed individual hits are dropped by the shared core client.
+- `YouVersionImageSearchResult` contains only the opaque image `id` and `passageId`. It does not contain a CDN URL or full image metadata. Do not pass the image `id` to the passage-anchor helper.
+- `SearchUnifiedParams` and `YouVersionSearchUnifiedField` are public types. Custom `hookOverrides.useSearch` implementations must include `unified` alongside the existing operations.
+
+This API does not change the built-in Reader Search UI or add image downloads, caching, or Images list/detail methods. The published core client targets `/v1/search-unified`; it does not expose a `/v1-beta` route option.
 
 ## License
 

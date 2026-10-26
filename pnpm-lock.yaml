@@ -164,8 +164,8 @@ importers:
   packages/core:
     dependencies:
       '@youversion/platform-core':
-        specifier: 2.13.0
-        version: 2.13.0
+        specifier: 2.16.0
+        version: 2.16.0
       expo:
         specifier: 57.0.23
         version: 57.0.23(@babel/core@7.29.0)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(expo-router@57.0.20)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.10.1(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
@@ -246,8 +246,8 @@ importers:
         specifier: 1.4.0
         version: 1.4.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)
       '@youversion/platform-core':
-        specifier: 2.13.0
-        version: 2.13.0
+        specifier: 2.16.0
+        version: 2.16.0
       '@youversion/platform-react-native-expo-core':
         specifier: workspace:*
         version: link:../core
@@ -3232,16 +3232,16 @@ packages:
       xstate:
         optional: true
 
-  '@youversion/platform-core@2.13.0':
-    resolution: {integrity: sha512-hMDQ5uXCHBI1ObavbOe1QYu/zu+D6qrQEcLJkSF/OItkfMPmer69x8CZfVfVjhT0k9/dZAREMaq1u+uuV5WbKQ==}
+  '@youversion/platform-core@2.15.0':
+    resolution: {integrity: sha512-beY7DdmryNiNrTk54zrhUMLs+hcSNiguh/im5vexNklp3I5SKqFjieczL4Z4hBxO/3Ih1gR6NznKzuEBfiSxnQ==}
     peerDependencies:
       jsdom: ^24.0.0 || ^28.0.0
     peerDependenciesMeta:
       jsdom:
         optional: true
 
-  '@youversion/platform-core@2.15.0':
-    resolution: {integrity: sha512-beY7DdmryNiNrTk54zrhUMLs+hcSNiguh/im5vexNklp3I5SKqFjieczL4Z4hBxO/3Ih1gR6NznKzuEBfiSxnQ==}
+  '@youversion/platform-core@2.16.0':
+    resolution: {integrity: sha512-BcIPtkMiIslSMPuBOPAXjWdXf8xBcjAGYYIXvDLsO4cEd47nMAmAUabMhh3s4XL4AfYxcKsHtQyuBW2wGBx5ww==}
     peerDependencies:
       jsdom: ^24.0.0 || ^28.0.0
     peerDependenciesMeta:
@@ -10839,11 +10839,11 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@youversion/platform-core@2.13.0':
+  '@youversion/platform-core@2.15.0':
     dependencies:
       zod: 4.1.12
 
-  '@youversion/platform-core@2.15.0':
+  '@youversion/platform-core@2.16.0':
     dependencies:
       zod: 4.1.12
 

@@ -1,6 +1,13 @@
 import { renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import type {
+  SearchApiResult,
+  SearchUnifiedParams,
+  YouVersionImageSearchResult,
+  YouVersionSearchUnifiedField,
+  YouVersionUnifiedSearchResults,
+} from '../../index'
 import type { HookOverrides } from '../../hook-overrides'
 import { YouVersionContext } from '../../youversion-context'
 import type { UseSearchResult } from '../use-search'
@@ -42,7 +49,7 @@ describe('useSearch', () => {
     )
   })
 
-  it('reads provider config and returns the four operations', async () => {
+  it('reads provider config and keeps the existing operations', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
         status: 200,
@@ -64,7 +71,43 @@ describe('useSearch', () => {
       ok: true,
       value: { queries: [{ text: 'love', source: 'trending' }] },
     })
-    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/search-queries')
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
+      'https://api.example.com/v1/search-queries',
+    )
+  })
+
+  it('exposes typed unified image results using provider configuration', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          images: [{ id: 'art-1', passage_id: 'JHN.3.16' }],
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    )
+    const { result, rerender } = renderHook(() => useSearch(), {
+      wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+    })
+    const fields: readonly YouVersionSearchUnifiedField[] = ['images']
+    const params: SearchUnifiedParams = {
+      query: 'love',
+      bibleId: 111,
+      languageRanges: ['en'] as const,
+      fields,
+    }
+    const response: SearchApiResult<YouVersionUnifiedSearchResults> =
+      await result.current.unified(params)
+    expect(response.ok).toBe(true)
+    if (!response.ok) throw new Error(response.error.message)
+    const image: YouVersionImageSearchResult | undefined = response.value.images[0]
+    expect(image).toEqual({ id: 'art-1', passageId: 'JHN.3.16' })
+    const [url, init] = mockFetch.mock.calls[0] ?? []
+    expect(String(url)).toContain('https://api.example.com/v1/search-unified')
+    expect(new Headers(init?.headers).get('X-YVP-App-Key')).toBe('app-key')
+    expect(new Headers(init?.headers).get('X-YVP-Installation-Id')).toBe('install-1')
+    const previous = result.current
+    rerender({})
+    expect(result.current).toBe(previous)
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
@@ -82,15 +125,30 @@ describe('useSearch', () => {
         ok: true as const,
         value: { topics: [], didYouMean: [], totalSize: 0 },
       })),
+      unified: jest.fn(async () => ({
+        ok: true as const,
+        value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
+      })),
     }
 
     const { result } = renderHook(() => useSearch(), {
-      wrapper: ({ children }) => <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>,
+      wrapper: ({ children }) => (
+        <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>
+      ),
     })
 
     expect(result.current).toBe(stub)
-    const suggested = await result.current.suggestedQueries({ query: 'love', languageRanges: ['en'] })
+    const suggested = await result.current.suggestedQueries({
+      query: 'love',
+      languageRanges: ['en'],
+    })
     expect(suggested).toEqual({ ok: true, value: { queries: [{ text: 'stub' }] } })
+    expect(
+      await result.current.unified({ query: 'love', bibleId: 111, languageRanges: ['en'] }),
+    ).toEqual({
+      ok: true,
+      value: { verses: [], topics: [], images: [], didYouMean: [], searchInsteadFor: null },
+    })
     expect(mockFetch).not.toHaveBeenCalled()
   })
 })
