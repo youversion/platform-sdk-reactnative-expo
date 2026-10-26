@@ -197,7 +197,7 @@ function useFindVerse() {
 
 ### Images
 
-`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item includes `image_url` and `passage_id`.
+`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item includes `image_url` and `passage_id`. Pass `page_token` from the previous page's `next_page_token`, and set `page_size` for the page length. `total_size` can be larger than `data.length` because records that break the contract are dropped. A request cannot be aborted. Ignore a result that arrives after unmount or after the inputs change.
 
 ```tsx
 import { useImages } from '@youversion/platform-react-native-expo-core'
@@ -206,8 +206,11 @@ function usePassageImages(passageId: string) {
   const { list } = useImages()
 
   return async () => {
-    const result = await list({ passage_id: passageId })
-    return result.ok ? result.value.data : []
+    const result = await list({ passage_id: passageId, page_size: 10 })
+    if (result.ok === false) {
+      return result.error
+    }
+    return result.value
   }
 }
 ```
