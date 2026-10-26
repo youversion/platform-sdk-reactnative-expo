@@ -67,3 +67,13 @@ export type {
   YouVersionVerseSearchResults,
 } from './search'
 
+export { useImages } from './images'
+export type {
+  GetImagesOptions,
+  ImagesApiError,
+  ImagesApiResult,
+  UseImagesResult,
+  YouVersionImage,
+  YouVersionImagePage,
+} from './images'
+

@@ -195,6 +195,26 @@ function useFindVerse() {
 }
 ```
 
+### Images
+
+`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item includes `image_url` and `passage_id`. Pass `page_token` from the previous page's `next_page_token`, and set `page_size` for the page length. `total_size` can be larger than `data.length` because records that break the contract are dropped. A request cannot be aborted. Ignore a result that arrives after unmount or after the inputs change. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as a blank id or a `page_size` outside 1 to 99. `transient` is 408, 429, any 5xx, a malformed body, or a network failure.
+
+```tsx
+import { useImages } from '@youversion/platform-react-native-expo-core'
+
+function usePassageImages(passageId: string) {
+  const { list } = useImages()
+
+  return async () => {
+    const result = await list({ passage_id: passageId, page_size: 10 })
+    if (result.ok === false) {
+      return result.error
+    }
+    return result.value
+  }
+}
+```
+
 ## License
 
 This SDK is licensed under [Apache 2.0](./LICENSE).
