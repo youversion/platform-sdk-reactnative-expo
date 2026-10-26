@@ -252,8 +252,8 @@ importers:
         specifier: workspace:*
         version: link:../core
       '@youversion/platform-react-ui':
-        specifier: 2.15.0
-        version: 2.15.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
+        specifier: 2.16.0
+        version: 2.16.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
       expo:
         specifier: 57.0.23
         version: 57.0.23(@babel/core@7.29.0)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(expo-router@57.0.20)(react-dom@19.2.5(react@19.2.5))(react-native-web@0.21.2(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react-native-webview@13.16.1(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native-worklets@0.10.1(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)
@@ -3232,14 +3232,6 @@ packages:
       xstate:
         optional: true
 
-  '@youversion/platform-core@2.15.0':
-    resolution: {integrity: sha512-beY7DdmryNiNrTk54zrhUMLs+hcSNiguh/im5vexNklp3I5SKqFjieczL4Z4hBxO/3Ih1gR6NznKzuEBfiSxnQ==}
-    peerDependencies:
-      jsdom: ^24.0.0 || ^28.0.0
-    peerDependenciesMeta:
-      jsdom:
-        optional: true
-
   '@youversion/platform-core@2.16.0':
     resolution: {integrity: sha512-BcIPtkMiIslSMPuBOPAXjWdXf8xBcjAGYYIXvDLsO4cEd47nMAmAUabMhh3s4XL4AfYxcKsHtQyuBW2wGBx5ww==}
     peerDependencies:
@@ -3248,13 +3240,13 @@ packages:
       jsdom:
         optional: true
 
-  '@youversion/platform-react-hooks@2.15.0':
-    resolution: {integrity: sha512-EGOY3ond+qw4tetS4z/626Lw58KmQvC9Qo4WE7jAGG52jReVfWlMZjHIIu3lszBoLn0GXC4hB043dSdzz3I9HA==}
+  '@youversion/platform-react-hooks@2.16.0':
+    resolution: {integrity: sha512-+68cT9PTE6OVtBvrarkR24h0p9KgFWC7rYjoOaX2rDt2IPtmn63dJ2vl70zF6f5kpNelRWDJvz7IhRe01LJDIw==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
 
-  '@youversion/platform-react-ui@2.15.0':
-    resolution: {integrity: sha512-pNbrhbIHU/2U84spYUVdXadi7MneOn4PhlpIgSBJipaUCJ34pghh3rt6NOiIzkcIAvCkS/NX7UuZI5Yl2V5mFA==}
+  '@youversion/platform-react-ui@2.16.0':
+    resolution: {integrity: sha512-ls/oAd9EXPGmJGfxpYwichAIruDlRM12OR2tqP3/0I8OmRAA+4bWxlzuUG7S52VWPYTtzT8wgNsmJZPpdsHHow==}
     peerDependencies:
       react: '>=19.1.0 <20.0.0'
       react-dom: '>=19.1.0 <20.0.0'
@@ -10839,23 +10831,19 @@ snapshots:
     transitivePeerDependencies:
       - '@types/react'
 
-  '@youversion/platform-core@2.15.0':
-    dependencies:
-      zod: 4.1.12
-
   '@youversion/platform-core@2.16.0':
     dependencies:
       zod: 4.1.12
 
-  '@youversion/platform-react-hooks@2.15.0(react@19.2.5)':
+  '@youversion/platform-react-hooks@2.16.0(react@19.2.5)':
     dependencies:
       '@tanstack/react-query': 5.101.4(react@19.2.5)
-      '@youversion/platform-core': 2.15.0
+      '@youversion/platform-core': 2.16.0
       react: 19.2.5
     transitivePeerDependencies:
       - jsdom
 
-  '@youversion/platform-react-ui@2.15.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)':
+  '@youversion/platform-react-ui@2.16.0(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.5))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.5))(react@19.2.5)(typescript@7.0.2)':
     dependencies:
       '@radix-ui/react-accordion': 1.2.12(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-dialog': 1.1.15(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -10865,8 +10853,8 @@ snapshots:
       '@radix-ui/react-tabs': 1.1.13(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@radix-ui/react-use-controllable-state': 1.2.2(@types/react@19.2.14)(react@19.2.5)
       '@xstate/react': 6.1.0(@types/react@19.2.14)(react@19.2.5)(xstate@5.32.4)
-      '@youversion/platform-core': 2.15.0
-      '@youversion/platform-react-hooks': 2.15.0(react@19.2.5)
+      '@youversion/platform-core': 2.16.0
+      '@youversion/platform-react-hooks': 2.16.0(react@19.2.5)
       better-result: 2.9.2
       class-variance-authority: 0.7.1
       clsx: 2.1.1
