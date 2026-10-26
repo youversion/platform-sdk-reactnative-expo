@@ -1,10 +1,11 @@
 import type {
-  SearchClient,
+  SearchImageHit,
   SearchQueries,
   SearchQuery,
   SearchTopic,
   SearchTopicsResponse,
-  SearchUnifiedOptions,
+  SearchUnifiedField,
+  SearchUnifiedResponse,
   SearchVerseHit,
   SearchVersesResponse,
 } from '@youversion/platform-core'
@@ -31,9 +32,11 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
-export type YouVersionUnifiedSearchField = NonNullable<SearchUnifiedOptions['fields']>[number]
+export type YouVersionUnifiedSearchField = SearchUnifiedField
 
-export type YouVersionUnifiedSearchResults = Awaited<ReturnType<SearchClient['searchUnified']>>
+export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
+
+export type YouVersionImageSearchResult = SearchImageHit
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }

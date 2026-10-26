@@ -12,6 +12,7 @@ export {
   type YouVersionSearchTopic,
   type YouVersionSearchUserIntent,
   type YouVersionTopicSearchResults,
+  type YouVersionImageSearchResult,
   type YouVersionUnifiedSearchField,
   type YouVersionUnifiedSearchResults,
   type YouVersionVerseSearchResult,

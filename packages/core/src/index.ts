@@ -66,6 +66,7 @@ export type {
   YouVersionSearchTopic,
   YouVersionSearchUserIntent,
   YouVersionTopicSearchResults,
+  YouVersionImageSearchResult,
   YouVersionUnifiedSearchField,
   YouVersionUnifiedSearchResults,
   YouVersionVerseSearchResult,

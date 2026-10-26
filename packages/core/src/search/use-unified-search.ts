@@ -35,8 +35,13 @@ export type UseUnifiedSearchResult = {
 
 type SettledSearch = {
   key: string
+  clientKey: string
   data: YouVersionUnifiedSearchResults | null
   error: SearchApiError | null
+}
+
+function clientKey(appKey: string, apiHost: string, installationId: string): string {
+  return JSON.stringify([appKey, apiHost, installationId])
 }
 
 function isInputReady(props: UseUnifiedSearchProps): boolean {
@@ -109,6 +114,7 @@ function useLiveUnifiedSearch(
   const active = run && options?.enabled !== false && isInputReady(props)
   const keepPreviousData = options?.keepPreviousData !== false
   const key = inputKey(props)
+  const scope = clientKey(appKey, apiHost, installationId)
   const propsRef = useRef(props)
   propsRef.current = props
   const [settled, setSettled] = useState<SettledSearch | null>(null)
@@ -120,13 +126,19 @@ function useLiveUnifiedSearch(
   activeRef.current = active
   const keyRef = useRef(key)
   keyRef.current = key
+  const scopeRef = useRef(scope)
+  scopeRef.current = scope
 
   const refetch = useCallback(() => {
     if (!activeRef.current) {
       return
     }
     const current = settledRef.current
-    if (current?.error && current.key === keyRef.current) {
+    if (
+      current?.error &&
+      current.key === keyRef.current &&
+      current.clientKey === scopeRef.current
+    ) {
       setRefetchingError(true)
     }
     setGeneration((value) => value + 1)
@@ -138,6 +150,7 @@ function useLiveUnifiedSearch(
     }
     const current = propsRef.current
     const requestedKey = key
+    const requestedScope = scope
     let cancelled = false
     void catchAsResult(() =>
       client.searchUnified(
@@ -152,26 +165,36 @@ function useLiveUnifiedSearch(
       }
       setRefetchingError(false)
       if (result.ok) {
-        setSettled({ key: requestedKey, data: result.value, error: null })
+        setSettled({
+          key: requestedKey,
+          clientKey: requestedScope,
+          data: result.value,
+          error: null,
+        })
         return
       }
       setSettled((previous) => ({
         key: requestedKey,
-        data: previous?.key === requestedKey ? previous.data : null,
+        clientKey: requestedScope,
+        data:
+          previous?.key === requestedKey && previous.clientKey === requestedScope
+            ? previous.data
+            : null,
         error: result.error,
       }))
     })
     return () => {
       cancelled = true
     }
-  }, [active, client, generation, key])
+  }, [active, client, generation, key, scope])
 
   if (!active) {
     return { data: null, loading: false, error: null, refetch }
   }
 
-  const keyMatches = settled?.key === key
-  const previousData = keepPreviousData ? (settled?.data ?? null) : null
+  const sameClient = settled?.clientKey === scope
+  const keyMatches = sameClient && settled.key === key
+  const previousData = keepPreviousData && sameClient ? settled.data : null
   return {
     data: keyMatches ? (settled?.data ?? null) : previousData,
     loading: !keyMatches || (Boolean(settled?.error) && refetchingError),

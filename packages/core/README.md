@@ -180,7 +180,7 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path â
 
 ### Search
 
-`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `useUnifiedSearch({ query, bibleId, languageRanges }, { enabled, keepPreviousData })` reads verses, topics, and images in one snapshot. It returns `{ data, loading, error, refetch }`. `error` is `auth`, `transient`, or `invalid-parameter`. Pass `fields` as `verses`, `topics`, or `images` to limit that call. An image hit is `{ id, passageId }`. `keepPreviousData` defaults to true, so the previous snapshot stays up while the next query loads. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
 import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
@@ -194,6 +194,37 @@ function useFindVerse() {
   }
 }
 ```
+
+`useUnifiedSearch` reads verses, topics, and images together. The request is `GET /v1/search-unified`. It returns `{ data, loading, error, refetch }`.
+
+```tsx
+import {
+  useUnifiedSearch,
+  type YouVersionImageSearchResult,
+} from '@youversion/platform-react-native-expo-core'
+
+function ImageHits({ query }: { query: string }) {
+  const { data, loading, error, refetch } = useUnifiedSearch(
+    { query, bibleId: 111, languageRanges: ['en'], fields: ['images'] },
+    { keepPreviousData: true },
+  )
+  const image: YouVersionImageSearchResult | undefined = data?.images[0]
+
+  return { image, loading, error, refetch }
+}
+```
+
+`query`, `bibleId`, and `languageRanges` are required. `languageRanges` is one tag or a readonly list, and `en_US` is sent as `en-us`. A blank query, a query longer than 100 characters, an empty language list, a language tag the client rejects, or `fields: []` leaves the hook idle: `data` is null, `loading` is false, and `error` is null. That case does not call the network.
+
+`fields` is optional. Leave it out and the service picks the collections. Pass any of `verses`, `topics`, and `images`. `['images']` asks for images only. Repeated names are sent once. `userIntent` is optional too. Leave it out and the service uses `unknown`. The request accepts `reference`, `text`, `topical`, and `unknown`. A response can carry a newer intent string, and that string is kept on `data.userIntent`.
+
+`data` always includes `verses`, `topics`, `images`, `didYouMean`, and `searchInsteadFor`. A collection the response leaves out comes back as `[]`. `searchInsteadFor` is `null` when the response leaves it out. `YouVersionImageSearchResult` is `{ id, passageId }`. `id` is an opaque string. `passageId` is a verse or a verse range such as `1CO.13.4-7`. The hit has no image URL. Pass `passageId` to `biblePassageAnchorFromPassageId`.
+
+`keepPreviousData` defaults to true, so the previous snapshot from this same app key, API host, and installation id stays up while the next query loads. A change of any of those three drops that snapshot. `enabled: false` skips the request.
+
+`error.kind` is `auth` for HTTP 401 and 403, `transient` for any other HTTP status, a malformed body, or a transport failure, and `invalid-parameter` when the client rejects the bible id, a field name, or the request intent before the call.
+
+`hookOverrides.useUnifiedSearch` replaces the hook. Return `{ data, loading, error, refetch }` from it. While the override is set, the hook returns that value and skips the network.
 
 ## License
 
