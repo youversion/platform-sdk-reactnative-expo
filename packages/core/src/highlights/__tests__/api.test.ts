@@ -1,3 +1,4 @@
+import { buildSdkVersionHeaderValue } from '@youversion/platform-core'
 import * as Crypto from 'expo-crypto'
 
 import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
@@ -80,12 +81,14 @@ function lastRequest(): LastRequest {
   return { url: String(call[0]), init: call[1] ?? {} }
 }
 
+const nativeSdkHeader = 'ReactNativeSDK=1.0.0-dev'
+
 const api = () =>
   createHighlightsApi({
     appKey: 'appkey',
     apiHost: 'api.example.com',
     installationId: 'inst-1',
-    additionalHeaders: { 'x-yvp-sdk': 'ReactNativeSDK=1.0.0-dev' },
+    additionalHeaders: { 'x-yvp-sdk': nativeSdkHeader },
   })
 
 describe('createHighlightsApi', () => {
@@ -118,7 +121,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'x-yvp-sdk')).toBe('ReactSDK=2.16.0, ReactNativeSDK=1.0.0-dev')
+      expect(header(init, 'x-yvp-sdk')).toBe(`${buildSdkVersionHeaderValue()}, ${nativeSdkHeader}`)
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {

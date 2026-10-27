@@ -1,0 +1,19 @@
+name: Major Release Signoff
+
+# Only a trigger. A pull_request run executes the PR's own copy of this file, so nothing it
+# does can be trusted, and it does nothing. major-release-signoff-gate.yml runs from main
+# when this completes and does the whole evaluation there.
+on:
+  pull_request:
+    # `edited` covers a retarget: the same head evaluated against a feature base can be
+    # green, and without re-evaluating, that result would stand once the base becomes main.
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  request:
+    name: Request a trusted evaluation
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Release signoff is evaluated by major-release-signoff-gate.yml on main."

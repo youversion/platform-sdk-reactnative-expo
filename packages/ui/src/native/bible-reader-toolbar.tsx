@@ -26,6 +26,8 @@ function boldLabelStyle(tokens: Tokens): TextStyle {
   }
 }
 
+/** Reader bar labels do not grow past the size in the style. */
+const READER_BAR_MAX_FONT_SCALE = 1
 const CHEVRON_HIT = 44
 const CAPSULE_MIN_HEIGHT = 44
 const CAPSULE_GAP = 8
@@ -52,7 +54,9 @@ function MenuRow({
   return (
     <Popover.Close onPress={onPress} testID={testID} style={styles.menuItem}>
       <View testID={iconTestID}>{icon}</View>
-      <Popover.Text numberOfLines={1}>{label}</Popover.Text>
+      <Popover.Text maxFontSizeMultiplier={READER_BAR_MAX_FONT_SCALE} numberOfLines={1}>
+        {label}
+      </Popover.Text>
     </Popover.Close>
   )
 }
@@ -131,14 +135,22 @@ function ChapterContent({
 
   if (bookLabel.length > 0) {
     return (
-      <Button.Text numberOfLines={1} style={bold}>
+      <Button.Text
+        maxFontSizeMultiplier={READER_BAR_MAX_FONT_SCALE}
+        numberOfLines={1}
+        style={bold}
+      >
         {`${bookLabel} ${chapter}`}
       </Button.Text>
     )
   }
 
   return (
-    <Button.Text numberOfLines={1} style={bold}>
+    <Button.Text
+      maxFontSizeMultiplier={READER_BAR_MAX_FONT_SCALE}
+      numberOfLines={1}
+      style={bold}
+    >
       {chapter}
     </Button.Text>
   )
@@ -163,7 +175,11 @@ function VersionContent({
     label = t('selectVersion')
   }
   return (
-    <Button.Text numberOfLines={1} style={boldLabelStyle(tokens)}>
+    <Button.Text
+      maxFontSizeMultiplier={READER_BAR_MAX_FONT_SCALE}
+      numberOfLines={1}
+      style={boldLabelStyle(tokens)}
+    >
       {label}
     </Button.Text>
   )

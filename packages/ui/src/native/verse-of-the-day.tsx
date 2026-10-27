@@ -13,7 +13,7 @@ import { encodeFontFamilyForDom, INTER_FONT, UNTITLED_SERIF_FONT } from '../lib/
 import { getTokens } from '../theme'
 import { sansFace } from '../theme/fonts'
 import { getImpl } from './component-impls'
-import { BibleAppLogo } from './bible-app-logo'
+import { BibleAppWordmark } from './bible-app-wordmark'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { ShareIcon, VotdIcon } from './icons'
@@ -157,15 +157,7 @@ export function VerseOfTheDay({
               <Card.Content>{body}</Card.Content>
               {showBibleAppAttribution ? (
                 <Card.Footer style={styles.footer}>
-                  <View
-                    accessibilityRole="image"
-                    accessibilityLabel={t('bibleApp')}
-                    style={styles.attribution}
-                    testID="verse-of-the-day-attribution"
-                  >
-                    <BibleAppLogo size={24} />
-                    <Text variant="muted">{t('bibleApp')}</Text>
-                  </View>
+                  <BibleAppWordmark testID="verse-of-the-day-attribution" />
                 </Card.Footer>
               ) : null}
             </Card>
@@ -253,10 +245,5 @@ const styles = StyleSheet.create({
   },
   footer: {
     justifyContent: 'flex-end',
-  },
-  attribution: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
   },
 })

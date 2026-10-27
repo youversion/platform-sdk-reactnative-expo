@@ -76,7 +76,9 @@ export function PromptSheetParagraph({
   theme: Theme
 }): ReactNode {
   return (
-    <Text style={[styles.paragraph, { color: SHEET_MUTED_FOREGROUND[theme] }]}>{children}</Text>
+    <Text style={[styles.paragraph, { color: SHEET_MUTED_FOREGROUND[theme] }]}>
+      {children}
+    </Text>
   )
 }
 

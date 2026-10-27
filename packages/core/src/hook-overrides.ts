@@ -1,6 +1,7 @@
 import type { AuthContextValue } from './auth/auth-context'
 import type { UseHighlightPermissionFlowResult } from './highlights/use-highlight-permission-flow'
 import type { UseHighlightsOptions, UseHighlightsResult } from './highlights/use-highlights'
+import type { UseImagesResult } from './images/use-images'
 import type { UseSearchResult } from './search/use-search'
 import type {
   UseUnifiedSearchOptions,
@@ -24,4 +25,5 @@ export type HookOverrides = {
     props: UseUnifiedSearchProps,
     options?: UseUnifiedSearchOptions,
   ) => UseUnifiedSearchResult
+  useImages?: () => UseImagesResult
 }
