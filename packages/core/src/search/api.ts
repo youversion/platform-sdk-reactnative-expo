@@ -87,7 +87,7 @@ function toSearchApiError(caught: Error): SearchApiError {
   }
 
   if (isClientError(status)) {
-    return { kind: 'invalid-parameter', message }
+    return { kind: 'invalid-parameter', status, message }
   }
 
   if (status === undefined && isZodError(caught)) {
@@ -101,7 +101,7 @@ function toSearchApiError(caught: Error): SearchApiError {
   return { kind: 'transient', status, message }
 }
 
-function isClientError(status: number | undefined): boolean {
+function isClientError(status: number | undefined): status is number {
   if (status === undefined) {
     return false
   }

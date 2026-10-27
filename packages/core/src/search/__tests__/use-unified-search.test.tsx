@@ -494,8 +494,9 @@ describe('useUnifiedSearch', () => {
     mockFetch.mockResolvedValue(new Response('', { status: 400 }))
     const { result } = renderHook(() => useUnifiedSearch(ready), { wrapper: Wrapper })
 
-    await waitFor(() => expect(result.current.error?.kind).toBe('invalid-parameter'))
-    expect(result.current.error).not.toHaveProperty('status')
+    await waitFor(() =>
+      expect(result.current.error).toMatchObject({ kind: 'invalid-parameter', status: 400 }),
+    )
     expect(result.current.data).toBeNull()
     expect(result.current.loading).toBe(false)
   })

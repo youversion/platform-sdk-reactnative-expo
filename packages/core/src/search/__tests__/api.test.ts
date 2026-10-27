@@ -306,6 +306,7 @@ describe('createSearchApi', () => {
         ok: false,
         error: {
           kind: 'invalid-parameter',
+          status: 400,
           message: 'HTTP error! status: 400',
         },
       })

@@ -180,7 +180,7 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path â
 
 ### Search
 
-`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as an empty query or a bad language tag. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
 import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
@@ -226,7 +226,7 @@ The response has no total. A verse whose reference is not a USFM passage is left
 
 `loading` is true while the first request for the current query is in flight, and while `refetch` follows an error. After a success, `refetch` keeps the last results and leaves `loading` false.
 
-`error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. `invalid-parameter` is also what the client returns when it rejects the bible id, a field name, or the request intent before the call. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure.
+`error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as a bible id of 0, an unknown field, or an unknown request intent. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure.
 
 `hookOverrides.useUnifiedSearch` replaces the hook. Return `{ data, loading, error, refetch }` from it. While the override is set, the hook returns that value and skips the network.
 
