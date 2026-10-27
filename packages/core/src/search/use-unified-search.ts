@@ -3,7 +3,7 @@ import {
   parseSearchLanguageRange,
   type SearchUnifiedOptions,
 } from '@youversion/platform-core'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useYouVersion } from '../use-youversion'
 import { catchAsResult, createSearchClient } from './api'
@@ -36,6 +36,7 @@ export type UseUnifiedSearchResult = {
 type SettledSearch = {
   key: string
   clientKey: string
+  generation: number
   data: YouVersionUnifiedSearchResults | null
   error: SearchApiError | null
 }
@@ -115,59 +116,47 @@ function useLiveUnifiedSearch(
   const keepPreviousData = options?.keepPreviousData !== false
   const key = inputKey(props)
   const scope = clientKey(appKey, apiHost, installationId)
-  const propsRef = useRef(props)
-  propsRef.current = props
+  // The caller passes a new props object on every render. Keep the object from
+  // the render where the search inputs changed, so a fresh object with the same
+  // search does not start another request.
+  const [request, setRequest] = useState(props)
+  if (inputKey(request) !== key) {
+    setRequest(props)
+  }
   const [settled, setSettled] = useState<SettledSearch | null>(null)
-  const [refetchingError, setRefetchingError] = useState(false)
   const [generation, setGeneration] = useState(0)
-  const settledRef = useRef(settled)
-  settledRef.current = settled
-  const activeRef = useRef(active)
-  activeRef.current = active
-  const keyRef = useRef(key)
-  keyRef.current = key
-  const scopeRef = useRef(scope)
-  scopeRef.current = scope
 
   const refetch = useCallback(() => {
-    if (!activeRef.current) {
+    if (!active) {
       return
     }
-    const current = settledRef.current
-    if (
-      current?.error &&
-      current.key === keyRef.current &&
-      current.clientKey === scopeRef.current
-    ) {
-      setRefetchingError(true)
-    }
     setGeneration((value) => value + 1)
-  }, [])
+  }, [active])
 
   useEffect(() => {
     if (!active) {
       return
     }
-    const current = propsRef.current
     const requestedKey = key
     const requestedScope = scope
+    const requestedGeneration = generation
     let cancelled = false
     void catchAsResult(() =>
       client.searchUnified(
-        current.query,
-        current.bibleId,
-        current.languageRanges,
-        searchOptions(current),
+        request.query,
+        request.bibleId,
+        request.languageRanges,
+        searchOptions(request),
       ),
     ).then((result) => {
       if (cancelled) {
         return
       }
-      setRefetchingError(false)
       if (result.ok) {
         setSettled({
           key: requestedKey,
           clientKey: requestedScope,
+          generation: requestedGeneration,
           data: result.value,
           error: null,
         })
@@ -176,6 +165,7 @@ function useLiveUnifiedSearch(
       setSettled((previous) => ({
         key: requestedKey,
         clientKey: requestedScope,
+        generation: requestedGeneration,
         data:
           previous?.key === requestedKey && previous.clientKey === requestedScope
             ? previous.data
@@ -186,7 +176,7 @@ function useLiveUnifiedSearch(
     return () => {
       cancelled = true
     }
-  }, [active, client, generation, key, scope])
+  }, [active, client, generation, key, request, scope])
 
   if (!active) {
     return { data: null, loading: false, error: null, refetch }
@@ -194,10 +184,14 @@ function useLiveUnifiedSearch(
 
   const sameClient = settled?.clientKey === scope
   const keyMatches = sameClient && settled.key === key
+  let retryingError = false
+  if (settled && keyMatches && settled.error && settled.generation !== generation) {
+    retryingError = true
+  }
   const previousData = keepPreviousData && sameClient ? settled.data : null
   return {
     data: keyMatches ? (settled?.data ?? null) : previousData,
-    loading: !keyMatches || (Boolean(settled?.error) && refetchingError),
+    loading: !keyMatches || retryingError,
     error: keyMatches ? (settled?.error ?? null) : null,
     refetch,
   }
