@@ -28,26 +28,25 @@ export type CreateSearchApiConfig = {
 }
 
 export type SearchApi = {
-  suggestedQueries: (
-    params: SuggestedQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
-  trendingQueries: (
-    params: TrendingQueriesParams,
-  ) => Promise<SearchApiResult<SearchQueries>>
+  suggestedQueries: (params: SuggestedQueriesParams) => Promise<SearchApiResult<SearchQueries>>
+  trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
 }
 
+export function createSearchClient(config: CreateSearchApiConfig): SearchClient {
+  const http = new ApiClient({
+    appKey: config.appKey,
+    apiHost: config.apiHost ?? DEFAULT_API_HOST,
+    installationId: config.installationId,
+    additionalHeaders: config.additionalHeaders,
+    timeout: config.timeout,
+  })
+  return new SearchClient(http)
+}
+
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
-  const client = new SearchClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: config.additionalHeaders,
-      timeout: config.timeout,
-    }),
-  )
+  const client = createSearchClient(config)
 
   return {
     suggestedQueries({ query, languageRanges }) {
@@ -65,7 +64,9 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
   }
 }
 
-async function catchAsResult<Value>(run: () => Promise<Value>): Promise<SearchApiResult<Value>> {
+export async function catchAsResult<Value>(
+  run: () => Promise<Value>,
+): Promise<SearchApiResult<Value>> {
   try {
     return ok(await run())
   } catch (caught) {
@@ -81,13 +82,36 @@ function toSearchApiError(caught: Error): SearchApiError {
     return { kind: 'auth', status, message }
   }
 
+  if (status === 404) {
+    return { kind: 'not-found', status, message }
+  }
+
+  if (isClientError(status)) {
+    return { kind: 'invalid-parameter', status, message }
+  }
+
   if (status === undefined && isZodError(caught)) {
     return { kind: 'invalid-parameter', message }
   }
 
-  return status === undefined
-    ? { kind: 'transient', message }
-    : { kind: 'transient', status, message }
+  if (status === undefined) {
+    return { kind: 'transient', message }
+  }
+
+  return { kind: 'transient', status, message }
+}
+
+function isClientError(status: number | undefined): status is number {
+  if (status === undefined) {
+    return false
+  }
+  if (status === 401 || status === 403 || status === 404) {
+    return false
+  }
+  if (status === 408 || status === 429) {
+    return false
+  }
+  return status >= 400 && status < 500
 }
 
 function isZodError(caught: Error): boolean {

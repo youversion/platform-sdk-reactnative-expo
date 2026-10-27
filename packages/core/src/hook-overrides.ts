@@ -3,6 +3,11 @@ import type { UseHighlightPermissionFlowResult } from './highlights/use-highligh
 import type { UseHighlightsOptions, UseHighlightsResult } from './highlights/use-highlights'
 import type { UseImagesResult } from './images/use-images'
 import type { UseSearchResult } from './search/use-search'
+import type {
+  UseUnifiedSearchOptions,
+  UseUnifiedSearchProps,
+  UseUnifiedSearchResult,
+} from './search/use-unified-search'
 
 /**
  * Test seam: skip live fetch and return stub hook results.
@@ -16,5 +21,9 @@ export type HookOverrides = {
   useHighlights?: (options: UseHighlightsOptions) => UseHighlightsResult
   useHighlightPermissionFlow?: (options: UseHighlightsOptions) => UseHighlightPermissionFlowResult
   useSearch?: () => UseSearchResult
+  useUnifiedSearch?: (
+    props: UseUnifiedSearchProps,
+    options?: UseUnifiedSearchOptions,
+  ) => UseUnifiedSearchResult
   useImages?: () => UseImagesResult
 }

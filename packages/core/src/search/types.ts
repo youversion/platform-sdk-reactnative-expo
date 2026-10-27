@@ -1,8 +1,11 @@
 import type {
+  SearchImageHit,
   SearchQueries,
   SearchQuery,
   SearchTopic,
   SearchTopicsResponse,
+  SearchUnifiedField,
+  SearchUnifiedResponse,
   SearchVerseHit,
   SearchVersesResponse,
 } from '@youversion/platform-core'
@@ -29,10 +32,17 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
+export type YouVersionUnifiedSearchField = SearchUnifiedField
+
+export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
+
+export type YouVersionImageSearchResult = SearchImageHit
+
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
+  | { kind: 'not-found'; status: 404; message: string }
   | { kind: 'transient'; status?: number; message: string }
-  | { kind: 'invalid-parameter'; message: string }
+  | { kind: 'invalid-parameter'; status?: number; message: string }
 
 export type SearchApiResult<Value> = Result<Value, SearchApiError>
 
