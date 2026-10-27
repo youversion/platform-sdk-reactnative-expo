@@ -1,5 +1,14 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.2.0
+
+### Patch Changes
+
+- 1b3ca57: Pin `@youversion/platform-react-ui` to 2.16.0 so scripture views use the same platform-core 2.16.0 as the rest of the SDK.
+- Updated dependencies [4b87ab9]
+- Updated dependencies [1b3ca57]
+  - @youversion/platform-react-native-expo-core@2.2.0
+
 ## 2.1.0
 
 ### Minor Changes
