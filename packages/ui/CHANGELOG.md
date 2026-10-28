@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.2.1
+
+### Patch Changes
+
+- 5342263: Sync localization from platform-localization (dc70b8b): update 3 keys in en.
+  - @youversion/platform-react-native-expo-core@2.2.1
+
 ## 2.2.0
 
 ### Patch Changes
