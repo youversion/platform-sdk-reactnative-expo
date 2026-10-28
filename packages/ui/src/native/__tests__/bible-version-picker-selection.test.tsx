@@ -275,20 +275,20 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(getByLabelText('Spanish')).toBeTruthy()
     fireEvent.press(getByRole('tab', { name: 'Suggested' }))
     await waitFor(() => expect(queryByLabelText('Spanish')).toBeNull())
-    fireEvent.press(getByLabelText('Search languages'))
+    fireEvent.press(getByLabelText('Search Languages'))
     expect(queryByRole('tab', { name: 'Suggested' })).toBeNull()
-    expect(getByLabelText('Search languages').props.autoFocus).toBe(true)
-    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    expect(getByLabelText('Search Languages').props.autoFocus).toBe(true)
+    fireEvent.changeText(getByLabelText('Search Languages'), 'span')
     expect(getByLabelText('Spanish')).toBeTruthy()
     fireEvent.press(getByLabelText('Clear search'))
-    expect(getByLabelText('Search languages').props.value).toBe('')
-    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    expect(getByLabelText('Search Languages').props.value).toBe('')
+    fireEvent.changeText(getByLabelText('Search Languages'), 'span')
     fireEvent.press(getByLabelText('Cancel'))
-    expect(queryByPlaceholderText('Search languages')).toBeNull()
+    expect(queryByPlaceholderText('Search Languages')).toBeNull()
     expect(getByText('All (2)')).toBeTruthy()
-    fireEvent.press(getByLabelText('Search languages'))
-    expect(getByLabelText('Search languages').props.value).toBe('')
-    fireEvent.changeText(getByLabelText('Search languages'), 'span')
+    fireEvent.press(getByLabelText('Search Languages'))
+    expect(getByLabelText('Search Languages').props.value).toBe('')
+    fireEvent.changeText(getByLabelText('Search Languages'), 'span')
     fireEvent.press(await findByLabelText('Spanish'))
     expect(await findByLabelText('Reina Valera')).toBeTruthy()
   })
@@ -432,7 +432,7 @@ describe('BibleVersionPickerSheet selection', () => {
       { wrapper },
     )
 
-    await findByText('Recently Used Versions')
+    await findByText('Recent Versions')
     expect(getByText('English Bible Versions')).toBeTruthy()
     const list = UNSAFE_getAllByType(ScrollView).find(
       (view) => view.props.stickyHeaderIndices !== undefined,
@@ -440,15 +440,15 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(list?.props.stickyHeaderIndices).toEqual([0, 2])
     expect(Children.toArray(list?.props.children)[0]).toHaveProperty(
       'props.children.props.children',
-      'Recently Used Versions',
+      'Recent Versions',
     )
     expect(Children.toArray(list?.props.children)[2]).toHaveProperty(
       'props.children.props.children',
       ['English', ' ', 'Bible Versions'],
     )
 
-    fireEvent.changeText(getByLabelText('Search versions'), 'Berean')
-    expect(queryByText('Recently Used Versions')).toBeNull()
+    fireEvent.changeText(getByLabelText('Search Versions'), 'Berean')
+    expect(queryByText('Recent Versions')).toBeNull()
     expect(getByText('English Bible Versions')).toBeTruthy()
     expect(list?.props.stickyHeaderIndices).toEqual([0])
     expect(Children.toArray(list?.props.children)[0]).toHaveProperty(
@@ -456,12 +456,12 @@ describe('BibleVersionPickerSheet selection', () => {
       ['English', ' ', 'Bible Versions'],
     )
 
-    fireEvent.changeText(getByLabelText('Search versions'), 'King James')
-    expect(getByText('Recently Used Versions')).toBeTruthy()
+    fireEvent.changeText(getByLabelText('Search Versions'), 'King James')
+    expect(getByText('Recent Versions')).toBeTruthy()
     expect(queryByText('English Bible Versions')).toBeNull()
     expect(list?.props.stickyHeaderIndices).toEqual([0])
 
-    fireEvent.changeText(getByLabelText('Search versions'), 'not a version')
+    fireEvent.changeText(getByLabelText('Search Versions'), 'not a version')
     expect(list?.props.stickyHeaderIndices).toEqual([])
   })
 
