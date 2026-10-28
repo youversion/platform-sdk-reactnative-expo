@@ -231,7 +231,7 @@ function installToolbarFetches({
 
 function installOpenAwareSheets() {
   installBibleReaderTestImpls()
-  setImpl('BibleReaderDom', MockDOM)
+  setImpl('BibleReaderNative', MockDOM)
   setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
     isOpen ? <View testID="mock-native-sheet">{children}</View> : null,
   )
