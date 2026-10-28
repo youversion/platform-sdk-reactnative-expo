@@ -49,7 +49,7 @@ export type { BibleContentRequest, BibleContentResponse, FetchBibleContent } fro
 export { biblePassageAnchorFromPassageId } from './passage-anchor'
 export type { BiblePassageAnchor } from './passage-anchor'
 
-export { SEARCH_USER_INTENT, useSearch } from './search'
+export { SEARCH_USER_INTENT, useSearch, useUnifiedSearch } from './search'
 export type {
   SearchApiError,
   SearchApiResult,
@@ -58,12 +58,27 @@ export type {
   SuggestedQueriesParams,
   TrendingQueriesParams,
   UseSearchResult,
+  UseUnifiedSearchOptions,
+  UseUnifiedSearchProps,
+  UseUnifiedSearchResult,
   YouVersionSearchQueries,
   YouVersionSearchQuery,
   YouVersionSearchTopic,
   YouVersionSearchUserIntent,
   YouVersionTopicSearchResults,
+  YouVersionImageSearchResult,
+  YouVersionUnifiedSearchField,
+  YouVersionUnifiedSearchResults,
   YouVersionVerseSearchResult,
   YouVersionVerseSearchResults,
 } from './search'
 
+export { useImages } from './images'
+export type {
+  GetImagesOptions,
+  ImagesApiError,
+  ImagesApiResult,
+  UseImagesResult,
+  YouVersionImage,
+  YouVersionImagePage,
+} from './images'

@@ -10,6 +10,55 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.2.0
+
+### Minor Changes
+
+- _(@youversion/platform-react-native-expo-core)_ 4b87ab9: Add `useImages()` so apps can list and fetch verse images. Calls go to `/v1/images` (YPE-6189).
+
+- _(@youversion/platform-react-native-expo-core)_ 1b3ca57: Add `useUnifiedSearch` for one verse, topic, and image search. An image hit (`YouVersionImageSearchResult`) is `{ id, passageId }`. `fields` may include `images`. A change of app key, API host, or installation id drops the previous snapshot (YPE-6190). This depends on `@youversion/platform-core` 2.16.0.
+
+  A search HTTP 404 is `not-found`. Any other 4xx except 401, 403, 408, and 429 is `invalid-parameter` and includes `status`. Input rejected before the request is `invalid-parameter` with no `status`. This applies to `useSearch` as well as `useUnifiedSearch`. An app that switches on every `SearchApiError` kind needs a `not-found` case. 408 and 429 stay `transient`.
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 1b3ca57: Pin `@youversion/platform-react-ui` to 2.16.0 so scripture views use the same platform-core 2.16.0 as the rest of the SDK.
+
+## 2.1.0
+
+### Minor Changes
+
+- _(@youversion/platform-react-native-expo-core)_ 862597e: No changes in core. This version matches `@youversion/platform-react-native-expo-ui` 2.1.0.
+
+- _(@youversion/platform-react-native-expo-ui)_ 862597e: **Action required:** update `react-native-reanimated` to 4.5.3 or newer, then rebuild the native app. A JavaScript-only update is not enough.
+  - Verse of the Day and Bible Card draw the Bible App wordmark as an image. The translated "Bible App" text is gone. The `verse-of-the-day-attribution` and `bible-card-attribution` testIDs now point to that image, and their accessibility label is always the English "Bible App". Tests that look for the text or a translated label must change.
+  - Chapter numbers in the book picker stay the same size at every system text size.
+  - Reader bar labels (book and chapter, version, and the menu) do not grow past their normal size.
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 245646d: Require React Native Reanimated 4.5.3 or newer to include the upstream fix for
+  settled animations reverting to their initial position after a delayed React
+  render. Update the example app to 4.5.3. Consumers must update their compatible
+  Reanimated dependency and rebuild the native app; a JavaScript-only update is
+  not sufficient. The configured fixed release group keeps core and UI aligned.
+
+- _(@youversion/platform-react-native-expo-ui)_ db682e2: Reader settings show the font names Inter and Untitled Serif in every language.
+
+- _(@youversion/platform-react-native-expo-ui)_ 7b0c7b8: A failed Bible search shows the same neutral message and Try again button as the web reader. A search with no verses still says there are no Bible results, with no retry.
+
+- _(@youversion/platform-react-native-expo-ui)_ 9357d01: Sync localization from platform-localization (13a6914): update 1020 keys in af, ar, cy, de, es, fr, ig, nl, no, pt, ru, sr, tr, uk, vi, zh.
+
+- _(@youversion/platform-react-native-expo-ui)_ a27f1a4: Sync localization from platform-localization (237cba4): update 1 keys in es.
+
+- _(@youversion/platform-react-native-expo-ui)_ 04bce0e: Sync localization from platform-localization (2b7ad89): update 1 keys in en.
+
+- _(@youversion/platform-react-native-expo-ui)_ a9f8040: Sync localization from platform-localization (c9807be): update 178 keys in en, es, ig, sr.
+
+- _(@youversion/platform-react-native-expo-ui)_ ab980fa: Chapter chips in the book picker use a 4-point corner, sit closer together, and show an 18-point bold number. The selected book uses the same corner, and the Traditional and Alphabetical switch has space above it.
+
+- _(@youversion/platform-react-native-expo-ui)_ 78f638d: Verse of the Day and Bible Card show the Bible App wordmark. Light theme uses black text. Dark theme uses white text. The translated name is no longer drawn as text beside the icon.
+
 ## 2.0.0
 
 ### Major Changes

@@ -1,3 +1,5 @@
+import { buildSdkVersionHeaderValue } from '@youversion/platform-core'
+
 import { createSearchApi } from '../api'
 import { SEARCH_USER_INTENT } from '../types'
 
@@ -119,7 +121,7 @@ describe('createSearchApi', () => {
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe(buildSdkVersionHeaderValue())
     })
 
     it('returns empty queries on 204 without treating it as an error', async () => {
@@ -226,7 +228,7 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('page_token')).toBe('current-token')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe('ReactSDK=2.13.0')
+      expect(header(init, 'X-YVP-Sdk')).toBe(buildSdkVersionHeaderValue())
     })
 
     it('omits user_intent when unset and preserves future server values', async () => {
@@ -282,7 +284,7 @@ describe('createSearchApi', () => {
       expect(forbidden.error).toMatchObject({ kind: 'auth', status: 403 })
     })
 
-    it('returns transient failure for a 404, which means the Bible is unavailable', async () => {
+    it('returns not-found for a 404, which means the Bible is unavailable', async () => {
       mockFetch.mockResolvedValue(errorResponse(404))
 
       const missingBible = await api().verses({ query: 'zzzznotaword', bibleId: 111 })
@@ -290,9 +292,33 @@ describe('createSearchApi', () => {
       expect(missingBible).toEqual({
         ok: false,
         error: {
-          kind: 'transient',
+          kind: 'not-found',
           status: 404,
           message: 'HTTP error! status: 404',
+        },
+      })
+    })
+
+    it('maps 400 to invalid-parameter and keeps 429 transient', async () => {
+      mockFetch.mockResolvedValue(errorResponse(400))
+      const rejected = await api().verses({ query: 'love', bibleId: 111 })
+      expect(rejected).toEqual({
+        ok: false,
+        error: {
+          kind: 'invalid-parameter',
+          status: 400,
+          message: 'HTTP error! status: 400',
+        },
+      })
+
+      mockFetch.mockResolvedValue(errorResponse(429))
+      const retryable = await api().verses({ query: 'love', bibleId: 111 })
+      expect(retryable).toEqual({
+        ok: false,
+        error: {
+          kind: 'transient',
+          status: 429,
+          message: 'HTTP error! status: 429',
         },
       })
     })

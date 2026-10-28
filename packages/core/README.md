@@ -13,7 +13,7 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ Bible highlights with optimistic writes and an instant local cache (`useHighlights`)
 - ✅ Highlights made offline that survive a relaunch and land on their own
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
-- ✅ Bible search (`useSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
+- ✅ Bible search (`useSearch`, `useUnifiedSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
@@ -180,7 +180,7 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path �
 
 ### Search
 
-`useSearch()` returns the search client for the current provider. Call it under `YouVersionProvider`. `suggestedQueries`, `trendingQueries`, `verses`, and `topics` each return `{ ok: true, value }` or `{ ok: false, error }`. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as an empty query or a bad language tag. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
 import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
@@ -191,6 +191,61 @@ function useFindVerse() {
   return async (query: string) => {
     const result = await search.verses({ query, bibleId: 111 })
     return result.ok ? biblePassageAnchorFromPassageId(result.value.verses[0]?.id ?? '', 111) : null
+  }
+}
+```
+
+`useUnifiedSearch` reads verses, topics, and images together. The request is `GET /v1/search-unified`. It returns `{ data, loading, error, refetch }`.
+
+```tsx
+import {
+  useUnifiedSearch,
+  type YouVersionImageSearchResult,
+} from '@youversion/platform-react-native-expo-core'
+
+function ImageHits({ query }: { query: string }) {
+  const { data, loading, error, refetch } = useUnifiedSearch(
+    { query, bibleId: 111, languageRanges: ['en'], fields: ['images'] },
+    { keepPreviousData: true },
+  )
+  const image: YouVersionImageSearchResult | undefined = data?.images[0]
+
+  return { image, loading, error, refetch }
+}
+```
+
+`query`, `bibleId`, and `languageRanges` are required. `languageRanges` is one tag or a readonly list, and `en_US` is sent as `en-us`. A blank query, a query longer than 100 characters, an empty language list, a language tag the client rejects, or `fields: []` leaves the hook idle: `data` is null, `loading` is false, and `error` is null. That case does not call the network.
+
+`fields` is optional. Leave it out and the service picks the collections. Pass any of `verses`, `topics`, and `images`. `['images']` asks for images only. Repeated names are sent once. `userIntent` is optional too. Leave it out and the service uses `unknown`. The request accepts `reference`, `text`, `topical`, and `unknown`. A response can carry a newer intent string, and that string is kept on `data.userIntent`.
+
+`data` always includes `verses`, `topics`, `images`, `didYouMean`, and `searchInsteadFor`. A collection the response leaves out comes back as `[]`. `searchInsteadFor` is `null` when the response leaves it out. `YouVersionImageSearchResult` is `{ id, passageId }`. `id` is an opaque string. `passageId` is a verse or a verse range such as `1CO.13.4-7`. The hit has no image URL. Pass `passageId` to `biblePassageAnchorFromPassageId`.
+
+The response has no total. A verse whose reference is not a USFM passage is left out. A topic that leaves out `id` is left out. An image with an empty id, a non-string id, or a passage that is not USFM is left out. `verses.length`, `topics.length`, and `images.length` count only the rows that remain.
+
+`keepPreviousData` defaults to true, so the previous snapshot from this same app key, API host, and installation id stays up while the next query loads. A change of any of those three drops that snapshot. `enabled: false` skips the request.
+
+`loading` is true while the first request for the current query is in flight, and while `refetch` follows an error. After a success, `refetch` keeps the last results and leaves `loading` false.
+
+`error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as a bible id of 0, an unknown field, or an unknown request intent. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure.
+
+`hookOverrides.useUnifiedSearch` replaces the hook. Return `{ data, loading, error, refetch }` from it. While the override is set, the hook returns that value and skips the network.
+
+### Images
+
+`useImages()` returns `{ list, get }` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. Requests go to `/v1/images`. A list item includes `image_url` and `passage_id`. Pass `page_token` from the previous page's `next_page_token`, and set `page_size` for the page length. `total_size` can be larger than `data.length` because records that break the contract are dropped. A request cannot be aborted. Ignore a result that arrives after unmount or after the inputs change. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as a blank id or a `page_size` outside 1 to 99. `transient` is 408, 429, any 5xx, a malformed body, or a network failure.
+
+```tsx
+import { useImages } from '@youversion/platform-react-native-expo-core'
+
+function usePassageImages(passageId: string) {
+  const { list } = useImages()
+
+  return async () => {
+    const result = await list({ passage_id: passageId, page_size: 10 })
+    if (result.ok === false) {
+      return result.error
+    }
+    return result.value
   }
 }
 ```

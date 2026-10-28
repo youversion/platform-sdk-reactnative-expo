@@ -451,7 +451,7 @@ describe('BibleReaderSearchSheet', () => {
       trendingQueries: jest.fn(async () => ({
         ok: true as const,
         value: {
-          queries: [{ text: 'alpha' }, { text: 'beta' }, { text: 'gamma' }, { text: 'delta' }],
+          queries: [{ text: 'alpha' }, { text: 'bravo' }, { text: 'gamma' }, { text: 'delta' }],
         },
       })),
     })
@@ -479,7 +479,7 @@ describe('BibleReaderSearchSheet', () => {
     await flush()
 
     expect(screen.getByText('alpha')).toBeTruthy()
-    expect(screen.getByText('beta')).toBeTruthy()
+    expect(screen.getByText('bravo')).toBeTruthy()
     expect(screen.getByText('gamma')).toBeTruthy()
     expect(screen.queryByText('delta')).toBeNull()
     expect(screen.getByText('one')).toBeTruthy()

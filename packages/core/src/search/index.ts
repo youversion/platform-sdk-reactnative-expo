@@ -12,7 +12,16 @@ export {
   type YouVersionSearchTopic,
   type YouVersionSearchUserIntent,
   type YouVersionTopicSearchResults,
+  type YouVersionImageSearchResult,
+  type YouVersionUnifiedSearchField,
+  type YouVersionUnifiedSearchResults,
   type YouVersionVerseSearchResult,
   type YouVersionVerseSearchResults,
 } from './types'
 export { useSearch, type UseSearchResult } from './use-search'
+export {
+  useUnifiedSearch,
+  type UseUnifiedSearchOptions,
+  type UseUnifiedSearchProps,
+  type UseUnifiedSearchResult,
+} from './use-unified-search'

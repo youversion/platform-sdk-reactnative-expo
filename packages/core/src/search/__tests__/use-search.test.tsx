@@ -64,7 +64,9 @@ describe('useSearch', () => {
       ok: true,
       value: { queries: [{ text: 'love', source: 'trending' }] },
     })
-    expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/search-queries')
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
+      'https://api.example.com/v1/search-queries',
+    )
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
@@ -85,11 +87,16 @@ describe('useSearch', () => {
     }
 
     const { result } = renderHook(() => useSearch(), {
-      wrapper: ({ children }) => <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>,
+      wrapper: ({ children }) => (
+        <Wrapper hookOverrides={{ useSearch: () => stub }}>{children}</Wrapper>
+      ),
     })
 
     expect(result.current).toBe(stub)
-    const suggested = await result.current.suggestedQueries({ query: 'love', languageRanges: ['en'] })
+    const suggested = await result.current.suggestedQueries({
+      query: 'love',
+      languageRanges: ['en'],
+    })
     expect(suggested).toEqual({ ok: true, value: { queries: [{ text: 'stub' }] } })
     expect(mockFetch).not.toHaveBeenCalled()
   })

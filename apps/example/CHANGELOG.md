@@ -1,5 +1,33 @@
 # example
 
+## 1.0.12
+
+### Patch Changes
+
+- Updated dependencies [1b3ca57]
+- Updated dependencies [4b87ab9]
+- Updated dependencies [1b3ca57]
+  - @youversion/platform-react-native-expo-ui@2.2.0
+  - @youversion/platform-react-native-expo-core@2.2.0
+
+## 1.0.11
+
+### Patch Changes
+
+- Updated dependencies [862597e]
+- Updated dependencies [245646d]
+- Updated dependencies [db682e2]
+- Updated dependencies [862597e]
+- Updated dependencies [7b0c7b8]
+- Updated dependencies [9357d01]
+- Updated dependencies [a27f1a4]
+- Updated dependencies [04bce0e]
+- Updated dependencies [a9f8040]
+- Updated dependencies [ab980fa]
+- Updated dependencies [78f638d]
+  - @youversion/platform-react-native-expo-core@2.1.0
+  - @youversion/platform-react-native-expo-ui@2.1.0
+
 ## 1.0.10
 
 ### Patch Changes

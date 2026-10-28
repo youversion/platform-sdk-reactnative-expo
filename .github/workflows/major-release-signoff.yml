@@ -1,35 +1,31 @@
-name: Major Release Signoff
+name: Major Release Signoff Evaluation
 
+# Called only by major-release-signoff-gate.yml, so it always runs main's copy of this
+# file. The PR's head is read as data; nothing the PR authors decides what gets posted.
 on:
-  pull_request:
-    # `edited` covers a retarget: the same head evaluated against a feature base can be
-    # green, and without re-evaluating, that result would stand once the base becomes main.
-    types: [opened, synchronize, reopened, edited]
-  issue_comment:
-    # `deleted` ensures the gate re-runs when a signoff comment is removed,
-    # so a previously-cached `success` status doesn't outlive its evidence.
-    types: [created, edited, deleted]
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: number
+      # Set only when a PR event triggered the evaluation, from the trusted payload. Empty
+      # for a comment, where the steps below look the head up instead.
+      head_sha:
+        required: false
+        type: string
+      base_ref:
+        required: false
+        type: string
 
 # Declared per job. The job that runs PR-authored code holds no write scopes, and the
 # job that can write statuses and comments never checks that code out.
 permissions: {}
-
-concurrency:
-  # Workflow concurrency is resolved before job `if` conditions. Isolate bot comment
-  # runs so comments from changeset-bot or this workflow cannot cancel an active PR
-  # evaluation before their jobs are skipped.
-  group: major-release-signoff-${{ github.event.pull_request.number || github.event.issue.number }}-${{ github.event_name == 'issue_comment' && github.event.comment.user.type == 'Bot' && format('bot-{0}', github.run_id) || 'evaluation' }}
-  cancel-in-progress: true
 
 env:
   STATUS_CONTEXT: major-release-signoff
 
 jobs:
   context:
-    # issue_comment fires for issues AND PRs across the repo. Skip non-PR
-    # issues and bot comments. Bot runs have isolated concurrency keys above,
-    # because this condition is not evaluated until after concurrency handling.
-    if: ${{ github.event_name != 'issue_comment' || (github.event.issue.pull_request != null && github.event.comment.user.type != 'Bot') }}
     name: Resolve PR context
     runs-on: ubuntu-latest
     permissions:
@@ -58,11 +54,13 @@ jobs:
       # the evaluation, and that dependency propagated its skip to `preview` on every
       # ordinary event, which made the gate report unknown impact on normal pushes.
       - name: Mark the status pending
-        if: ${{ github.event_name == 'pull_request' && github.event.action == 'edited' }}
+        # Every PR-event evaluation, because workflow_run does not say which action fired
+        # it. On a new push the SHA has no status yet, so the hold costs nothing there.
+        if: ${{ inputs.head_sha != '' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          BASE_REF: ${{ inputs.base_ref }}
           REPOSITORY: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -75,20 +73,18 @@ jobs:
           gh api "repos/$REPOSITORY/statuses/$HEAD_SHA" \
             -f state=pending \
             -f context="$CTX" \
-            -f description="Base branch changed; re-evaluating release impact." \
+            -f description="Re-evaluating release impact." \
             -f target_url="$RUN_URL" > /dev/null
-          echo "Held $CTX pending while the retarget is re-evaluated."
+          echo "Held $CTX pending while the PR is re-evaluated."
 
       - name: Resolve PR context
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ inputs.pr_number }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          PR_NUMBER=${EVENT_PR_NUMBER:-$EVENT_ISSUE_NUMBER}
           # Resolve every event through the API. In particular, issue_comment payloads
           # contain no PR head, and created/edited/deleted comments must evaluate the
           # current immutable head rather than the head from an earlier workflow run.
@@ -264,6 +260,7 @@ jobs:
         with:
           ref: ${{ needs.context.outputs.head_sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Restore release tooling from the base branch
         # The PR supplies changeset *data* only. The detector that reads it, the dependency
@@ -394,26 +391,25 @@ jobs:
       - name: Post an unresolved status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-          PAYLOAD_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PAYLOAD_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+          BASE_REF: ${{ inputs.base_ref }}
           REPOSITORY: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          # `context` failed, so its resolved context is empty. A pull_request payload still
+          # `context` failed, so its resolved context is empty. A PR-event evaluation still
           # carries the base, and using it matters: two PRs can share a head, so writing this
           # failure to the required context would red-flag a main-targeted PR because a
           # feature-targeted one could not resolve. Where the base is unknowable, fall back
           # to the required context rather than leave a stale green.
-          if [ -n "$PAYLOAD_BASE_REF" ] && [ "$PAYLOAD_BASE_REF" != "main" ]; then
-            RESOLVED_STATUS_CONTEXT="$STATUS_CONTEXT/$PAYLOAD_BASE_REF"
+          if [ -n "$BASE_REF" ] && [ "$BASE_REF" != "main" ]; then
+            RESOLVED_STATUS_CONTEXT="$STATUS_CONTEXT/$BASE_REF"
           fi
-          HEAD_SHA="$PAYLOAD_HEAD_SHA"
           if [ -z "$HEAD_SHA" ]; then
             HEAD_SHA=$(git ls-remote \
               "https://x-access-token:$GH_TOKEN@github.com/$REPOSITORY" \
-              "refs/pull/$EVENT_ISSUE_NUMBER/head" | cut -f1) || HEAD_SHA=""
+              "refs/pull/$PR_NUMBER/head" | cut -f1) || HEAD_SHA=""
           fi
           if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
             echo "::error::PR context is unresolved and no head SHA could be recovered."
@@ -695,7 +691,7 @@ jobs:
             -f target_url="$RUN_URL"
 
       - name: Upsert blocking comment when signoff missing
-        if: always() && !cancelled() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1' && github.event_name == 'pull_request'
+        if: always() && !cancelled() && steps.decision.outputs.blocked == '' && steps.decision.outputs.is_major == '1' && steps.signoff.outputs.signed_off != '1' && inputs.head_sha != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ needs.context.outputs.pr_number }}
