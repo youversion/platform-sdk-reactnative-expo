@@ -31,8 +31,14 @@ import { sansFace } from '../theme/fonts'
 import { useSerifFace } from '../theme/use-fonts'
 import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
-import { highlightEndRoom, Passage, type PassageLook, type VerseFocusDim } from './scripture/passage'
+import {
+  highlightEndRoom,
+  Passage,
+  type PassageLook,
+  type VerseFocusDim,
+} from './scripture/passage'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
+import { focusLineBox, focusScrollOffset, type LineBox } from './scripture/verse-line'
 import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
 
 type BibleReaderNativeProps = BibleReaderBodyProps &
@@ -42,6 +48,11 @@ type BibleReaderNativeProps = BibleReaderBodyProps &
 type BlockLayouts = {
   key: string | null
   byIndex: Map<number, { y: number; height: number }>
+}
+
+type VerseLineStore = {
+  token: string
+  byIndex: Map<number, ReadonlyMap<number, LineBox>>
 }
 
 const DEFAULT_FOCUS = {
@@ -319,6 +330,9 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const passageTop = useRef(0)
   // Tagged with the passage they measured, so a focus never lands on the last chapter's positions.
   const blockLayouts = useRef<BlockLayouts>({ key: null, byIndex: new Map() })
+  const verseLines = useRef<VerseLineStore>({ token: '', byIndex: new Map() })
+  const lineTokenRef = useRef('')
+  lineTokenRef.current = passage === null ? '' : `${passage.key}|${fontSize}|${lineSpacing}`
   const blockRefs = useRef(new Map<number, RNTextInstance>())
   const layoutKey = passage?.key ?? null
   const onBlockLayout = useCallback(
@@ -329,6 +343,19 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       blockLayouts.current.byIndex.set(index, { y, height })
     },
     [layoutKey],
+  )
+  const onVerseLines = useCallback(
+    (index: number, boxes: ReadonlyMap<number, LineBox> | null): void => {
+      if (boxes === null || boxes.size === 0) {
+        return
+      }
+      const token = lineTokenRef.current
+      if (verseLines.current.token !== token) {
+        verseLines.current = { token, byIndex: new Map() }
+      }
+      verseLines.current.byIndex.set(index, boxes)
+    },
+    [],
   )
   const onBlockRef = useCallback((index: number, node: RNTextInstance | null): void => {
     if (node === null) {
@@ -341,6 +368,23 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // A new book or chapter starts at the top; a version swap keeps the reader's place.
   const shownChapter = useRef<string | null>(null)
   const renderedKey = isCurrent ? passage.key : null
+  const focusTarget = useMemo(() => {
+    if (!verseFocus.shouldFocus || !verseFocus.scrollsToVerse) {
+      return null
+    }
+    return parseFocusPassageId(verseFocus.passageId)
+  }, [verseFocus.shouldFocus, verseFocus.scrollsToVerse, verseFocus.passageId])
+  let probeVerses: readonly number[] | null = null
+  if (
+    focusTarget !== null &&
+    isCurrent &&
+    passage !== null &&
+    passage.versionId === verseFocus.versionId &&
+    focusTarget.book.toUpperCase() === book.toUpperCase() &&
+    focusTarget.chapter === chapter
+  ) {
+    probeVerses = focusTarget.verses
+  }
   useEffect(() => {
     if (renderedKey === null) {
       return
@@ -403,24 +447,41 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
         ? -1
         : passage.parsed.blocks.findIndex((b) => b.verses.some((v) => target.verses.includes(v)))
     // Block layouts land after commit; poll briefly instead of threading a layout counter.
-    let tries = 0
+    // A paragraph taller than the screen needs the verse's own line, which arrives with the text.
+    let layoutTries = 0
+    let lineTries = 0
     let frame: number | null = null
     let timer: ReturnType<typeof setTimeout> | null = null
     const land = (): void => {
       const layouts = blockLayouts.current
       const layout = layouts.key === passage.key ? layouts.byIndex.get(blockIndex) : undefined
-      if (blockIndex >= 0 && layout === undefined && tries < 10) {
-        tries += 1
+      if (blockIndex >= 0 && layout === undefined && layoutTries < 10) {
+        layoutTries += 1
+        timer = setTimeout(land, 50)
+        return
+      }
+      const stored =
+        verseLines.current.token === lineTokenRef.current
+          ? verseLines.current.byIndex.get(blockIndex)
+          : undefined
+      const needsVerseLine =
+        layout !== undefined && scrollsToVerse && layout.height >= viewportHeight.current
+      if (needsVerseLine && stored === undefined && lineTries < 10) {
+        lineTries += 1
         timer = setTimeout(land, 50)
         return
       }
       if (layout !== undefined && scrollsToVerse) {
-        const top = passageTop.current + layout.y
-        const offset =
-          layout.height < viewportHeight.current
-            ? top + layout.height / 2 - viewportHeight.current / 2
-            : top - TOP_PADDING
-        scrollRef.current?.scrollTo({ y: Math.max(0, offset), animated: true })
+        const verseBox =
+          needsVerseLine && stored !== undefined && target !== null
+            ? focusLineBox(stored, target.verses)
+            : null
+        const top = passageTop.current + layout.y + (verseBox?.y ?? 0)
+        const height = verseBox?.height ?? layout.height
+        scrollRef.current?.scrollTo({
+          y: focusScrollOffset(top, height, viewportHeight.current, TOP_PADDING),
+          animated: true,
+        })
       }
       // A verse this text omits (NIV Matthew 17:21) matches no block; dimming would dim every
       // verse. Clear instead, so an earlier focus does not stay bright.
@@ -469,17 +530,18 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     : versionError === 'offline'
       ? t('offlineConnectionLostMessage')
       : t('generic.requestErrorBody')
-  const message = refused || unavailable
-    ? t('passageUnavailable')
-    : lookupMessage !== null
-      ? lookupMessage
-      : load.error === 'offline'
-        ? t('offlineConnectionLostMessage')
-        : load.error === 'unavailable'
-          ? t('passageUnavailable')
-          : load.error === 'failed'
-            ? t('generic.requestErrorBody')
-            : null
+  const message =
+    refused || unavailable
+      ? t('passageUnavailable')
+      : lookupMessage !== null
+        ? lookupMessage
+        : load.error === 'offline'
+          ? t('offlineConnectionLostMessage')
+          : load.error === 'unavailable'
+            ? t('passageUnavailable')
+            : load.error === 'failed'
+              ? t('generic.requestErrorBody')
+              : null
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -542,6 +604,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
                 onNotePress={onNotePress}
                 onBlockLayout={onBlockLayout}
                 onBlockRef={onBlockRef}
+                probeVerses={probeVerses}
+                onVerseLines={onVerseLines}
               />
             </View>
           )}
@@ -633,4 +697,3 @@ function isChapterMissing(entry: BookCatalogEntry | null, chapter: string): bool
   }
   return !entry.chapters.some((c) => c.id === chapter)
 }
-

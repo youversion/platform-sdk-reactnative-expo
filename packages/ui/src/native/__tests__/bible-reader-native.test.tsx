@@ -2,11 +2,12 @@ import type { FetchBibleContent } from '@youversion/platform-react-native-expo-c
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import type { ComponentProps } from 'react'
-import { StyleSheet, type ColorValue, type TextStyle } from 'react-native'
+import { ScrollView, StyleSheet, Text, type ColorValue, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderNative } from '../bible-reader-native'
 import type { BibleReaderVerseFocus } from '../bible-reader-navigation'
+import { parsePassage } from '../scripture/parse-passage'
 
 const VERSION_ID = 3034
 const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
@@ -517,6 +518,83 @@ describe('BibleReaderNative', () => {
     })
 
     expect(onVerseFocusApplied).not.toHaveBeenCalled()
+  })
+
+  it('scrolls a tall paragraph to the requested verse line', async () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+      'In the beginning <span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>He was with God</div></div>'
+    const fetchBibleContent: FetchBibleContent = async () => ({
+      status: 200,
+      body: JSON.stringify({ content: html, reference: 'John 1' }),
+      contentType: 'application/json',
+    })
+    const block = parsePassage(html).blocks[0]
+    const verseText = (verse: number): string => {
+      const inline = block?.segments
+        .find((segment) => segment.verse === verse)
+        ?.inlines.find((item) => item.kind === 'text')
+      if (inline?.kind !== 'text') {
+        throw new Error(`missing verse ${verse}`)
+      }
+      return inline.text
+    }
+    const scrollTo = jest.fn()
+    const scrollSpy = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(scrollTo)
+    const reader = mount({ fetchBibleContent })
+
+    await screen.findByText('He was with God')
+    reader.update({ verseFocus: { ...FOCUS, passageId: 'JHN.1.2' } })
+
+    const paragraph = screen.UNSAFE_getAllByType(Text).find((node) => node.props.onTextLayout)
+    if (paragraph === undefined) {
+      throw new Error('missing paragraph layout')
+    }
+    const ancestors: ReactTestInstance[] = []
+    let parent = paragraph.parent
+    while (parent !== null && ancestors.length < 2) {
+      if (parent.props.onLayout !== undefined) {
+        ancestors.push(parent)
+      }
+      parent = parent.parent
+    }
+    const blockView = ancestors[0]
+    const passage = ancestors[1]
+    if (blockView === undefined || passage === undefined) {
+      throw new Error('missing block layout')
+    }
+    const lineY = 480
+    const lineHeight = 32
+    const viewport = 200
+    const passageTop = 16
+    fireEvent(paragraph, 'textLayout', {
+      nativeEvent: {
+        lines: [
+          { text: verseText(1), y: 0, height: lineHeight },
+          { text: verseText(2), y: lineY, height: lineHeight },
+        ],
+      },
+    })
+    fireEvent(blockView, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 800 } },
+    })
+    fireEvent(passage, 'layout', {
+      nativeEvent: { layout: { x: 0, y: passageTop, width: 300, height: 800 } },
+    })
+    fireEvent(screen.UNSAFE_getByType(ScrollView), 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 300, height: viewport } },
+    })
+
+    try {
+      await waitFor(() => {
+        expect(scrollTo).toHaveBeenLastCalledWith({
+          y: passageTop + lineY + lineHeight / 2 - viewport / 2,
+          animated: true,
+        })
+      })
+    } finally {
+      scrollSpy.mockRestore()
+    }
   })
 
   it('clears the dim when a later focus targets a verse the text omits', async () => {

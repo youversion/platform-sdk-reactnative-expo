@@ -18,6 +18,7 @@ import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import type { HighlightPaint } from './highlight-colors'
 import type { Block, Inline } from './parse-passage'
+import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
 import {
   blockMarginBottom,
   collapsedMarginTop,
@@ -58,6 +59,9 @@ type PassageProps = {
   onNotePress: (verse: number | null, html: string) => void
   onBlockLayout: (index: number, y: number, height: number) => void
   onBlockRef: (index: number, node: RNTextInstance | null) => void
+  /** Verses whose line positions the reader needs before it can scroll. */
+  probeVerses?: readonly number[] | null
+  onVerseLines?: (index: number, boxes: ReadonlyMap<number, LineBox> | null) => void
 }
 
 // Swift raises the label 0.2em so its top meets the cap height; RN has no baseline
@@ -155,6 +159,8 @@ const BlockView = memo(function BlockView({
   onNotePress,
   onBlockLayout,
   onBlockRef,
+  probeVerses = null,
+  onVerseLines,
 }: BlockViewProps): ReactNode {
   const { t } = useSdkTranslation()
   const { fontSize } = look
@@ -180,6 +186,16 @@ const BlockView = memo(function BlockView({
       return next
     })
   const measured = hasSelection || hasPaint
+  const reportLines = onVerseLines !== undefined && blockProbed(block, probeVerses)
+  const onParagraphLayout = (event: TextLayoutEvent): void => {
+    const laidOut = event.nativeEvent.lines
+    if (measured) {
+      update({ lines: laidOut })
+    }
+    if (onVerseLines !== undefined && reportLines) {
+      onVerseLines(index, verseLineBoxes(laidOut, block, rule.smallCaps))
+    }
+  }
   const color = (hex: string, alpha: number, dimmed: boolean): string => {
     const value = dimmed ? alpha * DIM_ALPHA : alpha
     return value === 1 ? hex : withAlpha(hex, value)
@@ -340,11 +356,7 @@ const BlockView = memo(function BlockView({
     return (
       <RNText
         ref={ghost ? undefined : (node) => onBlockRef(index, node)}
-        onTextLayout={
-          ghost || !measured
-            ? undefined
-            : (event: TextLayoutEvent) => update({ lines: event.nativeEvent.lines })
-        }
+        onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
         allowFontScaling={false}
         style={{
           fontSize: rule.size,
@@ -741,13 +753,23 @@ function backdrop(
 
 // Fabric iOS misplaces inline-View attachments (labels, note icons) when a
 // paragraph re-renders in place; a remount lays them out fresh.
+function blockProbed(block: Block, probeVerses: readonly number[] | null | undefined): boolean {
+  if (probeVerses == null) {
+    return false
+  }
+  return block.verses.some((verse) => probeVerses.includes(verse))
+}
+
 function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): string {
   const { look } = state
   const focused = state.focus === null ? 'n' : 'f'
+  // Remount when a focus starts measuring lines. An in-place update does not emit them again.
+  const probe = blockProbed(block, state.probeVerses) ? 'p' : '.'
   const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false).fontFamily}|${look.ink}|`
   return (
     looks +
     focused +
+    probe +
     block.verses
       .map(
         (verse) =>
@@ -768,6 +790,8 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
     a.onNotePress !== b.onNotePress ||
     a.onBlockLayout !== b.onBlockLayout ||
     a.onBlockRef !== b.onBlockRef ||
+    a.onVerseLines !== b.onVerseLines ||
+    blockProbed(a.block, a.probeVerses) !== blockProbed(b.block, b.probeVerses) ||
     (a.focus === null) !== (b.focus === null)
   ) {
     return false
@@ -795,7 +819,7 @@ export function smallCaps(text: string, size: number): ReactNode[] {
         key={i}
         style={{ fontSize: size * SMALL_CAP_SCALE, letterSpacing: size * SMALL_CAP_TRACKING }}
       >
-        {match[1].toUpperCase()}
+        {applySmallCaps(match[1])}
       </RNText>
     ),
   )
