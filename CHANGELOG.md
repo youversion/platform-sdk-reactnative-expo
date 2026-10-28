@@ -10,6 +10,12 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.2.1
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 5342263: Sync localization from platform-localization (dc70b8b): update 3 keys in en.
+
 ## 2.2.0
 
 ### Minor Changes
