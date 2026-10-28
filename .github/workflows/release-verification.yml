@@ -1,0 +1,88 @@
+name: Release verification
+
+# Builds the Version Packages PR head and runs the HINQA device suite on it in
+# the automation repo (the same workflow as the iOS and Android nightlies), then
+# reports the result as the `release-verification` commit status. It follows
+# Release because a PR that GITHUB_TOKEN opens or updates fires no
+# pull_request workflows.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+# A newer release PR head makes the run for the older one moot.
+concurrency:
+  group: release-verification
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run the device suite on the release PR head
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPATCH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
+          AUTOMATION_REPO: youversion/platform-sdk-reactnative-expo_automation
+          WORKFLOW_FILE: browserstack-manual.yml
+        run: |
+          set -euo pipefail
+          SHA=$(gh pr list -R "$GITHUB_REPOSITORY" --head changeset-release/main --state open \
+            --json headRefOid --jq '.[0].headRefOid // empty')
+          if [ -z "$SHA" ]; then echo "No open release PR."; exit 0; fi
+
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          RUN_ID=""
+          status() {
+            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f context=release-verification \
+              -f state="$1" -f description="$2" -f target_url="$3" > /dev/null
+          }
+          finish() { trap - EXIT; status "$@"; }
+          automation() { GH_TOKEN="$DISPATCH_TOKEN" gh "$@"; }
+          # Also runs when a newer release PR head cancels this job.
+          trap 'if [ -n "$RUN_ID" ]; then automation run cancel "$RUN_ID" -R "$AUTOMATION_REPO" || true; fi
+            status error "Stopped before finishing; see the run log." "$RUN_URL"' EXIT
+
+          # One platform at a time: the automation workflow shares one concurrency
+          # group, which cancels an older pending run when a newer one queues.
+          for PLATFORM in ios android; do
+            BUILD_NAME="Release verification ${SHA:0:7} $PLATFORM $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT"
+            jq -n --arg sdk_ref "$SHA" --arg platform "$PLATFORM" --arg build_name "$BUILD_NAME" \
+              '{ref: "main", inputs: {sdk_ref: $sdk_ref, platform: $platform,
+                target: "app-automate", bs_parallel: "8", build_name: $build_name}}' |
+              automation api --method POST \
+                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" --input -
+
+            for _ in $(seq 1 20); do
+              RUN_ID=$(automation api \
+                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/runs?event=workflow_dispatch&per_page=20" \
+                --jq ".workflow_runs[] | select(.display_title | startswith(\"$BUILD_NAME #\")) | .id" | head -1)
+              [ -n "$RUN_ID" ] && break
+              sleep 3
+            done
+            if [ -z "$RUN_ID" ]; then finish error "Could not find the $PLATFORM test run." "$RUN_URL"; exit 1; fi
+            URL="https://github.com/$AUTOMATION_REPO/actions/runs/$RUN_ID"
+            status pending "Running the $PLATFORM device suite." "$URL"
+
+            CONCLUSION=""
+            while [ -z "$CONCLUSION" ]; do
+              sleep 30
+              CONCLUSION=$(automation api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID" \
+                --jq 'select(.status == "completed") | .conclusion')
+            done
+            RUN_ID=""
+            case "$CONCLUSION" in
+              success) ;;
+              # A nightly queued in the shared group cancels a pending run; that is not a test result.
+              cancelled) finish error "The $PLATFORM run was cancelled; re-run this check." "$URL"; exit 1 ;;
+              *) finish failure "The $PLATFORM device suite ended: $CONCLUSION." "$URL"; exit 1 ;;
+            esac
+          done
+          finish success "The iOS and Android device suites passed." "$RUN_URL"
