@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { LocaleProvider } from '../../../i18n/locale-context'
-import type { Block } from '../parse-passage'
+import { parsePassage, type Block } from '../parse-passage'
 import {
   Passage,
   coverRects,
@@ -164,6 +164,54 @@ describe('paragraph alignment', () => {
   it('keeps an explicit right line on the right in a right-to-left passage', () => {
     renderBlock(['qr'], 'סלה', true)
     expect(textAligns('סלה')).toEqual(['right'])
+  })
+
+  it('draws a qs pause on the right in a left-to-right passage and leaves the period on the left', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span>the Holy One from the mountain. ' +
+      '<span class="qs">Selah</span>.</div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={{
+            ...LOOK,
+            face: (_weight, italic) => (italic ? { fontStyle: 'italic' } : {}),
+          }}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    expect(textAligns('Selah')).toEqual(['right'])
+    expect(textAligns('.')).toEqual(['left'])
+    const selah = screen.getByText('Selah')
+    expect(StyleSheet.flatten(selah.props.style)?.fontStyle).toBe('italic')
+  })
+
+  it('draws a qs pause on the left in a right-to-left passage', () => {
+    const html = '<div><div class="q"><span class="qs">סלה</span></div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={{ ...LOOK, rtl: true }}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    expect(textAligns('סלה')).toEqual(['left'])
   })
 
   it('names the footnote button with the shared label', () => {

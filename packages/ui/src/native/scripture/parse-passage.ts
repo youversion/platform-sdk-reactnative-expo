@@ -45,7 +45,7 @@ export function parsePassage(rawHtml: string): ParsedPassage {
       return ''
     },
   })
-  const blocks = captured === null ? [] : walk(captured)
+  const blocks = captured === null ? [] : walk(captured).flatMap(splitSelahPauses)
   return { blocks, verses: collectVerses(blocks), rtl: isRtlText(blocks) }
 }
 
@@ -140,6 +140,140 @@ function walk(doc: Document): Block[] {
   return blocks
 }
 
+/**
+ * A footnote marker that sits immediately after a Selah pause.
+ * Open decision for YPE-6405. The marker stays on the pause line.
+ * Return false to put the marker on the following line.
+ */
+function footnoteStaysBesideSelah(): boolean {
+  return true
+}
+
+type PlacedInline = { verse: number | null; inline: Inline }
+
+function isSelahText(inline: Inline): boolean {
+  return inline.kind === 'text' && inline.classes.includes('qs')
+}
+
+function isBlankText(inline: Inline): boolean {
+  return inline.kind === 'text' && inline.text.trim() === ''
+}
+
+function placedInlines(block: Block): PlacedInline[] {
+  const placed: PlacedInline[] = []
+  for (const segment of block.segments) {
+    for (const inline of segment.inlines) {
+      placed.push({ verse: segment.verse, inline })
+    }
+  }
+  return placed
+}
+
+function blockFromPlaced(
+  classes: readonly string[],
+  heading: boolean,
+  placed: readonly PlacedInline[],
+): Block | null {
+  if (placed.every((item) => isBlankText(item.inline))) {
+    return null
+  }
+  const segments: Segment[] = []
+  for (const item of placed) {
+    const last = segments.at(-1)
+    if (last !== undefined && last.verse === item.verse) {
+      last.inlines.push(item.inline)
+    } else {
+      segments.push({ verse: item.verse, inlines: [item.inline] })
+    }
+  }
+  const verses = [
+    ...new Set(segments.flatMap((segment) => (segment.verse === null ? [] : [segment.verse]))),
+  ]
+  return { classes, heading, segments, verses }
+}
+
+function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
+  let end = start
+  while (end < placed.length) {
+    const item = placed[end]
+    if (item === undefined || !isSelahText(item.inline)) {
+      break
+    }
+    end += 1
+  }
+  if (!footnoteStaysBesideSelah()) {
+    return end
+  }
+  let cursor = end
+  while (cursor < placed.length) {
+    const item = placed[cursor]
+    if (item === undefined || !isBlankText(item.inline)) {
+      break
+    }
+    cursor += 1
+  }
+  const after = placed[cursor]
+  if (after !== undefined && after.inline.kind === 'note') {
+    return cursor + 1
+  }
+  return end
+}
+
+function splitSelahPauses(block: Block): Block[] {
+  if (block.classes.includes('qr')) {
+    return [block]
+  }
+  const placed = placedInlines(block)
+  if (!placed.some((item) => isSelahText(item.inline))) {
+    return [block]
+  }
+  const blocks: Block[] = []
+  let cursor = 0
+  while (cursor < placed.length) {
+    const current = placed[cursor]
+    if (current !== undefined && isSelahText(current.inline)) {
+      const end = selahRunEnd(placed, cursor)
+      const pauseClasses = block.classes.includes('qs') ? block.classes : [...block.classes, 'qs']
+      const pause = blockFromPlaced(pauseClasses, block.heading, placed.slice(cursor, end))
+      if (pause !== null) {
+        blocks.push(pause)
+      }
+      cursor = end
+      continue
+    }
+    let end = cursor + 1
+    while (end < placed.length) {
+      const next = placed[end]
+      if (next !== undefined && isSelahText(next.inline)) {
+        break
+      }
+      end += 1
+    }
+    const prose = blockFromPlaced(block.classes, block.heading, placed.slice(cursor, end))
+    if (prose !== null) {
+      blocks.push(prose)
+    }
+    cursor = end
+  }
+  if (blocks.length === 0) {
+    return [block]
+  }
+  return blocks
+}
+
+function joinVerseParts(parts: readonly string[]): string {
+  let joined = ''
+  for (const part of parts) {
+    if (joined === '') {
+      joined = part
+      continue
+    }
+    const glue = part.startsWith('.') ? '' : ' '
+    joined = `${joined}${glue}${part}`
+  }
+  return joined.replace(/\s+/g, ' ').trim()
+}
+
 function classList(el: Element): string[] {
   return (el.getAttribute('class') ?? '').split(/\s+/).filter((c) => c !== '')
 }
@@ -185,8 +319,8 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
       htmls.push(html.trim())
     }
     verses.set(verse, {
-      text: texts.join(' ').replace(/\s+/g, ' ').trim(),
-      html: htmls.join(' '),
+      text: joinVerseParts(texts),
+      html: joinVerseParts(htmls),
       notes,
     })
   }
