@@ -348,9 +348,18 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
-    // Ordinary blocks resolve to 'left'. iOS keeps that explicit left when the passage is rtl.
-    let textAlign = rule.align
-    if (textAlign === 'left' && look.rtl) {
+    // Ordinary blocks resolve to 'left', which is the start edge. `end` is the trailing
+    // edge, so a Selah pause sits on the right in LTR and the left in RTL.
+    let textAlign: 'left' | 'center' | 'right' = 'left'
+    if (rule.align === 'center') {
+      textAlign = 'center'
+    } else if (rule.align === 'end') {
+      if (look.rtl) {
+        textAlign = 'left'
+      } else {
+        textAlign = 'right'
+      }
+    } else if (rule.align === 'right' || look.rtl) {
       textAlign = 'right'
     }
     return (
