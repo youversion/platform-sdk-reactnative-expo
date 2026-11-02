@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import pkg from '../../../package.json'
 import type { YouVersionImageSearchResult } from '../../index'
 import { YouVersionContext } from '../../youversion-context'
 import {
@@ -178,6 +179,16 @@ describe('useUnifiedSearch', () => {
     expect(url.searchParams.has('page_token')).toBe(false)
     expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
     expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+  })
+
+  it('sends ReactNativeSDK on the unified search request', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(loveWire))
+
+    renderHook(() => useUnifiedSearch(ready), { wrapper: Wrapper })
+
+    await waitFor(() => expect(mockFetch).toHaveBeenCalled())
+    const headers = new Headers(lastCall().init.headers)
+    expect(headers.get('x-yvp-sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
   })
 
   it('keeps refetch and reuses the client across rerenders', async () => {
