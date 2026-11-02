@@ -58,33 +58,90 @@ describe('parsePassage', () => {
     expect(parsePassage(html).rtl).toBe(true)
   })
 
-  it('puts a qs pause inside q on its own end-aligned line and leaves the following period', () => {
+  it('puts a qs pause inside q on its own end-aligned line with the following period', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="yv-vlbl">3</span>' +
       'the Holy One from the mountain. <span class="qs">Selah</span>.</div></div>'
     const { blocks, verses } = parsePassage(html)
-    expect(blocks).toHaveLength(3)
+    expect(blocks).toHaveLength(2)
     const poetry = blocks[0]
     const pause = blocks[1]
-    const period = blocks[2]
-    if (poetry === undefined || pause === undefined || period === undefined) {
-      throw new Error('expected the poetry, the pause, and the period')
+    if (poetry === undefined || pause === undefined) {
+      throw new Error('expected the poetry and the pause')
     }
     expect(lineTexts(poetry)).toEqual(['the Holy One from the mountain. '])
     expect(resolveBlock(poetry.classes, 16).align).toBe('left')
-    expect(lineTexts(pause)).toEqual(['Selah'])
+    expect(lineTexts(pause)).toEqual(['Selah', '.'])
+    expect(lineKinds(pause)).toEqual(['text', 'text'])
     const pauseRun = pause.segments[0]?.inlines[0]
     expect(pauseRun).toMatchObject({ kind: 'text', text: 'Selah' })
     if (pauseRun?.kind === 'text') {
       expect(pauseRun.classes).toContain('qs')
     }
     expect(resolveBlock(pause.classes, 16).align).toBe('end')
-    expect(lineTexts(period)).toEqual(['.'])
-    expect(resolveBlock(period.classes, 16).align).toBe('left')
     expect(verses.get(3)?.text).toBe('the Holy One from the mountain. Selah.')
     expect(verses.get(3)?.html).toBe(
       'the Holy One from the mountain. <span class="qs">Selah</span>.',
     )
+  })
+
+  it('draws Selah and a following period on the end-aligned pause line', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>.</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const line = blocks[0]
+    if (line === undefined) {
+      throw new Error('expected the pause line')
+    }
+    expect(blocks).toHaveLength(1)
+    expect(lineTexts(line)).toEqual(['Selah', '.'])
+    expect(lineKinds(line)).toEqual(['text', 'text'])
+    expect(resolveBlock(line.classes, 16).align).toBe('end')
+    expect(verses.get(3)?.text).toBe('Selah.')
+    expect(verses.get(3)?.html).toBe('<span class="qs">Selah</span>.')
+  })
+
+  it('draws Selah, the footnote marker, then the period on the pause line', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>' +
+      '<span class="yv-n f"><span class="ft">Hebrew Selah</span></span>.</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const line = blocks[0]
+    if (line === undefined) {
+      throw new Error('expected the pause line')
+    }
+    expect(blocks).toHaveLength(1)
+    expect(lineKinds(line)).toEqual(['text', 'note', 'text'])
+    expect(lineTexts(line)).toEqual(['Selah', '.'])
+    expect(resolveBlock(line.classes, 16).align).toBe('end')
+    const notesOff = {
+      ...line,
+      segments: line.segments.map((segment) => ({
+        ...segment,
+        inlines: segment.inlines.filter((inline) => inline.kind !== 'note'),
+      })),
+    }
+    expect(lineKinds(notesOff)).toEqual(['text', 'text'])
+    expect(lineTexts(notesOff)).toEqual(['Selah', '.'])
+    expect(verses.get(3)?.text).toBe('Selah.')
+    expect(verses.get(3)?.html).toBe(
+      '<span class="qs">Selah</span><sup class="yv:text-muted-foreground">a</sup>.',
+    )
+  })
+
+  it('draws an exclamation mark on the Selah pause line', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>!</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const line = blocks[0]
+    if (line === undefined) {
+      throw new Error('expected the pause line')
+    }
+    expect(blocks).toHaveLength(1)
+    expect(lineTexts(line)).toEqual(['Selah', '!'])
+    expect(resolveBlock(line.classes, 16).align).toBe('end')
+    expect(verses.get(3)?.text).toBe('Selah!')
+    expect(verses.get(3)?.html).toBe('<span class="qs">Selah</span>!')
   })
 
   it('keeps an exclamation mark against a qs pause in the shared text', () => {
@@ -92,7 +149,7 @@ describe('parsePassage', () => {
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>!</div></div>'
     const { blocks, verses } = parsePassage(html)
     const verse = verses.get(3)
-    expect(blocks.map(lineTexts)).toEqual([['Selah'], ['!']])
+    expect(blocks.map(lineTexts)).toEqual([['Selah', '!']])
     expect(verse?.text).toBe('Selah!')
     expect(verse?.html).toBe('<span class="qs">Selah</span>!')
   })
@@ -113,7 +170,7 @@ describe('parsePassage', () => {
       '<span class="add">.</span></div></div>'
     const { blocks, verses } = parsePassage(html)
     const verse = verses.get(3)
-    expect(blocks.map(lineTexts)).toEqual([['Selah'], ['.']])
+    expect(blocks.map(lineTexts)).toEqual([['Selah', '.']])
     expect(verse?.text).toBe('Selah.')
     expect(verse?.html).toBe('<span class="qs">Selah</span><span class="add">.</span>')
   })

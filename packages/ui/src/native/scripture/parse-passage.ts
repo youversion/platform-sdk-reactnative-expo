@@ -192,6 +192,22 @@ function blockFromPlaced(
   return { classes, heading, segments, verses }
 }
 
+function isPausePunctuation(inline: Inline): boolean {
+  return inline.kind === 'text' && /^[\s.!?…]+$/u.test(inline.text) && inline.text.trim() !== ''
+}
+
+function skipBlanks(placed: readonly PlacedInline[], start: number): number {
+  let cursor = start
+  while (cursor < placed.length) {
+    const item = placed[cursor]
+    if (item === undefined || !isBlankText(item.inline)) {
+      break
+    }
+    cursor += 1
+  }
+  return cursor
+}
+
 function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
   let end = start
   while (end < placed.length) {
@@ -201,20 +217,22 @@ function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
     }
     end += 1
   }
-  if (!footnoteStaysBesideSelah()) {
-    return end
-  }
-  let cursor = end
-  while (cursor < placed.length) {
-    const item = placed[cursor]
-    if (item === undefined || !isBlankText(item.inline)) {
-      break
+  // Order on the pause line: the pause, then its footnote, then trailing punctuation.
+  let cursor = skipBlanks(placed, end)
+  let noteEnd: number | null = null
+  if (footnoteStaysBesideSelah()) {
+    const marker = placed[cursor]
+    if (marker !== undefined && marker.inline.kind === 'note') {
+      noteEnd = cursor + 1
+      cursor = skipBlanks(placed, noteEnd)
     }
-    cursor += 1
   }
-  const after = placed[cursor]
-  if (after !== undefined && after.inline.kind === 'note') {
+  const punct = placed[cursor]
+  if (punct !== undefined && isPausePunctuation(punct.inline)) {
     return cursor + 1
+  }
+  if (noteEnd !== null) {
+    return noteEnd
   }
   return end
 }
@@ -234,7 +252,17 @@ function splitSelahPauses(block: Block): Block[] {
     if (current !== undefined && isSelahText(current.inline)) {
       const end = selahRunEnd(placed, cursor)
       const pauseClasses = block.classes.includes('qs') ? block.classes : [...block.classes, 'qs']
-      const pause = blockFromPlaced(pauseClasses, block.heading, placed.slice(cursor, end))
+      const pauseItems = placed.slice(cursor, end).map((item) => {
+        if (item.inline.kind !== 'text' || !isPausePunctuation(item.inline)) {
+          return item
+        }
+        const text = item.inline.text.trim()
+        if (text === item.inline.text) {
+          return item
+        }
+        return { verse: item.verse, inline: { ...item.inline, text } }
+      })
+      const pause = blockFromPlaced(pauseClasses, block.heading, pauseItems)
       if (pause !== null) {
         blocks.push(pause)
       }

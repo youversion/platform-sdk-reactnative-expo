@@ -166,7 +166,7 @@ describe('paragraph alignment', () => {
     expect(textAligns('סלה')).toEqual(['right'])
   })
 
-  it('draws a qs pause on the right in a left-to-right passage and leaves the period on the left', () => {
+  it('draws a qs pause and its period on the right in a left-to-right passage', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span>the Holy One from the mountain. ' +
       '<span class="qs">Selah</span>.</div></div>'
@@ -189,7 +189,7 @@ describe('paragraph alignment', () => {
       </LocaleProvider>,
     )
     expect(textAligns('Selah')).toEqual(['right'])
-    expect(textAligns('.')).toEqual(['left'])
+    expect(textAligns('.')).toEqual(['right'])
     const selah = screen.getByText('Selah')
     expect(StyleSheet.flatten(selah.props.style)?.fontStyle).toBe('italic')
   })
