@@ -141,9 +141,8 @@ function walk(doc: Document): Block[] {
 }
 
 /**
- * A footnote marker that sits immediately after a Selah pause.
- * Open decision for YPE-6405. The marker stays on the pause line.
- * Return false to put the marker on the following line.
+ * A footnote marker immediately after a Selah pause stays on the pause line.
+ * That placement is the expected behavior.
  */
 function footnoteStaysBesideSelah(): boolean {
   return true
