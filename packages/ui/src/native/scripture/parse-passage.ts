@@ -45,8 +45,9 @@ export function parsePassage(rawHtml: string): ParsedPassage {
       return ''
     },
   })
-  const blocks = captured === null ? [] : walk(captured).flatMap(splitSelahPauses)
-  return { blocks, verses: collectVerses(blocks), rtl: isRtlText(blocks) }
+  const source = captured === null ? [] : walk(captured)
+  const blocks = source.flatMap(splitSelahPauses)
+  return { blocks, verses: collectVerses(source), rtl: isRtlText(blocks) }
 }
 
 function walk(doc: Document): Block[] {
@@ -261,16 +262,7 @@ function splitSelahPauses(block: Block): Block[] {
 }
 
 function joinVerseParts(parts: readonly string[]): string {
-  let joined = ''
-  for (const part of parts) {
-    if (joined === '') {
-      joined = part
-      continue
-    }
-    const glue = part.startsWith('.') ? '' : ' '
-    joined = `${joined}${glue}${part}`
-  }
-  return joined.replace(/\s+/g, ' ').trim()
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
 }
 
 function classList(el: Element): string[] {

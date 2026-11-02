@@ -82,6 +82,40 @@ describe('parsePassage', () => {
     expect(lineTexts(period)).toEqual(['.'])
     expect(resolveBlock(period.classes, 16).align).toBe('left')
     expect(verses.get(3)?.text).toBe('the Holy One from the mountain. Selah.')
+    expect(verses.get(3)?.html).toBe(
+      'the Holy One from the mountain. <span class="qs">Selah</span>.',
+    )
+  })
+
+  it('keeps an exclamation mark against a qs pause in the shared text', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>!</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const verse = verses.get(3)
+    expect(blocks.map(lineTexts)).toEqual([['Selah'], ['!']])
+    expect(verse?.text).toBe('Selah!')
+    expect(verse?.html).toBe('<span class="qs">Selah</span>!')
+  })
+
+  it('keeps a semicolon against a qs pause in the shared text', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>;</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const verse = verses.get(3)
+    expect(blocks.map(lineTexts)).toEqual([['Selah'], [';']])
+    expect(verse?.text).toBe('Selah;')
+    expect(verse?.html).toBe('<span class="qs">Selah</span>;')
+  })
+
+  it('keeps a span-wrapped period against a qs pause in the footnote html', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>' +
+      '<span class="add">.</span></div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const verse = verses.get(3)
+    expect(blocks.map(lineTexts)).toEqual([['Selah'], ['.']])
+    expect(verse?.text).toBe('Selah.')
+    expect(verse?.html).toBe('<span class="qs">Selah</span><span class="add">.</span>')
   })
 
   it('keeps a period that is inside the qs span on the pause line', () => {
