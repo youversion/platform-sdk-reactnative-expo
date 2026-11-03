@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
+Language for the React Native Expo SDK. `BibleReader`, `BibleTextView`, and footnote sheets draw native text. `BibleCard` and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
 
 ## Language
 
@@ -13,7 +13,7 @@ A `'use dom'` wrapper that renders React Web SDK content inside Expo's DOM/WebVi
 _Avoid_: WebView component, DOM view
 
 **Native Wrapper**:
-A React Native component that owns the public API and native presentation. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
+A React Native component that owns the public API and native presentation. `BibleReader`, `BibleTextView`, and footnote sheets draw native text. `BibleCard` and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
 _Avoid_: Container, adapter
 
 **Presentation Shell**:

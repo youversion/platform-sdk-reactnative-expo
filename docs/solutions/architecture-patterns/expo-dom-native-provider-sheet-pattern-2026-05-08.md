@@ -15,7 +15,7 @@ tags: [expo-dom, react-native, native-sheet, webview, provider]
 
 # Expo DOM Native Provider And Sheet Pattern
 
-> **Status.** Chrome, `BibleReader`, and footnotes are native. This note still applies to the scripture WebViews that remain, which are `BibleTextView`, `BibleCard`, and `VerseOfTheDay`.
+> **Status.** Chrome, `BibleReader`, `BibleTextView`, and footnotes are native. This note still applies to the scripture WebViews that remain, which are `BibleCard` and `VerseOfTheDay`.
 
 ## Context
 
@@ -39,13 +39,13 @@ Use a native provider for native concerns, then pass only serializable props int
 </GestureHandlerRootView>
 ```
 
-`YouVersionProvider` owns native context for `appKey` and resolved theme, and it wraps the internal `NativeSheetProvider`. Public components such as `BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` read native context and pass `appKey` plus theme into their DOM wrappers.
+`YouVersionProvider` owns native context for `appKey` and resolved theme, and it wraps the internal `NativeSheetProvider`. `BibleCard` and `VerseOfTheDay` read that context and pass `appKey` plus theme into the DOM text view. `BibleReader` and `BibleTextView` draw native text and do not.
 
 DOM wrappers still need their own web provider because each DOM component runs in a separate WebView JavaScript context:
 
 ```tsx
 <YouVersionProvider appKey={appKey} theme={theme}>
-  <BibleTextView {...props} />
+  {/* Web SDK scripture, inside dom/bible-text-view.tsx */}
 </YouVersionProvider>
 ```
 
