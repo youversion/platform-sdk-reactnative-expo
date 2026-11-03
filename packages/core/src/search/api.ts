@@ -10,6 +10,7 @@ import {
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
+import { mergeSdkHeaders } from '../sdk-version'
 import type {
   SearchApiError,
   SearchApiResult,
@@ -39,7 +40,7 @@ export function createSearchClient(config: CreateSearchApiConfig): SearchClient 
     appKey: config.appKey,
     apiHost: config.apiHost ?? DEFAULT_API_HOST,
     installationId: config.installationId,
-    additionalHeaders: config.additionalHeaders,
+    additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
     timeout: config.timeout,
   })
   return new SearchClient(http)

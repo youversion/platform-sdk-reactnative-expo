@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import pkg from '../../../package.json'
 import type { HookOverrides } from '../../hook-overrides'
 import { YouVersionContext } from '../../youversion-context'
 import type { UseSearchResult } from '../use-search'
@@ -67,6 +68,24 @@ describe('useSearch', () => {
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
       'https://api.example.com/v1/search-queries',
     )
+  })
+
+  it('sends ReactNativeSDK on the search request', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    const { result } = renderHook(() => useSearch(), {
+      wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+    })
+
+    await result.current.trendingQueries({ languageRanges: ['en'] })
+
+    const headers = new Headers(mockFetch.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('x-yvp-sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {

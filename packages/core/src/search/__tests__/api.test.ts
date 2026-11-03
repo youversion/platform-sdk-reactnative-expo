@@ -1,5 +1,4 @@
-import { buildSdkVersionHeaderValue } from '@youversion/platform-core'
-
+import pkg from '../../../package.json'
 import { createSearchApi } from '../api'
 import { SEARCH_USER_INTENT } from '../types'
 
@@ -121,7 +120,7 @@ describe('createSearchApi', () => {
       expect(init.method).toBe('GET')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe(buildSdkVersionHeaderValue())
+      expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
     })
 
     it('returns empty queries on 204 without treating it as an error', async () => {
@@ -228,7 +227,7 @@ describe('createSearchApi', () => {
       expect(url.searchParams.get('page_token')).toBe('current-token')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe(buildSdkVersionHeaderValue())
+      expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
     })
 
     it('omits user_intent when unset and preserves future server values', async () => {
