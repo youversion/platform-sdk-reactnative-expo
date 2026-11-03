@@ -132,6 +132,32 @@ describe('usePassage', () => {
     expect(fetchBibleContent).not.toHaveBeenCalled()
     expect(result.current).toMatchObject({ passage: null, loading: false, error: null })
   })
+
+  it('parses supplied HTML and does not fetch', async () => {
+    const fetchBibleContent = respond(200, VALID_BODY)
+    const html =
+      '<div><div class="p"><span class="yv-v" v="16"></span><span class="yv-vlbl">16</span>For God</div></div>'
+    const { result } = renderHook(() =>
+      usePassage(fetchBibleContent, 111, passageRefFor('JHN.3.16'), {
+        content: html,
+        reference: 'John 3:16',
+      }),
+    )
+
+    expect(result.current.passage).toMatchObject({
+      key: '111:JHN.3.16',
+      reference: 'John 3:16',
+      book: 'JHN',
+      chapter: '3',
+    })
+    expect(result.current.passage?.parsed.blocks.length).toBeGreaterThan(0)
+    expect(result.current).toMatchObject({ loading: false, error: null })
+
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(fetchBibleContent).not.toHaveBeenCalled()
+  })
 })
 
 describe('passageRefFor', () => {

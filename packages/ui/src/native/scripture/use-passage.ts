@@ -3,7 +3,7 @@ import {
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
 import { parsePassage, type ParsedPassage } from './parse-passage'
@@ -66,11 +66,18 @@ export function passageKey(versionId: number, ref: PassageRef): string {
   return `${versionId}:${ref.usfm}`
 }
 
+/** HTML the host already holds. When set, `usePassage` parses it and does not fetch. */
+export type SuppliedPassageHtml = {
+  content: string
+  reference?: string
+}
+
 /** Fetches through the native content cache and parses off the same tick; a `null` ref skips the request. */
 export function usePassage(
   fetchBibleContent: FetchBibleContent,
   versionId: number,
   address: PassageRef | null,
+  supplied: SuppliedPassageHtml | null = null,
 ): PassageLoad {
   const [passage, setPassage] = useState<LoadedPassage | null>(null)
   const [pending, setPending] = useState<string | null>(null)
@@ -80,9 +87,38 @@ export function usePassage(
   const usfm = address?.usfm ?? null
   const book = address?.book ?? ''
   const chapter = address?.chapter ?? ''
+  const suppliedContent = supplied?.content ?? null
+  const suppliedReference = supplied?.reference
+
+  const suppliedLoad = useMemo((): {
+    passage: LoadedPassage | null
+    error: PassageError | null
+  } | null => {
+    if (suppliedContent === null || usfm === null) {
+      return null
+    }
+    const requested: PassageRef = { usfm, book, chapter }
+    try {
+      return {
+        passage: {
+          ...requested,
+          key: passageKey(versionId, requested),
+          versionId,
+          parsed: parsePassage(suppliedContent),
+          reference:
+            suppliedReference !== undefined && suppliedReference.length > 0
+              ? suppliedReference
+              : fallbackReference(requested),
+        },
+        error: null,
+      }
+    } catch {
+      return { passage: null, error: 'failed' }
+    }
+  }, [book, chapter, suppliedContent, suppliedReference, usfm, versionId])
 
   useEffect(() => {
-    if (usfm === null) {
+    if (suppliedContent !== null || usfm === null) {
       setPending(null)
       return
     }
@@ -137,13 +173,22 @@ export function usePassage(
     return () => {
       cancelled = true
     }
-  }, [attempt, usfm, book, chapter, fetchBibleContent, versionId])
+  }, [attempt, usfm, book, chapter, fetchBibleContent, suppliedContent, versionId])
 
+  const retry = (): void => setAttempt((n) => n + 1)
+  if (suppliedLoad !== null) {
+    return {
+      passage: suppliedLoad.passage,
+      loading: false,
+      error: suppliedLoad.error,
+      retry,
+    }
+  }
   return {
     passage,
     loading: pending !== null,
     error,
-    retry: () => setAttempt((n) => n + 1),
+    retry,
   }
 }
 

@@ -75,7 +75,9 @@ beforeEach(async () => {
   stubImpl('BibleVersionPickerSheet', 'mock-version-picker-sheet')
   stubImpl('NativeSheet')
   setImpl('BibleTextViewDom', MockDOM)
-  jest.spyOn(bibleCardMetadata, 'getBibleCardMetadata').mockReturnValue(new Promise(() => undefined))
+  jest
+    .spyOn(bibleCardMetadata, 'getBibleCardMetadata')
+    .mockReturnValue(new Promise(() => undefined))
   mmkvStorage.remove(BIBLE_CARD_VERSION_PERSIST_KEY)
   useBibleCardVersionStore.setState(bibleCardVersionStoreInitialState)
   await useBibleCardVersionStore.persist.rehydrate()
@@ -206,5 +208,18 @@ describe('the DOM scripture surface (unobservable from layer 3)', () => {
     expect(textViewSource).toContain('registerBibleContentAction')
     expect(textViewSource).toContain('fetchBibleContent')
     expect(textViewSource).not.toMatch(/BibleClient/)
+  })
+
+  it('keeps the embed content-sized so matchContents can measure scripture', () => {
+    expect(textViewSource).toContain('ContentSizedBody')
+  })
+
+  it('neither declares nor applies an accessToken prop', () => {
+    expect(textViewSource).not.toMatch(/^\s*accessToken\b/m)
+    expect(textViewSource).not.toContain('applyAuthToken')
+  })
+
+  it('still clears the residue prior versions left in WebView storage', () => {
+    expect(textViewSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
   })
 })
