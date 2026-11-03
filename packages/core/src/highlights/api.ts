@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
+import { mergeSdkHeaders } from '../sdk-version'
 import { ensureCryptoRandomUUID } from './ensure-crypto-uuid'
 
 export type { Collection, CreateHighlight, DeleteHighlightOptions, GetHighlightsOptions, Highlight }
@@ -59,7 +60,7 @@ export function createHighlightsApi(config: CreateHighlightsApiConfig): Highligh
       appKey: config.appKey,
       apiHost: config.apiHost ?? DEFAULT_API_HOST,
       installationId: config.installationId,
-      additionalHeaders: config.additionalHeaders,
+      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
       timeout: config.timeout,
     }),
   )
