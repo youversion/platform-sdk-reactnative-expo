@@ -10,6 +10,10 @@ on:
   workflow_run:
     workflows: [Release]
     types: [completed]
+  # A fix pushed straight to the release PR (PUBLISHING.md) starts no Release run.
+  pull_request:
+    types: [synchronize]
+    branches: [main]
 
 permissions:
   contents: read
@@ -23,7 +27,10 @@ concurrency:
 
 jobs:
   verify:
-    if: github.event.workflow_run.conclusion == 'success'
+    if: >-
+      github.event.workflow_run.conclusion == 'success' ||
+      (github.event.pull_request.head.ref == 'changeset-release/main' &&
+      github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Run the device suite on the release PR head
