@@ -45,12 +45,25 @@ case "$*" in
     [ "$GH_TOKEN" = dispatch-token ] || { echo "dispatched with $GH_TOKEN" >&2; exit 1; }
     jq -r '[.inputs.platform, .inputs.sdk_ref, .inputs.build_name] | join(" | ")' >> "$MOCK_DIR/dispatches" ;;
   *"/runs?event=workflow_dispatch"*)
-    platform=$(tail -1 "$MOCK_DIR/dispatches" | cut -d' ' -f1)
-    [ "$platform" = "${MOCK_UNLISTED:-}" ] || printf '%s\n' "$(wc -l < "$MOCK_DIR/dispatches" | tr -d ' ')" ;;
+    filter="" previous=""
+    for arg in "$@"; do
+      [ "$previous" = --jq ] && filter=$arg
+      previous=$arg
+    done
+    # Listed first: an earlier attempt's run, which only the exact build name tells apart.
+    runs='{"id": 999, "display_title": "Release verification 0123456 ios 41.1 #3"}'
+    n=0
+    while IFS= read -r line; do
+      n=$((n + 1))
+      [ "${line%% *}" = "${MOCK_UNLISTED:-}" ] && continue
+      runs="$runs, {\"id\": $n, \"display_title\": \"${line##* | } #$((n + 100))\"}"
+    done < "$MOCK_DIR/dispatches"
+    jq -r "$filter" <<< "{\"workflow_runs\": [$runs]}" ;;
   *"/actions/runs/"*)
     [ -z "${MOCK_POLL_ERROR:-}" ] || exit 1
     run=${2##*/}
     platform=$(sed -n "${run}p" "$MOCK_DIR/dispatches" | cut -d' ' -f1)
+    [ -n "$platform" ] || { echo "polled run $run, which was never dispatched" >&2; exit 1; }
     count=$(( $(cat "$MOCK_DIR/polls.$platform" 2>/dev/null || echo 0) + 1 ))
     echo "$count" > "$MOCK_DIR/polls.$platform"
     # The first poll sees the run still in progress.
