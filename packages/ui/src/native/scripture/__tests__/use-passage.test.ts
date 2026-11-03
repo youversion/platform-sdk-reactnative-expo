@@ -4,7 +4,7 @@ import type {
   FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 
-import { usePassage } from '../use-passage'
+import { chapterRef, passageRefFor, usePassage } from '../use-passage'
 
 const VALID_BODY = JSON.stringify({
   content:
@@ -19,7 +19,7 @@ function respond(status: number, body = ''): FetchBibleContent {
 }
 
 function renderPassage(fetchBibleContent: FetchBibleContent) {
-  return renderHook(() => usePassage(fetchBibleContent, 111, 'GEN', '1', true))
+  return renderHook(() => usePassage(fetchBibleContent, 111, chapterRef('GEN', '1')))
 }
 
 function deferred<T>() {
@@ -93,7 +93,7 @@ describe('usePassage', () => {
       .mockResolvedValueOnce({ status: 200, body: VALID_BODY, contentType: 'application/json' })
     const { result, rerender } = renderHook(
       ({ chapter }: { chapter: string }) =>
-        usePassage(fetchBibleContent, 111, 'GEN', chapter, true),
+        usePassage(fetchBibleContent, 111, chapterRef('GEN', chapter)),
       { initialProps: { chapter: '1' } },
     )
 
@@ -106,5 +106,44 @@ describe('usePassage', () => {
     })
     expect(result.current.passage?.key).toBe('111:GEN.2')
     expect(result.current.error).toBeNull()
+  })
+
+  it('requests a verse range as its own passage and scopes it to the chapter', async () => {
+    const fetchBibleContent = respond(200, VALID_BODY)
+    const address = passageRefFor('JHN.3.16-18')
+    const { result } = renderHook(() => usePassage(fetchBibleContent, 111, address))
+
+    await waitFor(() => expect(result.current.passage).not.toBeNull())
+    expect(fetchBibleContent).toHaveBeenCalledWith({
+      path: '/v1/bibles/111/passages/JHN.3.16-18?format=html&include_headings=true&include_notes=true',
+    })
+    expect(result.current.passage).toMatchObject({
+      key: '111:JHN.3.16-18',
+      usfm: 'JHN.3.16-18',
+      book: 'JHN',
+      chapter: '3',
+    })
+  })
+
+  it('sends nothing without an address', () => {
+    const fetchBibleContent = respond(200, VALID_BODY)
+    const { result } = renderHook(() => usePassage(fetchBibleContent, 111, null))
+
+    expect(fetchBibleContent).not.toHaveBeenCalled()
+    expect(result.current).toMatchObject({ passage: null, loading: false, error: null })
+  })
+})
+
+describe('passageRefFor', () => {
+  it.each([
+    ['JHN.3', 'JHN', '3'],
+    ['JHN.3.16', 'JHN', '3'],
+    ['JHN.3.16-18', 'JHN', '3'],
+  ])('keeps %s whole and scopes it to %s %s', (usfm, book, chapter) => {
+    expect(passageRefFor(usfm)).toEqual({ usfm, book, chapter })
+  })
+
+  it.each(['', 'JHN', 'JHN.INTRO1', 'JHN.0'])('refuses %j', (usfm) => {
+    expect(passageRefFor(usfm)).toBeNull()
   })
 })

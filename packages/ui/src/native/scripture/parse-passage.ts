@@ -50,6 +50,36 @@ export function parsePassage(rawHtml: string): ParsedPassage {
   return { blocks, verses: collectVerses(source), rtl: isRtlText(blocks) }
 }
 
+/** Which inline marks a surface draws. The reader draws both. */
+export type PassageMarks = { verseNumbers: boolean; notes: boolean }
+
+/**
+ * Drops verse labels and/or footnote markers. Returns `blocks` itself when both
+ * show, so `Passage`'s per-block measure cache keeps its keys. The space the
+ * parser moved after a note stays, so the words keep their gap.
+ */
+export function visibleBlocks(blocks: readonly Block[], marks: PassageMarks): readonly Block[] {
+  if (marks.verseNumbers && marks.notes) {
+    return blocks
+  }
+  const shows = (inline: Inline): boolean => {
+    if (inline.kind === 'label') {
+      return marks.verseNumbers
+    }
+    if (inline.kind === 'note') {
+      return marks.notes
+    }
+    return true
+  }
+  return blocks.map((block) => ({
+    ...block,
+    segments: block.segments.map((segment) => ({
+      ...segment,
+      inlines: segment.inlines.filter(shows),
+    })),
+  }))
+}
+
 function walk(doc: Document): Block[] {
   const root = doc.querySelector('[data-yv-transformed]') ?? doc.body
   const blocks: Block[] = []
