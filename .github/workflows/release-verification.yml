@@ -20,17 +20,17 @@ permissions:
   pull-requests: read
   statuses: write
 
-# A newer release PR head makes the run for the older one moot.
-concurrency:
-  group: release-verification
-  cancel-in-progress: true
-
 jobs:
   verify:
     if: >-
       github.event.workflow_run.conclusion == 'success' ||
       (github.event.pull_request.head.ref == 'changeset-release/main' &&
       github.event.pull_request.head.repo.full_name == github.repository)
+    # On the job, not the workflow, so only runs that pass the `if` can cancel one another:
+    # a newer release PR head makes the run for the older one moot.
+    concurrency:
+      group: release-verification
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     steps:
       - name: Run the device suite on the release PR head
