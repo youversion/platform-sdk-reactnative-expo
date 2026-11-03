@@ -30,7 +30,6 @@ import {
 
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
 
-/** Today's passage payload, with the bridge error inlined so this file does not import `lib/dom-error`. */
 export type BibleTextViewPassageState = Omit<WebPassageState, 'error'> & {
   error?: { message: string; name?: string; status?: number; code?: string } | null
 }
@@ -178,7 +177,7 @@ export function BibleTextViewNative({
       </View>
     )
   }
-  if (passage === null || (gate === 'checking' && isCurrent)) {
+  if (passage === null) {
     return <ActivityIndicator accessibilityLabel={t('loading')} />
   }
   return (
