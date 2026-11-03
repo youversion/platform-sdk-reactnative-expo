@@ -21,8 +21,8 @@ The platform-specific surface that displays reusable content, such as a Radix Po
 _Avoid_: Modal, popup
 
 **Native Sheet**:
-The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. Closing it dismisses a keyboard raised by its Expo DOM content only when that content receives `isOpen` and calls `useDismissKeyboardOnClose`. See [ADR 0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md).
-_Avoid_: Modal; treating keyboard dismiss as automatic native `Keyboard.dismiss()`
+The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover.
+_Avoid_: Modal
 
 **Inactive Sheet Inertness**:
 A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.

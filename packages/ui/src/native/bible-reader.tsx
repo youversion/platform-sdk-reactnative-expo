@@ -27,7 +27,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Platform, Share, StyleSheet, View } from 'react-native'
+import { Platform, Share, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import { getImpl } from './component-impls'
@@ -245,7 +245,6 @@ export function BibleReader({
   onHighlightError,
   backgroundColor,
   foregroundColor,
-  dom,
   ref,
   navigation,
 }: BibleReaderProps): ReactNode {
@@ -787,17 +786,6 @@ export function BibleReader({
   const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
-  const readerDom = useMemo(
-    () => ({
-      scrollEnabled: false,
-      contentInsetAdjustmentBehavior: 'never' as const,
-      automaticallyAdjustContentInsets: false,
-      ...dom,
-      style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
-    }),
-    [dom],
-  )
-
   return (
     <>
       <View style={{ flex: 1 }}>
@@ -900,7 +888,6 @@ export function BibleReader({
               backgroundColor={backgroundColor}
               foregroundColor={foregroundColor}
               bottomScrollPadding={bottomScrollPadding}
-              dom={readerDom}
             />
           </View>
         </ThemeContext.Provider>
