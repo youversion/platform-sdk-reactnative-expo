@@ -3,6 +3,7 @@ import { ApiClient, ImagesClient, getHttpStatus } from '@youversion/platform-cor
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
+import { mergeSdkHeaders } from '../sdk-version'
 import type {
   GetImagesOptions,
   ImagesApiError,
@@ -30,7 +31,7 @@ export function createImagesApi(config: CreateImagesApiConfig): ImagesApi {
       appKey: config.appKey,
       apiHost: config.apiHost ?? DEFAULT_API_HOST,
       installationId: config.installationId,
-      additionalHeaders: config.additionalHeaders,
+      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
       timeout: config.timeout,
     }),
   )

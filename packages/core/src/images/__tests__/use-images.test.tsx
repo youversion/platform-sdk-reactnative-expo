@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import pkg from '../../../package.json'
 import type { HookOverrides } from '../../hook-overrides'
 import { YouVersionContext } from '../../youversion-context'
 import type { UseImagesResult } from '../use-images'
@@ -63,6 +64,24 @@ describe('useImages', () => {
       value: { data: [], next_page_token: null },
     })
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/images')
+  })
+
+  it('sends ReactNativeSDK on the image request', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    const { result } = renderHook(() => useImages(), {
+      wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+    })
+
+    await result.current.list({ passage_id: 'JHN.3.16' })
+
+    const headers = new Headers(mockFetch.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('x-yvp-sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
   })
 
   it('keeps list and get until appKey or apiHost changes', () => {
