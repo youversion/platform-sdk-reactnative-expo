@@ -170,7 +170,6 @@ export type AdjacentBookChapter = {
   chapterId: string
 }
 
-/** The fields this call supplies. Not a `BibleBook`, and not `intro`. */
 type AdjacentChapterBook = {
   id: string
   chapters?: readonly { id: string }[]
@@ -196,9 +195,8 @@ function adjacentBooksFromCatalog(
   return books
 }
 
-// SAFETY: `getAdjacentChapter` is typed on `BibleBook[]`. This call supplies
-// `id` and `chapters[].id` only. Omit `intro`. Core 2.17 walks a book's intro
-// before chapter 1, and native Next skips that intro.
+// SAFETY: Core 2.17 reads only `id`, `chapters[].id`, and `intro.id` without mutation.
+// Omitting `intro` keeps native navigation on numbered chapters in both directions.
 const getAdjacentChapterFromCatalog = getAdjacentChapter as (
   books: readonly AdjacentChapterBook[],
   currentBookId: string,
@@ -214,11 +212,6 @@ function parseChapterNumber(value: string): number | null {
   return chapterNumber
 }
 
-/**
- * Next or previous chapter, crossing book boundaries and skipping intros. Before the
- * catalog lands, Previous can still step back inside the book. Next needs the chapter
- * list, so it stays off.
- */
 export function adjacentBookChapter(
   catalog: ReadonlyMap<string, BookCatalogEntry> | null,
   book: string,

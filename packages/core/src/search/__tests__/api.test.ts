@@ -498,6 +498,29 @@ describe('createSearchApi', () => {
       })
     })
 
+    it('sends the returned empty-string token with the same query, Bible, and page size', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ images: [], next_page_token: '' }))
+        .mockResolvedValueOnce(jsonResponse({ images: [], next_page_token: null }))
+      const search = api()
+      const params = { query: 'love', bibleId: 111, pageSize: 25 }
+      const first = await search.images(params)
+      expect(first.ok).toBe(true)
+      if (!first.ok || first.value.nextPageToken === null) {
+        throw new Error('expected a continuation token')
+      }
+
+      const next = await search.images({ ...params, pageToken: first.value.nextPageToken })
+
+      expect(next).toEqual({ ok: true, value: { images: [], nextPageToken: null } })
+      const url = new URL(String(mockFetch.mock.calls[1]?.[0]))
+      expect(url.searchParams.get('query')).toBe('love')
+      expect(url.searchParams.get('bible_id')).toBe('111')
+      expect(url.searchParams.get('page_size')).toBe('25')
+      expect(url.searchParams.has('page_token')).toBe(true)
+      expect(url.searchParams.get('page_token')).toBe('')
+    })
+
     it('maps a blank query and an invalid pageSize to invalid-parameter without fetching', async () => {
       const cases = [
         { query: '', bibleId: 111 },

@@ -203,6 +203,27 @@ function useFindVerse() {
 
 `YouVersionImageSearchResults` is `{ images, nextPageToken }`. Each hit is `{ id, passageId }`. `id` is opaque. Pass that same string to `useImages().get`. Do not decode it, and do not build an image URL from it.
 
+```tsx
+function useImageSearch() {
+  const search = useSearch()
+  const images = useImages()
+
+  return async () => {
+    const params = { query: 'hope', bibleId: 111, pageSize: 20 }
+    const first = await search.images(params)
+    if (!first.ok) return first
+
+    const hit = first.value.images[0]
+    if (hit) await images.get(hit.id)
+
+    if (first.value.nextPageToken === null) return first
+    return search.images({ ...params, pageToken: first.value.nextPageToken })
+  }
+}
+```
+
+Image IDs belong to the API response. Do not persist or reconstruct them.
+
 A blank query, a query longer than 100 characters, or a `pageSize` outside 1 to 99 returns `invalid-parameter` with no `status`. That input does not call the network.
 
 `useUnifiedSearch` reads verses, topics, and images together. The request is `GET /v1/search-unified`. It returns `{ data, loading, error, refetch }`.
@@ -264,7 +285,7 @@ function usePassageImages(passageId: string) {
 
 `useVerseOfTheDay()` returns `get` and `list` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `get(day, options?)` requests `GET /v1/verse-of-the-days/{day}`. `day` is an integer from 1 to 366. `list(options?)` requests `GET /v1/verse-of-the-days`. `list` takes no page token. The page type still includes `next_page_token`, because it is a collection.
 
-Leave out `languageRanges` and the request has no language query. The client sends each range as its own `language_ranges` parameter. `en_US` goes out as `en-us`. An empty list returns `invalid-parameter` and does not call the network.
+Leave out `languageRanges` and the request has no language query. The client sends each range as its own `language_ranges[]` parameter. `en_US` goes out as `en-us`. An empty list returns `invalid-parameter` and does not call the network. For example, call `verseOfTheDay.get(15, { languageRanges: ['es', 'en'] })` or `verseOfTheDay.list({ languageRanges: ['es', 'en'] })`.
 
 A day is `{ day, passage_id, image_id }`. `image_id` is a string or `null`. The client turns a missing image into `null` and keeps `day` and `passage_id`. When `image_id` is a string, pass that same string to `useImages().get`. This package does not render, download, or cache the image.
 
