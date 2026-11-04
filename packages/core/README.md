@@ -204,6 +204,8 @@ function useFindVerse() {
 `YouVersionImageSearchResults` is `{ images, nextPageToken }`. Each hit is `{ id, passageId }`. `id` is opaque. Pass that same string to `useImages().get`. Do not decode it, and do not build an image URL from it.
 
 ```tsx
+import { useImages, useSearch } from '@youversion/platform-react-native-expo-core'
+
 function useImageSearch() {
   const search = useSearch()
   const images = useImages()
