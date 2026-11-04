@@ -201,6 +201,27 @@ describe('parsePassage', () => {
     expect(blocks.map(lineTexts)).toEqual([['Selah'], [' “', 'Next']])
   })
 
+  it.each([
+    [' "<span class="add">Next</span>', ' "Next'],
+    [' &quot;<span class="add">Next</span>', ' "Next'],
+    [` '<span class="add">Next</span>`, ` 'Next`],
+  ])('leaves the straight quote in %s with the words after a qs pause', (tail, nextLine) => {
+    const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+    const { blocks } = parsePassage(html)
+    expect(blocks.map((block) => lineTexts(block).join(''))).toEqual(['Selah', nextLine])
+  })
+
+  it.each([
+    ['"', ['Selah', '"']],
+    ['."', ['Selah', '."']],
+    ['.&quot;', ['Selah', '.', '"']],
+    ['"<span class="add">Next</span>', ['Selah', '"']],
+  ])('keeps the closing straight quote in %s on the pause line', (tail, expected) => {
+    const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+    const { blocks } = parsePassage(html)
+    expect(blocks[0] && lineTexts(blocks[0])).toEqual(expected)
+  })
+
   it('leaves punctuation joined to words on the line after a qs pause', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>; and more</div></div>'

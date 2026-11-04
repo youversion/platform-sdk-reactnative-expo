@@ -199,6 +199,22 @@ function isPausePunctuation(inline: Inline): boolean {
   return inline.kind === 'text' && PAUSE_PUNCTUATION.test(inline.text) && inline.text.trim() !== ''
 }
 
+// A straight quote has no opening or closing form, so spacing decides: a space before and a
+// word right after means it opens the next line.
+function opensFollowingWords(
+  placed: readonly PlacedInline[],
+  previousEnd: number,
+  index: number,
+): boolean {
+  const quote = placed[index]?.inline
+  const next = placed[index + 1]?.inline
+  if (quote?.kind !== 'text' || next?.kind !== 'text') {
+    return false
+  }
+  const spaced = index > previousEnd || /^\s/.test(quote.text)
+  return spaced && /^\s*['"]$/.test(quote.text) && /^[^\s\p{P}]/u.test(next.text)
+}
+
 function skipBlanks(placed: readonly PlacedInline[], start: number): number {
   let cursor = start
   while (cursor < placed.length) {
@@ -232,7 +248,11 @@ function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
   }
   // linkedom splits a text node at each entity, so `.&#8221;` arrives as two runs.
   let punct = placed[cursor]
-  while (punct !== undefined && isPausePunctuation(punct.inline)) {
+  while (
+    punct !== undefined &&
+    isPausePunctuation(punct.inline) &&
+    !opensFollowingWords(placed, runEnd, cursor)
+  ) {
     runEnd = cursor + 1
     cursor = skipBlanks(placed, runEnd)
     punct = placed[cursor]
