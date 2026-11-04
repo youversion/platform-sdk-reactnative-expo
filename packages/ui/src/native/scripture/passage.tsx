@@ -176,9 +176,13 @@ const BlockView = memo(function BlockView({
   // tap does not flash the highlight away and back.
   const [measure, setMeasure] = useState<Measure>(() => {
     const kept = measures.get(block)
-    return kept?.look === look ? kept : { look, lines: [], size: { width: 0, height: 0 }, space: 0 }
+    if (kept?.look === look) {
+      return { ...kept, originX: kept.originX ?? 0 }
+    }
+    return { look, lines: [], size: { width: 0, height: 0 }, space: 0, originX: 0 }
   })
-  const { lines, size, space } = measure
+  const { lines, size, space, originX } = measure
+  const endAligned = rule.align === 'end'
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
       const next = { ...current, ...change }
@@ -348,31 +352,38 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
-    // Ordinary blocks resolve to 'left', which is the start edge. `end` is the trailing
-    // edge, so a Selah pause sits on the right in LTR and the left in RTL.
+    // Ordinary blocks resolve to 'left' (start). Right and centre still use textAlign.
+    // `end` (Selah) is laid out on a full-width row with flex-end under the passage
+    // direction, so Android never remaps a physical left/right under RTL.
     let textAlign: 'left' | 'center' | 'right' = 'left'
     if (rule.align === 'center') {
       textAlign = 'center'
-    } else if (rule.align === 'end') {
-      if (look.rtl) {
-        textAlign = 'left'
-      } else {
-        textAlign = 'right'
-      }
-    } else if (rule.align === 'right' || look.rtl) {
+    } else if (rule.align === 'right' || (!endAligned && look.rtl)) {
       textAlign = 'right'
     }
-    return (
+    const node = (
       <RNText
         ref={ghost ? undefined : (node) => onBlockRef(index, node)}
         onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
+        onLayout={
+          ghost || !endAligned
+            ? undefined
+            : (event) => {
+                const x = event.nativeEvent.layout.x
+                if (originX !== x) {
+                  update({ originX: x })
+                }
+              }
+        }
         allowFontScaling={false}
         style={{
           fontSize: rule.size,
           lineHeight: lineBox,
           color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
           ...look.face(rule.weight, rule.italic),
-          textAlign,
+          // Shrink-wrapped end lines keep a start align inside their own box; the row
+          // places that box on the trailing edge.
+          textAlign: endAligned ? 'left' : textAlign,
           writingDirection: look.rtl ? 'rtl' : 'ltr',
           paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
           paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
@@ -411,6 +422,10 @@ const BlockView = memo(function BlockView({
         })}
       </RNText>
     )
+    if (!endAligned) {
+      return node
+    }
+    return <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>{node}</View>
   }
 
   const onLayout = (event: LayoutChangeEvent): void => {
@@ -430,8 +445,8 @@ const BlockView = memo(function BlockView({
   const pad = highlightEndRoom(rule.size)
   let windows: LineWindow[] = []
   if (hasPaint) {
-    windows = lines.map((line) =>
-      lineWindow(
+    windows = lines.map((line) => {
+      const opening = lineWindow(
         line,
         space,
         look.rtl,
@@ -439,8 +454,14 @@ const BlockView = memo(function BlockView({
         rule.alignInset.end + room,
         pad,
         rule.size,
-      ),
-    )
+      )
+      // End-aligned text is shrink-wrapped and shifted by the row; line metrics stay
+      // local to that text, so slide the window by the text's origin in the block.
+      if (originX === 0) {
+        return opening
+      }
+      return { ...opening, left: opening.left + originX }
+    })
   }
   const shareBackdrop =
     windows.length > 0 && windows.every((opening) => opening.sample === opening.top)
@@ -562,6 +583,7 @@ const BlockView = memo(function BlockView({
             rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
             rule.alignInset.end + highlightEndRoom(look.fontSize),
           )
+          const left = span.x + originX
           return (
             <View
               key={lineIndex}
@@ -571,14 +593,14 @@ const BlockView = memo(function BlockView({
               style={{
                 position: 'absolute',
                 top,
-                left: span.x,
+                left,
                 width: span.width,
                 height: UNDERLINE_THICKNESS,
                 overflow: 'hidden',
               }}
             >
               <View
-                style={{ position: 'absolute', top: -sample, left: -span.x, width: size.width }}
+                style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}
               >
                 {underline}
               </View>
@@ -613,6 +635,8 @@ type Measure = {
   lines: readonly TextLine[]
   size: { width: number; height: number }
   space: number
+  /** Left edge of shrink-wrapped end-aligned text inside the block; 0 when full width. */
+  originX: number
 }
 
 // Last layout per parsed block, valid while its look holds.
