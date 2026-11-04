@@ -1,0 +1,20 @@
+name: Release verification trigger
+
+# Only a trigger, like major-release-signoff-trigger.yml. A pull_request run executes the PR's
+# own copy of this file, so it holds no scopes and does nothing. release-verification.yml runs
+# from main when this completes and decides everything there: a fix pushed straight to the
+# release PR (PUBLISHING.md) is verified, and every other PR head is marked as not a release.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  request:
+    name: Request release verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - run: echo "Release verification runs from main in release-verification.yml."

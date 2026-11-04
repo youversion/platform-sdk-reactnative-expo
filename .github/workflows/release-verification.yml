@@ -1,95 +1,181 @@
 name: Release verification
 
-# Builds the Version Packages PR head and runs the HINQA device suite on it in
-# the automation repo (the same workflow as the iOS and Android nightlies), then
-# reports the result as the `release-verification` commit status. It follows
-# Release because a PR that GITHUB_TOKEN opens or updates fires no
-# pull_request workflows.
-
+# Builds the Version Packages PR head and runs the HINQA device suite on it in the automation
+# repo (the same workflow as the iOS and Android nightlies), then reports the result as the
+# `release-verification` commit status. Release covers the bot's updates to the release PR,
+# which fire no pull_request workflows; the trigger workflow covers every other PR head.
 on:
   workflow_run:
-    workflows: [Release]
+    workflows: [Release, Release verification trigger]
     types: [completed]
-  # A fix pushed straight to the release PR (PUBLISHING.md) starts no Release run.
-  pull_request:
-    types: [synchronize]
-    branches: [main]
 
-permissions:
-  contents: read
-  pull-requests: read
-  statuses: write
+permissions: {}
 
 jobs:
+  resolve:
+    if: github.event.workflow_run.conclusion == 'success'
+    name: Find the release PR head
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+      statuses: write
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+    steps:
+      - name: Find the release PR head
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          retry() {
+            local i
+            for i in 1 2 3; do
+              if "$@"; then return 0; fi
+              [ "$i" = 3 ] || sleep $((i * 10))
+            done
+            return 1
+          }
+
+          # The open release PR: from this repo, into main, from changeset-release/main.
+          RELEASE=$(retry gh api \
+            "repos/$REPOSITORY/pulls?state=open&base=main&head=${REPOSITORY%%/*}:changeset-release/main" \
+            --jq "map(select(.head.repo.full_name == \"$REPOSITORY\")) | .[0] // empty | \"\(.number) \(.head.sha)\"")
+          NUMBER=${RELEASE%% *}
+          RELEASE_SHA=${RELEASE#* }
+
+          case "$EVENT" in
+            push)
+              # Release ran on main at TRIGGER_SHA. Changesets rebuilds the release branch as one
+              # commit on that SHA when it creates or updates the PR, so any other parent means this
+              # run left the PR alone, and restarting the suite would only cancel the running one.
+              if [ -z "$RELEASE" ]; then echo "No open release PR."; exit 0; fi
+              PARENT=$(retry gh api "repos/$REPOSITORY/pulls/$NUMBER/commits" --jq '.[-1].parents[0].sha')
+              if [ "$PARENT" != "$TRIGGER_SHA" ]; then echo "Release left PR #$NUMBER unchanged."; exit 0; fi
+              ;;
+            pull_request)
+              if [ "$TRIGGER_SHA" != "$RELEASE_SHA" ]; then
+                # Any other head, so the status can be required on main. Never the release head: a
+                # PR from a fork can share that SHA, and the status there is the release PR's.
+                retry gh api --method POST "repos/$REPOSITORY/statuses/$TRIGGER_SHA" \
+                  -f context=release-verification -f state=success \
+                  -f description="Not a Version Packages PR; nothing to verify." \
+                  -f target_url="$RUN_URL" > /dev/null
+                echo "Not the release PR head; marked success."
+                exit 0
+              fi
+              ;;
+            *) echo "Unexpected trigger event: $EVENT"; exit 0 ;;
+          esac
+          echo "Verifying PR #$NUMBER at $RELEASE_SHA."
+          echo "sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
+
   verify:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' ||
-      (github.event.pull_request.head.ref == 'changeset-release/main' &&
-      github.event.pull_request.head.repo.full_name == github.repository)
-    # On the job, not the workflow, so only runs that pass the `if` can cancel one another:
-    # a newer release PR head makes the run for the older one moot.
+    needs: resolve
+    if: needs.resolve.outputs.sha != ''
+    name: Run the device suites
+    # On the job, not the workflow, so only runs that found a release PR head to verify can
+    # cancel one another: a newer release PR head makes the run for the older one moot.
     concurrency:
       group: release-verification
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    # Each suite has taken up to 31 minutes; two platforms, one retry and a wait behind a
+    # nightly in the shared group fit in this.
+    timeout-minutes: 150
+    permissions:
+      statuses: write
     steps:
       - name: Run the device suite on the release PR head
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DISPATCH_TOKEN: ${{ secrets.AUTOMATION_DISPATCH_TOKEN }}
+          SHA: ${{ needs.resolve.outputs.sha }}
           AUTOMATION_REPO: youversion/platform-sdk-reactnative-expo_automation
           WORKFLOW_FILE: browserstack-manual.yml
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # Twice the longest suite seen.
+          POLL_MINUTES: 60
         run: |
           set -euo pipefail
-          SHA=$(gh pr list -R "$GITHUB_REPOSITORY" --head changeset-release/main --state open \
-            --json headRefOid --jq '.[0].headRefOid // empty')
-          if [ -z "$SHA" ]; then echo "No open release PR."; exit 0; fi
-
-          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           RUN_ID=""
+          retry() {
+            local i
+            for i in 1 2 3; do
+              if "$@"; then return 0; fi
+              [ "$i" = 3 ] || sleep $((i * 10))
+            done
+            return 1
+          }
+          automation() { GH_TOKEN="$DISPATCH_TOKEN" gh "$@"; }
           status() {
-            gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f context=release-verification \
-              -f state="$1" -f description="$2" -f target_url="$3" > /dev/null
+            retry gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f context=release-verification \
+              -f state="$1" -f description="$2" -f target_url="$RUN_URL" > /dev/null
           }
           finish() { trap - EXIT; status "$@"; }
-          automation() { GH_TOKEN="$DISPATCH_TOKEN" gh "$@"; }
+          stopped() {
+            if [ -n "$RUN_ID" ]; then automation run cancel "$RUN_ID" -R "$AUTOMATION_REPO" || true; fi
+            # The concurrency group already runs one verification at a time; this only keeps a
+            # trap that outlives its cancellation from writing over a newer run's pending.
+            LATEST=$(gh api "repos/$GITHUB_REPOSITORY/commits/$SHA/statuses" \
+              --jq '[.[] | select(.context == "release-verification")][0].target_url // ""') || LATEST=""
+            if [ -z "$LATEST" ] || [ "$LATEST" = "$RUN_URL" ]; then
+              status error "Stopped before finishing; see the run log." || true
+            fi
+          }
           # Also runs when a newer release PR head cancels this job.
-          trap 'if [ -n "$RUN_ID" ]; then automation run cancel "$RUN_ID" -R "$AUTOMATION_REPO" || true; fi
-            status error "Stopped before finishing; see the run log." "$RUN_URL"' EXIT
+          trap stopped EXIT
+          trap 'exit 1' INT TERM
+          PAYLOAD=$(mktemp)
+          echo "## Release verification for \`${SHA:0:7}\`" >> "$GITHUB_STEP_SUMMARY"
 
           # One platform at a time: the automation workflow shares one concurrency
           # group, which cancels an older pending run when a newer one queues.
           for PLATFORM in ios android; do
-            BUILD_NAME="Release verification ${SHA:0:7} $PLATFORM $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT"
-            jq -n --arg sdk_ref "$SHA" --arg platform "$PLATFORM" --arg build_name "$BUILD_NAME" \
-              '{ref: "main", inputs: {sdk_ref: $sdk_ref, platform: $platform,
-                target: "app-automate", bs_parallel: "8", build_name: $build_name}}' |
-              automation api --method POST \
-                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" --input -
+            for TRY in 1 2; do
+              BUILD_NAME="Release verification ${SHA:0:7} $PLATFORM $GITHUB_RUN_ID.$GITHUB_RUN_ATTEMPT.$TRY"
+              jq -n --arg sdk_ref "$SHA" --arg platform "$PLATFORM" --arg build_name "$BUILD_NAME" \
+                '{ref: "main", inputs: {sdk_ref: $sdk_ref, platform: $platform,
+                  target: "app-automate", bs_parallel: "8", build_name: $build_name}}' > "$PAYLOAD"
+              retry automation api --method POST \
+                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" --input "$PAYLOAD"
 
-            for _ in $(seq 1 20); do
-              RUN_ID=$(automation api \
-                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/runs?event=workflow_dispatch&per_page=20" \
-                --jq ".workflow_runs[] | select(.display_title | startswith(\"$BUILD_NAME #\")) | .id" | head -1)
-              [ -n "$RUN_ID" ] && break
-              sleep 3
-            done
-            if [ -z "$RUN_ID" ]; then finish error "Could not find the $PLATFORM test run." "$RUN_URL"; exit 1; fi
-            URL="https://github.com/$AUTOMATION_REPO/actions/runs/$RUN_ID"
-            status pending "Running the $PLATFORM device suite." "$URL"
+              # The automation run-name is "<build_name> #<run_number>".
+              for _ in $(seq 1 20); do
+                RUN_ID=$(retry automation api \
+                  "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/runs?event=workflow_dispatch&per_page=20" \
+                  --jq "[.workflow_runs[] | select(.display_title | startswith(\"$BUILD_NAME #\")) | .id][0] // empty")
+                [ -n "$RUN_ID" ] && break
+                sleep 3
+              done
+              if [ -z "$RUN_ID" ]; then finish error "Could not find the $PLATFORM test run."; exit 1; fi
+              echo "- $PLATFORM, try $TRY: https://github.com/$AUTOMATION_REPO/actions/runs/$RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+              status pending "Running the $PLATFORM device suite (try $TRY)."
 
-            CONCLUSION=""
-            while [ -z "$CONCLUSION" ]; do
-              sleep 30
-              CONCLUSION=$(automation api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID" \
-                --jq 'select(.status == "completed") | .conclusion')
+              CONCLUSION=""
+              for _ in $(seq 1 $((POLL_MINUTES * 2))); do
+                sleep 30
+                CONCLUSION=$(retry automation api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID" \
+                  --jq 'select(.status == "completed") | .conclusion')
+                [ -n "$CONCLUSION" ] && break
+              done
+              if [ -z "$CONCLUSION" ]; then
+                echo "The $PLATFORM run did not finish within $POLL_MINUTES minutes."
+                exit 1
+              fi
+              RUN_ID=""
+              # A nightly queued in the shared group can preempt a pending run; that is not a test result.
+              if [ "$CONCLUSION" != cancelled ]; then break; fi
             done
-            RUN_ID=""
             case "$CONCLUSION" in
               success) ;;
-              # A nightly queued in the shared group cancels a pending run; that is not a test result.
-              cancelled) finish error "The $PLATFORM run was cancelled; re-run this check." "$URL"; exit 1 ;;
-              *) finish failure "The $PLATFORM device suite ended: $CONCLUSION." "$URL"; exit 1 ;;
+              cancelled) finish error "The $PLATFORM run was cancelled twice; re-run this check."; exit 1 ;;
+              *) finish failure "The $PLATFORM device suite ended: $CONCLUSION."; exit 1 ;;
             esac
           done
-          finish success "The iOS and Android device suites passed." "$RUN_URL"
+          finish success "The iOS and Android device suites passed."
