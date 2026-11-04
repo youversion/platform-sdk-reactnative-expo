@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-core
 
-Auth, highlights, search, and storage primitives for the YouVersion Platform React Native (Expo) SDK. It covers installation id, optional PKCE OAuth, token storage, Bible search, and the Bible highlights hooks.
+Auth, highlights, search, images, verse of the day, and storage primitives for the YouVersion Platform React Native (Expo) SDK. It covers installation id, optional PKCE OAuth, token storage, Bible search, and the Bible highlights hooks.
 
 ## When to use this package
 
@@ -14,10 +14,11 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ Highlights made offline that survive a relaunch and land on their own
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
 - ✅ Bible search (`useSearch`, `useUnifiedSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
+- ✅ Paged image search (`useSearch().images`), image records (`useImages`), and Verse of the Day reads (`useVerseOfTheDay`)
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
-Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package; import `useYVAuth` and `useSearch` from core.
+Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package. Import `useYVAuth`, `useSearch`, `useImages`, and `useVerseOfTheDay` from core.
 
 ## Install
 
@@ -180,10 +181,13 @@ Drive a consent prompt from `isConfirming`, and route **every** dismissal path �
 
 ### Search
 
-`useSearch()` returns suggested queries, trending queries, verse search, and topic search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as an empty query or a bad language tag. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
+`useSearch()` returns suggested queries, trending queries, verse search, topic search, and paged image search for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `error.kind` is `auth` for HTTP 401 and 403, `not-found` for 404, and `invalid-parameter` for any other 4xx except 408 and 429. A server `invalid-parameter` includes `status`. The same kind with no `status` is input the SDK rejects before the request, such as an empty query or a bad language tag. `transient` is 408, 429, any 5xx, a malformed body, or a transport failure. A verse hit's `id` is a passage id. `biblePassageAnchorFromPassageId(passageId, versionId)` parses that id into `{ versionId, bookId, chapter, verse? }` and returns `null` when the string is not a chapter, a verse, or a verse range. A range keeps the start verse. `createSearchApi` is not a package export.
 
 ```tsx
-import { biblePassageAnchorFromPassageId, useSearch } from '@youversion/platform-react-native-expo-core'
+import {
+  biblePassageAnchorFromPassageId,
+  useSearch,
+} from '@youversion/platform-react-native-expo-core'
 
 function useFindVerse() {
   const search = useSearch()
@@ -194,6 +198,12 @@ function useFindVerse() {
   }
 }
 ```
+
+`search.images` reads one page from `GET /v1/search-images`. Send the same `query`, `bibleId`, and `pageSize` on every page. Set `pageToken` to the previous page's `nextPageToken`. Stop only when `nextPageToken` is `null`. An empty string is still a token, so send it again. The SDK does not store the query, and it does not rebuild a page.
+
+`YouVersionImageSearchResults` is `{ images, nextPageToken }`. Each hit is `{ id, passageId }`. `id` is opaque. Pass that same string to `useImages().get`. Do not decode it, and do not build an image URL from it.
+
+A blank query, a query longer than 100 characters, or a `pageSize` outside 1 to 99 returns `invalid-parameter` with no `status`. That input does not call the network.
 
 `useUnifiedSearch` reads verses, topics, and images together. The request is `GET /v1/search-unified`. It returns `{ data, loading, error, refetch }`.
 
@@ -246,6 +256,33 @@ function usePassageImages(passageId: string) {
       return result.error
     }
     return result.value
+  }
+}
+```
+
+### Verse of the day
+
+`useVerseOfTheDay()` returns `get` and `list` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `get(day, options?)` requests `GET /v1/verse-of-the-days/{day}`. `day` is an integer from 1 to 366. `list(options?)` requests `GET /v1/verse-of-the-days`. `list` takes no page token. The page type still includes `next_page_token`, because it is a collection.
+
+Leave out `languageRanges` and the request has no language query. The client sends each range as its own `language_ranges` parameter. `en_US` goes out as `en-us`. An empty list returns `invalid-parameter` and does not call the network.
+
+A day is `{ day, passage_id, image_id }`. `image_id` is a string or `null`. The client turns a missing image into `null` and keeps `day` and `passage_id`. When `image_id` is a string, pass that same string to `useImages().get`. This package does not render, download, or cache the image.
+
+`error.kind` matches Search. Day `0` and day `367` are `invalid-parameter` with no `status`. `createVerseOfTheDayApi` is not a package export.
+
+```tsx
+import { useImages, useVerseOfTheDay } from '@youversion/platform-react-native-expo-core'
+
+function useCuratedImage(day: number) {
+  const verseOfTheDay = useVerseOfTheDay()
+  const images = useImages()
+
+  return async () => {
+    const dayResult = await verseOfTheDay.get(day)
+    if (dayResult.ok === false || dayResult.value.image_id === null) {
+      return null
+    }
+    return images.get(dayResult.value.image_id)
   }
 }
 ```

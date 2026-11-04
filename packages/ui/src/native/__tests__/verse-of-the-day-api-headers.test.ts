@@ -18,7 +18,7 @@ describe('getVerseOfTheDayPassageId headers', () => {
   beforeEach(() => {
     fetchMock = jest.fn()
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ day: 15, passage_id: 'JHN.3.16' }), {
+      new Response(JSON.stringify({ day: 15, passage_id: 'JHN.3.16', image_id: null }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
@@ -30,12 +30,12 @@ describe('getVerseOfTheDayPassageId headers', () => {
     globalThis.fetch = realFetch
   })
 
-  it('sends the request with this SDK\'s stamp and the app credentials', async () => {
+  it("sends the request with this SDK's stamp and the app credentials", async () => {
     await expect(getVerseOfTheDayPassageId(credentials, 15)).resolves.toBe('JHN.3.16')
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]!
-    expect(String(url)).toContain('https://api.example.com/')
+    expect(String(url)).toBe('https://api.example.com/v1/verse-of-the-days/15')
     const headers = new Headers(init?.headers)
     expect(headers.get('x-yvp-sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
     expect(headers.get('x-yvp-app-key')).toBe('appkey')
