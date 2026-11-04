@@ -244,6 +244,20 @@ describe('parsePassage', () => {
   })
 
   it.each([
+    ['. "Next words"', 'Selah.', ' "Next words"'],
+    // linkedom splits on &quot;, so the opening quote is its own run after `. `.
+    ['. &quot;Next words&quot;', 'Selah.', '"Next words"'],
+    [`. 'Next words'`, 'Selah.', ` 'Next words'`],
+  ])(
+    'keeps the period on the pause and leaves the opening quote in %s with the following words',
+    (tail, pauseLine, nextLine) => {
+      const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+      const { blocks } = parsePassage(html)
+      expect(blocks.map((block) => lineTexts(block).join(''))).toEqual([pauseLine, nextLine])
+    },
+  )
+
+  it.each([
     ['"', ['Selah', '"']],
     ['."', ['Selah', '."']],
     ['.&quot;', ['Selah', '.', '"']],

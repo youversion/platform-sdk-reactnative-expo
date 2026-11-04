@@ -217,10 +217,6 @@ function leadingPausePunctuationBelongsOnPause(
   if (opensFollowingWords(placed, selahStart, index)) {
     return false
   }
-  // Quote and following words can share one text node (` "Next words"`); check that too.
-  if (splitOpensFollowingWords(split)) {
-    return false
-  }
   const rest = split.rest.trimStart()
   if (rest === '') {
     return true
@@ -240,17 +236,36 @@ function opensFollowingWords(
   if (quote?.kind !== 'text' || next?.kind !== 'text') {
     return false
   }
-  const spaced = index > previousEnd || /^\s/.test(quote.text)
+  // Space may sit on this node, in a skipped blank, or at the end of the prior node
+  // (e.g. `. &quot;Next` → `. ` then `"`).
+  const previous = index > 0 ? placed[index - 1]?.inline : undefined
+  const spaced =
+    index > previousEnd ||
+    /^\s/.test(quote.text) ||
+    (previous?.kind === 'text' && /\s$/.test(previous.text))
   return spaced && /^\s*['"]$/.test(quote.text) && /^[^\s\p{P}]/u.test(next.text)
 }
 
-/** Same rule when the opening quote and the next words share one text node. */
-function splitOpensFollowingWords(split: { punct: string; rest: string }): boolean {
+/**
+ * Shared text `. "Next words"`: keep `.` on the pause, leave the spaced quote with the words.
+ * ` "Next words"` alone peels to an empty pause punct and the quote on the next line.
+ */
+function peelPausePunctBeforeOpeningQuote(split: {
+  punct: string
+  rest: string
+}): { pausePunct: string; nextText: string } | null {
   const rest = split.rest.trimStart()
   if (rest === '' || !/^[^\s\p{P}]/u.test(rest)) {
-    return false
+    return null
   }
-  return /\s['"]\s*$/.test(split.punct)
+  const match = split.punct.match(/^(.*?)(\s['"]\s*)$/u)
+  if (match === null) {
+    return null
+  }
+  return {
+    pausePunct: (match[1] ?? '').trim(),
+    nextText: `${match[2] ?? ''}${split.rest}`,
+  }
 }
 
 function skipBlanks(placed: readonly PlacedInline[], start: number): number {
@@ -328,25 +343,43 @@ function splitSelahPauses(block: Block): Block[] {
       let nextCursor = end
       if (shared?.inline.kind === 'text') {
         const split = splitLeadingPausePunctuation(shared.inline.text)
-        if (
-          split !== null &&
-          leadingPausePunctuationBelongsOnPause(placed, cursor, end, split)
-        ) {
-          const punctText = split.punct.trim()
-          if (punctText !== '') {
-            pauseItems.push({
-              verse: shared.verse,
-              inline: { kind: 'text', text: punctText, classes: shared.inline.classes },
-            })
-          }
-          const rest = split.rest.trimStart()
-          if (rest !== '') {
-            proseHead = {
-              verse: shared.verse,
-              inline: { ...shared.inline, text: rest },
+        if (split !== null) {
+          const peeled = peelPausePunctBeforeOpeningQuote(split)
+          if (peeled !== null) {
+            if (peeled.pausePunct !== '') {
+              pauseItems.push({
+                verse: shared.verse,
+                inline: {
+                  kind: 'text',
+                  text: peeled.pausePunct,
+                  classes: shared.inline.classes,
+                },
+              })
             }
+            if (peeled.nextText.trim() !== '') {
+              proseHead = {
+                verse: shared.verse,
+                inline: { ...shared.inline, text: peeled.nextText },
+              }
+            }
+            nextCursor = end + 1
+          } else if (leadingPausePunctuationBelongsOnPause(placed, cursor, end, split)) {
+            const punctText = split.punct.trim()
+            if (punctText !== '') {
+              pauseItems.push({
+                verse: shared.verse,
+                inline: { kind: 'text', text: punctText, classes: shared.inline.classes },
+              })
+            }
+            const rest = split.rest.trimStart()
+            if (rest !== '') {
+              proseHead = {
+                verse: shared.verse,
+                inline: { ...shared.inline, text: rest },
+              }
+            }
+            nextCursor = end + 1
           }
-          nextCursor = end + 1
         }
       }
       const pause = blockFromPlaced(pauseClasses, block.heading, pauseItems)
