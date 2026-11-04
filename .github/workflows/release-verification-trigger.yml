@@ -7,13 +7,15 @@ name: Release verification trigger
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened]
+    # edited covers a PR retargeted to main; other edits are skipped below.
+    types: [opened, synchronize, reopened, edited]
 
 permissions: {}
 
 jobs:
   request:
     name: Request release verification
+    if: github.event.action != 'edited' || github.event.changes.base
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:

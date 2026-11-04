@@ -29,6 +29,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT: ${{ github.event.workflow_run.event }}
           TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           REPOSITORY: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -67,6 +69,12 @@ jobs:
                   -f description="Not a Version Packages PR; nothing to verify." \
                   -f target_url="$RUN_URL" > /dev/null
                 echo "Not the release PR head; marked success."
+                exit 0
+              fi
+              # A shared SHA is not the release PR: a fork or another branch at that head would
+              # otherwise cancel the running suite and start one with the dispatch token.
+              if [ "$HEAD_REPO" != "$REPOSITORY" ] || [ "$HEAD_BRANCH" != changeset-release/main ]; then
+                echo "$HEAD_REPO:$HEAD_BRANCH shares the release head; leaving it to the release PR."
                 exit 0
               fi
               ;;

@@ -170,6 +170,7 @@ run_resolve_case() {
   printf '[{"sha": "%s", "parents": [{"sha": "%s"}]}]\n' "$SHA" "$parent" > "$dir/commits.json"
   env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" GH_TOKEN=repo-token GITHUB_OUTPUT="$dir/output" \
     EVENT="$event" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo RUN_URL="$RUN_URL" \
+    HEAD_REPO="${HEAD_REPO:-youversion/expo}" HEAD_BRANCH="${HEAD_BRANCH:-changeset-release/main}" \
     bash "$TMP/resolve.sh" > "$dir/out" 2>&1
   local code=$? got statuses
   got=$(sed -n 's/^sha=//p' "$dir/output")
@@ -200,6 +201,10 @@ run_resolve_case "never marks the release head itself as not a release" \
   pull_request "$SHA" "$(release_pr "$SHA")" 1111111111111111111111111111111111111111 "$SHA" ""
 run_resolve_case "ignores a changeset-release/main branch from a fork" \
   pull_request "$SHA" "$(release_pr "$SHA" someone/expo)" "$MAIN_SHA" "" success
+HEAD_REPO=someone/expo run_resolve_case "never starts the suite for a fork PR that shares the release head" \
+  pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
+HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch at the release head" \
+  pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
 
 # ── Verify: the device suites on that head ────────────────────────────────
 
