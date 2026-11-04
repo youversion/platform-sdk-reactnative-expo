@@ -159,9 +159,53 @@ describe('parsePassage', () => {
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>;</div></div>'
     const { blocks, verses } = parsePassage(html)
     const verse = verses.get(3)
-    expect(blocks.map(lineTexts)).toEqual([['Selah'], [';']])
+    expect(blocks.map(lineTexts)).toEqual([['Selah', ';']])
     expect(verse?.text).toBe('Selah;')
     expect(verse?.html).toBe('<span class="qs">Selah</span>;')
+  })
+
+  it.each([
+    [',', ['Selah', ',']],
+    [':', ['Selah', ':']],
+    [')', ['Selah', ')']],
+    ['”', ['Selah', '”']],
+    ['.”', ['Selah', '.”']],
+    ['.&#8221;', ['Selah', '.', '”']],
+    ['<span class="add">.</span>”', ['Selah', '.', '”']],
+  ])('keeps %s after a qs pause on the pause line', (tail, expected) => {
+    const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+    const { blocks, verses } = parsePassage(html)
+    expect(blocks.map(lineTexts)).toEqual([expected])
+    expect(verses.get(3)?.text).toBe(expected.join(''))
+  })
+
+  it('keeps a split closing quote after the footnote marker on the pause line', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>' +
+      '<span class="yv-n f"><span class="ft">Hebrew Selah</span></span>.&#8221;</div></div>'
+    const { blocks } = parsePassage(html)
+    const line = blocks[0]
+    if (line === undefined) {
+      throw new Error('expected the pause line')
+    }
+    expect(blocks).toHaveLength(1)
+    expect(lineKinds(line)).toEqual(['text', 'note', 'text', 'text'])
+    expect(lineTexts(line)).toEqual(['Selah', '.', '”'])
+  })
+
+  it('leaves an opening quote with the words that follow a qs pause', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>' +
+      ' “<span class="add">Next</span></div></div>'
+    const { blocks } = parsePassage(html)
+    expect(blocks.map(lineTexts)).toEqual([['Selah'], [' “', 'Next']])
+  })
+
+  it('leaves punctuation joined to words on the line after a qs pause', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>; and more</div></div>'
+    const { blocks } = parsePassage(html)
+    expect(blocks.map(lineTexts)).toEqual([['Selah'], ['; and more']])
   })
 
   it('keeps a span-wrapped period against a qs pause in the footnote html', () => {

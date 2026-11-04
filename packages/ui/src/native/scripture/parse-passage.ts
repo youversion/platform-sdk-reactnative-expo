@@ -192,8 +192,11 @@ function blockFromPlaced(
   return { classes, heading, segments, verses }
 }
 
+// Every punctuation category except opening marks (Ps, Pi), which belong to the next line.
+const PAUSE_PUNCTUATION = /^[\s\p{Pc}\p{Pd}\p{Pe}\p{Pf}\p{Po}]+$/u
+
 function isPausePunctuation(inline: Inline): boolean {
-  return inline.kind === 'text' && /^[\s.!?…]+$/u.test(inline.text) && inline.text.trim() !== ''
+  return inline.kind === 'text' && PAUSE_PUNCTUATION.test(inline.text) && inline.text.trim() !== ''
 }
 
 function skipBlanks(placed: readonly PlacedInline[], start: number): number {
@@ -219,22 +222,22 @@ function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
   }
   // Order on the pause line: the pause, then its footnote, then trailing punctuation.
   let cursor = skipBlanks(placed, end)
-  let noteEnd: number | null = null
+  let runEnd = end
   if (footnoteStaysBesideSelah()) {
     const marker = placed[cursor]
     if (marker !== undefined && marker.inline.kind === 'note') {
-      noteEnd = cursor + 1
-      cursor = skipBlanks(placed, noteEnd)
+      runEnd = cursor + 1
+      cursor = skipBlanks(placed, runEnd)
     }
   }
-  const punct = placed[cursor]
-  if (punct !== undefined && isPausePunctuation(punct.inline)) {
-    return cursor + 1
+  // linkedom splits a text node at each entity, so `.&#8221;` arrives as two runs.
+  let punct = placed[cursor]
+  while (punct !== undefined && isPausePunctuation(punct.inline)) {
+    runEnd = cursor + 1
+    cursor = skipBlanks(placed, runEnd)
+    punct = placed[cursor]
   }
-  if (noteEnd !== null) {
-    return noteEnd
-  }
-  return end
+  return runEnd
 }
 
 function splitSelahPauses(block: Block): Block[] {
