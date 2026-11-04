@@ -1,6 +1,6 @@
 import { DataExchangeClient } from '@youversion/platform-core'
 
-import pkg from '../../../package.json'
+import { getSdkHeaders } from '../../sdk-version'
 import { createDataExchangeApi } from '../data-exchange-api'
 
 const mockFetch: jest.MockedFunction<typeof fetch> = jest.fn()
@@ -83,7 +83,7 @@ describe('createDataExchangeApi — mintToken', () => {
     expect(header(init, 'Authorization')).toBe('Bearer tok')
     expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
     expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-    expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
+    expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
   })
 
   it('falls back to the default API host when none is configured', async () => {

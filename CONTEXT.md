@@ -131,7 +131,7 @@ _Avoid_: Source-only, "a compiled build strips the directive"
 _Avoid_: Bundled deps, vendored web SDK
 
 **SDK Attribution Header**:
-`x-yvp-sdk: ReactNativeSDK=<version>` on DOM-side API calls. Source builds report `{version}-dev`; published builds report `{version}`. See [ADR 0012](docs/adr/0012-sdk-version-stamp-on-publish.md).
+`X-YVP-Sdk: ReactNativeSDK=<version>` on DOM-side and native API calls. `/auth/token`, `/auth/callback`, and the fonts request do not send it yet. Source builds report `{version}-dev`; published builds report `{version}`. See [ADR 0012](docs/adr/0012-sdk-version-stamp-on-publish.md).
 _Avoid_: Treating the `-dev` suffix as a bug to remove; a bare `Dev` sentinel; matching `-dev` to detect the channel; a CI-only rewrite invisible from source
 
 **Highlight Scope**:

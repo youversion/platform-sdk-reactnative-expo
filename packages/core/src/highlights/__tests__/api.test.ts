@@ -1,6 +1,6 @@
 import * as Crypto from 'expo-crypto'
 
-import pkg from '../../../package.json'
+import { getSdkHeaders } from '../../sdk-version'
 import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
@@ -118,7 +118,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {
@@ -202,6 +202,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
       const body: CreatedHighlightBody = JSON.parse(requestBodyText(init.body))
       expect(body.highlight).toEqual({
         bible_id: 111,
@@ -302,6 +303,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
     })
 
     it('returns auth failure for 403', async () => {
