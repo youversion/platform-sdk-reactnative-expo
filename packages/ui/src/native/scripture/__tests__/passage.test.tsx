@@ -142,6 +142,21 @@ function endEdgeJustifies(sentence: string): string[] {
   })
 }
 
+/** Long pauses must shrink/wrap inside the reader column. */
+function endEdgeShrinks(sentence: string): { flexShrink: number; maxWidth: string }[] {
+  return screen.getAllByText(sentence).map((node) => {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const style = StyleSheet.flatten(current.props.style)
+      if (style?.flexShrink === 1 && style.maxWidth !== undefined) {
+        return { flexShrink: 1, maxWidth: String(style.maxWidth) }
+      }
+      current = current.parent
+    }
+    throw new Error(`no flexShrink/maxWidth for ${sentence}`)
+  })
+}
+
 function renderBlock(classes: string[], text: string, rtl: boolean): void {
   render(
     <LocaleProvider locale="en">
@@ -203,11 +218,12 @@ describe('paragraph alignment', () => {
         />
       </LocaleProvider>,
     )
-    // Layout (not physical textAlign right) places the pause on the trailing edge.
+    // Layout places the pause on the trailing edge; textAlign keeps a wrapped pause there.
     expect(endEdgeJustifies('Selah')).toEqual(['flex-end'])
     expect(endEdgeJustifies('.')).toEqual(['flex-end'])
-    expect(textAligns('Selah')).toEqual(['left'])
-    expect(textAligns('.')).toEqual(['left'])
+    expect(textAligns('Selah')).toEqual(['right'])
+    expect(textAligns('.')).toEqual(['right'])
+    expect(endEdgeShrinks('Selah')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
     const selah = screen.getByText('Selah')
     expect(StyleSheet.flatten(selah.props.style)?.fontStyle).toBe('italic')
   })
@@ -229,9 +245,10 @@ describe('paragraph alignment', () => {
         />
       </LocaleProvider>,
     )
-    // Same flex-end under passage direction:rtl → physical left, without textAlign left.
+    // Same flex-end under passage direction:rtl → physical left.
     expect(endEdgeJustifies('סלה')).toEqual(['flex-end'])
     expect(textAligns('סלה')).toEqual(['left'])
+    expect(endEdgeShrinks('סלה')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
   })
 
   it('names the footnote button with the shared label', () => {

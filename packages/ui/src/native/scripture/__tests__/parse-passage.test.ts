@@ -234,6 +234,16 @@ describe('parsePassage', () => {
   })
 
   it.each([
+    [' "Next words"', ' "Next words"'],
+    [' &quot;Next words&quot;', ' "Next words"'],
+    [` 'Next words'`, ` 'Next words'`],
+  ])('leaves a shared-node opening quote in %s with the words after a qs pause', (tail, nextLine) => {
+    const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+    const { blocks } = parsePassage(html)
+    expect(blocks.map((block) => lineTexts(block).join(''))).toEqual(['Selah', nextLine])
+  })
+
+  it.each([
     ['"', ['Selah', '"']],
     ['."', ['Selah', '."']],
     ['.&quot;', ['Selah', '.', '"']],

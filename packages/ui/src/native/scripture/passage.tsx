@@ -361,6 +361,22 @@ const BlockView = memo(function BlockView({
     } else if (rule.align === 'right' || (!endAligned && look.rtl)) {
       textAlign = 'right'
     }
+    // End lines: the row pins a short pause; flexShrink + maxWidth let a long one wrap
+    // inside the column. textAlign keeps wrapped lines on the trailing edge.
+    const paragraphStyle: TextStyle = {
+      fontSize: rule.size,
+      lineHeight: lineBox,
+      color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
+      ...look.face(rule.weight, rule.italic),
+      textAlign: endAligned ? (look.rtl ? 'left' : 'right') : textAlign,
+      writingDirection: look.rtl ? 'rtl' : 'ltr',
+      paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
+      paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
+    }
+    if (endAligned) {
+      paragraphStyle.flexShrink = 1
+      paragraphStyle.maxWidth = '100%'
+    }
     const node = (
       <RNText
         ref={ghost ? undefined : (node) => onBlockRef(index, node)}
@@ -376,18 +392,7 @@ const BlockView = memo(function BlockView({
               }
         }
         allowFontScaling={false}
-        style={{
-          fontSize: rule.size,
-          lineHeight: lineBox,
-          color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
-          ...look.face(rule.weight, rule.italic),
-          // Shrink-wrapped end lines keep a start align inside their own box; the row
-          // places that box on the trailing edge.
-          textAlign: endAligned ? 'left' : textAlign,
-          writingDirection: look.rtl ? 'rtl' : 'ltr',
-          paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
-          paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
-        }}
+        style={paragraphStyle}
       >
         {/* iOS reads paragraph style (lineHeight) from the first character; an
           inline View there drops it for the whole block, so lead with text. */}

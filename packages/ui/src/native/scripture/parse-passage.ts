@@ -217,6 +217,10 @@ function leadingPausePunctuationBelongsOnPause(
   if (opensFollowingWords(placed, selahStart, index)) {
     return false
   }
+  // Quote and following words can share one text node (` "Next words"`); check that too.
+  if (splitOpensFollowingWords(split)) {
+    return false
+  }
   const rest = split.rest.trimStart()
   if (rest === '') {
     return true
@@ -238,6 +242,15 @@ function opensFollowingWords(
   }
   const spaced = index > previousEnd || /^\s/.test(quote.text)
   return spaced && /^\s*['"]$/.test(quote.text) && /^[^\s\p{P}]/u.test(next.text)
+}
+
+/** Same rule when the opening quote and the next words share one text node. */
+function splitOpensFollowingWords(split: { punct: string; rest: string }): boolean {
+  const rest = split.rest.trimStart()
+  if (rest === '' || !/^[^\s\p{P}]/u.test(rest)) {
+    return false
+  }
+  return /\s['"]\s*$/.test(split.punct)
 }
 
 function skipBlanks(placed: readonly PlacedInline[], start: number): number {
