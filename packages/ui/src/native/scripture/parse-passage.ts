@@ -199,6 +199,31 @@ function isPausePunctuation(inline: Inline): boolean {
   return inline.kind === 'text' && PAUSE_PUNCTUATION.test(inline.text) && inline.text.trim() !== ''
 }
 
+function splitLeadingPausePunctuation(text: string): { punct: string; rest: string } | null {
+  const match = text.match(/^[\s\p{Pc}\p{Pd}\p{Pe}\p{Pf}\p{Po}]+/u)
+  if (match === null || match[0].trim() === '') {
+    return null
+  }
+  return { punct: match[0], rest: text.slice(match[0].length) }
+}
+
+/** Shared-node tail: `. God` belongs on the pause line; `; and` stays with the clause. */
+function leadingPausePunctuationBelongsOnPause(
+  placed: readonly PlacedInline[],
+  selahStart: number,
+  index: number,
+  split: { punct: string; rest: string },
+): boolean {
+  if (opensFollowingWords(placed, selahStart, index)) {
+    return false
+  }
+  const rest = split.rest.trimStart()
+  if (rest === '') {
+    return true
+  }
+  return /^\p{Lu}/u.test(rest)
+}
+
 // A straight quote has no opening or closing form, so spacing decides: a space before and a
 // word right after means it opens the next line.
 function opensFollowingWords(
@@ -285,11 +310,58 @@ function splitSelahPauses(block: Block): Block[] {
         }
         return { verse: item.verse, inline: { ...item.inline, text } }
       })
+      const shared = placed[end]
+      let proseHead: PlacedInline | undefined
+      let nextCursor = end
+      if (shared?.inline.kind === 'text') {
+        const split = splitLeadingPausePunctuation(shared.inline.text)
+        if (
+          split !== null &&
+          leadingPausePunctuationBelongsOnPause(placed, cursor, end, split)
+        ) {
+          const punctText = split.punct.trim()
+          if (punctText !== '') {
+            pauseItems.push({
+              verse: shared.verse,
+              inline: { kind: 'text', text: punctText, classes: shared.inline.classes },
+            })
+          }
+          const rest = split.rest.trimStart()
+          if (rest !== '') {
+            proseHead = {
+              verse: shared.verse,
+              inline: { ...shared.inline, text: rest },
+            }
+          }
+          nextCursor = end + 1
+        }
+      }
       const pause = blockFromPlaced(pauseClasses, block.heading, pauseItems)
       if (pause !== null) {
         blocks.push(pause)
       }
-      cursor = end
+      if (proseHead !== undefined) {
+        let proseEnd = nextCursor
+        while (proseEnd < placed.length) {
+          const next = placed[proseEnd]
+          if (next !== undefined && isSelahText(next.inline)) {
+            break
+          }
+          proseEnd += 1
+        }
+        const prose = blockFromPlaced(block.classes, block.heading, [
+          proseHead,
+          ...placed.slice(nextCursor, proseEnd),
+        ])
+        if (prose !== null) {
+          blocks.push(prose)
+        }
+        cursor = proseEnd
+      } else if (nextCursor > end) {
+        cursor = nextCursor
+      } else {
+        cursor = end
+      }
       continue
     }
     let end = cursor + 1
@@ -362,7 +434,7 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
     }
     verses.set(verse, {
       text: joinVerseParts(texts),
-      html: joinVerseParts(htmls),
+      html: htmls.join(' '),
       notes,
     })
   }

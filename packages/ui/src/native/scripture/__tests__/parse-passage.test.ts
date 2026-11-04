@@ -85,6 +85,28 @@ describe('parsePassage', () => {
     )
   })
 
+  it('moves a period in the same text node as the following words onto the Selah pause line', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span><span class="yv-vlbl">3</span>' +
+      '<span class="qs">Selah</span>. God shall send forth his lovingkindness and his truth.</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const pause = blocks.find((block) => block.classes.includes('qs'))
+    const prose = blocks.find(
+      (block) =>
+        !block.classes.includes('qs') &&
+        lineTexts(block).some((text) => text.startsWith('God shall')),
+    )
+    if (pause === undefined || prose === undefined) {
+      throw new Error('expected the pause and the prose')
+    }
+    expect(lineTexts(pause)).toEqual(['Selah', '.'])
+    expect(lineTexts(prose)).toEqual(['God shall send forth his lovingkindness and his truth.'])
+    expect(verses.get(3)?.text).toBe('Selah. God shall send forth his lovingkindness and his truth.')
+    expect(verses.get(3)?.html).toBe(
+      '<span class="qs">Selah</span>. God shall send forth his lovingkindness and his truth.',
+    )
+  })
+
   it('draws Selah and a following period on the end-aligned pause line', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>.</div></div>'
