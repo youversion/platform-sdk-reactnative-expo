@@ -10,6 +10,28 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.3.0
+
+### Minor Changes
+
+- _(all packages)_ c4264e2: Add `useSearch().images` for paged image search, and `useVerseOfTheDay` for the public curated calendar.
+
+  A typed `UseSearchResult` stub now needs an `images` key.
+
+  Verse of the Day uses `GET /v1/verse-of-the-days` and `GET /v1/verse-of-the-days/{day}`. The shared client validates the day and the language ranges, and it sets a missing `image_id` to `null`.
+
+  Both packages depend on `@youversion/platform-core` 2.17.0. The UI package depends on `@youversion/platform-react-ui` 2.17.0. Native Next still skips a book intro and opens chapter 1. Web reader behavior follows that upstream UI package. Update the Developer Hub only after this React Native SDK release is published.
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-core)_ 3cadcdc: Send ReactNativeSDK on image and search requests.
+
+- _(@youversion/platform-react-native-expo-core)_ c971b07: Send ReactNativeSDK on highlight and data-exchange token requests.
+
+- _(@youversion/platform-react-native-expo-ui)_ b93c760: Sync localization from platform-localization (70fd234): update 26 keys in af, ar, cy, de, es, fr, ig, no, pt, ru, uk, vi.
+
+- _(@youversion/platform-react-native-expo-ui)_ 5342263: Sync localization from platform-localization (dc70b8b): update 3 keys in en.
+
 ## 2.2.0
 
 ### Minor Changes
