@@ -4,7 +4,7 @@ import {
   verseSpanFromPassageId,
   type ScripturePhaseInput,
 } from '../reference-passage'
-import { passageKey, type LoadedPassage } from '../use-passage'
+import { chapterRef, passageKey, type LoadedPassage } from '../use-passage'
 
 function block(verse: number, text: string, heading = false): Block {
   return {
@@ -16,11 +16,11 @@ function block(verse: number, text: string, heading = false): Block {
 }
 
 function loaded(blocks: Block[], chapter = '3'): LoadedPassage {
+  const ref = chapterRef('JHN', chapter)
   return {
-    key: passageKey(111, 'JHN', chapter),
+    ...ref,
+    key: passageKey(111, ref),
     versionId: 111,
-    book: 'JHN',
-    chapter,
     parsed: { blocks, verses: new Map(), rtl: false },
     reference: 'John 3',
   }

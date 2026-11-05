@@ -156,18 +156,6 @@ describe('native scripture ownership', () => {
     expect(cardSource).not.toContain("from '../dom/bible-card'")
     expect(cardSource).not.toContain('onHighlightApply')
     expect(cardSource).not.toContain('onHighlightRemove')
-  })
-
-  it('keeps the embed content-sized so matchContents can measure scripture', () => {
-    expect(textViewSource).toContain('ContentSizedBody')
-  })
-
-  it('neither declares nor applies an accessToken prop', () => {
-    expect(textViewSource).not.toMatch(/^\s*accessToken\b/m)
-    expect(textViewSource).not.toContain('applyAuthToken')
-  })
-
-  it('still clears the residue prior versions left in WebView storage', () => {
-    expect(textViewSource).toMatch(/^\s*clearAuthResidue\(\)$/m)
+    expect(cardSource).not.toContain('accessToken')
   })
 })

@@ -1,7 +1,7 @@
 import { parseChapterScopeFromUsfm } from '@youversion/platform-react-native-expo-core'
 
 import type { Block } from './parse-passage'
-import { passageKey, type LoadedPassage, type PassageError } from './use-passage'
+import { passageKey, chapterRef, type LoadedPassage, type PassageError } from './use-passage'
 
 export type VerseSpan = {
   book: string
@@ -103,7 +103,7 @@ export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
   const loaded = input.passage
   const current =
     loaded !== null &&
-    loaded.key === passageKey(input.versionId, input.span.book, input.span.chapter)
+    loaded.key === passageKey(input.versionId, chapterRef(input.span.book, input.span.chapter))
   if (!current || loaded === null) {
     return { kind: 'loading' }
   }
