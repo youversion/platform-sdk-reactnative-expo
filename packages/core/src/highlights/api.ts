@@ -1,5 +1,4 @@
 import {
-  ApiClient,
   HighlightsClient,
   getHttpStatus,
   type Collection,
@@ -9,10 +8,9 @@ import {
   type Highlight,
 } from '@youversion/platform-core'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
 import { ensureCryptoRandomUUID } from './ensure-crypto-uuid'
 
 export type { Collection, CreateHighlight, DeleteHighlightOptions, GetHighlightsOptions, Highlight }
@@ -55,15 +53,7 @@ export function createHighlightsApi(config: CreateHighlightsApiConfig): Highligh
   // yvp- fallback the API 422s). Idempotent; also runs on module import.
   ensureCryptoRandomUUID()
 
-  const client = new HighlightsClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
-      timeout: config.timeout,
-    }),
-  )
+  const client = new HighlightsClient(createApiClient(config))
 
   return {
     getHighlights(accessToken, options) {

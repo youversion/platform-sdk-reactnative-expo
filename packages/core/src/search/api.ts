@@ -1,5 +1,4 @@
 import {
-  ApiClient,
   SearchClient,
   getHttpStatus,
   type SearchQueries,
@@ -7,10 +6,9 @@ import {
   type SearchVersesResponse,
 } from '@youversion/platform-core'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
 import { isZodError } from '../zod-error'
 import type {
   SearchApiError,
@@ -40,14 +38,7 @@ export type SearchApi = {
 }
 
 export function createSearchClient(config: CreateSearchApiConfig): SearchClient {
-  const http = new ApiClient({
-    appKey: config.appKey,
-    apiHost: config.apiHost ?? DEFAULT_API_HOST,
-    installationId: config.installationId,
-    additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
-    timeout: config.timeout,
-  })
-  return new SearchClient(http)
+  return new SearchClient(createApiClient(config))
 }
 
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {

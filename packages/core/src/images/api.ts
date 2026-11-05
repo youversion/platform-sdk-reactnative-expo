@@ -1,9 +1,8 @@
-import { ApiClient, ImagesClient, getHttpStatus } from '@youversion/platform-core'
+import { ImagesClient, getHttpStatus } from '@youversion/platform-core'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
 import { isZodError } from '../zod-error'
 import type {
   GetImagesOptions,
@@ -27,15 +26,7 @@ export type ImagesApi = {
 }
 
 export function createImagesApi(config: CreateImagesApiConfig): ImagesApi {
-  const client = new ImagesClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
-      timeout: config.timeout,
-    }),
-  )
+  const client = new ImagesClient(createApiClient(config))
 
   return {
     list(options) {
