@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { DEFAULT_API_HOST } from './api-client'
+import { DEFAULT_API_HOST } from './default-api-host'
 import { AuthProvider } from './auth/auth-provider'
 import type { AuthConfig } from './auth/types'
 import { createBibleContentClient } from './bible-content/client'

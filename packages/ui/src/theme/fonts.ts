@@ -1,4 +1,4 @@
-import { DEFAULT_API_HOST } from '@youversion/platform-react-native-expo-core/api-client'
+import { DEFAULT_API_HOST } from '@youversion/platform-react-native-expo-core/default-api-host'
 import type { TextStyle } from 'react-native'
 import { z } from 'zod'
 

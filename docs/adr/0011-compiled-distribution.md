@@ -68,4 +68,4 @@ Core now exposes a second subpath, `./sdk-version` (mirrored in `publishConfig.e
 
 ## Amendment (2026-11-05, YPE-6444)
 
-Core adds a third subpath, `./api-client` (mirrored in `publishConfig.exports`). It holds `createApiClient` and `DEFAULT_API_HOST`, so UI code builds its `ApiClient` the same way core does. The barrel stays free of `ApiClient`, which the exports tests pin. Like `./sdk-version`, this subpath is internal plumbing, not consumer API. The entry points are now `.`, `./package.json`, `./sdk-version`, and `./api-client`.
+Core adds a third subpath, `./api-client` (mirrored in `publishConfig.exports`). It holds `createApiClient`, so UI code builds its `ApiClient` the same way core does. `DEFAULT_API_HOST` lives on a fourth subpath, `./default-api-host`, so font loading can read the host string without pulling the factory. The barrel stays free of `ApiClient`, which the exports tests pin. Like `./sdk-version`, these subpaths are internal plumbing, not consumer API. The entry points are now `.`, `./package.json`, `./sdk-version`, `./api-client`, and `./default-api-host`.

@@ -1,8 +1,7 @@
 import { ApiClient } from '@youversion/platform-core'
 
+import { DEFAULT_API_HOST } from './default-api-host'
 import { mergeSdkHeaders } from './sdk-version'
-
-export const DEFAULT_API_HOST = 'api.youversion.com'
 
 export type CreateApiClientConfig = {
   appKey: string

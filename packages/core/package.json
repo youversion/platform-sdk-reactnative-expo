@@ -33,6 +33,10 @@
       "types": "./src/api-client.ts",
       "default": "./src/api-client.ts"
     },
+    "./default-api-host": {
+      "types": "./src/default-api-host.ts",
+      "default": "./src/default-api-host.ts"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -55,6 +59,10 @@
       "./api-client": {
         "types": "./build/api-client.d.ts",
         "default": "./build/api-client.js"
+      },
+      "./default-api-host": {
+        "types": "./build/default-api-host.d.ts",
+        "default": "./build/default-api-host.js"
       },
       "./package.json": "./package.json"
     }

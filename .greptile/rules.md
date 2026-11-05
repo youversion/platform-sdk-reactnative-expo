@@ -83,4 +83,4 @@ Layer-3 tests swap DOM, NativeSheet, and sibling sheets through stubImpl, setImp
 
 ## public-api-pin
 
-A new package export is a finding unless packages/ui/src/__tests__/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version" and "./api-client" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
+A new package export is a finding unless packages/ui/src/__tests__/exports.test.ts or a core exports test already pins it. Allowed exports keys are "." and "./package.json" on both packages, plus "./sdk-version", "./api-client", and "./default-api-host" on core only, per ADR 0011. UI primitives stay on packages/ui/src/components/ui/ and off src/index.ts.
