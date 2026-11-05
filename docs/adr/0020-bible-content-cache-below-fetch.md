@@ -33,7 +33,7 @@ The SDK is moving off WebViews toward native rendering. Anything built inside th
 - A reader mounts from MMKV without a network call for up to `max-age` (24h today) — the ticket's goal — with no change to the React SDK. `fetch?: typeof fetch` on upstream `ApiConfig` is a nicety, not a dependency.
 - The memory tier is per WebView and dies with it; the native tier is the one that carries state across mounts. Once #360 lands, `gcTime` per query is capped at the remaining Content Lifetime so the memory tier can never outlive the header.
 - One Native Action crosses the bridge on every eligible request, carrying the path out and the whole body back. A hit costs one MMKV read and one bridge round trip; a miss adds the network on the native side.
-- Every DOM component carries the action, because eligibility is a path rule, not a component list. BibleCard and Verse of the Day passages are cached like chapters; `/v1/bibles` and `/v1/verse_of_the_days` pass through.
+- Every DOM component carries the action, because eligibility is a path rule, not a component list. BibleCard and Verse of the Day passages are cached like chapters; `/v1/bibles` and `/v1/verse-of-the-days` pass through. The canonical Verse of the Day route replaced `/v1/verse_of_the_days` with shared core 2.17.0.
 - When the WebView goes, `dom-content-cache.ts` and the action prop are deleted; the client, the store, the lifetime parser, and the sweep stay.
 - Native VOTD now sends `X-YVP-Sdk`, which it did not before.
 - Bible text is backed up with the app and never OS-evicted. Space is bounded by the lifetime rule alone.

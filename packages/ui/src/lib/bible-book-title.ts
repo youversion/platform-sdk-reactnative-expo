@@ -212,6 +212,10 @@ function parseChapterNumber(value: string): number | null {
   return chapterNumber
 }
 
+/**
+ * Navigate numbered chapters, skipping book intros in both directions (ADR 0022).
+ * Before the catalog loads, only Previous can step within the current book.
+ */
 export function adjacentBookChapter(
   catalog: ReadonlyMap<string, BookCatalogEntry> | null,
   book: string,

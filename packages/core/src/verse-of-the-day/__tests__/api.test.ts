@@ -116,7 +116,6 @@ describe('createVerseOfTheDayApi', () => {
             { day: 2, passage_id: 'PSA.23.1', image_id: null },
             { day: 3, passage_id: 'MAT.5.1' },
           ],
-          next_page_token: 'year',
         }),
       )
 
@@ -130,7 +129,7 @@ describe('createVerseOfTheDayApi', () => {
             { day: 2, passage_id: 'PSA.23.1', image_id: null },
             { day: 3, passage_id: 'MAT.5.1', image_id: null },
           ],
-          next_page_token: 'year',
+          next_page_token: null,
         },
       })
       const { url, init } = lastRequest()

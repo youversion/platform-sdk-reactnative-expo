@@ -199,7 +199,7 @@ function useFindVerse() {
 }
 ```
 
-`search.images` reads one page from `GET /v1/search-images`. Send the same `query`, `bibleId`, and `pageSize` on every page. Set `pageToken` to the previous page's `nextPageToken`. Stop only when `nextPageToken` is `null`. An empty string is still a token, so send it again. The SDK does not store the query, and it does not rebuild a page.
+`search.images` reads one page from `GET /v1/search-images`. Send the same `query`, `bibleId`, and `pageSize` on every page. Set `pageToken` to the previous page's `nextPageToken`. A `null` token ends pagination. Tokens are opaque, so an empty string is preserved rather than interpreted as the end. If you load pages in a loop, reject repeated tokens and set a request limit to protect against a malformed server response. The SDK requests only one page per call and never loops automatically.
 
 `YouVersionImageSearchResults` is `{ images, nextPageToken }`. Each hit is `{ id, passageId }`. `id` is opaque. Pass that same string to `useImages().get`. Do not decode it, and do not build an image URL from it.
 
@@ -285,7 +285,7 @@ function usePassageImages(passageId: string) {
 
 ### Verse of the day
 
-`useVerseOfTheDay()` returns `get` and `list` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `get(day, options?)` requests `GET /v1/verse-of-the-days/{day}`. `day` is an integer from 1 to 366. `list(options?)` requests `GET /v1/verse-of-the-days`. `list` takes no page token. The page type still includes `next_page_token`, because it is a collection.
+`useVerseOfTheDay()` returns `get` and `list` for the current provider. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`. `get(day, options?)` requests `GET /v1/verse-of-the-days/{day}`. `day` is an integer from 1 to 366. `list(options?)` requests `GET /v1/verse-of-the-days`, which returns the entire calendar without pagination. It accepts no page token. The shared collection type includes `next_page_token`, but the endpoint omits it and the client normalizes it to `null`.
 
 Leave out `languageRanges` and the request has no language query. The client sends each range as its own `language_ranges[]` parameter. `en_US` goes out as `en-us`. An empty list returns `invalid-parameter` and does not call the network. For example, call `verseOfTheDay.get(15, { languageRanges: ['es', 'en'] })` or `verseOfTheDay.list({ languageRanges: ['es', 'en'] })`.
 
