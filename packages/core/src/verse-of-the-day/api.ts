@@ -9,6 +9,7 @@ import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
 import { mergeSdkHeaders } from '../sdk-version'
+import { isZodError } from '../zod-error'
 import type {
   VerseOfTheDayApiError,
   VerseOfTheDayApiResult,
@@ -104,8 +105,4 @@ function isClientError(status: number | undefined): status is number {
   if (status === 401 || status === 403 || status === 404) return false
   if (status === 408 || status === 429) return false
   return status >= 400 && status < 500
-}
-
-function isZodError(caught: Error): boolean {
-  return caught.name === 'ZodError' || caught.name === '$ZodError'
 }

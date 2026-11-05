@@ -1,13 +1,13 @@
 import {
   ApiClient,
   HighlightsClient,
+  getHttpStatus,
   type Collection,
   type CreateHighlight,
   type DeleteHighlightOptions,
   type GetHighlightsOptions,
   type Highlight,
 } from '@youversion/platform-core'
-import { z } from 'zod'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
@@ -89,7 +89,7 @@ async function catchAsResult<Value>(
 }
 
 function toHighlightsApiError(caught: Error): HighlightsApiError {
-  const status = extractStatus(caught)
+  const status = getHttpStatus(caught)
   const message = toMessage(caught)
 
   if (status === 401 || status === 403) {
@@ -99,14 +99,4 @@ function toHighlightsApiError(caught: Error): HighlightsApiError {
   return status === undefined
     ? { kind: 'transient', message }
     : { kind: 'transient', status, message }
-}
-
-const httpStatusErrorSchema = z.object({
-  status: z.number(),
-})
-
-/** Pulls an HTTP status off a thrown ApiClient error (same shape Web uses). */
-function extractStatus(error: Error): number | undefined {
-  const parsed = httpStatusErrorSchema.safeParse(error)
-  return parsed.success ? parsed.data.status : undefined
 }

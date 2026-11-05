@@ -1,5 +1,4 @@
-import { ApiClient, DataExchangeClient } from '@youversion/platform-core'
-import { z } from 'zod'
+import { ApiClient, DataExchangeClient, getHttpStatus } from '@youversion/platform-core'
 
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
@@ -62,7 +61,7 @@ export function createDataExchangeApi(config: CreateDataExchangeApiConfig): Data
 }
 
 function toDataExchangeError(caught: Error): DataExchangeError {
-  const status = extractStatus(caught)
+  const status = getHttpStatus(caught)
   const message = toMessage(caught)
 
   if (status === 401) {
@@ -72,14 +71,4 @@ function toDataExchangeError(caught: Error): DataExchangeError {
   return status === undefined
     ? { kind: 'transient', message }
     : { kind: 'transient', status, message }
-}
-
-const httpStatusErrorSchema = z.object({
-  status: z.number(),
-})
-
-/** Pulls an HTTP status off a thrown ApiClient error. Twin of the one in `highlights/api.ts`. */
-function extractStatus(error: Error): number | undefined {
-  const parsed = httpStatusErrorSchema.safeParse(error)
-  return parsed.success ? parsed.data.status : undefined
 }

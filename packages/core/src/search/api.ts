@@ -11,6 +11,7 @@ import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
 import { mergeSdkHeaders } from '../sdk-version'
+import { isZodError } from '../zod-error'
 import type {
   SearchApiError,
   SearchApiResult,
@@ -119,8 +120,4 @@ function isClientError(status: number | undefined): status is number {
     return false
   }
   return status >= 400 && status < 500
-}
-
-function isZodError(caught: Error): boolean {
-  return caught.name === 'ZodError' || caught.name === '$ZodError'
 }
