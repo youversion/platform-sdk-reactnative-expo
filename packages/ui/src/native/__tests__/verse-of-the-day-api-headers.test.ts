@@ -41,4 +41,11 @@ describe('getVerseOfTheDayPassageId headers', () => {
     expect(headers.get('x-yvp-app-key')).toBe('appkey')
     expect(headers.get('x-yvp-installation-id')).toBe('inst-1')
   })
+
+  it('goes to api.youversion.com when apiHost is empty', async () => {
+    await getVerseOfTheDayPassageId({ ...credentials, apiHost: '' }, 15)
+
+    const [url] = fetchMock.mock.calls[0]!
+    expect(String(url)).toBe('https://api.youversion.com/v1/verse-of-the-days/15')
+  })
 })

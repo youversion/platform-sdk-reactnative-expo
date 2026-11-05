@@ -1,7 +1,9 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { Children, type ReactNode } from 'react'
 import { ScrollView, StyleSheet, Text as RNText, View } from 'react-native'
 
+import { getSdkHeaders } from '../../lib/sdk-version'
 import { useRecentBibleVersionsStore } from '../../stores/recent-bible-versions-store'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
@@ -221,6 +223,38 @@ describe('BibleVersionPickerSheet selection', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onSelect).toHaveBeenCalledWith(111)
     expect(useRecentBibleVersionsStore.getState().versionIds).toEqual([111])
+  })
+
+  it("sends catalog requests to the provider host with this SDK's stamp and the app credentials", async () => {
+    installCatalogFetch('ready')
+    let providerInstallationId = ''
+    function InstallationIdProbe() {
+      providerInstallationId = useYouVersion().installationId
+      return null
+    }
+
+    const { findByLabelText } = render(
+      <>
+        <InstallationIdProbe />
+        <BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />
+      </>,
+      { wrapper },
+    )
+    await findByLabelText('King James Version')
+
+    const catalogRequests = jest.mocked(global.fetch).mock.calls.filter(([input]) => {
+      const { pathname } = new URL(String(input))
+      return pathname === '/v1/languages' || pathname === '/v1/bibles'
+    })
+    expect(catalogRequests.length).toBeGreaterThan(0)
+    expect(providerInstallationId).not.toBe('')
+    for (const [input, init] of catalogRequests) {
+      const headers = new Headers(init?.headers)
+      expect(new URL(String(input)).host).toBe('api.youversion.com')
+      expect(headers.get('x-yvp-sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
+      expect(headers.get('x-yvp-app-key')).toBe('test-key')
+      expect(headers.get('x-yvp-installation-id')).toBe(providerInstallationId)
+    }
   })
 
   it('lets the user choose a replacement when the current version has no language', async () => {
