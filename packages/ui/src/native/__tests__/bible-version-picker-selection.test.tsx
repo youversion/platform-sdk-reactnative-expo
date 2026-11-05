@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native'
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import { getSdkHeaders } from '@youversion/platform-react-native-expo-core/sdk-version'
 import { Children, type ReactNode } from 'react'
@@ -228,7 +228,15 @@ describe('BibleVersionPickerSheet selection', () => {
   })
 
   it("sends catalog requests to the provider host with this SDK's stamp and the app credentials", async () => {
+    // Prior tests in this file leave in-flight catalog fetches that land on the
+    // next fetch spy with the default host. Drain them, then clear the spy so
+    // this case only sees requests from hostWrapper.
+    await act(async () => {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+    })
     installCatalogFetch('ready')
+    jest.mocked(global.fetch).mockClear()
+
     let providerInstallationId = ''
     function InstallationIdProbe() {
       providerInstallationId = useYouVersion().installationId
