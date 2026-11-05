@@ -11,6 +11,8 @@ import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
 
 const wrapper = youVersionProviderWrapper('light', 'en')
+const CUSTOM_API_HOST = 'api.test.example'
+const hostWrapper = youVersionProviderWrapper('light', 'en', undefined, CUSTOM_API_HOST)
 
 type VersionLookup = 'ready' | 'missing-tag' | 'reject' | 'reject-once'
 type CatalogVariant = 'default' | 'hidden-language' | 'native-name' | 'empty'
@@ -238,7 +240,7 @@ describe('BibleVersionPickerSheet selection', () => {
         <InstallationIdProbe />
         <BibleVersionPickerSheet isOpen={true} onClose={() => {}} versionId={3034} />
       </>,
-      { wrapper },
+      { wrapper: hostWrapper },
     )
     await findByLabelText('King James Version')
 
@@ -250,7 +252,7 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(providerInstallationId).not.toBe('')
     for (const [input, init] of catalogRequests) {
       const headers = new Headers(init?.headers)
-      expect(new URL(String(input)).host).toBe('api.youversion.com')
+      expect(new URL(String(input)).host).toBe(CUSTOM_API_HOST)
       expect(headers.get('x-yvp-sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
       expect(headers.get('x-yvp-app-key')).toBe('test-key')
       expect(headers.get('x-yvp-installation-id')).toBe(providerInstallationId)
