@@ -2,6 +2,8 @@ import * as core from '../../index'
 import type {
   UseVerseOfTheDayResult,
   VerseOfTheDayApiError,
+  VerseOfTheDayApiResult,
+  VerseOfTheDayOptions,
   YouVersionVerseOfTheDay,
   YouVersionVerseOfTheDayPage,
 } from '../../index'
@@ -20,6 +22,24 @@ describe('verse of the day package exports', () => {
     expect(names).not.toContain('createVerseOfTheDayApi')
     expect(names).not.toContain('BibleClient')
     expect(names).not.toContain('ApiClient')
+  })
+
+  it('exports optional language ranges and the typed result', () => {
+    const defaults: VerseOfTheDayOptions = {}
+    const options = { languageRanges: ['es', 'en'] } satisfies VerseOfTheDayOptions
+    const success = {
+      ok: true,
+      value: { day: 15, passage_id: 'JHN.3.16', image_id: null },
+    } satisfies VerseOfTheDayApiResult<YouVersionVerseOfTheDay>
+    const failure = {
+      ok: false,
+      error: { kind: 'not-found', status: 404, message: 'missing' },
+    } satisfies VerseOfTheDayApiResult<YouVersionVerseOfTheDay>
+
+    expect(defaults.languageRanges).toBeUndefined()
+    expect(options.languageRanges).toEqual(['es', 'en'])
+    expect(success.value.image_id).toBeNull()
+    expect(failure.error.kind).toBe('not-found')
   })
 
   it('exports the parsed day, including a required image id', () => {
