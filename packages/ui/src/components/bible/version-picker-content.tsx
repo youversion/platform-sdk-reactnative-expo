@@ -19,8 +19,8 @@ import { useTokens } from '../../hooks/use-tokens'
 import { useLocale } from '../../i18n/locale-context'
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import type { VersionPickerPanel } from '../../lib/version-picker-panels'
-import { fontMapKey, sansFace } from '../../theme/fonts'
-import { useSerifFamily } from '../../theme/use-fonts'
+import { sansFace } from '../../theme/fonts'
+import { useSerifFace } from '../../theme/use-fonts'
 import { ClearIcon } from '../icons/clear-icon'
 import { SearchIcon } from '../icons/search-icon'
 import { Button, Text } from '../ui'
@@ -156,11 +156,12 @@ function VersionAbbreviation({ text }: { text: string }): ReactNode {
   const match = /^(.+?)(\d+)$/.exec(text)
   const prefix = match?.[1] ?? text
   const digits = match?.[2]
-  const face = fontMapKey(useSerifFamily(), 700, 'normal')
+  const serifFaceFor = useSerifFace()
+  const face = serifFaceFor(700)
   const fontSize = Math.min(fittedSizes.prefix, fittedSizes.digits)
   const textStyle = [
     styles.versionBadgeText,
-    { fontFamily: face, color: tokens.foreground, fontSize, lineHeight: fontSize * 1.03 },
+    { ...face, color: tokens.foreground, fontSize, lineHeight: fontSize * 1.03 },
   ]
 
   const fitLine = (part: 'prefix' | 'digits', { nativeEvent: { lines } }: TextLayoutEvent) => {
@@ -183,7 +184,7 @@ function VersionAbbreviation({ text }: { text: string }): ReactNode {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         onTextLayout={(event) => fitLine('prefix', event)}
-        style={[styles.badgeMeasure, { fontFamily: face, color: tokens.foreground }]}
+        style={[styles.badgeMeasure, { ...face, color: tokens.foreground }]}
       >
         {prefix}
       </Text>
@@ -194,7 +195,7 @@ function VersionAbbreviation({ text }: { text: string }): ReactNode {
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           onTextLayout={(event) => fitLine('digits', event)}
-          style={[styles.badgeMeasure, { fontFamily: face, color: tokens.foreground }]}
+          style={[styles.badgeMeasure, { ...face, color: tokens.foreground }]}
         >
           {digits}
         </Text>

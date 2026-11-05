@@ -8,9 +8,26 @@ import {
   SourceSerif4_700Bold_Italic,
 } from '@expo-google-fonts/source-serif-4'
 import * as Font from 'expo-font'
-import { createContext, createElement, useContext, useEffect, useState, type ReactNode } from 'react'
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
+import type { TextStyle } from 'react-native'
 
-import { buildFontMap, fetchUntitledSerifFont, pickTtfSources, type BrandFontUriMap } from './fonts'
+import {
+  buildFontMap,
+  fetchUntitledSerifFont,
+  pickTtfSources,
+  serifFace,
+  SERIF_STANDIN,
+  type BrandFontUriMap,
+  type FontFace,
+} from './fonts'
 import { fontFamily } from './scales'
 
 export const bundledSans = {
@@ -56,7 +73,10 @@ async function loadSerifFallbackBestEffort(scope: FontLoadScope): Promise<void> 
   }
 }
 
-async function loadSerifWithApiTtfs(apiTtfMap: BrandFontUriMap, scope: FontLoadScope): Promise<void> {
+async function loadSerifWithApiTtfs(
+  apiTtfMap: BrandFontUriMap,
+  scope: FontLoadScope,
+): Promise<void> {
   if (Object.keys(apiTtfMap).length === 0 || !scope.isActive()) {
     return
   }
@@ -105,6 +125,10 @@ function sansIsRegistered(): boolean {
   return Object.keys(bundledSans).every((face) => Font.isLoaded(face))
 }
 
+function serifIsRegistered(): boolean {
+  return untitledSerifIsRegistered() || Font.isLoaded(sourceSerifFamily)
+}
+
 function untitledSerifIsRegistered(): boolean {
   return Object.keys(untitledSerifFallback).every((face) => Font.isLoaded(face))
 }
@@ -117,15 +141,22 @@ function registeredSerifFamily(): SerifFamily {
 }
 
 const SerifFamilyContext = createContext<SerifFamily>(fontFamily.serif)
+const SerifReadyContext = createContext(true)
 
 export function SerifFamilyProvider({
   family,
+  ready = true,
   children,
 }: {
   family: SerifFamily
+  ready?: boolean
   children: ReactNode
 }): ReactNode {
-  return createElement(SerifFamilyContext.Provider, { value: family }, children)
+  return createElement(
+    SerifFamilyContext.Provider,
+    { value: family },
+    createElement(SerifReadyContext.Provider, { value: ready }, children),
+  )
 }
 
 /** Native serif text names this family; pass it to `fontMapKey` for a weight or style. */
@@ -133,8 +164,27 @@ export function useSerifFamily(): SerifFamily {
   return useContext(SerifFamilyContext)
 }
 
+export type SerifFaceFor = (weight: FontFace['weight'], style?: FontFace['style']) => TextStyle
+
+/**
+ * Serif text style for a weight and slant. Until the serif load settles it names the
+ * system stand-in, which has no mapped faces, so weight and slant go on as style props.
+ */
+export function useSerifFace(): SerifFaceFor {
+  const family = useSerifFamily()
+  const ready = useContext(SerifReadyContext)
+  return useCallback(
+    (weight, style = 'normal') =>
+      ready
+        ? serifFace(family, weight, style)
+        : { fontFamily: SERIF_STANDIN, fontWeight: `${weight}`, fontStyle: style },
+    [family, ready],
+  )
+}
+
 type BrandFontReadiness = {
   sansReady: boolean
+  serifReady: boolean
   serifFamily: SerifFamily
 }
 
@@ -151,6 +201,7 @@ type BrandFontReadiness = {
 export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadiness {
   const [sansReady, setSansReady] = useState(sansIsRegistered)
   const [serifFamily, setSerifFamily] = useState(registeredSerifFamily)
+  const [serifReady, setSerifReady] = useState(serifIsRegistered)
 
   useEffect(() => {
     let cancelled = false
@@ -171,6 +222,8 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
     const refreshSerifFamily = (): void => {
       if (!cancelled) {
         setSerifFamily(registeredSerifFamily())
+        // A failed load leaves only the stand-in, which is already showing.
+        setSerifReady(serifIsRegistered())
       }
     }
     void loadUntitledSerif(appKey, apiHost, scope).finally(refreshSerifFamily)
@@ -179,5 +232,5 @@ export function useBrandFonts(appKey: string, apiHost?: string): BrandFontReadin
     }
   }, [appKey, apiHost])
 
-  return { sansReady, serifFamily }
+  return { sansReady, serifReady, serifFamily }
 }

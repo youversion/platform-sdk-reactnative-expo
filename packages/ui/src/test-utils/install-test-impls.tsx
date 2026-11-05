@@ -39,8 +39,8 @@ export function installBibleReaderTestImpls<P extends object>(
   stubImpl('SignInWithYouVersionSheet', 'mock-sign-in-sheet')
   stubImpl('HighlightConsentSheet', 'mock-consent-sheet')
   if (assignReaderProps) {
-    captureDom('BibleReaderDom', assignReaderProps, 'mock-dom')
+    captureDom('BibleReaderNative', assignReaderProps, 'mock-dom')
   } else {
-    stubImpl('BibleReaderDom', 'mock-dom')
+    stubImpl('BibleReaderNative', 'mock-dom')
   }
 }

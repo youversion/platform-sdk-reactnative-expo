@@ -49,7 +49,7 @@ export function YouVersionProvider({
 }: YouVersionProviderProps): ReactNode {
   const colorScheme = ReactNative.useColorScheme()
   const resolvedTheme = resolveTheme(theme, colorScheme)
-  const { sansReady, serifFamily } = useBrandFonts(appKey, apiHost)
+  const { sansReady, serifReady, serifFamily } = useBrandFonts(appKey, apiHost)
 
   return (
     <CoreYouVersionProvider
@@ -63,13 +63,13 @@ export function YouVersionProvider({
       permittedLanguageTags={permittedLanguageTags}
     >
       {sansReady ? (
-        <SerifFamilyProvider family={serifFamily}>
+        <SerifFamilyProvider family={serifFamily} ready={serifReady}>
           <LocaleProvider locale={locale}>
             <ThemeContext.Provider value={resolvedTheme}>
               <NativeSheetProvider>{children}</NativeSheetProvider>
-            {ReactNative.Platform.OS === 'web' ? null : (
-              <PortalHost name={SDK_POPOVER_HOST_NAME} />
-            )}
+              {ReactNative.Platform.OS === 'web' ? null : (
+                <PortalHost name={SDK_POPOVER_HOST_NAME} />
+              )}
             </ThemeContext.Provider>
           </LocaleProvider>
         </SerifFamilyProvider>
