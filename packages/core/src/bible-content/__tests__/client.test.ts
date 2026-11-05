@@ -136,7 +136,9 @@ describe('createBibleContentClient', () => {
 
   it('serves a repeat request from the store without touching the network', async () => {
     const { client, fetchMock } = setup()
-    fetchMock.mockImplementation(async () => new Response('{"content":"In the beginning"}', { status: 200 }))
+    fetchMock.mockImplementation(
+      async () => new Response('{"content":"In the beginning"}', { status: 200 }),
+    )
 
     await client({ path: PATH })
     const result = await client({ path: PATH })
@@ -204,8 +206,7 @@ describe('createBibleContentClient', () => {
   it.each(['no-store', 'no-cache'])('never writes a response carrying %s', async (directive) => {
     const { client, fetchMock, store } = setup()
     fetchMock.mockImplementation(
-      async () =>
-        new Response('{"a":1}', { status: 200, headers: { 'cache-control': directive } }),
+      async () => new Response('{"a":1}', { status: 200, headers: { 'cache-control': directive } }),
     )
 
     await client({ path: PATH })
@@ -310,13 +311,16 @@ describe('createBibleContentClient', () => {
     expect(store.listVersionIds()).toEqual([111])
   })
 
-  it.each(['/v1/languages', '/v1/bibles', '/v1/verse_of_the_days/today'])(
-    'throws without fetching for the non-content path %s',
-    async (path) => {
-      const { client, fetchMock } = setup()
+  it.each([
+    '/v1/languages',
+    '/v1/bibles',
+    '/v1/verse_of_the_days/today',
+    '/v1/verse-of-the-days',
+    '/v1/verse-of-the-days/15',
+  ])('throws without fetching for the non-content path %s', async (path) => {
+    const { client, fetchMock } = setup()
 
-      await expect(client({ path })).rejects.toThrow('Not a Bible content path')
-      expect(fetchMock).not.toHaveBeenCalled()
-    },
-  )
+    await expect(client({ path })).rejects.toThrow('Not a Bible content path')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

@@ -1,4 +1,5 @@
 import pkg from '../../../package.json'
+import { createImagesApi } from '../../images/api'
 import { createSearchApi } from '../api'
 import { SEARCH_USER_INTENT } from '../types'
 
@@ -44,7 +45,12 @@ type TopicsJson = {
   total_size: number
 }
 
-type SearchJson = SearchQueriesJson | VersesJson | TopicsJson
+type ImagesJson = {
+  images: unknown[]
+  next_page_token?: string | null
+}
+
+type SearchJson = SearchQueriesJson | VersesJson | TopicsJson | ImagesJson
 
 type LastRequest = {
   url: URL
@@ -398,6 +404,203 @@ describe('createSearchApi', () => {
       expect(emptyRanges.error.kind).toBe('invalid-parameter')
 
       expect(mockFetch).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('images', () => {
+    const opaqueId = 'opaque+/=id'
+
+    it('GETs search-images and keeps the hit id for Images.get', async () => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          images: [
+            { id: opaqueId, passage_id: '1CO.13.4-7' },
+            { id: '', passage_id: 'JHN.3.16' },
+            { id: 'bad', passage_id: 'not-usfm' },
+          ],
+          next_page_token: 'next-token',
+        }),
+      )
+
+      const result = await api().images({
+        query: 'love',
+        bibleId: 111,
+        pageSize: 25,
+        pageToken: 'current-token',
+      })
+
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          images: [{ id: opaqueId, passageId: '1CO.13.4-7' }],
+          nextPageToken: 'next-token',
+        },
+      })
+
+      const { url, init } = lastRequest()
+      expect(url.origin + url.pathname).toBe('https://api.example.com/v1/search-images')
+      expect(url.searchParams.get('query')).toBe('love')
+      expect(url.searchParams.get('bible_id')).toBe('111')
+      expect(url.searchParams.get('page_size')).toBe('25')
+      expect(url.searchParams.get('page_token')).toBe('current-token')
+      expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
+      expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
+      expect(header(init, 'Authorization')).toBeNull()
+
+      mockFetch.mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: 'img-1',
+            image_url: 'https://cdn.example.com/img-1.jpg',
+            passage_id: '1CO.13.4-7',
+            attribution: 'YouVersion',
+            language_tag: 'en',
+            width: 1,
+            height: 1,
+            aspect_ratio: 1,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+      )
+      const images = createImagesApi({
+        appKey: 'appkey',
+        apiHost: 'api.example.com',
+        installationId: 'inst-1',
+      })
+      const loaded = await images.get(opaqueId)
+      expect(loaded.ok).toBe(true)
+      expect(String(mockFetch.mock.calls[1]?.[0])).toBe(
+        `https://api.example.com/v1/images/${encodeURIComponent(opaqueId)}`,
+      )
+    })
+
+    it('keeps an empty page token, including an empty string, and uses null for the last page', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ images: [], next_page_token: '' }))
+      const continued = await api().images({ query: 'love', bibleId: 111 })
+      expect(continued).toEqual({
+        ok: true,
+        value: { images: [], nextPageToken: '' },
+      })
+
+      mockFetch.mockResolvedValue(jsonResponse({ images: [], next_page_token: 'more' }))
+      const more = await api().images({ query: 'love', bibleId: 111 })
+      expect(more).toEqual({
+        ok: true,
+        value: { images: [], nextPageToken: 'more' },
+      })
+
+      mockFetch.mockResolvedValue(jsonResponse({ images: [], next_page_token: null }))
+      const finalPage = await api().images({ query: 'love', bibleId: 111 })
+      expect(finalPage).toEqual({
+        ok: true,
+        value: { images: [], nextPageToken: null },
+      })
+    })
+
+    it('sends the returned empty-string token with the same query, Bible, and page size', async () => {
+      mockFetch
+        .mockResolvedValueOnce(jsonResponse({ images: [], next_page_token: '' }))
+        .mockResolvedValueOnce(jsonResponse({ images: [], next_page_token: null }))
+      const search = api()
+      const params = { query: 'love', bibleId: 111, pageSize: 25 }
+      const first = await search.images(params)
+      expect(first.ok).toBe(true)
+      if (!first.ok || first.value.nextPageToken === null) {
+        throw new Error('expected a continuation token')
+      }
+
+      const next = await search.images({ ...params, pageToken: first.value.nextPageToken })
+
+      expect(next).toEqual({ ok: true, value: { images: [], nextPageToken: null } })
+      const url = new URL(String(mockFetch.mock.calls[1]?.[0]))
+      expect(url.searchParams.get('query')).toBe('love')
+      expect(url.searchParams.get('bible_id')).toBe('111')
+      expect(url.searchParams.get('page_size')).toBe('25')
+      expect(url.searchParams.has('page_token')).toBe(true)
+      expect(url.searchParams.get('page_token')).toBe('')
+    })
+
+    it('maps a blank query and an invalid pageSize to invalid-parameter without fetching', async () => {
+      const cases = [
+        { query: '', bibleId: 111 },
+        { query: '   ', bibleId: 111 },
+        { query: 'love', bibleId: 111, pageSize: 0 },
+        { query: 'love', bibleId: 111, pageSize: 100 },
+      ]
+
+      for (const params of cases) {
+        const result = await api().images(params)
+        expect(result.ok).toBe(false)
+        if (result.ok) return
+        expect(result.error.kind).toBe('invalid-parameter')
+        expect(result.error.status).toBeUndefined()
+      }
+      expect(mockFetch).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      [401, 'auth'],
+      [403, 'auth'],
+      [404, 'not-found'],
+      [400, 'invalid-parameter'],
+      [408, 'transient'],
+      [429, 'transient'],
+      [500, 'transient'],
+    ] as const)('maps HTTP %s to %s', async (status, kind) => {
+      mockFetch.mockResolvedValue(errorResponse(status))
+
+      const result = await api().images({ query: 'love', bibleId: 111 })
+
+      expect(result).toEqual({
+        ok: false,
+        error: {
+          kind,
+          status,
+          message: `HTTP error! status: ${status}`,
+        },
+      })
+    })
+
+    it('maps 204 and a malformed body to transient without a status', async () => {
+      mockFetch.mockResolvedValue(new Response(null, { status: 204, statusText: 'No Content' }))
+      const empty = await api().images({ query: 'love', bibleId: 111 })
+      expect(empty.ok).toBe(false)
+      if (empty.ok) return
+      expect(empty.error.kind).toBe('transient')
+      expect(empty.error.status).toBeUndefined()
+      expect(empty.error.message).toMatch(/search-images returned no content/)
+
+      mockFetch.mockResolvedValue(
+        new Response(JSON.stringify({ unexpected: true }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      )
+      const malformed = await api().images({ query: 'love', bibleId: 111 })
+      expect(malformed.ok).toBe(false)
+      if (malformed.ok) return
+      expect(malformed.error.kind).toBe('transient')
+      expect(malformed.error.status).toBeUndefined()
+      expect(malformed.error.message).toMatch(/Unexpected search-images API response/)
+    })
+
+    it('sends a custom header on the default host and does not add Authorization', async () => {
+      mockFetch.mockResolvedValue(jsonResponse({ images: [], next_page_token: null }))
+
+      const result = await createSearchApi({
+        appKey: 'appkey',
+        installationId: 'inst-1',
+        additionalHeaders: { 'X-Custom': 'yes' },
+      }).images({ query: 'love', bibleId: 111 })
+
+      expect(result.ok).toBe(true)
+      const { url, init } = lastRequest()
+      expect(url.origin + url.pathname).toBe('https://api.youversion.com/v1/search-images')
+      expect(url.search).toBe('?query=love&bible_id=111')
+      expect(header(init, 'X-Custom')).toBe('yes')
+      expect(header(init, 'X-YVP-Sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
+      expect(header(init, 'Authorization')).toBeNull()
     })
   })
 })

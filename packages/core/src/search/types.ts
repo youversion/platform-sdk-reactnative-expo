@@ -5,6 +5,8 @@ import type {
   SearchTopic,
   SearchTopicsResponse,
   SearchUnifiedField,
+  SearchImagesOptions,
+  SearchImagesResponse,
   SearchUnifiedResponse,
   SearchVerseHit,
   SearchVersesResponse,
@@ -37,6 +39,7 @@ export type YouVersionUnifiedSearchField = SearchUnifiedField
 export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
 
 export type YouVersionImageSearchResult = SearchImageHit
+export type YouVersionImageSearchResults = SearchImagesResponse
 
 export type SearchApiError =
   | { kind: 'auth'; status: 401 | 403; message: string }
@@ -62,6 +65,8 @@ export type SearchVersesParams = {
   pageSize?: number
   pageToken?: string
 }
+
+export type SearchImagesParams = Pick<SearchVersesParams, 'query' | 'bibleId'> & SearchImagesOptions
 
 export type SearchTopicsParams = {
   query: string

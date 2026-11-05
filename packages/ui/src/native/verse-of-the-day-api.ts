@@ -18,8 +18,8 @@ export function getDayOfYear(date: Date): number {
 
 /**
  * Looks up the VOTD `passage_id` for a pinned `dayOfYear`. Returns `null` on
- * any failure — callers paint nothing rather than throw. No access token: this
- * is not a user-owned resource.
+ * failure so the native lookup hook exposes its failed state and retry control.
+ * No access token is needed for this app-key resource.
  *
  * Internal. Not on the UI or core package barrel.
  */

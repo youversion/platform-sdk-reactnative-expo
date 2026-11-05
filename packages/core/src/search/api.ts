@@ -14,10 +14,12 @@ import { mergeSdkHeaders } from '../sdk-version'
 import type {
   SearchApiError,
   SearchApiResult,
+  SearchImagesParams,
   SearchTopicsParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
+  YouVersionImageSearchResults,
 } from './types'
 
 export type CreateSearchApiConfig = {
@@ -32,6 +34,7 @@ export type SearchApi = {
   suggestedQueries: (params: SuggestedQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
+  images: (params: SearchImagesParams) => Promise<SearchApiResult<YouVersionImageSearchResults>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
 }
 
@@ -58,6 +61,9 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     },
     verses({ query, bibleId, ...options }) {
       return catchAsResult(() => client.searchVerses(query, bibleId, options))
+    },
+    images({ query, bibleId, ...options }) {
+      return catchAsResult(() => client.searchImages(query, bibleId, options))
     },
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
