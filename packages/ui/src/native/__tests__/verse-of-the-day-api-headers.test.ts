@@ -2,7 +2,8 @@
  * Layer 1 — the native VOTD lookup stamps this SDK's headers (ADR 0012/0020),
  * overriding platform-core's own `X-YVP-Sdk` value.
  */
-import { getSdkHeaders } from '../../lib/sdk-version'
+import { getSdkHeaders } from '@youversion/platform-react-native-expo-core/sdk-version'
+
 import { getVerseOfTheDayPassageId } from '../verse-of-the-day-api'
 
 const credentials = {

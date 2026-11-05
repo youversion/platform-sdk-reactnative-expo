@@ -1,9 +1,9 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import { getSdkHeaders } from '@youversion/platform-react-native-expo-core/sdk-version'
 import { Children, type ReactNode } from 'react'
 import { ScrollView, StyleSheet, Text as RNText, View } from 'react-native'
 
-import { getSdkHeaders } from '../../lib/sdk-version'
 import { useRecentBibleVersionsStore } from '../../stores/recent-bible-versions-store'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
