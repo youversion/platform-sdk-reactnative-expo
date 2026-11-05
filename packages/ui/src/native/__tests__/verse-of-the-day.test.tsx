@@ -544,29 +544,33 @@ describe('VerseOfTheDay', () => {
         headers: { 'content-type': 'application/json' },
       })
     let passageRequests = 0
+    const contentFetch = globalThis.fetch
     const fetch: jest.MockedFunction<typeof globalThis.fetch> = jest.fn((input, init) => {
       if (String(input) === 'https://api.youversion.com/v1/verse-of-the-days/15') {
         passageRequests += 1
         return Promise.resolve(response(passageRequests === 1 ? 42 : null))
       }
-      return originalFetch(input, init)
+      return contentFetch(input, init)
     })
     globalThis.fetch = fetch
 
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId, getByText, queryByTestId, queryByText } = render(
       <VerseOfTheDay versionId={3034} dayOfYear={15} />,
       { wrapper: wrapper() },
     )
 
     await waitFor(() => expect(getByTestId('verse-of-the-day-retry')).toBeTruthy())
-    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(queryByText('For God so loved')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
     expect(passageRequests).toBe(1)
 
-    fireEvent.press(getByTestId('verse-of-the-day-retry'))
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-retry'))
+    })
 
-    await waitFor(() => expect(getByTestId('mock-btv-dom')).toBeTruthy())
-    expect(latestDomProps.reference).toBe('JHN.3.16')
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
     expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
     expect(passageRequests).toBe(2)
