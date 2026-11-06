@@ -45,8 +45,9 @@ export function parsePassage(rawHtml: string): ParsedPassage {
       return ''
     },
   })
-  const blocks = captured === null ? [] : walk(captured)
-  return { blocks, verses: collectVerses(blocks), rtl: isRtlText(blocks) }
+  const source = captured === null ? [] : walk(captured)
+  const blocks = source.flatMap(splitSelahPauses)
+  return { blocks, verses: collectVerses(source), rtl: isRtlText(blocks) }
 }
 
 function walk(doc: Document): Block[] {
@@ -140,6 +141,287 @@ function walk(doc: Document): Block[] {
   return blocks
 }
 
+type PlacedInline = { verse: number | null; inline: Inline }
+
+function isSelahText(inline: Inline): boolean {
+  return inline.kind === 'text' && inline.classes.includes('qs')
+}
+
+function isBlankText(inline: Inline): boolean {
+  return inline.kind === 'text' && inline.text.trim() === ''
+}
+
+function placedInlines(block: Block): PlacedInline[] {
+  const placed: PlacedInline[] = []
+  for (const segment of block.segments) {
+    for (const inline of segment.inlines) {
+      placed.push({ verse: segment.verse, inline })
+    }
+  }
+  return placed
+}
+
+function blockFromPlaced(
+  classes: readonly string[],
+  heading: boolean,
+  placed: readonly PlacedInline[],
+): Block | null {
+  if (placed.every((item) => isBlankText(item.inline))) {
+    return null
+  }
+  const segments: Segment[] = []
+  for (const item of placed) {
+    const last = segments.at(-1)
+    if (last !== undefined && last.verse === item.verse) {
+      last.inlines.push(item.inline)
+    } else {
+      segments.push({ verse: item.verse, inlines: [item.inline] })
+    }
+  }
+  const verses = [
+    ...new Set(segments.flatMap((segment) => (segment.verse === null ? [] : [segment.verse]))),
+  ]
+  return { classes, heading, segments, verses }
+}
+
+// Every punctuation category except opening marks (Ps, Pi), which belong to the next line.
+const PAUSE_PUNCTUATION = /^[\s\p{Pc}\p{Pd}\p{Pe}\p{Pf}\p{Po}]+$/u
+
+function isPausePunctuation(inline: Inline): boolean {
+  return inline.kind === 'text' && PAUSE_PUNCTUATION.test(inline.text) && inline.text.trim() !== ''
+}
+
+function splitLeadingPausePunctuation(text: string): { punct: string; rest: string } | null {
+  const match = text.match(/^[\s\p{Pc}\p{Pd}\p{Pe}\p{Pf}\p{Po}]+/u)
+  if (match === null || match[0].trim() === '') {
+    return null
+  }
+  return { punct: match[0], rest: text.slice(match[0].length) }
+}
+
+/** Shared-node tail: `. God` belongs on the pause line; `; and` stays with the clause. */
+function leadingPausePunctuationBelongsOnPause(
+  placed: readonly PlacedInline[],
+  selahStart: number,
+  index: number,
+  split: { punct: string; rest: string },
+): boolean {
+  if (opensFollowingWords(placed, selahStart, index)) {
+    return false
+  }
+  const rest = split.rest.trimStart()
+  if (rest === '') {
+    return true
+  }
+  return /^\p{Lu}/u.test(rest)
+}
+
+// A straight quote has no opening or closing form, so spacing decides: a space before and a
+// word right after means it opens the next line.
+function opensFollowingWords(
+  placed: readonly PlacedInline[],
+  previousEnd: number,
+  index: number,
+): boolean {
+  const quote = placed[index]?.inline
+  const next = placed[index + 1]?.inline
+  if (quote?.kind !== 'text' || next?.kind !== 'text') {
+    return false
+  }
+  // Space may sit on this node, in a skipped blank, or at the end of the prior node
+  // (e.g. `. &quot;Next` → `. ` then `"`).
+  const previous = index > 0 ? placed[index - 1]?.inline : undefined
+  const spaced =
+    index > previousEnd ||
+    /^\s/.test(quote.text) ||
+    (previous?.kind === 'text' && /\s$/.test(previous.text))
+  return spaced && /^\s*['"]$/.test(quote.text) && /^[^\s\p{P}]/u.test(next.text)
+}
+
+/**
+ * Shared text `. "Next words"`: keep `.` on the pause, leave the spaced quote with the words.
+ * ` "Next words"` alone peels to an empty pause punct and the quote on the next line.
+ */
+function peelPausePunctBeforeOpeningQuote(split: {
+  punct: string
+  rest: string
+}): { pausePunct: string; nextText: string } | null {
+  const rest = split.rest.trimStart()
+  if (rest === '' || !/^[^\s\p{P}]/u.test(rest)) {
+    return null
+  }
+  const match = split.punct.match(/^(.*?)(\s['"]\s*)$/u)
+  if (match === null) {
+    return null
+  }
+  return {
+    pausePunct: (match[1] ?? '').trim(),
+    nextText: `${match[2] ?? ''}${split.rest}`,
+  }
+}
+
+function skipBlanks(placed: readonly PlacedInline[], start: number): number {
+  let cursor = start
+  while (cursor < placed.length) {
+    const item = placed[cursor]
+    if (item === undefined || !isBlankText(item.inline)) {
+      break
+    }
+    cursor += 1
+  }
+  return cursor
+}
+
+function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
+  let end = start
+  while (end < placed.length) {
+    const item = placed[end]
+    if (item === undefined || !isSelahText(item.inline)) {
+      break
+    }
+    end += 1
+  }
+  // Order on the pause line: the pause, then its footnote, then trailing punctuation.
+  let cursor = skipBlanks(placed, end)
+  let runEnd = end
+  const marker = placed[cursor]
+  if (marker !== undefined && marker.inline.kind === 'note') {
+    runEnd = cursor + 1
+    cursor = skipBlanks(placed, runEnd)
+  }
+  // linkedom splits a text node at each entity, so `.&#8221;` arrives as two runs.
+  let punct = placed[cursor]
+  while (
+    punct !== undefined &&
+    isPausePunctuation(punct.inline) &&
+    !opensFollowingWords(placed, runEnd, cursor)
+  ) {
+    runEnd = cursor + 1
+    cursor = skipBlanks(placed, runEnd)
+    punct = placed[cursor]
+  }
+  return runEnd
+}
+
+function splitSelahPauses(block: Block): Block[] {
+  if (block.classes.includes('qr')) {
+    return [block]
+  }
+  const placed = placedInlines(block)
+  if (!placed.some((item) => isSelahText(item.inline))) {
+    return [block]
+  }
+  const blocks: Block[] = []
+  let cursor = 0
+  while (cursor < placed.length) {
+    const current = placed[cursor]
+    if (current !== undefined && isSelahText(current.inline)) {
+      const end = selahRunEnd(placed, cursor)
+      const pauseClasses = block.classes.includes('qs') ? block.classes : [...block.classes, 'qs']
+      const pauseItems = placed.slice(cursor, end).map((item) => {
+        if (item.inline.kind !== 'text' || !isPausePunctuation(item.inline)) {
+          return item
+        }
+        const text = item.inline.text.trim()
+        if (text === item.inline.text) {
+          return item
+        }
+        return { verse: item.verse, inline: { ...item.inline, text } }
+      })
+      const shared = placed[end]
+      let proseHead: PlacedInline | undefined
+      let nextCursor = end
+      if (shared?.inline.kind === 'text') {
+        const split = splitLeadingPausePunctuation(shared.inline.text)
+        if (split !== null) {
+          const peeled = peelPausePunctBeforeOpeningQuote(split)
+          if (peeled !== null) {
+            if (peeled.pausePunct !== '') {
+              pauseItems.push({
+                verse: shared.verse,
+                inline: {
+                  kind: 'text',
+                  text: peeled.pausePunct,
+                  classes: shared.inline.classes,
+                },
+              })
+            }
+            if (peeled.nextText.trim() !== '') {
+              proseHead = {
+                verse: shared.verse,
+                inline: { ...shared.inline, text: peeled.nextText },
+              }
+            }
+            nextCursor = end + 1
+          } else if (leadingPausePunctuationBelongsOnPause(placed, cursor, end, split)) {
+            const punctText = split.punct.trim()
+            if (punctText !== '') {
+              pauseItems.push({
+                verse: shared.verse,
+                inline: { kind: 'text', text: punctText, classes: shared.inline.classes },
+              })
+            }
+            const rest = split.rest.trimStart()
+            if (rest !== '') {
+              proseHead = {
+                verse: shared.verse,
+                inline: { ...shared.inline, text: rest },
+              }
+            }
+            nextCursor = end + 1
+          }
+        }
+      }
+      const pause = blockFromPlaced(pauseClasses, block.heading, pauseItems)
+      if (pause !== null) {
+        blocks.push(pause)
+      }
+      if (proseHead !== undefined) {
+        let proseEnd = nextCursor
+        while (proseEnd < placed.length) {
+          const next = placed[proseEnd]
+          if (next !== undefined && isSelahText(next.inline)) {
+            break
+          }
+          proseEnd += 1
+        }
+        const prose = blockFromPlaced(block.classes, block.heading, [
+          proseHead,
+          ...placed.slice(nextCursor, proseEnd),
+        ])
+        if (prose !== null) {
+          blocks.push(prose)
+        }
+        cursor = proseEnd
+      } else {
+        cursor = nextCursor
+      }
+      continue
+    }
+    let end = cursor + 1
+    while (end < placed.length) {
+      const next = placed[end]
+      if (next !== undefined && isSelahText(next.inline)) {
+        break
+      }
+      end += 1
+    }
+    const prose = blockFromPlaced(block.classes, block.heading, placed.slice(cursor, end))
+    if (prose !== null) {
+      blocks.push(prose)
+    }
+    cursor = end
+  }
+  if (blocks.length === 0) {
+    return [block]
+  }
+  return blocks
+}
+
+function joinVerseParts(parts: readonly string[]): string {
+  return parts.join(' ').replace(/\s+/g, ' ').trim()
+}
+
 function classList(el: Element): string[] {
   return (el.getAttribute('class') ?? '').split(/\s+/).filter((c) => c !== '')
 }
@@ -185,7 +467,7 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
       htmls.push(html.trim())
     }
     verses.set(verse, {
-      text: texts.join(' ').replace(/\s+/g, ' ').trim(),
+      text: joinVerseParts(texts),
       html: htmls.join(' '),
       notes,
     })

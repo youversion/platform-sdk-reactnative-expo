@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { LocaleProvider } from '../../../i18n/locale-context'
-import type { Block } from '../parse-passage'
+import { parsePassage, type Block } from '../parse-passage'
 import {
   Passage,
   coverRects,
@@ -127,6 +127,36 @@ function textAligns(sentence: string): string[] {
   })
 }
 
+/** End-aligned Selah sits in a full-width row pinned with flex-end (passage direction). */
+function endEdgeJustifies(sentence: string): string[] {
+  return screen.getAllByText(sentence).map((node) => {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const style = StyleSheet.flatten(current.props.style)
+      if (style?.justifyContent !== undefined) {
+        return String(style.justifyContent)
+      }
+      current = current.parent
+    }
+    throw new Error(`no justifyContent for ${sentence}`)
+  })
+}
+
+/** Long pauses must shrink/wrap inside the reader column. */
+function endEdgeShrinks(sentence: string): { flexShrink: number; maxWidth: string }[] {
+  return screen.getAllByText(sentence).map((node) => {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const style = StyleSheet.flatten(current.props.style)
+      if (style?.flexShrink === 1 && style.maxWidth !== undefined) {
+        return { flexShrink: 1, maxWidth: String(style.maxWidth) }
+      }
+      current = current.parent
+    }
+    throw new Error(`no flexShrink/maxWidth for ${sentence}`)
+  })
+}
+
 function renderBlock(classes: string[], text: string, rtl: boolean): void {
   render(
     <LocaleProvider locale="en">
@@ -164,6 +194,61 @@ describe('paragraph alignment', () => {
   it('keeps an explicit right line on the right in a right-to-left passage', () => {
     renderBlock(['qr'], 'סלה', true)
     expect(textAligns('סלה')).toEqual(['right'])
+  })
+
+  it('pins a qs pause and its period to the end edge in a left-to-right passage', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span>the Holy One from the mountain. ' +
+      '<span class="qs">Selah</span>.</div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={{
+            ...LOOK,
+            face: (_weight, italic) => (italic ? { fontStyle: 'italic' } : {}),
+          }}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // Layout places the pause on the trailing edge; textAlign keeps a wrapped pause there.
+    expect(endEdgeJustifies('Selah')).toEqual(['flex-end'])
+    expect(endEdgeJustifies('.')).toEqual(['flex-end'])
+    expect(textAligns('Selah')).toEqual(['right'])
+    expect(textAligns('.')).toEqual(['right'])
+    expect(endEdgeShrinks('Selah')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
+    const selah = screen.getByText('Selah')
+    expect(StyleSheet.flatten(selah.props.style)?.fontStyle).toBe('italic')
+  })
+
+  it('pins a qs pause to the end edge in a right-to-left passage', () => {
+    const html = '<div><div class="q"><span class="qs">סלה</span></div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={{ ...LOOK, rtl: true }}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // Same flex-end under passage direction:rtl → physical left.
+    expect(endEdgeJustifies('סלה')).toEqual(['flex-end'])
+    expect(textAligns('סלה')).toEqual(['left'])
+    expect(endEdgeShrinks('סלה')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
   })
 
   it('names the footnote button with the shared label', () => {

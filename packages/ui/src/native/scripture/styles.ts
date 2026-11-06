@@ -7,7 +7,7 @@ import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 type Weight = 400 | 500 | 700
 
 type BlockRule = {
-  align?: 'center' | 'right'
+  align?: 'center' | 'right' | 'end'
   /** Multiple of the reader font size. */
   size?: number
   weight?: Weight
@@ -66,6 +66,8 @@ const BLOCK_RULES = new Map<string, BlockRule>([
   ['qc', { align: 'center', mT: 0, mB: 0 }],
   ['qd', { italic: true }],
   ['qr', { align: 'right', italic: true }],
+  // A Selah pause is lifted onto its own line. `end` is the trailing edge.
+  ['qs', { align: 'end' }],
   ['li', { first: 0, head: 2 }],
   ['li1', { first: 0, head: 2 }],
   ['ili', { first: 0, head: 2 }],
@@ -126,7 +128,7 @@ export type ResolvedBlock = {
   weight: Weight
   italic: boolean
   smallCaps: boolean
-  align: 'left' | 'center' | 'right'
+  align: 'left' | 'center' | 'right' | 'end'
   /** Em margins before collapse; `bottom` excludes the line-spacing leading. */
   top: number
   bottom: number
