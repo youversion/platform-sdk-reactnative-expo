@@ -145,18 +145,32 @@ jest.mock('expo-font', () => ({
   isLoaded: jest.fn(() => true),
 }))
 
-jest.mock('@expo-google-fonts/inter', () => ({
+jest.mock('@expo-google-fonts/inter/400Regular', () => ({
   Inter_400Regular: 400,
+}))
+jest.mock('@expo-google-fonts/inter/500Medium', () => ({
   Inter_500Medium: 500,
+}))
+jest.mock('@expo-google-fonts/inter/700Bold', () => ({
   Inter_700Bold: 700,
 }))
 
-jest.mock('@expo-google-fonts/source-serif-4', () => ({
+jest.mock('@expo-google-fonts/source-serif-4/400Regular', () => ({
   SourceSerif4_400Regular: 1400,
+}))
+jest.mock('@expo-google-fonts/source-serif-4/400Regular_Italic', () => ({
   SourceSerif4_400Regular_Italic: 1401,
+}))
+jest.mock('@expo-google-fonts/source-serif-4/500Medium', () => ({
   SourceSerif4_500Medium: 1500,
+}))
+jest.mock('@expo-google-fonts/source-serif-4/500Medium_Italic', () => ({
   SourceSerif4_500Medium_Italic: 1501,
+}))
+jest.mock('@expo-google-fonts/source-serif-4/700Bold', () => ({
   SourceSerif4_700Bold: 1700,
+}))
+jest.mock('@expo-google-fonts/source-serif-4/700Bold_Italic', () => ({
   SourceSerif4_700Bold_Italic: 1701,
 }))
 
