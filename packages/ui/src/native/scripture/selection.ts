@@ -134,11 +134,13 @@ export function parseFocusPassageId(passageId: string): FocusTarget | null {
     return null
   }
   const start = Number(startText)
+  const endRaw = endText === undefined ? start : Number(endText)
+  // Unsafe integers stick under `verse += 1`, so a bad start would hang the focus loop.
+  if (!Number.isSafeInteger(start) || !Number.isSafeInteger(endRaw)) {
+    return null
+  }
   // Clamped so a malformed range cannot build a huge array; no chapter runs past 176 verses.
-  const end = Math.min(
-    endText === undefined ? start : Math.max(start, Number(endText)),
-    start + MAX_FOCUS_VERSES - 1,
-  )
+  const end = Math.min(Math.max(start, endRaw), start + MAX_FOCUS_VERSES - 1)
   const verses: number[] = []
   for (let verse = start; verse <= end; verse += 1) {
     verses.push(verse)

@@ -97,4 +97,9 @@ describe('parseFocusPassageId', () => {
   it('caps a malformed range', () => {
     expect(parseFocusPassageId('PSA.119.1-999999999')?.verses).toHaveLength(250)
   })
+
+  it('returns null when a verse number is not a safe integer', () => {
+    expect(parseFocusPassageId('JHN.1.9007199254740992')).toBeNull()
+    expect(parseFocusPassageId('JHN.1.1-9007199254740992')).toBeNull()
+  })
 })

@@ -1,12 +1,12 @@
-import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from '@expo-google-fonts/inter'
-import {
-  SourceSerif4_400Regular,
-  SourceSerif4_400Regular_Italic,
-  SourceSerif4_500Medium,
-  SourceSerif4_500Medium_Italic,
-  SourceSerif4_700Bold,
-  SourceSerif4_700Bold_Italic,
-} from '@expo-google-fonts/source-serif-4'
+import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular'
+import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium'
+import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold'
+import { SourceSerif4_400Regular } from '@expo-google-fonts/source-serif-4/400Regular'
+import { SourceSerif4_400Regular_Italic } from '@expo-google-fonts/source-serif-4/400Regular_Italic'
+import { SourceSerif4_500Medium } from '@expo-google-fonts/source-serif-4/500Medium'
+import { SourceSerif4_500Medium_Italic } from '@expo-google-fonts/source-serif-4/500Medium_Italic'
+import { SourceSerif4_700Bold } from '@expo-google-fonts/source-serif-4/700Bold'
+import { SourceSerif4_700Bold_Italic } from '@expo-google-fonts/source-serif-4/700Bold_Italic'
 import * as Font from 'expo-font'
 import {
   createContext,
