@@ -21,7 +21,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { type BookCatalogEntry } from '../lib/bible-book-title'
+import { chapterLabelForBook, type BookCatalogEntry } from '../lib/bible-book-title'
 import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -90,6 +90,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     book = 'JHN',
     chapter = '1',
     versionId = 3034,
+    versionDirections,
     fontSize = DEFAULT_FONT_SIZE,
     fontFamily,
     lineSpacing = READER_LINE_SPACING.DEFAULT,
@@ -148,11 +149,14 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const muted = foregroundColor === undefined ? tokens.mutedForeground : ink
 
   const isSans = decodeFontFamilyFromDom(fontFamily) === INTER_FONT
+  // By the rendered passage's version: the dimmed old chapter keeps its direction.
+  const versionDirection = passage ? versionDirections?.get(passage.versionId) : undefined
+  const rtl = versionDirection ? versionDirection === 'rtl' : (passage?.parsed.rtl ?? false)
   const look = useMemo<PassageLook>(
     () => ({
       fontSize,
       lineSpacing,
-      rtl: passage?.parsed.rtl ?? false,
+      rtl,
       // Inter ships no italic here, so sans keeps the upright face.
       face: (weight, italic) =>
         isSans
@@ -164,16 +168,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       underline: tokens.border,
       background,
     }),
-    [
-      fontSize,
-      lineSpacing,
-      passage?.parsed.rtl,
-      isSans,
-      tokens,
-      serifFaceFor,
-      ink,
-      background,
-    ],
+    [fontSize, lineSpacing, rtl, isSans, tokens, serifFaceFor, ink, background],
   )
 
   // Scoped to the rendered passage: the old chapter stays up while the next one loads.
@@ -202,6 +197,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // A share from that window cannot be taken back, so the payload waits.
   const shareBookTitle = isBookLoading ? null : bookTitle
   const shareAbbreviation = isVersionLoading ? null : abbreviation
+  // The API's reference carries a bidi mark that scrambles the heading under RTL.
+  const footnoteReference =
+    isCurrent && shareBookTitle !== null
+      ? `${shareBookTitle} ${chapterLabelForBook(entry, chapter)}`
+      : passage?.reference
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({
     versionId,
@@ -209,6 +209,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -219,6 +220,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -319,7 +321,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       verseNum: verse === null ? '' : String(verse),
       notes: info?.notes ?? [html],
       verseHtml: info?.html ?? '',
-      reference: current?.reference,
+      reference: latest.current.footnoteReference,
     }
     Promise.resolve(handler(data)).catch(console.error)
   }, [])

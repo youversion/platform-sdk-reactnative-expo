@@ -16,6 +16,7 @@ import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { withAlpha } from '../../lib/color'
 import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { directionMark } from './direction-mark'
 import type { HighlightPaint } from './highlight-colors'
 import type { Block, Inline } from './parse-passage'
 import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
@@ -352,13 +353,12 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
-    // Ordinary blocks resolve to 'left' (start). Right and centre still use textAlign.
-    // `end` (Selah) is laid out on a full-width row with flex-end under the passage
-    // direction, so Android never remaps a physical left/right under RTL.
+    // Under RTL, textAlign is start-relative on both platforms: 'left' lands physically
+    // right. So 'left' is the start edge and 'right' the end edge in either direction.
     let textAlign: 'left' | 'center' | 'right' = 'left'
     if (rule.align === 'center') {
       textAlign = 'center'
-    } else if (rule.align === 'right' || (!endAligned && look.rtl)) {
+    } else if (rule.align === 'right' || endAligned) {
       textAlign = 'right'
     }
     // End lines: the row pins a short pause; flexShrink + maxWidth let a long one wrap
@@ -368,7 +368,7 @@ const BlockView = memo(function BlockView({
       lineHeight: lineBox,
       color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
       ...look.face(rule.weight, rule.italic),
-      textAlign: endAligned ? (look.rtl ? 'left' : 'right') : textAlign,
+      textAlign,
       writingDirection: look.rtl ? 'rtl' : 'ltr',
       paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
       paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
@@ -397,6 +397,7 @@ const BlockView = memo(function BlockView({
         {/* iOS reads paragraph style (lineHeight) from the first character; an
           inline View there drops it for the whole block, so lead with text. */}
         {PARAGRAPH_ANCHOR}
+        {directionMark(look.rtl)}
         {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
         {block.segments.map((segment, segmentIndex) => {
           const verse = segment.verse
@@ -604,9 +605,7 @@ const BlockView = memo(function BlockView({
                 overflow: 'hidden',
               }}
             >
-              <View
-                style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}
-              >
+              <View style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}>
                 {underline}
               </View>
             </View>

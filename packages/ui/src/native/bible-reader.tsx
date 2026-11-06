@@ -66,6 +66,7 @@ import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
+import { useVersionDirections } from './scripture/use-passage'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 
@@ -784,6 +785,8 @@ export function BibleReader({
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
+  const versionDirections = useVersionDirections(context.fetchBibleContent, appliedVersionId)
+
   const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
@@ -880,6 +883,7 @@ export function BibleReader({
               book={appliedBook}
               chapter={appliedChapter}
               versionId={appliedVersionId}
+              versionDirections={versionDirections}
               fontSize={fontSize}
               fontFamily={encodeFontFamilyForDom(fontFamily)}
               lineSpacing={lineSpacing}
@@ -973,6 +977,7 @@ export function BibleReader({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             versionAbbreviation={versionAbbreviation}
+            scriptureDirection={versionDirections.get(appliedVersionId)}
             lineSpacing={lineSpacing}
             fontSize={fontSize}
           />

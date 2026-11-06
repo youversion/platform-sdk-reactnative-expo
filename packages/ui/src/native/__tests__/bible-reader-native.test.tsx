@@ -755,6 +755,121 @@ describe('BibleReaderNative', () => {
     }
   })
 
+  describe('footnote reference', () => {
+    const noteHtml =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+      'In the beginning<span class="yv-n f"><span class="ft">A note</span></span></div></div>'
+    const withNote: FetchBibleContent = async () => ({
+      status: 200,
+      // The API's reference, bidi mark included, must not reach a loaded book's heading.
+      body: JSON.stringify({ content: noteHtml, reference: '1 ‎API' }),
+      contentType: 'application/json',
+    })
+
+    function stubBooks(books: () => Promise<Response>): () => void {
+      const prior = global.fetch
+      global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        fetchUrl(input).includes('/books') ? books() : prior(input, init),
+      )
+      return () => {
+        global.fetch = prior
+      }
+    }
+
+    it('builds the reference from the book title and chapter label', async () => {
+      const restore = stubBooks(() =>
+        metadataResponse(
+          JSON.stringify({
+            data: [{ id: 'JHN', title: 'يوحنا', chapters: [{ id: '1', title: '١' }] }],
+          }),
+        ),
+      )
+      const onFootnotePress = jest.fn()
+      try {
+        mount({ fetchBibleContent: withNote, onFootnotePress })
+        await screen.findByText('In the beginning')
+        await waitFor(() => {
+          fireEvent.press(screen.getByLabelText('Footnote'))
+          expect(onFootnotePress).toHaveBeenLastCalledWith(
+            expect.objectContaining({ verseNum: '1', reference: 'يوحنا ١' }),
+          )
+        })
+      } finally {
+        restore()
+      }
+    })
+
+    it('falls back to the API reference while the book title loads', async () => {
+      const restore = stubBooks(() => new Promise<Response>(() => undefined))
+      const onFootnotePress = jest.fn()
+      try {
+        mount({ fetchBibleContent: withNote, onFootnotePress })
+        await screen.findByText('In the beginning')
+        fireEvent.press(screen.getByLabelText('Footnote'))
+        expect(onFootnotePress).toHaveBeenLastCalledWith(
+          expect.objectContaining({ verseNum: '1', reference: '1 ‎API' }),
+        )
+      } finally {
+        restore()
+      }
+    })
+  })
+
+  describe('text direction', () => {
+    function directionOf(text: string): TextStyle['writingDirection'] {
+      let node: ReactTestInstance | null = screen.getByText(text)
+      while (node !== null) {
+        const flat: TextStyle | undefined = StyleSheet.flatten(node.props.style)
+        if (flat?.writingDirection !== undefined) {
+          return flat.writingDirection
+        }
+        node = node.parent
+      }
+      return undefined
+    }
+
+    const HEBREW = 'בראשית ברא אלהים'
+
+    it('takes the index direction over the letter vote', async () => {
+      mount({
+        fetchBibleContent: fetchVersions({ [VERSION_ID]: { sentence: HEBREW } }),
+        versionDirections: new Map([[VERSION_ID, 'ltr']]),
+      })
+      await screen.findByText(HEBREW)
+      expect(directionOf(HEBREW)).toBe('ltr')
+    })
+
+    it('lets the letters vote when the version has no entry', async () => {
+      mount({
+        fetchBibleContent: fetchVersions({ [VERSION_ID]: { sentence: HEBREW } }),
+        versionDirections: new Map(),
+      })
+      await screen.findByText(HEBREW)
+      expect(directionOf(HEBREW)).toBe('rtl')
+    })
+
+    it("does not give the dimmed chapter the next version's direction", async () => {
+      const versions = fetchVersions({ [VERSION_ID]: { sentence: HEBREW } })
+      const pending = new Promise<never>(() => undefined)
+      const reader = mount({
+        fetchBibleContent: ({ path }) =>
+          path.includes(`/${VERSION_ID}/`) ? versions({ path }) : pending,
+        versionDirections: new Map([[VERSION_ID, 'ltr']]),
+      })
+      await screen.findByText(HEBREW)
+
+      reader.update({
+        versionId: 112,
+        versionDirections: new Map<number, 'ltr' | 'rtl'>([
+          [VERSION_ID, 'ltr'],
+          [112, 'rtl'],
+        ]),
+      })
+
+      await waitFor(() => expect(directionOf(HEBREW)).toBe('ltr'))
+    })
+  })
+
   it('shows scripture when the version language is on the provider list', async () => {
     const restore = stubVersionNames({ [VERSION_ID]: 'BSB' }, { [VERSION_ID]: 'en' })
     try {

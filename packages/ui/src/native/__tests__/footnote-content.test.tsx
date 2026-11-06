@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { StyleSheet } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
 import { mockWindowDimensions } from '../../../jest.window-dimensions-mock'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
@@ -28,6 +29,19 @@ const johnNote: FootnoteData = {
 
 function flattened(text: string) {
   return StyleSheet.flatten(screen.getByText(text).props.style)
+}
+
+/** The paragraph's style: a run is a nested Text, so alignment sits on its nearest aligned ancestor. */
+function flattenedAncestor(text: string) {
+  let node: ReactTestInstance | null = screen.getByText(text)
+  while (node !== null) {
+    const style = StyleSheet.flatten(node.props.style)
+    if (style?.textAlign !== undefined) {
+      return style
+    }
+    node = node.parent
+  }
+  throw new Error(`no aligned ancestor for ${text}`)
 }
 
 describe('FootnoteContent', () => {
@@ -123,6 +137,27 @@ describe('FootnoteContent', () => {
     expect(StyleSheet.flatten(screen.getByTestId('footnote-content').props.style)).toMatchObject({
       direction: 'rtl',
     })
+  })
+
+  it('starts the heading, verse, and notes at the start edge of rtl scripture', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} scriptureDirection="rtl" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    const rtlFlow = { textAlign: 'left', writingDirection: 'rtl' }
+    expect(flattened('John 1:5')).toMatchObject(rtlFlow)
+    expect(flattenedAncestor('He then added, ')).toMatchObject(rtlFlow)
+    expect(flattenedAncestor('Or ')).toMatchObject(rtlFlow)
+  })
+
+  it('keeps left-to-right scripture on the left', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} scriptureDirection="ltr" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    const ltrFlow = { textAlign: 'left', writingDirection: 'ltr' }
+    expect(flattened('John 1:5')).toMatchObject(ltrFlow)
+    expect(flattenedAncestor('He then added, ')).toMatchObject(ltrFlow)
   })
 
   it('caps the body below the screen so a long note can scroll', () => {
