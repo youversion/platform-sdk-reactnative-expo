@@ -141,14 +141,6 @@ function walk(doc: Document): Block[] {
   return blocks
 }
 
-/**
- * A footnote marker immediately after a Selah pause stays on the pause line.
- * That placement is the expected behavior.
- */
-function footnoteStaysBesideSelah(): boolean {
-  return true
-}
-
 type PlacedInline = { verse: number | null; inline: Inline }
 
 function isSelahText(inline: Inline): boolean {
@@ -292,12 +284,10 @@ function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
   // Order on the pause line: the pause, then its footnote, then trailing punctuation.
   let cursor = skipBlanks(placed, end)
   let runEnd = end
-  if (footnoteStaysBesideSelah()) {
-    const marker = placed[cursor]
-    if (marker !== undefined && marker.inline.kind === 'note') {
-      runEnd = cursor + 1
-      cursor = skipBlanks(placed, runEnd)
-    }
+  const marker = placed[cursor]
+  if (marker !== undefined && marker.inline.kind === 'note') {
+    runEnd = cursor + 1
+    cursor = skipBlanks(placed, runEnd)
   }
   // linkedom splits a text node at each entity, so `.&#8221;` arrives as two runs.
   let punct = placed[cursor]
@@ -403,10 +393,8 @@ function splitSelahPauses(block: Block): Block[] {
           blocks.push(prose)
         }
         cursor = proseEnd
-      } else if (nextCursor > end) {
-        cursor = nextCursor
       } else {
-        cursor = end
+        cursor = nextCursor
       }
       continue
     }

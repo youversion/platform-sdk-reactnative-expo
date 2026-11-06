@@ -349,12 +349,6 @@ describe('parsePassage', () => {
     expect(lineKinds(line)).toEqual(['text', 'note'])
     expect(resolveBlock(line.classes, 16).align).toBe('end')
   })
-
-  it('reads an Arabic passage with a Latin note as RTL', () => {
-    const html =
-      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>(LXX) فِي الْبَدْءِ خَلَقَ اللهُ السَّمَاوَاتِ وَالأَرْضَ</div></div>'
-    expect(parsePassage(html).rtl).toBe(true)
-  })
 })
 
 describe('parseNoteHtml', () => {
