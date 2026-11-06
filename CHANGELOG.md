@@ -10,6 +10,14 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.3.1
+
+### Patch Changes
+
+- _(all packages)_ e77516a: Shrink the native bundle by importing only used Google Font faces and aligning zod with the Web SDK.
+
+- _(all packages)_ 8712c43: Use the default API host when the provider receives an empty `apiHost`. Add internal `api-client` and `default-api-host` subpaths and consolidate duplicate request and helper plumbing.
+
 ## 2.3.0
 
 ### Minor Changes
