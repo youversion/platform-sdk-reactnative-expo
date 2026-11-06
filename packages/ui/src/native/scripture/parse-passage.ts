@@ -166,11 +166,13 @@ function blockFromPlaced(
   heading: boolean,
   placed: readonly PlacedInline[],
 ): Block | null {
-  if (placed.every((item) => isBlankText(item.inline))) {
+  // A blank run left after a note before a pause would underline past the note icon.
+  const kept = placed.slice(0, placed.findLastIndex((item) => !isBlankText(item.inline)) + 1)
+  if (kept.length === 0) {
     return null
   }
   const segments: Segment[] = []
-  for (const item of placed) {
+  for (const item of kept) {
     const last = segments.at(-1)
     if (last !== undefined && last.verse === item.verse) {
       last.inlines.push(item.inline)

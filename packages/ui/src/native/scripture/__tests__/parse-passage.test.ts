@@ -91,6 +91,18 @@ describe('parsePassage', () => {
     )
   })
 
+  it('drops the blank run between a final note and a qs pause', () => {
+    const html =
+      '<div><div class="q"><span class="yv-v" v="3"></span>the mountain.' +
+      '<span class="yv-n f"><span class="ft">A note</span></span> ' +
+      '<span class="qs">Selah</span></div></div>'
+    const [poetry] = parsePassage(html).blocks
+    if (poetry === undefined) {
+      throw new Error('expected the poetry')
+    }
+    expect(lineKinds(poetry)).toEqual(['text', 'note'])
+  })
+
   it('moves a period in the same text node as the following words onto the Selah pause line', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="yv-vlbl">3</span>' +
