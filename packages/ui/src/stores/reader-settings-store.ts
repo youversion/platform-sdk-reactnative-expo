@@ -3,21 +3,10 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { READER_SETTINGS_PERSIST_KEY } from '../lib/constants'
 import { SOURCE_SERIF_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
+import { mmkvStateStorage } from './mmkv-state-storage'
 import { READER_LINE_SPACING } from './types/reader-line-spacing'
-
-/** MMKV-backed storage for zustand `persist` (sync; hydrates at store creation). */
-const mmkvStateStorage = {
-  getItem: (name: string): string | null => mmkvStorage.getString(name) ?? null,
-  setItem: (name: string, value: string): void => {
-    mmkvStorage.set(name, value)
-  },
-  removeItem: (name: string): void => {
-    mmkvStorage.remove(name)
-  },
-}
 
 type ReaderSettingsState = {
   fontSize: number

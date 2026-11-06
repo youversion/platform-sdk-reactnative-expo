@@ -21,7 +21,7 @@ import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
-import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
@@ -95,27 +95,6 @@ type BibleCardMetadataKey = {
   fetchBibleContent: FetchBibleContent
 }
 
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
-function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
-}
-
 function metadataMatchesKey(
   loadedFor: BibleCardMetadataKey | null,
   versionId: number | undefined,
@@ -129,7 +108,7 @@ function metadataMatchesKey(
     loadedFor.versionId === versionId &&
     loadedFor.reference === reference &&
     loadedFor.fetchBibleContent === fetchBibleContent &&
-    sameFilters(loadedFor.filters, filters)
+    sameVersionFilters(loadedFor.filters, filters)
   )
 }
 
@@ -224,8 +203,7 @@ function BibleCardBody({
       : metadata.abbreviation == null
         ? metadata.reference
         : `${metadata.reference} ${metadata.abbreviation}`
-  const versionPickerDisabled =
-    versionPickerRequiresLanguageId && metadata?.languageTag == null
+  const versionPickerDisabled = versionPickerRequiresLanguageId && metadata?.languageTag == null
   const isFullBleed = maxWidth === '100%'
 
   return (

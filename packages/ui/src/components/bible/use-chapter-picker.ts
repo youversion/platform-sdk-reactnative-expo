@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocale } from '../../i18n/locale-context'
 import { catalogFromBooksBody } from '../../lib/bible-book-title'
 import { versionMetaFromBody } from '../../lib/bible-version-abbreviation'
-import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../../lib/version-filter-props'
 import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../../lib/version-usability'
 import {
   booksFromCatalog,
@@ -166,19 +166,6 @@ export function useChapterPicker({
   }
 }
 
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
 function isSelectionAllowed(
   versionId: number,
   filters: InternalVersionFilterProps,
@@ -194,12 +181,4 @@ function isSelectionAllowed(
     return false
   }
   return isUsableBibleVersion({ id: versionId, languageTag }, filters)
-}
-
-function sameVersionFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
 }

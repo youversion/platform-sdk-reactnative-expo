@@ -22,6 +22,8 @@ describe('verse of the day package exports', () => {
     expect(names).not.toContain('createVerseOfTheDayApi')
     expect(names).not.toContain('BibleClient')
     expect(names).not.toContain('ApiClient')
+    expect(names).not.toContain('createApiClient')
+    expect(names).not.toContain('DEFAULT_API_HOST')
   })
 
   it('exports optional language ranges and the typed result', () => {

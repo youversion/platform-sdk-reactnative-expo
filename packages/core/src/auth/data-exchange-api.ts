@@ -1,10 +1,8 @@
-import { ApiClient, DataExchangeClient } from '@youversion/platform-core'
-import { z } from 'zod'
+import { DataExchangeClient, getHttpStatus } from '@youversion/platform-core'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
 
 /**
  * The mint's 401 is "this app may not run data exchange", not "retry later", so
@@ -36,15 +34,7 @@ export type DataExchangeApi = {
 }
 
 export function createDataExchangeApi(config: CreateDataExchangeApiConfig): DataExchangeApi {
-  const client = new DataExchangeClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: mergeSdkHeaders(),
-      timeout: config.timeout,
-    }),
-  )
+  const client = new DataExchangeClient(createApiClient(config))
 
   return {
     async mintToken(accessToken, permissions) {
@@ -62,7 +52,7 @@ export function createDataExchangeApi(config: CreateDataExchangeApiConfig): Data
 }
 
 function toDataExchangeError(caught: Error): DataExchangeError {
-  const status = extractStatus(caught)
+  const status = getHttpStatus(caught)
   const message = toMessage(caught)
 
   if (status === 401) {
@@ -72,14 +62,4 @@ function toDataExchangeError(caught: Error): DataExchangeError {
   return status === undefined
     ? { kind: 'transient', message }
     : { kind: 'transient', status, message }
-}
-
-const httpStatusErrorSchema = z.object({
-  status: z.number(),
-})
-
-/** Pulls an HTTP status off a thrown ApiClient error. Twin of the one in `highlights/api.ts`. */
-function extractStatus(error: Error): number | undefined {
-  const parsed = httpStatusErrorSchema.safeParse(error)
-  return parsed.success ? parsed.data.status : undefined
 }

@@ -1,9 +1,8 @@
+import { DEFAULT_API_HOST } from '@youversion/platform-react-native-expo-core/default-api-host'
 import type { TextStyle } from 'react-native'
 import { z } from 'zod'
 
 import { fontFamily } from './scales'
-
-export const DEFAULT_API_HOST = 'api.youversion.com'
 
 export const UNTITLED_SERIF_FONT_ID = 1
 
