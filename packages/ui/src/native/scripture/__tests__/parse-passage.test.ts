@@ -58,6 +58,12 @@ describe('parsePassage', () => {
     expect(parsePassage(html).rtl).toBe(true)
   })
 
+  it('reads an Arabic passage with a Latin note as RTL', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>(LXX) فِي الْبَدْءِ خَلَقَ اللهُ السَّمَاوَاتِ وَالأَرْضَ</div></div>'
+    expect(parsePassage(html).rtl).toBe(true)
+  })
+
   it('puts a qs pause inside q on its own end-aligned line with the following period', () => {
     const html =
       '<div><div class="q"><span class="yv-v" v="3"></span><span class="yv-vlbl">3</span>' +
