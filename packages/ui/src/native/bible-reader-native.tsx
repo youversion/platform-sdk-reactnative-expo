@@ -90,6 +90,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     book = 'JHN',
     chapter = '1',
     versionId = 3034,
+    versionDirections,
     fontSize = DEFAULT_FONT_SIZE,
     fontFamily,
     lineSpacing = READER_LINE_SPACING.DEFAULT,
@@ -148,11 +149,14 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const muted = foregroundColor === undefined ? tokens.mutedForeground : ink
 
   const isSans = decodeFontFamilyFromDom(fontFamily) === INTER_FONT
+  // By the rendered passage's version: the dimmed old chapter keeps its direction.
+  const versionDirection = passage ? versionDirections?.get(passage.versionId) : undefined
+  const rtl = versionDirection ? versionDirection === 'rtl' : (passage?.parsed.rtl ?? false)
   const look = useMemo<PassageLook>(
     () => ({
       fontSize,
       lineSpacing,
-      rtl: passage?.parsed.rtl ?? false,
+      rtl,
       // Inter ships no italic here, so sans keeps the upright face.
       face: (weight, italic) =>
         isSans
@@ -164,16 +168,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       underline: tokens.border,
       background,
     }),
-    [
-      fontSize,
-      lineSpacing,
-      passage?.parsed.rtl,
-      isSans,
-      tokens,
-      serifFaceFor,
-      ink,
-      background,
-    ],
+    [fontSize, lineSpacing, rtl, isSans, tokens, serifFaceFor, ink, background],
   )
 
   // Scoped to the rendered passage: the old chapter stays up while the next one loads.

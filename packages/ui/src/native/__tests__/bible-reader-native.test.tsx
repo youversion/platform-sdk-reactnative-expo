@@ -815,6 +815,61 @@ describe('BibleReaderNative', () => {
     })
   })
 
+  describe('text direction', () => {
+    function directionOf(text: string): TextStyle['writingDirection'] {
+      let node: ReactTestInstance | null = screen.getByText(text)
+      while (node !== null) {
+        const flat: TextStyle | undefined = StyleSheet.flatten(node.props.style)
+        if (flat?.writingDirection !== undefined) {
+          return flat.writingDirection
+        }
+        node = node.parent
+      }
+      return undefined
+    }
+
+    const HEBREW = 'בראשית ברא אלהים'
+
+    it('takes the index direction over the letter vote', async () => {
+      mount({
+        fetchBibleContent: fetchVersions({ [VERSION_ID]: { sentence: HEBREW } }),
+        versionDirections: new Map([[VERSION_ID, 'ltr']]),
+      })
+      await screen.findByText(HEBREW)
+      expect(directionOf(HEBREW)).toBe('ltr')
+    })
+
+    it('lets the letters vote when the version has no entry', async () => {
+      mount({
+        fetchBibleContent: fetchVersions({ [VERSION_ID]: { sentence: HEBREW } }),
+        versionDirections: new Map(),
+      })
+      await screen.findByText(HEBREW)
+      expect(directionOf(HEBREW)).toBe('rtl')
+    })
+
+    it("does not give the dimmed chapter the next version's direction", async () => {
+      const versions = fetchVersions({ [VERSION_ID]: { sentence: HEBREW } })
+      const pending = new Promise<never>(() => undefined)
+      const reader = mount({
+        fetchBibleContent: ({ path }) =>
+          path.includes(`/${VERSION_ID}/`) ? versions({ path }) : pending,
+        versionDirections: new Map([[VERSION_ID, 'ltr']]),
+      })
+      await screen.findByText(HEBREW)
+
+      reader.update({
+        versionId: 112,
+        versionDirections: new Map<number, 'ltr' | 'rtl'>([
+          [VERSION_ID, 'ltr'],
+          [112, 'rtl'],
+        ]),
+      })
+
+      await waitFor(() => expect(directionOf(HEBREW)).toBe('ltr'))
+    })
+  })
+
   it('shows scripture when the version language is on the provider list', async () => {
     const restore = stubVersionNames({ [VERSION_ID]: 'BSB' }, { [VERSION_ID]: 'en' })
     try {

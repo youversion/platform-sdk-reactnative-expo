@@ -91,7 +91,7 @@ function FootnoteBody({
   }
   const verseParagraphs = useMemo(() => parseNoteHtml(data.verseHtml), [data.verseHtml])
   const noteParagraphs = useMemo(() => data.notes.map(parseNoteHtml), [data.notes])
-  // FootnoteData carries no direction, so a host that does not know it lets the text vote.
+  // The reader passes the version's direction. Without it, the text votes.
   const rtl = useMemo(() => {
     if (direction !== undefined) {
       return direction === 'rtl'

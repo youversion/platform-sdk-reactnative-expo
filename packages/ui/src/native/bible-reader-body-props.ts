@@ -17,6 +17,7 @@ import type {
   BibleReaderVerseFocus,
   BibleReaderVerseFocusAcknowledgment,
 } from './bible-reader-navigation'
+import type { VersionDirections } from './scripture/use-passage'
 
 /**
  * Props `BibleReader` passes to the chapter body.
@@ -60,6 +61,8 @@ export type BibleReaderBodyProps = {
   book?: string
   chapter?: string
   versionId?: number
+  /** Each loaded version's text direction. A version with no entry falls back to the letter vote. */
+  versionDirections?: VersionDirections
   onBookChange?: (book: string) => Promise<void>
   onChapterChange?: (chapter: string) => Promise<void>
   onVersionChange?: (versionId: number) => Promise<void>
