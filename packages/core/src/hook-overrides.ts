@@ -3,6 +3,7 @@ import type { UseHighlightPermissionFlowResult } from './highlights/use-highligh
 import type { UseHighlightsOptions, UseHighlightsResult } from './highlights/use-highlights'
 import type { UseImagesResult } from './images/use-images'
 import type { UseSearchResult } from './search/use-search'
+import type { UseVerseOfTheDayResult } from './verse-of-the-day/use-verse-of-the-day'
 import type {
   UseUnifiedSearchOptions,
   UseUnifiedSearchProps,
@@ -26,4 +27,5 @@ export type HookOverrides = {
     options?: UseUnifiedSearchOptions,
   ) => UseUnifiedSearchResult
   useImages?: () => UseImagesResult
+  useVerseOfTheDay?: () => UseVerseOfTheDayResult
 }

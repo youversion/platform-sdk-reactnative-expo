@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
+import { mergeSdkHeaders } from '../sdk-version'
 
 /**
  * The mint's 401 is "this app may not run data exchange", not "retry later", so
@@ -40,6 +41,7 @@ export function createDataExchangeApi(config: CreateDataExchangeApiConfig): Data
       appKey: config.appKey,
       apiHost: config.apiHost ?? DEFAULT_API_HOST,
       installationId: config.installationId,
+      additionalHeaders: mergeSdkHeaders(),
       timeout: config.timeout,
     }),
   )

@@ -83,6 +83,7 @@ describe('VerseOfTheDay', () => {
   const originalOs = Platform.OS
   const originalShare = globalThis.navigator.share
   const originalClipboard = globalThis.navigator.clipboard
+  const originalFetch = globalThis.fetch
 
   beforeEach(() => {
     latestDomProps = {}
@@ -97,6 +98,7 @@ describe('VerseOfTheDay', () => {
     cleanup()
     resetImpls()
     jest.restoreAllMocks()
+    globalThis.fetch = originalFetch
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -544,6 +546,42 @@ describe('VerseOfTheDay', () => {
     })
     expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
+  })
+
+  it('shows retry after shared-client image validation fails and recovers on a valid response', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockRestore()
+    const response = (imageId: number | null) =>
+      new Response(JSON.stringify({ day: 15, passage_id: 'JHN.3.16', image_id: imageId }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    let passageRequests = 0
+    const fetch: jest.MockedFunction<typeof globalThis.fetch> = jest.fn((input, init) => {
+      if (String(input) === 'https://api.youversion.com/v1/verse-of-the-days/15') {
+        passageRequests += 1
+        return Promise.resolve(response(passageRequests === 1 ? 42 : null))
+      }
+      return originalFetch(input, init)
+    })
+    globalThis.fetch = fetch
+
+    const { getByTestId, queryByTestId } = render(
+      <VerseOfTheDay versionId={3034} dayOfYear={15} />,
+      { wrapper: wrapper() },
+    )
+
+    await waitFor(() => expect(getByTestId('verse-of-the-day-retry')).toBeTruthy())
+    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
+    expect(passageRequests).toBe(1)
+
+    fireEvent.press(getByTestId('verse-of-the-day-retry'))
+
+    await waitFor(() => expect(getByTestId('mock-btv-dom')).toBeTruthy())
+    expect(latestDomProps.reference).toBe('JHN.3.16')
+    expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
+    expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
+    expect(passageRequests).toBe(2)
   })
 
   it('pins a sampled local calendar day on the lookup and the scripture reference', async () => {

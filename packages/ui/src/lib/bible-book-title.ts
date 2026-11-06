@@ -170,11 +170,9 @@ export type AdjacentBookChapter = {
   chapterId: string
 }
 
-/** The fields `getAdjacentChapter` actually reads. Not a `BibleBook`. */
 type AdjacentChapterBook = {
   id: string
   chapters?: readonly { id: string }[]
-  intro?: { id: string }
 }
 
 const adjacentBooksCache = new WeakMap<
@@ -192,15 +190,13 @@ function adjacentBooksFromCatalog(
   const books = [...catalog.entries()].map(([id, entry]) => ({
     id,
     chapters: entry.chapters === null ? undefined : entry.chapters.map((c) => ({ id: c.id })),
-    intro: entry.intro === null ? undefined : { id: entry.intro.id },
   }))
   adjacentBooksCache.set(catalog, books)
   return books
 }
 
-// SAFETY: `getAdjacentChapter` is typed on `BibleBook[]` but reads only `id`,
-// `chapters[].id`, and `intro.id`. Widening the parameter here keeps that
-// contract checkable instead of inventing the rest of `BibleBook`.
+// SAFETY: Core 2.17 reads only `id`, `chapters[].id`, and `intro.id` without mutation.
+// Omitting `intro` keeps native navigation on numbered chapters in both directions.
 const getAdjacentChapterFromCatalog = getAdjacentChapter as (
   books: readonly AdjacentChapterBook[],
   currentBookId: string,
@@ -217,9 +213,8 @@ function parseChapterNumber(value: string): number | null {
 }
 
 /**
- * Next or previous chapter, crossing book boundaries and skipping intros. Delegates to
- * platform-core so native and web agree. Before the catalog lands, Previous can still
- * step back inside the book; Next needs the chapter list, so it stays off.
+ * Navigate numbered chapters, skipping book intros in both directions (ADR 0022).
+ * Before the catalog loads, only Previous can step within the current book.
  */
 export function adjacentBookChapter(
   catalog: ReadonlyMap<string, BookCatalogEntry> | null,
@@ -241,19 +236,5 @@ export function adjacentBookChapter(
   }
 
   const books = adjacentBooksFromCatalog(catalog)
-  const result = getAdjacentChapterFromCatalog(books, key, chapter, direction)
-  if (
-    result === null ||
-    direction !== 'previous' ||
-    isIntroChapterId(chapter) ||
-    !isIntroChapterId(result.chapterId)
-  ) {
-    return result
-  }
-
-  return getAdjacentChapterFromCatalog(books, result.bookId, result.chapterId, 'previous')
-}
-
-function isIntroChapterId(chapterId: string): boolean {
-  return chapterId.toLowerCase().includes('intro')
+  return getAdjacentChapterFromCatalog(books, key, chapter, direction)
 }

@@ -73,6 +73,8 @@ describe('ensureDomContentCache', () => {
     ['another host', 'https://other.example.com/v1/bibles/111/chapters/JHN.1', undefined],
     ['the versions list', `https://${API_HOST}/v1/bibles`, undefined],
     ['verse of the day', `https://${API_HOST}/v1/verse_of_the_days/today`, undefined],
+    ['verse of the day calendar', `https://${API_HOST}/v1/verse-of-the-days`, undefined],
+    ['verse of the day for a day', `https://${API_HOST}/v1/verse-of-the-days/15`, undefined],
     ['highlights', `https://${API_HOST}/v1/users/1/highlights`, undefined],
   ])('passes %s to the real fetch untouched', async (_label, url, init) => {
     const action: jest.MockedFunction<FetchBibleContent> = jest.fn()

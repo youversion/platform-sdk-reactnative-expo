@@ -10,13 +10,16 @@ import {
 import { DEFAULT_API_HOST } from '../constants'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
+import { mergeSdkHeaders } from '../sdk-version'
 import type {
   SearchApiError,
   SearchApiResult,
+  SearchImagesParams,
   SearchTopicsParams,
   SearchVersesParams,
   SuggestedQueriesParams,
   TrendingQueriesParams,
+  YouVersionImageSearchResults,
 } from './types'
 
 export type CreateSearchApiConfig = {
@@ -31,6 +34,7 @@ export type SearchApi = {
   suggestedQueries: (params: SuggestedQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
+  images: (params: SearchImagesParams) => Promise<SearchApiResult<YouVersionImageSearchResults>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
 }
 
@@ -39,7 +43,7 @@ export function createSearchClient(config: CreateSearchApiConfig): SearchClient 
     appKey: config.appKey,
     apiHost: config.apiHost ?? DEFAULT_API_HOST,
     installationId: config.installationId,
-    additionalHeaders: config.additionalHeaders,
+    additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
     timeout: config.timeout,
   })
   return new SearchClient(http)
@@ -57,6 +61,9 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     },
     verses({ query, bibleId, ...options }) {
       return catchAsResult(() => client.searchVerses(query, bibleId, options))
+    },
+    images({ query, bibleId, ...options }) {
+      return catchAsResult(() => client.searchImages(query, bibleId, options))
     },
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))

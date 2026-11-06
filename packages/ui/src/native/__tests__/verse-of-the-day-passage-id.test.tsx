@@ -5,7 +5,7 @@
  * is internal; the wrapper is internal, same rule as `createHighlightsApi`.
  * No access token: VOTD is not a user-owned resource.
  */
-import { BibleClient } from '@youversion/platform-core'
+import { BibleClient, type VOTDResponse } from '@youversion/platform-core'
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
@@ -30,7 +30,7 @@ afterAll(() => {
 
 describe('getVerseOfTheDayPassageId', () => {
   it('returns the passage_id when the lookup succeeds', async () => {
-    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
+    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16', image_id: null })
 
     await expect(getVerseOfTheDayPassageId(credentials, 15)).resolves.toBe('JHN.3.16')
     expect(getVOTD).toHaveBeenCalledTimes(1)
@@ -44,7 +44,7 @@ describe('getVerseOfTheDayPassageId', () => {
   })
 
   it('never passes an access token', async () => {
-    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
+    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16', image_id: null })
 
     await getVerseOfTheDayPassageId(credentials, 15)
 
@@ -55,7 +55,7 @@ describe('getVerseOfTheDayPassageId', () => {
 
 describe('useVerseOfTheDayPassageId', () => {
   it('returns the passage_id once the lookup succeeds', async () => {
-    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16' })
+    getVOTD.mockResolvedValue({ day: 15, passage_id: 'JHN.3.16', image_id: null })
 
     const { result } = renderHook(() => useVerseOfTheDayPassageId(15), { wrapper: wrapper() })
 
@@ -81,7 +81,7 @@ describe('useVerseOfTheDayPassageId', () => {
   })
 
   it('refetches when retry is called after a failed lookup', async () => {
-    let resolveRetry: (value: { day: number; passage_id: string }) => void
+    let resolveRetry: (value: VOTDResponse) => void
     getVOTD.mockRejectedValueOnce(new Error('network'))
     getVOTD.mockImplementationOnce(
       () =>
@@ -102,7 +102,7 @@ describe('useVerseOfTheDayPassageId', () => {
     expect(result.current.status).toBe('loading')
 
     await act(async () => {
-      resolveRetry({ day: 15, passage_id: 'JHN.3.16' })
+      resolveRetry({ day: 15, passage_id: 'JHN.3.16', image_id: null })
     })
     expect(result.current.passageId).toBe('JHN.3.16')
     expect(result.current.status).toBe('ready')
@@ -110,8 +110,8 @@ describe('useVerseOfTheDayPassageId', () => {
   })
 
   it('returns loading for the new day until that lookup resolves', async () => {
-    getVOTD.mockResolvedValueOnce({ day: 15, passage_id: 'JHN.3.16' })
-    getVOTD.mockResolvedValueOnce({ day: 16, passage_id: 'MAT.5.1' })
+    getVOTD.mockResolvedValueOnce({ day: 15, passage_id: 'JHN.3.16', image_id: null })
+    getVOTD.mockResolvedValueOnce({ day: 16, passage_id: 'MAT.5.1', image_id: null })
 
     const { result, rerender } = renderHook(
       ({ dayOfYear }: { dayOfYear: number }) => useVerseOfTheDayPassageId(dayOfYear),

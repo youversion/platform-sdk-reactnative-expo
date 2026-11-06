@@ -1,6 +1,6 @@
-import { buildSdkVersionHeaderValue } from '@youversion/platform-core'
 import * as Crypto from 'expo-crypto'
 
+import { getSdkHeaders } from '../../sdk-version'
 import { SHIM_UUID, stubCryptoGlobal } from '../../test-utils/crypto-global'
 import { createHighlightsApi } from '../api'
 
@@ -81,14 +81,11 @@ function lastRequest(): LastRequest {
   return { url: String(call[0]), init: call[1] ?? {} }
 }
 
-const nativeSdkHeader = 'ReactNativeSDK=1.0.0-dev'
-
 const api = () =>
   createHighlightsApi({
     appKey: 'appkey',
     apiHost: 'api.example.com',
     installationId: 'inst-1',
-    additionalHeaders: { 'x-yvp-sdk': nativeSdkHeader },
   })
 
 describe('createHighlightsApi', () => {
@@ -121,7 +118,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
-      expect(header(init, 'x-yvp-sdk')).toBe(`${buildSdkVersionHeaderValue()}, ${nativeSdkHeader}`)
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
     })
 
     it('returns auth failure for 401 and 403 without throwing', async () => {
@@ -205,6 +202,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
       const body: CreatedHighlightBody = JSON.parse(requestBodyText(init.body))
       expect(body.highlight).toEqual({
         bible_id: 111,
@@ -305,6 +303,7 @@ describe('createHighlightsApi', () => {
       expect(header(init, 'Authorization')).toBe('Bearer tok')
       expect(header(init, 'X-YVP-App-Key')).toBe('appkey')
       expect(header(init, 'X-YVP-Installation-Id')).toBe('inst-1')
+      expect(header(init, 'X-YVP-Sdk')).toBe(getSdkHeaders()['X-YVP-Sdk'])
     })
 
     it('returns auth failure for 403', async () => {

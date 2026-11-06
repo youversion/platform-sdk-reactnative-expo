@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-native'
 import type { ReactNode } from 'react'
 
+import pkg from '../../../package.json'
 import type { HookOverrides } from '../../hook-overrides'
 import { YouVersionContext } from '../../youversion-context'
 import type { UseSearchResult } from '../use-search'
@@ -42,7 +43,7 @@ describe('useSearch', () => {
     )
   })
 
-  it('reads provider config and returns the four operations', async () => {
+  it('reads provider config and returns the search operations', async () => {
     mockFetch.mockResolvedValue(
       new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
         status: 200,
@@ -57,6 +58,7 @@ describe('useSearch', () => {
     expect(result.current.suggestedQueries).toEqual(expect.any(Function))
     expect(result.current.trendingQueries).toEqual(expect.any(Function))
     expect(result.current.verses).toEqual(expect.any(Function))
+    expect(result.current.images).toEqual(expect.any(Function))
     expect(result.current.topics).toEqual(expect.any(Function))
 
     const trending = await result.current.trendingQueries({ languageRanges: ['en'] })
@@ -67,6 +69,24 @@ describe('useSearch', () => {
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
       'https://api.example.com/v1/search-queries',
     )
+  })
+
+  it('sends ReactNativeSDK on the search request', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ text: 'love', source: 'trending' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    const { result } = renderHook(() => useSearch(), {
+      wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+    })
+
+    await result.current.trendingQueries({ languageRanges: ['en'] })
+
+    const headers = new Headers(mockFetch.mock.calls[0]?.[1]?.headers)
+    expect(headers.get('x-yvp-sdk')).toBe(`ReactNativeSDK=${pkg.version}-dev`)
   })
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
@@ -84,6 +104,10 @@ describe('useSearch', () => {
         ok: true as const,
         value: { topics: [], didYouMean: [], totalSize: 0 },
       })),
+      images: jest.fn(async () => ({
+        ok: true as const,
+        value: { images: [], nextPageToken: null },
+      })),
     }
 
     const { result } = renderHook(() => useSearch(), {
@@ -98,6 +122,69 @@ describe('useSearch', () => {
       languageRanges: ['en'],
     })
     expect(suggested).toEqual({ ok: true, value: { queries: [{ text: 'stub' }] } })
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
+  it('searches images on the provider host', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ images: [], next_page_token: null }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    )
+
+    const { result } = renderHook(() => useSearch(), {
+      wrapper: ({ children }) => <Wrapper>{children}</Wrapper>,
+    })
+
+    const page = await result.current.images({ query: 'love', bibleId: 111 })
+    expect(page).toEqual({ ok: true, value: { images: [], nextPageToken: null } })
+    expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
+      'https://api.example.com/v1/search-images?query=love&bible_id=111',
+    )
+  })
+
+  it('keeps images until appKey, apiHost, or installationId changes', () => {
+    let appKey = 'app-key'
+    let apiHost = 'api.example.com'
+    let installationId = 'install-1'
+
+    function ConfigWrapper({ children }: { children: ReactNode }) {
+      return (
+        <YouVersionContext.Provider
+          value={{
+            appKey,
+            apiHost,
+            installationId,
+            fetchBibleContent: jest.fn(),
+          }}
+        >
+          {children}
+        </YouVersionContext.Provider>
+      )
+    }
+
+    const { result, rerender } = renderHook((_props: undefined) => useSearch(), {
+      wrapper: ConfigWrapper,
+    })
+    const first = result.current.images
+
+    rerender(undefined)
+    expect(result.current.images).toBe(first)
+
+    appKey = 'other-key'
+    rerender(undefined)
+    expect(result.current.images).not.toBe(first)
+
+    const afterKey = result.current.images
+    apiHost = 'other.example.com'
+    rerender(undefined)
+    expect(result.current.images).not.toBe(afterKey)
+
+    const afterHost = result.current.images
+    installationId = 'install-2'
+    rerender(undefined)
+    expect(result.current.images).not.toBe(afterHost)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 })
