@@ -352,13 +352,12 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
-    // Ordinary blocks resolve to 'left' (start). Right and centre still use textAlign.
-    // `end` (Selah) is laid out on a full-width row with flex-end under the passage
-    // direction, so Android never remaps a physical left/right under RTL.
+    // Under RTL, textAlign is start-relative on both platforms: 'left' lands physically
+    // right. So 'left' is the start edge and 'right' the end edge in either direction.
     let textAlign: 'left' | 'center' | 'right' = 'left'
     if (rule.align === 'center') {
       textAlign = 'center'
-    } else if (rule.align === 'right' || (!endAligned && look.rtl)) {
+    } else if (rule.align === 'right' || endAligned) {
       textAlign = 'right'
     }
     // End lines: the row pins a short pause; flexShrink + maxWidth let a long one wrap
@@ -368,7 +367,7 @@ const BlockView = memo(function BlockView({
       lineHeight: lineBox,
       color: ghost ? TRANSPARENT : color(look.ink, 1, blockDimmed),
       ...look.face(rule.weight, rule.italic),
-      textAlign: endAligned ? (look.rtl ? 'left' : 'right') : textAlign,
+      textAlign,
       writingDirection: look.rtl ? 'rtl' : 'ltr',
       paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
       paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
