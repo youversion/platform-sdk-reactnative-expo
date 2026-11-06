@@ -31,7 +31,7 @@ export type YouVersionProviderProps = {
 
 export default function YouVersionProvider({
   appKey,
-  apiHost = DEFAULT_API_HOST,
+  apiHost: apiHostProp,
   auth,
   permittedVersionIds,
   excludedVersionIds,
@@ -40,6 +40,9 @@ export default function YouVersionProvider({
   hookOverrides,
   children,
 }: YouVersionProviderProps): ReactNode {
+  // Empty string must not stay in context: bible content and auth build URLs
+  // from this value, while ApiClient already falls back with ||.
+  const apiHost = apiHostProp || DEFAULT_API_HOST
   const [installationId] = useState(getOrSetInstallationId)
   const [contentStore] = useState(createBibleContentStore)
 
