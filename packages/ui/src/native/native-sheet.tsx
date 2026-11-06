@@ -2,9 +2,8 @@
  * Per-sheet BottomSheets, lifted to a root PortalHost and coordinated by a
  * shared active-sheet store.
  *
- * Pickers, settings, search, and verse actions are native. Footnotes still
- * host a scripture WebView. That WebView stays in its own stable
- * BottomSheetView so the first open is not measured inside a tiny hidden wrapper.
+ * Each sheet keeps its content in a stable BottomSheetView so the first open
+ * is not measured inside a tiny hidden wrapper.
  */
 
 import BottomSheet, {
@@ -15,14 +14,12 @@ import BottomSheet, {
 import { Portal, PortalHost } from '@rn-primitives/portal'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
-  ActivityIndicator,
   Platform,
   Pressable,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
-  type LayoutChangeEvent,
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
@@ -81,9 +78,6 @@ export type NativeSheetProps = {
   // handle pan as well as the content pan; both still open on a deliberate drag.
   panActiveOffsetY?: [number, number]
   children: ReactNode
-  // iOS pre-warms matchContents and ignores this flag.
-  showAndroidLoader?: boolean
-  loaderMinHeight?: number
   theme?: Theme
   backgroundColor?: string
   // Colors only the safe-area footer strip (e.g. muted, behind a search bar).
@@ -93,9 +87,6 @@ export type NativeSheetProps = {
   showHeader?: boolean
   headerTitle?: string
 }
-
-const DEFAULT_LOADER_MIN_HEIGHT = 180
-const CONTENT_READY_HEIGHT_THRESHOLD = 4
 
 function NativeSheetImpl({
   isOpen,
@@ -107,8 +98,6 @@ function NativeSheetImpl({
   modal = true,
   panActiveOffsetY,
   children,
-  showAndroidLoader = false,
-  loaderMinHeight = DEFAULT_LOADER_MIN_HEIGHT,
   theme,
   backgroundColor,
   bottomInsetColor,
@@ -155,8 +144,6 @@ function NativeSheetImpl({
         onDismissKeyboardStart={onDismissKeyboardStart}
         modal={modal}
         panActiveOffsetY={panActiveOffsetY}
-        showAndroidLoader={showAndroidLoader}
-        loaderMinHeight={loaderMinHeight}
         theme={theme}
         backgroundColor={backgroundColor}
         bottomInsetColor={bottomInsetColor}
@@ -180,8 +167,6 @@ function SheetHost({
   modal,
   panActiveOffsetY,
   children,
-  showAndroidLoader,
-  loaderMinHeight,
   theme,
   backgroundColor,
   bottomInsetColor,
@@ -198,8 +183,6 @@ function SheetHost({
   modal: boolean
   panActiveOffsetY?: [number, number]
   children: ReactNode
-  showAndroidLoader: boolean
-  loaderMinHeight: number
   theme?: Theme
   backgroundColor?: string
   bottomInsetColor?: string
@@ -246,33 +229,6 @@ function SheetHost({
   const handleIndicatorStyle = useMemo<StyleProp<ViewStyle>>(
     () => (theme ? [styles.handle, { backgroundColor: SHEET_HANDLE[theme] }] : styles.handle),
     [theme],
-  )
-
-  // Android-only: iOS pre-warms matchContents via the inert-host exception (ADR 0006).
-  const isAndroidLoaderEnabled = showAndroidLoader && Platform.OS === 'android'
-  const [isSheetContentReady, setIsSheetContentReady] = useState(!isAndroidLoaderEnabled)
-  // Re-show the loader when new content arrives (openKey bump). Adjusted during
-  // render (not in the effect below) so the sheet never paints a frame with the
-  // previous content marked ready. See
-  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  const [prevLoaderOpenKey, setPrevLoaderOpenKey] = useState(openKey)
-  if (openKey !== prevLoaderOpenKey) {
-    setPrevLoaderOpenKey(openKey)
-    if (isAndroidLoaderEnabled) setIsSheetContentReady(false)
-  }
-  const handleContentLayout = useCallback(
-    (event: LayoutChangeEvent) => {
-      if (!isAndroidLoaderEnabled) return
-      if (event.nativeEvent.layout.height > CONTENT_READY_HEIGHT_THRESHOLD) {
-        setIsSheetContentReady(true)
-      }
-    },
-    [isAndroidLoaderEnabled],
-  )
-  const isLoading = isAndroidLoaderEnabled && !isSheetContentReady && isActive
-  const loaderWrapperStyle = useMemo<StyleProp<ViewStyle>>(
-    () => (isLoading ? { minHeight: loaderMinHeight } : undefined),
-    [isLoading, loaderMinHeight],
   )
 
   // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
@@ -407,20 +363,7 @@ function SheetHost({
               <View style={{ flex: 1 }} />
             </View>
           )}
-          <View testID="native-sheet-loader-wrapper" style={loaderWrapperStyle} collapsable={false}>
-            <View
-              testID="native-sheet-content"
-              onLayout={isAndroidLoaderEnabled ? handleContentLayout : undefined}
-              collapsable={false}
-            >
-              {children}
-            </View>
-            {isLoading && (
-              <View pointerEvents="none" style={styles.loaderOverlay} testID="native-sheet-loader">
-                <ActivityIndicator size="large" accessibilityLabel={t('loading')} />
-              </View>
-            )}
-          </View>
+          {children}
           {bottom > 0 && (
             <View
               testID="native-sheet-bottom-inset"
@@ -464,14 +407,5 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 8,
-  },
-  loaderOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 })

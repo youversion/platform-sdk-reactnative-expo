@@ -1,12 +1,11 @@
 import type { PlatformOSType } from 'react-native'
 
 /**
- * Which verse-action UI the WebView reader runs on a given platform.
+ * Which verse-action value the reader host passes to the chapter body.
  *
  * iOS and Android get `'none'`, because `BibleVerseActionSheet` renders the
  * reference, swatch tray, Copy, and Share natively over the passage. Web gets
- * `'popover'`, because `NativeSheet` renders nothing there, and suppressing the
- * in-WebView popover would leave no verse action UI at all.
+ * `'popover'`. `NativeSheet` renders nothing there, and Expo web is out of scope.
  *
  * The platform is an argument instead of a `Platform.OS` read, which makes the
  * branch testable at layer 1. A layer-3 test always runs as one platform, so it

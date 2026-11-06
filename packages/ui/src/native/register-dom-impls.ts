@@ -1,15 +1,15 @@
-import BibleReaderDom from '../dom/bible-reader'
 import BibleTextViewDom from '../dom/bible-text-view'
-import FootnoteContent from '../dom/footnote-content'
+import { BibleReaderNative } from './bible-reader-native'
 import { registerDefault } from './component-impls'
+import FootnoteContent from './footnote-content'
 
 let registered = false
 
-/** Load real `'use dom'` components. Production entry only — tests register stubs. */
+/** Production entry. Tests register stubs. */
 export function ensureDomImpls(): void {
   if (registered) return
   registered = true
-  registerDefault('BibleReaderDom', BibleReaderDom)
+  registerDefault('BibleReaderNative', BibleReaderNative)
   registerDefault('BibleTextViewDom', BibleTextViewDom)
   registerDefault('FootnoteContent', FootnoteContent)
 }

@@ -1,5 +1,7 @@
 # Bridge-safe font tokens for DOM component props
 
+> **Status.** `BibleReader` sets its font on native text and does not send `fontFamily` across the bridge. `BibleTextView` still uses these tokens. The text below is the original bug.
+
 ## The problem
 
 The Bible reader rendered **blank on iOS** (every time, on the home tab) with this error in the Metro logs:
@@ -37,7 +39,7 @@ The reader's default font family is the CSS stack `"Source Serif 4", serif`, whi
 Cross the native ↔ DOM bridge with **quote-free font tokens** instead of the canonical CSS stacks, and resolve back to the canonical string inside the DOM component.
 
 - `lib/reader-fonts.ts` defines `FONT_FAMILY_TOKEN` (`'inter'`, `'untitled-serif'`, `'source-serif'`) plus `encodeFontFamilyForDom` / `decodeFontFamilyFromDom`.
-- Native wrappers encode where a font family crosses into a DOM component: `native/bible-reader.tsx`, `native/bible-text-view.tsx`, `native/bible-card.tsx`, and `native/verse-of-the-day.tsx`. Card and verse of the day pass the token into the text-view DOM component. Reader settings stay native in `native/bible-reader-settings-content.tsx` and compare `fontFamily` to `INTER_FONT` and `UNTITLED_SERIF_FONT`.
+- Native wrappers encode where a font family crosses into a DOM component: `native/bible-text-view.tsx`, `native/bible-card.tsx`, and `native/verse-of-the-day.tsx`. Card and verse of the day pass the token into the text-view DOM component. The reader encodes the same token for its native text. Reader settings stay native in `native/bible-reader-settings-content.tsx` and compare `fontFamily` to `INTER_FONT` and `UNTITLED_SERIF_FONT`.
 - Each DOM component decodes on receipt before handing the value to the Web SDK, so the value it sees is the canonical CSS stack.
 - Unknown values are URI-encoded so `"`, backticks, and `${` cannot break the iOS template-literal injection; encoding runs on both platforms for a single code path.
 
