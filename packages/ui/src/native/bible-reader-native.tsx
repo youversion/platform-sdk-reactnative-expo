@@ -1,5 +1,3 @@
-import { deriveServerColors } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   AccessibilityInfo,
@@ -22,24 +20,27 @@ import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbrevia
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { type BookCatalogEntry } from '../lib/bible-book-title'
-import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
+import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
-import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../lib/version-usability'
+import { versionGate } from '../lib/version-usability'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace } from '../theme/fonts'
-import { useSerifFace } from '../theme/use-fonts'
 import type { BibleReaderBodyProps } from './bible-reader-body-props'
-import { highlightPaint, toHex6, type HighlightPaint } from './scripture/highlight-colors'
-import {
-  highlightEndRoom,
-  Passage,
-  type PassageLook,
-  type VerseFocusDim,
-} from './scripture/passage'
+import { toHex6 } from './scripture/highlight-colors'
+import { highlightEndRoom, Passage, type VerseFocusDim } from './scripture/passage'
+import { usePassageStyle } from './scripture/passage-style'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
+import { lineMultiple } from './scripture/styles'
 import { focusLineBox, focusScrollOffset, type LineBox } from './scripture/verse-line'
-import { passageKey, usePassage, useVersionCopyright } from './scripture/use-passage'
+import {
+  chapterRef,
+  footnoteFor,
+  passageErrorKey,
+  passageKey,
+  usePassage,
+  useVersionCopyright,
+} from './scripture/use-passage'
 
 type BibleReaderNativeProps = BibleReaderBodyProps &
   InternalVersionFilterProps &
@@ -86,7 +87,6 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     appliedFocusSeq = 0,
     focusStream = 0,
     onVerseFocusApplied,
-    theme = 'light',
     book = 'JHN',
     chapter = '1',
     versionId = 3034,
@@ -104,41 +104,33 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   } = props
   const tokens = useTokens()
   const { t } = useSdkTranslation()
-  const serifFaceFor = useSerifFace()
 
   const { title: bookTitle, entry, isLoading: isBookLoading } = useBibleBookTitle(versionId, book)
+  const versionLookup = useBibleVersionAbbreviation(versionId)
   const {
     abbreviation,
-    languageId,
     isLoading: isVersionLoading,
     error: versionError,
     retry: retryVersion,
-  } = useBibleVersionAbbreviation(versionId)
+  } = versionLookup
   const copyright = useVersionCopyright(fetchBibleContent, versionId)
   const unavailable = !isBookLoading && isChapterMissing(entry, chapter)
-  const versionFilters = { permittedVersionIds, excludedVersionIds, permittedLanguageTags }
-  const idRefused = isVersionIdDecidablyUnusable(versionId, versionFilters)
-  // The tag in flight can still belong to the previous version. Waiting avoids painting
-  // this chapter before the provider's language list can refuse it.
-  const awaitingLanguage = permittedLanguageTags !== undefined && !idRefused && isVersionLoading
-  // A failed lookup has no tag yet. That is not a confirmed language refusal, and it
-  // has to stay retryable or an allowed chapter never comes back.
-  const versionLookupBlocked = permittedLanguageTags !== undefined && !idRefused && versionError !== null
-  const languageRefused =
-    permittedLanguageTags !== undefined &&
-    !idRefused &&
-    !isVersionLoading &&
-    versionError === null &&
-    !isUsableBibleVersion({ id: versionId, languageTag: languageId ?? undefined }, versionFilters)
-  const refused = idRefused || languageRefused
+  const gate = versionGate(
+    versionId,
+    { permittedVersionIds, excludedVersionIds, permittedLanguageTags },
+    versionLookup,
+  )
+  const refused = gate === 'refused'
+  // Waiting avoids painting this chapter before the provider's language list can refuse it.
+  const awaitingLanguage = gate === 'checking'
+  const versionLookupBlocked = gate === 'lookupFailed'
+  const address = chapterRef(book, chapter)
   const load = usePassage(
     fetchBibleContent,
     versionId,
-    book,
-    chapter,
-    !unavailable && !refused && !awaitingLanguage && !versionLookupBlocked,
+    !unavailable && gate === 'open' ? address : null,
   )
-  const currentKey = passageKey(versionId, book, chapter)
+  const currentKey = passageKey(versionId, address)
   const passage = load.passage
   const isCurrent = passage !== null && passage.key === currentKey
 
@@ -147,55 +139,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const ink = hostColor(foregroundColor, 'foregroundColor') ?? tokens.foreground
   const muted = foregroundColor === undefined ? tokens.mutedForeground : ink
 
-  const isSans = decodeFontFamilyFromDom(fontFamily) === INTER_FONT
-  const look = useMemo<PassageLook>(
-    () => ({
-      fontSize,
-      lineSpacing,
-      rtl: passage?.parsed.rtl ?? false,
-      // Inter ships no italic here, so sans keeps the upright face.
-      face: (weight, italic) =>
-        isSans
-          ? sansFace(tokens.fontFamily.sans, weight)
-          : serifFaceFor(weight, italic ? 'italic' : 'normal'),
-      labelFace: sansFace(tokens.fontFamily.sans, 400),
-      ink,
-      wj: tokens.wj,
-      underline: tokens.border,
-      background,
-    }),
-    [
-      fontSize,
-      lineSpacing,
-      passage?.parsed.rtl,
-      isSans,
-      tokens,
-      serifFaceFor,
-      ink,
-      background,
-    ],
-  )
-
-  // Scoped to the rendered passage: the old chapter stays up while the next one loads.
-  const paint = useMemo(() => {
-    if (passage === null) {
-      return new Map<number, HighlightPaint>()
-    }
-    const colors = deriveServerColors(Array.isArray(highlights) ? highlights : [], {
-      versionId: passage.versionId,
-      book: passage.book,
-      chapter: passage.chapter,
-    })
-    const byColor = new Map<string, HighlightPaint>()
-    const map = new Map<number, HighlightPaint>()
-    for (const [verse, color] of Object.entries(colors)) {
-      const fill =
-        byColor.get(color) ?? highlightPaint(color, theme, background, tokens.primaryForeground)
-      byColor.set(color, fill)
-      map.set(Number(verse), fill)
-    }
-    return map
-  }, [highlights, passage, theme, background, tokens.primaryForeground])
+  const { look, paint } = usePassageStyle({
+    passage,
+    highlights,
+    fontSize,
+    lineMultiple: lineMultiple(lineSpacing),
+    fontFamily: decodeFontFamilyFromDom(fontFamily),
+    ink,
+    background,
+  })
 
   // ---- Selection ----
   // The name hooks keep the previous version's label while the next one loads.
@@ -313,15 +265,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     if (handler === undefined) {
       return
     }
-    const current = latest.current.passage
-    const info = verse === null ? undefined : current?.parsed.verses.get(verse)
-    const data: FootnoteData = {
-      verseNum: verse === null ? '' : String(verse),
-      notes: info?.notes ?? [html],
-      verseHtml: info?.html ?? '',
-      reference: current?.reference,
-    }
-    Promise.resolve(handler(data)).catch(console.error)
+    Promise.resolve(handler(footnoteFor(latest.current.passage, verse, html))).catch(console.error)
   }, [])
 
   // ---- Scroll and layout ----
@@ -525,23 +469,14 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     return () => clearTimeout(timer)
   }, [load.loading, awaitingLanguage])
 
-  const lookupMessage = !versionLookupBlocked
-    ? null
-    : versionError === 'offline'
-      ? t('offlineConnectionLostMessage')
-      : t('generic.requestErrorBody')
-  const message =
-    refused || unavailable
-      ? t('passageUnavailable')
-      : lookupMessage !== null
-        ? lookupMessage
-        : load.error === 'offline'
-          ? t('offlineConnectionLostMessage')
-          : load.error === 'unavailable'
-            ? t('passageUnavailable')
-            : load.error === 'failed'
-              ? t('generic.requestErrorBody')
-              : null
+  let message: string | null = null
+  if (refused || unavailable) {
+    message = t('passageUnavailable')
+  } else if (versionLookupBlocked && versionError !== null) {
+    message = t(passageErrorKey(versionError))
+  } else if (load.error !== null) {
+    message = t(passageErrorKey(load.error))
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: background }}>
@@ -577,11 +512,16 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
               >
                 {message}
               </RNText>
-              {!refused && !unavailable && (versionLookupBlocked || load.error !== 'unavailable') && (
-                <Button variant="outline" onPress={versionLookupBlocked ? retryVersion : load.retry}>
-                  <Button.Text>{t('retry')}</Button.Text>
-                </Button>
-              )}
+              {!refused &&
+                !unavailable &&
+                (versionLookupBlocked || load.error !== 'unavailable') && (
+                  <Button
+                    variant="outline"
+                    onPress={versionLookupBlocked ? retryVersion : load.retry}
+                  >
+                    <Button.Text>{t('retry')}</Button.Text>
+                  </Button>
+                )}
             </View>
           ) : passage === null || (awaitingLanguage && passage.key === currentKey) ? (
             showSpinner && <ActivityIndicator accessibilityLabel={t('loading')} color={muted} />

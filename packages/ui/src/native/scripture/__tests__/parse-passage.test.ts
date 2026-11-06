@@ -1,4 +1,4 @@
-import { parseNoteHtml, parsePassage, type Block } from '../parse-passage'
+import { parseNoteHtml, parsePassage, visibleBlocks, type Block } from '../parse-passage'
 import { resolveBlock } from '../styles'
 
 function lineTexts(block: Block): string[] {
@@ -10,6 +10,45 @@ function lineTexts(block: Block): string[] {
 function lineKinds(block: Block): string[] {
   return block.segments.flatMap((segment) => segment.inlines.map((inline) => inline.kind))
 }
+
+function words(blocks: readonly Block[]): string {
+  return blocks
+    .flatMap((block) => block.segments.flatMap((segment) => segment.inlines))
+    .map((inline) =>
+      inline.kind === 'text' ? inline.text : inline.kind === 'label' ? `[${inline.text}]` : '*',
+    )
+    .join('')
+}
+
+describe('visibleBlocks', () => {
+  const { blocks } = parsePassage(
+    '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+      'Let Israel<span class="yv-n f"><span class="ft">Or now</span></span>say, ' +
+      '<span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>His love</div></div>',
+  )
+
+  it('returns the same blocks when verse numbers and notes both show', () => {
+    expect(visibleBlocks(blocks, { verseNumbers: true, notes: true })).toBe(blocks)
+  })
+
+  it('drops verse numbers and keeps the footnote', () => {
+    expect(words(visibleBlocks(blocks, { verseNumbers: false, notes: true }))).toBe(
+      'Let Israel* say, His love',
+    )
+  })
+
+  it('drops footnotes and keeps the gap between the words', () => {
+    expect(words(visibleBlocks(blocks, { verseNumbers: true, notes: false }))).toBe(
+      '[1]Let Israel say, [2]His love',
+    )
+  })
+
+  it('drops both', () => {
+    expect(words(visibleBlocks(blocks, { verseNumbers: false, notes: false }))).toBe(
+      'Let Israel say, His love',
+    )
+  })
+})
 
 describe('parsePassage', () => {
   it('drops the chapter label block', () => {

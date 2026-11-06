@@ -1,6 +1,6 @@
 # YouVersion Platform React Native Expo SDK
 
-Native chrome and `BibleReader` for React Native. The reader and its footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still render through Expo DOM and `@youversion/platform-react-ui`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay required for the remaining DOM files. Native code may import Web SDK values.
+Native chrome, `BibleReader`, and `BibleTextView` for React Native. The reader, its footnote sheets, and `BibleTextView` draw native text. `BibleTextView` grows with its content. `BibleCard` and `VerseOfTheDay` still render through the one `'use dom'` file and `@youversion/platform-react-ui`. New scripture uses `BibleTextViewNative`, not `BibleTextViewDom`. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay required for the remaining DOM file. Native code may import Web SDK values.
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 
