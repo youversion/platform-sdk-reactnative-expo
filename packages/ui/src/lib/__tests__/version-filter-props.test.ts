@@ -18,6 +18,12 @@ describe('sameVersionFilters', () => {
     expect(sameVersionFilters({ permittedVersionIds: [] }, {})).toBe(false)
   })
 
+  it('treats a shorter list as different from a longer list with the same prefix', () => {
+    expect(sameVersionFilters({ permittedVersionIds: [1] }, { permittedVersionIds: [1, 2] })).toBe(
+      false,
+    )
+  })
+
   it('treats the same items in a different order as different', () => {
     expect(sameVersionFilters({ excludedVersionIds: [1, 2] }, { excludedVersionIds: [2, 1] })).toBe(
       false,
