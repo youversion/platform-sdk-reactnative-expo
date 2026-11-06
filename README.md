@@ -304,6 +304,8 @@ function VotdScreen() {
 }
 ```
 
+`VerseOfTheDay` shows the day's passage. To read the calendar, or a day's curated `image_id`, call `useVerseOfTheDay` from `@youversion/platform-react-native-expo-core`. Pass a string `image_id` to `useImages().get`. Paged image search is `useSearch().images`. Both are documented in the [core package README](./packages/core/README.md).
+
 ### Sign In
 
 Authentication is optional. Pass an `auth` config to `YouVersionProvider` to enable it. After the user signs in, the browser redirects back to your app at the `redirectUri` you configure below, so your app needs a route at that path to receive the redirect and finish sign-in. With Expo Router, that means a screen whose path matches the redirect (e.g. `app/callback.tsx`); the example app's implementation is a copyable reference: [`apps/example/app/callback.tsx`](./apps/example/app/callback.tsx).

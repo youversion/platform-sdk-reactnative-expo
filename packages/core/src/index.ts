@@ -44,7 +44,11 @@ export type {
 
 export { mmkvStorage } from './storage'
 
-export type { BibleContentRequest, BibleContentResponse, FetchBibleContent } from './bible-content/client'
+export type {
+  BibleContentRequest,
+  BibleContentResponse,
+  FetchBibleContent,
+} from './bible-content/client'
 
 export { biblePassageAnchorFromPassageId } from './passage-anchor'
 export type { BiblePassageAnchor } from './passage-anchor'
@@ -53,6 +57,7 @@ export { SEARCH_USER_INTENT, useSearch, useUnifiedSearch } from './search'
 export type {
   SearchApiError,
   SearchApiResult,
+  SearchImagesParams,
   SearchTopicsParams,
   SearchVersesParams,
   SuggestedQueriesParams,
@@ -67,6 +72,7 @@ export type {
   YouVersionSearchUserIntent,
   YouVersionTopicSearchResults,
   YouVersionImageSearchResult,
+  YouVersionImageSearchResults,
   YouVersionUnifiedSearchField,
   YouVersionUnifiedSearchResults,
   YouVersionVerseSearchResult,
@@ -82,3 +88,13 @@ export type {
   YouVersionImage,
   YouVersionImagePage,
 } from './images'
+
+export { useVerseOfTheDay } from './verse-of-the-day'
+export type {
+  UseVerseOfTheDayResult,
+  VerseOfTheDayApiError,
+  VerseOfTheDayApiResult,
+  VerseOfTheDayOptions,
+  YouVersionVerseOfTheDay,
+  YouVersionVerseOfTheDayPage,
+} from './verse-of-the-day'
