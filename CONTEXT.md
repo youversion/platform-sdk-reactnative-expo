@@ -235,7 +235,7 @@ The interception of the Web SDK's `fetch` inside an **Expo DOM Component** that 
 _Avoid_: Query persistence (the Web SDK's query client is private and its persister has no per-entry lifetime); a WebView-side network fallback; read/write cache actions (the bridge carries requests, not cache entries)
 
 **Text direction**:
-The reading direction of a Bible version, `ltr` or `rtl`, from `text_direction` on `/v1/bibles/{id}/index`. It controls the native reader's scripture and its footnote sheets, not SDK chrome. A letter vote over the text stands in while the index loads or when it fails. It belongs to the version, not the language: `ur` is `rtl`, but version 1887 is `ltr`. Under RTL, `textAlign` is start-relative on iOS and Android, so `left` is the start edge in both directions. See [ADR 0023](docs/adr/0023-version-text-direction-source-of-truth.md).
+The reading direction of a Bible version, `ltr` or `rtl`, from `text_direction` on `/v1/bibles/{id}/index`. It controls the native reader's scripture and its footnote sheets, not SDK chrome. A letter vote over the text stands in while the index loads or when it fails. It belongs to the version, not the language: `ur` is `rtl`, but version 1887 is `ltr`. Under RTL, `textAlign` is start-relative on iOS and Android, so `left` is the start edge in both directions. RN Android ignores `writingDirection` and follows the first strong letter, so each Android paragraph opens with an invisible direction mark. See [ADR 0023](docs/adr/0023-version-text-direction-source-of-truth.md).
 _Avoid_: Deriving it from the language; treating the vote as the answer when the index has one; a physical `right` for RTL start alignment
 
 **Search**:

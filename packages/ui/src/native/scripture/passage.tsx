@@ -16,6 +16,7 @@ import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { withAlpha } from '../../lib/color'
 import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { directionMark } from './direction-mark'
 import type { HighlightPaint } from './highlight-colors'
 import type { Block, Inline } from './parse-passage'
 import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
@@ -396,6 +397,7 @@ const BlockView = memo(function BlockView({
         {/* iOS reads paragraph style (lineHeight) from the first character; an
           inline View there drops it for the whole block, so lead with text. */}
         {PARAGRAPH_ANCHOR}
+        {directionMark(look.rtl)}
         {rule.firstIndent > 0 && <View style={{ width: rule.firstIndent }} />}
         {block.segments.map((segment, segmentIndex) => {
           const verse = segment.verse
@@ -603,9 +605,7 @@ const BlockView = memo(function BlockView({
                 overflow: 'hidden',
               }}
             >
-              <View
-                style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}
-              >
+              <View style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}>
                 {underline}
               </View>
             </View>

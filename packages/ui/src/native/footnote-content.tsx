@@ -17,6 +17,7 @@ import { footnoteMarker } from '../lib/footnote-html'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace, type FontFace } from '../theme/fonts'
 import { useSerifFace, type SerifFaceFor } from '../theme/use-fonts'
+import { directionMark } from './scripture/direction-mark'
 import { isRtlRuns, parseNoteHtml, type NoteRun } from './scripture/parse-passage'
 import { smallCaps } from './scripture/passage'
 import { LABEL_SCALE, lineMultiple, resolveChars } from './scripture/styles'
@@ -103,6 +104,7 @@ function FootnoteBody({
   const muted = tokens.mutedForeground
   // Under RTL, textAlign is start-relative: 'left' is the start edge in both directions.
   const flow: TextStyle = { textAlign: 'left', writingDirection: rtl ? 'rtl' : 'ltr' }
+  const mark = directionMark(rtl)
 
   return (
     <ScrollView
@@ -123,7 +125,7 @@ function FootnoteBody({
               flow,
             ]}
           >
-            {heading}
+            {`${mark}${heading}`}
           </Text>
           <View testID="footnote-verse" style={styles.verse}>
             {verseParagraphs.map((runs, index) => (
@@ -136,6 +138,7 @@ function FootnoteBody({
                 color={foreground}
                 muted={muted}
                 flow={flow}
+                mark={mark}
               />
             ))}
           </View>
@@ -174,6 +177,7 @@ function FootnoteBody({
                     color={foreground}
                     muted={muted}
                     flow={flow}
+                    mark={mark}
                   />
                 ))}
               </View>
@@ -193,6 +197,7 @@ function ParagraphText({
   color,
   muted,
   flow,
+  mark,
 }: {
   runs: readonly NoteRun[]
   faceFor: SerifFaceFor
@@ -201,12 +206,14 @@ function ParagraphText({
   color: string
   muted: string
   flow: TextStyle
+  mark: string
 }): ReactNode {
   return (
     <Text
       allowFontScaling={false}
       style={[faceFor(400), { color, fontSize, lineHeight, overflow: 'visible' }, flow]}
     >
+      {mark}
       {runs.map((run, index) => {
         // The scripture character styles; Swift's sheet paints words of Jesus in the text color.
         const chars = resolveChars(run.classes)
