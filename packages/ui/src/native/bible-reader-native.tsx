@@ -21,7 +21,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { type BookCatalogEntry } from '../lib/bible-book-title'
+import { chapterLabelForBook, type BookCatalogEntry } from '../lib/bible-book-title'
 import { decodeFontFamilyFromDom, INTER_FONT } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -202,6 +202,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // A share from that window cannot be taken back, so the payload waits.
   const shareBookTitle = isBookLoading ? null : bookTitle
   const shareAbbreviation = isVersionLoading ? null : abbreviation
+  // The API's reference carries a bidi mark that scrambles the heading under RTL.
+  const footnoteReference =
+    isCurrent && shareBookTitle !== null
+      ? `${shareBookTitle} ${chapterLabelForBook(entry, chapter)}`
+      : passage?.reference
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({
     versionId,
@@ -209,6 +214,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -219,6 +225,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -319,7 +326,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       verseNum: verse === null ? '' : String(verse),
       notes: info?.notes ?? [html],
       verseHtml: info?.html ?? '',
-      reference: current?.reference,
+      reference: latest.current.footnoteReference,
     }
     Promise.resolve(handler(data)).catch(console.error)
   }, [])

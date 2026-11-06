@@ -7,6 +7,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
+  type TextStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -100,6 +101,8 @@ function FootnoteBody({
   }, [direction, verseParagraphs, noteParagraphs])
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
+  // Under RTL, textAlign is start-relative: 'left' is the start edge in both directions.
+  const flow: TextStyle = { textAlign: 'left', writingDirection: rtl ? 'rtl' : 'ltr' }
 
   return (
     <ScrollView
@@ -117,6 +120,7 @@ function FootnoteBody({
               sansFace(tokens.fontFamily.sans, 700),
               tokens.typography.base,
               { color: foreground },
+              flow,
             ]}
           >
             {heading}
@@ -131,6 +135,7 @@ function FootnoteBody({
                 lineHeight={lineHeight}
                 color={foreground}
                 muted={muted}
+                flow={flow}
               />
             ))}
           </View>
@@ -168,6 +173,7 @@ function FootnoteBody({
                     lineHeight={lineHeight}
                     color={foreground}
                     muted={muted}
+                    flow={flow}
                   />
                 ))}
               </View>
@@ -186,6 +192,7 @@ function ParagraphText({
   lineHeight,
   color,
   muted,
+  flow,
 }: {
   runs: readonly NoteRun[]
   faceFor: SerifFaceFor
@@ -193,11 +200,12 @@ function ParagraphText({
   lineHeight: number
   color: string
   muted: string
+  flow: TextStyle
 }): ReactNode {
   return (
     <Text
       allowFontScaling={false}
-      style={[faceFor(400), { color, fontSize, lineHeight, overflow: 'visible' }]}
+      style={[faceFor(400), { color, fontSize, lineHeight, overflow: 'visible' }, flow]}
     >
       {runs.map((run, index) => {
         // The scripture character styles; Swift's sheet paints words of Jesus in the text color.

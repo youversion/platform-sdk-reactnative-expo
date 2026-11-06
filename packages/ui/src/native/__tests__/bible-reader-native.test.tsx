@@ -755,6 +755,66 @@ describe('BibleReaderNative', () => {
     }
   })
 
+  describe('footnote reference', () => {
+    const noteHtml =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>' +
+      'In the beginning<span class="yv-n f"><span class="ft">A note</span></span></div></div>'
+    const withNote: FetchBibleContent = async () => ({
+      status: 200,
+      // The API's reference, bidi mark included, must not reach a loaded book's heading.
+      body: JSON.stringify({ content: noteHtml, reference: '1 ‎API' }),
+      contentType: 'application/json',
+    })
+
+    function stubBooks(books: () => Promise<Response>): () => void {
+      const prior = global.fetch
+      global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) =>
+        fetchUrl(input).includes('/books') ? books() : prior(input, init),
+      )
+      return () => {
+        global.fetch = prior
+      }
+    }
+
+    it('builds the reference from the book title and chapter label', async () => {
+      const restore = stubBooks(() =>
+        metadataResponse(
+          JSON.stringify({
+            data: [{ id: 'JHN', title: 'يوحنا', chapters: [{ id: '1', title: '١' }] }],
+          }),
+        ),
+      )
+      const onFootnotePress = jest.fn()
+      try {
+        mount({ fetchBibleContent: withNote, onFootnotePress })
+        await screen.findByText('In the beginning')
+        await waitFor(() => {
+          fireEvent.press(screen.getByLabelText('Footnote'))
+          expect(onFootnotePress).toHaveBeenLastCalledWith(
+            expect.objectContaining({ verseNum: '1', reference: 'يوحنا ١' }),
+          )
+        })
+      } finally {
+        restore()
+      }
+    })
+
+    it('falls back to the API reference while the book title loads', async () => {
+      const restore = stubBooks(() => new Promise<Response>(() => undefined))
+      const onFootnotePress = jest.fn()
+      try {
+        mount({ fetchBibleContent: withNote, onFootnotePress })
+        await screen.findByText('In the beginning')
+        fireEvent.press(screen.getByLabelText('Footnote'))
+        expect(onFootnotePress).toHaveBeenLastCalledWith(
+          expect.objectContaining({ verseNum: '1', reference: '1 ‎API' }),
+        )
+      } finally {
+        restore()
+      }
+    })
+  })
+
   it('shows scripture when the version language is on the provider list', async () => {
     const restore = stubVersionNames({ [VERSION_ID]: 'BSB' }, { [VERSION_ID]: 'en' })
     try {
