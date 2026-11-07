@@ -49,8 +49,13 @@ arg_after() {
 }
 # Applies the caller's --jq filter, as gh does.
 filter() { jq -r "$(arg_after --jq "$@")"; }
+# The first call of the kind MOCK_FLAKY names fails, as a transient API error would.
+flaky() {
+  if [ "${MOCK_FLAKY:-}" = "$1" ] && [ ! -e "$MOCK_DIR/flaked" ]; then touch "$MOCK_DIR/flaked"; exit 1; fi
+}
 case "$*" in
   *"/pulls?state=open&base=main&head="*)
+    flaky pr-lookup
     filter "$@" < "$MOCK_DIR/pulls.json" ;;
   *"/pulls/"*"/commits"*)
     filter "$@" < "$MOCK_DIR/commits.json" ;;
@@ -61,6 +66,7 @@ case "$*" in
         [{context: "release-verification", target_url: "https://github.com/youversion/expo/actions/runs/43"}] + . end' |
       filter "$@" ;;
   *"/statuses/"*)
+    flaky status
     [ "$GH_TOKEN" = repo-token ] || { echo "status written with $GH_TOKEN" >&2; exit 1; }
     state="" description="" url="" sha=""
     for arg in "$@"; do
@@ -79,6 +85,7 @@ case "$*" in
     jq -r '[.inputs.platform, .inputs.sdk_ref, .inputs.build_name] | join(" | ")' "$(arg_after --input "$@")" \
       >> "$MOCK_DIR/dispatches" ;;
   *"/runs?event=workflow_dispatch"*)
+    flaky lookup
     # Listed first: an earlier attempt's run, which only the exact build name tells apart.
     runs='{"id": 999, "display_title": "Release verification 0123456 ios 41.1.1 #3"}'
     n=0
@@ -91,7 +98,7 @@ case "$*" in
     filter "$@" <<< "{\"workflow_runs\": [$runs]}" ;;
   *"/actions/runs/"*)
     [ -z "${MOCK_POLL_ERROR:-}" ] || exit 1
-    if [ -n "${MOCK_FLAKY_POLL:-}" ] && [ ! -e "$MOCK_DIR/flaked" ]; then touch "$MOCK_DIR/flaked"; exit 1; fi
+    flaky poll
     run=${2##*/}
     platform=$(sed -n "${run}p" "$MOCK_DIR/dispatches" | cut -d' ' -f1)
     [ -n "$platform" ] || { echo "polled run $run, which was never dispatched" >&2; exit 1; }
@@ -155,6 +162,51 @@ else
   fail "every job has a timeout" "no timeout-minutes on: $missing"
 fi
 
+# ── Wiring: what starts the workflow and what it cancels ──────────────────
+
+# The YAML block of the named job.
+job_block() { awk -v job="  $1:" '$0 == job { in_job = 1; next } in_job && /^  [[:alnum:]_-]+:$/ { exit } in_job' "$WORKFLOW"; }
+
+# Both Release and the trigger must be listed by their workflows' names, or that event never starts
+# a run: without the trigger, ordinary PRs never get their status and a required check hangs.
+listed=$(sed -n 's/^    workflows: \[\(.*\)\]$/\1/p' "$WORKFLOW")
+unmatched=""
+for name in Release "$(sed -n 's/^name: //p' "$TRIGGER")"; do
+  grep -qxF "name: $name" "$ROOT"/.github/workflows/*.yml && [[ ", $listed, " == *", $name, "* ]] \
+    || unmatched="$unmatched '$name'"
+done
+if [ -z "$unmatched" ]; then
+  pass "runs after both Release and the PR trigger, named as those workflows are"
+else
+  fail "runs after both Release and the PR trigger, named as those workflows are" \
+    "workflows: [$listed] does not name:$unmatched"
+fi
+if grep -qF "if: github.event.workflow_run.conclusion == 'success'" <<< "$(job_block resolve)"; then
+  pass "resolves nothing after a failed or skipped trigger run"
+else
+  fail "resolves nothing after a failed or skipped trigger run" \
+    "a skipped trigger (a PR title edit) would restart the suite on the release head"
+fi
+if grep -qx '      group: release-verification' <<< "$(job_block verify)" \
+  && grep -qx '      cancel-in-progress: true' <<< "$(job_block verify)"; then
+  pass "a newer release head cancels the verification of an older one"
+else
+  fail "a newer release head cancels the verification of an older one" \
+    "the verify job has no cancelling release-verification concurrency group"
+fi
+types=$(sed -n 's/^    types: \[\(.*\)\]$/\1/p' "$TRIGGER")
+missing_types=""
+for type in opened synchronize reopened edited; do
+  [[ ", $types, " == *", $type, "* ]] || missing_types="$missing_types $type"
+done
+if grep -qx '    branches: \[main\]' "$TRIGGER" && [ -z "$missing_types" ] \
+  && grep -q '^    if: .*github\.event\.changes\.base' "$TRIGGER"; then
+  pass "requests the check for every PR head into main, and for a PR retargeted to main"
+else
+  fail "requests the check for every PR head into main, and for a PR retargeted to main" \
+    "branches not [main], missing types:${missing_types:- none}, or the edited filter ignores retargets"
+fi
+
 # ── Resolve: which head, if any, to verify ────────────────────────────────
 
 release_pr() {
@@ -170,7 +222,7 @@ run_resolve_case() {
   printf '[{"sha": "%s", "parents": [{"sha": "%s"}]}]\n' "$SHA" "$parent" > "$dir/commits.json"
   env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" GH_TOKEN=repo-token GITHUB_OUTPUT="$dir/output" \
     EVENT="$event" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo RUN_URL="$RUN_URL" \
-    HEAD_REPO="${HEAD_REPO:-youversion/expo}" HEAD_BRANCH="${HEAD_BRANCH:-changeset-release/main}" \
+    HEAD_REPO="${HEAD_REPO:-youversion/expo}" HEAD_BRANCH="${HEAD_BRANCH:-changeset-release/main}"\
     bash "$TMP/resolve.sh" > "$dir/out" 2>&1
   local code=$? got statuses
   got=$(sed -n 's/^sha=//p' "$dir/output")
@@ -205,6 +257,8 @@ HEAD_REPO=someone/expo run_resolve_case "never starts the suite for a fork PR th
   pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
 HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch at the release head" \
   pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
+MOCK_FLAKY=pr-lookup run_resolve_case "rides out a transient gh error while finding the release PR" \
+  push "$MAIN_SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$SHA" ""
 
 # ── Verify: the device suites on that head ────────────────────────────────
 
@@ -258,7 +312,11 @@ run_case "reports a run cancelled twice as an error, not a test failure" 1 \
 run_case "reports an error when the dispatched run cannot be found" 1 \
   error ios MOCK_UNLISTED=ios
 run_case "rides out a transient gh error while polling" 0 \
-  pending,pending,success ios,android MOCK_FLAKY_POLL=1
+  pending,pending,success ios,android MOCK_FLAKY=poll
+run_case "rides out a transient gh error while finding the dispatched run" 0 \
+  pending,pending,success ios,android MOCK_FLAKY=lookup
+run_case "rides out a transient gh error while writing a status" 0 \
+  pending,pending,success ios,android MOCK_FLAKY=status
 run_case "gives up on a run that never finishes and cancels it" 1 \
   pending,error ios MOCK_NEVER_DONE=ios POLL_MINUTES=1
 if [ "$(cat "$dir/cancels" 2>/dev/null)" = 1 ]; then
