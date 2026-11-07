@@ -208,18 +208,23 @@ HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch 
 
 # ── Verify: the device suites on that head ────────────────────────────────
 
+# The verify step's environment, apart from what names the case dir.
+VERIFY_ENV=(SHA="$SHA" GH_TOKEN=repo-token DISPATCH_TOKEN=dispatch-token GITHUB_REPOSITORY=youversion/expo
+  GITHUB_RUN_ID=42 GITHUB_RUN_ATTEMPT=1 RUN_URL="$RUN_URL"
+  AUTOMATION_REPO=youversion/automation WORKFLOW_FILE=browserstack-manual.yml)
+
+new_verify_dir() {
+  dir="$TMP/$1"
+  mkdir -p "$dir"
+  touch "$dir/statuses" "$dir/dispatches" "$dir/summary" "$dir/status-records"
+}
+
 run_case() {
   local name="$1" expected_exit="$2" expected_statuses="$3" expected_platforms="$4"
   shift 4
-  dir="$TMP/case-$passes-$failures"
-  mkdir -p "$dir"
-  touch "$dir/statuses" "$dir/dispatches" "$dir/summary" "$dir/status-records"
-  env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" POLL_MINUTES=60 "$@" \
-    SHA="$SHA" GH_TOKEN=repo-token DISPATCH_TOKEN=dispatch-token GITHUB_REPOSITORY=youversion/expo \
-    GITHUB_RUN_ID=42 GITHUB_RUN_ATTEMPT=1 \
-    GITHUB_STEP_SUMMARY="$dir/summary" RUN_URL="$RUN_URL" \
-    AUTOMATION_REPO=youversion/automation WORKFLOW_FILE=browserstack-manual.yml \
-    bash "$TMP/verify.sh" > "$dir/out" 2>&1
+  new_verify_dir "case-$passes-$failures"
+  env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" POLL_MINUTES=60 GITHUB_STEP_SUMMARY="$dir/summary" "$@" \
+    "${VERIFY_ENV[@]}" bash "$TMP/verify.sh" > "$dir/out" 2>&1
   local code=$?
   local statuses platforms
   statuses=$(cut -d' ' -f1 "$dir/statuses" | paste -sd, -)
@@ -269,6 +274,32 @@ else
 fi
 run_case "a stopped run never writes over a newer run's status" 1 pending ios \
   MOCK_POLL_ERROR=1 MOCK_FOREIGN_STATUS=1
+
+# A cancel or job timeout sends SIGINT to the step's shell, SIGTERM 7.5s later, and kills the
+# tree 2.5s after that, so the trap has to run while the step is mid-poll, not after its sleep.
+name="a cancelled job reports an error and cancels its remote run before SIGTERM"
+new_verify_dir signal
+mkdir -p "$TMP/real-sleep"
+ln -s /bin/sleep "$TMP/real-sleep/sleep"
+# perl restores the default SIGINT that a background job would otherwise ignore, as the runner's shell has,
+# and starts a process group so the sleep the stopped step leaves behind can be cleaned up.
+# shellcheck disable=SC2016
+env PATH="$TMP/real-sleep:$TMP/bin:$PATH" MOCK_DIR="$dir" POLL_MINUTES=60 GITHUB_STEP_SUMMARY="$dir/summary" \
+  "${VERIFY_ENV[@]}" perl -e 'setpgrp; $SIG{INT} = "DEFAULT"; exec @ARGV' bash "$TMP/verify.sh" > "$dir/out" 2>&1 &
+pid=$!
+for _ in $(seq 1 50); do grep -q '^pending' "$dir/statuses" && break; /bin/sleep 0.1; done
+kill -INT "$pid"
+for _ in $(seq 1 70); do kill -0 "$pid" 2>/dev/null || break; /bin/sleep 0.1; done
+statuses=$(cut -d' ' -f1 "$dir/statuses" | paste -sd, -)
+if kill -0 "$pid" 2>/dev/null; then
+  kill -KILL "$pid"
+  fail "$name" "still running 7s after SIGINT"
+elif [ "$statuses" = pending,error ] && [ "$(cat "$dir/cancels" 2>/dev/null)" = 1 ]; then
+  pass "$name"
+else
+  fail "$name" "statuses '$statuses', cancelled '$(cat "$dir/cancels" 2>/dev/null)'"
+fi
+kill -- -"$pid" 2>/dev/null
 
 printf '\n%d passed, %d failed\n' "$passes" "$failures"
 [[ "$failures" -eq 0 ]]

@@ -112,11 +112,14 @@ jobs:
         run: |
           set -euo pipefail
           RUN_ID=""
+          # Bash holds a trapped signal until a foreground sleep ends, which is after the runner
+          # has killed the step; a waited-on background sleep lets the trap run at once.
+          nap() { sleep "$1" & wait $!; }
           retry() {
             local i
             for i in 1 2 3; do
               if "$@"; then return 0; fi
-              [ "$i" = 3 ] || sleep $((i * 10))
+              [ "$i" = 3 ] || nap $((i * 10))
             done
             return 1
           }
@@ -159,7 +162,7 @@ jobs:
                   "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/runs?event=workflow_dispatch&per_page=20" \
                   --jq "[.workflow_runs[] | select(.display_title | startswith(\"$BUILD_NAME #\")) | .id][0] // empty")
                 [ -n "$RUN_ID" ] && break
-                sleep 3
+                nap 3
               done
               if [ -z "$RUN_ID" ]; then finish error "Could not find the $PLATFORM test run."; exit 1; fi
               echo "- $PLATFORM, try $TRY: https://github.com/$AUTOMATION_REPO/actions/runs/$RUN_ID" >> "$GITHUB_STEP_SUMMARY"
@@ -167,7 +170,7 @@ jobs:
 
               CONCLUSION=""
               for _ in $(seq 1 $((POLL_MINUTES * 2))); do
-                sleep 30
+                nap 30
                 CONCLUSION=$(retry automation api "repos/$AUTOMATION_REPO/actions/runs/$RUN_ID" \
                   --jq 'select(.status == "completed") | .conclusion')
                 [ -n "$CONCLUSION" ] && break
