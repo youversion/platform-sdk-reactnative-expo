@@ -153,6 +153,8 @@ jobs:
               jq -n --arg sdk_ref "$SHA" --arg platform "$PLATFORM" --arg build_name "$BUILD_NAME" \
                 '{ref: "main", inputs: {sdk_ref: $sdk_ref, platform: $platform,
                   target: "app-automate", bs_parallel: "8", build_name: $build_name}}' > "$PAYLOAD"
+              # Before the dispatch, so the trap owns the status: it leaves alone one another run wrote.
+              status pending "Running the $PLATFORM device suite (try $TRY)."
               retry automation api --method POST \
                 "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" --input "$PAYLOAD"
 
@@ -166,7 +168,6 @@ jobs:
               done
               if [ -z "$RUN_ID" ]; then finish error "Could not find the $PLATFORM test run."; exit 1; fi
               echo "- $PLATFORM, try $TRY: https://github.com/$AUTOMATION_REPO/actions/runs/$RUN_ID" >> "$GITHUB_STEP_SUMMARY"
-              status pending "Running the $PLATFORM device suite (try $TRY)."
 
               CONCLUSION=""
               for _ in $(seq 1 $((POLL_MINUTES * 2))); do

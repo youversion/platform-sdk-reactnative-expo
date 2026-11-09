@@ -49,8 +49,10 @@ arg_after() {
 }
 # Applies the caller's --jq filter, as gh does.
 filter() { jq -r "$(arg_after --jq "$@")"; }
-# The first call of the kind MOCK_FLAKY names fails, as a transient API error would.
+# The first call of the kind MOCK_FLAKY names fails, as a transient API error would; every call
+# of the kind MOCK_BROKEN names fails.
 flaky() {
+  [ "${MOCK_BROKEN:-}" != "$1" ] || exit 1
   if [ "${MOCK_FLAKY:-}" = "$1" ] && [ ! -e "$MOCK_DIR/flaked" ]; then touch "$MOCK_DIR/flaked"; exit 1; fi
 }
 case "$*" in
@@ -60,10 +62,14 @@ case "$*" in
   *"/pulls/"*"/commits"*)
     filter "$@" < "$MOCK_DIR/commits.json" ;;
   *"/commits/"*"/statuses"*)
-    # Newest first, as the API lists them. MOCK_FOREIGN_STATUS stands for a newer run's write.
-    cat "$MOCK_DIR/status-records" 2>/dev/null | jq -s --arg foreign "${MOCK_FOREIGN_STATUS:-}" \
-      'reverse | if $foreign == "" then . else
-        [{context: "release-verification", target_url: "https://github.com/youversion/expo/actions/runs/43"}] + . end' |
+    # Newest first, as the API lists them. Another run's "<state> <description>": MOCK_FOREIGN_STATUS
+    # wrote it after this run's writes, MOCK_PRIOR_STATUS before them.
+    cat "$MOCK_DIR/status-records" 2>/dev/null |
+      jq -s --arg foreign "${MOCK_FOREIGN_STATUS:-}" --arg prior "${MOCK_PRIOR_STATUS:-}" '
+        def other: {context: "release-verification", state: (split(" ")[0]), description: sub("^[^ ]* "; ""),
+          target_url: "https://github.com/youversion/expo/actions/runs/43"};
+        reverse | (if $foreign == "" then . else [$foreign | other] + . end)
+          | (if $prior == "" then . else . + [$prior | other] end)' |
       filter "$@" ;;
   *"/statuses/"*)
     flaky status
@@ -79,7 +85,9 @@ case "$*" in
     done
     printf '%s %s\n' "$state" "$description" >> "$MOCK_DIR/statuses"
     printf '%s\n' "$sha" >> "$MOCK_DIR/status-shas"
-    jq -nc --arg url "$url" '{context: "release-verification", target_url: $url}' >> "$MOCK_DIR/status-records" ;;
+    jq -nc --arg state "$state" --arg description "$description" --arg url "$url" \
+      '{context: "release-verification", state: $state, description: $description, target_url: $url}' \
+      >> "$MOCK_DIR/status-records" ;;
   *"/dispatches"*)
     [ "$GH_TOKEN" = dispatch-token ] || { echo "dispatched with $GH_TOKEN" >&2; exit 1; }
     jq -r '[.inputs.platform, .inputs.sdk_ref, .inputs.build_name] | join(" | ")' "$(arg_after --input "$@")" \
@@ -97,7 +105,6 @@ case "$*" in
     done < "$MOCK_DIR/dispatches"
     filter "$@" <<< "{\"workflow_runs\": [$runs]}" ;;
   *"/actions/runs/"*)
-    [ -z "${MOCK_POLL_ERROR:-}" ] || exit 1
     flaky poll
     run=${2##*/}
     platform=$(sed -n "${run}p" "$MOCK_DIR/dispatches" | cut -d' ' -f1)
@@ -259,6 +266,7 @@ HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch 
   pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
 MOCK_FLAKY=pr-lookup run_resolve_case "rides out a transient gh error while finding the release PR" \
   push "$MAIN_SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$SHA" ""
+NOT_RELEASE="success Not a Version Packages PR; nothing to verify."
 
 # ── Verify: the device suites on that head ────────────────────────────────
 
@@ -310,13 +318,15 @@ run_case "retries a cancelled run once, then reports the retry's result" 0 \
 run_case "reports a run cancelled twice as an error, not a test failure" 1 \
   pending,pending,pending,error ios,android,android MOCK_CONCLUSIONS_android="cancelled cancelled"
 run_case "reports an error when the dispatched run cannot be found" 1 \
-  error ios MOCK_UNLISTED=ios
+  pending,error ios MOCK_UNLISTED=ios
 run_case "rides out a transient gh error while polling" 0 \
   pending,pending,success ios,android MOCK_FLAKY=poll
 run_case "rides out a transient gh error while finding the dispatched run" 0 \
   pending,pending,success ios,android MOCK_FLAKY=lookup
 run_case "rides out a transient gh error while writing a status" 0 \
   pending,pending,success ios,android MOCK_FLAKY=status
+run_case "a stop before the run is found reports an error over another PR's not-a-release success" 1 \
+  pending,error ios MOCK_BROKEN=lookup MOCK_PRIOR_STATUS="$NOT_RELEASE"
 run_case "gives up on a run that never finishes and cancels it" 1 \
   pending,error ios MOCK_NEVER_DONE=ios POLL_MINUTES=1
 if [ "$(cat "$dir/cancels" 2>/dev/null)" = 1 ]; then
@@ -324,14 +334,14 @@ if [ "$(cat "$dir/cancels" 2>/dev/null)" = 1 ]; then
 else
   fail "a run that times out is cancelled in the automation repo" "cancelled: '$(cat "$dir/cancels" 2>/dev/null)'"
 fi
-run_case "an unexpected stop reports an error" 1 pending,error ios MOCK_POLL_ERROR=1
+run_case "an unexpected stop reports an error" 1 pending,error ios MOCK_BROKEN=poll
 if [ "$(cat "$dir/cancels" 2>/dev/null)" = 1 ]; then
   pass "an unexpected stop cancels the remote run it started"
 else
   fail "an unexpected stop cancels the remote run it started" "cancelled: '$(cat "$dir/cancels" 2>/dev/null)'"
 fi
 run_case "a stopped run never writes over a newer run's status" 1 pending ios \
-  MOCK_POLL_ERROR=1 MOCK_FOREIGN_STATUS=1
+  MOCK_BROKEN=poll MOCK_FOREIGN_STATUS="pending Running the ios device suite (try 1)."
 
 # A cancel or job timeout sends SIGINT to the step's shell, SIGTERM 7.5s later, and kills the
 # tree 2.5s after that, so the trap has to run while the step is mid-poll, not after its sleep.
@@ -345,7 +355,7 @@ ln -s /bin/sleep "$TMP/real-sleep/sleep"
 env PATH="$TMP/real-sleep:$TMP/bin:$PATH" MOCK_DIR="$dir" POLL_MINUTES=60 GITHUB_STEP_SUMMARY="$dir/summary" \
   "${VERIFY_ENV[@]}" perl -e 'setpgrp; $SIG{INT} = "DEFAULT"; exec @ARGV' bash "$TMP/verify.sh" > "$dir/out" 2>&1 &
 pid=$!
-for _ in $(seq 1 50); do grep -q '^pending' "$dir/statuses" && break; /bin/sleep 0.1; done
+for _ in $(seq 1 50); do grep -q 'try 1' "$dir/summary" && break; /bin/sleep 0.1; done
 kill -INT "$pid"
 for _ in $(seq 1 70); do kill -0 "$pid" 2>/dev/null || break; /bin/sleep 0.1; done
 statuses=$(cut -d' ' -f1 "$dir/statuses" | paste -sd, -)
