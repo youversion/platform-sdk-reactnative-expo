@@ -2,20 +2,9 @@ import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { nonBlankQuery, type NonBlankQuery } from '../lib/bible-reader-search'
 import { SEARCH_HISTORY_MAX, SEARCH_HISTORY_PERSIST_KEY } from '../lib/constants'
-
-/** MMKV-backed storage for zustand `persist` (sync; hydrates at store creation). */
-const mmkvStateStorage = {
-  getItem: (name: string): string | null => mmkvStorage.getString(name) ?? null,
-  setItem: (name: string, value: string): void => {
-    mmkvStorage.set(name, value)
-  },
-  removeItem: (name: string): void => {
-    mmkvStorage.remove(name)
-  },
-}
+import { mmkvStateStorage } from './mmkv-state-storage'
 
 type SearchHistoryState = {
   /** Most recent first, capped, already branded. */

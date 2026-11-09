@@ -1,12 +1,12 @@
-import { ApiClient, BibleClient, LanguagesClient } from '@youversion/platform-core'
+import { BibleClient, LanguagesClient } from '@youversion/platform-core'
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
+import { createApiClient } from '@youversion/platform-react-native-expo-core/api-client'
 import { useLocales } from 'expo-localization'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { detectDeviceLocale } from '../../i18n/detect-device-locale'
 import { versionMetaFromBody } from '../../lib/bible-version-abbreviation'
-import { getSdkHeaders } from '../../lib/sdk-version'
-import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../../lib/version-filter-props'
 import { filterLanguagesBySearch, filterVersions } from '../../lib/filter-versions'
 import {
   nextPanel,
@@ -59,29 +59,6 @@ export type VersionPickerController = {
   retry: () => void
   selectLanguage: (languageId: string) => void
   selectVersion: (version: VersionPickerVersion) => Promise<boolean>
-}
-
-const DEFAULT_API_HOST = 'api.youversion.com'
-
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
-function sameVersionFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
 }
 
 function deviceLanguageCodes(locales: ReturnType<typeof useLocales>): string[] {
@@ -177,13 +154,7 @@ export function useVersionPicker({
 
     const load = async () => {
       try {
-        const host = apiHost || DEFAULT_API_HOST
-        const apiClient = new ApiClient({
-          appKey,
-          apiHost: host,
-          installationId,
-          additionalHeaders: getSdkHeaders(),
-        })
+        const apiClient = createApiClient({ appKey, apiHost, installationId })
         const clients = {
           languagesClient: new LanguagesClient(apiClient),
           bibleClient: new BibleClient(apiClient),

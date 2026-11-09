@@ -16,7 +16,7 @@ import { Button, Card, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
@@ -85,27 +85,6 @@ type BibleCardMetadataKey = {
   fetchBibleContent: FetchBibleContent
 }
 
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
-function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
-}
-
 function metadataMatchesKey(
   loadedFor: BibleCardMetadataKey | null,
   versionId: number | undefined,
@@ -119,7 +98,7 @@ function metadataMatchesKey(
     loadedFor.versionId === versionId &&
     loadedFor.reference === reference &&
     loadedFor.fetchBibleContent === fetchBibleContent &&
-    sameFilters(loadedFor.filters, filters)
+    sameVersionFilters(loadedFor.filters, filters)
   )
 }
 
