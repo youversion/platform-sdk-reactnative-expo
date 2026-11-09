@@ -18,6 +18,7 @@ import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { directionMark } from './direction-mark'
 import type { HighlightPaint } from './highlight-colors'
+import { leftEdge } from './left-edge'
 import type { Block, Inline } from './parse-passage'
 import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
 import {
@@ -539,7 +540,7 @@ const BlockView = memo(function BlockView({
             importantForAccessibility="no-hide-descendants"
             style={{
               position: 'absolute',
-              left: rect.x,
+              ...leftEdge(rect.x, look.rtl),
               top: rect.y,
               width: rect.width,
               height: rect.height,
@@ -558,7 +559,7 @@ const BlockView = memo(function BlockView({
             style={{
               position: 'absolute',
               top: opening.top,
-              left: opening.left,
+              ...leftEdge(opening.left, look.rtl),
               width: opening.width,
               height: opening.height,
               overflow: 'hidden',
@@ -568,7 +569,7 @@ const BlockView = memo(function BlockView({
               style={{
                 position: 'absolute',
                 top: -opening.sample,
-                left: -opening.left,
+                ...leftEdge(-opening.left, look.rtl),
                 width: size.width,
                 height: size.height,
               }}
@@ -599,13 +600,20 @@ const BlockView = memo(function BlockView({
               style={{
                 position: 'absolute',
                 top,
-                left,
+                ...leftEdge(left, look.rtl),
                 width: span.width,
                 height: UNDERLINE_THICKNESS,
                 overflow: 'hidden',
               }}
             >
-              <View style={{ position: 'absolute', top: -sample, left: -left, width: size.width }}>
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -sample,
+                  ...leftEdge(-left, look.rtl),
+                  width: size.width,
+                }}
+              >
                 {underline}
               </View>
             </View>
