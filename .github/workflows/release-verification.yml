@@ -155,8 +155,10 @@ jobs:
                   target: "app-automate", bs_parallel: "8", build_name: $build_name}}' > "$PAYLOAD"
               # Before the dispatch, so the trap owns the status: it leaves alone one another run wrote.
               status pending "Running the $PLATFORM device suite (try $TRY)."
-              retry automation api --method POST \
-                "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" --input "$PAYLOAD"
+              # Once: a retry after a lost response would start a second run. The lookup below finds
+              # the run if the dispatch went through anyway.
+              automation api --method POST "repos/$AUTOMATION_REPO/actions/workflows/$WORKFLOW_FILE/dispatches" \
+                --input "$PAYLOAD" || echo "The $PLATFORM dispatch failed; looking for its run anyway."
 
               # The automation run-name is "<build_name> #<run_number>".
               for _ in $(seq 1 20); do

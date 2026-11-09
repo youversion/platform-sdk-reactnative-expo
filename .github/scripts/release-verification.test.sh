@@ -91,7 +91,9 @@ case "$*" in
   *"/dispatches"*)
     [ "$GH_TOKEN" = dispatch-token ] || { echo "dispatched with $GH_TOKEN" >&2; exit 1; }
     jq -r '[.inputs.platform, .inputs.sdk_ref, .inputs.build_name] | join(" | ")' "$(arg_after --input "$@")" \
-      >> "$MOCK_DIR/dispatches" ;;
+      >> "$MOCK_DIR/dispatches"
+    # After the dispatch is recorded: GitHub took it, but the response was lost.
+    flaky dispatch ;;
   *"/runs?event=workflow_dispatch"*)
     flaky lookup
     # Listed first: an earlier attempt's run, which only the exact build name tells apart.
@@ -325,6 +327,8 @@ run_case "rides out a transient gh error while finding the dispatched run" 0 \
   pending,pending,success ios,android MOCK_FLAKY=lookup
 run_case "rides out a transient gh error while writing a status" 0 \
   pending,pending,success ios,android MOCK_FLAKY=status
+run_case "finds a dispatch that went through despite a gh error, without dispatching again" 0 \
+  pending,pending,success ios,android MOCK_FLAKY=dispatch
 run_case "a stop before the run is found reports an error over another PR's not-a-release success" 1 \
   pending,error ios MOCK_BROKEN=lookup MOCK_PRIOR_STATUS="$NOT_RELEASE"
 run_case "gives up on a run that never finishes and cancels it" 1 \
