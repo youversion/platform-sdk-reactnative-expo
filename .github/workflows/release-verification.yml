@@ -35,6 +35,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
+          NOT_RELEASE="Not a Version Packages PR; nothing to verify."
           retry() {
             local i
             for i in 1 2 3; do
@@ -66,7 +67,7 @@ jobs:
                 # PR from a fork can share that SHA, and the status there is the release PR's.
                 retry gh api --method POST "repos/$REPOSITORY/statuses/$TRIGGER_SHA" \
                   -f context=release-verification -f state=success \
-                  -f description="Not a Version Packages PR; nothing to verify." \
+                  -f description="$NOT_RELEASE" \
                   -f target_url="$RUN_URL" > /dev/null
                 echo "Not the release PR head; marked success."
                 exit 0
@@ -77,6 +78,14 @@ jobs:
                 echo "$HEAD_REPO:$HEAD_BRANCH shares the release head; leaving it to the release PR."
                 exit 0
               fi
+              # Reopening the release PR fires this again on the same head; leave a suite that is
+              # running or passed alone. A not-a-release success came from another PR at this head.
+              LATEST=$(retry gh api "repos/$REPOSITORY/commits/$RELEASE_SHA/statuses" \
+                --jq '[.[] | select(.context == "release-verification")][0] | "\(.state) \(.description)"')
+              case "$LATEST" in
+                "success $NOT_RELEASE") ;;
+                pending*|success*) echo "PR #$NUMBER at $RELEASE_SHA is already verified or running."; exit 0 ;;
+              esac
               ;;
             *) echo "Unexpected trigger event: $EVENT"; exit 0 ;;
           esac

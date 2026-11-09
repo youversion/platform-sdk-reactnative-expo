@@ -269,6 +269,14 @@ HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch 
 MOCK_FLAKY=pr-lookup run_resolve_case "rides out a transient gh error while finding the release PR" \
   push "$MAIN_SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$SHA" ""
 NOT_RELEASE="success Not a Version Packages PR; nothing to verify."
+# The release PR event again, with the head's latest status from an earlier run.
+reopened() {
+  MOCK_PRIOR_STATUS="$1" run_resolve_case "$2" pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$3" ""
+}
+reopened "success The iOS and Android device suites passed." "a reopened release PR keeps the pass on its head" ""
+reopened "pending Running the ios device suite (try 1)." "a reopened release PR leaves the running suite alone" ""
+reopened "error Stopped before finishing; see the run log." "a reopened release PR reruns a suite that errored" "$SHA"
+reopened "$NOT_RELEASE" "verifies a release head that another PR marked not a release" "$SHA"
 
 # ── Verify: the device suites on that head ────────────────────────────────
 
