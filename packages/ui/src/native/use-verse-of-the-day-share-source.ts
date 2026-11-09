@@ -2,7 +2,7 @@ import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
 import { getVerseOfTheDayShareSource } from './verse-of-the-day-share'
 
 type ShareSourceForPassage = {
@@ -23,33 +23,12 @@ type InFlightShareLoad = {
   promise: Promise<VerseOfTheDayShareData | null>
 }
 
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
-function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
-}
-
 function sameShareRequest(a: ShareRequest | null, b: ShareRequest): boolean {
   return (
     a !== null &&
     a.passageId === b.passageId &&
     a.versionId === b.versionId &&
-    sameFilters(a.filters, b.filters)
+    sameVersionFilters(a.filters, b.filters)
   )
 }
 

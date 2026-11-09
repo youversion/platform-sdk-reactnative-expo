@@ -13,6 +13,7 @@ export function youVersionProviderWrapper(
   providerTheme: YouVersionTheme = 'light',
   locale?: string,
   hookOverrides?: HookOverrides,
+  apiHost?: string,
 ): YouVersionTestWrapper {
   const themeHolder = { current: providerTheme }
 
@@ -22,6 +23,7 @@ export function youVersionProviderWrapper(
         appKey="test-key"
         theme={themeHolder.current}
         locale={locale}
+        apiHost={apiHost}
         hookOverrides={{ ...defaultHookOverrides, ...hookOverrides }}
       >
         {children}

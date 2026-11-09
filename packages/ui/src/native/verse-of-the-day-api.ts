@@ -1,9 +1,6 @@
-import { ApiClient, BibleClient } from '@youversion/platform-core'
+import { BibleClient } from '@youversion/platform-core'
 import type { YouVersionContextValue } from '@youversion/platform-react-native-expo-core'
-
-import { getSdkHeaders } from '../lib/sdk-version'
-
-const DEFAULT_API_HOST = 'api.youversion.com'
+import { createApiClient } from '@youversion/platform-react-native-expo-core/api-client'
 
 /**
  * Copied from `@youversion/platform-react-hooks` `getDayOfYear` so native VOTD
@@ -29,16 +26,7 @@ export async function getVerseOfTheDayPassageId(
 ): Promise<string | null> {
   try {
     const { appKey, apiHost, installationId } = credentials
-    const host = apiHost || DEFAULT_API_HOST
-    const client = new BibleClient(
-      new ApiClient({
-        appKey,
-        apiHost: host,
-        installationId,
-        // platform-core stamps ReactSDK=; override with this SDK's stamp (ADR 0012).
-        additionalHeaders: getSdkHeaders(),
-      }),
-    )
+    const client = new BibleClient(createApiClient({ appKey, apiHost, installationId }))
     const { passage_id } = await client.getVOTD(dayOfYear)
     if (!passage_id) {
       return null

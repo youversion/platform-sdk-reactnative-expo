@@ -65,3 +65,7 @@ Timing: loosening an `exports` map later (adding subpaths) is additive and non-b
 ## Amendment (2026-08-31, YPE-5510)
 
 Core now exposes a second subpath, `./sdk-version` (mirrored in `publishConfig.exports`). The DOM bundle needs `getSdkHeaders` without pulling core's barrel — and its native modules — into the WebView, and ADR 0012's publish stamp targets that one compiled file. The seal otherwise stands: `.`, `./package.json`, and `./sdk-version` are the only entry points.
+
+## Amendment (2026-11-05, YPE-6444)
+
+Core adds a third subpath, `./api-client` (mirrored in `publishConfig.exports`). It holds `createApiClient`, so UI code builds its `ApiClient` the same way core does. `DEFAULT_API_HOST` lives on a fourth subpath, `./default-api-host`, so font loading can read the host string without pulling the factory. The barrel stays free of `ApiClient`, which the exports tests pin. Like `./sdk-version`, these subpaths are internal plumbing, not consumer API. The entry points are now `.`, `./package.json`, `./sdk-version`, `./api-client`, and `./default-api-host`.
