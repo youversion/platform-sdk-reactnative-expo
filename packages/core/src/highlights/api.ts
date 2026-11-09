@@ -1,18 +1,16 @@
 import {
-  ApiClient,
   HighlightsClient,
+  getHttpStatus,
   type Collection,
   type CreateHighlight,
   type DeleteHighlightOptions,
   type GetHighlightsOptions,
   type Highlight,
 } from '@youversion/platform-core'
-import { z } from 'zod'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok, type Result } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
 import { ensureCryptoRandomUUID } from './ensure-crypto-uuid'
 
 export type { Collection, CreateHighlight, DeleteHighlightOptions, GetHighlightsOptions, Highlight }
@@ -55,15 +53,7 @@ export function createHighlightsApi(config: CreateHighlightsApiConfig): Highligh
   // yvp- fallback the API 422s). Idempotent; also runs on module import.
   ensureCryptoRandomUUID()
 
-  const client = new HighlightsClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
-      timeout: config.timeout,
-    }),
-  )
+  const client = new HighlightsClient(createApiClient(config))
 
   return {
     getHighlights(accessToken, options) {
@@ -89,7 +79,7 @@ async function catchAsResult<Value>(
 }
 
 function toHighlightsApiError(caught: Error): HighlightsApiError {
-  const status = extractStatus(caught)
+  const status = getHttpStatus(caught)
   const message = toMessage(caught)
 
   if (status === 401 || status === 403) {
@@ -99,14 +89,4 @@ function toHighlightsApiError(caught: Error): HighlightsApiError {
   return status === undefined
     ? { kind: 'transient', message }
     : { kind: 'transient', status, message }
-}
-
-const httpStatusErrorSchema = z.object({
-  status: z.number(),
-})
-
-/** Pulls an HTTP status off a thrown ApiClient error (same shape Web uses). */
-function extractStatus(error: Error): number | undefined {
-  const parsed = httpStatusErrorSchema.safeParse(error)
-  return parsed.success ? parsed.data.status : undefined
 }
