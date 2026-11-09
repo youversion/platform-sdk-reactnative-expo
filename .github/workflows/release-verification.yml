@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      actions: read
       pull-requests: read
       statuses: write
     outputs:
@@ -31,6 +32,7 @@ jobs:
           TRIGGER_SHA: ${{ github.event.workflow_run.head_sha }}
           HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          ATTEMPT: ${{ github.run_attempt }}
           REPOSITORY: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -78,14 +80,25 @@ jobs:
                 echo "$HEAD_REPO:$HEAD_BRANCH shares the release head; leaving it to the release PR."
                 exit 0
               fi
-              # Reopening the release PR fires this again on the same head; leave a suite that is
-              # running or passed alone. A not-a-release success came from another PR at this head.
-              LATEST=$(retry gh api "repos/$REPOSITORY/commits/$RELEASE_SHA/statuses" \
-                --jq '[.[] | select(.context == "release-verification")][0] | "\(.state) \(.description)"')
-              case "$LATEST" in
-                "success $NOT_RELEASE") ;;
-                pending*|success*) echo "PR #$NUMBER at $RELEASE_SHA is already verified or running."; exit 0 ;;
-              esac
+              # Reopening the release PR fires this again on the same head; leave a suite that
+              # passed or is still running alone. A re-run keeps its run id, so it always verifies.
+              # A not-a-release success came from another PR at this head.
+              if [ "$ATTEMPT" = 1 ]; then
+                LATEST=$(retry gh api "repos/$REPOSITORY/commits/$RELEASE_SHA/statuses" \
+                  --jq '[.[] | select(.context == "release-verification")][0] // {}')
+                case "$(jq -r '"\(.state) \(.description)"' <<< "$LATEST")" in
+                  "success $NOT_RELEASE") ;;
+                  success*) echo "PR #$NUMBER at $RELEASE_SHA is already verified."; exit 0 ;;
+                  pending*)
+                    # A pending whose run has ended was left by a run that died before its last write.
+                    RUN=$(jq -r .target_url <<< "$LATEST")
+                    RUN_STATUS=$(retry gh api "repos/$REPOSITORY/actions/runs/${RUN##*/}" --jq .status) || RUN_STATUS=""
+                    case "$RUN_STATUS" in
+                      queued|in_progress) echo "PR #$NUMBER at $RELEASE_SHA is already running in $RUN."; exit 0 ;;
+                    esac
+                    ;;
+                esac
+              fi
               ;;
             *) echo "Unexpected trigger event: $EVENT"; exit 0 ;;
           esac
@@ -137,7 +150,8 @@ jobs:
             retry gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f context=release-verification \
               -f state="$1" -f description="$2" -f target_url="$RUN_URL" > /dev/null
           }
-          finish() { trap - EXIT; status "$@"; }
+          # Disarmed only once the write lands, so a failed write still ends in the trap's error.
+          finish() { status "$@"; trap - EXIT; }
           stopped() {
             if [ -n "$RUN_ID" ]; then automation run cancel "$RUN_ID" -R "$AUTOMATION_REPO" || true; fi
             # The concurrency group already runs one verification at a time; this only keeps a

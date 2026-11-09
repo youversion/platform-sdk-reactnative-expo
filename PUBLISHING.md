@@ -95,7 +95,7 @@ Configure trusted publishing on both packages before the first release. If a boo
 The check's details link to the `Release verification` run; its summary links each device-suite run in `platform-sdk-reactnative-expo_automation`.
 
 - **failure**: a suite failed on that build. Open the automation run, fix the cause on a branch, and merge it to `main`. Release then updates the PR and the check runs again. A fix can also be pushed straight to `changeset-release/main`; that starts the check too.
-- **error**: no test result. The run was cancelled twice (a nightly in the shared automation queue can preempt it), timed out, or could not reach the automation repo. Re-run the failed `Release verification` run from the Actions tab.
+- **error**: no test result. The run was cancelled twice (a nightly in the shared automation queue can preempt it), timed out, or could not reach the automation repo. Re-run the `Release verification` run from the Actions tab; re-running all jobs or only the failed ones both start the suites again.
 
 ### Publish failed
 

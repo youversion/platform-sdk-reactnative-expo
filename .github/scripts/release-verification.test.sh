@@ -71,6 +71,9 @@ case "$*" in
         reverse | (if $foreign == "" then . else [$foreign | other] + . end)
           | (if $prior == "" then . else . + [$prior | other] end)' |
       filter "$@" ;;
+  *"repos/youversion/expo/actions/runs/"*)
+    # The run that wrote MOCK_PRIOR_STATUS or MOCK_FOREIGN_STATUS.
+    filter "$@" <<< "{\"status\": \"${MOCK_RUN_STATE:-completed}\"}" ;;
   *"/statuses/"*)
     flaky status
     [ "$GH_TOKEN" = repo-token ] || { echo "status written with $GH_TOKEN" >&2; exit 1; }
@@ -83,6 +86,7 @@ case "$*" in
         */statuses/*) sha=${arg##*/} ;;
       esac
     done
+    [ "$state" != "${MOCK_REJECTED_STATE:-}" ] || exit 1
     printf '%s %s\n' "$state" "$description" >> "$MOCK_DIR/statuses"
     printf '%s\n' "$sha" >> "$MOCK_DIR/status-shas"
     jq -nc --arg state "$state" --arg description "$description" --arg url "$url" \
@@ -230,7 +234,7 @@ run_resolve_case() {
   printf '%s\n' "$pulls" > "$dir/pulls.json"
   printf '[{"sha": "%s", "parents": [{"sha": "%s"}]}]\n' "$SHA" "$parent" > "$dir/commits.json"
   env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" GH_TOKEN=repo-token GITHUB_OUTPUT="$dir/output" \
-    EVENT="$event" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo RUN_URL="$RUN_URL" \
+    EVENT="$event" ATTEMPT="${ATTEMPT:-1}" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo RUN_URL="$RUN_URL" \
     HEAD_REPO="${HEAD_REPO:-youversion/expo}" HEAD_BRANCH="${HEAD_BRANCH:-changeset-release/main}"\
     bash "$TMP/resolve.sh" > "$dir/out" 2>&1
   local code=$? got statuses
@@ -274,7 +278,12 @@ reopened() {
   MOCK_PRIOR_STATUS="$1" run_resolve_case "$2" pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$3" ""
 }
 reopened "success The iOS and Android device suites passed." "a reopened release PR keeps the pass on its head" ""
-reopened "pending Running the ios device suite (try 1)." "a reopened release PR leaves the running suite alone" ""
+PENDING="pending Running the ios device suite (try 1)."
+MOCK_RUN_STATE=in_progress reopened "$PENDING" "a reopened release PR leaves the running suite alone" ""
+MOCK_RUN_STATE=queued reopened "$PENDING" "a reopened release PR leaves a queued suite alone" ""
+reopened "$PENDING" "a reopened release PR reruns a suite whose run died while pending" "$SHA"
+ATTEMPT=2 MOCK_RUN_STATE=in_progress reopened "$PENDING" "a re-run verifies though its own pending looks live" "$SHA"
+ATTEMPT=2 reopened "success The iOS and Android device suites passed." "a re-run verifies a head that passed" "$SHA"
 reopened "error Stopped before finishing; see the run log." "a reopened release PR reruns a suite that errored" "$SHA"
 reopened "$NOT_RELEASE" "verifies a release head that another PR marked not a release" "$SHA"
 
@@ -353,7 +362,9 @@ else
   fail "an unexpected stop cancels the remote run it started" "cancelled: '$(cat "$dir/cancels" 2>/dev/null)'"
 fi
 run_case "a stopped run never writes over a newer run's status" 1 pending ios \
-  MOCK_BROKEN=poll MOCK_FOREIGN_STATUS="pending Running the ios device suite (try 1)."
+  MOCK_BROKEN=poll MOCK_FOREIGN_STATUS="$PENDING"
+run_case "a failed final success write still ends in an error, not the pending" 1 \
+  pending,pending,error ios,android MOCK_REJECTED_STATE=success
 
 # A cancel or job timeout sends SIGINT to the step's shell, SIGTERM 7.5s later, and kills the
 # tree 2.5s after that, so the trap has to run while the step is mid-poll, not after its sleep.
