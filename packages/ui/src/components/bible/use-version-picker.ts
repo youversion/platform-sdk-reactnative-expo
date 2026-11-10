@@ -234,6 +234,9 @@ export function useVersionPicker({
   useEffect(() => {
     let cancelled = false
     setVersionsStatus('loading')
+    if (catalogStatus !== 'ready') {
+      return
+    }
 
     const load = async () => {
       try {
@@ -299,6 +302,7 @@ export function useVersionPicker({
   }, [
     apiHost,
     appKey,
+    catalogStatus,
     fetchBibleContent,
     installationId,
     pickedLanguageId,

@@ -208,6 +208,8 @@ describe('Bible version picker catalog cache', () => {
     expect(queryAllByText('Error').length).toBeGreaterThan(0)
     const catalogBeforeRetry = countKind(requests, 'catalog')
     expect(catalogBeforeRetry).toBeGreaterThan(0)
+    expect(countKind(requests, 'language-versions')).toBe(0)
+    expect(countKind(requests, 'version-meta')).toBe(0)
 
     failLanguages = false
     const retryButton = retryButtons[0]
@@ -219,5 +221,6 @@ describe('Bible version picker catalog cache', () => {
     await findByLabelText('King James Version')
     expect(queryAllByText('Retry')).toHaveLength(0)
     expect(countKind(requests, 'catalog')).toBeGreaterThan(catalogBeforeRetry)
+    expect(countKind(requests, 'language-versions')).toBeGreaterThan(0)
   })
 })
