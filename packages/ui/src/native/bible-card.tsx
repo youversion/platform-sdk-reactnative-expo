@@ -222,6 +222,7 @@ function BibleCardBody({
                 highlights={highlights}
                 fontSize={DEFAULT_FONT_SIZE}
                 font="serif"
+                direction={scriptureDirection}
                 onFootnotePress={onFootnotePress}
               />
             )}

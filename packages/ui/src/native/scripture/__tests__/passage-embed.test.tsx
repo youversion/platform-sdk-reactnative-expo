@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
-import { StyleSheet, type TextStyle } from 'react-native'
+import { StyleSheet, View, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import en from '../../../i18n/locales/en.json'
@@ -229,5 +229,27 @@ describe('PassageEmbed', () => {
       expect.objectContaining({ verseNum: '1', notes: expect.any(Array) }),
     )
     expect(onFootnotePress.mock.calls[0]?.[0].notes.length).toBeGreaterThan(0)
+  })
+
+  it('honors an explicit direction over the chapter vote', async () => {
+    const { getByText, UNSAFE_getAllByType } = render(
+      <PassageEmbed
+        reference="JHN.3.16"
+        versionId={3034}
+        highlights={[]}
+        fontSize={16}
+        font="serif"
+        direction="rtl"
+      />,
+      { wrapper },
+    )
+
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    const directions = UNSAFE_getAllByType(View)
+      .map((node) => flattenedTextStyle(node).direction)
+      .filter((value) => value === 'rtl' || value === 'ltr')
+    expect(directions).toContain('rtl')
   })
 })

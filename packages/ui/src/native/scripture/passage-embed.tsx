@@ -28,6 +28,7 @@ type PassageEmbedProps = {
   highlights: Highlight[]
   fontSize: number
   font: PassageFont
+  direction?: 'ltr' | 'rtl'
   onFootnotePress?: (data: FootnoteData) => void | Promise<void>
 }
 
@@ -37,6 +38,7 @@ export function PassageEmbed({
   highlights,
   fontSize,
   font,
+  direction,
   onFootnotePress,
 }: PassageEmbedProps): ReactNode {
   const { t } = useSdkTranslation()
@@ -85,6 +87,7 @@ export function PassageEmbed({
     fontSize,
     lineMultiple: lineMultiple(READER_LINE_SPACING.DEFAULT),
     fontFamily: font === 'sans' ? INTER_FONT : undefined,
+    direction,
     background,
   })
 
