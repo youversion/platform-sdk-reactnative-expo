@@ -1,10 +1,10 @@
+import type { VersionPickerVersion } from '../bible-version-picker-api'
 import type { VersionPickerCatalog } from '../version-picker-catalog-cache'
 import {
   clearVersionPickerMemoryCache,
   loadCachedLanguageVersions,
   loadCachedVersionPickerCatalog,
 } from '../version-picker-catalog-cache'
-import type { VersionPickerVersion } from '../bible-version-picker-api'
 
 const emptyCatalog: VersionPickerCatalog = {
   languages: [],
@@ -24,18 +24,17 @@ const englishVersions: readonly VersionPickerVersion[] = [
   },
 ]
 
-function deferred<T>(): {
+type Deferred<T> = {
   promise: Promise<T>
   resolve: (value: T) => void
-  reject: (error: unknown) => void
-} {
+}
+
+function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void
-  let reject!: (error: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
+  const promise = new Promise<T>((res) => {
     resolve = res
-    reject = rej
   })
-  return { promise, resolve, reject }
+  return { promise, resolve }
 }
 
 beforeEach(() => {
@@ -83,14 +82,17 @@ describe('version picker catalog memory cache', () => {
   })
 
   it('does not delete a newer entry when an older failed load settles after clear', async () => {
-    const first = deferred<VersionPickerCatalog>()
+    let rejectFirst!: (reason: Error) => void
+    const firstLoad = new Promise<VersionPickerCatalog>((_resolve, reject) => {
+      rejectFirst = reject
+    })
     const secondLoad = jest.fn(async () => emptyCatalog)
 
-    const firstPromise = loadCachedVersionPickerCatalog('host', 'key', () => first.promise)
+    const firstPromise = loadCachedVersionPickerCatalog('host', 'key', () => firstLoad)
     clearVersionPickerMemoryCache()
     await loadCachedVersionPickerCatalog('host', 'key', secondLoad)
 
-    first.reject(new Error('stale'))
+    rejectFirst(new Error('stale'))
     await expect(firstPromise).rejects.toThrow('stale')
 
     const thirdLoad = jest.fn(async () => emptyCatalog)
