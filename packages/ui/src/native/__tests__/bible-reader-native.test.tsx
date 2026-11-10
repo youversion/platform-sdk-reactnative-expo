@@ -799,7 +799,7 @@ describe('BibleReaderNative', () => {
       }
     })
 
-    it('falls back to the API reference while the book title loads', async () => {
+    it('falls back to the API reference, bidi mark dropped, while the book title loads', async () => {
       const restore = stubBooks(() => new Promise<Response>(() => undefined))
       const onFootnotePress = jest.fn()
       try {
@@ -807,7 +807,7 @@ describe('BibleReaderNative', () => {
         await screen.findByText('In the beginning')
         fireEvent.press(screen.getByLabelText('Footnote'))
         expect(onFootnotePress).toHaveBeenLastCalledWith(
-          expect.objectContaining({ verseNum: '1', reference: '1 ‎API' }),
+          expect.objectContaining({ verseNum: '1', reference: '1 API' }),
         )
       } finally {
         restore()
