@@ -22,9 +22,14 @@ import {
   fetchVersionPickerLanguages,
   fetchVersionsForLanguage,
   languagesWithBibles,
+  type VersionPickerCatalogClients,
   type VersionPickerLanguage,
   type VersionPickerVersion,
 } from '../../native/bible-version-picker-api'
+import {
+  loadCachedLanguageVersions,
+  loadCachedVersionPickerCatalog,
+} from '../../native/version-picker-catalog-cache'
 import { useRecentBibleVersionsStore } from '../../stores/recent-bible-versions-store'
 
 export type VersionPickerLoadState =
@@ -59,6 +64,33 @@ export type VersionPickerController = {
   retry: () => void
   selectLanguage: (languageId: string) => void
   selectVersion: (version: VersionPickerVersion) => Promise<boolean>
+}
+
+type PickerSlotStatus = 'loading' | 'ready' | 'error'
+
+function pickerLoadState(
+  catalogStatus: PickerSlotStatus,
+  versionsStatus: PickerSlotStatus,
+): VersionPickerLoadState {
+  if (catalogStatus === 'error' || versionsStatus === 'error') {
+    return { status: 'error' }
+  }
+  if (catalogStatus === 'ready' && versionsStatus === 'ready') {
+    return { status: 'ready' }
+  }
+  return { status: 'loading' }
+}
+
+function versionPickerClients(
+  appKey: string,
+  apiHost: string,
+  installationId: string,
+): VersionPickerCatalogClients {
+  const apiClient = createApiClient({ appKey, apiHost, installationId })
+  return {
+    languagesClient: new LanguagesClient(apiClient),
+    bibleClient: new BibleClient(apiClient),
+  }
 }
 
 function deviceLanguageCodes(locales: ReturnType<typeof useLocales>): string[] {
@@ -116,7 +148,9 @@ export function useVersionPicker({
     activeFilters = incomingFilters
   }
 
-  const [loadState, setLoadState] = useState<VersionPickerLoadState>({ status: 'loading' })
+  const [catalogStatus, setCatalogStatus] = useState<PickerSlotStatus>('loading')
+  const [versionsStatus, setVersionsStatus] = useState<PickerSlotStatus>('loading')
+  const loadState = pickerLoadState(catalogStatus, versionsStatus)
   const [panel, setPanel] = useState<VersionPickerPanel>('versions')
   const [versionSearchQuery, setVersionSearchQuery] = useState('')
   const [languageSearchQuery, setLanguageSearchQuery] = useState('')
@@ -150,44 +184,59 @@ export function useVersionPicker({
 
   useEffect(() => {
     let cancelled = false
-    setLoadState({ status: 'loading' })
+    setCatalogStatus('loading')
+    const deviceCodes = deviceLanguageKey.split(',').filter((code) => code.length > 0)
 
     const load = async () => {
       try {
-        const apiClient = createApiClient({ appKey, apiHost, installationId })
-        const clients = {
-          languagesClient: new LanguagesClient(apiClient),
-          bibleClient: new BibleClient(apiClient),
-        }
-
-        const [languages, countryLanguages, tags, summaries] = await Promise.all([
-          fetchVersionPickerLanguages(clients),
-          fetchSuggestedVersionPickerLanguages(clients),
-          fetchVersionLanguageTags(clients),
-          fetchAllVersionSummaries(clients),
-        ])
+        const catalog = await loadCachedVersionPickerCatalog(apiHost, appKey, async () => {
+          const clients = versionPickerClients(appKey, apiHost, installationId)
+          const [languages, countryLanguages, tags, summaries] = await Promise.all([
+            fetchVersionPickerLanguages(clients),
+            fetchSuggestedVersionPickerLanguages(clients),
+            fetchVersionLanguageTags(clients),
+            fetchAllVersionSummaries(clients),
+          ])
+          return { languages, countryLanguages, tags, summaries }
+        })
         if (cancelled) {
           return
         }
 
-        const unique = languagesWithBibles(languages, tags)
-        const suggested = buildSuggestedLanguages(
-          unique,
-          countryLanguages,
-          deviceLanguageKey.split(',').filter((code) => code.length > 0),
-        )
+        const unique = languagesWithBibles(catalog.languages, catalog.tags)
+        const suggested = buildSuggestedLanguages(unique, catalog.countryLanguages, deviceCodes)
         const nextVersionById = new Map<number, VersionPickerVersion>()
-        for (const item of summaries) {
+        for (const item of catalog.summaries) {
           nextVersionById.set(item.id, {
             ...item,
-            languageTag: item.languageTag || tags.get(item.id) || '',
+            languageTag: item.languageTag || catalog.tags.get(item.id) || '',
           })
         }
         setAllLanguages(unique)
         setSuggestedLanguages(suggested)
-        setLanguageTagByVersionId(tags)
+        setLanguageTagByVersionId(catalog.tags)
         setVersionById(nextVersionById)
+        setCatalogStatus('ready')
+      } catch {
+        if (!cancelled) {
+          setCatalogStatus('error')
+        }
+      }
+    }
 
+    void load()
+
+    return () => {
+      cancelled = true
+    }
+  }, [apiHost, appKey, deviceLanguageKey, installationId, requestGeneration])
+
+  useEffect(() => {
+    let cancelled = false
+    setVersionsStatus('loading')
+
+    const load = async () => {
+      try {
         let languageId = pickedLanguageId
         if (!languageId) {
           try {
@@ -203,28 +252,41 @@ export function useVersionPicker({
             setVersionLookupFailed(true)
             setSelectedLanguageId('')
             setVersions([])
-            setLoadState({ status: 'ready' })
+            setVersionsStatus('ready')
             return
           }
         }
         if (!languageId) {
+          if (cancelled) {
+            return
+          }
           setVersionLookupFailed(false)
           setSelectedLanguageId('')
           setVersions([])
-          setLoadState({ status: 'ready' })
+          setVersionsStatus('ready')
           return
         }
-        const nextVersions = await fetchVersionsForLanguage(clients, languageId)
+        const resolvedLanguageId = languageId
+        const nextVersions = await loadCachedLanguageVersions(
+          apiHost,
+          appKey,
+          resolvedLanguageId,
+          () =>
+            fetchVersionsForLanguage(
+              versionPickerClients(appKey, apiHost, installationId),
+              resolvedLanguageId,
+            ),
+        )
         if (cancelled) {
           return
         }
         setVersionLookupFailed(false)
-        setSelectedLanguageId(languageId)
+        setSelectedLanguageId(resolvedLanguageId)
         setVersions(nextVersions)
-        setLoadState({ status: 'ready' })
+        setVersionsStatus('ready')
       } catch {
         if (!cancelled) {
-          setLoadState({ status: 'error' })
+          setVersionsStatus('error')
         }
       }
     }
@@ -237,7 +299,6 @@ export function useVersionPicker({
   }, [
     apiHost,
     appKey,
-    deviceLanguageKey,
     fetchBibleContent,
     installationId,
     pickedLanguageId,
