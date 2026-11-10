@@ -7,6 +7,7 @@ import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleVersionPickerSheet } from '../bible-version-picker-sheet'
+import { clearVersionPickerMemoryCache } from '../version-picker-catalog-cache'
 
 const wrapper = youVersionProviderWrapper('light', 'en')
 
@@ -138,6 +139,7 @@ function countKind(requests: readonly RecordedRequest[], kind: RecordedRequest['
 describe('Bible version picker catalog cache', () => {
   beforeEach(() => {
     resetImpls()
+    clearVersionPickerMemoryCache()
     stubDeviceLocale('en-US', 'en')
     useRecentBibleVersionsStore.setState({ versionIds: [] })
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>

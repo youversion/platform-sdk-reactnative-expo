@@ -13,7 +13,6 @@ module.exports = {
     '^react-dom/(.*)$': '<rootDir>/../../node_modules/react-dom/$1',
   },
   setupFiles: ['<rootDir>/jest.setup.js'],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup-after-env.ts'],
   coverageReporters: ['json', 'lcov', 'text', 'clover', 'json-summary'],
   transformIgnorePatterns: [
     '/node_modules/(?!(.pnpm|react-native|@react-native|@react-native-community|expo|expo-.*|@expo|@expo-google-fonts|react-navigation|@react-navigation|@sentry/react-native|native-base|jest-expo|@rn-primitives|better-result))',
