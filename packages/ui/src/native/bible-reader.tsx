@@ -490,6 +490,8 @@ export function BibleReader({
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  // The version the open note came from: a version change must not flip its direction.
+  const [footnoteVersionId, setFootnoteVersionId] = useState(appliedVersionId)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
@@ -698,6 +700,7 @@ export function BibleReader({
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
           setFootnoteData(data)
+          setFootnoteVersionId(appliedVersionId)
           setFootnoteOpenKey((key) => key + 1)
         }))
       : undefined
@@ -977,7 +980,7 @@ export function BibleReader({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             versionAbbreviation={versionAbbreviation}
-            scriptureDirection={versionDirections.get(appliedVersionId)}
+            scriptureDirection={versionDirections.get(footnoteVersionId)}
             lineSpacing={lineSpacing}
             fontSize={fontSize}
           />
