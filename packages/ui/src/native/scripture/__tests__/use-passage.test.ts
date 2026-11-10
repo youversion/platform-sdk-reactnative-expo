@@ -165,11 +165,13 @@ describe('passageRefFor', () => {
     ['JHN.3', 'JHN', '3'],
     ['JHN.3.16', 'JHN', '3'],
     ['JHN.3.16-18', 'JHN', '3'],
+    ['GEN.INTRO', 'GEN', 'INTRO'],
+    ['JHN.INTRO', 'JHN', 'INTRO'],
   ])('keeps %s whole and scopes it to %s %s', (usfm, book, chapter) => {
     expect(passageRefFor(usfm)).toEqual({ usfm, book, chapter })
   })
 
-  it.each(['', 'JHN', 'JHN.INTRO1', 'JHN.0'])('refuses %j', (usfm) => {
+  it.each(['', 'JHN', 'JHN.0', 'JHN..1', 'JHN.3.16.18'])('refuses %j', (usfm) => {
     expect(passageRefFor(usfm)).toBeNull()
   })
 })

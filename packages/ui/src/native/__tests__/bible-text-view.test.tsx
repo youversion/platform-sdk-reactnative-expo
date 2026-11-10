@@ -385,12 +385,22 @@ describe('BibleTextView', () => {
   })
 
   it('shows an unreadable reference as unavailable and does not request a passage', async () => {
-    render(<BibleTextView reference="JHN.INTRO1" versionId={3034} />, {
+    render(<BibleTextView reference="not-usfm" versionId={3034} />, {
       wrapper: youVersionProviderWrapper(),
     })
 
     expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
     expect(passageRequests()).toEqual([])
+  })
+
+  it('requests a catalog introduction chapter', async () => {
+    serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+    render(<BibleTextView reference="GEN.INTRO" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('Introduction')).toBeTruthy()
+    expect(passageRequests().some((url) => url.includes('/passages/GEN.INTRO'))).toBe(true)
   })
 
   it('shows the connection message and loads the passage on retry', async () => {
@@ -511,6 +521,21 @@ describe('BibleTextView', () => {
       })
 
       expect(screen.getByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 1,
+        book: '_',
+        chapter: '0',
+        enabled: false,
+      })
+    })
+
+    it('disables the subscription for a catalog introduction', async () => {
+      serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+      render(<BibleTextView reference="GEN.INTRO" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
+
+      expect(await screen.findByText('Introduction')).toBeTruthy()
       expect(useHighlightsMock).toHaveBeenCalledWith({
         versionId: 1,
         book: '_',

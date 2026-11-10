@@ -13,6 +13,7 @@ import type { FontFamily } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { versionGate, type VersionGate } from '../lib/version-usability'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
+import { highlightScopeFor } from './highlight-scope'
 import { highlightEndRoom, Passage } from './scripture/passage'
 import { usePassageStyle } from './scripture/passage-style'
 import { visibleBlocks } from './scripture/parse-passage'
@@ -99,9 +100,8 @@ export function BibleTextViewNative({
       ? { content: hostHtml.content, reference: hostHtml.reference }
       : null
   const load = usePassage(fetchBibleContent, versionId, address, supplied)
-  const highlights = useHighlightPaint(
-    requested === null ? null : { versionId, book: requested.book, chapter: requested.chapter },
-  )
+  // Intros load as passages but have no numeric chapter for paint.
+  const highlights = useHighlightPaint(highlightScopeFor(reference, versionId))
   const multiple = resolvedLineMultiple(lineHeight)
   const { look, paint } = usePassageStyle({
     passage: load.passage,
