@@ -478,6 +478,58 @@ describe('BibleTextView', () => {
     expect(passageRequests()).toEqual([])
   })
 
+  it('shows unavailable for an idle empty supplied state instead of spinning forever', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: false, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(screen.queryByLabelText('Loading')).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('shows a spinner for a supplied loading state with no passage', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('drops a retained fetch error when the host switches to a supplied loading state', async () => {
+    installFetch(() => Promise.reject(new TypeError('Network request failed')))
+    const view = render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(OFFLINE)).toBeTruthy()
+    expect(screen.getByText('Retry')).toBeTruthy()
+
+    view.rerender(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(OFFLINE)).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
   it('throws when YouVersionProvider is missing', () => {
     expect(() => render(<BibleTextView reference="JHN.3.16" versionId={3034} />)).toThrow(
       'useYouVersion must be used inside of YouVersionProvider',
