@@ -49,11 +49,15 @@ arg_after() {
 }
 # Applies the caller's --jq filter, as gh does.
 filter() { jq -r "$(arg_after --jq "$@")"; }
-# The first call of the kind MOCK_FLAKY names fails, as a transient API error would; every call
-# of the kind MOCK_BROKEN names fails.
+# The first call of the kind MOCK_FLAKY names fails, as a transient API error would, printing its
+# error body to stdout as gh does; every call of the kind MOCK_BROKEN names fails.
 flaky() {
   [ "${MOCK_BROKEN:-}" != "$1" ] || exit 1
-  if [ "${MOCK_FLAKY:-}" = "$1" ] && [ ! -e "$MOCK_DIR/flaked" ]; then touch "$MOCK_DIR/flaked"; exit 1; fi
+  if [ "${MOCK_FLAKY:-}" = "$1" ] && [ ! -e "$MOCK_DIR/flaked" ]; then
+    touch "$MOCK_DIR/flaked"
+    echo '{"message": "Server Error"}'
+    exit 1
+  fi
 }
 case "$*" in
   *"/pulls?state=open&base=main&head="*)
@@ -65,14 +69,16 @@ case "$*" in
     # Newest first, as the API lists them. Another run's "<state> <description>": MOCK_FOREIGN_STATUS
     # wrote it after this run's writes, MOCK_PRIOR_STATUS before them.
     cat "$MOCK_DIR/status-records" 2>/dev/null |
-      jq -s --arg foreign "${MOCK_FOREIGN_STATUS:-}" --arg prior "${MOCK_PRIOR_STATUS:-}" '
+      jq -s --arg foreign "${MOCK_FOREIGN_STATUS:-}" --arg prior "${MOCK_PRIOR_STATUS:-}" \
+        --arg url "${MOCK_STATUS_URL:-https://github.com/youversion/expo/actions/runs/43}" '
         def other: {context: "release-verification", state: (split(" ")[0]), description: sub("^[^ ]* "; ""),
-          target_url: "https://github.com/youversion/expo/actions/runs/43"};
+          target_url: $url};
         reverse | (if $foreign == "" then . else [$foreign | other] + . end)
           | (if $prior == "" then . else . + [$prior | other] end)' |
       filter "$@" ;;
   *"repos/youversion/expo/actions/runs/"*)
     # The run that wrote MOCK_PRIOR_STATUS or MOCK_FOREIGN_STATUS.
+    flaky run-lookup
     filter "$@" <<< "{\"status\": \"${MOCK_RUN_STATE:-completed}\"}" ;;
   *"/statuses/"*)
     flaky status
@@ -200,6 +206,12 @@ else
   fail "resolves nothing after a failed or skipped trigger run" \
     "a skipped trigger (a PR title edit) would restart the suite on the release head"
 fi
+if grep -qx '      actions: read' <<< "$(job_block resolve)"; then
+  pass "resolve can read the run behind a pending status"
+else
+  fail "resolve can read the run behind a pending status" \
+    "without actions: read the liveness lookup always fails and reopening restarts a live suite"
+fi
 if grep -qx '      group: release-verification' <<< "$(job_block verify)" \
   && grep -qx '      cancel-in-progress: true' <<< "$(job_block verify)"; then
   pass "a newer release head cancels the verification of an older one"
@@ -234,7 +246,8 @@ run_resolve_case() {
   printf '%s\n' "$pulls" > "$dir/pulls.json"
   printf '[{"sha": "%s", "parents": [{"sha": "%s"}]}]\n' "$SHA" "$parent" > "$dir/commits.json"
   env PATH="$TMP/bin:$PATH" MOCK_DIR="$dir" GH_TOKEN=repo-token GITHUB_OUTPUT="$dir/output" \
-    EVENT="$event" ATTEMPT="${ATTEMPT:-1}" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo RUN_URL="$RUN_URL" \
+    EVENT="$event" ATTEMPT="${ATTEMPT:-1}" TRIGGER_SHA="$trigger_sha" REPOSITORY=youversion/expo \
+    SERVER_URL=https://github.com RUN_URL="$RUN_URL" \
     HEAD_REPO="${HEAD_REPO:-youversion/expo}" HEAD_BRANCH="${HEAD_BRANCH:-changeset-release/main}"\
     bash "$TMP/resolve.sh" > "$dir/out" 2>&1
   local code=$? got statuses
@@ -272,6 +285,8 @@ HEAD_BRANCH=feature run_resolve_case "never starts the suite for another branch 
   pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "" ""
 MOCK_FLAKY=pr-lookup run_resolve_case "rides out a transient gh error while finding the release PR" \
   push "$MAIN_SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$SHA" ""
+MOCK_FLAKY=pr-lookup run_resolve_case "a transient gh error never marks the release head not a release" \
+  pull_request "$SHA" "$(release_pr "$SHA")" "$MAIN_SHA" "$SHA" ""
 NOT_RELEASE="success Not a Version Packages PR; nothing to verify."
 # The release PR event again, with the head's latest status from an earlier run.
 reopened() {
@@ -282,6 +297,10 @@ PENDING="pending Running the ios device suite (try 1)."
 MOCK_RUN_STATE=in_progress reopened "$PENDING" "a reopened release PR leaves the running suite alone" ""
 MOCK_RUN_STATE=queued reopened "$PENDING" "a reopened release PR leaves a queued suite alone" ""
 reopened "$PENDING" "a reopened release PR reruns a suite whose run died while pending" "$SHA"
+MOCK_RUN_STATE=in_progress MOCK_BROKEN=run-lookup reopened "$PENDING" \
+  "a reopened release PR reruns a suite whose pending run cannot be looked up" "$SHA"
+MOCK_RUN_STATE=in_progress MOCK_STATUS_URL=https://github.com/youversion/automation/actions/runs/43 reopened "$PENDING" \
+  "a reopened release PR reruns a suite whose pending links another repository's run" "$SHA"
 ATTEMPT=2 MOCK_RUN_STATE=in_progress reopened "$PENDING" "a re-run verifies though its own pending looks live" "$SHA"
 ATTEMPT=2 reopened "success The iOS and Android device suites passed." "a re-run verifies a head that passed" "$SHA"
 reopened "error Stopped before finishing; see the run log." "a reopened release PR reruns a suite that errored" "$SHA"

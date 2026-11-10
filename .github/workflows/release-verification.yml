@@ -34,14 +34,16 @@ jobs:
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           ATTEMPT: ${{ github.run_attempt }}
           REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
           NOT_RELEASE="Not a Version Packages PR; nothing to verify."
+          # Prints only the attempt that succeeded: gh prints an error body to stdout when it fails.
           retry() {
-            local i
+            local i out
             for i in 1 2 3; do
-              if "$@"; then return 0; fi
+              if out=$("$@"); then printf '%s\n' "$out"; return 0; fi
               [ "$i" = 3 ] || sleep $((i * 10))
             done
             return 1
@@ -91,8 +93,12 @@ jobs:
                   success*) echo "PR #$NUMBER at $RELEASE_SHA is already verified."; exit 0 ;;
                   pending*)
                     # A pending whose run has ended was left by a run that died before its last write.
+                    # Only a run of this repository can be the one still running.
                     RUN=$(jq -r .target_url <<< "$LATEST")
-                    RUN_STATUS=$(retry gh api "repos/$REPOSITORY/actions/runs/${RUN##*/}" --jq .status) || RUN_STATUS=""
+                    RUN_STATUS=""
+                    if [[ "$RUN" =~ ^"$SERVER_URL/$REPOSITORY"/actions/runs/[0-9]+$ ]]; then
+                      RUN_STATUS=$(retry gh api "repos/$REPOSITORY/actions/runs/${RUN##*/}" --jq .status) || RUN_STATUS=""
+                    fi
                     case "$RUN_STATUS" in
                       queued|in_progress) echo "PR #$NUMBER at $RELEASE_SHA is already running in $RUN."; exit 0 ;;
                     esac
@@ -137,10 +143,11 @@ jobs:
           # Bash holds a trapped signal until a foreground sleep ends, which is after the runner
           # has killed the step; a waited-on background sleep lets the trap run at once.
           nap() { sleep "$1" & wait $!; }
+          # Prints only the attempt that succeeded: gh prints an error body to stdout when it fails.
           retry() {
-            local i
+            local i out
             for i in 1 2 3; do
-              if "$@"; then return 0; fi
+              if out=$("$@"); then printf '%s\n' "$out"; return 0; fi
               [ "$i" = 3 ] || nap $((i * 10))
             done
             return 1
