@@ -267,7 +267,7 @@ describe('BibleTextView', () => {
 
     fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
     expect(onFootnotePress).toHaveBeenCalledWith(
-      expect.objectContaining({ verseNum: '16', reference: 'John 3:16' }),
+      expect.objectContaining({ verseNum: '16', reference: 'John 3' }),
     )
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })

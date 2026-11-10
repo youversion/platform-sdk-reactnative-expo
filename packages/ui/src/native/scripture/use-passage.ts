@@ -216,6 +216,18 @@ function fallbackReference({ usfm, book }: PassageRef): string {
   return `${book} ${usfm.slice(book.length + 1).replace('.', ':')}`
 }
 
+/**
+ * `FootnoteContent` treats `reference` as a chapter label and appends
+ * `:${verseNum}`. Verse and range API strings must be trimmed to the chapter.
+ */
+function chapterReference(reference: string | undefined): string | undefined {
+  if (reference === undefined) {
+    return undefined
+  }
+  const colon = reference.indexOf(':')
+  return colon === -1 ? reference : reference.slice(0, colon)
+}
+
 /** The footnote sheet payload for a tapped note. `verse` null is a note outside any verse. */
 export function footnoteFor(
   passage: LoadedPassage | null,
@@ -227,7 +239,7 @@ export function footnoteFor(
     verseNum: verse === null ? '' : String(verse),
     notes: info?.notes ?? [html],
     verseHtml: info?.html ?? '',
-    reference: passage?.reference,
+    reference: chapterReference(passage?.reference),
   }
 }
 
