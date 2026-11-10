@@ -337,6 +337,16 @@ describe('BibleTextView', () => {
     await waitFor(() => expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif'))
   })
 
+  it('keeps a host fontFamily instead of replacing it with serif', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="sans-serif" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('sans-serif')
+  })
+
   it('draws a qs run in italic', async () => {
     serveOnly(
       'JHN.3.16',
