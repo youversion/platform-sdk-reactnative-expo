@@ -3,12 +3,12 @@ import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'
-import { Platform, Share, StyleSheet, type TextStyle } from 'react-native'
+import { Platform, Share, StyleSheet, View, type TextStyle } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import es from '../../i18n/locales/es.json'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
-import { resetImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import {
   installBibleContentFetch,
@@ -631,6 +631,52 @@ describe('VerseOfTheDay', () => {
     expect(getByText(en.passageUnavailable)).toBeTruthy()
     expect(queryByText('For God so loved')).toBeNull()
     expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
+  })
+
+  it('closes an open footnote when provider filters refuse the version', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
+    setImpl(
+      'NativeSheet',
+      ({
+        isOpen,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? <View testID="footnote-sheet">{children}</View> : null,
+    )
+
+    function FilterApp({
+      excludedVersionIds,
+    }: {
+      excludedVersionIds?: number[]
+    }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          excludedVersionIds={excludedVersionIds}
+        >
+          <VerseOfTheDay versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screen = await renderAndSettle(<FilterApp />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
+
+    screen.rerender(<FilterApp excludedVersionIds={[3034]} />)
+
+    expect(screen.queryByTestId('footnote-sheet')).toBeNull()
+    expect(screen.getByText(en.passageUnavailable)).toBeTruthy()
   })
 
   it('passes provider version filter lists into the share source fetch', async () => {

@@ -1,3 +1,4 @@
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import type {
   FootnoteData,
   VerseOfTheDayProps as WebVerseOfTheDayProps,
@@ -8,6 +9,7 @@ import { Button, Card, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
+import { isVersionIdDecidablyUnusable } from '../lib/version-usability'
 import { getTokens } from '../theme'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
@@ -60,12 +62,19 @@ export function VerseOfTheDay({
   const dayOfYear = dayOfYearProp ?? sampledDayOfYear
   const { passageId, status, retry } = useVerseOfTheDayPassageId(dayOfYear)
   const { shareSource, loadShareSource } = useVerseOfTheDayShareSource(versionId, passageId)
+  const { permittedVersionIds, excludedVersionIds, permittedLanguageTags } = useYouVersion()
   const scope = highlightScopeFor(passageId, versionId)
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  const versionRefused = isVersionIdDecidablyUnusable(versionId, {
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  })
+  const languageFilterKey = permittedLanguageTags?.join(',') ?? ''
   useEffect(() => {
     setFootnoteData(null)
-  }, [passageId, versionId])
+  }, [passageId, versionId, versionRefused, languageFilterKey])
 
   const handleShare = async () => {
     try {
@@ -156,7 +165,7 @@ export function VerseOfTheDay({
           )
         }}
       </HighlightsPaint>
-      {footnoteData !== null && Platform.OS !== 'web' ? (
+      {footnoteData !== null && !versionRefused && Platform.OS !== 'web' ? (
         <NativeSheet
           isOpen
           onClose={() => setFootnoteData(null)}
