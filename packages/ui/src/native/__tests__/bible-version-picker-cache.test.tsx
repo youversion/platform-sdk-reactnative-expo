@@ -45,7 +45,10 @@ function requestKind(url: string): RecordedRequest['kind'] | 'other' {
   return 'other'
 }
 
-function installPickerFetch(options?: { failLanguages?: () => boolean }) {
+function installPickerFetch(options?: {
+  failLanguages?: () => boolean
+  failLanguageVersions?: () => boolean
+}) {
   const requests: RecordedRequest[] = []
   jest.spyOn(global, 'fetch').mockImplementation((input) => {
     const url = String(input)
@@ -70,6 +73,9 @@ function installPickerFetch(options?: { failLanguages?: () => boolean }) {
     }
     if (parsed.pathname === '/v1/bibles') {
       const ranges = parsed.searchParams.getAll('language_ranges[]')
+      if (ranges.some((range) => range !== '*') && options?.failLanguageVersions?.()) {
+        return jsonResponse(JSON.stringify({ message: 'slow down' }), 429)
+      }
       if (ranges.includes('es')) {
         return jsonResponse(
           JSON.stringify({
@@ -174,6 +180,15 @@ describe('Bible version picker catalog cache', () => {
     const latestVersions = requests.filter((request) => request.kind === 'language-versions').at(-1)
     expect(latestVersions?.url).toContain('language_ranges')
     expect(latestVersions?.url).toContain('es')
+
+    const versionsAfterSpanish = countKind(requests, 'language-versions')
+    fireEvent.press(getByLabelText('Language'))
+    fireEvent.press(getByText('All (2)'))
+    fireEvent.press(await findByLabelText('English'))
+
+    await findByLabelText('King James Version')
+    expect(countKind(requests, 'catalog')).toBe(catalogAfterOpen)
+    expect(countKind(requests, 'language-versions')).toBe(versionsAfterSpanish)
   })
 
   it('reuses the catalog and the language versions after the picker is closed and opened', async () => {
@@ -224,5 +239,33 @@ describe('Bible version picker catalog cache', () => {
     expect(queryAllByText('Retry')).toHaveLength(0)
     expect(countKind(requests, 'catalog')).toBeGreaterThan(catalogBeforeRetry)
     expect(countKind(requests, 'language-versions')).toBeGreaterThan(0)
+  })
+
+  it('shows Retry after a rejected language-versions load and recovers when Retry is pressed', async () => {
+    let failLanguageVersions = true
+    const requests = installPickerFetch({
+      failLanguageVersions: () => failLanguageVersions,
+    })
+    const { findByLabelText, findAllByText, queryAllByText } = render(
+      <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
+      { wrapper },
+    )
+
+    const retryButtons = await findAllByText('Retry')
+    expect(queryAllByText('Error').length).toBeGreaterThan(0)
+    const versionsBeforeRetry = countKind(requests, 'language-versions')
+    expect(versionsBeforeRetry).toBeGreaterThan(0)
+    expect(countKind(requests, 'catalog')).toBeGreaterThan(0)
+
+    failLanguageVersions = false
+    const retryButton = retryButtons[0]
+    if (retryButton === undefined) {
+      throw new Error('expected a Retry button')
+    }
+    fireEvent.press(retryButton)
+
+    await findByLabelText('King James Version')
+    expect(queryAllByText('Retry')).toHaveLength(0)
+    expect(countKind(requests, 'language-versions')).toBeGreaterThan(versionsBeforeRetry)
   })
 })
