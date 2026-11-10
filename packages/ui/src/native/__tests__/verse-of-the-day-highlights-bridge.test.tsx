@@ -3,11 +3,12 @@
  * Scripture stays unmounted until today's passage id is known. The card does
  * not hand highlights to a WebView, and it does not apply or remove them.
  */
-import { render, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { Platform, Share } from 'react-native'
+import { Platform, Share, StyleSheet, Text } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
 import en from '../../i18n/locales/en.json'
 import { emptyHighlights } from '../../test-utils/default-hook-overrides'
@@ -22,9 +23,54 @@ import * as votdPassage from '../use-verse-of-the-day-passage-id'
 import * as votdShare from '../use-verse-of-the-day-share-source'
 
 const YELLOW = 'fffe00'
+const YELLOW_HEX = '#fffe00'
+const JOHN = 'For God so loved'
 
 function highlight(passageId: string, versionId = 111): Highlight {
   return { version_id: versionId, passage_id: passageId, color: YELLOW }
+}
+
+type Rendered = ReturnType<typeof render>
+
+function paintHighlight(sentence: string, root: Rendered): void {
+  const paragraph = root.UNSAFE_getAllByType(Text).find((node) => node.props.onTextLayout)
+  if (paragraph === undefined) {
+    throw new Error('missing paragraph layout')
+  }
+  fireEvent(paragraph, 'textLayout', {
+    nativeEvent: {
+      lines: [
+        {
+          text: sentence,
+          x: 0,
+          y: 0,
+          width: 240,
+          height: 32,
+          ascender: 24,
+          descender: -6,
+          capHeight: 18,
+          xHeight: 12,
+        },
+      ],
+    },
+  })
+  let parent: ReactTestInstance | null = paragraph.parent
+  while (parent !== null) {
+    if (parent.props.onLayout !== undefined) {
+      fireEvent(parent, 'layout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 40 } },
+      })
+      return
+    }
+    parent = parent.parent
+  }
+  throw new Error('missing block layout')
+}
+
+function hasPaint(root: Rendered, color: string): boolean {
+  return root.UNSAFE_getAllByType(Text).some((node) => {
+    return StyleSheet.flatten(node.props.style)?.backgroundColor === color
+  })
 }
 
 const useHighlightsMock = jest.fn(emptyHighlights)
@@ -96,13 +142,13 @@ describe('native scripture', () => {
     expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
   })
 
-  it('draws the verse while a highlight for that verse is in scope', async () => {
+  it('paints a highlight for the verse and clears it when the cache drops it', async () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
     stubHighlights([highlight('JHN.3.16')])
-    const { getByText } = render(<VerseOfTheDay versionId={111} />, { wrapper })
+    const screen = render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     await waitFor(() => {
-      expect(getByText('For God so loved')).toBeTruthy()
+      expect(screen.getByText(JOHN)).toBeTruthy()
     })
     expect(useHighlightsMock).toHaveBeenCalledWith({
       versionId: 111,
@@ -110,15 +156,27 @@ describe('native scripture', () => {
       chapter: '3',
       enabled: true,
     })
+    paintHighlight(JOHN, screen)
+    await waitFor(() => {
+      expect(hasPaint(screen, YELLOW_HEX)).toBe(true)
+    })
+
+    stubHighlights([])
+    screen.rerender(<VerseOfTheDay versionId={111} />)
+
+    await waitFor(() => {
+      expect(hasPaint(screen, YELLOW_HEX)).toBe(false)
+    })
   })
 
   it('draws the verse when nothing is highlighted', async () => {
     useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup('JHN.3.16'))
-    const { getByText } = render(<VerseOfTheDay versionId={111} />, { wrapper })
+    const screen = render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     await waitFor(() => {
-      expect(getByText('For God so loved')).toBeTruthy()
+      expect(screen.getByText(JOHN)).toBeTruthy()
     })
+    expect(hasPaint(screen, YELLOW_HEX)).toBe(false)
   })
 
   it('requests the looked-up chapter', async () => {

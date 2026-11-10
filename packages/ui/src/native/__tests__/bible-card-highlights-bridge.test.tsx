@@ -2,11 +2,13 @@
  * BibleCard subscribes at Highlight Scope and paints with native text.
  * It does not hand highlights to a WebView, and it does not apply or remove them.
  */
-import { render, waitFor } from '@testing-library/react-native'
+import { fireEvent, render, waitFor } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { StyleSheet, Text } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
 import { BIBLE_CARD_VERSION_PERSIST_KEY } from '../../lib/constants'
 import {
@@ -25,6 +27,8 @@ import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
 
 const YELLOW = 'fffe00'
+const YELLOW_HEX = '#fffe00'
+const JOHN = 'For God so loved'
 
 function highlight(passageId: string, versionId = 111): Highlight {
   return { version_id: versionId, passage_id: passageId, color: YELLOW }
@@ -37,6 +41,49 @@ function stubHighlights(highlights: Highlight[]) {
     ...emptyHighlights(options),
     highlights: options.enabled === false ? [] : highlights,
   }))
+}
+
+type Rendered = ReturnType<typeof render>
+
+function paintHighlight(sentence: string, root: Rendered): void {
+  const paragraph = root.UNSAFE_getAllByType(Text).find((node) => node.props.onTextLayout)
+  if (paragraph === undefined) {
+    throw new Error('missing paragraph layout')
+  }
+  fireEvent(paragraph, 'textLayout', {
+    nativeEvent: {
+      lines: [
+        {
+          text: sentence,
+          x: 0,
+          y: 0,
+          width: 240,
+          height: 32,
+          ascender: 24,
+          descender: -6,
+          capHeight: 18,
+          xHeight: 12,
+        },
+      ],
+    },
+  })
+  let parent: ReactTestInstance | null = paragraph.parent
+  while (parent !== null) {
+    if (parent.props.onLayout !== undefined) {
+      fireEvent(parent, 'layout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: 320, height: 40 } },
+      })
+      return
+    }
+    parent = parent.parent
+  }
+  throw new Error('missing block layout')
+}
+
+function hasPaint(root: Rendered, color: string): boolean {
+  return root.UNSAFE_getAllByType(Text).some((node) => {
+    return StyleSheet.flatten(node.props.style)?.backgroundColor === color
+  })
 }
 
 const wrapper = youVersionProviderWrapper('light', undefined, {
@@ -67,21 +114,33 @@ afterEach(() => {
 })
 
 describe('native scripture', () => {
-  it('draws the verse while a highlight for that verse is in scope', async () => {
+  it('paints a highlight for the verse and clears it when the cache drops it', async () => {
     stubHighlights([highlight('JHN.3.16')])
-    const { getByText } = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
+    const screen = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
 
     await waitFor(() => {
-      expect(getByText('For God so loved')).toBeTruthy()
+      expect(screen.getByText(JOHN)).toBeTruthy()
+    })
+    paintHighlight(JOHN, screen)
+    await waitFor(() => {
+      expect(hasPaint(screen, YELLOW_HEX)).toBe(true)
+    })
+
+    stubHighlights([])
+    screen.rerender(<BibleCard reference="JHN.3.16" versionId={111} />)
+
+    await waitFor(() => {
+      expect(hasPaint(screen, YELLOW_HEX)).toBe(false)
     })
   })
 
   it('draws the verse when nothing is highlighted', async () => {
-    const { getByText } = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
+    const screen = render(<BibleCard reference="JHN.3.16" versionId={111} />, { wrapper })
 
     await waitFor(() => {
-      expect(getByText('For God so loved')).toBeTruthy()
+      expect(screen.getByText(JOHN)).toBeTruthy()
     })
+    expect(hasPaint(screen, YELLOW_HEX)).toBe(false)
   })
 })
 
