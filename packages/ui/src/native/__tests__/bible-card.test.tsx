@@ -110,15 +110,18 @@ describe('BibleCard', () => {
       'NativeSheet',
       ({
         isOpen,
+        openKey,
         onClose,
         children,
       }: {
         isOpen: boolean
+        openKey?: number
         onClose: () => void
         children: ReactNode
       }) =>
         isOpen ? (
           <View testID="footnote-sheet">
+            <Text testID="footnote-sheet-open-key">{String(openKey ?? '')}</Text>
             <Pressable testID="footnote-sheet-close" onPress={onClose}>
               <Text>Close</Text>
             </Pressable>
@@ -660,6 +663,23 @@ describe('BibleCard', () => {
 
     fireEvent.press(getByTestId('footnote-sheet-close'))
     expect(queryByTestId('footnote-sheet')).toBeNull()
+  })
+
+  it('reopens the footnote sheet on a second marker tap after close', async () => {
+    const { getByTestId, queryByTestId } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" versionId={3034} />,
+      { wrapper: wrapper() },
+    )
+
+    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    expect(getByTestId('footnote-sheet-open-key').children).toContain('1')
+
+    fireEvent.press(getByTestId('footnote-sheet-close'))
+    expect(queryByTestId('footnote-sheet')).toBeNull()
+
+    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    expect(getByTestId('footnote-sheet')).toBeTruthy()
+    expect(getByTestId('footnote-sheet-open-key').children).toContain('2')
   })
 
   it('resolves system theme for footnote content when component theme is system', async () => {

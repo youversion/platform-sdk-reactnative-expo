@@ -13,6 +13,7 @@ import type { FontFamily } from '../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { versionGate, type VersionGate } from '../lib/version-usability'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
+import { highlightScopeFor } from './highlight-scope'
 import { highlightEndRoom, Passage } from './scripture/passage'
 import { usePassageStyle } from './scripture/passage-style'
 import { visibleBlocks } from './scripture/parse-passage'
@@ -99,9 +100,8 @@ export function BibleTextViewNative({
       ? { content: hostHtml.content, reference: hostHtml.reference }
       : null
   const load = usePassage(fetchBibleContent, versionId, address, supplied)
-  const highlights = useHighlightPaint(
-    requested === null ? null : { versionId, book: requested.book, chapter: requested.chapter },
-  )
+  // Intros load as passages but have no numeric chapter for paint.
+  const highlights = useHighlightPaint(highlightScopeFor(reference, versionId))
   const multiple = resolvedLineMultiple(lineHeight)
   const { look, paint } = usePassageStyle({
     passage: load.passage,
@@ -144,20 +144,32 @@ export function BibleTextViewNative({
     Promise.resolve(now.onFootnotePress(footnoteFor(now.passage, verse, html))).catch(console.error)
   }, [])
 
-  const passage = load.passage
+  // Supplied mode never paints a retained fetch: the host owns passage, loading, and error.
+  const passage =
+    suppliedMode && (hostHtml === null || address === null) ? null : load.passage
+  const hostLoading = suppliedMode && (passageState?.loading ?? false)
   const currentKey = address === null ? null : passageKey(versionId, address)
   const isCurrent = passage !== null && currentKey !== null && passage.key === currentKey
   let message: string | null = null
   let onRetry: (() => void) | null = null
-  if (hostHtml !== null && address === null) {
+  if (suppliedMode) {
+    if (hostError !== null) {
+      message = t(passageErrorKey(hostError))
+    } else if (hostLoading && passage === null) {
+      // Spinner below. Do not surface a prior fetch error while the host is loading.
+    } else if (hostHtml !== null && address === null) {
+      message = t('passageUnavailable')
+    } else if (passage === null) {
+      // Idle empty supplied state — not a forever spinner (fetch is disabled).
+      message = t('passageUnavailable')
+    } else if (load.error !== null) {
+      message = t(passageErrorKey(load.error))
+    }
+  } else if (gate === 'refused') {
     message = t('passageUnavailable')
-  } else if (!suppliedMode && gate === 'refused') {
-    message = t('passageUnavailable')
-  } else if (!suppliedMode && gate === 'lookupFailed' && lookup.error !== null) {
+  } else if (gate === 'lookupFailed' && lookup.error !== null) {
     message = t(passageErrorKey(lookup.error))
     onRetry = lookup.retry
-  } else if (hostError !== null) {
-    message = t(passageErrorKey(hostError))
   } else if (load.error !== null) {
     message = t(passageErrorKey(load.error))
     if (load.error !== 'unavailable') {

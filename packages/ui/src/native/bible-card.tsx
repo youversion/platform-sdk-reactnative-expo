@@ -75,6 +75,7 @@ type BibleCardBodyProps = Omit<
     onSelectVersion: (newVersionId: number) => Promise<void>
     showFootnoteSheet: boolean
     footnoteData: FootnoteData | null
+    footnoteOpenKey: number
     onCloseFootnote: () => void
   }
 
@@ -168,6 +169,7 @@ function BibleCardBody({
   onSelectVersion,
   showFootnoteSheet,
   footnoteData,
+  footnoteOpenKey,
   onCloseFootnote,
   reference,
   scriptureDirection,
@@ -253,6 +255,7 @@ function BibleCardBody({
       {showFootnoteSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
           onClose={onCloseFootnote}
           theme={resolvedTheme}
           enableContentPanningGesture={false}
@@ -363,6 +366,8 @@ export function BibleCard({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer
@@ -382,6 +387,7 @@ export function BibleCard({
 
   const handleFootnotePress = async (data: FootnoteData) => {
     setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
   }
 
   const onFootnotePress =
@@ -416,6 +422,7 @@ export function BibleCard({
           }}
           showFootnoteSheet={showFootnoteSheet}
           footnoteData={footnoteData}
+          footnoteOpenKey={footnoteOpenKey}
           onCloseFootnote={() => setFootnoteData(null)}
         />
       )}

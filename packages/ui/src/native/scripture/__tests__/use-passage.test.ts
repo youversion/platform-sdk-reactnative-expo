@@ -4,7 +4,7 @@ import type {
   FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 
-import { chapterRef, passageRefFor, usePassage } from '../use-passage'
+import { chapterRef, footnoteFor, passageRefFor, usePassage, type LoadedPassage } from '../use-passage'
 
 const VALID_BODY = JSON.stringify({
   content:
@@ -165,11 +165,39 @@ describe('passageRefFor', () => {
     ['JHN.3', 'JHN', '3'],
     ['JHN.3.16', 'JHN', '3'],
     ['JHN.3.16-18', 'JHN', '3'],
+    ['GEN.INTRO', 'GEN', 'INTRO'],
+    ['JHN.INTRO', 'JHN', 'INTRO'],
   ])('keeps %s whole and scopes it to %s %s', (usfm, book, chapter) => {
     expect(passageRefFor(usfm)).toEqual({ usfm, book, chapter })
   })
 
-  it.each(['', 'JHN', 'JHN.INTRO1', 'JHN.0'])('refuses %j', (usfm) => {
+  it.each(['', 'JHN', 'JHN.0', 'JHN..1', 'JHN.3.16.18'])('refuses %j', (usfm) => {
     expect(passageRefFor(usfm)).toBeNull()
   })
+})
+
+describe('footnoteFor', () => {
+  function passage(reference: string): LoadedPassage {
+    return {
+      usfm: 'JHN.3.16',
+      book: 'JHN',
+      chapter: '3',
+      key: '111:JHN.3.16',
+      versionId: 111,
+      reference,
+      parsed: { blocks: [], verses: new Map(), rtl: false },
+    }
+  }
+
+  it.each([
+    ['John 3:16', '16', 'John 3:16'],
+    ['John 3:16-18', '17', 'John 3:17'],
+    ['John 3', '16', 'John 3:16'],
+  ])(
+    'gives FootnoteContent a chapter reference so %j + verse %s heads as %j',
+    (reference, verse, heading) => {
+      const data = footnoteFor(passage(reference), Number(verse), '<span>note</span>')
+      expect(`${data.reference}:${data.verseNum}`).toBe(heading)
+    },
+  )
 })

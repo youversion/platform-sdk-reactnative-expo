@@ -3,7 +3,12 @@ import { useMemo } from 'react'
 
 import { useTheme } from '../../hooks/use-theme'
 import { useTokens } from '../../hooks/use-tokens'
-import { INTER_FONT, type FontFamily } from '../../lib/reader-fonts'
+import {
+  INTER_FONT,
+  SOURCE_SERIF_FONT,
+  UNTITLED_SERIF_FONT,
+  type FontFamily,
+} from '../../lib/reader-fonts'
 import { sansFace } from '../../theme/fonts'
 import { useSerifFace } from '../../theme/use-fonts'
 import { highlightPaint, type HighlightPaint } from './highlight-colors'
@@ -17,7 +22,10 @@ export type PassageStyleInput = {
   fontSize: number
   /** Line box as a multiple of `fontSize`. */
   lineMultiple: number
-  /** Inter draws sans. Every other stack draws the reader serif. */
+  /**
+   * Inter draws the SDK sans. Known serif stacks and the default draw the
+   * reader serif. Any other value keeps the host's face.
+   */
   fontFamily: FontFamily | undefined
   /** Overrides the passage's own strong-letter vote. */
   direction?: 'ltr' | 'rtl'
@@ -50,6 +58,11 @@ export function usePassageStyle({
   const ink = inkOverride ?? tokens.foreground
   const background = backgroundOverride ?? tokens.background
   const isSans = fontFamily === INTER_FONT
+  const isSdkSerif =
+    fontFamily === undefined ||
+    fontFamily === UNTITLED_SERIF_FONT ||
+    fontFamily === SOURCE_SERIF_FONT
+  const hostFace = isSans || isSdkSerif ? null : fontFamily
   const rtl = direction === undefined ? (passage?.parsed.rtl ?? false) : direction === 'rtl'
 
   // Highlights stay out of the deps, so a new highlight keeps `look`'s identity.
@@ -59,17 +72,26 @@ export function usePassageStyle({
       lineMultiple,
       rtl,
       // Inter ships no italic here, so sans keeps the upright face.
-      face: (weight, italic) =>
-        isSans
-          ? sansFace(tokens.fontFamily.sans, weight)
-          : serifFaceFor(weight, italic ? 'italic' : 'normal'),
+      face: (weight, italic) => {
+        if (isSans) {
+          return sansFace(tokens.fontFamily.sans, weight)
+        }
+        if (hostFace !== null) {
+          return {
+            fontFamily: hostFace,
+            fontWeight: weight,
+            fontStyle: italic ? 'italic' : 'normal',
+          }
+        }
+        return serifFaceFor(weight, italic ? 'italic' : 'normal')
+      },
       labelFace: sansFace(tokens.fontFamily.sans, 400),
       ink,
       wj: tokens.wj,
       underline: tokens.border,
       background,
     }),
-    [fontSize, lineMultiple, rtl, isSans, tokens, serifFaceFor, ink, background],
+    [fontSize, lineMultiple, rtl, isSans, hostFace, tokens, serifFaceFor, ink, background],
   )
 
   // Scoped to the rendered passage: the old one stays up while the next one loads.

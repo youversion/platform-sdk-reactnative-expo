@@ -267,7 +267,7 @@ describe('BibleTextView', () => {
 
     fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
     expect(onFootnotePress).toHaveBeenCalledWith(
-      expect.objectContaining({ verseNum: '16', reference: 'John 3:16' }),
+      expect.objectContaining({ verseNum: '16', reference: 'John 3' }),
     )
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
@@ -337,6 +337,16 @@ describe('BibleTextView', () => {
     await waitFor(() => expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif'))
   })
 
+  it('keeps a host fontFamily instead of replacing it with serif', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="sans-serif" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('sans-serif')
+  })
+
   it('draws a qs run in italic', async () => {
     serveOnly(
       'JHN.3.16',
@@ -385,12 +395,22 @@ describe('BibleTextView', () => {
   })
 
   it('shows an unreadable reference as unavailable and does not request a passage', async () => {
-    render(<BibleTextView reference="JHN.INTRO1" versionId={3034} />, {
+    render(<BibleTextView reference="not-usfm" versionId={3034} />, {
       wrapper: youVersionProviderWrapper(),
     })
 
     expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
     expect(passageRequests()).toEqual([])
+  })
+
+  it('requests a catalog introduction chapter', async () => {
+    serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+    render(<BibleTextView reference="GEN.INTRO" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('Introduction')).toBeTruthy()
+    expect(passageRequests().some((url) => url.includes('/passages/GEN.INTRO'))).toBe(true)
   })
 
   it('shows the connection message and loads the passage on retry', async () => {
@@ -458,6 +478,58 @@ describe('BibleTextView', () => {
     expect(passageRequests()).toEqual([])
   })
 
+  it('shows unavailable for an idle empty supplied state instead of spinning forever', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: false, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(screen.queryByLabelText('Loading')).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('shows a spinner for a supplied loading state with no passage', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('drops a retained fetch error when the host switches to a supplied loading state', async () => {
+    installFetch(() => Promise.reject(new TypeError('Network request failed')))
+    const view = render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(OFFLINE)).toBeTruthy()
+    expect(screen.getByText('Retry')).toBeTruthy()
+
+    view.rerender(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(OFFLINE)).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+  })
+
   it('throws when YouVersionProvider is missing', () => {
     expect(() => render(<BibleTextView reference="JHN.3.16" versionId={3034} />)).toThrow(
       'useYouVersion must be used inside of YouVersionProvider',
@@ -511,6 +583,21 @@ describe('BibleTextView', () => {
       })
 
       expect(screen.getByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 1,
+        book: '_',
+        chapter: '0',
+        enabled: false,
+      })
+    })
+
+    it('disables the subscription for a catalog introduction', async () => {
+      serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+      render(<BibleTextView reference="GEN.INTRO" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
+
+      expect(await screen.findByText('Introduction')).toBeTruthy()
       expect(useHighlightsMock).toHaveBeenCalledWith({
         versionId: 1,
         book: '_',

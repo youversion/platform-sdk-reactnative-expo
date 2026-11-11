@@ -10,10 +10,12 @@ import { parsePassage, type ParsedPassage } from './parse-passage'
 
 /**
  * Where a passage lives. `usfm` is the API path segment; `book` and `chapter`
- * scope highlights. Build one with `chapterRef` or `passageRefFor`.
+ * name the catalog chapter (numeric or intro). Highlight paint still needs a
+ * numeric chapter — use `highlightScopeFor` for that. Build one with
+ * `chapterRef` or `passageRefFor`.
  */
 export type PassageRef = {
-  /** `JHN.3`, `JHN.3.16`, or `JHN.3.16-18`. */
+  /** `JHN.3`, `JHN.INTRO`, `JHN.3.16`, or `JHN.3.16-18`. */
   usfm: string
   book: string
   chapter: string
@@ -25,12 +27,29 @@ export function chapterRef(book: string, chapter: string): PassageRef {
 }
 
 /**
- * A consumer USFM (chapter, verse, or range), read by the same core rule that
- * scopes highlights. `null` when core cannot find a book and chapter in it.
+ * A consumer USFM (chapter, verse, or range) the reader can fetch. Accepts
+ * catalog chapter ids such as `INTRO`. Numeric chapter rules stay with the
+ * highlight-scope parser; `null` when the string is not a book.chapter address.
  */
 export function passageRefFor(usfm: string): PassageRef | null {
   const scope = parseChapterScopeFromUsfm(usfm)
-  return scope === null ? null : { usfm, book: scope.book, chapter: scope.chapter }
+  if (scope !== null) {
+    return { usfm, book: scope.book, chapter: scope.chapter }
+  }
+  // Catalog ids (e.g. INTRO) load as chapters but are not highlight-scoped.
+  const parts = usfm.split('.')
+  if (parts.length !== 2) {
+    return null
+  }
+  const [book, chapter] = parts
+  if (!book || !chapter) {
+    return null
+  }
+  // A numeric chapter that failed the scope parser (e.g. `0`) stays refused.
+  if (/^\d+$/.test(chapter)) {
+    return null
+  }
+  return { usfm, book, chapter }
 }
 
 export type LoadedPassage = PassageRef & {
@@ -197,6 +216,18 @@ function fallbackReference({ usfm, book }: PassageRef): string {
   return `${book} ${usfm.slice(book.length + 1).replace('.', ':')}`
 }
 
+/**
+ * `FootnoteContent` treats `reference` as a chapter label and appends
+ * `:${verseNum}`. Verse and range API strings must be trimmed to the chapter.
+ */
+function chapterReference(reference: string | undefined): string | undefined {
+  if (reference === undefined) {
+    return undefined
+  }
+  const colon = reference.indexOf(':')
+  return colon === -1 ? reference : reference.slice(0, colon)
+}
+
 /** The footnote sheet payload for a tapped note. `verse` null is a note outside any verse. */
 export function footnoteFor(
   passage: LoadedPassage | null,
@@ -208,7 +239,7 @@ export function footnoteFor(
     verseNum: verse === null ? '' : String(verse),
     notes: info?.notes ?? [html],
     verseHtml: info?.html ?? '',
-    reference: passage?.reference,
+    reference: chapterReference(passage?.reference),
   }
 }
 
