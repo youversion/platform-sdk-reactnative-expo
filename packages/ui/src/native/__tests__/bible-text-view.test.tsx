@@ -190,6 +190,15 @@ describe('BibleTextView', () => {
     expect(passageRequests().some((url) => url.includes('/passages/JHN.3?'))).toBe(false)
   })
 
+  it('still paints native text when a deprecated dom prop is passed', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+  })
+
   it('shows a verse range as its own passage', async () => {
     serveOnly(
       'JHN.3.16-18',

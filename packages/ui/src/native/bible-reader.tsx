@@ -37,6 +37,7 @@ import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
+import type { DeprecatedDomProps } from '../lib/deprecated-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
@@ -215,6 +216,10 @@ export type BibleReaderProps = Omit<
    * `request` loads the chapter. `focusReference` also focuses the verse.
    */
   navigation?: BibleReaderNavigation
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DeprecatedDomProps
 }
 
 export function BibleReader({
@@ -245,6 +250,7 @@ export function BibleReader({
   onHighlightError,
   backgroundColor,
   foregroundColor,
+  dom: _dom,
   ref,
   navigation,
 }: BibleReaderProps): ReactNode {

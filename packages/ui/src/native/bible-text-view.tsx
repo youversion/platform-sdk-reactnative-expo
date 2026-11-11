@@ -6,6 +6,7 @@ import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
+import type { DeprecatedDomProps } from '../lib/deprecated-dom-props'
 import type { FontFamily } from '../lib/reader-fonts'
 import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
@@ -38,6 +39,10 @@ export type BibleTextViewProps = Pick<
    * This was already true under Expo DOM, where cached highlights won.
    */
   highlightedVerses?: Record<number, string>
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DeprecatedDomProps
 }
 
 /** A verse, range, or chapter in native text. Same renderer as `BibleReader`. */
@@ -45,6 +50,7 @@ export function BibleTextView({
   theme,
   onFootnotePress: consumerOnFootnotePress,
   highlightedVerses: _highlightedVerses,
+  dom: _dom,
   fontSize,
   ...props
 }: BibleTextViewProps): ReactNode {
