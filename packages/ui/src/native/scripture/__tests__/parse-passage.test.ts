@@ -20,6 +20,22 @@ describe('parsePassage', () => {
     expect(blocks.map((block) => block.classes)).toEqual([['q1']])
   })
 
+  it('keeps an sr section reference out of the previous verse', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>In the beginning</div>' +
+      '<div class="sr">(Mark 1.1-8)</div>' +
+      '<div class="p"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>And the earth</div></div>'
+    const { blocks, verses } = parsePassage(html)
+    const sectionRef = blocks.find((block) => block.classes.includes('sr'))
+    if (sectionRef === undefined) {
+      throw new Error('expected the sr block')
+    }
+    expect(sectionRef.heading).toBe(true)
+    expect(lineTexts(sectionRef)).toEqual(['(Mark 1.1-8)'])
+    expect(verses.get(1)?.text).toBe('In the beginning')
+    expect(verses.get(2)?.text).toBe('And the earth')
+  })
+
   it('sets a footnote against the word before it', () => {
     const html =
       '<div><div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>' +
