@@ -9,7 +9,7 @@ import {
   UNTITLED_SERIF_FONT,
   type FontFamily,
 } from '../../lib/reader-fonts'
-import { sansFace } from '../../theme/fonts'
+import { hostFace, sansFace } from '../../theme/fonts'
 import { useSerifFace } from '../../theme/use-fonts'
 import { highlightPaint, type HighlightPaint } from './highlight-colors'
 import type { PassageLook } from './passage'
@@ -67,7 +67,7 @@ export function usePassageStyle({
     fontFamily === undefined ||
     fontFamily === UNTITLED_SERIF_FONT ||
     fontFamily === SOURCE_SERIF_FONT
-  const hostFace =
+  const hostFamily =
     fontFamily !== undefined && !isSans && !isSdkSerif && !isCssFontStack(fontFamily)
       ? fontFamily
       : null
@@ -84,12 +84,8 @@ export function usePassageStyle({
         if (isSans) {
           return sansFace(tokens.fontFamily.sans, weight)
         }
-        if (hostFace !== null) {
-          return {
-            fontFamily: hostFace,
-            fontWeight: weight,
-            fontStyle: italic ? 'italic' : 'normal',
-          }
+        if (hostFamily !== null) {
+          return hostFace(hostFamily, weight, italic)
         }
         return serifFaceFor(weight, italic ? 'italic' : 'normal')
       },
@@ -99,7 +95,7 @@ export function usePassageStyle({
       underline: tokens.border,
       background,
     }),
-    [fontSize, lineMultiple, rtl, isSans, hostFace, tokens, serifFaceFor, ink, background],
+    [fontSize, lineMultiple, rtl, isSans, hostFamily, tokens, serifFaceFor, ink, background],
   )
 
   // Scoped to the rendered passage: the old one stays up while the next one loads.

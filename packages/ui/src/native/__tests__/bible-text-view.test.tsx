@@ -5,6 +5,7 @@ import type { ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
+import { highlightEndRoom } from '../scripture/passage'
 import { INTER_FONT } from '../../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { getTokens } from '../../theme'
@@ -130,6 +131,24 @@ function stubVersionNames(
   return () => {
     global.fetch = prior
   }
+}
+
+function passageChromeWrapper(text: string): ReactTestInstance {
+  const nodes = screen.getAllByText(text)
+  for (const node of nodes) {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const style = StyleSheet.flatten(current.props.style)
+      if (
+        style !== undefined &&
+        (style.paddingHorizontal !== undefined || style.marginHorizontal !== undefined)
+      ) {
+        return current
+      }
+      current = current.parent
+    }
+  }
+  throw new Error(`missing passage chrome wrapper for ${text}`)
 }
 
 function styleValue(text: string, key: keyof TextStyle): TextStyle[keyof TextStyle] {
@@ -345,6 +364,20 @@ describe('BibleTextView', () => {
     expect(screen.getByText('so loved the world', { exact: false })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
+  })
+
+  it('pads highlight end-room inside the host box with a matching background', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    const chrome = passageChromeWrapper(JOHN)
+    const style = StyleSheet.flatten(chrome.props.style)
+    expect(style?.marginHorizontal).toBeUndefined()
+    expect(style?.paddingHorizontal).toBe(highlightEndRoom(16))
+    expect(style?.backgroundColor).toBe(getTokens('light').background)
   })
 
   it('paints a cached highlight on the verse', async () => {
