@@ -15,6 +15,11 @@ import { highlightPaint, type HighlightPaint } from './highlight-colors'
 import type { PassageLook } from './passage'
 import type { LoadedPassage } from './use-passage'
 
+/** CSS stacks are not valid RN `fontFamily` values; map them to the SDK serif. */
+function isCssFontStack(fontFamily: string): boolean {
+  return fontFamily.includes(',') || fontFamily.includes('"') || fontFamily.includes("'")
+}
+
 export type PassageStyleInput = {
   /** The passage on screen. Its rtl vote and its scope drive look and paint. */
   passage: LoadedPassage | null
@@ -62,7 +67,10 @@ export function usePassageStyle({
     fontFamily === undefined ||
     fontFamily === UNTITLED_SERIF_FONT ||
     fontFamily === SOURCE_SERIF_FONT
-  const hostFace = isSans || isSdkSerif ? null : fontFamily
+  const hostFace =
+    fontFamily !== undefined && !isSans && !isSdkSerif && !isCssFontStack(fontFamily)
+      ? fontFamily
+      : null
   const rtl = direction === undefined ? (passage?.parsed.rtl ?? false) : direction === 'rtl'
 
   // Highlights stay out of the deps, so a new highlight keeps `look`'s identity.

@@ -1,0 +1,73 @@
+import { renderHook } from '@testing-library/react-native'
+
+import { INTER_FONT, UNTITLED_SERIF_FONT } from '../../../lib/reader-fonts'
+import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
+import { usePassageStyle } from '../passage-style'
+
+const wrapper = youVersionProviderWrapper()
+
+describe('usePassageStyle host fontFamily', () => {
+  it('keeps a single host face name', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: 'sans-serif',
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe('sans-serif')
+  })
+
+  it('draws the SDK serif for a CSS stack instead of passing it to RN', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: '"Georgia", serif',
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe('Untitled Serif')
+  })
+
+  it('still maps the Inter stack to Inter', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: INTER_FONT,
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe('Inter')
+  })
+
+  it('still maps the Untitled Serif token to Untitled Serif', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: UNTITLED_SERIF_FONT,
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe('Untitled Serif')
+  })
+})
