@@ -21,7 +21,7 @@ import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
-import type { InternalVersionFilterProps } from '../lib/version-filter-props'
+import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
@@ -84,6 +84,7 @@ type BibleCardBodyProps = Omit<
     onSelectVersion: (newVersionId: number) => Promise<void>
     showFootnoteSheet: boolean
     footnoteData: FootnoteData | null
+    footnoteOpenKey: number
     onCloseFootnote: () => void
   }
 
@@ -92,27 +93,6 @@ type BibleCardMetadataKey = {
   versionId: number
   filters: InternalVersionFilterProps
   fetchBibleContent: FetchBibleContent
-}
-
-function sameOptionalList<T>(a: readonly T[] | undefined, b: readonly T[] | undefined): boolean {
-  if (a === b) {
-    return true
-  }
-  if (a === undefined || b === undefined) {
-    return false
-  }
-  if (a.length !== b.length) {
-    return false
-  }
-  return a.every((item, index) => item === b[index])
-}
-
-function sameFilters(a: InternalVersionFilterProps, b: InternalVersionFilterProps): boolean {
-  return (
-    sameOptionalList(a.permittedVersionIds, b.permittedVersionIds) &&
-    sameOptionalList(a.excludedVersionIds, b.excludedVersionIds) &&
-    sameOptionalList(a.permittedLanguageTags, b.permittedLanguageTags)
-  )
 }
 
 function metadataMatchesKey(
@@ -128,7 +108,7 @@ function metadataMatchesKey(
     loadedFor.versionId === versionId &&
     loadedFor.reference === reference &&
     loadedFor.fetchBibleContent === fetchBibleContent &&
-    sameFilters(loadedFor.filters, filters)
+    sameVersionFilters(loadedFor.filters, filters)
   )
 }
 
@@ -202,6 +182,7 @@ function BibleCardBody({
   onSelectVersion,
   showFootnoteSheet,
   footnoteData,
+  footnoteOpenKey,
   onCloseFootnote,
   dom,
   reference,
@@ -223,8 +204,7 @@ function BibleCardBody({
       : metadata.abbreviation == null
         ? metadata.reference
         : `${metadata.reference} ${metadata.abbreviation}`
-  const versionPickerDisabled =
-    versionPickerRequiresLanguageId && metadata?.languageTag == null
+  const versionPickerDisabled = versionPickerRequiresLanguageId && metadata?.languageTag == null
   const isFullBleed = maxWidth === '100%'
 
   return (
@@ -299,6 +279,7 @@ function BibleCardBody({
       {showFootnoteSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
           onClose={onCloseFootnote}
           theme={resolvedTheme}
           enableContentPanningGesture={false}
@@ -411,6 +392,8 @@ export function BibleCard({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer
@@ -430,6 +413,7 @@ export function BibleCard({
 
   const handleFootnotePress = async (data: FootnoteData) => {
     setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
   }
 
   const onFootnotePress =
@@ -468,6 +452,7 @@ export function BibleCard({
           }}
           showFootnoteSheet={showFootnoteSheet}
           footnoteData={footnoteData}
+          footnoteOpenKey={footnoteOpenKey}
           onCloseFootnote={() => setFootnoteData(null)}
           dom={dom}
         />

@@ -1,14 +1,9 @@
-import {
-  ApiClient,
-  BibleClient,
-  getHttpStatus,
-  type GetVOTDOptions,
-} from '@youversion/platform-core'
+import { BibleClient, getHttpStatus, type GetVOTDOptions } from '@youversion/platform-core'
 
-import { DEFAULT_API_HOST } from '../constants'
+import { createApiClient } from '../api-client'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
-import { mergeSdkHeaders } from '../sdk-version'
+import { isZodError } from '../zod-error'
 import type {
   VerseOfTheDayApiError,
   VerseOfTheDayApiResult,
@@ -40,15 +35,7 @@ function votdOptions(options?: VerseOfTheDayOptions): GetVOTDOptions {
 }
 
 export function createVerseOfTheDayApi(config: CreateVerseOfTheDayApiConfig): VerseOfTheDayApi {
-  const client = new BibleClient(
-    new ApiClient({
-      appKey: config.appKey,
-      apiHost: config.apiHost ?? DEFAULT_API_HOST,
-      installationId: config.installationId,
-      additionalHeaders: mergeSdkHeaders(config.additionalHeaders),
-      timeout: config.timeout,
-    }),
-  )
+  const client = new BibleClient(createApiClient(config))
 
   return {
     get(day, options) {
@@ -104,8 +91,4 @@ function isClientError(status: number | undefined): status is number {
   if (status === 401 || status === 403 || status === 404) return false
   if (status === 408 || status === 429) return false
   return status >= 400 && status < 500
-}
-
-function isZodError(caught: Error): boolean {
-  return caught.name === 'ZodError' || caught.name === '$ZodError'
 }

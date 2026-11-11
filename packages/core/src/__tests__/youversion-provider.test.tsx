@@ -30,6 +30,7 @@ describe('YouVersionProvider', () => {
   it.each([
     ['with custom apiHost', { apiHost: 'api.custom.com' }, 'api.custom.com'],
     ['with default apiHost', {}, 'api.youversion.com'],
+    ['with empty apiHost', { apiHost: '' }, 'api.youversion.com'],
   ])('provides context to children immediately (%s)', (_label, props, expectedHost) => {
     render(
       <YouVersionProvider appKey="appkey" {...props}>

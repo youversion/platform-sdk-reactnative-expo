@@ -1,6 +1,5 @@
 import {
   buildFontMap,
-  DEFAULT_API_HOST,
   fetchUntitledSerifFont,
   fontMapKey,
   pickTtfSources,
@@ -259,7 +258,7 @@ describe('fetchUntitledSerifFont', () => {
       throw new Error('expected fetch to have been called')
     }
     const [url, init] = firstCall
-    expect(url).toBe(`https://${DEFAULT_API_HOST}/v1/fonts/${UNTITLED_SERIF_FONT_ID}`)
+    expect(url).toBe(`https://api.youversion.com/v1/fonts/${UNTITLED_SERIF_FONT_ID}`)
     expect(String(url)).not.toContain('app_key')
     expect(new Headers(init?.headers).get('X-YVP-App-Key')).toBe('test-key')
     expect(new Headers(init?.headers).get('Accept')).toBe('application/json')

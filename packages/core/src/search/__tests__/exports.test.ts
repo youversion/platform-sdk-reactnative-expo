@@ -19,6 +19,8 @@ describe('search package exports', () => {
     expect(names).not.toContain('createSearchApi')
     expect(names).not.toContain('searchUnified')
     expect(names).not.toContain('ApiClient')
+    expect(names).not.toContain('createApiClient')
+    expect(names).not.toContain('DEFAULT_API_HOST')
     expect(names).not.toContain('ok')
     expect(names).not.toContain('err')
   })
