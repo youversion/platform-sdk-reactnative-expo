@@ -671,13 +671,13 @@ describe('BibleCard', () => {
       { wrapper: wrapper() },
     )
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
     expect(getByTestId('footnote-sheet-open-key').children).toContain('1')
 
     fireEvent.press(getByTestId('footnote-sheet-close'))
     expect(queryByTestId('footnote-sheet')).toBeNull()
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    await pressFootnote()
     expect(getByTestId('footnote-sheet')).toBeTruthy()
     expect(getByTestId('footnote-sheet-open-key').children).toContain('2')
   })
