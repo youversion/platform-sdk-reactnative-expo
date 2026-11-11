@@ -1,6 +1,6 @@
 # Content-sized body for matchContents embeds
 
-> **Status.** `BibleCard` and `VerseOfTheDay` no longer have their own DOM files. They embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. Reader settings and the version and chapter pickers are native. Footnotes still use `withSheetDomDefaults`. The reader body passes its own `readerDom`.
+> **Status.** `BibleCard` and `VerseOfTheDay` no longer have their own DOM files. They embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. Reader settings, the version and chapter pickers, and footnotes are native. The reader body passes its own `readerDom`.
 
 Expo DOM Components' `dom={{ matchContents: true }}` injects a `ResizeObserver` on `document.body` and applies the reported `{width, height}` to the WebView container. Expo's DOM HTML template, however, pins `html, body { height: 100% }` and `#root { height: 100% }`, so the body always measures the WebView's own frame — never the content. That makes `matchContents` circular: the frame height is reported back as the frame height.
 
@@ -30,7 +30,7 @@ The native embed wrappers own this contract so consumers can drop the components
 }
 ```
 
-Sheet-hosted `matchContents` embeds (footnotes) use `withSheetDomDefaults` instead — same scroll-chrome defaults, no `containerStyle`.
+Footnote sheets are native text and do not take a `dom` prop.
 
 `flex: 0` lets the matched height win; `width: '100%'` keeps the DOM viewport width determinate (and overrides the matched width, which is what an embed filling its wrapper wants). A zero-height WKWebView still loads and reports its first measurement on iOS, so no placeholder `minHeight` is required. A content-sized embed has nothing to scroll, so scrolling, the iOS rubber-band bounce, and the Android overscroll glow are disabled by default alongside `matchContents`. Native scroll indicators are hidden via `showsVerticalScrollIndicator` / `showsHorizontalScrollIndicator` because `@expo/dom-webview` on Android does not honor `scrollEnabled` and defaults scrollbars to visible.
 

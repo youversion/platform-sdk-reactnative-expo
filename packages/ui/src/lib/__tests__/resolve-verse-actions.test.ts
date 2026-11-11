@@ -1,25 +1,19 @@
 /**
  * Layer 1 — the platform fork behind `verseActions`.
- *
- * Layer 3 cannot see this: a jest run is one platform, and the value is consumed
- * inside a `'use dom'` file that no native test renders. These four cases are the
- * whole coverage the branch gets.
+ * The host reads this once at module load, so a layer-3 test cannot move it.
  */
 import { resolveVerseActions } from '../resolve-verse-actions'
 
 describe('resolveVerseActions', () => {
-  it('switches the in-WebView popover off on iOS', () => {
+  it('passes none on iOS', () => {
     expect(resolveVerseActions('ios')).toBe('none')
   })
 
-  it('switches the in-WebView popover off on Android', () => {
+  it('passes none on Android', () => {
     expect(resolveVerseActions('android')).toBe('none')
   })
 
-  it('keeps the popover on web, where NativeSheet renders nothing', () => {
-    // The regression guard. Hardcoding `'none'` for every platform leaves web
-    // with no verse action UI at all — the native sheet cannot replace it there,
-    // because `NativeSheet` returns null on web.
+  it('passes popover on web', () => {
     expect(resolveVerseActions('web')).toBe('popover')
   })
 

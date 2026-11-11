@@ -5,14 +5,16 @@ Amended: 2026-08-12 — apply is palette-only. Remove follows the ANY rule for v
 Amended: 2026-08-24 — unconfigured auth omits the swatch tray. Copy and Share remain.
 Amended: 2026-08-25 — apply palette is six hexes (YPE-5059). Native dots mix against SHEET_SURFACE.
 Amended: 2026-09-01 — pin `@youversion/platform-react-ui` 2.12.0 so reader fill and WOC match YPE-5058.
+Amended: 2026-10-08. `BibleReader` draws selection and highlights in native text.
+Amended: 2026-10-13. The WebView reader is gone.
 
 ## Status
 
 Accepted
 
-Verse actions are the reference, Copy, and Share, and the highlight swatches when `auth` is configured. A missing `auth` omits the tray so a color tap cannot no-op. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The WebView popover is suppressed on iOS and Android with `verseActions="none"`. The Web SDK still owns selection and the selection payload. It renders controlled highlights. Native owns the paint data ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
+Verse actions are the reference, Copy, and Share, and the highlight swatches when `auth` is configured. A missing `auth` omits the tray so a color tap cannot no-op. Swift and Kotlin draw these as a native bottom sheet. React Native matches them. The native reader owns selection, the selection payload, and highlight paint ([ADR 0013](0013-native-highlights-optimistic-layer.md)).
 
-**Web keeps the popover.** `NativeSheet` renders nothing on web. Suppressing the popover there leaves no verse-action UI. The fork is `lib/resolve-verse-actions.ts`. The `'use dom'` file cannot read the host `Platform.OS`.
+**Web has no verse-action sheet.** `NativeSheet` renders nothing on web, and the chapter is not a WebView. Expo web is out of scope.
 
 **The sheet is non-modal.** A selection is built one verse at a time. Gorhom's backdrop takes the second tap and closes the sheet. An `opacity: 0` backdrop does not help: Gorhom overwrites `pointerEvents` to `'auto'` on open. The backdrop is dropped. The cost is that tap-outside dismiss does not exist. The exits are swipe-down, deselect, or an action on the sheet. Every themed sheet draws an upward drop shadow so a sheet without a backdrop still separates from the page.
 

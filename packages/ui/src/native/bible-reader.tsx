@@ -30,7 +30,6 @@ import {
 import { Platform, Share, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
-import type { BibleReaderProps as DomBibleReaderProps } from '../dom/bible-reader'
 import { getImpl } from './component-impls'
 import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
@@ -38,7 +37,6 @@ import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withSheetDomDefaults } from '../lib/embed-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
@@ -60,6 +58,7 @@ import {
   type BibleReaderVerseFocusAcknowledgment,
 } from './bible-reader-navigation'
 import { BibleChapterPickerSheet } from './bible-chapter-picker-sheet'
+import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
@@ -70,7 +69,6 @@ import { NativeSheet } from './native-sheet'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -150,7 +148,7 @@ export type BibleReaderHandle = {
 }
 
 export type BibleReaderProps = Omit<
-  DomBibleReaderProps,
+  BibleReaderBodyProps,
   | 'appKey'
   | 'highlights'
   // Picked per platform by `VERSE_ACTIONS` above, not a consumer choice.
@@ -192,9 +190,8 @@ export type BibleReaderProps = Omit<
    * Handle Copy yourself instead of the SDK's `expo-clipboard` fallback. The
    * native verse action sheet's Copy button fires it, with the same payload
    * `onVerseSelect` already carried.
-   *
-   * Native only. On web the in-WebView popover handles Copy itself.
    */
+
   onCopy?: (data: BibleReaderShareData) => void | Promise<void>
   /** Share's counterpart to {@link BibleReaderProps.onCopy}. Falls back to RN's `Share.share`. */
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
@@ -254,8 +251,7 @@ export function BibleReader({
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
-  // Read for `userInfo`, `signIn`, and the sign-out guard. The access token is
-  // deliberately not read here: it never crosses into the WebView.
+  // Read for `userInfo`, `signIn`, and the sign-out guard. The access token stays out of the chapter.
   const auth = useYVAuthOptional()
   const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
@@ -512,14 +508,11 @@ export function BibleReader({
   }
 
   // ── Verse actions ────────────────────────────────────────────────────────
-  // The reader owns the committed selection so it can raise a native sheet over
-  // it. The Web SDK still owns selection *state*. This is a mirror of what the
-  // Web SDK committed, and the only thing traveling back is the clear signal.
+  // The reader owns the committed selection so it can raise a native sheet over it.
   const [verseSelection, setVerseSelection] = useState<BibleReaderVerseSelection | null>(null)
-  // One-way DOM command, bumped on every exit from the sheet. With the popover
-  // suppressed, nothing inside the WebView clears the selection any more. The
-  // count is *added* to the consumer's `clearSelectionSignal` instead of
-  // replacing it, so both the public prop and the reader's own exits can clear.
+  // Bumped on every exit from the sheet. The count is added to the consumer's
+  // `clearSelectionSignal` instead of replacing it, so both the public prop and
+  // the reader's own exits can clear.
   const [internalClearCount, setInternalClearCount] = useState(0)
 
   // The consent prompt is not in here. The flow owns that one, gated on
@@ -573,8 +566,8 @@ export function BibleReader({
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
 
-  // Which circles the tray shows, projected from the same painted array the
-  // WebView renders. A swatch can never disagree with the passage behind it.
+  // Which circles the tray shows, projected from the painted highlights.
+  // A swatch can never disagree with the passage behind it.
   // No `auth` config means highlighting cannot succeed and the sign-in prompt
   // has nowhere to go, so the tray is empty — Copy and Share still render.
   const swatches = useMemo(() => {
@@ -726,8 +719,7 @@ export function BibleReader({
     }
   }
 
-  // The consumer override wins. Otherwise the native fallback runs, because
-  // browser defaults do not work inside an Expo DOM WebView.
+  // The consumer override wins. Otherwise the reader copies with expo-clipboard.
   const handleCopy = async (data: BibleReaderShareData) => {
     try {
       if (consumerOnCopy) {
@@ -754,9 +746,7 @@ export function BibleReader({
     }
   }
 
-  // `shareData` rides in on `onVerseSelect`, so these handlers need no round-trip
-  // back into the WebView. Read the data before `closeVerseActions` drops the
-  // selection.
+  // `shareData` arrives on `onVerseSelect`. Read it before `closeVerseActions` drops the selection.
   const handleCopyPress = () => {
     const data = verseSelection?.shareData
     closeVerseActions()
@@ -789,13 +779,12 @@ export function BibleReader({
     ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
     : ({} as const)
 
-  // Pad scroll content inside the WebView so the closing copyright clears the
-  // native tab bar overlay and home indicator. NativeTabs adjusts ScrollViews
-  // automatically, but the reader opts out — clearance is owned here.
+  // Pad the chapter so the closing copyright clears the tab bar and home indicator.
+  // NativeTabs adjusts ScrollViews automatically, but the reader opts out. Clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
-  const BibleReaderDOM = getImpl('BibleReaderDom')
+  const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
   const readerDom = useMemo(
@@ -866,7 +855,7 @@ export function BibleReader({
             />
           ) : null}
           <View style={{ flex: 1 }}>
-            <BibleReaderDOM
+            <BibleReaderNative
               {...authProps}
               appKey={context.appKey}
               apiHost={context.apiHost}
@@ -977,18 +966,15 @@ export function BibleReader({
           isOpen={!!footnoteData}
           openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
-          showAndroidLoader
           theme={resolvedTheme}
+          enableContentPanningGesture={false}
         >
           <FootnoteContent
-            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
+            versionAbbreviation={versionAbbreviation}
+            lineSpacing={lineSpacing}
             fontSize={fontSize}
-            appKey={context.appKey}
-            apiHost={context.apiHost}
-            installationId={context.installationId}
-            locale={lng}
           />
         </NativeSheet>
       )}

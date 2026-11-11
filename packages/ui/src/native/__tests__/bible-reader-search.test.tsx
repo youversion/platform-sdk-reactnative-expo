@@ -55,7 +55,7 @@ describe('BibleReader native Search', () => {
   beforeEach(() => {
     latestReaderDomProps = {}
     installBibleReaderTestImpls()
-    setImpl('BibleReaderDom', MockDOM)
+    setImpl('BibleReaderNative', MockDOM)
     setImpl('BibleReaderSearchSheet', CaptureSearchSheet)
   })
 
