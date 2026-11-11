@@ -133,6 +133,22 @@ describe('usePassage', () => {
     expect(result.current).toMatchObject({ passage: null, loading: false, error: null })
   })
 
+  it('clears the error when the address becomes null after a failed fetch', async () => {
+    const fetchBibleContent = respond(503)
+    const { result, rerender } = renderHook(
+      ({ address }: { address: ReturnType<typeof chapterRef> | null }) =>
+        usePassage(fetchBibleContent, 111, address),
+      { initialProps: { address: chapterRef('GEN', '1') } },
+    )
+
+    await waitFor(() => expect(result.current.error).toBe('failed'))
+
+    rerender({ address: null })
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.loading).toBe(false)
+  })
+
   it('parses supplied HTML and does not fetch', async () => {
     const fetchBibleContent = respond(200, VALID_BODY)
     const html =

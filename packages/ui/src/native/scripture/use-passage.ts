@@ -139,6 +139,7 @@ export function usePassage(
   useEffect(() => {
     if (suppliedContent !== null || usfm === null) {
       setPending(null)
+      setError(null)
       return
     }
     let cancelled = false
