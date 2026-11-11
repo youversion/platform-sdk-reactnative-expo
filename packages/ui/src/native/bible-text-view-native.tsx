@@ -194,8 +194,9 @@ export function BibleTextViewNative({
     <View
       pointerEvents={isCurrent ? 'auto' : 'none'}
       style={{
-        // Highlight paint runs past the words. Pull the column back so the words stay flush.
-        marginHorizontal: -highlightEndRoom(fontSize),
+        // Highlight paint runs past the words — keep that room inside the host box.
+        paddingHorizontal: highlightEndRoom(fontSize),
+        backgroundColor: look.background,
         opacity: isCurrent ? 1 : 0.4,
       }}
     >
