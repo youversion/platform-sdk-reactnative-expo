@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  userEvent,
+  waitFor,
+} from '@testing-library/react-native'
 import { useEffect, useState } from 'react'
 import { AppState, Pressable, Text, View, type AppStateStatus } from 'react-native'
 import { getCachedHighlights, setCachedHighlights } from '../../highlights/cache'
@@ -207,6 +215,13 @@ afterEach(() => {
 })
 
 describe('AuthProvider — mount', () => {
+  // Jest counts this file's first create() toward the 5s test limit.
+  // beforeAll is outside that limit.
+  beforeAll(() => {
+    render(<Text>warmup</Text>)
+    cleanup()
+  })
+
   it('clears stale cached userInfo when no tokens are stored', async () => {
     mmkvStorage.set(MMKV_AUTH_KEYS.cachedUserInfo, JSON.stringify({ id: 'stale-user' }))
     mockLoadTokens.mockResolvedValue(noStoredTokens)
