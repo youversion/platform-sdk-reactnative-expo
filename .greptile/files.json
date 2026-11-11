@@ -38,7 +38,7 @@
     },
     {
       "path": "packages/ui/src/native/register-dom-impls.ts",
-      "description": "Production registration of DOM components, including bible-reader, bible-text-view, and footnote-content"
+      "description": "Production registration of DOM components, including bible-reader and bible-text-view, plus the native footnote sheet"
     },
     {
       "path": "packages/ui/src/native/component-impls.ts",

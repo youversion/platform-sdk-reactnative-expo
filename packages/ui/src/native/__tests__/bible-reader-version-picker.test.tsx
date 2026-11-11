@@ -51,7 +51,7 @@ describe('BibleReader version picker integration', () => {
   beforeEach(async () => {
     latestDomProps = {}
     installBibleReaderTestImpls()
-    setImpl('BibleReaderDom', MockDOM)
+    setImpl('BibleReaderNative', MockDOM)
     setImpl(
       'BibleVersionPickerSheet',
       ({

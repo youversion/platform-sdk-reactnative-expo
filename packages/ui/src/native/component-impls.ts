@@ -4,7 +4,7 @@ export type ImplKey =
   | 'BibleAppLogo'
   | 'BibleChapterPicker'
   | 'BibleChapterPickerSheet'
-  | 'BibleReaderDom'
+  | 'BibleReaderNative'
   | 'BibleReaderSearchSheet'
   | 'BibleReaderSettingsSheet'
   | 'BibleTextViewDom'

@@ -18,7 +18,7 @@ import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
 import { useLocale } from '../i18n/locale-context'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withEmbedDomDefaults, withSheetDomDefaults } from '../lib/embed-dom-props'
+import { withEmbedDomDefaults } from '../lib/embed-dom-props'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import { encodeFontFamilyForDom, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
 import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -37,7 +37,6 @@ const DEFAULT_MAX_WIDTH = 700
 /** Web `yv:card-content` when `maxWidth="100%"` — full-bleed shell, capped inner column. */
 const FULL_BLEED_INNER_MAX_WIDTH = 600
 
-// Placeholder so NativeSheet can mount FootnoteContent on page load and pre-warm the WebView.
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
   notes: [],
@@ -85,6 +84,7 @@ type BibleCardBodyProps = Omit<
     onSelectVersion: (newVersionId: number) => Promise<void>
     showFootnoteSheet: boolean
     footnoteData: FootnoteData | null
+    footnoteOpenKey: number
     onCloseFootnote: () => void
   }
 
@@ -182,6 +182,7 @@ function BibleCardBody({
   onSelectVersion,
   showFootnoteSheet,
   footnoteData,
+  footnoteOpenKey,
   onCloseFootnote,
   dom,
   reference,
@@ -278,19 +279,17 @@ function BibleCardBody({
       {showFootnoteSheet && (
         <NativeSheet
           isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
           onClose={onCloseFootnote}
-          showAndroidLoader
           theme={resolvedTheme}
+          enableContentPanningGesture={false}
         >
           <FootnoteContent
-            dom={withSheetDomDefaults()}
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
-            appKey={appKey}
-            apiHost={apiHost}
-            installationId={installationId}
-            locale={locale}
+            versionAbbreviation={metadata?.abbreviation}
             scriptureDirection={scriptureDirection}
+            fontSize={DEFAULT_FONT_SIZE}
           />
         </NativeSheet>
       )}
@@ -393,6 +392,8 @@ export function BibleCard({
   })
 
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer
@@ -412,6 +413,7 @@ export function BibleCard({
 
   const handleFootnotePress = async (data: FootnoteData) => {
     setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
   }
 
   const onFootnotePress =
@@ -450,6 +452,7 @@ export function BibleCard({
           }}
           showFootnoteSheet={showFootnoteSheet}
           footnoteData={footnoteData}
+          footnoteOpenKey={footnoteOpenKey}
           onCloseFootnote={() => setFootnoteData(null)}
           dom={dom}
         />
