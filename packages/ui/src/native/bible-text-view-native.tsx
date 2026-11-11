@@ -38,7 +38,7 @@ export type BibleTextViewPassageState = Omit<WebPassageState, 'error'> & {
 export type BibleTextViewNativeProps = {
   reference: string
   versionId: number
-  fontSize?: number
+  fontSize: number
   /** Line box as a multiple of `fontSize`. A finite value above 0 is used as given. */
   lineHeight?: number
   fontFamily?: FontFamily
@@ -53,8 +53,6 @@ export type BibleTextViewNativeProps = {
   passageState?: BibleTextViewPassageState
 }
 
-const DEFAULT_FONT_SIZE = 20
-
 /**
  * A USFM passage drawn with the reader's `Passage`. Grows with its text.
  * Reads the scheme from `ThemeContext`, so a theme override wraps it.
@@ -62,7 +60,7 @@ const DEFAULT_FONT_SIZE = 20
 export function BibleTextViewNative({
   reference,
   versionId,
-  fontSize = DEFAULT_FONT_SIZE,
+  fontSize,
   lineHeight,
   fontFamily,
   showVerseNumbers = true,
@@ -198,7 +196,6 @@ export function BibleTextViewNative({
       style={{
         // Highlight paint runs past the words. Pull the column back so the words stay flush.
         marginHorizontal: -highlightEndRoom(fontSize),
-        backgroundColor: look.background,
         opacity: isCurrent ? 1 : 0.4,
       }}
     >
