@@ -17,6 +17,7 @@ import ko from './ko.json'
 import nl from './nl.json'
 import no from './no.json'
 import pt from './pt.json'
+import ro from './ro.json'
 import ru from './ru.json'
 import sr from './sr.json'
 import sv from './sv.json'
@@ -50,6 +51,7 @@ const localeResources = {
   nl: nl,
   no: no,
   pt: pt,
+  ro: ro,
   ru: ru,
   sr: sr,
   sv: sv,
