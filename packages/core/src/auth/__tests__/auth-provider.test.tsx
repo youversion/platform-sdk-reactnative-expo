@@ -631,6 +631,51 @@ describe('AuthProvider — refresh failure policy', () => {
   }
   const clearedTokens = { accessToken: null, refreshToken: null, expiryDate: null }
 
+  it('aborts a hung token refresh, stops loading, and keeps the session', async () => {
+    jest.useFakeTimers()
+    const previousFetch = global.fetch
+    const fetchMock: jest.MockedFunction<typeof fetch> = jest.fn()
+    fetchMock.mockImplementation((_input, init) => {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal == null) {
+          return
+        }
+        signal.addEventListener('abort', () => {
+          reject(signal.reason)
+        })
+      })
+    })
+    global.fetch = fetchMock
+
+    try {
+      mockLoadTokens.mockResolvedValue({
+        accessToken: 'stored-access',
+        refreshToken: 'stored-refresh',
+        expiryDate: new Date(Date.now() - 1000),
+      })
+
+      render(
+        <AuthProvider {...defaultProps}>
+          <AuthPeek />
+        </AuthProvider>,
+      )
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(10_000)
+      })
+
+      expect(getText('isLoading')).toBe('false')
+      expect(getText('error')).toMatch(/abort/i)
+      expect(getText('isAuthenticated')).toBe('true')
+      expect(getText('accessToken')).toBe('stored-access')
+      expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
+    } finally {
+      global.fetch = previousFetch
+      jest.useRealTimers()
+    }
+  })
+
   it('keeps tokens on a transient error (e.g. network failure) so the user can retry', async () => {
     mockLoadTokens.mockResolvedValue(expiredStored)
     mockRefreshTokens.mockRejectedValue(new Error('Network request failed'))

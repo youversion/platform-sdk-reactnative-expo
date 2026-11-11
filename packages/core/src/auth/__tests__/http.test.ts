@@ -128,6 +128,35 @@ describe('error paths (via exchangeCodeForTokens)', () => {
     await expect(callExchange()).rejects.toThrow('Token endpoint returned 400: bad request body')
   })
 
+  it('aborts a stalled token request after 10s and not before', async () => {
+    jest.useFakeTimers()
+    try {
+      mockFetch.mockImplementation((_input, init) => {
+        return new Promise((_resolve, reject) => {
+          const signal = init?.signal
+          if (signal == null) {
+            return
+          }
+          signal.addEventListener('abort', () => {
+            reject(signal.reason)
+          })
+        })
+      })
+
+      const pending = callExchange()
+      const expectation = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+
+      await jest.advanceTimersByTimeAsync(9_999)
+      expect(lastInit().signal?.aborted).toBe(false)
+
+      await jest.advanceTimersByTimeAsync(1)
+      await expectation
+      expect(lastInit().signal?.aborted).toBe(true)
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+
   it.each<[string, MalformedTokenBody]>([
     ['missing access_token', { refresh_token: 'r', expires_in: '1', token_type: 'Bearer' }],
     ['missing refresh_token', { access_token: 'a', expires_in: '1', token_type: 'Bearer' }],
