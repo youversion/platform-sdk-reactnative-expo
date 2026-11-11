@@ -430,7 +430,7 @@ function classList(el: Element): string[] {
 }
 
 function isHeadingClass(classes: readonly string[]): boolean {
-  return classes.some((c) => /^(s\d?|ms\d?|mr|r|d|qa|sp)$/.test(c))
+  return classes.some((c) => /^(s\d?|ms\d?|mr|r|d|qa|sp|sr)$/.test(c))
 }
 
 /** Per verse: share text, footnote-sheet HTML, and notes, across every fragment in order. */
