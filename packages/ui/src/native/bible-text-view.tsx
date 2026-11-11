@@ -1,6 +1,7 @@
-import type {
-  BibleTextViewProps as WebBibleTextViewProps,
-  FootnoteData,
+import {
+  BIBLE_READER_FONT,
+  type BibleTextViewProps as WebBibleTextViewProps,
+  type FootnoteData,
 } from '@youversion/platform-react-ui'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
@@ -11,6 +12,8 @@ import type { FontFamily } from '../lib/reader-fonts'
 import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
 import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
+
+const DEFAULT_FONT_SIZE = BIBLE_READER_FONT.DEFAULT
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -68,11 +71,12 @@ export function BibleTextView({
         }
       : undefined)
   const FootnoteContent = getImpl('FootnoteContent')
+  const resolvedFontSize = fontSize ?? DEFAULT_FONT_SIZE
 
   // useTokens reads the provider above the component that calls it, so the override wraps the body.
   return (
     <ThemeContext.Provider value={resolvedTheme}>
-      <BibleTextViewNative {...props} fontSize={fontSize} onFootnotePress={onFootnotePress} />
+      <BibleTextViewNative {...props} fontSize={resolvedFontSize} onFootnotePress={onFootnotePress} />
       {opensSheet && (
         <NativeSheet
           isOpen={footnoteData !== null}
@@ -84,7 +88,7 @@ export function BibleTextView({
           <FootnoteContent
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
-            fontSize={fontSize}
+            fontSize={resolvedFontSize}
           />
         </NativeSheet>
       )}

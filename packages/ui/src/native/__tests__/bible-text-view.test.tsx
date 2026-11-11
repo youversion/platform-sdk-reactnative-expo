@@ -87,6 +87,51 @@ function filteredWrapper(filters: {
   }
 }
 
+function fetchUrl(input: RequestInfo | URL): string {
+  if (input instanceof URL) {
+    return input.href
+  }
+  if (input instanceof Request) {
+    return input.url
+  }
+  return input
+}
+
+function metadataResponse(body: string): Promise<Response> {
+  return Promise.resolve(
+    new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    }),
+  )
+}
+
+function stubVersionNames(
+  names: Record<number, string>,
+  languageTags: Record<number, string> = {},
+): () => void {
+  const prior = global.fetch
+  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = fetchUrl(input)
+    const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
+    if (match !== null && !url.includes('/books')) {
+      const abbreviation = names[Number(match[1])]
+      if (abbreviation !== undefined) {
+        return metadataResponse(
+          JSON.stringify({
+            abbreviation,
+            language_tag: languageTags[Number(match[1])] ?? 'en',
+          }),
+        )
+      }
+    }
+    return prior(input, init)
+  })
+  return () => {
+    global.fetch = prior
+  }
+}
+
 function styleValue(text: string, key: keyof TextStyle): TextStyle[keyof TextStyle] {
   const nodes = screen.getAllByText(text)
   for (const node of nodes) {
@@ -161,8 +206,11 @@ describe('BibleTextView', () => {
     useHighlightsMock.mockReset()
     useHighlightsMock.mockImplementation(emptyHighlights)
     installFetch(() => notFound())
-    setImpl('FootnoteContent', ({ data }: { data: FootnoteData }) => (
-      <Text testID="footnote-verse">{data.verseNum}</Text>
+    setImpl('FootnoteContent', ({ data, fontSize }: { data: FootnoteData; fontSize?: number }) => (
+      <>
+        <Text testID="footnote-verse">{data.verseNum}</Text>
+        <Text testID="footnote-font-size">{String(fontSize)}</Text>
+      </>
     ))
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="footnote-sheet">{children}</View> : null,
@@ -346,7 +394,7 @@ describe('BibleTextView', () => {
     await waitFor(() => expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif'))
   })
 
-  it('keeps a host fontFamily instead of replacing it with serif', async () => {
+  it('keeps a single host fontFamily name instead of replacing it with serif', async () => {
     serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
     render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="sans-serif" />, {
       wrapper: youVersionProviderWrapper(),
@@ -354,6 +402,17 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText(JOHN)).toBeTruthy()
     expect(styleValue(JOHN, 'fontFamily')).toBe('sans-serif')
+  })
+
+  it('draws the SDK serif for a CSS fontFamily stack', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(
+      <BibleTextView reference="JHN.3.16" versionId={3034} fontFamily={'"Georgia", serif'} />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif')
   })
 
   it('draws a qs run in italic', async () => {
@@ -401,6 +460,127 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
     expect(passageRequests()).toEqual([])
+  })
+
+  it('hides scripture when the permit list is empty', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: filteredWrapper({ permittedVersionIds: [] }),
+    })
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(screen.queryByText(JOHN)).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('hides scripture when the version language is outside the provider list', async () => {
+    const restore = stubVersionNames({ 3034: 'RVR' }, { 3034: 'es' })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      restore()
+    }
+  })
+
+  it('hides scripture when a language list is set and the version has no language tag', async () => {
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB' }))
+      }
+      return prior(input, init)
+    })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('offers retry when a language lookup fails, then shows an allowed passage', async () => {
+    let failLookup = true
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        if (failLookup) {
+          return Promise.reject(new Error('offline'))
+        }
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB', language_tag: 'en' }))
+      }
+      return prior(input, init)
+    })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(OFFLINE)).toBeTruthy()
+      expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(passageRequests()).toEqual([])
+
+      failLookup = false
+      fireEvent.press(screen.getByText('Retry'))
+
+      expect(await screen.findByText(JOHN)).toBeTruthy()
+      expect(screen.queryByText(OFFLINE)).toBeNull()
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('shows scripture when the version language is on the provider list', async () => {
+    const restore = stubVersionNames({ 3034: 'BSB' }, { 3034: 'en' })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+      expect(await screen.findByText(JOHN)).toBeTruthy()
+    } finally {
+      restore()
+    }
+  })
+
+  it('shows a spinner while language lookup is in flight and does not fetch the passage', async () => {
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/3034(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return new Promise(() => {})
+      }
+      return prior(input, init)
+    })
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByLabelText('Loading')).toBeTruthy()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      global.fetch = prior
+    }
   })
 
   it('shows an unreadable reference as unavailable and does not request a passage', async () => {
@@ -451,18 +631,25 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText(JOHN)).toBeTruthy()
     const drawn = styleValue(JOHN, 'lineHeight')
-    expect(drawn).toBe(40)
-    expect(drawn).not.toBe(20 * lineMultiple(READER_LINE_SPACING.LG))
+    expect(drawn).toBe(32)
+    expect(drawn).not.toBe(16 * lineMultiple(READER_LINE_SPACING.LG))
   })
 
-  it('uses font size 20 when fontSize is omitted', async () => {
-    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+  it('uses font size 16 for verse and footnote when fontSize is omitted', async () => {
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
     render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
       wrapper: youVersionProviderWrapper(),
     })
 
-    expect(await screen.findByText(JOHN)).toBeTruthy()
-    expect(styleValue(JOHN, 'fontSize')).toBe(20)
+    expect(await screen.findByText('For God')).toBeTruthy()
+    expect(styleValue('For God', 'fontSize')).toBe(16)
+    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    expect(screen.getByTestId('footnote-font-size').props.children).toBe('16')
   })
 
   it('renders supplied HTML and does not fetch', async () => {
