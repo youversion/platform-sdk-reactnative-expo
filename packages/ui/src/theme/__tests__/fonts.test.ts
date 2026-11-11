@@ -3,6 +3,7 @@ import {
   fetchUntitledSerifFont,
   fontMapKey,
   pickTtfSources,
+  hostFace,
   sansFace,
   serifFace,
   UNTITLED_SERIF_FONT_ID,
@@ -308,6 +309,21 @@ describe('sansFace', () => {
     expect(sansFace('Inter', 700)).toEqual({ fontFamily: 'Inter_bold' })
     expect(sansFace('Inter', 500)).toEqual({ fontFamily: 'Inter_medium' })
     expect(sansFace('Inter', 400)).toEqual({ fontFamily: 'Inter' })
+  })
+})
+
+describe('hostFace', () => {
+  it('keeps the host family name and uses weight and style', () => {
+    expect(hostFace('Georgia', 400, false)).toEqual({
+      fontFamily: 'Georgia',
+      fontWeight: 400,
+      fontStyle: 'normal',
+    })
+    expect(hostFace('Georgia', 700, true)).toEqual({
+      fontFamily: 'Georgia',
+      fontWeight: 700,
+      fontStyle: 'italic',
+    })
   })
 })
 

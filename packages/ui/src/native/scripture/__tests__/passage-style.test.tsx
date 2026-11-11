@@ -7,6 +7,26 @@ import { usePassageStyle } from '../passage-style'
 const wrapper = youVersionProviderWrapper()
 
 describe('usePassageStyle host fontFamily', () => {
+  it('styles host italics with fontStyle, not a suffixed family name', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: 'Georgia',
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, true)).toEqual({
+      fontFamily: 'Georgia',
+      fontWeight: 400,
+      fontStyle: 'italic',
+    })
+  })
+
   it('keeps a single host face name', () => {
     const { result } = renderHook(
       () =>
