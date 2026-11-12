@@ -29,13 +29,23 @@ const CSS_OTHER_KEYWORDS = new Set([
   'unset',
 ])
 
-/** CSS stacks, generic keywords, and `var()` are not RN face names; they map to an SDK face. */
+/**
+ * CSS stacks, generic keywords, and `var()` are not RN face names; they map to
+ * an SDK face. A stack is classified by its last entry (the generic fallback).
+ */
 function cssFontKind(fontFamily: string): 'sans' | 'serif' | null {
   const value = fontFamily.trim().toLowerCase()
   if (CSS_SANS_KEYWORDS.has(value)) {
     return 'sans'
   }
-  if (CSS_OTHER_KEYWORDS.has(value) || value.startsWith('var(') || /[,"']/.test(value)) {
+  if (CSS_OTHER_KEYWORDS.has(value) || value.startsWith('var(')) {
+    return 'serif'
+  }
+  if (/[,"']/.test(value)) {
+    const last = value.split(',').at(-1)?.trim().replace(/["']/g, '') ?? ''
+    if (CSS_SANS_KEYWORDS.has(last)) {
+      return 'sans'
+    }
     return 'serif'
   }
   return null
@@ -49,9 +59,9 @@ export type PassageStyleInput = {
   /** Line box as a multiple of `fontSize`. */
   lineMultiple: number
   /**
-   * Inter and CSS sans keywords draw the SDK sans. Serif tokens, other CSS
-   * stacks, keywords, `var()`, and the default draw the reader serif. Any other
-   * value is a host face name.
+   * Inter and CSS sans keywords (or stacks that end in one) draw the SDK sans.
+   * Serif tokens, other CSS stacks/keywords, `var()`, and the default draw the
+   * reader serif. Any other value is a host face name.
    */
   fontFamily: FontFamily | undefined
   /** Overrides the passage's own strong-letter vote. */
