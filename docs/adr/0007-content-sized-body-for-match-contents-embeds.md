@@ -1,6 +1,6 @@
 # Content-sized body for matchContents embeds
 
-> **Status.** `BibleCard` and `VerseOfTheDay` no longer have their own DOM files. They embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. Reader settings, the version and chapter pickers, and footnotes are native. The reader body passes its own `readerDom`.
+> **Status.** `BibleCard` and `VerseOfTheDay` embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. `BibleReader`, `BibleTextView`, and footnote sheets are native text.
 
 Expo DOM Components' `dom={{ matchContents: true }}` injects a `ResizeObserver` on `document.body` and applies the reported `{width, height}` to the WebView container. Expo's DOM HTML template, however, pins `html, body { height: 100% }` and `#root { height: 100% }`, so the body always measures the WebView's own frame — never the content. That makes `matchContents` circular: the frame height is reported back as the frame height.
 
@@ -34,4 +34,4 @@ Footnote sheets are native text and do not take a `dom` prop.
 
 `flex: 0` lets the matched height win; `width: '100%'` keeps the DOM viewport width determinate (and overrides the matched width, which is what an embed filling its wrapper wants). A zero-height WKWebView still loads and reports its first measurement on iOS, so no placeholder `minHeight` is required. A content-sized embed has nothing to scroll, so scrolling, the iOS rubber-band bounce, and the Android overscroll glow are disabled by default alongside `matchContents`. Native scroll indicators are hidden via `showsVerticalScrollIndicator` / `showsHorizontalScrollIndicator` because `@expo/dom-webview` on Android does not honor `scrollEnabled` and defaults scrollbars to visible.
 
-Consumer values still win: `matchContents: false` restores plain flex sizing with no container defaults, and a consumer `containerStyle` is merged after the defaults so it overrides per-key. See `apps/example/app/(tabs)/verse-of-the-day.tsx` and `bible-card.tsx` for the reference layout (centered, `maxWidth`-capped wrapper around a bare component). `BibleTextView` uses the same default and the same escape hatch when a host wants the WebView to fill a flex parent instead of hugging scripture.
+Consumer values still win: `matchContents: false` restores plain flex sizing with no container defaults, and a consumer `containerStyle` is merged after the defaults so it overrides per-key. See `apps/example/app/(tabs)/verse-of-the-day.tsx` and `bible-card.tsx` for the reference layout (centered, `maxWidth`-capped wrapper around a bare component). `BibleTextView` is native text and does not take `dom`.

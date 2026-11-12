@@ -94,7 +94,7 @@ describe('sampleTop', () => {
 
 const LOOK: PassageLook = {
   fontSize: 20,
-  lineSpacing: 1.7,
+  lineMultiple: 1.64,
   rtl: false,
   face: () => ({}),
   labelFace: {},

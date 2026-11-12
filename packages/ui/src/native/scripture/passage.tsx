@@ -34,7 +34,8 @@ type Weight = 400 | 500 | 700
 /** Everything a block needs that does not change per verse. One object per settings change. */
 export type PassageLook = {
   fontSize: number
-  lineSpacing: number
+  /** Line box as a multiple of `fontSize`. */
+  lineMultiple: number
   rtl: boolean
   /** Text style naming the reader-font face for a weight and slant. */
   face: (weight: Weight, italic: boolean) => TextStyle
@@ -55,10 +56,12 @@ type PassageProps = {
   paint: ReadonlyMap<number, HighlightPaint>
   /** Verses kept bright while a focus dims the rest; `null` dims nothing. */
   focus: VerseFocusDim
-  onVersePress: (verse: number) => void
+  /** Absent for read-only text: verses take no taps. */
+  onVersePress?: (verse: number) => void
   onNotePress: (verse: number | null, html: string) => void
-  onBlockLayout: (index: number, y: number, height: number) => void
-  onBlockRef: (index: number, node: RNTextInstance | null) => void
+  /** Reader-only. Scroll and focus measure blocks. */
+  onBlockLayout?: (index: number, y: number, height: number) => void
+  onBlockRef?: (index: number, node: RNTextInstance | null) => void
   /** Verses whose line positions the reader needs before it can scroll. */
   probeVerses?: readonly number[] | null
   onVerseLines?: (index: number, boxes: ReadonlyMap<number, LineBox> | null) => void
@@ -164,11 +167,9 @@ const BlockView = memo(function BlockView({
 }: BlockViewProps): ReactNode {
   const { t } = useSdkTranslation()
   const { fontSize } = look
-  const lineBox = rule.size * lineMultiple(look.lineSpacing)
+  const lineBox = rule.size * look.lineMultiple
   const drift =
-    -ATTACHMENT_DRIFT *
-    rule.size *
-    (lineMultiple(look.lineSpacing) - lineMultiple(READER_LINE_SPACING.DEFAULT))
+    -ATTACHMENT_DRIFT * rule.size * (look.lineMultiple - lineMultiple(READER_LINE_SPACING.DEFAULT))
   const blockDimmed = focus !== null && block.heading
   const hasSelection = block.verses.some((verse) => selected.has(verse))
   const hasPaint = block.verses.some((verse) => paint.has(verse))
@@ -217,7 +218,7 @@ const BlockView = memo(function BlockView({
     const ghost = layer !== 'text'
     const fill = verse === null ? undefined : paint.get(verse)
     const overInk = ghost ? null : (fill?.text ?? null)
-    const pressable = !ghost && verse !== null
+    const pressable = !ghost && verse !== null && onVersePress !== undefined
     // Inline views fill the line box (Android: the band's ascent) so a highlight runs
     // through them; the content shifts back by the same amount to stay where it was.
     const background = backdrop(layer, fill, dimmed)
@@ -379,7 +380,7 @@ const BlockView = memo(function BlockView({
     }
     const node = (
       <RNText
-        ref={ghost ? undefined : (node) => onBlockRef(index, node)}
+        ref={ghost || onBlockRef === undefined ? undefined : (node) => onBlockRef(index, node)}
         onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
         onLayout={
           ghost || !endAligned
@@ -408,7 +409,11 @@ const BlockView = memo(function BlockView({
             <RNText
               key={segmentIndex}
               suppressHighlighting
-              onPress={ghost || verse === null ? undefined : () => onVersePress(verse)}
+              onPress={
+                ghost || verse === null || onVersePress === undefined
+                  ? undefined
+                  : () => onVersePress(verse)
+              }
               style={{
                 color: ghost ? TRANSPARENT : color(ink, 1, dimmed),
                 backgroundColor:
@@ -434,7 +439,7 @@ const BlockView = memo(function BlockView({
   }
 
   const onLayout = (event: LayoutChangeEvent): void => {
-    onBlockLayout(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
+    onBlockLayout?.(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
     const { width, height } = event.nativeEvent.layout
     if (size.width !== width || size.height !== height) {
       update({ size: { width, height } })
@@ -803,7 +808,7 @@ function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): strin
   const focused = state.focus === null ? 'n' : 'f'
   // Remount when a focus starts measuring lines. An in-place update does not emit them again.
   const probe = blockProbed(block, state.probeVerses) ? 'p' : '.'
-  const looks = `${look.fontSize}|${look.lineSpacing}|${look.face(400, false).fontFamily}|${look.ink}|`
+  const looks = `${look.fontSize}|${look.lineMultiple}|${look.face(400, false).fontFamily}|${look.ink}|`
   return (
     looks +
     focused +

@@ -1,132 +1,244 @@
-import { fireEvent, render, within } from '@testing-library/react-native'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import type { UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import type { FootnoteData } from '@youversion/platform-react-ui'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import type { ReactNode } from 'react'
-import { Platform, Pressable, Text, View } from 'react-native'
+import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native'
+import type { ReactTestInstance } from 'react-test-renderer'
 
-import { FONT_FAMILY_TOKEN, INTER_FONT } from '../../lib/reader-fonts'
-import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
+import { highlightEndRoom } from '../scripture/passage'
+import { INTER_FONT } from '../../lib/reader-fonts'
+import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { getTokens } from '../../theme'
+import { defaultHookOverrides, emptyHighlights } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
-import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
-import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
-import { BibleTextView } from '../bible-text-view'
-import FootnoteContent from '../footnote-content'
+import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { YouVersionProvider } from '../youversion-provider'
+import { BibleTextView } from '../bible-text-view'
+import { lineMultiple } from '../scripture/styles'
 
-const EMBED_DEFAULTS = {
-  matchContents: true,
-  containerStyle: { flex: 0, width: '100%' },
-  scrollEnabled: false,
-  bounces: false,
-  overScrollMode: 'never',
-  showsVerticalScrollIndicator: false,
-  showsHorizontalScrollIndicator: false,
-} as const
+const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
+const OFFLINE = 'We\u2019re having difficulties with your connection.'
+const JOHN = 'For God so loved the world'
+const GAVE = 'that he gave'
 
-const sampleFootnote: FootnoteData = {
-  verseNum: '3',
-  notes: [],
-  verseHtml: '<p>footnote</p>',
+const useHighlightsMock = jest.fn(emptyHighlights)
+
+function verseBlock(verse: number, text: string): string {
+  return `<span class="yv-v" v="${verse}"></span><span class="yv-vlbl">${verse}</span>${text}`
 }
 
-type BibleTextViewDomProps = {
-  appKey: string
-  apiHost?: string
-  fetchBibleContent?: unknown
-  reference?: string
-  versionId?: number
-  showVerseNumbers?: boolean
-  fontSize?: number
-  fontFamily?: string
-  theme?: string
-  permittedVersionIds?: number[]
+function passageHtml(body: string): string {
+  return `<div><div class="p">${body}</div></div>`
+}
+
+function jsonPassage(html: string, reference: string, status = 200): Response {
+  return new Response(JSON.stringify({ content: html, reference }), {
+    status,
+    headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+  })
+}
+
+function notFound(): Response {
+  return new Response('', { status: 404, headers: { 'cache-control': 'no-store' } })
+}
+
+function installFetch(onPassage: (usfm: string) => Response | Promise<Response>): void {
+  const prior = global.fetch
+  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input instanceof Request ? input.url : String(input)
+    const match = /\/passages\/([^?]+)/.exec(url)
+    if (match?.[1] === undefined) {
+      return prior(input, init)
+    }
+    return Promise.resolve(onPassage(decodeURIComponent(match[1])))
+  })
+}
+
+function serveOnly(usfm: string, html: string, reference: string): void {
+  installFetch((requested) => (requested === usfm ? jsonPassage(html, reference) : notFound()))
+}
+
+function passageRequests(): string[] {
+  return jest
+    .mocked(global.fetch)
+    .mock.calls.map(([input]) => (input instanceof Request ? input.url : String(input)))
+    .filter((url) => url.includes('/passages/'))
+}
+
+function highlightWrapper(theme: 'light' | 'dark' = 'light') {
+  return youVersionProviderWrapper(theme, undefined, { useHighlights: useHighlightsMock })
+}
+
+function filteredWrapper(filters: {
   excludedVersionIds?: number[]
+  permittedVersionIds?: number[]
   permittedLanguageTags?: string[]
-  locale?: string
-  dom?: {
-    matchContents?: boolean
-    containerStyle?: unknown
-    scrollEnabled?: boolean
-    bounces?: boolean
-    overScrollMode?: string
-    showsVerticalScrollIndicator?: boolean
-    showsHorizontalScrollIndicator?: boolean
-  }
-  onFootnotePress?: (data: FootnoteData) => Promise<void>
-}
-
-let latestTextViewDomProps: Partial<BibleTextViewDomProps> = {}
-
-function MockBibleTextViewDOM(props: BibleTextViewDomProps) {
-  latestTextViewDomProps = props
-  return (
-    <View testID="mock-btv-dom">
-      <Text testID="mock-app-key">{props.appKey}</Text>
-      <Text testID="mock-reference">{props.reference ?? ''}</Text>
-      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
-      <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
-      <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
-      <Text testID="mock-font-family">{props.fontFamily ?? ''}</Text>
-      <Text testID="mock-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-has-footnote-handler">{props.onFootnotePress ? 'yes' : 'no'}</Text>
-      <Pressable
-        testID="mock-footnote-trigger"
-        onPress={() => void props.onFootnotePress?.(sampleFootnote)}
-      >
-        <Text>footnote</Text>
-      </Pressable>
-    </View>
-  )
-}
-
-function MockFootnoteContent(props: {
-  data: FootnoteData
-  theme?: string
-  fontSize?: number
 }) {
-  return (
-    <View testID="mock-footnote-content">
-      <Text testID="mock-footnote-verse">{props.data.verseNum}</Text>
-      <Text testID="mock-footnote-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-footnote-font-size">{String(props.fontSize ?? '')}</Text>
-    </View>
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <YouVersionProvider
+        appKey="test-key"
+        theme="light"
+        hookOverrides={{ ...defaultHookOverrides, useHighlights: useHighlightsMock }}
+        {...filters}
+      >
+        {children}
+      </YouVersionProvider>
+    )
+  }
+}
+
+function fetchUrl(input: RequestInfo | URL): string {
+  if (input instanceof URL) {
+    return input.href
+  }
+  if (input instanceof Request) {
+    return input.url
+  }
+  return input
+}
+
+function metadataResponse(body: string): Promise<Response> {
+  return Promise.resolve(
+    new Response(body, {
+      status: 200,
+      headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    }),
   )
+}
+
+function stubVersionNames(
+  names: Record<number, string>,
+  languageTags: Record<number, string> = {},
+): () => void {
+  const prior = global.fetch
+  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = fetchUrl(input)
+    const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
+    if (match !== null && !url.includes('/books')) {
+      const abbreviation = names[Number(match[1])]
+      if (abbreviation !== undefined) {
+        return metadataResponse(
+          JSON.stringify({
+            abbreviation,
+            language_tag: languageTags[Number(match[1])] ?? 'en',
+          }),
+        )
+      }
+    }
+    return prior(input, init)
+  })
+  return () => {
+    global.fetch = prior
+  }
+}
+
+function passageChromeWrapper(text: string): ReactTestInstance {
+  const nodes = screen.getAllByText(text)
+  for (const node of nodes) {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const style = StyleSheet.flatten(current.props.style)
+      if (
+        style !== undefined &&
+        (style.paddingHorizontal !== undefined || style.marginHorizontal !== undefined)
+      ) {
+        return current
+      }
+      current = current.parent
+    }
+  }
+  throw new Error(`missing passage chrome wrapper for ${text}`)
+}
+
+function styleValue(text: string, key: keyof TextStyle): TextStyle[keyof TextStyle] {
+  const nodes = screen.getAllByText(text)
+  for (const node of nodes) {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      const value = StyleSheet.flatten(current.props.style)?.[key]
+      if (value !== undefined) {
+        return value
+      }
+      current = current.parent
+    }
+  }
+  throw new Error(`missing ${key} for ${text}`)
+}
+
+function paintHighlight(sentence: string): void {
+  const paragraph = screen.UNSAFE_getAllByType(Text).find((node) => node.props.onTextLayout)
+  if (paragraph === undefined) {
+    throw new Error('missing paragraph layout')
+  }
+  fireEvent(paragraph, 'textLayout', {
+    nativeEvent: {
+      lines: [
+        {
+          text: sentence,
+          x: 0,
+          y: 0,
+          width: 240,
+          height: 32,
+          ascender: 24,
+          descender: -6,
+          capHeight: 18,
+          xHeight: 12,
+        },
+      ],
+    },
+  })
+  let parent = paragraph.parent
+  while (parent !== null) {
+    if (parent.props.onLayout !== undefined) {
+      fireEvent(parent, 'layout', {
+        nativeEvent: { layout: { x: 0, y: 0, width: 300, height: 40 } },
+      })
+      return
+    }
+    parent = parent.parent
+  }
+  throw new Error('missing block layout')
+}
+
+function pressVerse(text: string): void {
+  const nodes = screen.getAllByText(text)
+  for (const node of nodes) {
+    let current: ReactTestInstance | null = node
+    while (current !== null) {
+      if (current.props.onPress !== undefined) {
+        fireEvent.press(current)
+        return
+      }
+      current = current.parent
+    }
+  }
+  throw new Error(`no pressable ancestor for ${text}`)
 }
 
 describe('BibleTextView', () => {
   const originalOs = Platform.OS
+  let priorFetch: typeof fetch
 
   beforeEach(() => {
-    latestTextViewDomProps = {}
-    stubDeviceLocale('xx-XX', 'xx')
-    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
-    setImpl('FootnoteContent', MockFootnoteContent)
-    setImpl(
-      'NativeSheet',
-      ({
-        isOpen,
-        onClose,
-        children,
-      }: {
-        isOpen: boolean
-        onClose: () => void
-        children: ReactNode
-      }) =>
-        isOpen ? (
-          <View testID="footnote-sheet">
-            <Pressable testID="footnote-sheet-close" onPress={onClose}>
-              <Text>Close</Text>
-            </Pressable>
-            {children}
-          </View>
-        ) : null,
+    priorFetch = global.fetch
+    useHighlightsMock.mockReset()
+    useHighlightsMock.mockImplementation(emptyHighlights)
+    installFetch(() => notFound())
+    setImpl('FootnoteContent', ({ data, fontSize }: { data: FootnoteData; fontSize?: number }) => (
+      <>
+        <Text testID="footnote-verse">{data.verseNum}</Text>
+        <Text testID="footnote-font-size">{String(fontSize)}</Text>
+      </>
+    ))
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="footnote-sheet">{children}</View> : null,
     )
   })
 
   afterEach(() => {
+    global.fetch = priorFetch
     resetImpls()
-    jest.restoreAllMocks()
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
       enumerable: true,
@@ -134,247 +246,593 @@ describe('BibleTextView', () => {
     })
   })
 
-  it('forwards appKey from YouVersionProvider and passage props to the DOM entry', () => {
-    const { getByTestId } = render(
-      <BibleTextView reference="JHN.1.1-4" versionId={3034} showVerseNumbers fontSize={18} />,
-      { wrapper: wrapper() },
-    )
-
-    expect(getByTestId('mock-app-key').children).toContain('test-key')
-    expect(getByTestId('mock-reference').children).toContain('JHN.1.1-4')
-    expect(getByTestId('mock-version-id').children).toContain('3034')
-    expect(getByTestId('mock-show-verse-numbers').children).toContain('1')
-    expect(getByTestId('mock-font-size').children).toContain('18')
-    expect(latestTextViewDomProps.apiHost).toBe('api.youversion.com')
-    expect(latestTextViewDomProps.fetchBibleContent).toEqual(expect.any(Function))
-  })
-
-  it('forwards a component-level theme override to the DOM entry', () => {
-    const { getByTestId } = render(
-      <BibleTextView reference="GEN.1.1" versionId={1} theme="dark" />,
-      { wrapper: wrapper('light') },
-    )
-
-    expect(getByTestId('mock-theme').children).toContain('dark')
-  })
-
-  it('resolves system theme to light or dark before it crosses the bridge', () => {
-    render(<BibleTextView reference="GEN.1.1" versionId={1} theme="system" />, {
-      wrapper: wrapper('light'),
+  it('shows the words of JHN.3.16 when the fetch serves only that verse', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
     })
 
-    expect(latestTextViewDomProps.theme).toBe('light')
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(passageRequests().some((url) => url.includes('/passages/JHN.3.16?'))).toBe(true)
+    expect(passageRequests().some((url) => url.includes('/passages/JHN.3?'))).toBe(false)
   })
 
-  it('forwards the provider scheme when the component does not override theme', () => {
-    render(<BibleTextView reference="GEN.1.1" versionId={1} />, {
-      wrapper: wrapper('dark'),
+  it('still paints native text when a deprecated dom prop is passed', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} dom={{ matchContents: true }} />, {
+      wrapper: youVersionProviderWrapper(),
     })
 
-    expect(latestTextViewDomProps.theme).toBe('dark')
-    expect(latestTextViewDomProps).not.toHaveProperty('backgroundColor')
-    expect(latestTextViewDomProps).not.toHaveProperty('foregroundColor')
+    expect(await screen.findByText(JOHN)).toBeTruthy()
   })
 
-  it('encodes fontFamily as a quote-free token and forwards fontSize as a prop', () => {
-    const { getByTestId } = render(
-      <BibleTextView reference="GEN.1.1" versionId={1} fontSize={18} fontFamily={INTER_FONT} />,
-      { wrapper: wrapper() },
+  it('shows a verse range as its own passage', async () => {
+    serveOnly(
+      'JHN.3.16-18',
+      passageHtml(`${verseBlock(16, `${JOHN} `)}${verseBlock(17, GAVE)}`),
+      'John 3:16-18',
     )
-
-    expect(getByTestId('mock-font-size').children).toContain('18')
-    expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.INTER)
-    expect(latestTextViewDomProps.fontFamily).toBe(FONT_FAMILY_TOKEN.INTER)
-    expect(latestTextViewDomProps.fontFamily).not.toContain('"')
-  })
-
-  it('encodes a custom fontFamily so the bridge value has no template-literal hazards', () => {
-    const custom = 'Foo `bar` ${baz}, sans-serif'
-    render(<BibleTextView reference="GEN.1.1" versionId={1} fontFamily={custom} />, {
-      wrapper: wrapper(),
+    render(<BibleTextView reference="JHN.3.16-18" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
     })
 
-    expect(latestTextViewDomProps.fontFamily).not.toBe(custom)
-    expect(latestTextViewDomProps.fontFamily).not.toContain('"')
-    expect(latestTextViewDomProps.fontFamily).not.toContain('`')
-    expect(latestTextViewDomProps.fontFamily).not.toContain('${')
+    expect(await screen.findByText(JOHN, { exact: false })).toBeTruthy()
+    expect(screen.getByText(GAVE)).toBeTruthy()
+    expect(passageRequests().some((url) => url.includes('/passages/JHN.3.16-18?'))).toBe(true)
+    expect(passageRequests().some((url) => /\/passages\/JHN\.3\?/.test(url))).toBe(false)
   })
 
-  it('applies the embed dom defaults when no dom prop is passed', () => {
-    render(<BibleTextView reference="GEN.1.1" versionId={1} />, { wrapper: wrapper() })
+  it('shows the verse number by default and hides it when asked', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    const view = render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
 
-    expect(latestTextViewDomProps.dom).toEqual(EMBED_DEFAULTS)
+    expect(await screen.findByText('16')).toBeTruthy()
+    view.rerender(<BibleTextView reference="JHN.3.16" versionId={3034} showVerseNumbers={false} />)
+    await waitFor(() => expect(screen.queryByText('16')).toBeNull())
+    expect(screen.getByText(JOHN)).toBeTruthy()
   })
 
-  it('merges a consumer containerStyle after the embed defaults', () => {
+  it('hides footnote markers when renderNotes is false', async () => {
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} renderNotes={false} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('For God')).toBeTruthy()
+    expect(screen.getByText('so loved the world', { exact: false })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+  })
+
+  it('opens the footnote sheet with the verse number', async () => {
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
+    expect(screen.getByTestId('footnote-verse').props.children).toBe('16')
+  })
+
+  it('gives a consumer the footnote and does not mount the sheet', async () => {
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
+    const onFootnotePress = jest.fn(async () => undefined)
     render(
-      <BibleTextView reference="GEN.1.1" versionId={1} dom={{ containerStyle: { width: 300 } }} />,
-      { wrapper: wrapper() },
+      <BibleTextView reference="JHN.3.16" versionId={3034} onFootnotePress={onFootnotePress} />,
+      {
+        wrapper: youVersionProviderWrapper(),
+      },
     )
 
-    expect(latestTextViewDomProps.dom?.containerStyle).toEqual([
-      { flex: 0, width: '100%' },
-      { width: 300 },
-    ])
+    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    expect(onFootnotePress).toHaveBeenCalledWith(
+      expect.objectContaining({ verseNum: '16', reference: 'John 3' }),
+    )
+    expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
 
-  it('restores plain flex sizing when the consumer opts out of matchContents', () => {
-    render(<BibleTextView reference="GEN.1.1" versionId={1} dom={{ matchContents: false }} />, {
-      wrapper: wrapper(),
+  it('does not draw footnote markers on web when the host passed no handler', async () => {
+    Object.defineProperty(Platform, 'OS', { configurable: true, enumerable: true, value: 'web' })
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
     })
 
-    expect(latestTextViewDomProps.dom).toEqual({ matchContents: false })
+    expect(await screen.findByText('For God')).toBeTruthy()
+    expect(screen.getByText('so loved the world', { exact: false })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+    expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
 
-  it('gives the footnote sheet the configured font size', () => {
-    const { getByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} fontSize={20} />,
-      { wrapper: wrapper() },
-    )
-
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-
-    expect(getByTestId('mock-footnote-font-size').children).toContain('20')
-  })
-
-  it('opens the native footnote sheet with footnote data when no consumer handler is provided', () => {
-    const { getByTestId, queryByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} />,
-      { wrapper: wrapper() },
-    )
-
-    expect(queryByTestId('footnote-sheet')).toBeNull()
-
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-
-    expect(getByTestId('footnote-sheet')).toBeTruthy()
-    expect(getByTestId('mock-footnote-verse').children).toContain('3')
-  })
-
-  it('renders the marker payload as verse text in the native sheet', () => {
-    setImpl('FootnoteContent', FootnoteContent)
-    const { getByTestId } = render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
-      wrapper: wrapper(),
+  it('cancels Passage highlight end-room so words sit flush with the host edge', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
     })
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-
-    const sheet = within(getByTestId('footnote-sheet'))
-    expect(sheet.getByTestId('footnote-reference').props.children).toBe('3')
-    expect(sheet.getAllByText('footnote').some((node) => node.props.children === 'footnote')).toBe(
-      true,
-    )
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    const chrome = passageChromeWrapper(JOHN)
+    const style = StyleSheet.flatten(chrome.props.style)
+    expect(style?.paddingHorizontal).toBeUndefined()
+    expect(style?.marginHorizontal).toBe(-highlightEndRoom(16))
+    expect(style?.backgroundColor).toBeUndefined()
   })
 
-  it('invokes consumer onFootnotePress and does not mount the default footnote sheet', () => {
-    const consumer = jest.fn().mockResolvedValue(undefined)
-    const { getByTestId, queryByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} onFootnotePress={consumer} />,
-      { wrapper: wrapper() },
+  it('paints a cached highlight on the verse', async () => {
+    useHighlightsMock.mockImplementation((options: UseHighlightsOptions) => ({
+      ...emptyHighlights(options),
+      highlights:
+        options.enabled === false
+          ? []
+          : [{ version_id: 3034, passage_id: 'JHN.3.16', color: 'fffe00' }],
+    }))
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, { wrapper: highlightWrapper() })
+
+    await screen.findByText(JOHN)
+    paintHighlight(JOHN)
+    await waitFor(() => {
+      const painted = screen.UNSAFE_getAllByType(Text).some((node) => {
+        return StyleSheet.flatten(node.props.style)?.backgroundColor === '#fffe00'
+      })
+      expect(painted).toBe(true)
+    })
+  })
+
+  it('draws dark ink when theme is dark inside a light provider', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} theme="dark" />, {
+      wrapper: youVersionProviderWrapper('light'),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'color')).toBe(getTokens('dark').foreground)
+  })
+
+  it('draws Inter for the sans stack and the serif face by default', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    const view = render(
+      <BibleTextView reference="JHN.3.16" versionId={3034} fontFamily={INTER_FONT} />,
+      {
+        wrapper: youVersionProviderWrapper(),
+      },
     )
 
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('Inter')
 
-    expect(consumer).toHaveBeenCalledTimes(1)
-    expect(consumer).toHaveBeenCalledWith(sampleFootnote)
-    expect(queryByTestId('footnote-sheet')).toBeNull()
+    view.rerender(<BibleTextView reference="JHN.3.16" versionId={3034} />)
+    await waitFor(() => expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif'))
+  })
+
+  it('keeps a single host fontFamily name instead of replacing it with serif', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="Avenir" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('Avenir')
+  })
+
+  it('draws the SDK serif for a CSS fontFamily stack', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(
+      <BibleTextView reference="JHN.3.16" versionId={3034} fontFamily={'"Georgia", serif'} />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(styleValue(JOHN, 'fontFamily')).toBe('Untitled Serif')
+  })
+
+  it('draws a qs run in italic', async () => {
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, 'For God <span class="qs">Selah</span>')),
+      'John 3:16',
+    )
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('Selah')).toBeTruthy()
+    expect(styleValue('Selah', 'fontFamily')).toBe('Untitled Serif_italic')
+  })
+
+  it('reports the tapped verse, and clears it when that verse is already selected', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    const onVerseSelect = jest.fn(async () => undefined)
+    const view = render(
+      <BibleTextView reference="JHN.3.16" versionId={3034} onVerseSelect={onVerseSelect} />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    await screen.findByText(JOHN)
+    pressVerse(JOHN)
+    expect(onVerseSelect).toHaveBeenCalledWith([16])
+
+    view.rerender(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        onVerseSelect={onVerseSelect}
+        selectedVerses={[16]}
+      />,
+    )
+    pressVerse(JOHN)
+    expect(onVerseSelect).toHaveBeenLastCalledWith([])
+  })
+
+  it('shows an excluded version as unavailable and does not request the passage', async () => {
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: filteredWrapper({ excludedVersionIds: [3034] }),
+    })
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('hides scripture when the permit list is empty', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: filteredWrapper({ permittedVersionIds: [] }),
+    })
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(screen.queryByText(JOHN)).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('hides scripture when the version language is outside the provider list', async () => {
+    const restore = stubVersionNames({ 3034: 'RVR' }, { 3034: 'es' })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      restore()
+    }
+  })
+
+  it('hides scripture when a language list is set and the version has no language tag', async () => {
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB' }))
+      }
+      return prior(input, init)
+    })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(screen.queryByText('Retry')).toBeNull()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('offers retry when a language lookup fails, then shows an allowed passage', async () => {
+    let failLookup = true
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/\d+(?:\?|$)/.test(url) && !url.includes('/books')) {
+        if (failLookup) {
+          return Promise.reject(new Error('offline'))
+        }
+        return metadataResponse(JSON.stringify({ abbreviation: 'BSB', language_tag: 'en' }))
+      }
+      return prior(input, init)
+    })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByText(OFFLINE)).toBeTruthy()
+      expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+      expect(screen.queryByText(JOHN)).toBeNull()
+      expect(passageRequests()).toEqual([])
+
+      failLookup = false
+      fireEvent.press(screen.getByText('Retry'))
+
+      expect(await screen.findByText(JOHN)).toBeTruthy()
+      expect(screen.queryByText(OFFLINE)).toBeNull()
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('shows scripture when the version language is on the provider list', async () => {
+    const restore = stubVersionNames({ 3034: 'BSB' }, { 3034: 'en' })
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+      expect(await screen.findByText(JOHN)).toBeTruthy()
+    } finally {
+      restore()
+    }
+  })
+
+  it('shows a spinner while language lookup is in flight and does not fetch the passage', async () => {
+    const prior = global.fetch
+    global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = fetchUrl(input)
+      if (/\/v1\/bibles\/3034(?:\?|$)/.test(url) && !url.includes('/books')) {
+        return new Promise(() => {})
+      }
+      return prior(input, init)
+    })
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: filteredWrapper({ permittedLanguageTags: ['en'] }),
+      })
+
+      expect(await screen.findByLabelText('Loading')).toBeTruthy()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      global.fetch = prior
+    }
+  })
+
+  it('shows an unreadable reference as unavailable and does not request a passage', async () => {
+    render(<BibleTextView reference="not-usfm" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('requests a catalog introduction chapter', async () => {
+    serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+    render(<BibleTextView reference="GEN.INTRO" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('Introduction')).toBeTruthy()
+    expect(passageRequests().some((url) => url.includes('/passages/GEN.INTRO'))).toBe(true)
+  })
+
+  it('shows the connection message and loads the passage on retry', async () => {
+    let hits = 0
+    installFetch((requested) => {
+      if (requested !== 'JHN.3.16') {
+        return notFound()
+      }
+      hits += 1
+      if (hits === 1) {
+        return Promise.reject(new TypeError('Network request failed'))
+      }
+      return jsonPassage(passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    })
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(OFFLINE)).toBeTruthy()
+    fireEvent.press(screen.getByText('Retry'))
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+  })
+
+  it('draws lineHeight 2 as twice the font size, not the large reader step', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} lineHeight={2} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    const drawn = styleValue(JOHN, 'lineHeight')
+    expect(drawn).toBe(32)
+    expect(drawn).not.toBe(16 * lineMultiple(READER_LINE_SPACING.LG))
+  })
+
+  it('uses font size 16 for verse and footnote when fontSize is omitted', async () => {
+    const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `For God${note} so loved the world`)),
+      'John 3:16',
+    )
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText('For God')).toBeTruthy()
+    expect(styleValue('For God', 'fontSize')).toBe(16)
+    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    expect(screen.getByTestId('footnote-font-size').props.children).toBe('16')
+  })
+
+  it('renders supplied HTML and does not fetch', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{
+          passage: {
+            id: 'JHN.3.16',
+            content: passageHtml(verseBlock(16, JOHN)),
+            reference: 'John 3:16',
+          },
+          loading: false,
+          error: null,
+        }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(JOHN)).toBeTruthy()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('shows unavailable for an idle empty supplied state instead of spinning forever', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: false, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+    expect(screen.queryByLabelText('Loading')).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('shows a spinner for a supplied loading state with no passage', async () => {
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+    expect(passageRequests()).toEqual([])
+  })
+
+  it('drops a retained fetch error when the host switches to a supplied loading state', async () => {
+    installFetch(() => Promise.reject(new TypeError('Network request failed')))
+    const view = render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    expect(await screen.findByText(OFFLINE)).toBeTruthy()
+    expect(screen.getByText('Retry')).toBeTruthy()
+
+    view.rerender(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        passageState={{ passage: null, loading: true, error: null }}
+      />,
+    )
+
+    expect(await screen.findByLabelText('Loading')).toBeTruthy()
+    expect(screen.queryByText(OFFLINE)).toBeNull()
+    expect(screen.queryByText('Retry')).toBeNull()
   })
 
   it('throws when YouVersionProvider is missing', () => {
-    expect(() => render(<BibleTextView reference="JHN.1.1" versionId={3034} />)).toThrow(
+    expect(() => render(<BibleTextView reference="JHN.3.16" versionId={3034} />)).toThrow(
       'useYouVersion must be used inside of YouVersionProvider',
     )
   })
 
-  it('does not wire footnote handling on web', () => {
-    Object.defineProperty(Platform, 'OS', {
-      configurable: true,
-      enumerable: true,
-      value: 'web',
+  describe('the highlights subscription scope', () => {
+    it('subscribes at the chapter for a verse USFM', async () => {
+      render(<BibleTextView reference="JHN.3.16" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
+
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 111,
+        book: 'JHN',
+        chapter: '3',
+        enabled: true,
+      })
     })
 
-    const { getByTestId, queryByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} />,
-      { wrapper: wrapper() },
-    )
+    it('subscribes at the chapter for a verse-range USFM', async () => {
+      render(<BibleTextView reference="JHN.1.1-4" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
 
-    expect(getByTestId('mock-has-footnote-handler').children).toContain('no')
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-    expect(queryByTestId('footnote-sheet')).toBeNull()
-  })
-
-  it('closes the footnote sheet when NativeSheet calls onClose', () => {
-    const { getByTestId, queryByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} />,
-      { wrapper: wrapper() },
-    )
-
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-    expect(getByTestId('footnote-sheet')).toBeTruthy()
-
-    fireEvent.press(getByTestId('footnote-sheet-close'))
-    expect(queryByTestId('footnote-sheet')).toBeNull()
-  })
-
-  it('resolves system theme for footnote content when component theme is system', () => {
-    const { getByTestId } = render(
-      <BibleTextView reference="JHN.1.1" versionId={3034} theme="system" />,
-      { wrapper: wrapper('light') },
-    )
-
-    fireEvent.press(getByTestId('mock-footnote-trigger'))
-
-    expect(getByTestId('mock-footnote-theme').children).toContain('light')
-  })
-
-  it('forwards version filter lists from YouVersionProvider to the DOM entry', () => {
-    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
-      wrapper: ({ children }: { children: ReactNode }) => (
-        <YouVersionProvider
-          appKey="test-key"
-          theme="light"
-          hookOverrides={defaultHookOverrides}
-          permittedVersionIds={[111]}
-          excludedVersionIds={[3034]}
-          permittedLanguageTags={['en']}
-        >
-          {children}
-        </YouVersionProvider>
-      ),
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 111,
+        book: 'JHN',
+        chapter: '1',
+        enabled: true,
+      })
     })
 
-    expect(latestTextViewDomProps.permittedVersionIds).toEqual([111])
-    expect(latestTextViewDomProps.excludedVersionIds).toEqual([3034])
-    expect(latestTextViewDomProps.permittedLanguageTags).toEqual(['en'])
-  })
+    it('subscribes at the chapter for a chapter USFM', async () => {
+      render(<BibleTextView reference="JHN.1" versionId={111} />, { wrapper: highlightWrapper() })
 
-  it('forwards resolved locale from YouVersionProvider to the DOM entry', () => {
-    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, {
-      wrapper: wrapper('light', 'es'),
+      expect(await screen.findByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 111,
+        book: 'JHN',
+        chapter: '1',
+        enabled: true,
+      })
     })
 
-    expect(latestTextViewDomProps.locale).toBe('es')
-  })
+    it('disables the subscription when the USFM cannot be read', () => {
+      render(<BibleTextView reference="not-usfm" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
 
-  it('forwards device-resolved locale to the DOM entry when provider locale is omitted', () => {
-    stubDeviceLocale('es-MX', 'es')
+      expect(screen.getByText(UNAVAILABLE)).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 1,
+        book: '_',
+        chapter: '0',
+        enabled: false,
+      })
+    })
 
-    render(<BibleTextView reference="JHN.1.1" versionId={3034} />, { wrapper: wrapper() })
+    it('disables the subscription for a catalog introduction', async () => {
+      serveOnly('GEN.INTRO', passageHtml('<p>Introduction</p>'), 'Genesis Introduction')
+      render(<BibleTextView reference="GEN.INTRO" versionId={111} />, {
+        wrapper: highlightWrapper(),
+      })
 
-    expect(latestTextViewDomProps.locale).toBe('es')
-  })
-})
-
-describe('the DOM scripture surface (unobservable from layer 3)', () => {
-  const source = readFileSync(join(__dirname, '../../dom/bible-text-view.tsx'), 'utf8')
-
-  it('keeps the embed content-sized so matchContents can measure scripture', () => {
-    expect(source).toContain('ContentSizedBody')
-  })
-
-  it('keeps content fetches on the native Bible Content Client', () => {
-    expect(source).toContain('registerBibleContentAction')
-    expect(source).toContain('fetchBibleContent')
-    expect(source).not.toMatch(/BibleClient/)
+      expect(await screen.findByText('Introduction')).toBeTruthy()
+      expect(useHighlightsMock).toHaveBeenCalledWith({
+        versionId: 1,
+        book: '_',
+        chapter: '0',
+        enabled: false,
+      })
+    })
   })
 })

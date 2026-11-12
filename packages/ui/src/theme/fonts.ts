@@ -85,6 +85,22 @@ export function sansFace(family: string, weight: FontFace['weight']): TextStyle 
   return { fontFamily: fontMapKey(family, weight, 'normal') }
 }
 
+/**
+ * Host-supplied face name. Registered SDK faces use {@link fontMapKey}; host fonts
+ * keep the family string and use RN `fontWeight` / `fontStyle` instead.
+ */
+export function hostFace(
+  family: string,
+  weight: FontFace['weight'],
+  italic: boolean,
+): TextStyle {
+  return {
+    fontFamily: family,
+    fontWeight: weight,
+    fontStyle: italic ? 'italic' : 'normal',
+  }
+}
+
 export function serifFace(
   family: string,
   weight: FontFace['weight'],

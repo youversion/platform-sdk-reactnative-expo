@@ -15,6 +15,7 @@ import type {
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
+import type { DOMProps } from 'expo/dom'
 import * as WebBrowser from 'expo-web-browser'
 import type { Ref } from 'react'
 import {
@@ -27,7 +28,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { Platform, Share, StyleSheet, View } from 'react-native'
+import { Platform, Share, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useShallow } from 'zustand/react/shallow'
 import { getImpl } from './component-impls'
@@ -215,6 +216,10 @@ export type BibleReaderProps = Omit<
    * `request` loads the chapter. `focusReference` also focuses the verse.
    */
   navigation?: BibleReaderNavigation
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DOMProps
 }
 
 export function BibleReader({
@@ -245,7 +250,7 @@ export function BibleReader({
   onHighlightError,
   backgroundColor,
   foregroundColor,
-  dom,
+  dom: _dom,
   ref,
   navigation,
 }: BibleReaderProps): ReactNode {
@@ -787,17 +792,6 @@ export function BibleReader({
   const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
-  const readerDom = useMemo(
-    () => ({
-      scrollEnabled: false,
-      contentInsetAdjustmentBehavior: 'never' as const,
-      automaticallyAdjustContentInsets: false,
-      ...dom,
-      style: StyleSheet.flatten([dom?.style, { flex: 1 }]),
-    }),
-    [dom],
-  )
-
   return (
     <>
       <View style={{ flex: 1 }}>
@@ -900,7 +894,6 @@ export function BibleReader({
               backgroundColor={backgroundColor}
               foregroundColor={foregroundColor}
               bottomScrollPadding={bottomScrollPadding}
-              dom={readerDom}
             />
           </View>
         </ThemeContext.Provider>

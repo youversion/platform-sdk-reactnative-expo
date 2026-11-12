@@ -1,4 +1,44 @@
-import { languageTagsWithUsableVersions } from '../version-usability'
+import {
+  languageTagsWithUsableVersions,
+  versionGate,
+  type VersionGate,
+  type VersionLookup,
+} from '../version-usability'
+import type { InternalVersionFilterProps } from '../version-filter-props'
+
+const SETTLED_EN: VersionLookup = { languageId: 'en', isLoading: false, error: null }
+const LOADING: VersionLookup = { languageId: null, isLoading: true, error: null }
+const OFFLINE: VersionLookup = { languageId: null, isLoading: false, error: 'offline' }
+
+describe('versionGate', () => {
+  it.each<[string, InternalVersionFilterProps, VersionLookup, VersionGate]>([
+    ['no filters', {}, LOADING, 'open'],
+    ['an excluded id, before the lookup lands', { excludedVersionIds: [7] }, LOADING, 'refused'],
+    ['an id outside the permit list', { permittedVersionIds: [1] }, SETTLED_EN, 'refused'],
+    [
+      'a language list while the lookup loads',
+      { permittedLanguageTags: ['en'] },
+      LOADING,
+      'checking',
+    ],
+    [
+      'a language list after the lookup failed',
+      { permittedLanguageTags: ['en'] },
+      OFFLINE,
+      'lookupFailed',
+    ],
+    ['a permitted language', { permittedLanguageTags: ['en'] }, SETTLED_EN, 'open'],
+    ['an unlisted language', { permittedLanguageTags: ['es'] }, SETTLED_EN, 'refused'],
+    [
+      'a version with no language tag',
+      { permittedLanguageTags: ['en'] },
+      { languageId: null, isLoading: false, error: null },
+      'refused',
+    ],
+  ])('%s', (_label, filters, lookup, expected) => {
+    expect(versionGate(7, filters, lookup)).toBe(expected)
+  })
+})
 
 const TAGS = new Map<number, string>([
   [1, 'en'],
