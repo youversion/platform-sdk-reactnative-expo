@@ -1,13 +1,19 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native'
-import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { FootnoteData, VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
+import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'
-import { Platform, Share, StyleSheet, Text, View } from 'react-native'
+import { Platform, Share, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
-import { FONT_FAMILY_TOKEN } from '../../lib/reader-fonts'
+import en from '../../i18n/locales/en.json'
+import es from '../../i18n/locales/es.json'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
-import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import {
+  installBibleContentFetch,
+  type BibleContentFetchStub,
+} from '../../test-utils/stub-bible-content-fetch'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { VerseOfTheDay } from '../verse-of-the-day'
@@ -24,59 +30,42 @@ const sampleShareData: VerseOfTheDayShareData = {
   verseText: 'For God so loved the world...',
 }
 
-const EMBED_DEFAULTS = {
-  matchContents: true,
-  containerStyle: { flex: 0, width: '100%' },
-  scrollEnabled: false,
-  bounces: false,
-  overScrollMode: 'never',
-  showsVerticalScrollIndicator: false,
-  showsHorizontalScrollIndicator: false,
-} as const
+let fetchStub: BibleContentFetchStub
 
-type LatestDomProps = {
-  appKey?: string
-  apiHost?: string
-  fetchBibleContent?: unknown
-  reference?: string
-  versionId?: number
-  dayOfYear?: number
-  theme?: string
-  locale?: string
-  fontSize?: number
-  fontFamily?: string
-  showVerseNumbers?: boolean
-  highlights?: unknown
-  permittedVersionIds?: number[]
-  excludedVersionIds?: number[]
-  permittedLanguageTags?: string[]
-  dom?: { matchContents?: boolean; containerStyle?: unknown }
-  onShare?: (data: VerseOfTheDayShareData) => Promise<void>
+function fontSizeOf(node: ReactTestInstance): number | undefined {
+  let current: ReactTestInstance | null = node
+  while (current !== null) {
+    const size = flattenedTextStyle(current).fontSize
+    if (size !== undefined) {
+      return size
+    }
+    current = current.parent
+  }
+  return undefined
 }
 
-let latestDomProps: LatestDomProps = {}
+function fontFamilyOf(node: ReactTestInstance): string | undefined {
+  let current: ReactTestInstance | null = node
+  while (current !== null) {
+    const family = flattenedTextStyle(current).fontFamily
+    if (family !== undefined) {
+      return family
+    }
+    current = current.parent
+  }
+  return undefined
+}
+
+function flattenedTextStyle(node: ReactTestInstance): TextStyle {
+  // SAFETY: StyleSheet.flatten returns the merged RN style object for this node.
+  return (StyleSheet.flatten(node.props.style) ?? {}) as TextStyle
+}
 
 async function renderAndSettle(...args: Parameters<typeof render>) {
   const result = render(...args)
   await act(async () => {})
   await act(async () => {})
   return result
-}
-
-function MockBibleTextViewDOM(props: LatestDomProps) {
-  latestDomProps = props
-  return (
-    <View testID="mock-btv-dom">
-      <Text testID="mock-app-key">{props.appKey}</Text>
-      <Text testID="mock-reference">{props.reference ?? ''}</Text>
-      <Text testID="mock-version-id">{String(props.versionId ?? '')}</Text>
-      <Text testID="mock-theme">{props.theme ?? ''}</Text>
-      <Text testID="mock-font-size">{String(props.fontSize ?? '')}</Text>
-      <Text testID="mock-font-family">{props.fontFamily ?? ''}</Text>
-      <Text testID="mock-show-verse-numbers">{props.showVerseNumbers === true ? '1' : '0'}</Text>
-      <Text testID="mock-dom-match-contents">{props.dom?.matchContents === true ? '1' : '0'}</Text>
-    </View>
-  )
 }
 
 describe('VerseOfTheDay', () => {
@@ -86,9 +75,9 @@ describe('VerseOfTheDay', () => {
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
-    latestDomProps = {}
+    fetchStub = installBibleContentFetch()
+    stubImpl('FootnoteContent', 'mock-footnote')
     stubDeviceLocale('xx-XX', 'xx')
-    setImpl('BibleTextViewDom', MockBibleTextViewDOM)
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.3.16')
     jest.spyOn(votdShare, 'getVerseOfTheDayShareSource').mockResolvedValue(sampleShareData)
@@ -96,6 +85,7 @@ describe('VerseOfTheDay', () => {
 
   afterEach(() => {
     cleanup()
+    fetchStub.restore()
     resetImpls()
     jest.restoreAllMocks()
     globalThis.fetch = originalFetch
@@ -114,7 +104,7 @@ describe('VerseOfTheDay', () => {
     })
   })
 
-  it('renders native chrome around the DOM BibleTextView', async () => {
+  it('renders native chrome around the verse', async () => {
     const { getByTestId, getByLabelText, getByText, queryByText } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
       { wrapper: wrapper('light') },
@@ -129,7 +119,10 @@ describe('VerseOfTheDay', () => {
     expect(source).toEqual(black)
     expect(accessibilityLabel).toBe('Bible App')
     expect(queryByText('Bible App')).toBeNull()
-    expect(getByTestId('mock-btv-dom')).toBeTruthy()
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    expect(getByText('16')).toBeTruthy()
   })
 
   it('paints the white-text wordmark when theme="dark" overrides a light app', async () => {
@@ -170,68 +163,51 @@ describe('VerseOfTheDay', () => {
     })
   })
 
-  it('forwards appKey from YouVersionProvider and the passage to BibleTextView', async () => {
-    const { getByTestId } = await renderAndSettle(
-      <VerseOfTheDay versionId={3034} dom={{ matchContents: true }} />,
-      { wrapper: wrapper() },
-    )
+  it('requests the looked-up chapter with the provider app key', async () => {
+    const { getByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
 
-    expect(getByTestId('mock-app-key').children).toContain('test-key')
-    expect(getByTestId('mock-reference').children).toContain('JHN.3.16')
-    expect(getByTestId('mock-version-id').children).toContain('3034')
-    expect(getByTestId('mock-show-verse-numbers').children).toContain('0')
-    expect(getByTestId('mock-dom-match-contents').children).toContain('1')
-    expect(latestDomProps.apiHost).toBe('api.youversion.com')
-    expect(latestDomProps.fetchBibleContent).toEqual(expect.any(Function))
-    expect(latestDomProps).not.toHaveProperty('onShare')
-    expect(latestDomProps).not.toHaveProperty('dayOfYear')
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    expect(fetchStub.appKeys).toContain('test-key')
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3'))).toBe(true)
+    expect(fetchStub.urls.some((url) => url.includes('dayOfYear'))).toBe(false)
   })
 
-  it('applies the embed dom defaults when no dom prop is passed', async () => {
-    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
-
-    expect(latestDomProps.dom).toEqual(EMBED_DEFAULTS)
-  })
-
-  it('merges a consumer containerStyle after the embed defaults', async () => {
-    await renderAndSettle(
-      <VerseOfTheDay versionId={3034} dom={{ containerStyle: { width: 300 } }} />,
-      {
-        wrapper: wrapper(),
-      },
-    )
-
-    expect(latestDomProps.dom?.containerStyle).toEqual([{ flex: 0, width: '100%' }, { width: 300 }])
-  })
-
-  it('forwards a component-level theme override to BibleTextView as light or dark', async () => {
+  it('paints a dark card when theme="dark" overrides a light app', async () => {
     const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} theme="dark" />, {
       wrapper: wrapper('light'),
     })
 
-    expect(getByTestId('mock-theme').children).toContain('dark')
     expect(StyleSheet.flatten(getByTestId('verse-of-the-day').props.style)).toMatchObject({
       backgroundColor: getTokens('dark').card,
     })
   })
 
-  it('resolves theme="system" to light or dark before it crosses the bridge', async () => {
-    await renderAndSettle(<VerseOfTheDay versionId={3034} theme="system" />, {
-      wrapper: wrapper('light'),
-    })
+  it('resolves theme="system" to the provider theme', async () => {
+    const { getByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} theme="system" />,
+      { wrapper: wrapper('light') },
+    )
 
-    expect(latestDomProps.theme).toBe('light')
+    expect(StyleSheet.flatten(getByTestId('verse-of-the-day').props.style)).toMatchObject({
+      backgroundColor: getTokens('light').card,
+    })
   })
 
-  it('uses the provider-resolved theme when VerseOfTheDay does not set theme', async () => {
+  it('uses the provider theme when VerseOfTheDay does not set one', async () => {
     const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper('dark'),
     })
 
-    expect(getByTestId('mock-theme').children).toContain('dark')
+    expect(StyleSheet.flatten(getByTestId('verse-of-the-day').props.style)).toMatchObject({
+      backgroundColor: getTokens('dark').card,
+    })
   })
 
-  it('uses provider-resolved theme when provider theme is system and color scheme is dark', async () => {
+  it('uses the color scheme when the provider theme is system', async () => {
     const spy = jest.spyOn(ReactNative, 'useColorScheme').mockReturnValue('dark')
 
     const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
@@ -239,41 +215,54 @@ describe('VerseOfTheDay', () => {
     })
 
     try {
-      expect(getByTestId('mock-theme').children).toContain('dark')
+      expect(StyleSheet.flatten(getByTestId('verse-of-the-day').props.style)).toMatchObject({
+        backgroundColor: getTokens('dark').card,
+      })
     } finally {
       spy.mockRestore()
     }
   })
 
   it('honors the web background prop when theme is omitted', async () => {
-    await renderAndSettle(<VerseOfTheDay versionId={3034} background="dark" />, {
-      wrapper: wrapper('light'),
-    })
+    const { getByTestId } = await renderAndSettle(
+      <VerseOfTheDay versionId={3034} background="dark" />,
+      { wrapper: wrapper('light') },
+    )
 
-    expect(latestDomProps.theme).toBe('dark')
+    expect(StyleSheet.flatten(getByTestId('verse-of-the-day').props.style)).toMatchObject({
+      backgroundColor: getTokens('dark').card,
+    })
   })
 
-  it('encodes the default sans face and a 16px verse on size="default"', async () => {
-    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+  it('draws the default verse at 16px in Inter', async () => {
+    const { getByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper(),
     })
 
-    expect(getByTestId('mock-font-size').children).toContain('16')
-    expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.INTER)
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    const verse = getByText('For God so loved')
+    expect(fontSizeOf(verse)).toBe(16)
+    expect(fontFamilyOf(verse)).toBe('Inter')
   })
 
-  it('encodes the serif face and a 20px verse on size="lg"', async () => {
-    const { getByTestId } = await renderAndSettle(<VerseOfTheDay versionId={3034} size="lg" />, {
+  it('draws a large verse at 20px in a serif face', async () => {
+    const { getByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} size="lg" />, {
       wrapper: wrapper(),
     })
 
-    expect(getByTestId('mock-font-size').children).toContain('20')
-    expect(getByTestId('mock-font-family').children).toContain(FONT_FAMILY_TOKEN.UNTITLED_SERIF)
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
+    const verse = getByText('For God so loved')
+    expect(fontSizeOf(verse)).toBe(20)
+    expect(fontFamilyOf(verse)).not.toBe('Inter')
   })
 
   it('throws when YouVersionProvider is missing', () => {
     expect(() => render(<VerseOfTheDay versionId={3034} />)).toThrow(
-      'useYouVersion must be used inside of YouVersionProvider',
+      'YouVersionProvider is required',
     )
   })
 
@@ -499,19 +488,19 @@ describe('VerseOfTheDay', () => {
   it('shows a loading state until the passage_id is known', () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockReturnValue(new Promise(() => undefined))
 
-    const { getByTestId, queryByTestId } = render(<VerseOfTheDay versionId={3034} />, {
+    const { getByTestId, queryByText } = render(<VerseOfTheDay versionId={3034} />, {
       wrapper: wrapper(),
     })
 
     expect(getByTestId('verse-of-the-day-loading')).toBeTruthy()
-    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(queryByText('For God so loved')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
   })
 
   it('shows a retry control when the passage lookup fails', async () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue(null)
 
-    const { getByTestId, getByLabelText, queryByTestId } = await renderAndSettle(
+    const { getByTestId, getByLabelText, queryByTestId, queryByText } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
       {
         wrapper: wrapper(),
@@ -521,7 +510,7 @@ describe('VerseOfTheDay', () => {
     expect(getByTestId('verse-of-the-day-retry')).toBeTruthy()
     expect(getByLabelText('We’re having difficulties with your connection.')).toBeTruthy()
     expect(queryByTestId('verse-of-the-day-loading')).toBeNull()
-    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(queryByText('For God so loved')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
   })
 
@@ -531,18 +520,18 @@ describe('VerseOfTheDay', () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValue('JHN.3.16')
 
-    const { getByTestId, queryByTestId } = await renderAndSettle(
+    const { getByTestId, getByText, queryByTestId, queryByText } = await renderAndSettle(
       <VerseOfTheDay versionId={3034} />,
       { wrapper: wrapper() },
     )
 
-    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(queryByText('For God so loved')).toBeNull()
 
     await act(async () => {
       fireEvent.press(getByTestId('verse-of-the-day-retry'))
     })
     await waitFor(() => {
-      expect(getByTestId('mock-btv-dom')).toBeTruthy()
+      expect(getByText('For God so loved')).toBeTruthy()
     })
     expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
@@ -556,29 +545,33 @@ describe('VerseOfTheDay', () => {
         headers: { 'content-type': 'application/json' },
       })
     let passageRequests = 0
+    const contentFetch = globalThis.fetch
     const fetch: jest.MockedFunction<typeof globalThis.fetch> = jest.fn((input, init) => {
       if (String(input) === 'https://api.youversion.com/v1/verse-of-the-days/15') {
         passageRequests += 1
         return Promise.resolve(response(passageRequests === 1 ? 42 : null))
       }
-      return originalFetch(input, init)
+      return contentFetch(input, init)
     })
     globalThis.fetch = fetch
 
-    const { getByTestId, queryByTestId } = render(
+    const { getByTestId, getByText, queryByTestId, queryByText } = render(
       <VerseOfTheDay versionId={3034} dayOfYear={15} />,
       { wrapper: wrapper() },
     )
 
     await waitFor(() => expect(getByTestId('verse-of-the-day-retry')).toBeTruthy())
-    expect(queryByTestId('mock-btv-dom')).toBeNull()
+    expect(queryByText('For God so loved')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).toBeDisabled()
     expect(passageRequests).toBe(1)
 
-    fireEvent.press(getByTestId('verse-of-the-day-retry'))
+    await act(async () => {
+      fireEvent.press(getByTestId('verse-of-the-day-retry'))
+    })
 
-    await waitFor(() => expect(getByTestId('mock-btv-dom')).toBeTruthy())
-    expect(latestDomProps.reference).toBe('JHN.3.16')
+    await waitFor(() => {
+      expect(getByText('For God so loved')).toBeTruthy()
+    })
     expect(queryByTestId('verse-of-the-day-retry')).toBeNull()
     expect(getByTestId('verse-of-the-day-share')).not.toBeDisabled()
     expect(passageRequests).toBe(2)
@@ -595,7 +588,9 @@ describe('VerseOfTheDay', () => {
         expect.objectContaining({ appKey: 'test-key' }),
         dayOfYear,
       )
-      expect(latestDomProps.reference).toBe('JHN.3.16')
+      await waitFor(() => {
+        expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3'))).toBe(true)
+      })
     } finally {
       jest.useRealTimers()
     }
@@ -618,8 +613,8 @@ describe('VerseOfTheDay', () => {
     }
   })
 
-  it('forwards version filter lists from YouVersionProvider to BibleTextView', async () => {
-    await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+  it('does not request a verse the provider filters refuse', async () => {
+    const { getByText, queryByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
       wrapper: ({ children }: { children: ReactNode }) => (
         <YouVersionProvider
           appKey="test-key"
@@ -634,9 +629,75 @@ describe('VerseOfTheDay', () => {
       ),
     })
 
-    expect(latestDomProps.permittedVersionIds).toEqual([111])
-    expect(latestDomProps.excludedVersionIds).toEqual([3034])
-    expect(latestDomProps.permittedLanguageTags).toEqual(['en'])
+    expect(getByText(en.passageUnavailable)).toBeTruthy()
+    expect(queryByText('For God so loved')).toBeNull()
+    expect(fetchStub.urls.some((url) => url.includes('/passages/'))).toBe(false)
+  })
+
+  it('closes an open footnote when provider filters refuse the version', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
+    setImpl(
+      'NativeSheet',
+      ({
+        isOpen,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? <View testID="footnote-sheet">{children}</View> : null,
+    )
+
+    function FilterApp({
+      excludedVersionIds,
+    }: {
+      excludedVersionIds?: number[]
+    }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          excludedVersionIds={excludedVersionIds}
+        >
+          <VerseOfTheDay versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screen = await renderAndSettle(<FilterApp />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
+
+    screen.rerender(<FilterApp excludedVersionIds={[3034]} />)
+
+    expect(screen.queryByTestId('footnote-sheet')).toBeNull()
+    expect(screen.getByText(en.passageUnavailable)).toBeTruthy()
+  })
+
+  it('opens the footnote through the swappable FootnoteContent impl', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="footnote-sheet">{children}</View> : null,
+    )
+    setImpl('FootnoteContent', ({ data }: { data: FootnoteData }) => (
+      <Text testID="mock-footnote-verse">{data.verseNum}</Text>
+    ))
+
+    const screen = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+
+    expect(screen.getByTestId('mock-footnote-verse').children).toContain('1')
   })
 
   it('passes provider version filter lists into the share source fetch', async () => {
@@ -667,17 +728,27 @@ describe('VerseOfTheDay', () => {
     )
   })
 
-  it('forwards resolved locale from YouVersionProvider to BibleTextView', async () => {
-    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper('light', 'es') })
+  it('shows a failed verse in the provider locale', async () => {
+    fetchStub.passageStatus = 503
+    const { getByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper('light', 'es'),
+    })
 
-    expect(latestDomProps.locale).toBe('es')
+    await waitFor(() => {
+      expect(getByText(es['generic.requestErrorBody'])).toBeTruthy()
+    })
   })
 
-  it('forwards device-resolved locale to BibleTextView when provider locale is omitted', async () => {
+  it('shows a failed verse in the device locale when the provider omits one', async () => {
+    fetchStub.passageStatus = 503
     stubDeviceLocale('es-MX', 'es')
 
-    await renderAndSettle(<VerseOfTheDay versionId={3034} />, { wrapper: wrapper() })
+    const { getByText } = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
 
-    expect(latestDomProps.locale).toBe('es')
+    await waitFor(() => {
+      expect(getByText(es['generic.requestErrorBody'])).toBeTruthy()
+    })
   })
 })
