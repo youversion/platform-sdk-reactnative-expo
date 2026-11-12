@@ -15,6 +15,7 @@ import type {
   FootnoteData,
 } from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
+import type { DOMProps } from 'expo/dom'
 import * as WebBrowser from 'expo-web-browser'
 import type { Ref } from 'react'
 import {
@@ -37,7 +38,6 @@ import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import type { DeprecatedDomProps } from '../lib/deprecated-dom-props'
 import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
@@ -219,7 +219,7 @@ export type BibleReaderProps = Omit<
   /**
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
    */
-  dom?: DeprecatedDomProps
+  dom?: DOMProps
 }
 
 export function BibleReader({

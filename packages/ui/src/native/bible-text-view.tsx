@@ -3,11 +3,11 @@ import {
   type BibleTextViewProps as WebBibleTextViewProps,
   type FootnoteData,
 } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
-import type { DeprecatedDomProps } from '../lib/deprecated-dom-props'
 import type { FontFamily } from '../lib/reader-fonts'
 import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
@@ -45,7 +45,7 @@ export type BibleTextViewProps = Pick<
   /**
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
    */
-  dom?: DeprecatedDomProps
+  dom?: DOMProps
 }
 
 /** A verse, range, or chapter in native text. Same renderer as `BibleReader`. */
