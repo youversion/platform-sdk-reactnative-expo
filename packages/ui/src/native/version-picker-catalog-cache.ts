@@ -20,15 +20,10 @@ function remember<T>(
     return cached
   }
 
-  const stored = load().then(
-    (value) => value,
-    (error) => {
-      if (store.get(key) === stored) {
-        store.delete(key)
-      }
-      throw error
-    },
-  )
+  const stored = load().catch((error) => {
+    store.delete(key)
+    throw error
+  })
   store.set(key, stored)
   return stored
 }

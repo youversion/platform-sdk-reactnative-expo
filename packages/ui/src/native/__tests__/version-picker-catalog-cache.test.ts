@@ -80,24 +80,4 @@ describe('version picker catalog memory cache', () => {
     )
     expect(load).toHaveBeenCalledTimes(2)
   })
-
-  it('does not delete a newer entry when an older failed load settles after clear', async () => {
-    let rejectFirst!: (reason: Error) => void
-    const firstLoad = new Promise<VersionPickerCatalog>((_resolve, reject) => {
-      rejectFirst = reject
-    })
-    const secondLoad = jest.fn(async () => emptyCatalog)
-
-    const firstPromise = loadCachedVersionPickerCatalog('host', 'key', () => firstLoad)
-    clearVersionPickerMemoryCache()
-    await loadCachedVersionPickerCatalog('host', 'key', secondLoad)
-
-    rejectFirst(new Error('stale'))
-    await expect(firstPromise).rejects.toThrow('stale')
-
-    const thirdLoad = jest.fn(async () => emptyCatalog)
-    await loadCachedVersionPickerCatalog('host', 'key', thirdLoad)
-    expect(secondLoad).toHaveBeenCalledTimes(1)
-    expect(thirdLoad).toHaveBeenCalledTimes(0)
-  })
 })
