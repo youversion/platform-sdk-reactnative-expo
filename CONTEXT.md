@@ -99,8 +99,8 @@ When a persisted or host `versionId` is not permitted, native chrome still passe
 _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders; sharing a refused version from native chrome
 
 **Native Bible Version Picker**:
-The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state.
-_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is deleted.
+The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state. The catalog and each language's version list stay in a process-lifetime memory map keyed by API host and app key (plus language id for versions). A rejected load is dropped so Retry fetches again. This map is not **Bible Content Cache** and does not follow ADR 0020.
+_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is deleted. Routing picker catalog traffic through **Bible Content Cache**.
 
 **Version Picker Shell Layout**:
 The previous Expo DOM wrapper (`dom/bible-version-picker-content.tsx`). That file is deleted. See **Native Bible Version Picker**.
