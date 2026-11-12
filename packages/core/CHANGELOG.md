@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-core
 
+## 2.4.0
+
+### Patch Changes
+
+- e77516a: Shrink the native bundle by importing only used Google Font faces and aligning zod with the Web SDK.
+- 8712c43: Use the default API host when the provider receives an empty `apiHost`. Add internal `api-client` and `default-api-host` subpaths and consolidate duplicate request and helper plumbing.
+
 ## 2.3.0
 
 ### Minor Changes

@@ -1,5 +1,30 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.4.0
+
+### Minor Changes
+
+- 801fdf0: `BibleTextView` and `BibleReader` draw scripture with native text. `dom` on both remains accepted but is deprecated and ignored — it will be removed in the next major. The view always sizes to its text, so `dom.matchContents: false` fill no longer applies. `highlightedVerses` is deprecated and ignored; cached highlights paint the passage. `BibleCard` and `VerseOfTheDay` still embed the DOM text view.
+
+  Omitted `fontSize` on `BibleTextView` now defaults to 16 (reader/card parity), not 20 — hosts that omit it will see smaller text. CSS `fontFamily` values (stacks, `var()`, generic keywords) map to an SDK face instead of reaching React Native verbatim: `sans-serif` and `system-ui` (and stacks that end in them) draw Inter; the rest draw the SDK serif. `reference` must be a chapter, a verse, or a range within one chapter. Cross-chapter ranges and comma lists show the unavailable message.
+
+  Footnote markers on `BibleTextView` open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn.
+
+- 5c91782: Footnote sheets render on native text. Marker taps still open the same sheet, with bold locators, verse superscripts, and right-to-left scripture direction (YPE-5832 / RNV2-5).
+
+  `BibleReader` draws its chapter with native text. Its USFM styles follow the Swift reader: centred titles and intro headings, fixed 8pt block indents, and 0.75em first-line indents.
+
+### Patch Changes
+
+- 4df2500: Sync localization from platform-localization (2fa0cff): add Romanian (ro); update 319 keys in cs, it, ko, nl, sr, sv, tr.
+- 5c91782: A Selah pause (`qs`) draws in italic on its own line, at the end of the line. The line reads the pause, then a footnote marker, then trailing punctuation. Poetry before the pause stays put. A pause already inside `qr` is unchanged (YPE-6405).
+- e77516a: Shrink the native bundle by importing only used Google Font faces and aligning zod with the Web SDK.
+- c3db1b8: Keep the Bible version picker catalog in memory so choosing a language or opening the picker again does not download the full catalog.
+- 8712c43: Use the default API host when the provider receives an empty `apiHost`. Add internal `api-client` and `default-api-host` subpaths and consolidate duplicate request and helper plumbing.
+- Updated dependencies [e77516a]
+- Updated dependencies [8712c43]
+  - @youversion/platform-react-native-expo-core@2.4.0
+
 ## 2.3.0
 
 ### Minor Changes
