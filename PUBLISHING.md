@@ -10,8 +10,9 @@ The repository uses [Changesets](https://github.com/changesets/changesets) with 
 4. The `Release` workflow runs and either:
    - Creates / updates the **"Version Packages"** PR (if any changesets are pending), or
    - Publishes to npm (if the "Version Packages" PR is what just merged).
-5. Merging the "Version Packages" PR is the explicit human action that authorizes the publish.
-6. Both packages publish to npm in dependency order with provenance attestation.
+5. Each time the "Version Packages" PR is created or updated, the `Release verification` workflow builds its head and runs the HINQA device suite on iOS, then Android, and reports the result as the `release-verification` check. Every other PR gets `release-verification` as success ("Not a Version Packages PR").
+6. Merging the "Version Packages" PR is the explicit human action that authorizes the publish.
+7. Both packages publish to npm in dependency order with provenance attestation.
 
 ### Publishable packages
 
@@ -88,6 +89,13 @@ Configure trusted publishing on both packages before the first release. If a boo
 - Confirm changesets exist in `.changeset/` directory (any `*.md` file other than `README.md`).
 - Verify CI passed on `main`.
 - Review `Release` workflow logs in the Actions tab.
+
+### `release-verification` is red on the "Version Packages" PR
+
+The check's details link to the `Release verification` run; its summary links each device-suite run in `platform-sdk-reactnative-expo_automation`.
+
+- **failure**: a suite failed on that build. Open the automation run, fix the cause on a branch, and merge it to `main`. Release then updates the PR and the check runs again. A fix can also be pushed straight to `changeset-release/main`; that starts the check too.
+- **error**: no test result. The run was cancelled twice (a nightly in the shared automation queue can preempt it), timed out, or could not reach the automation repo. Re-run the `Release verification` run from the Actions tab; re-running all jobs or only the failed ones both start the suites again.
 
 ### Publish failed
 
