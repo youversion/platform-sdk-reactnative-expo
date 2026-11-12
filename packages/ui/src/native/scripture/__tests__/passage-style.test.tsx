@@ -35,12 +35,35 @@ describe('usePassageStyle host fontFamily', () => {
           highlights: [],
           fontSize: 16,
           lineMultiple: 1.5,
-          fontFamily: 'sans-serif',
+          fontFamily: 'Avenir',
         }),
       { wrapper },
     )
 
-    expect(result.current.look.face(400, false).fontFamily).toBe('sans-serif')
+    expect(result.current.look.face(400, false).fontFamily).toBe('Avenir')
+  })
+
+  it.each([
+    ['sans-serif', 'Inter'],
+    ['system-ui', 'Inter'],
+    [' Sans-Serif ', 'Inter'],
+    ['serif', 'Untitled Serif'],
+    ['monospace', 'Untitled Serif'],
+    ['var(--yv-reader-font-family)', 'Untitled Serif'],
+  ])('maps the CSS value %j to %s instead of passing it to RN', (fontFamily, face) => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily,
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe(face)
   })
 
   it('draws the SDK serif for a CSS stack instead of passing it to RN', () => {

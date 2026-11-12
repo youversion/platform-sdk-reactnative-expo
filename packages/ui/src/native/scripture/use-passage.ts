@@ -26,15 +26,31 @@ export function chapterRef(book: string, chapter: string): PassageRef {
   return { usfm: `${book}.${chapter}`, book, chapter }
 }
 
+const USFM_BOOK = '[1-9A-Z][A-Z0-9]{2}'
+const USFM_RANGE_END = `(?:${USFM_BOOK}\\.\\d+\\.\\d+|\\d+\\.\\d+|\\d+)`
+const USFM_VERSES = `\\d+(?:-${USFM_RANGE_END})?`
 /**
- * A consumer USFM (chapter, verse, or range) the reader can fetch. Accepts
- * catalog chapter ids such as `INTRO`. Numeric chapter rules stay with the
- * highlight-scope parser; `null` when the string is not a book.chapter address.
+ * Forms the API resolves but highlight scope does not: cross-chapter and
+ * book-repeated ranges, and comma lists. The closed charset keeps the path safe.
+ */
+const WIDE_USFM = new RegExp(
+  `^(${USFM_BOOK})\\.([1-9]\\d*)\\.${USFM_VERSES}(?:,(?:${USFM_BOOK}\\.\\d+\\.)?${USFM_VERSES})*$`,
+  'i',
+)
+
+/**
+ * A consumer USFM the reader can fetch: chapter, verse, range, cross-chapter
+ * range, or list. Accepts catalog chapter ids such as `INTRO`. `book` and
+ * `chapter` name where it starts; `null` when it is not a USFM address.
  */
 export function passageRefFor(usfm: string): PassageRef | null {
   const scope = parseChapterScopeFromUsfm(usfm)
   if (scope !== null) {
     return { usfm, book: scope.book, chapter: scope.chapter }
+  }
+  const wide = WIDE_USFM.exec(usfm)
+  if (wide !== null && wide[1] !== undefined && wide[2] !== undefined) {
+    return { usfm, book: wide[1], chapter: wide[2] }
   }
   // Catalog ids (e.g. INTRO) load as chapters but are not highlight-scoped.
   const parts = usfm.split('.')
@@ -214,7 +230,9 @@ export function usePassage(
 
 /** `JHN 3` for a chapter, `JHN 3:16` for a verse, when the API sends no reference. */
 function fallbackReference({ usfm, book }: PassageRef): string {
-  return `${book} ${usfm.slice(book.length + 1).replace('.', ':')}`
+  const rest = usfm.slice(book.length + 1)
+  // Lists and cross-chapter ranges have no short form here; show the USFM.
+  return /^[^.]+(?:\.[\d-]+)?$/.test(rest) ? `${book} ${rest.replace('.', ':')}` : usfm
 }
 
 /**

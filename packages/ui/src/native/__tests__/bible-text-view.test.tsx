@@ -431,12 +431,12 @@ describe('BibleTextView', () => {
 
   it('keeps a single host fontFamily name instead of replacing it with serif', async () => {
     serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
-    render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="sans-serif" />, {
+    render(<BibleTextView reference="JHN.3.16" versionId={3034} fontFamily="Avenir" />, {
       wrapper: youVersionProviderWrapper(),
     })
 
     expect(await screen.findByText(JOHN)).toBeTruthy()
-    expect(styleValue(JOHN, 'fontFamily')).toBe('sans-serif')
+    expect(styleValue(JOHN, 'fontFamily')).toBe('Avenir')
   })
 
   it('draws the SDK serif for a CSS fontFamily stack', async () => {

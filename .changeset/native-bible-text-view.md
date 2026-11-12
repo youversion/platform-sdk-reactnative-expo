@@ -6,4 +6,4 @@
 
 Footnote markers on `BibleTextView` open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn.
 
-**Patch:** Omitted `fontSize` on `BibleTextView` now defaults to 16 (reader/card parity), not 20. CSS `fontFamily` stacks fall back to the SDK serif instead of being passed to React Native verbatim.
+**Patch:** Omitted `fontSize` on `BibleTextView` now defaults to 16 (reader/card parity), not 20. CSS `fontFamily` values (stacks, `var()`, generic keywords) map to an SDK face instead of reaching React Native verbatim: `sans-serif` and `system-ui` draw Inter, the rest draw the SDK serif. `reference` accepts cross-chapter ranges and comma lists.
