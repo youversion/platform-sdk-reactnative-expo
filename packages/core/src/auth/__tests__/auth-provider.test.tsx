@@ -676,8 +676,18 @@ describe('AuthProvider — refresh failure policy', () => {
         </AuthProvider>,
       )
 
+      await waitFor(() => {
+        expect(fetchMock).toHaveBeenCalled()
+        expect(mockRefreshTokens).toHaveBeenCalled()
+      })
+
       await act(async () => {
-        await jest.advanceTimersByTimeAsync(10_000)
+        await jest.advanceTimersByTimeAsync(9_999)
+      })
+      expect(getText('isLoading')).toBe('true')
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(1)
       })
 
       expect(getText('isLoading')).toBe('false')
