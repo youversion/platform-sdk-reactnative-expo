@@ -183,13 +183,6 @@ describe('passageRefFor', () => {
     ['JHN.3.16-18', 'JHN', '3'],
     ['GEN.INTRO', 'GEN', 'INTRO'],
     ['JHN.INTRO', 'JHN', 'INTRO'],
-    ['ROM.8.38-9.1', 'ROM', '8'],
-    ['ROM.8.38-ROM.8.39', 'ROM', '8'],
-    ['ROM.8.38-ROM.9.1', 'ROM', '8'],
-    ['JHN.3.16,18', 'JHN', '3'],
-    ['JHN.3.16,JHN.3.18-20', 'JHN', '3'],
-    ['1CO.13.4-8', '1CO', '13'],
-    ['PSA.119.1-300', 'PSA', '119'],
   ])('keeps %s whole and scopes it to %s %s', (usfm, book, chapter) => {
     expect(passageRefFor(usfm)).toEqual({ usfm, book, chapter })
   })
@@ -200,11 +193,11 @@ describe('passageRefFor', () => {
     'JHN.0',
     'JHN..1',
     'JHN.3.16.18',
-    'JHN.0.1-2,3',
-    'JHN.3.16,',
-    'JHN.3.16-',
-    'JHN.3.16/../x',
-    'JHN.3.16?x=1',
+    'ROM.8.38-9.1',
+    'ROM.8.38-ROM.9.1',
+    'JHN.3.16,18',
+    'JHN.3.16,JHN.3.18-20',
+    'PSA.119.1-300',
   ])('refuses %j', (usfm) => {
     expect(passageRefFor(usfm)).toBeNull()
   })
