@@ -35,15 +35,22 @@ describe('usePassageStyle host fontFamily', () => {
           highlights: [],
           fontSize: 16,
           lineMultiple: 1.5,
-          fontFamily: 'sans-serif',
+          fontFamily: 'Avenir',
         }),
       { wrapper },
     )
 
-    expect(result.current.look.face(400, false).fontFamily).toBe('sans-serif')
+    expect(result.current.look.face(400, false).fontFamily).toBe('Avenir')
   })
 
-  it('draws the SDK serif for a CSS stack instead of passing it to RN', () => {
+  it.each([
+    ['sans-serif', 'Inter'],
+    ['system-ui', 'Inter'],
+    [' Sans-Serif ', 'Inter'],
+    ['serif', 'Untitled Serif'],
+    ['monospace', 'Untitled Serif'],
+    ['var(--yv-reader-font-family)', 'Untitled Serif'],
+  ])('maps the CSS value %j to %s instead of passing it to RN', (fontFamily, face) => {
     const { result } = renderHook(
       () =>
         usePassageStyle({
@@ -51,12 +58,31 @@ describe('usePassageStyle host fontFamily', () => {
           highlights: [],
           fontSize: 16,
           lineMultiple: 1.5,
-          fontFamily: '"Georgia", serif',
+          fontFamily,
         }),
       { wrapper },
     )
 
-    expect(result.current.look.face(400, false).fontFamily).toBe('Untitled Serif')
+    expect(result.current.look.face(400, false).fontFamily).toBe(face)
+  })
+
+  it.each([
+    ['"Georgia", serif', 'Untitled Serif'],
+    ['"Helvetica Neue", Arial, sans-serif', 'Inter'],
+  ])('maps the CSS stack %j to %s by its last keyword', (fontFamily, face) => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily,
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.face(400, false).fontFamily).toBe(face)
   })
 
   it('still maps the Inter stack to Inter', () => {

@@ -157,11 +157,12 @@ export function BibleTextViewNative({
       // Spinner below. Do not surface a prior fetch error while the host is loading.
     } else if (hostHtml !== null && address === null) {
       message = t('passageUnavailable')
+    } else if (load.error !== null) {
+      // Bad supplied markup fails to parse before an idle empty state.
+      message = t(passageErrorKey(load.error))
     } else if (passage === null) {
       // Idle empty supplied state — not a forever spinner (fetch is disabled).
       message = t('passageUnavailable')
-    } else if (load.error !== null) {
-      message = t(passageErrorKey(load.error))
     }
   } else if (gate === 'refused') {
     message = t('passageUnavailable')

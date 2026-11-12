@@ -15,9 +15,40 @@ import { highlightPaint, type HighlightPaint } from './highlight-colors'
 import type { PassageLook } from './passage'
 import type { LoadedPassage } from './use-passage'
 
-/** CSS stacks are not valid RN `fontFamily` values; map them to the SDK serif. */
-function isCssFontStack(fontFamily: string): boolean {
-  return fontFamily.includes(',') || fontFamily.includes('"') || fontFamily.includes("'")
+const CSS_SANS_KEYWORDS = new Set(['sans-serif', 'system-ui', 'ui-sans-serif', '-apple-system'])
+const CSS_OTHER_KEYWORDS = new Set([
+  'serif',
+  'ui-serif',
+  'monospace',
+  'ui-monospace',
+  'cursive',
+  'fantasy',
+  'ui-rounded',
+  'inherit',
+  'initial',
+  'unset',
+])
+
+/**
+ * CSS stacks, generic keywords, and `var()` are not RN face names; they map to
+ * an SDK face. A stack is classified by its last entry (the generic fallback).
+ */
+function cssFontKind(fontFamily: string): 'sans' | 'serif' | null {
+  const value = fontFamily.trim().toLowerCase()
+  if (CSS_SANS_KEYWORDS.has(value)) {
+    return 'sans'
+  }
+  if (CSS_OTHER_KEYWORDS.has(value) || value.startsWith('var(')) {
+    return 'serif'
+  }
+  if (/[,"']/.test(value)) {
+    const last = value.split(',').at(-1)?.trim().replace(/["']/g, '') ?? ''
+    if (CSS_SANS_KEYWORDS.has(last)) {
+      return 'sans'
+    }
+    return 'serif'
+  }
+  return null
 }
 
 export type PassageStyleInput = {
@@ -28,8 +59,9 @@ export type PassageStyleInput = {
   /** Line box as a multiple of `fontSize`. */
   lineMultiple: number
   /**
-   * Inter draws the SDK sans. Known serif stacks and the default draw the
-   * reader serif. Any other value keeps the host's face.
+   * Inter and CSS sans keywords (or stacks that end in one) draw the SDK sans.
+   * Serif tokens, other CSS stacks/keywords, `var()`, and the default draw the
+   * reader serif. Any other value is a host face name.
    */
   fontFamily: FontFamily | undefined
   /** Overrides the passage's own strong-letter vote. */
@@ -62,15 +94,14 @@ export function usePassageStyle({
   const serifFaceFor = useSerifFace()
   const ink = inkOverride ?? tokens.foreground
   const background = backgroundOverride ?? tokens.background
-  const isSans = fontFamily === INTER_FONT
+  const cssKind = fontFamily === undefined ? null : cssFontKind(fontFamily)
+  const isSans = fontFamily === INTER_FONT || cssKind === 'sans'
   const isSdkSerif =
     fontFamily === undefined ||
     fontFamily === UNTITLED_SERIF_FONT ||
-    fontFamily === SOURCE_SERIF_FONT
-  const hostFamily =
-    fontFamily !== undefined && !isSans && !isSdkSerif && !isCssFontStack(fontFamily)
-      ? fontFamily
-      : null
+    fontFamily === SOURCE_SERIF_FONT ||
+    cssKind === 'serif'
+  const hostFamily = fontFamily !== undefined && !isSans && !isSdkSerif ? fontFamily : null
   const rtl = direction === undefined ? (passage?.parsed.rtl ?? false) : direction === 'rtl'
 
   // Highlights stay out of the deps, so a new highlight keeps `look`'s identity.

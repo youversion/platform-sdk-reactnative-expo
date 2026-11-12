@@ -187,7 +187,18 @@ describe('passageRefFor', () => {
     expect(passageRefFor(usfm)).toEqual({ usfm, book, chapter })
   })
 
-  it.each(['', 'JHN', 'JHN.0', 'JHN..1', 'JHN.3.16.18'])('refuses %j', (usfm) => {
+  it.each([
+    '',
+    'JHN',
+    'JHN.0',
+    'JHN..1',
+    'JHN.3.16.18',
+    'ROM.8.38-9.1',
+    'ROM.8.38-ROM.9.1',
+    'JHN.3.16,18',
+    'JHN.3.16,JHN.3.18-20',
+    'PSA.119.1-300',
+  ])('refuses %j', (usfm) => {
     expect(passageRefFor(usfm)).toBeNull()
   })
 })
