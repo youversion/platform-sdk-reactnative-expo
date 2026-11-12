@@ -1,14 +1,14 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native'
-import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { FootnoteData, VerseOfTheDayShareData } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'
-import { Platform, Share, StyleSheet, View, type TextStyle } from 'react-native'
+import { Platform, Share, StyleSheet, Text, View, type TextStyle } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import es from '../../i18n/locales/es.json'
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
-import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { resetImpls, setImpl, stubImpl } from '../../test-utils/install-test-impls'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import {
   installBibleContentFetch,
@@ -76,6 +76,7 @@ describe('VerseOfTheDay', () => {
 
   beforeEach(() => {
     fetchStub = installBibleContentFetch()
+    stubImpl('FootnoteContent', 'mock-footnote')
     stubDeviceLocale('xx-XX', 'xx')
     jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' })
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.3.16')
@@ -677,6 +678,26 @@ describe('VerseOfTheDay', () => {
 
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
     expect(screen.getByText(en.passageUnavailable)).toBeTruthy()
+  })
+
+  it('opens the footnote through the swappable FootnoteContent impl', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
+    setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
+      isOpen ? <View testID="footnote-sheet">{children}</View> : null,
+    )
+    setImpl('FootnoteContent', ({ data }: { data: FootnoteData }) => (
+      <Text testID="mock-footnote-verse">{data.verseNum}</Text>
+    ))
+
+    const screen = await renderAndSettle(<VerseOfTheDay versionId={3034} />, {
+      wrapper: wrapper(),
+    })
+    await waitFor(() => {
+      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+
+    expect(screen.getByTestId('mock-footnote-verse').children).toContain('1')
   })
 
   it('passes provider version filter lists into the share source fetch', async () => {

@@ -366,7 +366,7 @@ describe('BibleTextView', () => {
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
 
-  it('pads highlight end-room inside the host box with a matching background', async () => {
+  it('cancels Passage highlight end-room so words sit flush with the host edge', async () => {
     serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
     render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
       wrapper: youVersionProviderWrapper(),
@@ -375,9 +375,9 @@ describe('BibleTextView', () => {
     expect(await screen.findByText(JOHN)).toBeTruthy()
     const chrome = passageChromeWrapper(JOHN)
     const style = StyleSheet.flatten(chrome.props.style)
-    expect(style?.marginHorizontal).toBeUndefined()
-    expect(style?.paddingHorizontal).toBe(highlightEndRoom(16))
-    expect(style?.backgroundColor).toBe(getTokens('light').background)
+    expect(style?.paddingHorizontal).toBeUndefined()
+    expect(style?.marginHorizontal).toBe(-highlightEndRoom(16))
+    expect(style?.backgroundColor).toBeUndefined()
   })
 
   it('paints a cached highlight on the verse', async () => {

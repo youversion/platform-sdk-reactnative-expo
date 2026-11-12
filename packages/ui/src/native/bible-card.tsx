@@ -9,6 +9,7 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
 import { useShallow } from 'zustand/react/shallow'
@@ -43,6 +44,10 @@ export type BibleCardProps = Omit<
   WebBibleCardProps,
   'highlights' | 'onFootnotePress' | 'onVersionChange' | 'onVersionPickerPress'
 > & {
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DOMProps
   theme?: 'light' | 'dark' | 'system'
   onVersionChange?: (versionId: number) => void
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
@@ -335,6 +340,7 @@ export function BibleCard({
   onFootnotePress: consumerOnFootnotePress,
   // Matches the React Web SDK default (BibleCard hides the version picker unless opted in).
   showVersionPicker = false,
+  dom: _dom,
   ...props
 }: BibleCardProps): ReactNode {
   const context = useYouVersion()
@@ -368,6 +374,16 @@ export function BibleCard({
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  // A note belongs to the passage it was opened from; close it when that passage changes.
+  useEffect(() => {
+    setFootnoteData(null)
+  }, [
+    props.reference,
+    versionId,
+    context.permittedVersionIds,
+    context.excludedVersionIds,
+    context.permittedLanguageTags,
+  ])
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer

@@ -140,16 +140,11 @@ export function PassageEmbed({
         selected={EMPTY_SELECTION}
         paint={paint}
         focus={NO_FOCUS}
-        onVersePress={noop}
         onNotePress={onNotePress}
-        onBlockLayout={noop}
-        onBlockRef={noop}
       />
     </View>
   )
 }
-
-function noop(): void {}
 
 const styles = StyleSheet.create({
   status: {

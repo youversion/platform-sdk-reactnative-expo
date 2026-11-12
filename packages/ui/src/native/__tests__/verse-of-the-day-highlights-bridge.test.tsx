@@ -12,7 +12,7 @@ import type { ReactTestInstance } from 'react-test-renderer'
 
 import en from '../../i18n/locales/en.json'
 import { emptyHighlights } from '../../test-utils/default-hook-overrides'
-import { resetImpls } from '../../test-utils/install-test-impls'
+import { resetImpls, stubImpl } from '../../test-utils/install-test-impls'
 import {
   installBibleContentFetch,
   type BibleContentFetchStub,
@@ -102,6 +102,7 @@ let fetchStub: BibleContentFetchStub
 
 beforeEach(() => {
   fetchStub = installBibleContentFetch()
+  stubImpl('FootnoteContent', 'mock-footnote')
   useHighlightsMock.mockClear()
   stubHighlights([])
   useVerseOfTheDayPassageIdSpy.mockReturnValue(passageLookup(null))

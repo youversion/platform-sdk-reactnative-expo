@@ -195,9 +195,9 @@ export function BibleTextViewNative({
     <View
       pointerEvents={isCurrent ? 'auto' : 'none'}
       style={{
-        // Highlight paint runs past the words — keep that room inside the host box.
-        paddingHorizontal: highlightEndRoom(fontSize),
-        backgroundColor: look.background,
+        // Passage pads highlightEndRoom; pull it back so words sit flush with the
+        // host edge (same formula as the reader: desiredInset - highlightEndRoom).
+        marginHorizontal: -highlightEndRoom(fontSize),
         opacity: isCurrent ? 1 : 0.4,
       }}
     >

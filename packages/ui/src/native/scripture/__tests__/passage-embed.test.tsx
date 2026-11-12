@@ -231,6 +231,29 @@ describe('PassageEmbed', () => {
     expect(onFootnotePress.mock.calls[0]?.[0].notes.length).toBeGreaterThan(0)
   })
 
+  it('leaves verse text and numbers inert, so only footnote markers press', async () => {
+    const { getByLabelText, UNSAFE_root } = render(
+      <PassageEmbed
+        reference="JHN.1.1"
+        versionId={3034}
+        highlights={[]}
+        fontSize={16}
+        font="serif"
+        onFootnotePress={jest.fn()}
+      />,
+      { wrapper },
+    )
+
+    await waitFor(() => {
+      expect(getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    const live = UNSAFE_root.findAll((node) => node.props.onPress !== undefined, { deep: false })
+    expect(live.length).toBeGreaterThan(0)
+    for (const node of live) {
+      expect(node.props.accessibilityLabel).toBe(en.footnoteAriaLabel)
+    }
+  })
+
   it('honors an explicit direction over the chapter vote', async () => {
     const { getByText, UNSAFE_getAllByType } = render(
       <PassageEmbed

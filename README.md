@@ -129,7 +129,7 @@ function VerseScreen() {
 }
 ```
 
-`BibleTextView` grows with its passage. Put it in a `ScrollView` when the passage can outgrow the screen. `showVerseNumbers` (default `true`) controls whether verse numbers render inline. Footnote markers open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn. `BibleCard` and `VerseOfTheDay` draw native text and do not take a `dom` prop.
+`BibleTextView` grows with its passage. Put it in a `ScrollView` when the passage can outgrow the screen. `showVerseNumbers` (default `true`) controls whether verse numbers render inline. Footnote markers open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn.
 
 Display a Bible card with a verse and reader controls:
 

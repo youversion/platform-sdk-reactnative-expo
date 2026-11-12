@@ -3,6 +3,7 @@ import type {
   FootnoteData,
   VerseOfTheDayProps as WebVerseOfTheDayProps,
 } from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from '../components/ui'
@@ -13,7 +14,7 @@ import { isVersionIdDecidablyUnusable } from '../lib/version-usability'
 import { getTokens } from '../theme'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
-import FootnoteContent from './footnote-content'
+import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
@@ -25,6 +26,10 @@ import { useVerseOfTheDayShareSource } from './use-verse-of-the-day-share-source
 
 export type VerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
   theme?: 'light' | 'dark' | 'system'
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DOMProps
 }
 
 const DEFAULT_FONT_SIZE = 16
@@ -66,6 +71,7 @@ export function VerseOfTheDay({
   const scope = highlightScopeFor(passageId, versionId)
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  const FootnoteContent = getImpl('FootnoteContent')
   const versionRefused = isVersionIdDecidablyUnusable(versionId, {
     permittedVersionIds,
     excludedVersionIds,

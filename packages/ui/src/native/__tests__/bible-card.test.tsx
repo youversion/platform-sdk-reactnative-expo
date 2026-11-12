@@ -665,6 +665,22 @@ describe('BibleCard', () => {
     expect(queryByTestId('footnote-sheet')).toBeNull()
   })
 
+  it('closes the footnote sheet when the controlled version changes', async () => {
+    const onVersionChange = jest.fn()
+    const { rerender } = await renderAndSettle(
+      <BibleCard reference="JHN.1.1" versionId={3034} onVersionChange={onVersionChange} />,
+      { wrapper: wrapper() },
+    )
+
+    await pressFootnote()
+    expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
+
+    rerender(<BibleCard reference="JHN.1.1" versionId={111} onVersionChange={onVersionChange} />)
+    await waitFor(() => {
+      expect(screen.queryByTestId('footnote-sheet')).toBeNull()
+    })
+  })
+
   it('reopens the footnote sheet on a second marker tap after close', async () => {
     const { getByTestId, queryByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} />,
