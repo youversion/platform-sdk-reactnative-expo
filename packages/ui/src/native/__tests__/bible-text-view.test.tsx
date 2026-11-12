@@ -18,7 +18,6 @@ import { lineMultiple } from '../scripture/styles'
 
 const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
 const OFFLINE = 'We\u2019re having difficulties with your connection.'
-const REQUEST_FAILED = 'This request can’t be completed right now.'
 const JOHN = 'For God so loved the world'
 const GAVE = 'that he gave'
 
