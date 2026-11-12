@@ -1,7 +1,13 @@
 import { parseChapterScopeFromUsfm } from '@youversion/platform-react-native-expo-core'
 
 import type { Block } from './parse-passage'
-import { passageKey, chapterRef, type LoadedPassage, type PassageError } from './use-passage'
+import {
+  passageKey,
+  chapterRef,
+  passageRefFor,
+  type LoadedPassage,
+  type PassageError,
+} from './use-passage'
 
 export type VerseSpan = {
   book: string
@@ -11,17 +17,22 @@ export type VerseSpan = {
 }
 
 /**
- * Chapter, verse, or verse-range USFM. The chapter scope is the same one
- * highlights subscribe to. A range keeps both ends.
+ * Chapter, verse, or verse-range USFM. Whole chapters (numeric or catalog ids
+ * like `INTRO`) go through `passageRefFor`. Verse and range forms keep the
+ * highlight-scope chapter rules. A range keeps both ends.
  */
 export function verseSpanFromPassageId(passageId: string): VerseSpan | null {
+  const versePart = passageId.split('.')[2]
+  if (versePart === undefined) {
+    const ref = passageRefFor(passageId)
+    if (ref === null) {
+      return null
+    }
+    return { book: ref.book, chapter: ref.chapter, verses: null }
+  }
   const scope = parseChapterScopeFromUsfm(passageId)
   if (scope === null) {
     return null
-  }
-  const versePart = passageId.split('.')[2]
-  if (versePart === undefined) {
-    return { book: scope.book, chapter: scope.chapter, verses: null }
   }
   const match = /^(\d+)(?:-(\d+))?$/.exec(versePart)
   const startRaw = match?.[1]

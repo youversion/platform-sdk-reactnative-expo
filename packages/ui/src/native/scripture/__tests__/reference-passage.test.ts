@@ -63,6 +63,19 @@ describe('verseSpanFromPassageId', () => {
     })
   })
 
+  it('treats a catalog introduction as the whole chapter', () => {
+    expect(verseSpanFromPassageId('GEN.INTRO')).toEqual({
+      book: 'GEN',
+      chapter: 'INTRO',
+      verses: null,
+    })
+    expect(verseSpanFromPassageId('JHN.INTRO')).toEqual({
+      book: 'JHN',
+      chapter: 'INTRO',
+      verses: null,
+    })
+  })
+
   it('rejects a reversed range and a non-usfm id', () => {
     expect(verseSpanFromPassageId('JHN.3.18-16')).toBeNull()
     expect(verseSpanFromPassageId('not-usfm')).toBeNull()
