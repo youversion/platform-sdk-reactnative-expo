@@ -1,16 +1,19 @@
-import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import {
+  BIBLE_READER_FONT,
+  type BibleTextViewProps as WebBibleTextViewProps,
+  type FootnoteData,
+} from '@youversion/platform-react-ui'
+import type { DOMProps } from 'expo/dom'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
-import type { BibleTextViewProps as BibleTextViewDOMProps } from '../dom/bible-text-view'
+
+import { ThemeContext, useTheme } from '../hooks/use-theme'
+import type { FontFamily } from '../lib/reader-fonts'
 import { getImpl } from './component-impls'
-import { withEmbedDomDefaults } from '../lib/embed-dom-props'
-import { encodeFontFamilyForDom, type FontFamily } from '../lib/reader-fonts'
-import { HighlightsPaint } from './highlights-paint'
-import { highlightScopeFor } from './highlight-scope'
 import { NativeSheet } from './native-sheet'
-import { useTheme } from '../hooks/use-theme'
-import { useLocale } from '../i18n/locale-context'
+import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
+
+const DEFAULT_FONT_SIZE = BIBLE_READER_FONT.DEFAULT
 
 const EMPTY_FOOTNOTE: FootnoteData = {
   verseNum: '',
@@ -18,88 +21,77 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: '',
 }
 
-export type BibleTextViewProps = Omit<
-  BibleTextViewDOMProps,
-  | 'appKey'
-  | 'apiHost'
-  | 'installationId'
-  | 'fetchBibleContent'
-  | 'highlights'
-  | 'fontFamily'
-  | 'theme'
+export type BibleTextViewProps = Pick<
+  WebBibleTextViewProps,
+  | 'reference'
+  | 'versionId'
+  | 'fontSize'
+  | 'lineHeight'
+  | 'showVerseNumbers'
+  | 'renderNotes'
+  | 'selectedVerses'
+  | 'scriptureDirection'
 > & {
   theme?: 'light' | 'dark' | 'system'
   fontFamily?: FontFamily
+  onVerseSelect?: (verses: number[]) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  passageState?: BibleTextViewPassageState
+  /**
+   * @deprecated Ignored. The signed-in user's cached highlights paint the passage.
+   * This was already true under Expo DOM, where cached highlights won.
+   */
+  highlightedVerses?: Record<number, string>
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
+  dom?: DOMProps
 }
 
+/** A verse, range, or chapter in native text. Same renderer as `BibleReader`. */
 export function BibleTextView({
+  theme,
   onFootnotePress: consumerOnFootnotePress,
-  theme: themeOverride,
-  fontFamily,
+  highlightedVerses: _highlightedVerses,
+  dom: _dom,
   fontSize,
-  dom,
-  ...domProps
+  ...props
 }: BibleTextViewProps): ReactNode {
-  const context = useYouVersion()
-  const { lng } = useLocale()
-  const resolvedTheme = useTheme(themeOverride)
+  const resolvedTheme = useTheme(theme)
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
-  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  // footnoteData can stay set across taps, so each tap is its own open.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
-
+  const opensSheet = Platform.OS !== 'web' && consumerOnFootnotePress === undefined
   const onFootnotePress =
-    Platform.OS !== 'web'
-      ? (consumerOnFootnotePress ??
-        (async (data: FootnoteData) => {
+    consumerOnFootnotePress ??
+    (opensSheet
+      ? async (data: FootnoteData) => {
           setFootnoteData(data)
           setFootnoteOpenKey((key) => key + 1)
-        }))
-      : undefined
-
-  const showSheet = Platform.OS !== 'web' && !consumerOnFootnotePress
-  const BibleTextViewDOM = getImpl('BibleTextViewDom')
+        }
+      : undefined)
   const FootnoteContent = getImpl('FootnoteContent')
-  const scope = highlightScopeFor(domProps.reference, domProps.versionId)
+  const resolvedFontSize = fontSize ?? DEFAULT_FONT_SIZE
 
+  // useTokens reads the provider above the component that calls it, so the override wraps the body.
   return (
-    <HighlightsPaint scope={scope}>
-      {(highlights) => (
-        <>
-          <BibleTextViewDOM
-            {...domProps}
-            appKey={context.appKey}
-            apiHost={context.apiHost}
-            installationId={context.installationId}
-            fetchBibleContent={context.fetchBibleContent}
-            permittedVersionIds={context.permittedVersionIds}
-            excludedVersionIds={context.excludedVersionIds}
-            permittedLanguageTags={context.permittedLanguageTags}
-            locale={lng}
-            highlights={highlights}
+    <ThemeContext.Provider value={resolvedTheme}>
+      <BibleTextViewNative {...props} fontSize={resolvedFontSize} onFootnotePress={onFootnotePress} />
+      {opensSheet && (
+        <NativeSheet
+          isOpen={footnoteData !== null}
+          openKey={footnoteOpenKey}
+          onClose={() => setFootnoteData(null)}
+          theme={resolvedTheme}
+          enableContentPanningGesture={false}
+        >
+          <FootnoteContent
+            data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
-            fontSize={fontSize}
-            fontFamily={fontFamily == null ? undefined : encodeFontFamilyForDom(fontFamily)}
-            dom={withEmbedDomDefaults(dom)}
-            onFootnotePress={onFootnotePress}
+            fontSize={resolvedFontSize}
           />
-          {showSheet && (
-            <NativeSheet
-              isOpen={!!footnoteData}
-              openKey={footnoteOpenKey}
-              onClose={() => setFootnoteData(null)}
-              theme={resolvedTheme}
-              enableContentPanningGesture={false}
-            >
-              <FootnoteContent
-                data={footnoteData ?? EMPTY_FOOTNOTE}
-                theme={resolvedTheme}
-                fontSize={fontSize}
-              />
-            </NativeSheet>
-          )}
-        </>
+        </NativeSheet>
       )}
-    </HighlightsPaint>
+    </ThemeContext.Provider>
   )
 }

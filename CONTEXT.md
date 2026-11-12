@@ -1,6 +1,6 @@
 # React Native Expo SDK Composition
 
-Language for the React Native Expo SDK. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
+Language for the React Native Expo SDK. `BibleReader`, `BibleTextView`, and footnote sheets draw native text. `BibleCard` and `VerseOfTheDay` still embed the Web SDK through Expo DOM.
 
 ## Language
 
@@ -13,7 +13,7 @@ A `'use dom'` wrapper that renders React Web SDK content inside Expo's DOM/WebVi
 _Avoid_: WebView component, DOM view
 
 **Native Wrapper**:
-A React Native component that owns the public API and native presentation. `BibleReader` and footnote sheets draw native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
+A React Native component that owns the public API and native presentation. `BibleReader`, `BibleTextView`, and footnote sheets draw native text. `BibleCard` and `VerseOfTheDay` still embed an Expo DOM component. Pickers, settings, search, and the auth button do not.
 _Avoid_: Container, adapter
 
 **Presentation Shell**:
@@ -21,8 +21,8 @@ The platform-specific surface that displays reusable content, such as a Radix Po
 _Avoid_: Modal, popup
 
 **Native Sheet**:
-The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover. Closing it dismisses a keyboard raised by its Expo DOM content only when that content receives `isOpen` and calls `useDismissKeyboardOnClose`. See [ADR 0010](docs/adr/0010-dom-keyboard-dismissal-on-sheet-close.md).
-_Avoid_: Modal; treating keyboard dismiss as automatic native `Keyboard.dismiss()`
+The React Native bottom-sheet presentation shell used for mobile interactions that should not use a web popover.
+_Avoid_: Modal
 
 **Inactive Sheet Inertness**:
 A **Native Sheet** requirement: before a sheet-opening user action, an inactive sheet must not be visible, draggable, touch-blocking, or otherwise in the user's way. Keeping DOM content mounted for WebView pre-warming is acceptable only while this requirement holds.
@@ -99,8 +99,8 @@ When a persisted or host `versionId` is not permitted, native chrome still passe
 _Avoid_: Silent 3034 swap; rewriting recents or persisted location on refuse; picker-only refuse while text still renders; sharing a refused version from native chrome
 
 **Native Bible Version Picker**:
-The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state.
-_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is deleted.
+The React Native version list and language list. It is not a package export. **Version Picker Sheet** is the public shell. Controller state lives in `use-version-picker.ts`. Both panels stay mounted. Recents come from an on-device store. The language panel is native state. The catalog and each language's version list stay in a process-lifetime memory map keyed by API host and app key (plus language id for versions). A rejected load is dropped so Retry fetches again. This map is not **Bible Content Cache** and does not follow ADR 0020.
+_Avoid_: Exporting the picker. Building new picker UI in `dom/bible-version-picker-content.tsx`. That file is deleted. Routing picker catalog traffic through **Bible Content Cache**.
 
 **Version Picker Shell Layout**:
 The previous Expo DOM wrapper (`dom/bible-version-picker-content.tsx`). That file is deleted. See **Native Bible Version Picker**.

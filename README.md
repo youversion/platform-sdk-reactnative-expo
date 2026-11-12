@@ -4,7 +4,7 @@
 
 ![Platform](https://img.shields.io/badge/Platform-iOS%20%7C%20Android-blue) [![License](https://img.shields.io/badge/license-Apache-blue.svg)](LICENSE) ![Core coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/core.json) ![UI coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/youversion/platform-sdk-reactnative-expo/badges/ui.json)
 
-A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, the auth button, and `BibleReader` are native. `BibleReader` draws the chapter and its footnotes with native text. `BibleTextView`, `BibleCard`, and `VerseOfTheDay` still render their passage in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK stay required for the passages that still use them.
+A React Native SDK for displaying Bible content in Expo apps on iOS and Android. Toolbar, pickers, settings, sheets, the auth button, `BibleReader`, and `BibleTextView` are native. `BibleReader` and `BibleTextView` draw scripture with native text. `BibleCard` and `VerseOfTheDay` still render their passage in a WebView through the [React Web SDK](https://github.com/youversion/platform-sdk-react) (`@youversion/platform-react-ui`) and [Expo DOM](https://docs.expo.dev/guides/dom-components/). `@expo/dom-webview` and the Web SDK stay required for those two.
 
 ## Table of Contents
 
@@ -106,7 +106,7 @@ The same resolved scheme drives the SDK's own native chrome through design token
 
 The provider also loads brand fonts (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Children wait for bundled Inter; Untitled Serif still loads in the background from the YouVersion Fonts API — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, or that request fails, native serif falls back to Source Serif 4.
 
-`BibleReader` sets font size, line spacing, and font family on its own text. Light and dark inside a WebView follow the resolved `theme` on that WebView's `YouVersionProvider`. `BibleTextView` still receives `fontFamily` across the native bridge as a quote-free token ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
+`BibleReader` and `BibleTextView` set type on their own text. `BibleCard` and `VerseOfTheDay` still send `fontFamily` across the native bridge as a quote-free token ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
 
 Native and in-WebView SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 
@@ -129,7 +129,7 @@ function VerseScreen() {
 }
 ```
 
-`showVerseNumbers` (default `true`) controls whether verse numbers render inline. Like `BibleCard` and `VerseOfTheDay`, a standalone `BibleTextView` sizes to its scripture by default (`matchContents`). Pass `dom={{ matchContents: false }}` to opt out and size with flex styles.
+`BibleTextView` grows with its passage. Put it in a `ScrollView` when the passage can outgrow the screen. `showVerseNumbers` (default `true`) controls whether verse numbers render inline. Footnote markers open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn.
 
 Display a Bible card with a verse and reader controls:
 
@@ -143,8 +143,6 @@ function CardScreen() {
 ```
 
 See `BibleCard` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its props.
-
-> **Note:** Scripture content is fetched from YouVersion servers. The WebView behind `BibleTextView` caches responses for repeat reads.
 
 ### Bible Reader
 
@@ -165,7 +163,7 @@ The chapter is native text.
 
 See `BibleReader` in the [component reference](https://developers.youversion.com/sdks/react-native-expo/components) for its native toolbar, Search, and built-in sheets.
 
-`BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights on the passage they show, from the same cache. They do not create or remove highlights — tapping a verse on those surfaces still does nothing.
+`BibleTextView`, `BibleCard`, and `VerseOfTheDay` paint those same highlights from the same cache. They do not create or remove highlights. A verse tap on `BibleTextView` calls `onVerseSelect`. Tapping a verse on the card or verse of the day does nothing.
 
 #### Jumping to a passage
 

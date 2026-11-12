@@ -9,7 +9,6 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
 } from '@youversion/platform-react-ui'
-import type { DOMProps } from 'expo/dom'
 import type { StyleProp, ViewStyle } from 'react-native'
 
 import type { FontFamily, FontFamilyToken } from '../lib/reader-fonts'
@@ -86,7 +85,6 @@ export type BibleReaderBodyProps = {
   foregroundColor?: string
   style?: StyleProp<ViewStyle>
   bottomScrollPadding?: number
-  dom?: DOMProps
 } & (
   | { includeAuth: true; authRedirectUrl: string }
   | { includeAuth?: false; authRedirectUrl?: never }

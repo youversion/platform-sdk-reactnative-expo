@@ -1,7 +1,8 @@
 # 20. The Bible Content Cache sits below `fetch`, served by native, in MMKV
 
 Date: 2026-08-27 (amended 2026-08-29: native performs the request)
-Amended: 2026-10-08. `BibleReader` calls the Bible Content Client directly. The WebView fetch interception remains for `BibleTextView`, `BibleCard`, and `VerseOfTheDay`.
+Amended: 2026-10-08. `BibleReader` calls the Bible Content Client directly.
+Amended: 2026-11-03. `BibleTextView` calls the Bible Content Client directly. The WebView fetch interception remains for `BibleCard` and `VerseOfTheDay`.
 
 ## Status
 

@@ -77,6 +77,9 @@ describe('package exports', () => {
     expect(names).not.toContain('BibleReaderSearchSheet')
     expect(names).not.toContain('useBibleVersionAbbreviation')
     expect(names).not.toContain('useBibleBookTitle')
+    expect(names).not.toContain('BibleTextViewNative')
+    expect(names).not.toContain('Passage')
+    expect(names).not.toContain('usePassage')
   })
 
   it('accepts theme system on BibleCard and VerseOfTheDay', () => {
