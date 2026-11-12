@@ -1,16 +1,8 @@
-import type { StyleProp, ViewStyle } from 'react-native'
+import type { DOMProps } from 'expo/dom'
 
 /**
- * Subset of `expo/dom`'s `DOMProps` for the retired Expo DOM text surface.
- * Accepts what hosts already pass; native renderers ignore every field.
+ * Former Expo DOM `dom` prop shape. Native renderers ignore every field.
+ * Kept as the full `DOMProps` type so hosts that still pass extra keys typecheck
+ * until the next major removes the prop.
  */
-export type DeprecatedDomProps = {
-  matchContents?: boolean
-  containerStyle?: StyleProp<ViewStyle>
-  style?: StyleProp<ViewStyle>
-  scrollEnabled?: boolean
-  bounces?: boolean
-  overScrollMode?: 'auto' | 'always' | 'never'
-  showsVerticalScrollIndicator?: boolean
-  showsHorizontalScrollIndicator?: boolean
-}
+export type DeprecatedDomProps = DOMProps

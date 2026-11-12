@@ -6,6 +6,7 @@ import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { highlightEndRoom } from '../scripture/passage'
+import * as parsePassageModule from '../scripture/parse-passage'
 import { INTER_FONT } from '../../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { getTokens } from '../../theme'
@@ -18,6 +19,7 @@ import { lineMultiple } from '../scripture/styles'
 
 const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
 const OFFLINE = 'We\u2019re having difficulties with your connection.'
+const REQUEST_FAILED = 'This request can’t be completed right now.'
 const JOHN = 'For God so loved the world'
 const GAVE = 'that he gave'
 
@@ -366,7 +368,7 @@ describe('BibleTextView', () => {
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
 
-  it('pads highlight end-room inside the host box with a matching background', async () => {
+  it('cancels Passage highlight end-room so words sit flush with the host edge', async () => {
     serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
     render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
       wrapper: youVersionProviderWrapper(),
@@ -375,9 +377,9 @@ describe('BibleTextView', () => {
     expect(await screen.findByText(JOHN)).toBeTruthy()
     const chrome = passageChromeWrapper(JOHN)
     const style = StyleSheet.flatten(chrome.props.style)
-    expect(style?.marginHorizontal).toBeUndefined()
-    expect(style?.paddingHorizontal).toBe(highlightEndRoom(16))
-    expect(style?.backgroundColor).toBe(getTokens('light').background)
+    expect(style?.paddingHorizontal).toBeUndefined()
+    expect(style?.marginHorizontal).toBe(-highlightEndRoom(16))
+    expect(style?.backgroundColor).toBeUndefined()
   })
 
   it('paints a cached highlight on the verse', async () => {
@@ -705,6 +707,36 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText(JOHN)).toBeTruthy()
     expect(passageRequests()).toEqual([])
+  })
+
+  it('shows a request error when supplied HTML cannot be parsed', async () => {
+    const spy = jest.spyOn(parsePassageModule, 'parsePassage').mockImplementation(() => {
+      throw new Error('bad markup')
+    })
+    try {
+      render(
+        <BibleTextView
+          reference="JHN.3.16"
+          versionId={3034}
+          passageState={{
+            passage: {
+              id: 'JHN.3.16',
+              content: passageHtml(verseBlock(16, JOHN)),
+              reference: 'John 3:16',
+            },
+            loading: false,
+            error: null,
+          }}
+        />,
+        { wrapper: youVersionProviderWrapper() },
+      )
+
+      expect(await screen.findByText(REQUEST_FAILED)).toBeTruthy()
+      expect(screen.queryByText(UNAVAILABLE)).toBeNull()
+      expect(passageRequests()).toEqual([])
+    } finally {
+      spy.mockRestore()
+    }
   })
 
   it('shows unavailable for an idle empty supplied state instead of spinning forever', async () => {

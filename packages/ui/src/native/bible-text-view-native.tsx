@@ -157,11 +157,12 @@ export function BibleTextViewNative({
       // Spinner below. Do not surface a prior fetch error while the host is loading.
     } else if (hostHtml !== null && address === null) {
       message = t('passageUnavailable')
+    } else if (load.error !== null) {
+      // Bad supplied markup fails to parse before an idle empty state.
+      message = t(passageErrorKey(load.error))
     } else if (passage === null) {
       // Idle empty supplied state — not a forever spinner (fetch is disabled).
       message = t('passageUnavailable')
-    } else if (load.error !== null) {
-      message = t(passageErrorKey(load.error))
     }
   } else if (gate === 'refused') {
     message = t('passageUnavailable')
@@ -194,9 +195,9 @@ export function BibleTextViewNative({
     <View
       pointerEvents={isCurrent ? 'auto' : 'none'}
       style={{
-        // Highlight paint runs past the words — keep that room inside the host box.
-        paddingHorizontal: highlightEndRoom(fontSize),
-        backgroundColor: look.background,
+        // Passage pads highlightEndRoom; pull it back so words sit flush with the
+        // host edge (same formula as the reader: desiredInset - highlightEndRoom).
+        marginHorizontal: -highlightEndRoom(fontSize),
         opacity: isCurrent ? 1 : 0.4,
       }}
     >
