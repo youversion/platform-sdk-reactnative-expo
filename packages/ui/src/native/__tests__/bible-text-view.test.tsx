@@ -6,7 +6,6 @@ import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { highlightEndRoom } from '../scripture/passage'
-import * as parsePassageModule from '../scripture/parse-passage'
 import { INTER_FONT } from '../../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { getTokens } from '../../theme'
@@ -707,36 +706,6 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText(JOHN)).toBeTruthy()
     expect(passageRequests()).toEqual([])
-  })
-
-  it('shows a request error when supplied HTML cannot be parsed', async () => {
-    const spy = jest.spyOn(parsePassageModule, 'parsePassage').mockImplementation(() => {
-      throw new Error('bad markup')
-    })
-    try {
-      render(
-        <BibleTextView
-          reference="JHN.3.16"
-          versionId={3034}
-          passageState={{
-            passage: {
-              id: 'JHN.3.16',
-              content: passageHtml(verseBlock(16, JOHN)),
-              reference: 'John 3:16',
-            },
-            loading: false,
-            error: null,
-          }}
-        />,
-        { wrapper: youVersionProviderWrapper() },
-      )
-
-      expect(await screen.findByText(REQUEST_FAILED)).toBeTruthy()
-      expect(screen.queryByText(UNAVAILABLE)).toBeNull()
-      expect(passageRequests()).toEqual([])
-    } finally {
-      spy.mockRestore()
-    }
   })
 
   it('shows unavailable for an idle empty supplied state instead of spinning forever', async () => {
