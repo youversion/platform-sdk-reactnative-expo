@@ -44,12 +44,26 @@ export function verseSpanFromPassageId(passageId: string): VerseSpan | null {
   return { book: scope.book, chapter: scope.chapter, verses: { start, end } }
 }
 
+// Sliced blocks are cached by chapter blocks and span so each keeps its
+// identity across renders: Passage's layout cache and memo key on it.
+const spanCache = new WeakMap<readonly Block[], Map<string, readonly Block[]>>()
+
 /** A verse embed shows those verses, not the chapter's section headings. */
-export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): Block[] {
+export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): readonly Block[] {
   if (span.verses === null) {
-    return [...blocks]
+    return blocks
   }
   const { start, end } = span.verses
+  const key = `${start}-${end}`
+  let bySpan = spanCache.get(blocks)
+  if (bySpan === undefined) {
+    bySpan = new Map()
+    spanCache.set(blocks, bySpan)
+  }
+  const cached = bySpan.get(key)
+  if (cached !== undefined) {
+    return cached
+  }
   const kept: Block[] = []
   for (const block of blocks) {
     if (block.heading) {
@@ -66,6 +80,7 @@ export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): Block[]
     ]
     kept.push({ ...block, segments, verses })
   }
+  bySpan.set(key, kept)
   return kept
 }
 

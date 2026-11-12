@@ -1,5 +1,6 @@
 import type { Block } from '../parse-passage'
 import {
+  blocksInSpan,
   scripturePhase,
   verseSpanFromPassageId,
   type ScripturePhaseInput,
@@ -79,6 +80,22 @@ describe('verseSpanFromPassageId', () => {
   it('rejects a reversed range and a non-usfm id', () => {
     expect(verseSpanFromPassageId('JHN.3.18-16')).toBeNull()
     expect(verseSpanFromPassageId('not-usfm')).toBeNull()
+  })
+})
+
+describe('blocksInSpan', () => {
+  it('returns the same sliced blocks for the same chapter and span', () => {
+    const chapter = [block(16, 'For God so loved'), block(17, 'For God did not')]
+    const span = { book: 'JHN', chapter: '3', verses: { start: 16, end: 16 } }
+    const first = blocksInSpan(chapter, span)
+    expect(blocksInSpan(chapter, { ...span, verses: { start: 16, end: 16 } })).toBe(first)
+    expect(blocksInSpan(chapter, { ...span, verses: { start: 16, end: 17 } })).not.toBe(first)
+    expect(blocksInSpan([...chapter], span)).not.toBe(first)
+  })
+
+  it('returns the chapter blocks themselves for a whole chapter', () => {
+    const chapter = [block(16, 'For God so loved')]
+    expect(blocksInSpan(chapter, { book: 'JHN', chapter: '3', verses: null })).toBe(chapter)
   })
 })
 
