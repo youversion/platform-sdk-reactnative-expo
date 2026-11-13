@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native'
 import type { BoxShadowValue, TextStyle, ViewStyle } from 'react-native'
 
 import { Button } from '../components/ui/button'
@@ -332,6 +332,11 @@ export function BibleReaderToolbar({
             disabled={isBookTitleLoading}
             onPress={onChapterPress}
             accessibilityLabel={chapterAriaLabel}
+            accessibilityValue={
+              Platform.OS === 'ios' && !isBookTitleLoading && bookLabel
+                ? { text: `${bookLabel} ${chapter}` }
+                : undefined
+            }
             testID="reader-toolbar-chapter"
             style={styles.chapter}
           >

@@ -272,7 +272,7 @@ describe('NativeSheet', () => {
     expect(
       getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
         .accessibilityElementsHidden,
-    ).toBe(false)
+    ).toBe(true)
     expect(
       getByTestId('native-sheet-inert-host', { includeHiddenElements: true }).props
         .importantForAccessibility,
@@ -287,8 +287,8 @@ describe('NativeSheet', () => {
     expect(latestBottomSheetProps.enablePanDownToClose).toBe(true)
     expect(latestBottomSheetProps.enableHandlePanningGesture).toBe(true)
     expect(latestBottomSheetProps.enableContentPanningGesture).toBe(true)
-    expect(latestBottomSheetProps.accessible).toBe(true)
-    expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(false)
+    expect(latestBottomSheetProps.accessible).toBe(false)
+    expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(true)
     expect(latestBottomSheetProps.importantForAccessibility).toBe('auto')
     expect(
       getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props.pointerEvents,
@@ -296,7 +296,7 @@ describe('NativeSheet', () => {
     expect(
       getByTestId('bottom-sheet-view', { includeHiddenElements: true }).props
         .accessibilityElementsHidden,
-    ).toBe(false)
+    ).toBe(true)
   })
 
   it('themes the sheet background and handle indicator from the theme prop', () => {
