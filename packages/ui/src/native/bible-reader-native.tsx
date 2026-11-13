@@ -35,6 +35,8 @@ import { lineMultiple } from './scripture/styles'
 import { focusLineBox, focusScrollOffset, type LineBox } from './scripture/verse-line'
 import {
   chapterRef,
+  chapterReference,
+  footnoteFor,
   passageErrorKey,
   passageKey,
   usePassage,
@@ -157,12 +159,12 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // A share from that window cannot be taken back, so the payload waits.
   const shareBookTitle = isBookLoading ? null : bookTitle
   const shareAbbreviation = isVersionLoading ? null : abbreviation
-  // The API's reference carries a bidi mark that scrambles the heading under RTL,
-  // so the fallback drops the mark while the book title loads.
+  // Prefer the loaded book title. Fall back to the API reference (marks stripped,
+  // trimmed to the chapter) while the title loads.
   const footnoteReference =
     isCurrent && shareBookTitle !== null
       ? `${shareBookTitle} ${chapterLabelForBook(entry, chapter)}`
-      : passage?.reference.replace(/[‎‏]/g, '')
+      : chapterReference(passage?.reference)
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({
     versionId,
@@ -276,12 +278,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     if (handler === undefined) {
       return
     }
-    const current = latest.current.passage
-    const info = verse === null ? undefined : current?.parsed.verses.get(verse)
     const data = {
-      verseNum: verse === null ? '' : String(verse),
-      notes: info?.notes ?? [html],
-      verseHtml: info?.html ?? '',
+      ...footnoteFor(latest.current.passage, verse, html),
       reference: latest.current.footnoteReference,
     }
     Promise.resolve(handler(data)).catch(console.error)

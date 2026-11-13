@@ -6,6 +6,7 @@ import type { FootnoteData } from '@youversion/platform-react-ui'
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 
+import { stripDirectionMarks } from './direction-mark'
 import { parsePassage, type ParsedPassage } from './parse-passage'
 
 /**
@@ -224,13 +225,15 @@ function fallbackReference({ usfm, book }: PassageRef): string {
 /**
  * `FootnoteContent` treats `reference` as a chapter label and appends
  * `:${verseNum}`. Verse and range API strings must be trimmed to the chapter.
+ * Drops API U+200E / U+200F so an RTL heading is not scrambled by a leftover mark.
  */
-function chapterReference(reference: string | undefined): string | undefined {
+export function chapterReference(reference: string | undefined): string | undefined {
   if (reference === undefined) {
     return undefined
   }
-  const colon = reference.indexOf(':')
-  return colon === -1 ? reference : reference.slice(0, colon)
+  const cleaned = stripDirectionMarks(reference)
+  const colon = cleaned.indexOf(':')
+  return colon === -1 ? cleaned : cleaned.slice(0, colon)
 }
 
 /** The footnote sheet payload for a tapped note. `verse` null is a note outside any verse. */
