@@ -1,3 +1,4 @@
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import {
   BIBLE_READER_FONT,
   type BibleTextViewProps as WebBibleTextViewProps,
@@ -9,9 +10,10 @@ import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import type { FontFamily } from '../lib/reader-fonts'
+import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
 import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
-import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
+import { useVersionDirections } from './scripture/use-version-directions'
 
 const DEFAULT_FONT_SIZE = BIBLE_READER_FONT.DEFAULT
 
@@ -55,8 +57,13 @@ export function BibleTextView({
   highlightedVerses: _highlightedVerses,
   dom: _dom,
   fontSize,
+  scriptureDirection: hostDirection,
   ...props
 }: BibleTextViewProps): ReactNode {
+  const { fetchBibleContent } = useYouVersion()
+  const versionDirections = useVersionDirections(fetchBibleContent, props.versionId)
+  // Host override wins; otherwise the version index (ADR 0023). Letter vote covers a miss.
+  const scriptureDirection = hostDirection ?? versionDirections.get(props.versionId)
   const resolvedTheme = useTheme(theme)
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can stay set across taps, so each tap is its own open.
@@ -76,7 +83,12 @@ export function BibleTextView({
   // useTokens reads the provider above the component that calls it, so the override wraps the body.
   return (
     <ThemeContext.Provider value={resolvedTheme}>
-      <BibleTextViewNative {...props} fontSize={resolvedFontSize} onFootnotePress={onFootnotePress} />
+      <BibleTextViewNative
+        {...props}
+        fontSize={resolvedFontSize}
+        scriptureDirection={scriptureDirection}
+        onFootnotePress={onFootnotePress}
+      />
       {opensSheet && (
         <NativeSheet
           isOpen={footnoteData !== null}
@@ -89,6 +101,7 @@ export function BibleTextView({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             fontSize={resolvedFontSize}
+            scriptureDirection={scriptureDirection}
           />
         </NativeSheet>
       )}

@@ -11,8 +11,10 @@ import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { getTokens } from '../../theme'
 import { defaultHookOverrides, emptyHighlights } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { nearestStyle } from '../../test-utils/nearest-style'
 import { fetchUrl, stubFetch } from '../../test-utils/stub-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
+import type { TextDirection } from '../scripture/use-version-directions'
 import { YouVersionProvider } from '../youversion-provider'
 import { BibleTextView } from '../bible-text-view'
 import { lineMultiple } from '../scripture/styles'
@@ -216,12 +218,24 @@ describe('BibleTextView', () => {
     useHighlightsMock.mockReset()
     useHighlightsMock.mockImplementation(emptyHighlights)
     installFetch(() => notFound())
-    setImpl('FootnoteContent', ({ data, fontSize }: { data: FootnoteData; fontSize?: number }) => (
-      <>
-        <Text testID="footnote-verse">{data.verseNum}</Text>
-        <Text testID="footnote-font-size">{String(fontSize)}</Text>
-      </>
-    ))
+    setImpl(
+      'FootnoteContent',
+      ({
+        data,
+        fontSize,
+        scriptureDirection,
+      }: {
+        data: FootnoteData
+        fontSize?: number
+        scriptureDirection?: TextDirection
+      }) => (
+        <>
+          <Text testID="footnote-verse">{data.verseNum}</Text>
+          <Text testID="footnote-font-size">{String(fontSize)}</Text>
+          <Text testID="footnote-direction">{scriptureDirection ?? ''}</Text>
+        </>
+      ),
+    )
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
       isOpen ? <View testID="footnote-sheet">{children}</View> : null,
     )
@@ -315,6 +329,68 @@ describe('BibleTextView', () => {
     fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
     expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
     expect(screen.getByTestId('footnote-verse').props.children).toBe('16')
+  })
+
+  it('gives the passage and footnote sheet the same index direction', async () => {
+    const HEBREW = 'בראשית ברא אלהים'
+    const note = '<span class="yv-n f"><span class="ft">A note</span></span>'
+    const restore = stubFetch((url) =>
+      url.includes('/3034/index')
+        ? new Response(JSON.stringify({ text_direction: 'rtl' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : undefined,
+    )
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `${HEBREW}${note}`)),
+      'John 3:16',
+    )
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: youVersionProviderWrapper(),
+      })
+      await screen.findByText(HEBREW)
+      await waitFor(() =>
+        expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('rtl'),
+      )
+
+      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
+    } finally {
+      restore()
+    }
+  })
+
+  it('lets a host scriptureDirection override the version index', async () => {
+    const HEBREW = 'בראשית ברא אלהים'
+    const note = '<span class="yv-n f"><span class="ft">A note</span></span>'
+    const restore = stubFetch((url) =>
+      url.includes('/3034/index')
+        ? new Response(JSON.stringify({ text_direction: 'rtl' }), {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          })
+        : undefined,
+    )
+    serveOnly(
+      'JHN.3.16',
+      passageHtml(verseBlock(16, `${HEBREW}${note}`)),
+      'John 3:16',
+    )
+    try {
+      render(<BibleTextView reference="JHN.3.16" versionId={3034} scriptureDirection="ltr" />, {
+        wrapper: youVersionProviderWrapper(),
+      })
+      await screen.findByText(HEBREW)
+      expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('ltr')
+
+      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      expect(screen.getByTestId('footnote-direction').props.children).toBe('ltr')
+    } finally {
+      restore()
+    }
   })
 
   it('gives a consumer the footnote and does not mount the sheet', async () => {
