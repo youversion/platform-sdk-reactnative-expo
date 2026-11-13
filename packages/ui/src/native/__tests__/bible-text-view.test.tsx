@@ -393,6 +393,50 @@ describe('BibleTextView', () => {
     }
   })
 
+  it('keeps an open note in its own version direction when the version changes', async () => {
+    const HEBREW = 'בראשית ברא אלהים'
+    const note = '<span class="yv-n f"><span class="ft">A note</span></span>'
+    const restore = stubFetch((url) => {
+      if (url.includes('/3034/index')) {
+        return new Response(JSON.stringify({ text_direction: 'rtl' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      if (url.includes('/111/index')) {
+        return new Response(JSON.stringify({ text_direction: 'ltr' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      return undefined
+    })
+    installFetch((usfm) =>
+      usfm === 'JHN.3.16'
+        ? jsonPassage(passageHtml(verseBlock(16, `${HEBREW}${note}`)), 'John 3:16')
+        : notFound(),
+    )
+    try {
+      const view = render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
+        wrapper: youVersionProviderWrapper(),
+      })
+      await screen.findByText(HEBREW)
+      await waitFor(() =>
+        expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('rtl'),
+      )
+      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
+
+      view.rerender(<BibleTextView reference="JHN.3.16" versionId={111} />)
+      await waitFor(() => {
+        // Index for 111 may land; the open note must stay on 3034's rtl.
+        expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl')
+      })
+    } finally {
+      restore()
+    }
+  })
+
   it('gives a consumer the footnote and does not mount the sheet', async () => {
     const note = '<span class="yv-n f"><span class="ft">Or the world</span></span>'
     serveOnly(

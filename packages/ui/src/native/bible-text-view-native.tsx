@@ -28,7 +28,7 @@ import {
   type PassageError,
   type SuppliedPassageHtml,
 } from './scripture/use-passage'
-import type { TextDirection } from './scripture/use-version-directions'
+import type { TextDirection, VersionDirections } from './scripture/use-version-directions'
 
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
 
@@ -49,7 +49,10 @@ export type BibleTextViewNativeProps = {
   onVerseSelect?: (verses: number[]) => Promise<void>
   /** Absent hides footnote markers. A note nobody can open does not draw. */
   onFootnotePress?: (data: FootnoteData) => Promise<void>
+  /** Host override. When set, wins over the version index for the painted passage. */
   scriptureDirection?: TextDirection
+  /** Each loaded version's text direction. A version with no entry falls back to the letter vote. */
+  versionDirections?: VersionDirections
   /** Supplied passage. Skips the fetch and the version gate. */
   passageState?: BibleTextViewPassageState
 }
@@ -70,6 +73,7 @@ export function BibleTextViewNative({
   onVerseSelect,
   onFootnotePress,
   scriptureDirection,
+  versionDirections,
   passageState,
 }: BibleTextViewNativeProps): ReactNode {
   const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
@@ -102,13 +106,17 @@ export function BibleTextViewNative({
   // Intros load as passages but have no numeric chapter for paint.
   const highlights = useHighlightPaint(highlightScopeFor(reference, versionId))
   const multiple = resolvedLineMultiple(lineHeight)
+  // By the rendered passage's version: dimmed old text keeps its direction while the next loads.
+  const versionDirection = load.passage
+    ? versionDirections?.get(load.passage.versionId)
+    : undefined
   const { look, paint } = usePassageStyle({
     passage: load.passage,
     highlights,
     fontSize,
     lineMultiple: multiple,
     fontFamily,
-    direction: scriptureDirection,
+    direction: scriptureDirection ?? versionDirection,
   })
   const selected = useMemo(() => new Set(selectedVerses ?? []), [selectedVerses])
   const drawNotes = renderNotes && onFootnotePress !== undefined

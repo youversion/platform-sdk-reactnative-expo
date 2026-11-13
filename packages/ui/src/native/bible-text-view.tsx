@@ -62,23 +62,26 @@ export function BibleTextView({
 }: BibleTextViewProps): ReactNode {
   const { fetchBibleContent } = useYouVersion()
   const versionDirections = useVersionDirections(fetchBibleContent, props.versionId)
-  // Host override wins; otherwise the version index (ADR 0023). Letter vote covers a miss.
-  const scriptureDirection = hostDirection ?? versionDirections.get(props.versionId)
   const resolvedTheme = useTheme(theme)
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can stay set across taps, so each tap is its own open.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  // The version the open note came from: a version change must not flip its direction.
+  const [footnoteVersionId, setFootnoteVersionId] = useState(props.versionId)
   const opensSheet = Platform.OS !== 'web' && consumerOnFootnotePress === undefined
   const onFootnotePress =
     consumerOnFootnotePress ??
     (opensSheet
       ? async (data: FootnoteData) => {
           setFootnoteData(data)
+          setFootnoteVersionId(props.versionId)
           setFootnoteOpenKey((key) => key + 1)
         }
       : undefined)
   const FootnoteContent = getImpl('FootnoteContent')
   const resolvedFontSize = fontSize ?? DEFAULT_FONT_SIZE
+  // Host override wins; otherwise the note's originating version (ADR 0023).
+  const sheetDirection = hostDirection ?? versionDirections.get(footnoteVersionId)
 
   // useTokens reads the provider above the component that calls it, so the override wraps the body.
   return (
@@ -86,7 +89,8 @@ export function BibleTextView({
       <BibleTextViewNative
         {...props}
         fontSize={resolvedFontSize}
-        scriptureDirection={scriptureDirection}
+        scriptureDirection={hostDirection}
+        versionDirections={versionDirections}
         onFootnotePress={onFootnotePress}
       />
       {opensSheet && (
@@ -101,7 +105,7 @@ export function BibleTextView({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             fontSize={resolvedFontSize}
-            scriptureDirection={scriptureDirection}
+            scriptureDirection={sheetDirection}
           />
         </NativeSheet>
       )}
