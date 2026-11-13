@@ -24,13 +24,13 @@ The Web SDK resolves an explicit `scriptureDirection`, then YVDOM direction, the
 
 Native deliberately makes the request the Web SDK chose not to make.
 
-`useVersionDirections` sits in `bible-reader.tsx`, so the reader and its footnote sheet share one result. It keeps a map keyed by version, so a dimmed chapter keeps its own direction during a version switch. A `FootnoteContent` host that passes no `scriptureDirection` gets the vote.
+`useVersionDirections` sits in `bible-reader.tsx` and `bible-text-view.tsx`, so each surface and its footnote sheet share one result. A host `scriptureDirection` on `BibleTextView` wins and skips the index fetch. The hook keeps a map keyed by version, so a dimmed chapter keeps its own direction during a version switch. A `FootnoteContent` host that passes no `scriptureDirection` gets the vote.
 
 Kotlin's handling is not copied. It reads a version that has not loaded as LTR. The vote avoids that wrong first paint.
 
 ## Consequences
 
-Every reader downloads the index once per version: about 198 KB gzipped (1.6 MB raw), on top of about 193 KB for `/books`. The request goes through the **Bible Content Cache**, so the full body sits in that version's MMKV instance. The response has `max-age=3600`, so the **Content Lifetime** is one hour. This cost protects against cases not yet observed. Replacing `/books` with the index could remove the second download, but the two response shapes have not been compared.
+Every reader and standalone `BibleTextView` downloads the index once per client and version (deduped across mounts): about 198 KB gzipped (1.6 MB raw), on top of about 193 KB for `/books`. The request goes through the **Bible Content Cache**, so the full body sits in that version's MMKV instance. The response has `max-age=3600`, so the **Content Lifetime** is one hour. This cost protects against cases not yet observed. Replacing `/books` with the index could remove the second download, but the two response shapes have not been compared.
 
 A chapter can paint from the vote and then change direction if the index disagrees. The two have not disagreed on any version checked.
 

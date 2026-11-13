@@ -68,6 +68,13 @@ function passageRequests(): string[] {
     .filter((url) => url.includes('/passages/'))
 }
 
+function indexRequests(): string[] {
+  return jest
+    .mocked(global.fetch)
+    .mock.calls.map(([input]) => (input instanceof Request ? input.url : String(input)))
+    .filter((url) => url.includes('/index'))
+}
+
 function highlightWrapper(theme: 'light' | 'dark' = 'light') {
   return youVersionProviderWrapper(theme, undefined, { useHighlights: useHighlightsMock })
 }
@@ -388,6 +395,7 @@ describe('BibleTextView', () => {
 
       fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
       expect(screen.getByTestId('footnote-direction').props.children).toBe('ltr')
+      expect(indexRequests()).toHaveLength(0)
     } finally {
       restore()
     }

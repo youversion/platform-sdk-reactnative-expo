@@ -162,8 +162,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // Prefer the loaded book title. Fall back to the API reference (marks stripped,
   // trimmed to the chapter) while the title loads.
   const footnoteReference =
-    isCurrent && shareBookTitle !== null
-      ? `${shareBookTitle} ${chapterLabelForBook(entry, chapter)}`
+    isCurrent && !isBookLoading
+      ? `${bookTitle} ${chapterLabelForBook(entry, chapter)}`
       : chapterReference(passage?.reference)
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({

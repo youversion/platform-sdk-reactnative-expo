@@ -51,7 +51,7 @@ export type BibleTextViewNativeProps = {
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   /** Host override. When set, wins over the version index for the painted passage. */
   scriptureDirection?: TextDirection
-  /** Each loaded version's text direction. A version with no entry falls back to the letter vote. */
+  /** Per-version text direction from the index; see ADR 0023. */
   versionDirections?: VersionDirections
   /** Supplied passage. Skips the fetch and the version gate. */
   passageState?: BibleTextViewPassageState

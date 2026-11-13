@@ -305,7 +305,7 @@ export function useVersionCopyright(
   return owned !== null && owned.versionId === versionId ? owned.value : NO_COPYRIGHT
 }
 
-function parseBody<T>(schema: z.ZodType<T>, body: string): T | null {
+export function parseBody<T>(schema: z.ZodType<T>, body: string): T | null {
   try {
     const parsed = schema.safeParse(JSON.parse(body))
     return parsed.success ? parsed.data : null

@@ -43,6 +43,46 @@ describe('useVersionDirections', () => {
     expect(fetchBibleContent).toHaveBeenCalledTimes(1)
   })
 
+  it('shares one index fetch across hook instances for the same client and version', async () => {
+    const fetchBibleContent = respond(200, JSON.stringify({ text_direction: 'rtl' }))
+    const first = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    const second = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    await waitFor(() => {
+      expect(first.result.current.get(187)).toBe('rtl')
+      expect(second.result.current.get(187)).toBe('rtl')
+    })
+    expect(fetchBibleContent).toHaveBeenCalledTimes(1)
+    first.unmount()
+    second.unmount()
+  })
+
+  it('retries the index after a rejected fetch on a later mount', async () => {
+    const fetchBibleContent: FetchBibleContent = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ text_direction: 'rtl' }),
+        contentType: 'application/json',
+      })
+    const first = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    await waitFor(() => expect(fetchBibleContent).toHaveBeenCalledTimes(1))
+    await act(async () => {})
+    expect(first.result.current.size).toBe(0)
+    first.unmount()
+
+    const second = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    await waitFor(() => expect(second.result.current.get(187)).toBe('rtl'))
+    expect(fetchBibleContent).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not fetch when disabled', async () => {
+    const fetchBibleContent = respond(200, JSON.stringify({ text_direction: 'rtl' }))
+    renderHook(() => useVersionDirections(fetchBibleContent, 187, { enabled: false }))
+    await act(async () => {})
+    expect(fetchBibleContent).not.toHaveBeenCalled()
+  })
+
   it.each([
     ['a failed request', respond(503)],
     ['invalid JSON', respond(200, '<html>')],

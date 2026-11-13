@@ -61,7 +61,9 @@ export function BibleTextView({
   ...props
 }: BibleTextViewProps): ReactNode {
   const { fetchBibleContent } = useYouVersion()
-  const versionDirections = useVersionDirections(fetchBibleContent, props.versionId)
+  const versionDirections = useVersionDirections(fetchBibleContent, props.versionId, {
+    enabled: hostDirection === undefined,
+  })
   const resolvedTheme = useTheme(theme)
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can stay set across taps, so each tap is its own open.
