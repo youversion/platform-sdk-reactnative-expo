@@ -1,3 +1,4 @@
+import { useYouVersion } from '@youversion/platform-react-native-expo-core'
 import {
   BIBLE_READER_FONT,
   type BibleTextViewProps as WebBibleTextViewProps,
@@ -9,9 +10,10 @@ import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import type { FontFamily } from '../lib/reader-fonts'
+import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
 import { getImpl } from './component-impls'
 import { NativeSheet } from './native-sheet'
-import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
+import { useVersionDirections } from './scripture/use-version-directions'
 
 const DEFAULT_FONT_SIZE = BIBLE_READER_FONT.DEFAULT
 
@@ -55,28 +57,44 @@ export function BibleTextView({
   highlightedVerses: _highlightedVerses,
   dom: _dom,
   fontSize,
+  scriptureDirection: hostDirection,
   ...props
 }: BibleTextViewProps): ReactNode {
+  const { fetchBibleContent } = useYouVersion()
+  const versionDirections = useVersionDirections(fetchBibleContent, props.versionId, {
+    enabled: hostDirection === undefined,
+  })
   const resolvedTheme = useTheme(theme)
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can stay set across taps, so each tap is its own open.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  // The version the open note came from: a version change must not flip its direction.
+  const [footnoteVersionId, setFootnoteVersionId] = useState(props.versionId)
   const opensSheet = Platform.OS !== 'web' && consumerOnFootnotePress === undefined
   const onFootnotePress =
     consumerOnFootnotePress ??
     (opensSheet
       ? async (data: FootnoteData) => {
           setFootnoteData(data)
+          setFootnoteVersionId(props.versionId)
           setFootnoteOpenKey((key) => key + 1)
         }
       : undefined)
   const FootnoteContent = getImpl('FootnoteContent')
   const resolvedFontSize = fontSize ?? DEFAULT_FONT_SIZE
+  // Host override wins; otherwise the note's originating version (ADR 0023).
+  const sheetDirection = hostDirection ?? versionDirections.get(footnoteVersionId)
 
   // useTokens reads the provider above the component that calls it, so the override wraps the body.
   return (
     <ThemeContext.Provider value={resolvedTheme}>
-      <BibleTextViewNative {...props} fontSize={resolvedFontSize} onFootnotePress={onFootnotePress} />
+      <BibleTextViewNative
+        {...props}
+        fontSize={resolvedFontSize}
+        scriptureDirection={hostDirection}
+        versionDirections={versionDirections}
+        onFootnotePress={onFootnotePress}
+      />
       {opensSheet && (
         <NativeSheet
           isOpen={footnoteData !== null}
@@ -89,6 +107,7 @@ export function BibleTextView({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             fontSize={resolvedFontSize}
+            scriptureDirection={sheetDirection}
           />
         </NativeSheet>
       )}

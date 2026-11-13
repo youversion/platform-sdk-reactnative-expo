@@ -7,6 +7,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   View,
+  type TextStyle,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
@@ -16,7 +17,9 @@ import { footnoteMarker } from '../lib/footnote-html'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import { sansFace, type FontFace } from '../theme/fonts'
 import { useSerifFace, type SerifFaceFor } from '../theme/use-fonts'
+import { directionMark } from './scripture/direction-mark'
 import { isRtlRuns, parseNoteHtml, type NoteRun } from './scripture/parse-passage'
+import type { TextDirection } from './scripture/use-version-directions'
 import { smallCaps } from './scripture/passage'
 import { LABEL_SCALE, lineMultiple, resolveChars } from './scripture/styles'
 
@@ -25,7 +28,7 @@ type FootnoteContentProps = {
   theme?: 'light' | 'dark'
   /** Appended to the heading, as Swift's `displayTitle(for:)` does. */
   versionAbbreviation?: string
-  scriptureDirection?: 'ltr' | 'rtl'
+  scriptureDirection?: TextDirection
   /** The reader's line spacing, so the sheet keeps its leading. */
   lineSpacing?: number
   /** Passage size from the host. Omitted hosts keep Swift's 16pt sheet. */
@@ -70,7 +73,7 @@ function FootnoteBody({
 }: {
   data: FootnoteData
   versionAbbreviation: string | undefined
-  direction: 'ltr' | 'rtl' | undefined
+  direction: TextDirection | undefined
   fontSize: number
   lineHeight: number
 }): ReactNode {
@@ -90,7 +93,7 @@ function FootnoteBody({
   }
   const verseParagraphs = useMemo(() => parseNoteHtml(data.verseHtml), [data.verseHtml])
   const noteParagraphs = useMemo(() => data.notes.map(parseNoteHtml), [data.notes])
-  // FootnoteData carries no direction, so a host that does not know it lets the text vote.
+  // The reader passes the version's direction. Without it, the text votes.
   const rtl = useMemo(() => {
     if (direction !== undefined) {
       return direction === 'rtl'
@@ -100,6 +103,9 @@ function FootnoteBody({
   }, [direction, verseParagraphs, noteParagraphs])
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
+  // textAlign is start-relative under RTL; see ADR 0023.
+  const flow: TextStyle = { textAlign: 'left', writingDirection: rtl ? 'rtl' : 'ltr' }
+  const mark = directionMark(rtl)
 
   return (
     <ScrollView
@@ -117,9 +123,10 @@ function FootnoteBody({
               sansFace(tokens.fontFamily.sans, 700),
               tokens.typography.base,
               { color: foreground },
+              flow,
             ]}
           >
-            {heading}
+            {`${mark}${heading}`}
           </Text>
           <View testID="footnote-verse" style={styles.verse}>
             {verseParagraphs.map((runs, index) => (
@@ -131,6 +138,8 @@ function FootnoteBody({
                 lineHeight={lineHeight}
                 color={foreground}
                 muted={muted}
+                flow={flow}
+                mark={mark}
               />
             ))}
           </View>
@@ -168,6 +177,8 @@ function FootnoteBody({
                     lineHeight={lineHeight}
                     color={foreground}
                     muted={muted}
+                    flow={flow}
+                    mark={mark}
                   />
                 ))}
               </View>
@@ -186,6 +197,8 @@ function ParagraphText({
   lineHeight,
   color,
   muted,
+  flow,
+  mark,
 }: {
   runs: readonly NoteRun[]
   faceFor: SerifFaceFor
@@ -193,12 +206,15 @@ function ParagraphText({
   lineHeight: number
   color: string
   muted: string
+  flow: TextStyle
+  mark: string
 }): ReactNode {
   return (
     <Text
       allowFontScaling={false}
-      style={[faceFor(400), { color, fontSize, lineHeight, overflow: 'visible' }]}
+      style={[faceFor(400), { color, fontSize, lineHeight, overflow: 'visible' }, flow]}
     >
+      {mark}
       {runs.map((run, index) => {
         // The scripture character styles; Swift's sheet paints words of Jesus in the text color.
         const chars = resolveChars(run.classes)

@@ -4,7 +4,13 @@ import type {
   FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
 
-import { chapterRef, footnoteFor, passageRefFor, usePassage, type LoadedPassage } from '../use-passage'
+import {
+  chapterRef,
+  footnoteFor,
+  passageRefFor,
+  usePassage,
+  type LoadedPassage,
+} from '../use-passage'
 
 const VALID_BODY = JSON.stringify({
   content:
@@ -227,4 +233,10 @@ describe('footnoteFor', () => {
       expect(`${data.reference}:${data.verseNum}`).toBe(heading)
     },
   )
+
+  it('drops API bidi marks from the chapter reference', () => {
+    const data = footnoteFor(passage('يوحنا ‏١:١'), 1, '<span>note</span>')
+    expect(data.reference).toBe('يوحنا ١')
+    expect(data.reference).not.toMatch(/[‎‏]/)
+  })
 })
