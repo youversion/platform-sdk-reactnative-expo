@@ -16,7 +16,7 @@ import type {
   BibleReaderVerseFocus,
   BibleReaderVerseFocusAcknowledgment,
 } from './bible-reader-navigation'
-import type { VersionDirections } from './scripture/use-passage'
+import type { VersionDirections } from './scripture/use-version-directions'
 
 /**
  * Props `BibleReader` passes to the chapter body.

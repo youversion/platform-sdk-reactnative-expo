@@ -28,6 +28,7 @@ import {
   type PassageError,
   type SuppliedPassageHtml,
 } from './scripture/use-passage'
+import type { TextDirection } from './scripture/use-version-directions'
 
 type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
 
@@ -48,7 +49,7 @@ export type BibleTextViewNativeProps = {
   onVerseSelect?: (verses: number[]) => Promise<void>
   /** Absent hides footnote markers. A note nobody can open does not draw. */
   onFootnotePress?: (data: FootnoteData) => Promise<void>
-  scriptureDirection?: 'ltr' | 'rtl'
+  scriptureDirection?: TextDirection
   /** Supplied passage. Skips the fetch and the version gate. */
   passageState?: BibleTextViewPassageState
 }

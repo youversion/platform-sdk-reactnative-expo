@@ -8,9 +8,10 @@ import {
   resetImpls,
   setImpl,
 } from '../../test-utils/install-test-impls'
+import { stubFetch } from '../../test-utils/stub-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
-import type { VersionDirections } from '../scripture/use-passage'
+import type { TextDirection, VersionDirections } from '../scripture/use-version-directions'
 
 const VERSION_ID = 187
 const LTR_VERSION_ID = 1887
@@ -22,7 +23,7 @@ type BodyCapture = {
 }
 
 let body: BodyCapture = {}
-let sheetDirection: string | undefined
+let sheetDirection: TextDirection | undefined
 
 function MockBody(props: BodyCapture) {
   body = props
@@ -33,28 +34,22 @@ function MockBody(props: BodyCapture) {
   )
 }
 
-function MockFootnote(props: { scriptureDirection?: string }) {
+function MockFootnote(props: { scriptureDirection?: TextDirection }) {
   sheetDirection = props.scriptureDirection
   return null
 }
 
-function stubIndex(directions: Record<number, 'ltr' | 'rtl'>): () => void {
-  const prior = global.fetch
-  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input instanceof Request ? input.url : input)
+function stubIndex(directions: Record<number, TextDirection>): () => void {
+  return stubFetch((url) => {
     const match = Object.entries(directions).find(([id]) => url.includes(`/${id}/index`))
-    return match
-      ? Promise.resolve(
-          new Response(JSON.stringify({ text_direction: match[1] }), {
-            status: 200,
-            headers: { 'content-type': 'application/json' },
-          }),
-        )
-      : prior(input, init)
+    if (match === undefined) {
+      return undefined
+    }
+    return new Response(JSON.stringify({ text_direction: match[1] }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
   })
-  return () => {
-    global.fetch = prior
-  }
 }
 
 describe('BibleReader text direction', () => {

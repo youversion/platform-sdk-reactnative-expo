@@ -67,7 +67,7 @@ import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
-import { useVersionDirections } from './scripture/use-passage'
+import { useVersionDirections } from './scripture/use-version-directions'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 

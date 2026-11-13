@@ -11,6 +11,7 @@ import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { getTokens } from '../../theme'
 import { defaultHookOverrides, emptyHighlights } from '../../test-utils/default-hook-overrides'
 import { resetImpls, setImpl } from '../../test-utils/install-test-impls'
+import { fetchUrl, stubFetch } from '../../test-utils/stub-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { YouVersionProvider } from '../youversion-provider'
 import { BibleTextView } from '../bible-text-view'
@@ -88,16 +89,6 @@ function filteredWrapper(filters: {
   }
 }
 
-function fetchUrl(input: RequestInfo | URL): string {
-  if (input instanceof URL) {
-    return input.href
-  }
-  if (input instanceof Request) {
-    return input.url
-  }
-  return input
-}
-
 function metadataResponse(body: string): Promise<Response> {
   return Promise.resolve(
     new Response(body, {
@@ -111,26 +102,26 @@ function stubVersionNames(
   names: Record<number, string>,
   languageTags: Record<number, string> = {},
 ): () => void {
-  const prior = global.fetch
-  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = fetchUrl(input)
+  return stubFetch((url) => {
     const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
-    if (match !== null && !url.includes('/books')) {
-      const abbreviation = names[Number(match[1])]
-      if (abbreviation !== undefined) {
-        return metadataResponse(
-          JSON.stringify({
-            abbreviation,
-            language_tag: languageTags[Number(match[1])] ?? 'en',
-          }),
-        )
-      }
+    if (match === null || url.includes('/books')) {
+      return undefined
     }
-    return prior(input, init)
+    const abbreviation = names[Number(match[1])]
+    if (abbreviation === undefined) {
+      return undefined
+    }
+    return new Response(
+      JSON.stringify({
+        abbreviation,
+        language_tag: languageTags[Number(match[1])] ?? 'en',
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      },
+    )
   })
-  return () => {
-    global.fetch = prior
-  }
 }
 
 function passageChromeWrapper(text: string): ReactTestInstance {

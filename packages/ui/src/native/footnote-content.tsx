@@ -19,6 +19,7 @@ import { sansFace, type FontFace } from '../theme/fonts'
 import { useSerifFace, type SerifFaceFor } from '../theme/use-fonts'
 import { directionMark } from './scripture/direction-mark'
 import { isRtlRuns, parseNoteHtml, type NoteRun } from './scripture/parse-passage'
+import type { TextDirection } from './scripture/use-version-directions'
 import { smallCaps } from './scripture/passage'
 import { LABEL_SCALE, lineMultiple, resolveChars } from './scripture/styles'
 
@@ -27,7 +28,7 @@ type FootnoteContentProps = {
   theme?: 'light' | 'dark'
   /** Appended to the heading, as Swift's `displayTitle(for:)` does. */
   versionAbbreviation?: string
-  scriptureDirection?: 'ltr' | 'rtl'
+  scriptureDirection?: TextDirection
   /** The reader's line spacing, so the sheet keeps its leading. */
   lineSpacing?: number
   /** Passage size from the host. Omitted hosts keep Swift's 16pt sheet. */
@@ -72,7 +73,7 @@ function FootnoteBody({
 }: {
   data: FootnoteData
   versionAbbreviation: string | undefined
-  direction: 'ltr' | 'rtl' | undefined
+  direction: TextDirection | undefined
   fontSize: number
   lineHeight: number
 }): ReactNode {
@@ -102,7 +103,7 @@ function FootnoteBody({
   }, [direction, verseParagraphs, noteParagraphs])
   const foreground = tokens.foreground
   const muted = tokens.mutedForeground
-  // Under RTL, textAlign is start-relative: 'left' is the start edge in both directions.
+  // textAlign is start-relative under RTL; see ADR 0023.
   const flow: TextStyle = { textAlign: 'left', writingDirection: rtl ? 'rtl' : 'ltr' }
   const mark = directionMark(rtl)
 

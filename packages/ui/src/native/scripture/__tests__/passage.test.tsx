@@ -176,7 +176,7 @@ function renderBlock(classes: string[], text: string, rtl: boolean): void {
 }
 
 describe('paragraph alignment', () => {
-  // Under RTL, textAlign is start-relative: 'left' is the physical right.
+  // textAlign is start-relative under RTL; see ADR 0023.
   it('starts an ordinary right-to-left paragraph at its start edge', () => {
     renderBlock(['p'], 'בראשית', true)
     expect(textAligns('בראשית')).toEqual(['left'])

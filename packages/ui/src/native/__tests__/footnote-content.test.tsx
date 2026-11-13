@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react-native'
 import type { FootnoteData } from '@youversion/platform-react-ui'
 import { StyleSheet } from 'react-native'
-import type { ReactTestInstance } from 'react-test-renderer'
 
 import { mockWindowDimensions } from '../../../jest.window-dimensions-mock'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { nearestStyle } from '../../test-utils/nearest-style'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { fontMapKey, SERIF_STANDIN } from '../../theme/fonts'
@@ -33,15 +33,11 @@ function flattened(text: string) {
 
 /** The paragraph's style: a run is a nested Text, so alignment sits on its nearest aligned ancestor. */
 function flattenedAncestor(text: string) {
-  let node: ReactTestInstance | null = screen.getByText(text)
-  while (node !== null) {
-    const style = StyleSheet.flatten(node.props.style)
-    if (style?.textAlign !== undefined) {
-      return style
-    }
-    node = node.parent
+  const style = nearestStyle(text, 'textAlign')
+  if (style === undefined) {
+    throw new Error(`no aligned ancestor for ${text}`)
   }
-  throw new Error(`no aligned ancestor for ${text}`)
+  return style
 }
 
 describe('FootnoteContent', () => {

@@ -4,10 +4,13 @@ import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
 import type { ComponentProps } from 'react'
 import { ScrollView, StyleSheet, Text, type ColorValue, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
+import { nearestStyle } from '../../test-utils/nearest-style'
+import { fetchUrl, stubFetch } from '../../test-utils/stub-fetch'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReaderNative } from '../bible-reader-native'
 import type { BibleReaderVerseFocus } from '../bible-reader-navigation'
 import { parsePassage } from '../scripture/parse-passage'
+import type { TextDirection } from '../scripture/use-version-directions'
 
 const VERSION_ID = 3034
 const UNAVAILABLE = 'This passage is unavailable in the selected Bible version.'
@@ -144,47 +147,31 @@ function metadataResponse(body: string): Promise<Response> {
   )
 }
 
-function fetchUrl(input: RequestInfo | URL): string {
-  if (input instanceof URL) {
-    return input.href
-  }
-  if (input instanceof Request) {
-    return input.url
-  }
-  return input
-}
-
 /** Version names load through the provider's fetch, separate from the chapter prop. */
 function stubVersionNames(
   names: Record<number, string>,
   languageTags: Record<number, string> = {},
 ): () => void {
-  const prior = global.fetch
-  global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
-    const url = fetchUrl(input)
+  return stubFetch((url) => {
     const match = /\/v1\/bibles\/(\d+)(?:\?|$)/.exec(url)
-    if (match !== null && !url.includes('/books')) {
-      const abbreviation = names[Number(match[1])]
-      if (abbreviation !== undefined) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              abbreviation,
-              language_tag: languageTags[Number(match[1])] ?? 'en',
-            }),
-            {
-              status: 200,
-              headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
-            },
-          ),
-        )
-      }
+    if (match === null || url.includes('/books')) {
+      return undefined
     }
-    return prior(input, init)
+    const abbreviation = names[Number(match[1])]
+    if (abbreviation === undefined) {
+      return undefined
+    }
+    return new Response(
+      JSON.stringify({
+        abbreviation,
+        language_tag: languageTags[Number(match[1])] ?? 'en',
+      }),
+      {
+        status: 200,
+        headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      },
+    )
   })
-  return () => {
-    global.fetch = prior
-  }
 }
 
 function fetchChapters(
@@ -767,13 +754,7 @@ describe('BibleReaderNative', () => {
     })
 
     function stubBooks(books: () => Promise<Response>): () => void {
-      const prior = global.fetch
-      global.fetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) =>
-        fetchUrl(input).includes('/books') ? books() : prior(input, init),
-      )
-      return () => {
-        global.fetch = prior
-      }
+      return stubFetch((url) => (url.includes('/books') ? books() : undefined))
     }
 
     it('builds the reference from the book title and chapter label', async () => {
@@ -817,15 +798,7 @@ describe('BibleReaderNative', () => {
 
   describe('text direction', () => {
     function directionOf(text: string): TextStyle['writingDirection'] {
-      let node: ReactTestInstance | null = screen.getByText(text)
-      while (node !== null) {
-        const flat: TextStyle | undefined = StyleSheet.flatten(node.props.style)
-        if (flat?.writingDirection !== undefined) {
-          return flat.writingDirection
-        }
-        node = node.parent
-      }
-      return undefined
+      return nearestStyle(text, 'writingDirection')?.writingDirection
     }
 
     const HEBREW = 'בראשית ברא אלהים'
@@ -860,7 +833,7 @@ describe('BibleReaderNative', () => {
 
       reader.update({
         versionId: 112,
-        versionDirections: new Map<number, 'ltr' | 'rtl'>([
+        versionDirections: new Map<number, TextDirection>([
           [VERSION_ID, 'ltr'],
           [112, 'rtl'],
         ]),

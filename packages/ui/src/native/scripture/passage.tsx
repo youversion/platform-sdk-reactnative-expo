@@ -355,8 +355,7 @@ const BlockView = memo(function BlockView({
 
   const paragraph = (layer: Layer): ReactNode => {
     const ghost = layer !== 'text'
-    // Under RTL, textAlign is start-relative on both platforms: 'left' lands physically
-    // right. So 'left' is the start edge and 'right' the end edge in either direction.
+    // textAlign is start-relative under RTL; see ADR 0023.
     let textAlign: 'left' | 'center' | 'right' = 'left'
     if (rule.align === 'center') {
       textAlign = 'center'
