@@ -299,6 +299,41 @@ describe('NativeSheet', () => {
     ).toBe(true)
   })
 
+  it('exposes iOS sheet contents to accessibility each time the sheet opens', async () => {
+    Object.defineProperty(Platform, 'OS', {
+      configurable: true,
+      enumerable: true,
+      value: 'ios',
+    })
+
+    const { getByTestId, queryByTestId, rerender } = render(<SheetHarness isOpen={false} />)
+
+    const expectAccessibilityState = (hidden: boolean) => {
+      const options = { includeHiddenElements: true }
+      expect(getByTestId('native-sheet-inert-host', options).props.accessibilityElementsHidden).toBe(
+        hidden,
+      )
+      expect(latestBottomSheetProps.accessibilityElementsHidden).toBe(hidden)
+      expect(getByTestId('bottom-sheet-view', options).props.accessibilityElementsHidden).toBe(
+        hidden,
+      )
+      expect(latestBottomSheetProps.accessible).toBe(false)
+      if (hidden) {
+        expect(queryByTestId('sheet-content')).toBeNull()
+      } else {
+        expect(getByTestId('sheet-content')).toBeTruthy()
+      }
+    }
+
+    expectAccessibilityState(true)
+    for (const isOpen of [true, false, true]) {
+      await act(async () => {
+        rerender(<SheetHarness isOpen={isOpen} />)
+      })
+      expectAccessibilityState(!isOpen)
+    }
+  })
+
   it('themes the sheet background and handle indicator from the theme prop', () => {
     Object.defineProperty(Platform, 'OS', {
       configurable: true,
