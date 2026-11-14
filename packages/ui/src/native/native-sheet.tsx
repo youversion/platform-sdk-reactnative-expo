@@ -231,7 +231,9 @@ function SheetHost({
     [theme],
   )
 
-  // Android 12 needs an inert closed host; on iOS it breaks pre-warmed WebView sizing.
+  // Keep closed sheets out of the accessibility tree without changing iOS layout.
+  const hideSheetFromAccessibility = !isActive
+  // Android 12 also needs the closed host moved out of the way.
   const suppressInactiveSheet = Platform.OS === 'android' && !isActive
 
   // iOS uses box-none so the full-screen wrapper doesn't swallow taps; Android locks inactive sheets to none (ADR 0006).
@@ -292,7 +294,7 @@ function SheetHost({
     <View
       testID="native-sheet-inert-host"
       pointerEvents={outerPointerEvents}
-      accessibilityElementsHidden={suppressInactiveSheet}
+      accessibilityElementsHidden={hideSheetFromAccessibility}
       importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
       collapsable={false}
       style={StyleSheet.absoluteFill}
@@ -315,8 +317,8 @@ function SheetHost({
         backgroundComponent={suppressInactiveSheet ? null : undefined}
         backgroundStyle={backgroundStyle}
         handleComponent={suppressInactiveSheet ? null : undefined}
-        accessible={!suppressInactiveSheet}
-        accessibilityElementsHidden={suppressInactiveSheet}
+        accessible={Platform.OS === 'android' && !suppressInactiveSheet}
+        accessibilityElementsHidden={hideSheetFromAccessibility}
         importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
         onChange={handleSheetChange}
         onAnimate={handleSheetAnimate}
@@ -325,7 +327,7 @@ function SheetHost({
       >
         <BottomSheetView
           pointerEvents={suppressInactiveSheet ? 'none' : 'auto'}
-          accessibilityElementsHidden={suppressInactiveSheet}
+          accessibilityElementsHidden={hideSheetFromAccessibility}
           importantForAccessibility={suppressInactiveSheet ? 'no-hide-descendants' : 'auto'}
           style={bottomSheetContentStyle}
         >
