@@ -144,7 +144,7 @@ describe('error paths (via exchangeCodeForTokens)', () => {
       })
 
       const pending = callExchange()
-      const expectation = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+      const expectation = expect(pending).rejects.toThrow(/timed out/)
 
       await jest.advanceTimersByTimeAsync(9_999)
       expect(lastInit().signal?.aborted).toBe(false)

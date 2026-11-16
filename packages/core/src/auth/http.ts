@@ -91,6 +91,11 @@ async function postTokenEndpoint(
     }
 
     return parsed.data
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('Token request timed out after 10s')
+    }
+    throw error
   } finally {
     clearTimeout(timer)
   }

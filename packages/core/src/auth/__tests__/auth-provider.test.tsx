@@ -691,7 +691,7 @@ describe('AuthProvider — refresh failure policy', () => {
       })
 
       expect(getText('isLoading')).toBe('false')
-      expect(getText('error')).toMatch(/abort/i)
+      expect(getText('error')).toMatch(/timed out/)
       expect(getText('isAuthenticated')).toBe('true')
       expect(getText('accessToken')).toBe('stored-access')
       expect(mockSaveTokens).not.toHaveBeenCalledWith(clearedTokens)
