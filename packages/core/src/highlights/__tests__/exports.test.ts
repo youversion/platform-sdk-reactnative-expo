@@ -11,6 +11,7 @@ describe('package exports', () => {
     expect(core.useHighlights).toEqual(expect.any(Function))
     expect(core.deriveServerColors).toEqual(expect.any(Function))
     expect(core.parseChapterScopeFromUsfm).toEqual(expect.any(Function))
+    expect(core.expandPassageId).toEqual(expect.any(Function))
     expect(core.useHighlightPaint).toEqual(expect.any(Function))
     expect(core.isHighlightColor).toEqual(expect.any(Function))
     expect(core.mixSrgb).toEqual(expect.any(Function))
