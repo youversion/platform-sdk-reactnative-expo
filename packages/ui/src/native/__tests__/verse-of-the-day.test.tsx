@@ -680,6 +680,54 @@ describe('VerseOfTheDay', () => {
     expect(screen.getByText(en.passageUnavailable)).toBeTruthy()
   })
 
+  it('closes an open footnote when permitted languages switch from omitted to empty', async () => {
+    jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
+    setImpl(
+      'NativeSheet',
+      ({
+        isOpen,
+        children,
+      }: {
+        isOpen: boolean
+        onClose: () => void
+        children: ReactNode
+      }) =>
+        isOpen ? <View testID="footnote-sheet">{children}</View> : null,
+    )
+
+    function FilterApp({
+      permittedLanguageTags,
+    }: {
+      permittedLanguageTags?: string[]
+    }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedLanguageTags={permittedLanguageTags}
+        >
+          <VerseOfTheDay versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screen = await renderAndSettle(<FilterApp />)
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    })
+    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
+
+    screen.rerender(<FilterApp permittedLanguageTags={[]} />)
+
+    expect(screen.queryByTestId('footnote-sheet')).toBeNull()
+    await waitFor(() => {
+      expect(screen.getByText(en.passageUnavailable)).toBeTruthy()
+    })
+  })
+
   it('opens the footnote through the swappable FootnoteContent impl', async () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
     setImpl('NativeSheet', ({ isOpen, children }: { isOpen: boolean; children: ReactNode }) =>
