@@ -71,8 +71,10 @@ async function postTokenEndpoint(
     'X-YVP-Installation-Id': installationId,
   })
 
+  // RN's OkHttp client ships with no timeouts; without this an Android
+  // token request on a stalled connection never settles.
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TOKEN_REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), TOKEN_REQUEST_TIMEOUT_MS
   try {
     const response = await fetch(`https://${apiHost}/auth/token`, {
       method: 'POST',
