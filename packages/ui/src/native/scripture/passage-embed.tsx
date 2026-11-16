@@ -18,7 +18,7 @@ import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
 import { scripturePhase, verseSpanFromPassageId } from './reference-passage'
 import { lineMultiple } from './styles'
-import { chapterRef, footnoteFor, usePassage } from './use-passage'
+import { chapterRef, footnoteFor, passageErrorKey, usePassage } from './use-passage'
 
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const NO_FOCUS = null
@@ -105,12 +105,7 @@ export function PassageEmbed({
   }
 
   if (phase.kind !== 'passage') {
-    const message =
-      phase.kind === 'offline'
-        ? t('offlineConnectionLostMessage')
-        : phase.kind === 'failed'
-          ? t('generic.requestErrorBody')
-          : t('passageUnavailable')
+    const message = t(passageErrorKey(phase.kind))
     const retry =
       phase.kind === 'unavailable' ? null : phase.retry === 'version' ? version.retry : load.retry
     return (
