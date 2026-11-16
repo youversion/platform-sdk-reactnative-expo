@@ -8,6 +8,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
+import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { isVersionIdDecidablyUnusable } from '../lib/version-usability'
@@ -34,6 +35,12 @@ export type VerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
 
 const DEFAULT_FONT_SIZE = 16
 const LARGE_FONT_SIZE = 20
+
+const EMPTY_FOOTNOTE: FootnoteData = {
+  verseNum: '',
+  notes: [],
+  verseHtml: '',
+}
 
 async function shareInBrowser(text: string): Promise<void> {
   const { navigator } = globalThis
@@ -68,9 +75,12 @@ export function VerseOfTheDay({
   const { passageId, status, retry } = useVerseOfTheDayPassageId(dayOfYear)
   const { shareSource, loadShareSource } = useVerseOfTheDayShareSource(versionId, passageId)
   const { permittedVersionIds, excludedVersionIds, permittedLanguageTags } = useYouVersion()
+  const versionLookup = useBibleVersionAbbreviation(versionId)
   const scope = highlightScopeFor(passageId, versionId)
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   const FootnoteContent = getImpl('FootnoteContent')
   const versionRefused = isVersionIdDecidablyUnusable(versionId, {
     permittedVersionIds,
@@ -85,6 +95,11 @@ export function VerseOfTheDay({
   useEffect(() => {
     setFootnoteData(null)
   }, [passageId, versionId, versionRefused, languageFilterKey])
+  const showFootnoteSheet = Platform.OS !== 'web'
+  const handleFootnotePress = (data: FootnoteData) => {
+    setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
+  }
 
   const handleShare = async () => {
     try {
@@ -141,13 +156,7 @@ export function VerseOfTheDay({
                 highlights={highlights}
                 fontSize={fontSize}
                 font={size === 'lg' ? 'serif' : 'sans'}
-                onFootnotePress={
-                  Platform.OS === 'web'
-                    ? undefined
-                    : (data) => {
-                        setFootnoteData(data)
-                      }
-                }
+                onFootnotePress={showFootnoteSheet ? handleFootnotePress : undefined}
               />
             )
           }
@@ -175,14 +184,20 @@ export function VerseOfTheDay({
           )
         }}
       </HighlightsPaint>
-      {footnoteData !== null && !versionRefused && Platform.OS !== 'web' ? (
+      {showFootnoteSheet ? (
         <NativeSheet
-          isOpen
+          isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
           onClose={() => setFootnoteData(null)}
           theme={resolvedTheme}
           enableContentPanningGesture={false}
         >
-          <FootnoteContent data={footnoteData} theme={resolvedTheme} fontSize={fontSize} />
+          <FootnoteContent
+            data={footnoteData ?? EMPTY_FOOTNOTE}
+            theme={resolvedTheme}
+            versionAbbreviation={versionLookup.abbreviation ?? undefined}
+            fontSize={fontSize}
+          />
         </NativeSheet>
       ) : null}
     </ThemeContext.Provider>
