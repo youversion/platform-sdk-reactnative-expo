@@ -681,6 +681,56 @@ describe('BibleCard', () => {
     })
   })
 
+  it('keeps an open footnote when provider filter arrays are recreated with the same values', async () => {
+    type LanguageFilterHolder = { current: string[] }
+    const holder: LanguageFilterHolder = { current: ['en'] }
+    function FilterApp() {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedLanguageTags={holder.current}
+        >
+          <BibleCard reference="JHN.1.1" versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screenResult = await renderAndSettle(<FilterApp />)
+    await pressFootnote()
+    expect(screenResult.getByTestId('footnote-sheet')).toBeTruthy()
+
+    holder.current = ['en']
+    screenResult.rerender(<FilterApp />)
+
+    expect(screenResult.getByTestId('footnote-sheet')).toBeTruthy()
+  })
+
+  it('closes an open footnote when provider filters refuse the version', async () => {
+    function FilterApp({ excludedVersionIds }: { excludedVersionIds?: number[] }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          excludedVersionIds={excludedVersionIds}
+        >
+          <BibleCard reference="JHN.1.1" versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screenResult = await renderAndSettle(<FilterApp />)
+    await pressFootnote()
+    expect(screenResult.getByTestId('footnote-sheet')).toBeTruthy()
+
+    screenResult.rerender(<FilterApp excludedVersionIds={[3034]} />)
+
+    expect(screenResult.queryByTestId('footnote-sheet')).toBeNull()
+    expect(screenResult.getByText(en.passageUnavailable)).toBeTruthy()
+  })
+
   it('reopens the footnote sheet on a second marker tap after close', async () => {
     const { getByTestId, queryByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} />,

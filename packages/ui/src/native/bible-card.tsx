@@ -18,6 +18,7 @@ import { ThemeContext, useTheme, useTokens, type Theme } from '../hooks'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { sameVersionFilters, type InternalVersionFilterProps } from '../lib/version-filter-props'
+import { isVersionIdDecidablyUnusable } from '../lib/version-usability'
 import { useBibleCardVersionStore } from '../stores/bible-card-version-store'
 import { sansFace } from '../theme/fonts'
 import { BibleAppWordmark } from './bible-app-wordmark'
@@ -375,15 +376,16 @@ export function BibleCard({
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
   // A note belongs to the passage it was opened from; close it when that passage changes.
+  // Compare filter values / refusal, not array identity — hosts often pass inline lists.
+  const versionRefused = isVersionIdDecidablyUnusable(versionId, {
+    permittedVersionIds: context.permittedVersionIds,
+    excludedVersionIds: context.excludedVersionIds,
+    permittedLanguageTags: context.permittedLanguageTags,
+  })
+  const languageFilterKey = context.permittedLanguageTags?.join(',') ?? ''
   useEffect(() => {
     setFootnoteData(null)
-  }, [
-    props.reference,
-    versionId,
-    context.permittedVersionIds,
-    context.excludedVersionIds,
-    context.permittedLanguageTags,
-  ])
+  }, [props.reference, versionId, versionRefused, languageFilterKey])
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
 
   // NativeSheet / BibleVersionPickerSheet are no-ops on web. Keep the consumer
