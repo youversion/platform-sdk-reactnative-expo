@@ -31,9 +31,7 @@ function input(overrides: Partial<ScripturePhaseInput> = {}): ScripturePhaseInpu
   return {
     span: verseSpanFromPassageId('JHN.3.16'),
     versionId: 111,
-    refused: false,
-    awaitingLanguage: false,
-    versionLookupBlocked: false,
+    gate: 'open',
     versionError: null,
     passage: loaded([block(16, 'For God so loved'), block(17, 'For God did not')]),
     loading: false,
@@ -150,19 +148,19 @@ describe('scripturePhase', () => {
 
   it('reports an invalid reference or a refused version as unavailable, with no retry', () => {
     expect(scripturePhase(input({ span: null })).kind).toBe('unavailable')
-    expect(scripturePhase(input({ refused: true })).kind).toBe('unavailable')
+    expect(scripturePhase(input({ gate: 'refused' })).kind).toBe('unavailable')
   })
 
   it('waits while the language tag is in flight', () => {
-    expect(scripturePhase(input({ awaitingLanguage: true })).kind).toBe('loading')
+    expect(scripturePhase(input({ gate: 'checking' })).kind).toBe('loading')
   })
 
   it('maps a blocked version lookup to offline or failed, with a version retry', () => {
-    expect(scripturePhase(input({ versionLookupBlocked: true, versionError: 'offline' }))).toEqual({
+    expect(scripturePhase(input({ gate: 'lookupFailed', versionError: 'offline' }))).toEqual({
       kind: 'offline',
       retry: 'version',
     })
-    expect(scripturePhase(input({ versionLookupBlocked: true, versionError: 'failed' }))).toEqual({
+    expect(scripturePhase(input({ gate: 'lookupFailed', versionError: 'failed' }))).toEqual({
       kind: 'failed',
       retry: 'version',
     })

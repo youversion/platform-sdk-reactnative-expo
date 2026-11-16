@@ -9,7 +9,10 @@ import { useBibleVersionAbbreviation } from '../../hooks/use-bible-version-abbre
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { INTER_FONT } from '../../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
-import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../../lib/version-usability'
+import {
+  isVersionIdDecidablyUnusable,
+  versionGate,
+} from '../../lib/version-usability'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
@@ -51,18 +54,12 @@ export function PassageEmbed({
     permittedLanguageTags,
   }
   const span = useMemo(() => verseSpanFromPassageId(reference), [reference])
-  const idRefused = isVersionIdDecidablyUnusable(versionId, filters)
-  const needsLanguage = permittedLanguageTags !== undefined && !idRefused
+  // Lookup only when a language list can still refuse this id.
+  const needsLanguage =
+    permittedLanguageTags !== undefined && !isVersionIdDecidablyUnusable(versionId, filters)
   const version = useBibleVersionAbbreviation(versionId, { enabled: needsLanguage })
-  const awaitingLanguage = needsLanguage && version.isLoading
-  const versionLookupBlocked = needsLanguage && version.error !== null
-  const languageRefused =
-    needsLanguage &&
-    !version.isLoading &&
-    version.error === null &&
-    !isUsableBibleVersion({ id: versionId, languageTag: version.languageId ?? undefined }, filters)
-  const refused = idRefused || languageRefused
-  const enabled = span !== null && !refused && !awaitingLanguage && !versionLookupBlocked
+  const gate = versionGate(versionId, filters, version)
+  const enabled = span !== null && gate === 'open'
   const address = useMemo(
     () => (enabled && span !== null ? chapterRef(span.book, span.chapter) : null),
     [enabled, span],
@@ -71,9 +68,7 @@ export function PassageEmbed({
   const phase = scripturePhase({
     span,
     versionId,
-    refused,
-    awaitingLanguage,
-    versionLookupBlocked,
+    gate,
     versionError: version.error,
     passage: load.passage,
     loading: load.loading,

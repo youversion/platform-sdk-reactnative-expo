@@ -1,5 +1,6 @@
 import { parseChapterScopeFromUsfm } from '@youversion/platform-react-native-expo-core'
 
+import type { VersionGate } from '../../lib/version-usability'
 import type { Block } from './parse-passage'
 import {
   passageKey,
@@ -96,9 +97,7 @@ export type ScripturePhase =
 export type ScripturePhaseInput = {
   span: VerseSpan | null
   versionId: number
-  refused: boolean
-  awaitingLanguage: boolean
-  versionLookupBlocked: boolean
+  gate: VersionGate
   versionError: VersionLookupError | null
   passage: LoadedPassage | null
   loading: boolean
@@ -106,13 +105,13 @@ export type ScripturePhaseInput = {
 }
 
 export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
-  if (input.span === null || input.refused) {
+  if (input.span === null || input.gate === 'refused') {
     return { kind: 'unavailable' }
   }
-  if (input.awaitingLanguage) {
+  if (input.gate === 'checking') {
     return { kind: 'loading' }
   }
-  if (input.versionLookupBlocked) {
+  if (input.gate === 'lookupFailed') {
     return input.versionError === 'offline'
       ? { kind: 'offline', retry: 'version' }
       : { kind: 'failed', retry: 'version' }
