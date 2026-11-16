@@ -19,7 +19,7 @@ import { useBibleBookTitle } from '../hooks/use-bible-book-title'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
-import { type BookCatalogEntry } from '../lib/bible-book-title'
+import { chapterLabelForBook, type BookCatalogEntry } from '../lib/bible-book-title'
 import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
@@ -35,6 +35,7 @@ import { lineMultiple } from './scripture/styles'
 import { focusLineBox, focusScrollOffset, type LineBox } from './scripture/verse-line'
 import {
   chapterRef,
+  chapterReference,
   footnoteFor,
   passageErrorKey,
   passageKey,
@@ -90,6 +91,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     book = 'JHN',
     chapter = '1',
     versionId = 3034,
+    versionDirections,
     fontSize = DEFAULT_FONT_SIZE,
     fontFamily,
     lineSpacing = READER_LINE_SPACING.DEFAULT,
@@ -139,12 +141,15 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   const ink = hostColor(foregroundColor, 'foregroundColor') ?? tokens.foreground
   const muted = foregroundColor === undefined ? tokens.mutedForeground : ink
 
+  // By the rendered passage's version: the dimmed old chapter keeps its direction.
+  const versionDirection = passage ? versionDirections?.get(passage.versionId) : undefined
   const { look, paint } = usePassageStyle({
     passage,
     highlights,
     fontSize,
     lineMultiple: lineMultiple(lineSpacing),
     fontFamily: decodeFontFamilyFromDom(fontFamily),
+    direction: versionDirection,
     ink,
     background,
   })
@@ -154,6 +159,12 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
   // A share from that window cannot be taken back, so the payload waits.
   const shareBookTitle = isBookLoading ? null : bookTitle
   const shareAbbreviation = isVersionLoading ? null : abbreviation
+  // Prefer the loaded book title. Fall back to the API reference (marks stripped,
+  // trimmed to the chapter) while the title loads.
+  const footnoteReference =
+    isCurrent && !isBookLoading
+      ? `${bookTitle} ${chapterLabelForBook(entry, chapter)}`
+      : chapterReference(passage?.reference)
   const [selected, setSelected] = useState<ReadonlySet<number>>(EMPTY_SELECTION)
   const latest = useRef({
     versionId,
@@ -161,6 +172,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -171,6 +183,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     chapter,
     bookTitle: shareBookTitle,
     abbreviation: shareAbbreviation,
+    footnoteReference,
     passage,
     selected,
     refused,
@@ -265,7 +278,11 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     if (handler === undefined) {
       return
     }
-    Promise.resolve(handler(footnoteFor(latest.current.passage, verse, html))).catch(console.error)
+    const data = {
+      ...footnoteFor(latest.current.passage, verse, html),
+      reference: latest.current.footnoteReference,
+    }
+    Promise.resolve(handler(data)).catch(console.error)
   }, [])
 
   // ---- Scroll and layout ----

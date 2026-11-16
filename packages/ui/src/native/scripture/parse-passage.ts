@@ -196,11 +196,14 @@ function blockFromPlaced(
   heading: boolean,
   placed: readonly PlacedInline[],
 ): Block | null {
-  if (placed.every((item) => isBlankText(item.inline))) {
+  // A blank run left after a note before a pause would underline past the note icon.
+  const lastInk = placed.map((item) => !isBlankText(item.inline)).lastIndexOf(true)
+  const kept = placed.slice(0, lastInk + 1)
+  if (kept.length === 0) {
     return null
   }
   const segments: Segment[] = []
-  for (const item of placed) {
+  for (const item of kept) {
     const last = segments.at(-1)
     if (last !== undefined && last.verse === item.verse) {
       last.inlines.push(item.inline)
@@ -589,9 +592,9 @@ const RTL_LETTER = /[֐-ࣿיִ-﷿ﹰ-﻿]/
 const LETTER = /\p{L}/gu
 
 /**
- * The transformer drops the API's direction, and the version body has only `language_tag`
- * (direction sits on the language, an extra request). So the scripture's strong letters vote:
- * a first-letter rule flips ASV Psalm 119, whose `qc` acrostic lines open with Hebrew.
+ * The fallback for the version index's `text_direction`, while it loads or when it fails. The
+ * scripture's strong letters vote: a first-letter rule flips ASV Psalm 119, whose `qc` acrostic
+ * lines open with Hebrew.
  */
 export function isRtlText(blocks: readonly Block[]): boolean {
   // Headings can quote another script, so only scripture votes.

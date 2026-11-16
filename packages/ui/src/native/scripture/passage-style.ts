@@ -14,6 +14,7 @@ import { useSerifFace } from '../../theme/use-fonts'
 import { highlightPaint, type HighlightPaint } from './highlight-colors'
 import type { PassageLook } from './passage'
 import type { LoadedPassage } from './use-passage'
+import type { TextDirection } from './use-version-directions'
 
 const CSS_SANS_KEYWORDS = new Set(['sans-serif', 'system-ui', 'ui-sans-serif', '-apple-system'])
 const CSS_OTHER_KEYWORDS = new Set([
@@ -65,7 +66,7 @@ export type PassageStyleInput = {
    */
   fontFamily: FontFamily | undefined
   /** Overrides the passage's own strong-letter vote. */
-  direction?: 'ltr' | 'rtl'
+  direction?: TextDirection
   /** `#rrggbb`. Defaults to the scheme's foreground. */
   ink?: string
   /** `#rrggbb` under the text. Highlight covers paint it. Defaults to the scheme's background. */

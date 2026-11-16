@@ -176,9 +176,15 @@ function renderBlock(classes: string[], text: string, rtl: boolean): void {
 }
 
 describe('paragraph alignment', () => {
-  it('starts an ordinary right-to-left paragraph on the right', () => {
+  // textAlign is start-relative under RTL; see ADR 0023.
+  it('starts an ordinary right-to-left paragraph at its start edge', () => {
     renderBlock(['p'], 'בראשית', true)
-    expect(textAligns('בראשית')).toEqual(['right'])
+    expect(textAligns('בראשית')).toEqual(['left'])
+  })
+
+  it('starts right-to-left poetry at its start edge', () => {
+    renderBlock(['q1'], 'בראשית', true)
+    expect(textAligns('בראשית')).toEqual(['left'])
   })
 
   it('keeps an ordinary left-to-right paragraph on the left', () => {
@@ -191,7 +197,7 @@ describe('paragraph alignment', () => {
     expect(textAligns('סלה')).toEqual(['center'])
   })
 
-  it('keeps an explicit right line on the right in a right-to-left passage', () => {
+  it('sends an explicit right line to its end edge in a right-to-left passage', () => {
     renderBlock(['qr'], 'סלה', true)
     expect(textAligns('סלה')).toEqual(['right'])
   })
@@ -245,9 +251,10 @@ describe('paragraph alignment', () => {
         />
       </LocaleProvider>,
     )
-    // Same flex-end under passage direction:rtl → physical left.
+    // flex-end under passage direction:rtl and start-relative 'right' both land physically
+    // left, so a wrapped pause stays on the trailing edge.
     expect(endEdgeJustifies('סלה')).toEqual(['flex-end'])
-    expect(textAligns('סלה')).toEqual(['left'])
+    expect(textAligns('סלה')).toEqual(['right'])
     expect(endEdgeShrinks('סלה')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
   })
 

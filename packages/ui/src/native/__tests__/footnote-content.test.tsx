@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native'
 
 import { mockWindowDimensions } from '../../../jest.window-dimensions-mock'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
+import { nearestStyle } from '../../test-utils/nearest-style'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { fontMapKey, SERIF_STANDIN } from '../../theme/fonts'
@@ -28,6 +29,15 @@ const johnNote: FootnoteData = {
 
 function flattened(text: string) {
   return StyleSheet.flatten(screen.getByText(text).props.style)
+}
+
+/** The paragraph's style: a run is a nested Text, so alignment sits on its nearest aligned ancestor. */
+function flattenedAncestor(text: string) {
+  const style = nearestStyle(text, 'textAlign')
+  if (style === undefined) {
+    throw new Error(`no aligned ancestor for ${text}`)
+  }
+  return style
 }
 
 describe('FootnoteContent', () => {
@@ -123,6 +133,27 @@ describe('FootnoteContent', () => {
     expect(StyleSheet.flatten(screen.getByTestId('footnote-content').props.style)).toMatchObject({
       direction: 'rtl',
     })
+  })
+
+  it('starts the heading, verse, and notes at the start edge of rtl scripture', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} scriptureDirection="rtl" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    const rtlFlow = { textAlign: 'left', writingDirection: 'rtl' }
+    expect(flattened('John 1:5')).toMatchObject(rtlFlow)
+    expect(flattenedAncestor('He then added, ')).toMatchObject(rtlFlow)
+    expect(flattenedAncestor('Or ')).toMatchObject(rtlFlow)
+  })
+
+  it('keeps left-to-right scripture on the left', () => {
+    render(<FootnoteContent {...sheetProps(johnNote)} scriptureDirection="ltr" />, {
+      wrapper: youVersionProviderWrapper(),
+    })
+
+    const ltrFlow = { textAlign: 'left', writingDirection: 'ltr' }
+    expect(flattened('John 1:5')).toMatchObject(ltrFlow)
+    expect(flattenedAncestor('He then added, ')).toMatchObject(ltrFlow)
   })
 
   it('caps the body below the screen so a long note can scroll', () => {

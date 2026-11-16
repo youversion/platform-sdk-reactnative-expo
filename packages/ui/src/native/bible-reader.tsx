@@ -67,6 +67,7 @@ import { BibleVerseActionSheet } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
+import { useVersionDirections } from './scripture/use-version-directions'
 import { SignInWithYouVersionSheet } from './sign-in-with-youversion-sheet'
 import { useSignOutGuard } from './use-sign-out-guard'
 
@@ -494,6 +495,8 @@ export function BibleReader({
   const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
   // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
   const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  // The version the open note came from: a version change must not flip its direction.
+  const [footnoteVersionId, setFootnoteVersionId] = useState(appliedVersionId)
   const [isPickerOpen, setIsPickerOpen] = useState(false)
   const [isVersionPickerOpen, setIsVersionPickerOpen] = useState(false)
   const [isSettingsSheetOpen, setIsSettingsSheetOpen] = useState(false)
@@ -702,6 +705,7 @@ export function BibleReader({
       ? (consumerOnFootnotePress ??
         (async (data: FootnoteData) => {
           setFootnoteData(data)
+          setFootnoteVersionId(appliedVersionId)
           setFootnoteOpenKey((key) => key + 1)
         }))
       : undefined
@@ -789,6 +793,8 @@ export function BibleReader({
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
   const bottomScrollPadding = computeReaderBottomScrollPadding(bottomSafeArea, Platform.OS)
 
+  const versionDirections = useVersionDirections(context.fetchBibleContent, appliedVersionId)
+
   const BibleReaderNative = getImpl('BibleReaderNative')
   const FootnoteContent = getImpl('FootnoteContent')
 
@@ -874,6 +880,7 @@ export function BibleReader({
               book={appliedBook}
               chapter={appliedChapter}
               versionId={appliedVersionId}
+              versionDirections={versionDirections}
               fontSize={fontSize}
               fontFamily={encodeFontFamilyForDom(fontFamily)}
               lineSpacing={lineSpacing}
@@ -966,6 +973,7 @@ export function BibleReader({
             data={footnoteData ?? EMPTY_FOOTNOTE}
             theme={resolvedTheme}
             versionAbbreviation={versionAbbreviation}
+            scriptureDirection={versionDirections.get(footnoteVersionId)}
             lineSpacing={lineSpacing}
             fontSize={fontSize}
           />

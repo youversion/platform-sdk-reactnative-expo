@@ -24,6 +24,7 @@ import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversio
 import { getTokens } from '../../theme'
 import { BibleCard } from '../bible-card'
 import * as bibleCardMetadata from '../bible-card-metadata'
+import type { TextDirection } from '../scripture/use-version-directions'
 import { YouVersionProvider } from '../youversion-provider'
 
 const black = require('../../../assets/bible-app-wordmark-black-text.png')
@@ -82,7 +83,7 @@ async function pressFootnote(): Promise<void> {
 function MockFootnoteContent(props: {
   data: FootnoteData
   theme?: string
-  scriptureDirection?: 'ltr' | 'rtl'
+  scriptureDirection?: TextDirection
 }) {
   return (
     <View testID="mock-footnote-content">
