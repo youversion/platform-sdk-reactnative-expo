@@ -79,7 +79,9 @@ export function VerseOfTheDay({
   })
   // Omitted and [] must differ: [] refuses every language, omitted does not.
   const languageFilterKey =
-    permittedLanguageTags === undefined ? undefined : permittedLanguageTags.join(',')
+    permittedLanguageTags === undefined
+      ? undefined
+      : permittedLanguageTags.join(',')
   useEffect(() => {
     setFootnoteData(null)
   }, [passageId, versionId, versionRefused, languageFilterKey])
