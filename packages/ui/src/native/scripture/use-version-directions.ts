@@ -35,7 +35,12 @@ function directionForVersion(
   const pending = fetchBibleContent({ path: `/v1/bibles/${versionId}/index` })
     .then((response) => {
       const body = response.status === 200 ? parseBody(versionIndexSchema, response.body) : null
-      return body?.text_direction ?? null
+      const direction = body?.text_direction ?? null
+      // Drop misses so a later mount can retry after a transient 503/429 or bad body.
+      if (direction === null) {
+        byVersion.delete(versionId)
+      }
+      return direction
     })
     .catch(() => {
       byVersion.delete(versionId)

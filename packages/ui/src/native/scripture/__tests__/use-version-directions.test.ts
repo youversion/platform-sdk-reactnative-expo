@@ -76,6 +76,30 @@ describe('useVersionDirections', () => {
     expect(fetchBibleContent).toHaveBeenCalledTimes(2)
   })
 
+  it('retries the index after a null direction on a later mount', async () => {
+    const fetchBibleContent: FetchBibleContent = jest
+      .fn()
+      .mockResolvedValueOnce({
+        status: 503,
+        body: '',
+        contentType: 'application/json',
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        body: JSON.stringify({ text_direction: 'rtl' }),
+        contentType: 'application/json',
+      })
+    const first = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    await waitFor(() => expect(fetchBibleContent).toHaveBeenCalledTimes(1))
+    await act(async () => {})
+    expect(first.result.current.size).toBe(0)
+    first.unmount()
+
+    const second = renderHook(() => useVersionDirections(fetchBibleContent, 187))
+    await waitFor(() => expect(second.result.current.get(187)).toBe('rtl'))
+    expect(fetchBibleContent).toHaveBeenCalledTimes(2)
+  })
+
   it('does not fetch when disabled', async () => {
     const fetchBibleContent = respond(200, JSON.stringify({ text_direction: 'rtl' }))
     renderHook(() => useVersionDirections(fetchBibleContent, 187, { enabled: false }))
