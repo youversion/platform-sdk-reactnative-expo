@@ -382,7 +382,11 @@ export function BibleCard({
     excludedVersionIds: context.excludedVersionIds,
     permittedLanguageTags: context.permittedLanguageTags,
   })
-  const languageFilterKey = context.permittedLanguageTags?.join(',') ?? ''
+  // Omitted and [] must differ: [] refuses every language, omitted does not.
+  const languageFilterKey =
+    context.permittedLanguageTags === undefined
+      ? undefined
+      : context.permittedLanguageTags.join(',')
   useEffect(() => {
     setFootnoteData(null)
   }, [props.reference, versionId, versionRefused, languageFilterKey])

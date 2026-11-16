@@ -732,6 +732,32 @@ describe('BibleCard', () => {
     expect(screenResult.getByText(en.passageUnavailable)).toBeTruthy()
   })
 
+  it('closes an open footnote when permitted languages switch from omitted to empty', async () => {
+    function FilterApp({ permittedLanguageTags }: { permittedLanguageTags?: string[] }) {
+      return (
+        <YouVersionProvider
+          appKey="test-key"
+          theme="light"
+          hookOverrides={defaultHookOverrides}
+          permittedLanguageTags={permittedLanguageTags}
+        >
+          <BibleCard reference="JHN.1.1" versionId={3034} />
+        </YouVersionProvider>
+      )
+    }
+
+    const screenResult = await renderAndSettle(<FilterApp />)
+    await pressFootnote()
+    expect(screenResult.getByTestId('footnote-sheet')).toBeTruthy()
+
+    screenResult.rerender(<FilterApp permittedLanguageTags={[]} />)
+
+    expect(screenResult.queryByTestId('footnote-sheet')).toBeNull()
+    await waitFor(() => {
+      expect(screenResult.getByText(en.passageUnavailable)).toBeTruthy()
+    })
+  })
+
   it('reopens the footnote sheet on a second marker tap after close', async () => {
     const { getByTestId, queryByTestId } = await renderAndSettle(
       <BibleCard reference="JHN.1.1" versionId={3034} />,
