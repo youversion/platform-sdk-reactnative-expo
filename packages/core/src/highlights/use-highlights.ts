@@ -357,6 +357,9 @@ function useHighlightsImplementation(
   // signed-in user. Reads recover on their own (the fetch effect is keyed on the
   // token); writes are the exposure, so they wait here.
   //
+  // Resolve on EITHER a token arriving OR auth settling with none — never on
+  // `isLoading` alone: a stalled bootstrap refresh holds it for up to 10s.
+  //
   // Unmounting is a third exit, and it carries its own marker. A plain flush on
   // unmount would resume `runWrite` against a token that is STILL null, which
   // classifies as `not-signed-in` and reverts — deleting the queue entry for a
