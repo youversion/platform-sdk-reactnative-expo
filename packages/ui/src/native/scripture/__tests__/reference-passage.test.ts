@@ -5,7 +5,7 @@ import {
   verseSpanFromPassageId,
   type ScripturePhaseInput,
 } from '../reference-passage'
-import { chapterRef, passageKey, type LoadedPassage } from '../use-passage'
+import { chapterRef, passageKey, passageRefFor, type LoadedPassage } from '../use-passage'
 
 function block(verse: number, text: string, heading = false): Block {
   return {
@@ -16,8 +16,8 @@ function block(verse: number, text: string, heading = false): Block {
   }
 }
 
-function loaded(blocks: Block[], chapter = '3'): LoadedPassage {
-  const ref = chapterRef('JHN', chapter)
+function loaded(blocks: Block[], usfm = 'JHN.3.16'): LoadedPassage {
+  const ref = passageRefFor(usfm) ?? chapterRef('JHN', '3')
   return {
     ...ref,
     key: passageKey(111, ref),
@@ -27,13 +27,35 @@ function loaded(blocks: Block[], chapter = '3'): LoadedPassage {
   }
 }
 
+function addressFor(span: NonNullable<ScripturePhaseInput['span']>) {
+  if (span.verses === null) {
+    return passageRefFor(`${span.book}.${span.chapter}`) ?? chapterRef(span.book, span.chapter)
+  }
+  const verse =
+    span.verses.end === span.verses.start
+      ? `${span.verses.start}`
+      : `${span.verses.start}-${span.verses.end}`
+  return (
+    passageRefFor(`${span.book}.${span.chapter}.${verse}`) ?? chapterRef(span.book, span.chapter)
+  )
+}
+
 function input(overrides: Partial<ScripturePhaseInput> = {}): ScripturePhaseInput {
+  const span = overrides.span !== undefined ? overrides.span : verseSpanFromPassageId('JHN.3.16')
+  const address =
+    overrides.address !== undefined
+      ? overrides.address
+      : span === null
+        ? null
+        : addressFor(span)
+  const defaultUsfm = address?.usfm ?? 'JHN.3.16'
   return {
-    span: verseSpanFromPassageId('JHN.3.16'),
+    span,
     versionId: 111,
     gate: 'open',
+    address,
     versionError: null,
-    passage: loaded([block(16, 'For God so loved'), block(17, 'For God did not')]),
+    passage: loaded([block(16, 'For God so loved'), block(17, 'For God did not')], defaultUsfm),
     loading: false,
     error: null,
     ...overrides,
@@ -112,12 +134,15 @@ describe('scripturePhase', () => {
     const phase = scripturePhase(
       input({
         span: verseSpanFromPassageId('JHN.3.16-17'),
-        passage: loaded([
-          block(0, 'God so loved', true),
-          block(16, 'For God so loved'),
-          block(17, 'For God did not'),
-          block(18, 'Whoever believes'),
-        ]),
+        passage: loaded(
+          [
+            block(0, 'God so loved', true),
+            block(16, 'For God so loved'),
+            block(17, 'For God did not'),
+            block(18, 'Whoever believes'),
+          ],
+          'JHN.3.16-17',
+        ),
       }),
     )
     expect(phase.kind).toBe('passage')
@@ -136,7 +161,10 @@ describe('scripturePhase', () => {
     const phase = scripturePhase(
       input({
         span: verseSpanFromPassageId('JHN.3'),
-        passage: loaded([block(0, 'God so loved', true), block(16, 'For God so loved')]),
+        passage: loaded(
+          [block(0, 'God so loved', true), block(16, 'For God so loved')],
+          'JHN.3',
+        ),
       }),
     )
     expect(phase.kind).toBe('passage')
@@ -178,7 +206,7 @@ describe('scripturePhase', () => {
   it('shows a loader until the requested chapter is the one in hand', () => {
     expect(scripturePhase(input({ passage: null })).kind).toBe('loading')
     expect(
-      scripturePhase(input({ passage: loaded([block(1, 'In the beginning')], '1') })).kind,
+      scripturePhase(input({ passage: loaded([block(1, 'In the beginning')], 'JHN.1') })).kind,
     ).toBe('loading')
   })
 

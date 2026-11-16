@@ -111,7 +111,7 @@ describe('BibleCard version picker integration', () => {
     })
 
     await waitFor(() => {
-      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1'))).toBe(true)
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1.1'))).toBe(true)
     })
   })
 
@@ -119,7 +119,9 @@ describe('BibleCard version picker integration', () => {
     await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={100} />, { wrapper })
 
     await waitFor(() => {
-      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/100/passages/JHN.1'))).toBe(true)
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/100/passages/JHN.1.1'))).toBe(
+        true,
+      )
     })
   })
 

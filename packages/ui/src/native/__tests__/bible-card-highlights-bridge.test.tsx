@@ -185,7 +185,9 @@ describe('the highlights subscription scope', () => {
       enabled: true,
     })
     await waitFor(() => {
-      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/222/passages/JHN.3'))).toBe(true)
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/222/passages/JHN.3.16'))).toBe(
+        true,
+      )
     })
   })
 

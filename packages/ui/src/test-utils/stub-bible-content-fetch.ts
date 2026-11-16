@@ -1,3 +1,5 @@
+import { fetchUrl } from './stub-fetch'
+
 const VERSE_HTML =
   '<div><div class="p">' +
   '<span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>In the beginning' +
@@ -41,7 +43,7 @@ export function installBibleContentFetch(options: StubOptions = {}): BibleConten
   const previous = globalThis.fetch
   // SAFETY: the stub returns the Response members the content client reads (ok, status, headers, text).
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = requestUrl(input)
+    const url = fetchUrl(input)
     if (!url.includes('/v1/bibles/')) {
       return previous(input, init)
     }
@@ -65,14 +67,4 @@ export function installBibleContentFetch(options: StubOptions = {}): BibleConten
     }
   }) as typeof fetch
   return state
-}
-
-function requestUrl(input: RequestInfo | URL): string {
-  if (input instanceof URL) {
-    return input.href
-  }
-  if (input instanceof Request) {
-    return input.url
-  }
-  return input
 }

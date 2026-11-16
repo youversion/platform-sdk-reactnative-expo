@@ -1,13 +1,13 @@
-import { parseChapterScopeFromUsfm } from '@youversion/platform-react-native-expo-core'
+import { expandPassageId } from '@youversion/platform-react-native-expo-core'
 
 import type { VersionGate } from '../../lib/version-usability'
 import type { Block } from './parse-passage'
 import {
   passageKey,
-  chapterRef,
   passageRefFor,
   type LoadedPassage,
   type PassageError,
+  type PassageRef,
 } from './use-passage'
 
 export type VerseSpan = {
@@ -19,8 +19,8 @@ export type VerseSpan = {
 
 /**
  * Chapter, verse, or verse-range USFM. Whole chapters (numeric or catalog ids
- * like `INTRO`) go through `passageRefFor`. Verse and range forms keep the
- * highlight-scope chapter rules. A range keeps both ends.
+ * like `INTRO`) go through `passageRefFor`. Verse and range forms use core's
+ * `expandPassageId` so MAX_RANGE_LENGTH and reverse-range rules stay shared.
  */
 export function verseSpanFromPassageId(passageId: string): VerseSpan | null {
   const versePart = passageId.split('.')[2]
@@ -31,18 +31,16 @@ export function verseSpanFromPassageId(passageId: string): VerseSpan | null {
     }
     return { book: ref.book, chapter: ref.chapter, verses: null }
   }
-  const scope = parseChapterScopeFromUsfm(passageId)
-  if (scope === null) {
+  const expanded = expandPassageId(passageId)
+  if (expanded === null) {
     return null
   }
-  const match = /^(\d+)(?:-(\d+))?$/.exec(versePart)
-  const startRaw = match?.[1]
-  if (startRaw === undefined) {
+  const start = expanded.verses[0]
+  const end = expanded.verses[expanded.verses.length - 1]
+  if (start === undefined || end === undefined) {
     return null
   }
-  const start = Number.parseInt(startRaw, 10)
-  const end = match?.[2] === undefined ? start : Number.parseInt(match[2], 10)
-  return { book: scope.book, chapter: scope.chapter, verses: { start, end } }
+  return { book: expanded.book, chapter: expanded.chapter, verses: { start, end } }
 }
 
 // Sliced blocks are cached by chapter blocks and span so each keeps its
@@ -92,12 +90,14 @@ export type ScripturePhase =
   | { kind: 'unavailable' }
   | { kind: 'failed'; retry: 'version' | 'passage' }
   | { kind: 'offline'; retry: 'version' | 'passage' }
-  | { kind: 'passage'; blocks: readonly Block[]; loaded: LoadedPassage }
+  | { kind: 'passage'; blocks: readonly Block[] }
 
 export type ScripturePhaseInput = {
   span: VerseSpan | null
   versionId: number
   gate: VersionGate
+  /** Fetch address for the current request; used to tell stale retained content from current. */
+  address: PassageRef | null
   versionError: VersionLookupError | null
   passage: LoadedPassage | null
   loading: boolean
@@ -128,7 +128,8 @@ export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
   const loaded = input.passage
   const current =
     loaded !== null &&
-    loaded.key === passageKey(input.versionId, chapterRef(input.span.book, input.span.chapter))
+    input.address !== null &&
+    loaded.key === passageKey(input.versionId, input.address)
   if (!current || loaded === null) {
     return { kind: 'loading' }
   }
@@ -136,5 +137,5 @@ export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
   if (blocks.length === 0) {
     return input.loading ? { kind: 'loading' } : { kind: 'unavailable' }
   }
-  return { kind: 'passage', blocks, loaded }
+  return { kind: 'passage', blocks }
 }

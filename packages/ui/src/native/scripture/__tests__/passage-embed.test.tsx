@@ -73,8 +73,10 @@ describe('PassageEmbed', () => {
     })
     expect(getByText('16')).toBeTruthy()
     expect(queryByText('In the beginning')).toBeNull()
-    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3?'))).toBe(true)
-    expect(fetchStub.urls.some((url) => url.includes('JHN.3.16'))).toBe(false)
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3.16?'))).toBe(
+      true,
+    )
+    expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3?'))).toBe(false)
     expect(fontSizeOf(getByText('For God so loved'))).toBe(16)
   })
 

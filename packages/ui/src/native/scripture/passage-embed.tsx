@@ -18,7 +18,7 @@ import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
 import { scripturePhase, verseSpanFromPassageId } from './reference-passage'
 import { lineMultiple } from './styles'
-import { chapterRef, footnoteFor, passageErrorKey, usePassage } from './use-passage'
+import { footnoteFor, passageErrorKey, passageRefFor, usePassage } from './use-passage'
 
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const NO_FOCUS = null
@@ -57,19 +57,20 @@ export function PassageEmbed({
   // Lookup only when a language list can still refuse this id.
   const needsLanguage =
     permittedLanguageTags !== undefined && !isVersionIdDecidablyUnusable(versionId, filters)
-  const version = useBibleVersionAbbreviation(versionId, { enabled: needsLanguage })
-  const gate = versionGate(versionId, filters, version)
+  const lookup = useBibleVersionAbbreviation(versionId, { enabled: needsLanguage })
+  const gate = versionGate(versionId, filters, lookup)
   const enabled = span !== null && gate === 'open'
   const address = useMemo(
-    () => (enabled && span !== null ? chapterRef(span.book, span.chapter) : null),
-    [enabled, span],
+    () => (enabled ? passageRefFor(reference) : null),
+    [enabled, reference],
   )
   const load = usePassage(fetchBibleContent, versionId, address)
   const phase = scripturePhase({
     span,
     versionId,
     gate,
-    versionError: version.error,
+    address,
+    versionError: lookup.error,
     passage: load.passage,
     loading: load.loading,
     error: load.error,
@@ -107,7 +108,7 @@ export function PassageEmbed({
   if (phase.kind !== 'passage') {
     const message = t(passageErrorKey(phase.kind))
     const retry =
-      phase.kind === 'unavailable' ? null : phase.retry === 'version' ? version.retry : load.retry
+      phase.kind === 'unavailable' ? null : phase.retry === 'version' ? lookup.retry : load.retry
     return (
       <View testID="scripture-error" style={styles.status}>
         <Text variant="muted" style={styles.message}>
