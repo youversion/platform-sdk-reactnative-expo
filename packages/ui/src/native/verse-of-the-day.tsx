@@ -1,33 +1,46 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type { VerseOfTheDayProps as WebVerseOfTheDayProps } from '@youversion/platform-react-ui'
+import type {
+  FootnoteData,
+  VerseOfTheDayProps as WebVerseOfTheDayProps,
+} from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
 import { Button, Card, Text } from '../components/ui'
 import { ThemeContext, useTheme, useTokens } from '../hooks'
-import { useLocale } from '../i18n/locale-context'
+import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { withEmbedDomDefaults } from '../lib/embed-dom-props'
-import { encodeFontFamilyForDom, INTER_FONT, UNTITLED_SERIF_FONT } from '../lib/reader-fonts'
+import { isVersionIdDecidablyUnusable } from '../lib/version-usability'
 import { getTokens } from '../theme'
 import { sansFace } from '../theme/fonts'
-import { getImpl } from './component-impls'
 import { BibleAppWordmark } from './bible-app-wordmark'
+import { getImpl } from './component-impls'
+import { NativeSheet } from './native-sheet'
 import { HighlightsPaint } from './highlights-paint'
 import { highlightScopeFor } from './highlight-scope'
 import { ShareIcon, VotdIcon } from './icons'
+import { PassageEmbed } from './scripture/passage-embed'
 import { useVerseOfTheDayPassageId } from './use-verse-of-the-day-passage-id'
 import { getDayOfYear } from './verse-of-the-day-api'
 import { useVerseOfTheDayShareSource } from './use-verse-of-the-day-share-source'
 
 export type VerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
   theme?: 'light' | 'dark' | 'system'
+  /**
+   * @deprecated Ignored. Text renders natively. Will be removed in the next major.
+   */
   dom?: DOMProps
 }
 
 const DEFAULT_FONT_SIZE = 16
 const LARGE_FONT_SIZE = 20
+
+const EMPTY_FOOTNOTE: FootnoteData = {
+  verseNum: '',
+  notes: [],
+  verseHtml: '',
+}
 
 async function shareInBrowser(text: string): Promise<void> {
   const { navigator } = globalThis
@@ -48,14 +61,11 @@ export function VerseOfTheDay({
   onShare: consumerOnShare,
   versionId = DEFAULT_BIBLE_VERSION_ID,
   dayOfYear: dayOfYearProp,
-  dom,
   showSunIcon = true,
   showShareButton = true,
   showBibleAppAttribution = true,
   size = 'default',
 }: VerseOfTheDayProps): ReactNode {
-  const context = useYouVersion()
-  const { lng } = useLocale()
   const { t } = useSdkTranslation()
   const resolvedTheme = useTheme(theme ?? background)
   const [sampledDayOfYear] = useState(() => getDayOfYear(new Date()))
@@ -64,14 +74,36 @@ export function VerseOfTheDay({
   const dayOfYear = dayOfYearProp ?? sampledDayOfYear
   const { passageId, status, retry } = useVerseOfTheDayPassageId(dayOfYear)
   const { shareSource, loadShareSource } = useVerseOfTheDayShareSource(versionId, passageId)
+  const { permittedVersionIds, excludedVersionIds, permittedLanguageTags } = useYouVersion()
+  const versionLookup = useBibleVersionAbbreviation(versionId)
   const scope = highlightScopeFor(passageId, versionId)
-  const fontFamily = size === 'lg' ? UNTITLED_SERIF_FONT : INTER_FONT
   const fontSize = size === 'lg' ? LARGE_FONT_SIZE : DEFAULT_FONT_SIZE
+  const [footnoteData, setFootnoteData] = useState<FootnoteData | null>(null)
+  // footnoteData can remain non-null across repeated taps, so track each tap as an open event.
+  const [footnoteOpenKey, setFootnoteOpenKey] = useState(0)
+  const FootnoteContent = getImpl('FootnoteContent')
+  const versionRefused = isVersionIdDecidablyUnusable(versionId, {
+    permittedVersionIds,
+    excludedVersionIds,
+    permittedLanguageTags,
+  })
+  // Omitted and [] must differ: [] refuses every language, omitted does not.
+  const languageFilterKey =
+    permittedLanguageTags === undefined
+      ? undefined
+      : permittedLanguageTags.join(',')
+  useEffect(() => {
+    setFootnoteData(null)
+  }, [passageId, versionId, versionRefused, languageFilterKey])
+  const showFootnoteSheet = Platform.OS !== 'web'
+  const handleFootnotePress = (data: FootnoteData) => {
+    setFootnoteData(data)
+    setFootnoteOpenKey((key) => key + 1)
+  }
 
   const handleShare = async () => {
     try {
-      // The background fetch can fail while the DOM view still paints the
-      // verse, so a press retries instead of staying dead for the mount.
+      // The share request can fail while the verse is already on screen, so a press retries.
       const source = shareSource ?? (await loadShareSource())
       if (source == null) {
         console.warn('VerseOfTheDay share unavailable: passage text could not be loaded')
@@ -90,8 +122,6 @@ export function VerseOfTheDay({
       console.error('VerseOfTheDay share failed:', error)
     }
   }
-
-  const BibleTextViewDOM = getImpl('BibleTextViewDom')
 
   return (
     <ThemeContext.Provider value={resolvedTheme}>
@@ -120,23 +150,13 @@ export function VerseOfTheDay({
             )
           } else if (passageId != null) {
             body = (
-              <BibleTextViewDOM
+              <PassageEmbed
                 reference={passageId}
                 versionId={versionId}
-                showVerseNumbers={false}
-                fontSize={fontSize}
-                fontFamily={encodeFontFamilyForDom(fontFamily)}
                 highlights={highlights}
-                appKey={context.appKey}
-                apiHost={context.apiHost}
-                installationId={context.installationId}
-                fetchBibleContent={context.fetchBibleContent}
-                permittedVersionIds={context.permittedVersionIds}
-                excludedVersionIds={context.excludedVersionIds}
-                permittedLanguageTags={context.permittedLanguageTags}
-                locale={lng}
-                theme={resolvedTheme}
-                dom={withEmbedDomDefaults(dom)}
+                fontSize={fontSize}
+                font={size === 'lg' ? 'serif' : 'sans'}
+                onFootnotePress={showFootnoteSheet ? handleFootnotePress : undefined}
               />
             )
           }
@@ -164,6 +184,22 @@ export function VerseOfTheDay({
           )
         }}
       </HighlightsPaint>
+      {showFootnoteSheet ? (
+        <NativeSheet
+          isOpen={!!footnoteData}
+          openKey={footnoteOpenKey}
+          onClose={() => setFootnoteData(null)}
+          theme={resolvedTheme}
+          enableContentPanningGesture={false}
+        >
+          <FootnoteContent
+            data={footnoteData ?? EMPTY_FOOTNOTE}
+            theme={resolvedTheme}
+            versionAbbreviation={versionLookup.abbreviation ?? undefined}
+            fontSize={fontSize}
+          />
+        </NativeSheet>
+      ) : null}
     </ThemeContext.Provider>
   )
 }

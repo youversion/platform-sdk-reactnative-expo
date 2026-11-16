@@ -15,7 +15,7 @@ tags: [expo-dom, react-native, native-sheet, webview, provider]
 
 # Expo DOM Native Provider And Sheet Pattern
 
-> **Status.** Chrome, `BibleReader`, `BibleTextView`, and footnotes are native. This note still applies to the scripture WebViews that remain, which are `BibleCard` and `VerseOfTheDay`.
+> **Status.** Chrome, `BibleReader`, `BibleTextView`, footnotes, `BibleCard`, and `VerseOfTheDay` are native text. This note still applies wherever Expo DOM WebViews remain in the SDK.
 
 ## Context
 

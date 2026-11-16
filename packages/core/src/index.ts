@@ -22,6 +22,7 @@ export {
   HIGHLIGHT_COLORS,
   isHighlightColor,
   mixSrgb,
+  expandPassageId,
   parseChapterScopeFromUsfm,
   useHighlightPaint,
   useHighlightPermissionFlow,

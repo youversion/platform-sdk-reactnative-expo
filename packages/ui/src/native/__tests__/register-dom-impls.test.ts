@@ -37,11 +37,8 @@ describe('reader renderer', () => {
     expect(getImpl('BibleReaderNative')).toBe(BibleReaderNative)
   })
 
-  it('lets only the card and verse of the day mount BibleTextViewDom', () => {
+  it('does not mount BibleTextViewDom from native scripture surfaces', () => {
     const root = join(__dirname, '../..')
-    expect(callersOf(root, root).sort()).toEqual([
-      'native/bible-card.tsx',
-      'native/verse-of-the-day.tsx',
-    ])
+    expect(callersOf(root, root).sort()).toEqual([])
   })
 })

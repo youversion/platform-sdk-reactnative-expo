@@ -1,6 +1,6 @@
 # Content-sized body for matchContents embeds
 
-> **Status.** `BibleCard` and `VerseOfTheDay` embed `dom/bible-text-view.tsx`, which renders `ContentSizedBody`. `BibleReader`, `BibleTextView`, and footnote sheets are native text.
+> **Status.** `BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` draw native text. `dom/bible-text-view.tsx` remains for follow-up cleanup; nothing mounts it at this stack tip. Reader settings, the version and chapter pickers, and footnotes are native.
 
 Expo DOM Components' `dom={{ matchContents: true }}` injects a `ResizeObserver` on `document.body` and applies the reported `{width, height}` to the WebView container. Expo's DOM HTML template, however, pins `html, body { height: 100% }` and `#root { height: 100% }`, so the body always measures the WebView's own frame — never the content. That makes `matchContents` circular: the frame height is reported back as the frame height.
 

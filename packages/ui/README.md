@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-ui
 
-Drop-in YouVersion Bible components for React Native (Expo) apps. Chrome, `BibleReader`, `BibleTextView`, and footnote sheets are native text. `BibleTextView` grows with its passage. `BibleCard` and `VerseOfTheDay` still render their passage in a WebView through the React Web SDK and [Expo DOM](https://docs.expo.dev/guides/dom-components/).
+Drop-in YouVersion Bible components for React Native (Expo) apps. Chrome, `BibleReader`, `BibleTextView`, footnote sheets, `BibleCard`, and `VerseOfTheDay` draw native text. `BibleTextView` grows with its passage.
 
 ## When to use this package
 
