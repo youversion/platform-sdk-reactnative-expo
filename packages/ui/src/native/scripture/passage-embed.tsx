@@ -96,7 +96,7 @@ export function PassageEmbed({
       if (onFootnotePress === undefined) {
         return
       }
-      void Promise.resolve(onFootnotePress(footnoteFor(load.passage, verse, html)))
+      Promise.resolve(onFootnotePress(footnoteFor(load.passage, verse, html))).catch(console.error)
     },
     [load.passage, onFootnotePress],
   )
