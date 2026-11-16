@@ -106,7 +106,7 @@ The same resolved scheme drives the SDK's own native chrome through design token
 
 The provider also loads brand fonts (`Inter`, `Untitled Serif`, and `Source Serif 4`). There is no opt-out, no extra setup beyond `appKey`, and no public fonts-ready hook. Children wait for bundled Inter; Untitled Serif still loads in the background from the YouVersion Fonts API — the same license path as the [web SDK](https://github.com/youversion/platform-sdk-react/blob/main/docs/adr/0004-adopt-untitled-serif-via-fonts-api.md). Allow `api.youversion.com` and `cdn.youversion.com`. If those hosts are blocked, or that request fails, native serif falls back to Source Serif 4.
 
-`BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` set type on their own text ([ADR 0009](./docs/adr/0009-bridge-safe-font-tokens.md)).
+`BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` set type on their own text.
 
 Native and in-WebView SDK strings follow the device locale by default; see the [localization guide](https://developers.youversion.com/sdks/react-native-expo/guides/localization) for details and the `locale` override.
 

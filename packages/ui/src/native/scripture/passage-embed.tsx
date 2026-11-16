@@ -11,7 +11,7 @@ import { INTER_FONT } from '../../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
 import { isUsableBibleVersion, isVersionIdDecidablyUnusable } from '../../lib/version-usability'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
-import { Passage } from './passage'
+import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
 import { scripturePhase, verseSpanFromPassageId } from './reference-passage'
 import { lineMultiple } from './styles'
@@ -133,7 +133,10 @@ export function PassageEmbed({
   }
 
   return (
-    <View testID="scripture-passage">
+    <View
+      testID="scripture-passage"
+      style={{ marginHorizontal: -highlightEndRoom(fontSize) }}
+    >
       <Passage
         blocks={phase.blocks}
         look={look}
