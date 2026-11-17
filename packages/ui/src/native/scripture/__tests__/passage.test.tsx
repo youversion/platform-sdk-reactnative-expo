@@ -287,6 +287,7 @@ describe('paragraph alignment', () => {
     const block = views.find((view) => view.props.onLayout !== undefined)
     const inline = views.find((view) => view.props.accessibilityLabel === 'Footnote')
     if (block === undefined || inline === undefined) throw new Error('expected the block and note')
+    // SAFETY: The instance was retrieved by the React Native View component type.
     const measureLayout = jest.spyOn(inline.instance as View, 'measureLayout')
     measureLayout.mockImplementationOnce((_container, success) => success(30, 40, 16, 20))
     fireEvent(block, 'layout', {
