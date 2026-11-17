@@ -25,7 +25,7 @@ export default function ExamplesScreen() {
           <Link key={example.title} href={example.href} asChild>
             <Pressable
               accessibilityRole="button"
-              style={[styles.row, { borderBottomColor: theme.separator }]}
+              style={StyleSheet.flatten([styles.row, { borderBottomColor: theme.separator }])}
             >
               <Text style={[styles.rowLabel, { color: theme.fg }]}>{example.title}</Text>
             </Pressable>
