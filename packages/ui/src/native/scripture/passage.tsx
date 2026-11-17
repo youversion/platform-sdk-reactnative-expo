@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, memo, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -450,9 +450,19 @@ const BlockView = memo(function BlockView({
           const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
           const isSelected = verse !== null && selected.has(verse)
           const ink = fill?.text ?? look.ink
-          return (
+          const renderAt = (inline: Inline, i: number): ReactNode =>
+            renderInline(
+              inline,
+              i,
+              verse,
+              dimmed,
+              layer,
+              i === segment.inlines.length - 1,
+              `${segmentIndex}:${i}`,
+            )
+          const textRun = (start: number, end: number): ReactNode => (
             <RNText
-              key={segmentIndex}
+              key={`text-${start}`}
               suppressHighlighting
               onPress={
                 ghost || verse === null || onVersePress === undefined
@@ -469,19 +479,25 @@ const BlockView = memo(function BlockView({
                     : backdrop(layer, fill, dimmed),
               }}
             >
-              {segment.inlines.map((inline, i) =>
-                renderInline(
-                  inline,
-                  i,
-                  verse,
-                  dimmed,
-                  layer,
-                  i === segment.inlines.length - 1,
-                  `${segmentIndex}:${i}`,
-                ),
-              )}
+              {segment.inlines
+                .slice(start, end)
+                .map((inline, offset) => renderAt(inline, start + offset))}
             </RNText>
           )
+          // A nested Text span has no Fabric layout metrics. Make the real
+          // note a direct paragraph attachment so measureLayout can reach it.
+          const runs: ReactNode[] = []
+          let start = 0
+          if (measureNotes && !ghost) {
+            segment.inlines.forEach((inline, i) => {
+              if (inline.kind !== 'note') return
+              if (start < i) runs.push(textRun(start, i))
+              runs.push(renderAt(inline, i))
+              start = i + 1
+            })
+          }
+          if (start < segment.inlines.length) runs.push(textRun(start, segment.inlines.length))
+          return <Fragment key={segmentIndex}>{runs}</Fragment>
         })}
       </RNText>
     )
