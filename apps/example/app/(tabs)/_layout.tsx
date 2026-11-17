@@ -23,13 +23,13 @@ export default function Layout() {
         <NativeTabs.Trigger.Label>Bible</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="book.fill" md="menu_book" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="verse-of-the-day">
-        <NativeTabs.Trigger.Label>VOTD</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="sun.max.fill" md="wb_sunny" />
+      <NativeTabs.Trigger name="content">
+        <NativeTabs.Trigger.Label>Content</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="photo.on.rectangle.angled" md="image" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="bible-card">
-        <NativeTabs.Trigger.Label>Card</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="doc.text.fill" md="article" />
+      <NativeTabs.Trigger name="examples">
+        <NativeTabs.Trigger.Label>Examples</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="square.grid.2x2" md="grid_view" />
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>

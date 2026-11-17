@@ -20,11 +20,18 @@ Get an App Key from the [YouVersion Platform Developer Console](https://platform
 
 For **Sign in with YouVersion**, also register `yvp-rn-example://callback` as a Callback URI in the console for your App Key.
 
+## Tabs
+
+- **Bible** — Full interactive Bible reader with chapter and version navigation
+- **Content** — Destination for verse images. This sample has no verse-image screen, so the tab shows its title only.
+- **Examples** — Verse of the Day and Bible Card. Each opens on its own screen, and the back button returns to the list.
+- **Profile** — Sign in with YouVersion
+
 ## React SDK Components Used
 
 - **Bible Reader** — Full interactive Bible reader with chapter/version navigation
-- **Verse of the Day** — Daily verse card
-- **Bible Card** — Embeddable Bible passage card
+- **Verse of the Day** — Daily verse card, under Examples
+- **Bible Card** — Embeddable Bible passage card, under Examples
 - **Sign in with YouVersion Button** — Authentication with YouVersion
 
 ## Troubleshooting
