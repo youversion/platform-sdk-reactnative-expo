@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import { isValidElement } from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
@@ -259,6 +259,8 @@ describe('paragraph alignment', () => {
   })
 
   it('names the footnote button with the shared label', () => {
+    const html = '<span>Or</span>'
+    const onNotePress = jest.fn()
     render(
       <LocaleProvider locale="en">
         <Passage
@@ -267,7 +269,7 @@ describe('paragraph alignment', () => {
               classes: ['p'],
               heading: false,
               verses: [1],
-              segments: [{ verse: 1, inlines: [{ kind: 'note', html: '<span>Or</span>' }] }],
+              segments: [{ verse: 1, inlines: [{ kind: 'note', html }] }],
             },
           ]}
           look={LOOK}
@@ -275,12 +277,25 @@ describe('paragraph alignment', () => {
           paint={new Map()}
           focus={null}
           onVersePress={() => undefined}
-          onNotePress={() => undefined}
+          onNotePress={onNotePress}
           onBlockLayout={() => undefined}
           onBlockRef={() => undefined}
         />
       </LocaleProvider>,
     )
-    expect(screen.getByLabelText('Footnote')).toBeTruthy()
+    const inline = screen.getByLabelText('Footnote')
+    fireEvent(inline, 'layout', {
+      nativeEvent: { layout: { x: 30, y: 40, width: 16, height: 20 } },
+    })
+    const button = screen.getByRole('button', { name: 'Footnote' })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({
+      position: 'absolute',
+      left: 30,
+      top: 40,
+      width: 16,
+      height: 20,
+    })
+    fireEvent.press(button)
+    expect(onNotePress).toHaveBeenCalledWith(1, html)
   })
 })

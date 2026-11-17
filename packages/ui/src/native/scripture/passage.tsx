@@ -6,6 +6,7 @@ import {
   Text as RNText,
   View,
   type LayoutChangeEvent,
+  type LayoutRectangle,
   type TextLayoutEvent,
   type Text as RNTextInstance,
   type TextStyle,
@@ -186,6 +187,7 @@ const BlockView = memo(function BlockView({
   })
   const { lines, size, space, originX } = measure
   const endAligned = rule.align === 'end'
+  const [noteLayouts, setNoteLayouts] = useState<ReadonlyMap<string, LayoutRectangle>>(new Map())
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
       const next = { ...current, ...change }
@@ -216,6 +218,7 @@ const BlockView = memo(function BlockView({
     dimmed: boolean,
     layer: Layer,
     last: boolean,
+    noteKey: string,
   ): ReactNode => {
     const ghost = layer !== 'text'
     const fill = verse === null ? undefined : paint.get(verse)
@@ -273,13 +276,22 @@ const BlockView = memo(function BlockView({
     }
     if (inline.kind === 'note') {
       const size = fontSize * NOTE_SCALE
+      const hasSeparateControl = Platform.OS === 'ios' && noteLayouts.has(noteKey)
       return (
         <Pressable
           key={key}
           hitSlop={8}
           disabled={ghost}
+          accessible={!ghost && !hasSeparateControl}
           accessibilityRole="button"
-          accessibilityLabel={t('footnoteAriaLabel')}
+          accessibilityLabel={ghost || hasSeparateControl ? undefined : t('footnoteAriaLabel')}
+          onLayout={
+            Platform.OS === 'ios' && !ghost
+              ? ({ nativeEvent: { layout } }) => {
+                  setNoteLayouts((current) => new Map(current).set(noteKey, layout))
+                }
+              : undefined
+          }
           onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
           style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
         >
@@ -426,7 +438,15 @@ const BlockView = memo(function BlockView({
               }}
             >
               {segment.inlines.map((inline, i) =>
-                renderInline(inline, i, verse, dimmed, layer, i === segment.inlines.length - 1),
+                renderInline(
+                  inline,
+                  i,
+                  verse,
+                  dimmed,
+                  layer,
+                  i === segment.inlines.length - 1,
+                  `${segmentIndex}:${i}`,
+                ),
               )}
             </RNText>
           )
@@ -583,6 +603,32 @@ const BlockView = memo(function BlockView({
           </View>
         ))}
       {text}
+      {/* Fabric's iOS paragraph accessibility container omits inline View
+          attachments. Expose each note at its measured position outside it. */}
+      {Platform.OS === 'ios' &&
+        block.segments.map((segment, segmentIndex) =>
+          segment.inlines.map((inline, inlineIndex) => {
+            if (inline.kind !== 'note') return null
+            const key = `${segmentIndex}:${inlineIndex}`
+            const layout = noteLayouts.get(key)
+            if (layout === undefined) return null
+            return (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityLabel={t('footnoteAriaLabel')}
+                onPress={() => onNotePress(segment.verse, inline.html)}
+                style={{
+                  position: 'absolute',
+                  ...leftEdge(layout.x + originX, look.rtl),
+                  top: layout.y,
+                  width: layout.width,
+                  height: layout.height,
+                }}
+              />
+            )
+          }),
+        )}
       {hasSelection &&
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
