@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { isValidElement } from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { LocaleProvider } from '../../../i18n/locale-context'
@@ -283,10 +283,16 @@ describe('paragraph alignment', () => {
         />
       </LocaleProvider>,
     )
-    const inline = screen.getByLabelText('Footnote')
-    fireEvent(inline, 'layout', {
-      nativeEvent: { layout: { x: 30, y: 40, width: 16, height: 20 } },
+    const views = screen.UNSAFE_getAllByType(View)
+    const block = views.find((view) => view.props.onLayout !== undefined)
+    const inline = views.find((view) => view.props.accessibilityLabel === 'Footnote')
+    if (block === undefined || inline === undefined) throw new Error('expected the block and note')
+    const measureLayout = jest.spyOn(inline.instance as View, 'measureLayout')
+    measureLayout.mockImplementationOnce((_container, success) => success(30, 40, 16, 20))
+    fireEvent(block, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 160, height: 100 } },
     })
+    expect(measureLayout).toHaveBeenCalledWith(block.instance, expect.any(Function))
     const button = screen.getByRole('button', { name: 'Footnote' })
     expect(StyleSheet.flatten(button.props.style)).toMatchObject({
       position: 'absolute',

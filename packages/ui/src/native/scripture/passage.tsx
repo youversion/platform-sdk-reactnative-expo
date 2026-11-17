@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -187,7 +187,35 @@ const BlockView = memo(function BlockView({
   })
   const { lines, size, space, originX } = measure
   const endAligned = rule.align === 'end'
+  const blockRef = useRef<View>(null)
+  const inlineNotes = useRef(new Map<string, View>())
   const [noteLayouts, setNoteLayouts] = useState<ReadonlyMap<string, LayoutRectangle>>(new Map())
+  const measureNotes =
+    Platform.OS === 'ios' &&
+    block.segments.some(({ inlines }) => inlines.some(({ kind }) => kind === 'note'))
+  const measureInlineNotes = (): void => {
+    const container = blockRef.current
+    if (container === null) return
+    // Fabric positions these attachments in the text layout without emitting
+    // onLayout on the attachment root. Read its frame from the committed tree.
+    inlineNotes.current.forEach((note, key) => {
+      note.measureLayout(container, (x, y, width, height) => {
+        if (width <= 0 || height <= 0) return
+        setNoteLayouts((current) => {
+          const previous = current.get(key)
+          if (
+            previous?.x === x &&
+            previous.y === y &&
+            previous.width === width &&
+            previous.height === height
+          ) {
+            return current
+          }
+          return new Map(current).set(key, { x, y, width, height })
+        })
+      })
+    })
+  }
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
       const next = { ...current, ...change }
@@ -198,6 +226,7 @@ const BlockView = memo(function BlockView({
   const reportLines = onVerseLines !== undefined && blockProbed(block, probeVerses)
   const onParagraphLayout = (event: TextLayoutEvent): void => {
     const laidOut = event.nativeEvent.lines
+    if (measureNotes) requestAnimationFrame(measureInlineNotes)
     if (measured) {
       update({ lines: laidOut })
     }
@@ -285,10 +314,11 @@ const BlockView = memo(function BlockView({
           accessible={!ghost && !hasSeparateControl}
           accessibilityRole="button"
           accessibilityLabel={ghost || hasSeparateControl ? undefined : t('footnoteAriaLabel')}
-          onLayout={
-            Platform.OS === 'ios' && !ghost
-              ? ({ nativeEvent: { layout } }) => {
-                  setNoteLayouts((current) => new Map(current).set(noteKey, layout))
+          ref={
+            measureNotes && !ghost
+              ? (view) => {
+                  if (view === null) inlineNotes.current.delete(noteKey)
+                  else inlineNotes.current.set(noteKey, view)
                 }
               : undefined
           }
@@ -393,7 +423,9 @@ const BlockView = memo(function BlockView({
     const node = (
       <RNText
         ref={ghost || onBlockRef === undefined ? undefined : (node) => onBlockRef(index, node)}
-        onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
+        onTextLayout={
+          ghost || (!measured && !reportLines && !measureNotes) ? undefined : onParagraphLayout
+        }
         onLayout={
           ghost || !endAligned
             ? undefined
@@ -460,6 +492,7 @@ const BlockView = memo(function BlockView({
   }
 
   const onLayout = (event: LayoutChangeEvent): void => {
+    if (measureNotes) measureInlineNotes()
     onBlockLayout?.(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
     const { width, height } = event.nativeEvent.layout
     if (size.width !== width || size.height !== height) {
@@ -532,6 +565,7 @@ const BlockView = memo(function BlockView({
   const underline = hasSelection ? paragraph('underline') : null
   return (
     <View
+      ref={measureNotes ? blockRef : undefined}
       onLayout={onLayout}
       style={{
         marginTop: collapsedMarginTop(rule, previous, fontSize),
@@ -605,7 +639,7 @@ const BlockView = memo(function BlockView({
       {text}
       {/* Fabric's iOS paragraph accessibility container omits inline View
           attachments. Expose each note at its measured position outside it. */}
-      {Platform.OS === 'ios' &&
+      {measureNotes &&
         block.segments.map((segment, segmentIndex) =>
           segment.inlines.map((inline, inlineIndex) => {
             if (inline.kind !== 'note') return null
@@ -620,7 +654,7 @@ const BlockView = memo(function BlockView({
                 onPress={() => onNotePress(segment.verse, inline.html)}
                 style={{
                   position: 'absolute',
-                  ...leftEdge(layout.x + originX, look.rtl),
+                  ...leftEdge(layout.x, look.rtl),
                   top: layout.y,
                   width: layout.width,
                   height: layout.height,
