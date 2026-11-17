@@ -23,11 +23,9 @@ export default function ExamplesScreen() {
       <ScrollView contentContainerStyle={styles.list}>
         {examples.map((example) => (
           <Link key={example.title} href={example.href} asChild>
-            <Pressable
-              accessibilityRole="button"
-              style={StyleSheet.flatten([styles.row, { borderBottomColor: theme.separator }])}
-            >
+            <Pressable accessibilityRole="button" style={StyleSheet.flatten([styles.row])}>
               <Text style={[styles.rowLabel, { color: theme.fg }]}>{example.title}</Text>
+              <View style={[styles.separator, { backgroundColor: theme.separator }]} />
             </Pressable>
           </Link>
         ))}
@@ -52,9 +50,15 @@ const styles = StyleSheet.create({
   row: {
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rowLabel: {
     fontSize: 17,
+  },
+  separator: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 0,
+    height: StyleSheet.hairlineWidth,
   },
 })
