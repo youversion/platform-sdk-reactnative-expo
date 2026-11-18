@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -9,6 +9,7 @@ import {
   type TextLayoutEvent,
   type Text as RNTextInstance,
   type TextStyle,
+  type ViewStyle,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 
@@ -20,6 +21,7 @@ import { directionMark } from './direction-mark'
 import type { HighlightPaint } from './highlight-colors'
 import { leftEdge } from './left-edge'
 import type { Block, Inline } from './parse-passage'
+import { passageRuns, type TableRow } from './table'
 import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
 import {
   blockMarginBottom,
@@ -128,17 +130,187 @@ export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
     () => blocks.map((block) => resolveBlock(block.classes, fontSize)),
     [blocks, fontSize],
   )
+  const runs = useMemo(() => passageRuns(blocks), [blocks])
+  const plain = useMemo(() => resolveBlock([], fontSize), [fontSize])
   return (
     <View style={{ direction: rest.look.rtl ? 'rtl' : 'ltr' }}>
-      {blocks.map((block, index) => (
-        <BlockView
-          key={`${index}:${blockStateKey(block, rest)}`}
-          index={index}
-          block={block}
-          rule={resolved[index] ?? resolveBlock([], rest.look.fontSize)}
-          previous={index > 0 ? (resolved[index - 1] ?? null) : null}
-          {...rest}
-        />
+      {runs.map((run, at) => {
+        if (run.kind === 'table') {
+          return (
+            <PassageTable
+              key={`t${run.id}`}
+              rows={run.rows}
+              blocks={blocks}
+              resolved={resolved}
+              plain={plain}
+              {...rest}
+            />
+          )
+        }
+        const { index } = run
+        const block = blocks[index]
+        if (block === undefined) {
+          return null
+        }
+        // A table has no margins of its own; the paragraph after it collapses against none.
+        const before = runs[at - 1]
+        const previous =
+          before === undefined
+            ? null
+            : before.kind === 'table'
+              ? plain
+              : (resolved[index - 1] ?? null)
+        return (
+          <BlockView
+            key={`${index}:${blockStateKey(block, rest)}`}
+            index={index}
+            block={block}
+            rule={resolved[index] ?? plain}
+            previous={previous}
+            {...rest}
+          />
+        )
+      })}
+    </View>
+  )
+}
+
+type TableLayout = {
+  table: number | null
+  rows: Map<number, number>
+  cells: Map<number, { row: number; y: number; height: number }>
+  report: PassageProps['onBlockLayout']
+}
+
+// Swift's table grid: `.padding()`, 15pt between columns, 10pt between rows.
+const TABLE_PAD = 16
+const TABLE_COLUMN_GAP = 15
+const TABLE_ROW_GAP = 10
+
+type PassageTableProps = Omit<PassageProps, 'blocks'> & {
+  rows: readonly TableRow[]
+  blocks: readonly Block[]
+  resolved: readonly ResolvedBlock[]
+  plain: ResolvedBlock
+}
+
+/**
+ * Swift's `Grid`: the first column takes the slack, later columns size to their widest
+ * cell, and the last column sits at the trailing edge (USFM's right-aligned `\tcr`
+ * counts, which the API HTML no longer marks). Each cell is a full block, so verse
+ * labels, notes, highlights, and selection work inside it.
+ */
+function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTableProps): ReactNode {
+  const { look, onBlockLayout } = rest
+  const columns = rows[0]?.cells.length ?? 0
+  // Natural widths per column, reset when the look changes.
+  const [widths, setWidths] = useState<{ look: PassageLook; byColumn: number[] }>({
+    look,
+    byColumn: [],
+  })
+  const byColumn = widths.look === look ? widths.byColumn : []
+  const fit = (col: number, width: number): void =>
+    setWidths((current) => {
+      const known = current.look === look ? current.byColumn : []
+      const next = Math.ceil(width)
+      if ((known[col] ?? 0) >= next) {
+        return current.look === look ? current : { look, byColumn: known }
+      }
+      const grown = [...known]
+      grown[col] = next
+      return { look, byColumn: grown }
+    })
+
+  // Cells report y within their row; the reader needs it within the passage.
+  const layout = useRef<TableLayout>({
+    table: null,
+    rows: new Map<number, number>(),
+    cells: new Map<number, { row: number; y: number; height: number }>(),
+    report: onBlockLayout,
+  })
+  layout.current.report = onBlockLayout
+  const emit = useCallback((index: number): void => {
+    const { table, rows: rowYs, cells, report } = layout.current
+    const cell = cells.get(index)
+    const rowY = cell === undefined ? undefined : rowYs.get(cell.row)
+    if (table === null || cell === undefined || rowY === undefined) {
+      return
+    }
+    report?.(index, table + rowY + cell.y, cell.height)
+  }, [])
+  const emitAll = (): void => {
+    for (const index of layout.current.cells.keys()) {
+      emit(index)
+    }
+  }
+  const onCellLayout = useCallback(
+    (index: number, y: number, height: number): void => {
+      const row = layout.current.cells.get(index)?.row
+      layout.current.cells.set(index, { row: row ?? -1, y, height })
+      emit(index)
+    },
+    [emit],
+  )
+  const reportsLayout = onBlockLayout === undefined ? undefined : onCellLayout
+
+  return (
+    <View
+      onLayout={(event) => {
+        layout.current.table = event.nativeEvent.layout.y
+        emitAll()
+      }}
+      style={{ padding: TABLE_PAD }}
+    >
+      {rows.map((row, r) => (
+        <View
+          key={row.row}
+          onLayout={(event) => {
+            layout.current.rows.set(row.row, event.nativeEvent.layout.y)
+            emitAll()
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            marginTop: r === 0 ? 0 : TABLE_ROW_GAP,
+          }}
+        >
+          {row.cells.map((index, col) => {
+            const last = col === columns - 1 && col > 0
+            const width = byColumn[col]
+            // Until measured, a column takes its cell's own width.
+            const cellStyle: ViewStyle =
+              col === 0
+                ? { flex: 1, minWidth: 0 }
+                : { marginStart: TABLE_COLUMN_GAP, flexShrink: last ? 0 : 1, width }
+            const block = index === null ? undefined : blocks[index]
+            if (index === null || block === undefined) {
+              return <View key={col} style={cellStyle} />
+            }
+            if (layout.current.cells.get(index)?.row !== row.row) {
+              layout.current.cells.set(index, { row: row.row, y: 0, height: 0 })
+            }
+            return (
+              <View key={col} style={cellStyle}>
+                <View
+                  onLayout={
+                    col === 0 ? undefined : (event) => fit(col, event.nativeEvent.layout.width)
+                  }
+                  style={col === 0 ? undefined : { alignSelf: last ? 'flex-end' : 'flex-start' }}
+                >
+                  <BlockView
+                    key={`${index}:${blockStateKey(block, rest)}`}
+                    index={index}
+                    block={block}
+                    rule={resolved[index] ?? plain}
+                    previous={null}
+                    {...rest}
+                    onBlockLayout={reportsLayout}
+                  />
+                </View>
+              </View>
+            )
+          })}
+        </View>
       ))}
     </View>
   )

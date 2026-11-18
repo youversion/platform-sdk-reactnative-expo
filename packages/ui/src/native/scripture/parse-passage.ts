@@ -10,12 +10,17 @@ export type Inline =
 
 export type Segment = { verse: number | null; inlines: Inline[] }
 
+/** A table cell's place. Swift pads short rows with empty cells to the widest row. */
+export type TableSlot = { id: number; row: number; col: number; columns: number }
+
 export type Block = {
   classes: readonly string[]
   heading: boolean
   segments: Segment[]
   /** Verses with a fragment in this block, for per-block memo checks. */
   verses: readonly number[]
+  /** Set on a table cell; the cell's text is a block of its own. */
+  table?: TableSlot
 }
 
 export type VerseInfo = {
@@ -85,15 +90,17 @@ function walk(doc: Document): Block[] {
   const blocks: Block[] = []
   // Poetry continuation lines (q2 after q1) sit outside any .yv-v; native SDKs give them to the last verse.
   let carried: number | null = null
+  let tables = 0
 
-  for (const el of Array.from(root.children)) {
-    const classes = classList(el)
-    // Chapter label ("Psalm 119"); the reader header already shows it, as in Swift and Web.
-    if (classes.includes('cl')) {
-      continue
-    }
-    const heading = classes.includes('yv-h') || isHeadingClass(classes)
-    const segments: Segment[] = []
+  const pushBlock = (
+    classes: readonly string[],
+    heading: boolean,
+    nodes: readonly Node[],
+    table?: TableSlot,
+  ): void => {
+    let segments: Segment[] = []
+    // Set once a nested table has split this block.
+    let split = false
     // Core spaces a footnote off the word before it; Swift sets the icon against the
     // word, so that space moves to after the note. Holds the moved space's classes.
     let movedSpace: readonly string[] | null = null
@@ -136,6 +143,16 @@ function walk(doc: Document): Block[] {
       }
       // SAFETY: nodeType 1 is ELEMENT_NODE.
       const child = node as Element
+      // Core wraps a verse's content in a span, so a table can sit at any depth.
+      // It breaks the paragraph, as in Swift's block handler.
+      if (child.tagName.toUpperCase() === 'TABLE') {
+        if (segments.length > 0) {
+          flush()
+        }
+        split = true
+        pushTable(child)
+        return
+      }
       const noteHtml = child.getAttribute('data-verse-footnote-content')
       if (noteHtml !== null) {
         push(verse, { kind: 'note', html: noteHtml })
@@ -161,14 +178,85 @@ function walk(doc: Document): Block[] {
       }
     }
 
-    const blockVerse = heading ? null : carried
-    for (const child of Array.from(el.childNodes)) {
-      visit(child, blockVerse, [])
+    function flush(): void {
+      if (table !== undefined || split) {
+        // Swift trims a cell's trailing whitespace; the HTML's leading space goes too.
+        trimEdges(segments)
+      }
+      const verses = [...new Set(segments.flatMap((s) => (s.verse === null ? [] : [s.verse])))]
+      blocks.push(
+        table === undefined
+          ? { classes, heading, segments, verses }
+          : { classes, heading, segments, verses, table },
+      )
+      segments = []
+      movedSpace = null
     }
-    const verses = [...new Set(segments.flatMap((s) => (s.verse === null ? [] : [s.verse])))]
-    blocks.push({ classes, heading, segments, verses })
+
+    // A cell's verse comes from its own markers: core wraps verses per cell, so web
+    // leaves a bare count cell unhighlighted and unselectable.
+    const blockVerse = heading || table !== undefined ? null : carried
+    for (const node of nodes) {
+      visit(node, blockVerse, [])
+    }
+    if (!split || segments.length > 0) {
+      flush()
+    }
+  }
+
+  // Swift's grid: every row gets the widest row's cell count.
+  const pushTable = (table: Element): void => {
+    const rows = Array.from(table.querySelectorAll('tr'))
+      .map((row) => Array.from(row.children).filter(isCell))
+      .filter((cells) => cells.length > 0)
+    const columns = Math.max(0, ...rows.map((cells) => cells.length))
+    const id = tables
+    tables += 1
+    rows.forEach((cells, row) => {
+      cells.forEach((cell, col) => {
+        pushBlock(classList(cell), false, Array.from(cell.childNodes), { id, row, col, columns })
+      })
+    })
+  }
+
+  for (const el of Array.from(root.children)) {
+    if (el.tagName.toUpperCase() === 'TABLE') {
+      pushTable(el)
+      continue
+    }
+    const classes = classList(el)
+    // Chapter label ("Psalm 119"); the reader header already shows it, as in Swift and Web.
+    if (classes.includes('cl')) {
+      continue
+    }
+    const heading = classes.includes('yv-h') || isHeadingClass(classes)
+    pushBlock(classes, heading, Array.from(el.childNodes))
   }
   return blocks
+}
+
+function isCell(el: Element): boolean {
+  const tag = el.tagName.toUpperCase()
+  return tag === 'TD' || tag === 'TH'
+}
+
+function trimEdges(segments: Segment[]): void {
+  const first = segments[0]?.inlines[0]
+  if (first?.kind === 'text') {
+    first.text = first.text.trimStart()
+  }
+  const lastSegment = segments.at(-1)
+  const last = lastSegment?.inlines.at(-1)
+  if (last?.kind === 'text') {
+    last.text = last.text.trimEnd()
+  }
+  for (const segment of segments) {
+    segment.inlines = segment.inlines.filter(
+      (inline) => inline.kind !== 'text' || inline.text !== '',
+    )
+  }
+  const kept = segments.filter((segment) => segment.inlines.length > 0)
+  segments.splice(0, segments.length, ...kept)
 }
 
 type PlacedInline = { verse: number | null; inline: Inline }
@@ -337,7 +425,7 @@ function selahRunEnd(placed: readonly PlacedInline[], start: number): number {
 }
 
 function splitSelahPauses(block: Block): Block[] {
-  if (block.classes.includes('qr')) {
+  if (block.classes.includes('qr') || block.table !== undefined) {
     return [block]
   }
   const placed = placedInlines(block)
