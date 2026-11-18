@@ -203,22 +203,26 @@ type PassageTableProps = Omit<PassageProps, 'blocks'> & {
 function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTableProps): ReactNode {
   const { look, onBlockLayout } = rest
   const columns = rows[0]?.cells.length ?? 0
-  // Natural widths per column, reset when the look changes.
-  const [widths, setWidths] = useState<{ look: PassageLook; byColumn: number[] }>({
-    look,
-    byColumn: [],
-  })
-  const byColumn = widths.look === look ? widths.byColumn : []
+  // Natural widths per column. A new look or new cell content (notes or verse numbers
+  // toggled) drops them, so cells measure again unconstrained by the old width.
+  const [widths, setWidths] = useState<{
+    look: PassageLook
+    blocks: readonly Block[]
+    byColumn: number[]
+  }>({ look, blocks, byColumn: [] })
+  const current = widths.look === look && widths.blocks === blocks
+  const byColumn = current ? widths.byColumn : []
   const fit = (col: number, width: number): void =>
-    setWidths((current) => {
-      const known = current.look === look ? current.byColumn : []
+    setWidths((state) => {
+      const fresh = state.look === look && state.blocks === blocks
+      const known = fresh ? state.byColumn : []
       const next = Math.ceil(width)
       if ((known[col] ?? 0) >= next) {
-        return current.look === look ? current : { look, byColumn: known }
+        return fresh ? state : { look, blocks, byColumn: known }
       }
       const grown = [...known]
       grown[col] = next
-      return { look, byColumn: grown }
+      return { look, blocks, byColumn: grown }
     })
 
   // Cells report y within their row; the reader needs it within the passage.

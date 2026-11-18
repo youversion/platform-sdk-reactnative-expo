@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import { isValidElement } from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
@@ -282,5 +282,69 @@ describe('paragraph alignment', () => {
       </LocaleProvider>,
     )
     expect(screen.getByLabelText('Footnote')).toBeTruthy()
+  })
+})
+
+describe('table columns', () => {
+  function cell(text: string, col: number): Block {
+    return { ...block(['tc'], text), table: { id: 0, row: 0, col, columns: 2 } }
+  }
+
+  function renderTable(blocks: Block[]): ReturnType<typeof render> {
+    return render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+  }
+
+  /** The count cell's column view, which takes the measured width. */
+  function countColumn(): ReactTestInstance {
+    let current: ReactTestInstance | null = screen.getByText('12')
+    while (current !== null) {
+      if (StyleSheet.flatten(current.props.style)?.marginStart !== undefined) {
+        return current
+      }
+      current = current.parent
+    }
+    throw new Error('no count column')
+  }
+
+  function measureCount(width: number): void {
+    const [measurer] = countColumn().findAll((node) => node.props.onLayout !== undefined)
+    if (measurer === undefined) throw new Error('no measurer')
+    fireEvent(measurer, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } } })
+  }
+
+  it('measures a column again when its cells change', () => {
+    const view = renderTable([cell('his sons', 0), cell('12', 1)])
+    measureCount(20)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(20)
+
+    // Same look, new content (a note restored): the old width must not cramp it.
+    view.rerender(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={[cell('his sons', 0), cell('12', 1)]}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBeUndefined()
+    measureCount(34)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(34)
   })
 })
