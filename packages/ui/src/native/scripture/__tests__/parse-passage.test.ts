@@ -514,14 +514,14 @@ describe('parsePassage tables', () => {
 
   it('keeps verse labels and trims cell edges', () => {
     expect(words(blocks.slice(1, 3))).toBe('[3]the descendants of Parosh2,172')
-    // As on web, a cell with no verse marker is not part of a verse, so no fill.
-    expect(blocks[2]?.verses).toEqual([])
+    // A count cell has no marker of its own; it carries the row's verse.
+    expect(blocks[2]?.verses).toEqual([3])
   })
 
   it('parses a footnote inside a cell', () => {
     expect(blocks[4] && lineKinds(blocks[4])).toEqual(['label', 'text', 'note'])
     expect(blocks[4]?.verses).toEqual([5])
-    expect(blocks[5]?.verses).toEqual([])
+    expect(blocks[5]?.verses).toEqual([5])
     expect(blocks[6]?.verses).toEqual([6])
   })
 

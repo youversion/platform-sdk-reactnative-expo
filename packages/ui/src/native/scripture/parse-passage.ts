@@ -193,9 +193,8 @@ function walk(doc: Document): Block[] {
       movedSpace = null
     }
 
-    // A cell's verse comes from its own markers: core wraps verses per cell, so web
-    // leaves a bare count cell unhighlighted and unselectable.
-    const blockVerse = heading || table !== undefined ? null : carried
+    // A bare count cell carries the row's verse, so it highlights with the name (unlike web).
+    const blockVerse = heading ? null : carried
     for (const node of nodes) {
       visit(node, blockVerse, [])
     }
