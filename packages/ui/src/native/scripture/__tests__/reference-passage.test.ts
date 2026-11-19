@@ -130,8 +130,10 @@ describe('blocksInSpan', () => {
   }
 
   it('keeps a stanza break inside a range and drops one that ends it', () => {
+    // The leading b has no verse yet, so it must not open the range.
     const html =
-      '<div><div class="q1"><span class="yv-v" v="1"></span>Blessed is the one</div>' +
+      '<div><div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="1"></span>Blessed is the one</div>' +
       '<div class="b"> </div>' +
       '<div class="q1"><span class="yv-v" v="2"></span>but whose delight</div>' +
       '<div class="b"> </div>' +
