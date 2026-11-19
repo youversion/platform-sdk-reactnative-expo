@@ -129,6 +129,18 @@ describe('blocksInSpan', () => {
     )
   }
 
+  it('keeps a stanza break inside a range and drops one that ends it', () => {
+    const html =
+      '<div><div class="q1"><span class="yv-v" v="1"></span>Blessed is the one</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="2"></span>but whose delight</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="3"></span>That person is like a tree</div></div>'
+    expect(sliced(html, 1, 2)).toEqual(['Blessed is the one', '', 'but whose delight'])
+    expect(sliced(html, 2, 3)).toEqual(['but whose delight', '', 'That person is like a tree'])
+    expect(sliced(html, 1, 1)).toEqual(['Blessed is the one'])
+  })
+
   it('stops a range before the next subhead', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="6"></span><span class="yv-vlbl">6</span>Because you are his sons. ' +

@@ -68,7 +68,7 @@ describe('parsePassage', () => {
     const { blocks } = parsePassage(html)
     expect(blocks.map((block) => block.classes)).toEqual([['q1'], ['b'], ['q1']])
     expect(blocks[1] && lineTexts(blocks[1])).toEqual([' '])
-    expect(blocks[1]?.verses).toEqual([])
+    expect(blocks[1]?.verses).toEqual([1])
   })
 
   it('keeps an sr section reference out of the previous verse', () => {

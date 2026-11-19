@@ -181,9 +181,10 @@ function walk(doc: Document): Block[] {
     function flush(): void {
       // Swift draws a blank `b` (a stanza break, or NIV's line around a table) as a
       // no-break-space line, and emits no block for any other empty paragraph.
-      // Empty cells stay: they hold their column.
+      // Empty cells stay: they hold their column. The spacer keeps the carried
+      // verse so a verse range keeps its stanza breaks.
       if (table === undefined && classes.includes('b') && segments.every(isBlankSegment)) {
-        segments = [{ verse: null, inlines: [{ kind: 'text', text: ' ', classes: [] }] }]
+        segments = [{ verse: blockVerse, inlines: [{ kind: 'text', text: ' ', classes: [] }] }]
       }
       if (table === undefined && segments.length === 0) {
         movedSpace = null
@@ -272,6 +273,13 @@ type PlacedInline = { verse: number | null; inline: Inline }
 
 function isSelahText(inline: Inline): boolean {
   return inline.kind === 'text' && inline.classes.includes('qs')
+}
+
+/** A blank `b` line: a stanza break, or NIV's line around a table. */
+export function isSpacer(block: Block): boolean {
+  return (
+    block.table === undefined && block.classes.includes('b') && block.segments.every(isBlankSegment)
+  )
 }
 
 function isBlankSegment(segment: Segment): boolean {
