@@ -483,6 +483,19 @@ describe('parseNoteHtml', () => {
 })
 
 describe('collectVerses', () => {
+  it('shares a Psalm title with the verse around it, and leaves section headings out', () => {
+    const { verses } = parsePassage(
+      '<div><div class="d">A psalm of David.</div>' +
+        '<div class="s1 yv-h">Trust</div>' +
+        '<div class="q1"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>LORD, how many</div>' +
+        '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>Many are saying</div>' +
+        '<div class="d">For the director.</div></div>',
+    )
+    expect(verses.get(1)?.text).toBe('A psalm of David.\nLORD, how many')
+    expect(verses.get(2)?.text).toBe('Many are saying\nFor the director.')
+    expect(verses.get(1)?.html).toBe('LORD, how many')
+  })
+
   it('keeps the character classes in the footnote-sheet verse html', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span>' +
@@ -586,5 +599,28 @@ describe('parsePassage tables', () => {
       ['after', null],
     ])
     expect(nested[3]?.verses).toEqual([1])
+  })
+
+  it('splits a paragraph around a nested heading', () => {
+    const nested = parsePassage(
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Before' +
+        '<div class="s1 yv-h">Mid</div><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>after</div></div>',
+    ).blocks
+    expect(nested.map((block) => [words([block]), block.heading])).toEqual([
+      ['[1]Before', false],
+      ['Mid', true],
+      ['[2]after', false],
+    ])
+  })
+
+  it('splits a verse around a nested paragraph and keeps the verse on each part', () => {
+    const nested = parsePassage(
+      '<div><div class="p"><span class="yv-v" v="1">Before<div class="q1">inner</div>after</span></div></div>',
+    ).blocks
+    expect(nested.map((block) => [words([block]), block.classes[0], block.verses])).toEqual([
+      ['Before', 'p', [1]],
+      ['inner', 'q1', [1]],
+      ['after', 'p', [1]],
+    ])
   })
 })

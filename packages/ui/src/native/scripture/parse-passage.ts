@@ -143,14 +143,19 @@ function walk(doc: Document): Block[] {
       }
       // SAFETY: nodeType 1 is ELEMENT_NODE.
       const child = node as Element
-      // Core wraps a verse's content in a span, so a table can sit at any depth.
-      // It breaks the paragraph, as in Swift's block handler.
-      if (child.tagName.toUpperCase() === 'TABLE') {
+      // Core wraps a verse's content in a span, so a table or a nested block can sit
+      // at any depth. Either breaks the paragraph, as in Swift's block handler.
+      const tag = child.tagName.toUpperCase()
+      if (tag === 'TABLE' || tag === 'DIV') {
         if (segments.length > 0) {
           flush()
         }
         split = true
-        pushTable(child)
+        if (tag === 'TABLE') {
+          pushTable(child)
+        } else {
+          pushElement(child)
+        }
         return
       }
       const noteHtml = child.getAttribute('data-verse-footnote-content')
@@ -229,18 +234,22 @@ function walk(doc: Document): Block[] {
     })
   }
 
-  for (const el of Array.from(root.children)) {
+  function pushElement(el: Element): void {
     if (el.tagName.toUpperCase() === 'TABLE') {
       pushTable(el)
-      continue
+      return
     }
     const classes = classList(el)
     // Chapter label ("Psalm 119"); the reader header already shows it, as in Swift and Web.
     if (classes.includes('cl')) {
-      continue
+      return
     }
-    const heading = classes.includes('yv-h') || isHeadingClass(classes)
+    const heading = isSectionHeadingClass(classes) || isHeadingClass(classes)
     pushBlock(classes, heading, Array.from(el.childNodes))
+  }
+
+  for (const el of Array.from(root.children)) {
+    pushElement(el)
   }
   return blocks
 }
@@ -572,17 +581,45 @@ function isHeadingClass(classes: readonly string[]): boolean {
   return classes.some((c) => /^(s\d?|ms\d?|mr|r|d|qa|sp|sr)$/.test(c))
 }
 
+function isSectionHeadingClass(classes: readonly string[]): boolean {
+  return classes.includes('yv-h') || classes.includes('yvh')
+}
+
+/**
+ * A Psalm title (`d`). The API leaves it unmarked by `yv-h`, so Swift reads it as
+ * scripture: it stays in share text and in a range that holds the verse beside it.
+ */
+export function isPsalmTitle(block: Block): boolean {
+  return block.heading && block.classes.includes('d') && !isSectionHeadingClass(block.classes)
+}
+
 /** Per verse: share text, footnote-sheet HTML, and notes, across every fragment in order. */
 export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> {
   const fragments = new Map<number, Inline[][]>()
+  // Swift's share text keeps a Psalm title on its own line: before verse 1 it
+  // opens the first verse, later it closes the verse before it.
+  const titles = new Map<number, { before: string[]; after: string[] }>()
+  let opening: string[] = []
+  let last: number | null = null
   for (const block of blocks) {
     if (block.heading) {
+      const text = isPsalmTitle(block) ? plainText(block) : ''
+      if (text !== '' && last === null) {
+        opening.push(text)
+      } else if (text !== '' && last !== null) {
+        titlesFor(titles, last).after.push(text)
+      }
       continue
     }
     for (const segment of block.segments) {
       if (segment.verse === null) {
         continue
       }
+      if (opening.length > 0) {
+        titlesFor(titles, segment.verse).before.push(...opening)
+        opening = []
+      }
+      last = segment.verse
       const list = fragments.get(segment.verse) ?? []
       list.push(segment.inlines)
       fragments.set(segment.verse, list)
@@ -608,13 +645,34 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
       texts.push(text.trim())
       htmls.push(html.trim())
     }
+    const title = titles.get(verse)
     verses.set(verse, {
-      text: joinVerseParts(texts),
+      text: [...(title?.before ?? []), joinVerseParts(texts), ...(title?.after ?? [])].join('\n'),
       html: htmls.join(' '),
       notes,
     })
   }
   return verses
+}
+
+function titlesFor(
+  titles: Map<number, { before: string[]; after: string[] }>,
+  verse: number,
+): { before: string[]; after: string[] } {
+  let entry = titles.get(verse)
+  if (entry === undefined) {
+    entry = { before: [], after: [] }
+    titles.set(verse, entry)
+  }
+  return entry
+}
+
+function plainText(block: Block): string {
+  const text = block.segments
+    .flatMap((segment) => segment.inlines)
+    .map((inline) => (inline.kind === 'text' ? inline.text : ''))
+    .join('')
+  return joinVerseParts([text])
 }
 
 export type NoteRun = { text: string; classes: readonly string[] }
