@@ -59,6 +59,18 @@ describe('parsePassage', () => {
     expect(blocks.map((block) => block.classes)).toEqual([['q1']])
   })
 
+  it('keeps a blank b between stanzas as a no-break-space line', () => {
+    const html =
+      '<div><div class="q1"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Blessed is the one</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>but whose delight</div>' +
+      '<div class="p"></div></div>'
+    const { blocks } = parsePassage(html)
+    expect(blocks.map((block) => block.classes)).toEqual([['q1'], ['b'], ['q1']])
+    expect(blocks[1] && lineTexts(blocks[1])).toEqual([' '])
+    expect(blocks[1]?.verses).toEqual([])
+  })
+
   it('keeps an sr section reference out of the previous verse', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>In the beginning</div>' +
@@ -525,16 +537,19 @@ describe('parsePassage tables', () => {
     expect(blocks[6]?.verses).toEqual([6])
   })
 
-  it('drops the empty b paragraphs NIV puts around a table, and keeps an empty cell', () => {
+  it('keeps the blank b lines NIV puts around a table as spacers, and keeps an empty cell', () => {
     const wrapped = parsePassage(
       '<div><div class="p">Before</div><div class="b"></div><div class="mi">The priests:</div>' +
         '<div class="b"></div><table><tr><td>a</td><td></td></tr></table><div class="b"></div></div>',
     ).blocks
     expect(wrapped.map((block) => [words([block]), block.table?.col ?? null])).toEqual([
       ['Before', null],
+      [' ', null],
       ['The priests:', null],
+      [' ', null],
       ['a', 0],
       ['', 1],
+      [' ', null],
     ])
   })
 

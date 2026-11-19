@@ -179,8 +179,12 @@ function walk(doc: Document): Block[] {
     }
 
     function flush(): void {
-      // Swift emits no block for an empty paragraph (`b`, the blank line NIV puts around
-      // tables). Empty cells stay: they hold their column.
+      // Swift draws a blank `b` (a stanza break, or NIV's line around a table) as a
+      // no-break-space line, and emits no block for any other empty paragraph.
+      // Empty cells stay: they hold their column.
+      if (table === undefined && classes.includes('b') && segments.every(isBlankSegment)) {
+        segments = [{ verse: null, inlines: [{ kind: 'text', text: ' ', classes: [] }] }]
+      }
       if (table === undefined && segments.length === 0) {
         movedSpace = null
         return
@@ -268,6 +272,10 @@ type PlacedInline = { verse: number | null; inline: Inline }
 
 function isSelahText(inline: Inline): boolean {
   return inline.kind === 'text' && inline.classes.includes('qs')
+}
+
+function isBlankSegment(segment: Segment): boolean {
+  return segment.inlines.every(isBlankText)
 }
 
 function isBlankText(inline: Inline): boolean {
