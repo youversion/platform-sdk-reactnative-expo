@@ -285,6 +285,32 @@ describe('paragraph alignment', () => {
   })
 })
 
+describe('verse labels', () => {
+  it('joins a verse label to its first word so a line cannot end on the label', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="7"></span><span class="yv-vlbl">7</span>his god. ' +
+      '<span class="yv-v" v="8"></span><span class="yv-vlbl">8</span>Cyrus king</div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // One joiner per label: verses 7 and 8.
+    expect(screen.getAllByText('\u2060')).toHaveLength(2)
+    expect(screen.getByText('Cyrus king')).toBeTruthy()
+  })
+})
+
 describe('table columns', () => {
   function cell(text: string, col: number): Block {
     return { ...block(['tc'], text), table: { id: 0, row: 0, col, columns: 2 } }

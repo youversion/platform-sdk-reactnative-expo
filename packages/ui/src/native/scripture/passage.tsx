@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -119,6 +119,9 @@ const BAND_DESCENT = 0.26
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
+// An inline view is a break opportunity on both sides; this keeps a verse label on the
+// line of its first word, as Swift does.
+const WORD_JOINER = '\u2060'
 
 // The real text, the selection underline, and the highlight backdrop. Bright and
 // dimmed highlights paint in separate backdrops so the dimmed one can fade as a group.
@@ -399,6 +402,7 @@ const BlockView = memo(function BlockView({
     dimmed: boolean,
     layer: Layer,
     last: boolean,
+    afterLabel: boolean,
   ): ReactNode => {
     const ghost = layer !== 'text'
     const fill = verse === null ? undefined : paint.get(verse)
@@ -518,21 +522,23 @@ const BlockView = memo(function BlockView({
     const trailing = last ? (/\s+$/.exec(inline.text)?.[0] ?? '') : ''
     const text = inline.text.slice(0, inline.text.length - trailing.length)
     return (
-      <RNText
-        key={key}
-        style={{
-          ...look.face(weight, chars.italic ?? rule.italic),
-          color: wj,
-          fontSize: chars.scale === null ? undefined : size,
-        }}
-      >
-        {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
-        {trailing !== '' && (
-          <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
-            {trailing}
-          </RNText>
-        )}
-      </RNText>
+      <Fragment key={key}>
+        {afterLabel && <RNText>{WORD_JOINER}</RNText>}
+        <RNText
+          style={{
+            ...look.face(weight, chars.italic ?? rule.italic),
+            color: wj,
+            fontSize: chars.scale === null ? undefined : size,
+          }}
+        >
+          {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
+          {trailing !== '' && (
+            <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
+              {trailing}
+            </RNText>
+          )}
+        </RNText>
+      </Fragment>
     )
   }
 
@@ -614,7 +620,15 @@ const BlockView = memo(function BlockView({
               }}
             >
               {segment.inlines.map((inline, i) =>
-                renderInline(inline, i, verse, dimmed, layer, i === segment.inlines.length - 1),
+                renderInline(
+                  inline,
+                  i,
+                  verse,
+                  dimmed,
+                  layer,
+                  i === segment.inlines.length - 1,
+                  segment.inlines[i - 1]?.kind === 'label',
+                ),
               )}
             </RNText>
           )
