@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { Children, isValidElement } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
@@ -259,7 +259,7 @@ describe('paragraph alignment', () => {
     expect(endEdgeShrinks('סלה')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
   })
 
-  it('names the footnote button with the shared label', () => {
+  it('keeps the named footnote button aligned after text reflows within the block', () => {
     const html = '<span>Or</span>'
     const onNotePress = jest.fn()
     render(
@@ -305,6 +305,38 @@ describe('paragraph alignment', () => {
     })
     fireEvent.press(button)
     expect(onNotePress).toHaveBeenCalledWith(1, html)
+
+    const paragraph = screen.UNSAFE_getAllByType(Text).find(
+      (text) => text.props.onTextLayout !== undefined,
+    )
+    if (paragraph === undefined) throw new Error('expected the measured paragraph')
+    const frame = jest.spyOn(global, 'requestAnimationFrame').mockReturnValue(0)
+    try {
+      measureLayout.mockClear()
+      measureLayout.mockImplementationOnce((_container, success) => success(70, 60, 16, 20))
+      fireEvent(paragraph, 'textLayout', { nativeEvent: { lines: [] } })
+      expect(measureLayout).not.toHaveBeenCalled()
+      expect(frame).toHaveBeenCalledTimes(1)
+      const callback = frame.mock.calls[0]?.[0]
+      if (callback === undefined) throw new Error('expected the scheduled measurement')
+      act(() => callback(0))
+
+      expect(measureLayout).toHaveBeenCalledTimes(1)
+      expect(measureLayout).toHaveBeenCalledWith(block.instance, expect.any(Function))
+      const movedButton = screen.getByRole('button', { name: 'Footnote' })
+      expect(StyleSheet.flatten(movedButton.props.style)).toMatchObject({
+        position: 'absolute',
+        left: 70,
+        top: 60,
+        width: 16,
+        height: 20,
+      })
+      fireEvent.press(movedButton)
+      expect(onNotePress).toHaveBeenCalledTimes(2)
+      expect(onNotePress).toHaveBeenLastCalledWith(1, html)
+    } finally {
+      frame.mockRestore()
+    }
   })
 })
 
