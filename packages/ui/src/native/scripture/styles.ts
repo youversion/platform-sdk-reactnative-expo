@@ -199,6 +199,11 @@ export function lineMultiple(lineSpacing: number): number {
   }
 }
 
+/** The leading in one RN line box. RN splits it above and below each line; Swift puts it only between lines. */
+export function lineLeading(fontSize: number, multiple: number): number {
+  return fontSize * (multiple - NATURAL_LINE)
+}
+
 /**
  * Swift pads each block by the leading SwiftUI leaves off its last line; RN's
  * lineHeight already includes it, so only the margin remains.

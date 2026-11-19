@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react-native'
-import { isValidElement } from 'react'
-import { StyleSheet } from 'react-native'
+import { fireEvent, render, screen } from '@testing-library/react-native'
+import { Children, isValidElement } from 'react'
+import { StyleSheet, Text } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
+import en from '../../../i18n/locales/en.json'
 import { LocaleProvider } from '../../../i18n/locale-context'
 import { parsePassage, type Block } from '../parse-passage'
 import {
@@ -282,5 +283,224 @@ describe('paragraph alignment', () => {
       </LocaleProvider>,
     )
     expect(screen.getByLabelText('Footnote')).toBeTruthy()
+  })
+})
+
+describe('verse labels', () => {
+  /** Each text run's own children in reading order, with each footnote button as `[note]`. */
+  function readingOrder(): unknown[] {
+    const ownText = (node: ReactTestInstance): unknown[] =>
+      Children.toArray(node.props.children).filter((child) => !isValidElement(child))
+    const labelled = (node: ReactTestInstance | null): boolean =>
+      node?.props.accessibilityLabel === en.footnoteAriaLabel
+    // The outermost labelled node, so the button and the view it renders count once.
+    const isNote = (node: ReactTestInstance): boolean => labelled(node) && !labelled(node.parent)
+    return screen.root
+      .findAll((node) => isNote(node) || node.type === Text)
+      .flatMap((node) => (isNote(node) ? ['[note]'] : ownText(node)))
+  }
+
+  /** The runs either side of each word joiner. */
+  function joinerNeighbours(): unknown[][] {
+    const order = readingOrder()
+    return order.flatMap((run, i) => (run === '\u2060' ? [[order[i - 1], order[i + 1]]] : []))
+  }
+
+  it('joins a verse label to its first word so a line cannot end on the label', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="7"></span><span class="yv-vlbl">7</span>his god. ' +
+      '<span class="yv-v" v="8"></span><span class="yv-vlbl">8</span>Cyrus king</div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // Each label, then its joiner, then its first word.
+    expect(joinerNeighbours()).toEqual([
+      ['7', 'his god.'],
+      ['8', 'Cyrus king'],
+    ])
+  })
+
+  it('joins a note marker to the word before it', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="14"></span><span class="yv-vlbl">14</span>' +
+      'to Jesarelah,<span class="yv-n f"><span class="ft">Or Asarelah</span></span></div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // The label's joiner leads its word; the note's sits between the word and the note.
+    expect(joinerNeighbours()).toEqual([
+      ['14', 'to Jesarelah,'],
+      ['to Jesarelah,', '[note]'],
+    ])
+  })
+})
+
+describe('table columns', () => {
+  function cell(text: string, col: number): Block {
+    return { ...block(['tc'], text), table: { id: 0, row: 0, col, columns: 2 } }
+  }
+
+  function renderTable(blocks: Block[]): ReturnType<typeof render> {
+    return render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+  }
+
+  /** The count cell's column view, which takes the measured width. */
+  function countColumn(): ReactTestInstance {
+    let current: ReactTestInstance | null = screen.getByText('12')
+    while (current !== null) {
+      if (StyleSheet.flatten(current.props.style)?.marginStart !== undefined) {
+        return current
+      }
+      current = current.parent
+    }
+    throw new Error('no count column')
+  }
+
+  function measurer(): ReactTestInstance {
+    const [found] = countColumn().findAll((node) => node.props.onLayout !== undefined)
+    if (found === undefined) throw new Error('no measurer')
+    return found
+  }
+
+  function measureCount(width: number): void {
+    fireEvent(measurer(), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } } })
+  }
+
+  function rerenderTable(
+    view: ReturnType<typeof render>,
+    blocks: Block[],
+    look: PassageLook,
+  ): void {
+    view.rerender(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={blocks}
+          look={look}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+  }
+
+  it('keeps a column and its measurer while the cells and look stay put', () => {
+    const blocks = [cell('his sons', 0), cell('12', 1)]
+    const view = renderTable(blocks)
+    measureCount(20)
+    const before = measurer()
+    rerenderTable(view, blocks, LOOK)
+    expect(measurer()).toBe(before)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(20)
+  })
+
+  // onLayout fires only on a changed frame, so a reset must remount the measurer:
+  // the widest cell's frame often stays the same and would never report again.
+  it.each([
+    ['new cells (a note restored)', [cell('his sons', 0), cell('12', 1)], LOOK],
+    ['a new look (a theme switch)', null, { ...LOOK, ink: '#111111' }],
+  ])('measures a column again from a fresh measurer after %s', (_, next, look) => {
+    const blocks = [cell('his sons', 0), cell('12', 1)]
+    const view = renderTable(blocks)
+    measureCount(20)
+    const before = measurer()
+    rerenderTable(view, next ?? blocks, look)
+    expect(measurer()).not.toBe(before)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBeUndefined()
+    measureCount(34)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(34)
+  })
+
+  // A shrink-wrapped cell can round a fraction under its text; a ghost at the cell's
+  // width then wraps ("2,172" as "2,17" / "2") and its fill misses the line window.
+  it('lays a painted cell ghost out at the real text width', () => {
+    const count: Block = {
+      ...cell('2,172', 1),
+      verses: [3],
+      segments: [{ verse: 3, inlines: [{ kind: 'text', text: '2,172', classes: [] }] }],
+    }
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={[cell('of Parosh', 0), count]}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map([[3, { background: '#ffff00', text: null }]])}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    const paragraphs = (): ReactTestInstance[] =>
+      screen.getAllByText('2,172', { includeHiddenElements: true }).map((node) => {
+        let current: ReactTestInstance | null = node
+        while (
+          current !== null &&
+          StyleSheet.flatten(current.props.style)?.textAlign === undefined
+        ) {
+          current = current.parent
+        }
+        if (current === null) throw new Error('no paragraph')
+        return current
+      })
+    const [real] = paragraphs()
+    if (real === undefined) throw new Error('no real paragraph')
+    const line = {
+      text: '2,172',
+      x: 0,
+      y: 0,
+      width: 41.27,
+      height: 30,
+      descender: 8,
+      capHeight: 12,
+      ascender: 21,
+      xHeight: 8,
+    }
+    fireEvent(real, 'textLayout', { nativeEvent: { lines: [line] } })
+    fireEvent(real, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 44.87, height: 30 } } })
+    const ghostWidths = paragraphs()
+      .filter((node) => node.props.onLayout === undefined)
+      .map((node) => StyleSheet.flatten(node.props.style).width)
+    expect(ghostWidths.length).toBeGreaterThan(0)
+    expect(new Set(ghostWidths)).toEqual(new Set([44.87]))
   })
 })

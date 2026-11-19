@@ -1,7 +1,7 @@
 import { expandPassageId } from '@youversion/platform-react-native-expo-core'
 
 import type { VersionGate } from '../../lib/version-usability'
-import type { Block } from './parse-passage'
+import { isSpacer, type Block } from './parse-passage'
 import {
   passageKey,
   passageRefFor,
@@ -78,6 +78,12 @@ export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): readonl
       ...new Set(segments.flatMap((segment) => (segment.verse === null ? [] : [segment.verse]))),
     ]
     kept.push({ ...block, segments, verses })
+  }
+  // A spacer carries the verse before it, so one can end a range but never start one.
+  let last = kept.at(-1)
+  while (last !== undefined && isSpacer(last)) {
+    kept.pop()
+    last = kept.at(-1)
   }
   bySpan.set(key, kept)
   return kept

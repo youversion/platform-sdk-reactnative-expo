@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   PixelRatio,
   Platform,
@@ -9,6 +9,7 @@ import {
   type TextLayoutEvent,
   type Text as RNTextInstance,
   type TextStyle,
+  type ViewStyle,
 } from 'react-native'
 import Svg, { Path } from 'react-native-svg'
 
@@ -20,11 +21,13 @@ import { directionMark } from './direction-mark'
 import type { HighlightPaint } from './highlight-colors'
 import { leftEdge } from './left-edge'
 import type { Block, Inline } from './parse-passage'
+import { passageRuns, type TableRow } from './table'
 import { applySmallCaps, verseLineBoxes, type LineBox } from './verse-line'
 import {
   blockMarginBottom,
   collapsedMarginTop,
   LABEL_SCALE,
+  lineLeading,
   lineMultiple,
   resolveBlock,
   resolveChars,
@@ -116,6 +119,9 @@ const BAND_DESCENT = 0.26
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
+// An inline view is a break opportunity on both sides; this keeps a verse label on the
+// line of its first word, and a note marker on the line of its last, as Swift does.
+const WORD_JOINER = '\u2060'
 
 // The real text, the selection underline, and the highlight backdrop. Bright and
 // dimmed highlights paint in separate backdrops so the dimmed one can fade as a group.
@@ -128,17 +134,202 @@ export function Passage({ blocks, ...rest }: PassageProps): ReactNode {
     () => blocks.map((block) => resolveBlock(block.classes, fontSize)),
     [blocks, fontSize],
   )
+  const runs = useMemo(() => passageRuns(blocks), [blocks])
+  const plain = useMemo(() => resolveBlock([], fontSize), [fontSize])
   return (
     <View style={{ direction: rest.look.rtl ? 'rtl' : 'ltr' }}>
-      {blocks.map((block, index) => (
-        <BlockView
-          key={`${index}:${blockStateKey(block, rest)}`}
-          index={index}
-          block={block}
-          rule={resolved[index] ?? resolveBlock([], rest.look.fontSize)}
-          previous={index > 0 ? (resolved[index - 1] ?? null) : null}
-          {...rest}
-        />
+      {runs.map((run, at) => {
+        if (run.kind === 'table') {
+          return (
+            <PassageTable
+              key={`t${run.id}`}
+              rows={run.rows}
+              blocks={blocks}
+              resolved={resolved}
+              plain={plain}
+              {...rest}
+            />
+          )
+        }
+        const { index } = run
+        const block = blocks[index]
+        if (block === undefined) {
+          return null
+        }
+        // A table has no margins of its own; the paragraph after it collapses against none.
+        const before = runs[at - 1]
+        const previous =
+          before === undefined
+            ? null
+            : before.kind === 'table'
+              ? plain
+              : (resolved[index - 1] ?? null)
+        return (
+          <BlockView
+            key={`${index}:${blockStateKey(block, rest)}`}
+            index={index}
+            block={block}
+            rule={resolved[index] ?? plain}
+            previous={previous}
+            {...rest}
+          />
+        )
+      })}
+    </View>
+  )
+}
+
+type TableLayout = {
+  table: number | null
+  rows: Map<number, number>
+  cells: Map<number, { row: number; y: number; height: number }>
+  report: PassageProps['onBlockLayout']
+}
+
+// Swift's table grid: `.padding()`, 15pt between columns, 10pt between text rows.
+const TABLE_PAD = 16
+const TABLE_COLUMN_GAP = 15
+const TABLE_ROW_GAP = 10
+
+type PassageTableProps = Omit<PassageProps, 'blocks'> & {
+  rows: readonly TableRow[]
+  blocks: readonly Block[]
+  resolved: readonly ResolvedBlock[]
+  plain: ResolvedBlock
+}
+
+/**
+ * Swift's `Grid`: the first column takes the slack, later columns size to their widest
+ * cell, and the last column sits at the trailing edge (USFM's right-aligned `\tcr`
+ * counts, which the API HTML no longer marks). Each cell is a full block, so verse
+ * labels, notes, highlights, and selection work inside it.
+ */
+function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTableProps): ReactNode {
+  const { look, onBlockLayout } = rest
+  const columns = rows[0]?.cells.length ?? 0
+  // Natural widths per column. A new look or new cell content (notes or verse numbers
+  // toggled) drops them. onLayout fires only on a changed frame, so the new generation
+  // remounts the measurers and every cell reports again, the widest included.
+  const [widths, setWidths] = useState<{
+    look: PassageLook
+    blocks: readonly Block[]
+    byColumn: number[]
+    generation: number
+  }>({ look, blocks, byColumn: [], generation: 0 })
+  if (widths.look !== look || widths.blocks !== blocks) {
+    setWidths({ look, blocks, byColumn: [], generation: widths.generation + 1 })
+  }
+  const { byColumn, generation } = widths
+  const fit = (col: number, width: number): void =>
+    setWidths((state) => {
+      const next = Math.ceil(width)
+      if (state.generation !== generation || (state.byColumn[col] ?? 0) >= next) {
+        return state
+      }
+      const grown = [...state.byColumn]
+      grown[col] = next
+      return { ...state, byColumn: grown }
+    })
+
+  // Cells report y within their row; the reader needs it within the passage.
+  const layout = useRef<TableLayout>({
+    table: null,
+    rows: new Map<number, number>(),
+    cells: new Map<number, { row: number; y: number; height: number }>(),
+    report: onBlockLayout,
+  })
+  layout.current.report = onBlockLayout
+  const emit = useCallback((index: number): void => {
+    const { table, rows: rowYs, cells, report } = layout.current
+    const cell = cells.get(index)
+    const rowY = cell === undefined ? undefined : rowYs.get(cell.row)
+    if (table === null || cell === undefined || rowY === undefined) {
+      return
+    }
+    report?.(index, table + rowY + cell.y, cell.height)
+  }, [])
+  const emitAll = (): void => {
+    for (const index of layout.current.cells.keys()) {
+      emit(index)
+    }
+  }
+  const onCellLayout = useCallback(
+    (index: number, y: number, height: number): void => {
+      const row = layout.current.cells.get(index)?.row
+      layout.current.cells.set(index, { row: row ?? -1, y, height })
+      emit(index)
+    },
+    [emit],
+  )
+  const reportsLayout = onBlockLayout === undefined ? undefined : onCellLayout
+  // Swift's cells carry leading only between lines; take back the half each cell's
+  // line box adds above and below, so rows sit at Swift's pitch.
+  const leading = lineLeading(look.fontSize, look.lineMultiple)
+
+  return (
+    <View
+      onLayout={(event) => {
+        layout.current.table = event.nativeEvent.layout.y
+        emitAll()
+      }}
+      style={{ paddingHorizontal: TABLE_PAD, paddingVertical: TABLE_PAD - leading / 2 }}
+    >
+      {rows.map((row, r) => (
+        <View
+          key={row.row}
+          onLayout={(event) => {
+            layout.current.rows.set(row.row, event.nativeEvent.layout.y)
+            // Only this row moved; the table's own onLayout covers the rest.
+            for (const index of row.cells) {
+              if (index !== null) {
+                emit(index)
+              }
+            }
+          }}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            marginTop: r === 0 ? 0 : TABLE_ROW_GAP - leading,
+          }}
+        >
+          {row.cells.map((index, col) => {
+            const last = col === columns - 1 && col > 0
+            const width = byColumn[col]
+            // Until measured, a column takes its cell's own width.
+            const cellStyle: ViewStyle =
+              col === 0
+                ? { flex: 1, minWidth: 0 }
+                : { marginStart: TABLE_COLUMN_GAP, flexShrink: last ? 0 : 1, width }
+            const block = index === null ? undefined : blocks[index]
+            if (index === null || block === undefined) {
+              return <View key={col} style={cellStyle} />
+            }
+            if (layout.current.cells.get(index)?.row !== row.row) {
+              layout.current.cells.set(index, { row: row.row, y: 0, height: 0 })
+            }
+            return (
+              <View key={col} style={cellStyle}>
+                <View
+                  key={generation}
+                  onLayout={
+                    col === 0 ? undefined : (event) => fit(col, event.nativeEvent.layout.width)
+                  }
+                  style={col === 0 ? undefined : { alignSelf: last ? 'flex-end' : 'flex-start' }}
+                >
+                  <BlockView
+                    key={`${index}:${blockStateKey(block, rest)}`}
+                    index={index}
+                    block={block}
+                    rule={resolved[index] ?? plain}
+                    previous={null}
+                    {...rest}
+                    onBlockLayout={reportsLayout}
+                  />
+                </View>
+              </View>
+            )
+          })}
+        </View>
       ))}
     </View>
   )
@@ -180,11 +371,11 @@ const BlockView = memo(function BlockView({
   const [measure, setMeasure] = useState<Measure>(() => {
     const kept = measures.get(block)
     if (kept?.look === look) {
-      return { ...kept, originX: kept.originX ?? 0 }
+      return { ...kept, originX: kept.originX ?? 0, textWidth: kept.textWidth ?? null }
     }
-    return { look, lines: [], size: { width: 0, height: 0 }, space: 0, originX: 0 }
+    return { look, lines: [], size: { width: 0, height: 0 }, space: 0, originX: 0, textWidth: null }
   })
-  const { lines, size, space, originX } = measure
+  const { lines, size, space, originX, textWidth } = measure
   const endAligned = rule.align === 'end'
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
@@ -216,6 +407,7 @@ const BlockView = memo(function BlockView({
     dimmed: boolean,
     layer: Layer,
     last: boolean,
+    after: Inline['kind'] | undefined,
   ): ReactNode => {
     const ghost = layer !== 'text'
     const fill = verse === null ? undefined : paint.get(verse)
@@ -274,30 +466,36 @@ const BlockView = memo(function BlockView({
     if (inline.kind === 'note') {
       const size = fontSize * NOTE_SCALE
       return (
-        <Pressable
-          key={key}
-          hitSlop={8}
-          disabled={ghost}
-          accessibilityRole="button"
-          accessibilityLabel={t('footnoteAriaLabel')}
-          onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
-          style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
-        >
-          {boxFill}
-          <View
+        <Fragment key={key}>
+          {after === 'text' && <RNText>{WORD_JOINER}</RNText>}
+          <Pressable
+            hitSlop={8}
+            disabled={ghost}
+            accessibilityRole="button"
+            accessibilityLabel={t('footnoteAriaLabel')}
+            onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
             style={{
-              width: size,
-              height: size,
-              transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+              ...box,
+              paddingStart: fontSize * NOTE_LEAD,
+              paddingEnd: fontSize * NOTE_TRAIL,
             }}
           >
-            {!ghost && (
-              <Svg width={size} height={size} viewBox="0 0 20 20">
-                <Path d={NOTE_ICON} fill={color(palette.gray20, 1, dimmed)} fillRule="evenodd" />
-              </Svg>
-            )}
-          </View>
-        </Pressable>
+            {boxFill}
+            <View
+              style={{
+                width: size,
+                height: size,
+                transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+              }}
+            >
+              {!ghost && (
+                <Svg width={size} height={size} viewBox="0 0 20 20">
+                  <Path d={NOTE_ICON} fill={color(palette.gray20, 1, dimmed)} fillRule="evenodd" />
+                </Svg>
+              )}
+            </View>
+          </Pressable>
+        </Fragment>
       )
     }
     const chars = resolveChars(inline.classes)
@@ -335,21 +533,23 @@ const BlockView = memo(function BlockView({
     const trailing = last ? (/\s+$/.exec(inline.text)?.[0] ?? '') : ''
     const text = inline.text.slice(0, inline.text.length - trailing.length)
     return (
-      <RNText
-        key={key}
-        style={{
-          ...look.face(weight, chars.italic ?? rule.italic),
-          color: wj,
-          fontSize: chars.scale === null ? undefined : size,
-        }}
-      >
-        {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
-        {trailing !== '' && (
-          <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
-            {trailing}
-          </RNText>
-        )}
-      </RNText>
+      <Fragment key={key}>
+        {after === 'label' && <RNText>{WORD_JOINER}</RNText>}
+        <RNText
+          style={{
+            ...look.face(weight, chars.italic ?? rule.italic),
+            color: wj,
+            fontSize: chars.scale === null ? undefined : size,
+          }}
+        >
+          {chars.smallCaps || rule.smallCaps ? smallCaps(text, size) : text}
+          {trailing !== '' && (
+            <RNText style={{ backgroundColor: isFill(layer) ? TRANSPARENT : undefined }}>
+              {trailing}
+            </RNText>
+          )}
+        </RNText>
+      </Fragment>
     )
   }
 
@@ -374,7 +574,11 @@ const BlockView = memo(function BlockView({
       paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
       paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
     }
-    if (endAligned) {
+    if (ghost && textWidth !== null) {
+      // A shrink-wrapped block (a table cell) can round a fraction under its text, which
+      // would wrap a ghost ("2,172" as "2,17" / "2") off its line. Copy the real width.
+      paragraphStyle.width = textWidth
+    } else if (endAligned) {
       paragraphStyle.flexShrink = 1
       paragraphStyle.maxWidth = '100%'
     }
@@ -383,12 +587,13 @@ const BlockView = memo(function BlockView({
         ref={ghost || onBlockRef === undefined ? undefined : (node) => onBlockRef(index, node)}
         onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
         onLayout={
-          ghost || !endAligned
+          ghost || (!endAligned && !measured)
             ? undefined
             : (event) => {
-                const x = event.nativeEvent.layout.x
-                if (originX !== x) {
-                  update({ originX: x })
+                const { width } = event.nativeEvent.layout
+                const x = endAligned ? event.nativeEvent.layout.x : 0
+                if (originX !== x || textWidth !== width) {
+                  update({ originX: x, textWidth: width })
                 }
               }
         }
@@ -426,7 +631,15 @@ const BlockView = memo(function BlockView({
               }}
             >
               {segment.inlines.map((inline, i) =>
-                renderInline(inline, i, verse, dimmed, layer, i === segment.inlines.length - 1),
+                renderInline(
+                  inline,
+                  i,
+                  verse,
+                  dimmed,
+                  layer,
+                  i === segment.inlines.length - 1,
+                  segment.inlines[i - 1]?.kind,
+                ),
               )}
             </RNText>
           )
@@ -653,6 +866,8 @@ type Measure = {
   space: number
   /** Left edge of shrink-wrapped end-aligned text inside the block; 0 when full width. */
   originX: number
+  /** Laid-out width of the real paragraph, which its ghosts copy; null until measured. */
+  textWidth: number | null
 }
 
 // Last layout per parsed block, valid while its look holds.
