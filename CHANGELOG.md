@@ -10,6 +10,42 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.4.0
+
+### Minor Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 801fdf0: `BibleTextView` and `BibleReader` draw scripture with native text. `dom` on both remains accepted but is deprecated and ignored — it will be removed in the next major. The view always sizes to its text, so `dom.matchContents: false` fill no longer applies. `highlightedVerses` is deprecated and ignored; cached highlights paint the passage. `BibleCard` and `VerseOfTheDay` draw native text too.
+
+  Omitted `fontSize` on `BibleTextView` now defaults to 16 (reader/card parity), not 20 — hosts that omit it will see smaller text. CSS `fontFamily` values (stacks, `var()`, generic keywords) map to an SDK face instead of reaching React Native verbatim: `sans-serif` and `system-ui` (and stacks that end in them) draw Inter; the rest draw the SDK serif. `reference` must be a chapter, a verse, or a range within one chapter. Cross-chapter ranges and comma lists show the unavailable message.
+
+  Footnote markers on `BibleTextView` open the SDK footnote sheet unless you pass `onFootnotePress`. On web, with no handler, the markers are not drawn.
+
+- _(@youversion/platform-react-native-expo-ui)_ 5c91782: Footnote sheets render on native text. Marker taps still open the same sheet, with bold locators, verse superscripts, and right-to-left scripture direction (YPE-5832 / RNV2-5).
+
+  `BibleReader` draws its chapter with native text. Its USFM styles follow the Swift reader: centred titles and intro headings, fixed 8pt block indents, and 0.75em first-line indents.
+
+- _(@youversion/platform-react-native-expo-ui)_ 4c761db: BibleCard and Verse of the Day draw scripture with native text, on the same passage path as BibleReader and BibleTextView (YPE-6224). Verse numbers now show on both cards. Footnotes and verse numbers match the reader. A missing passage, a failed request, and a lost connection use the reader messages. Failed and offline requests can be retried. `dom` on both remains accepted but is deprecated and ignored — it will be removed in the next major.
+
+### Patch Changes
+
+- _(all packages)_ e77516a: Shrink the native bundle by importing only used Google Font faces and aligning zod with the Web SDK.
+
+- _(all packages)_ 8712c43: Use the default API host when the provider receives an empty `apiHost`. Add internal `api-client` and `default-api-host` subpaths and consolidate duplicate request and helper plumbing.
+
+- _(@youversion/platform-react-native-expo-ui)_ 6429f24: `BibleCard` and `VerseOfTheDay` load the whole chapter and show only the requested verses, as the Swift SDK does. They now share the content cache with `BibleReader`. A Psalm title (for example "A psalm of David.") stays in a card that starts at verse 1, and in the shared and copied text of the verse beside it. `BibleCard` keeps a section heading when the next verse after it is in the range. `VerseOfTheDay` shows no section headings.
+
+- _(@youversion/platform-react-native-expo-ui)_ 5d315c3: Right-to-left scripture in `BibleReader`, `BibleTextView`, and their footnote sheets starts at the right edge, on iOS and Android. A Selah pause sits at the end of its line. On Android, a paragraph that opens in the other direction's script now keeps the version's direction. The footnote heading in `BibleReader` reads the book title and chapter from the version. On Android, a verse underline no longer runs past a final footnote marker.
+
+  Direction comes from the version's `text_direction`, so `BibleReader` and `BibleTextView` request `/v1/bibles/{id}/index` once per client and version (shared across mounts), about 198 KB gzipped and cached for its `max-age`. A host `scriptureDirection` skips that request. Until the index arrives, or if the request fails, the letters in the text decide.
+
+- _(@youversion/platform-react-native-expo-ui)_ ce7d8a9: Scripture tables (for example NIV Ezra 2) render as a native grid in `BibleReader`, `BibleTextView`, and `BibleCard`, laid out like the Swift SDK: no borders, short rows padded to the widest row, and the last column at the trailing edge. Cells keep verse numbers and footnotes. A cell with no verse number of its own, such as a count, belongs to the verse before it, so it highlights and selects with that verse.
+
+- _(@youversion/platform-react-native-expo-ui)_ 4df2500: Sync localization from platform-localization (2fa0cff): add Romanian (ro); update 319 keys in cs, it, ko, nl, sr, sv, tr.
+
+- _(@youversion/platform-react-native-expo-ui)_ 5c91782: A Selah pause (`qs`) draws in italic on its own line, at the end of the line. The line reads the pause, then a footnote marker, then trailing punctuation. Poetry before the pause stays put. A pause already inside `qr` is unchanged (YPE-6405).
+
+- _(@youversion/platform-react-native-expo-ui)_ c3db1b8: Keep the Bible version picker catalog in memory so choosing a language or opening the picker again does not download the full catalog.
+
 ## 2.3.0
 
 ### Minor Changes
