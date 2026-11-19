@@ -269,7 +269,7 @@ describe('BibleCard', () => {
     expect(getByText('16')).toBeTruthy()
     expect(
       fetchStub.urls.some((url) =>
-        url.startsWith('https://api.youversion.com/v1/bibles/3034/passages/JHN.3.16?'),
+        url.startsWith('https://api.youversion.com/v1/bibles/3034/passages/JHN.3?'),
       ),
     ).toBe(true)
     expect(fetchStub.appKeys).toContain('test-key')

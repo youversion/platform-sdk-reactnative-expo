@@ -185,7 +185,7 @@ describe('native scripture', () => {
     render(<VerseOfTheDay versionId={111} />, { wrapper })
 
     await waitFor(() => {
-      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/111/passages/JHN.3.16'))).toBe(
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/111/passages/JHN.3?'))).toBe(
         true,
       )
     })

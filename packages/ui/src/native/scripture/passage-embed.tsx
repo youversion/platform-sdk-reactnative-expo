@@ -18,7 +18,7 @@ import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
 import { scripturePhase, verseSpanFromPassageId } from './reference-passage'
 import { lineMultiple } from './styles'
-import { footnoteFor, passageErrorKey, passageRefFor, usePassage } from './use-passage'
+import { chapterRef, footnoteFor, passageErrorKey, usePassage } from './use-passage'
 
 const EMPTY_SELECTION: ReadonlySet<number> = new Set()
 const NO_FOCUS = null
@@ -31,6 +31,8 @@ type PassageEmbedProps = {
   highlights: Highlight[]
   fontSize: number
   font: PassageFont
+  /** Section headings inside a verse range. */
+  headings: boolean
   direction?: 'ltr' | 'rtl'
   onFootnotePress?: (data: FootnoteData) => void | Promise<void>
 }
@@ -41,6 +43,7 @@ export function PassageEmbed({
   highlights,
   fontSize,
   font,
+  headings,
   direction,
   onFootnotePress,
 }: PassageEmbedProps): ReactNode {
@@ -60,9 +63,11 @@ export function PassageEmbed({
   const lookup = useBibleVersionAbbreviation(versionId, { enabled: needsLanguage })
   const gate = versionGate(versionId, filters, lookup)
   const enabled = span !== null && gate === 'open'
+  // The whole chapter, as Swift's BibleCard loads it: a range request drops the
+  // Psalm title (`d`) and shares no cache with the reader.
   const address = useMemo(
-    () => (enabled ? passageRefFor(reference) : null),
-    [enabled, reference],
+    () => (enabled && span !== null ? chapterRef(span.book, span.chapter) : null),
+    [enabled, span],
   )
   const load = usePassage(fetchBibleContent, versionId, address)
   const phase = scripturePhase({
@@ -74,6 +79,7 @@ export function PassageEmbed({
     passage: load.passage,
     loading: load.loading,
     error: load.error,
+    headings,
   })
 
   const background = tokens.card

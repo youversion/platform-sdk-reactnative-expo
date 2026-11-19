@@ -108,7 +108,7 @@ describe('BibleCard version persistence', () => {
     await waitFor(() => {
       expect(getByText('In the beginning')).toBeTruthy()
     })
-    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1.1'))).toBe(true)
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1?'))).toBe(true)
   })
 
   it('persists picker selection to MMKV', async () => {
@@ -168,7 +168,7 @@ describe('BibleCard version persistence', () => {
     await renderAndSettle(<BibleCard reference="JHN.1.1" versionId={3034} />, { wrapper })
 
     await waitFor(() => {
-      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1.1'))).toBe(true)
+      expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/59/passages/JHN.1?'))).toBe(true)
     })
     expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/'))).toBe(false)
   })

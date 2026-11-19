@@ -64,6 +64,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -73,10 +74,8 @@ describe('PassageEmbed', () => {
     })
     expect(getByText('16')).toBeTruthy()
     expect(queryByText('In the beginning')).toBeNull()
-    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3.16?'))).toBe(
-      true,
-    )
-    expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3?'))).toBe(false)
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3?'))).toBe(true)
+    expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3.16'))).toBe(false)
     expect(fontSizeOf(getByText('For God so loved'))).toBe(16)
   })
 
@@ -88,6 +87,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={20}
         font="sans"
+        headings
       />,
       { wrapper },
     )
@@ -108,6 +108,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -127,6 +128,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -155,6 +157,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -181,6 +184,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper: Refused },
     )
@@ -200,6 +204,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper: youVersionProviderWrapper('light', 'es') },
     )
@@ -218,6 +223,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         onFootnotePress={onFootnotePress}
       />,
       { wrapper },
@@ -241,6 +247,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         onFootnotePress={jest.fn()}
       />,
       { wrapper },
@@ -264,6 +271,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         direction="rtl"
       />,
       { wrapper },
