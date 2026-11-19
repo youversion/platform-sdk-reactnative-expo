@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
-import { isValidElement } from 'react'
-import { StyleSheet } from 'react-native'
+import { Children, isValidElement } from 'react'
+import { StyleSheet, Text } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import en from '../../../i18n/locales/en.json'
@@ -287,6 +287,25 @@ describe('paragraph alignment', () => {
 })
 
 describe('verse labels', () => {
+  /** Each text run's own children in reading order, with each footnote button as `[note]`. */
+  function readingOrder(): unknown[] {
+    const ownText = (node: ReactTestInstance): unknown[] =>
+      Children.toArray(node.props.children).filter((child) => !isValidElement(child))
+    const labelled = (node: ReactTestInstance | null): boolean =>
+      node?.props.accessibilityLabel === en.footnoteAriaLabel
+    // The outermost labelled node, so the button and the view it renders count once.
+    const isNote = (node: ReactTestInstance): boolean => labelled(node) && !labelled(node.parent)
+    return screen.root
+      .findAll((node) => isNote(node) || node.type === Text)
+      .flatMap((node) => (isNote(node) ? ['[note]'] : ownText(node)))
+  }
+
+  /** The runs either side of each word joiner. */
+  function joinerNeighbours(): unknown[][] {
+    const order = readingOrder()
+    return order.flatMap((run, i) => (run === '\u2060' ? [[order[i - 1], order[i + 1]]] : []))
+  }
+
   it('joins a verse label to its first word so a line cannot end on the label', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="7"></span><span class="yv-vlbl">7</span>his god. ' +
@@ -306,9 +325,11 @@ describe('verse labels', () => {
         />
       </LocaleProvider>,
     )
-    // One joiner per label: verses 7 and 8.
-    expect(screen.getAllByText('\u2060')).toHaveLength(2)
-    expect(screen.getByText('Cyrus king')).toBeTruthy()
+    // Each label, then its joiner, then its first word.
+    expect(joinerNeighbours()).toEqual([
+      ['7', 'his god.'],
+      ['8', 'Cyrus king'],
+    ])
   })
 
   it('joins a note marker to the word before it', () => {
@@ -330,9 +351,11 @@ describe('verse labels', () => {
         />
       </LocaleProvider>,
     )
-    // One for the label, one for the note.
-    expect(screen.getAllByText('\u2060')).toHaveLength(2)
-    expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    // The label's joiner leads its word; the note's sits between the word and the note.
+    expect(joinerNeighbours()).toEqual([
+      ['14', 'to Jesarelah,'],
+      ['to Jesarelah,', '[note]'],
+    ])
   })
 })
 
