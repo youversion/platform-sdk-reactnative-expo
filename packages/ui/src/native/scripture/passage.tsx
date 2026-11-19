@@ -90,8 +90,9 @@ const NOTE_RISE = Platform.select({ android: 0.08, default: 0.28 })
 const NOTE_LEAD = 0
 const NOTE_TRAIL = 0.08
 const DIM_ALPHA = 0.35
-// Zero-width space: an invisible first character that carries the block's paragraph style.
-const PARAGRAPH_ANCHOR = '\u200b'
+// An invisible first character that carries the block's paragraph style. A word joiner,
+// not a zero-width space, so a cell too narrow for its first word cannot break after it.
+const PARAGRAPH_ANCHOR = '\u2060'
 // Android reads colour 0 ('transparent') as unset, so ghost text would fall back to
 // black; alpha 0 with a non-zero channel stays invisible on both platforms.
 const TRANSPARENT = withAlpha(palette.white, 0)

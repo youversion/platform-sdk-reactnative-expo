@@ -288,10 +288,19 @@ describe('paragraph alignment', () => {
 })
 
 describe('verse labels', () => {
-  /** Each text run's own children in reading order, with each footnote button as `[note]`. */
+  /**
+   * Each text run's own children in reading order, with each footnote button as `[note]`.
+   * A paragraph's leading anchor is also a word joiner; it reads as `[anchor]`.
+   */
   function readingOrder(): unknown[] {
+    const insideText = (node: ReactTestInstance): boolean =>
+      node.parent !== null && (node.parent.type === Text || insideText(node.parent))
     const ownText = (node: ReactTestInstance): unknown[] =>
-      Children.toArray(node.props.children).filter((child) => !isValidElement(child))
+      Children.toArray(node.props.children).flatMap((child, i) =>
+        isValidElement(child)
+          ? []
+          : [i === 0 && child === '⁠' && !insideText(node) ? '[anchor]' : child],
+      )
     const labelled = (node: ReactTestInstance | null): boolean =>
       node?.props.accessibilityLabel === en.footnoteAriaLabel
     // The outermost labelled node, so the button and the view it renders count once.
