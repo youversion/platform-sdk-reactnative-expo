@@ -59,6 +59,18 @@ describe('parsePassage', () => {
     expect(blocks.map((block) => block.classes)).toEqual([['q1']])
   })
 
+  it('keeps a blank b between stanzas as a no-break-space line', () => {
+    const html =
+      '<div><div class="q1"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Blessed is the one</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>but whose delight</div>' +
+      '<div class="p"></div></div>'
+    const { blocks } = parsePassage(html)
+    expect(blocks.map((block) => block.classes)).toEqual([['q1'], ['b'], ['q1']])
+    expect(blocks[1] && lineTexts(blocks[1])).toEqual([' '])
+    expect(blocks[1]?.verses).toEqual([1])
+  })
+
   it('keeps an sr section reference out of the previous verse', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>In the beginning</div>' +
@@ -174,7 +186,9 @@ describe('parsePassage', () => {
     }
     expect(lineTexts(pause)).toEqual(['Selah', '.'])
     expect(lineTexts(prose)).toEqual(['God shall send forth his lovingkindness and his truth.'])
-    expect(verses.get(3)?.text).toBe('Selah. God shall send forth his lovingkindness and his truth.')
+    expect(verses.get(3)?.text).toBe(
+      'Selah. God shall send forth his lovingkindness and his truth.',
+    )
     expect(verses.get(3)?.html).toBe(
       '<span class="qs">Selah</span>. God shall send forth his lovingkindness and his truth.',
     )
@@ -310,11 +324,14 @@ describe('parsePassage', () => {
     [' "Next words"', ' "Next words"'],
     [' &quot;Next words&quot;', ' "Next words"'],
     [` 'Next words'`, ` 'Next words'`],
-  ])('leaves a shared-node opening quote in %s with the words after a qs pause', (tail, nextLine) => {
-    const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
-    const { blocks } = parsePassage(html)
-    expect(blocks.map((block) => lineTexts(block).join(''))).toEqual(['Selah', nextLine])
-  })
+  ])(
+    'leaves a shared-node opening quote in %s with the words after a qs pause',
+    (tail, nextLine) => {
+      const html = `<div><div class="q"><span class="yv-v" v="3"></span><span class="qs">Selah</span>${tail}</div></div>`
+      const { blocks } = parsePassage(html)
+      expect(blocks.map((block) => lineTexts(block).join(''))).toEqual(['Selah', nextLine])
+    },
+  )
 
   it.each([
     ['. "Next words"', 'Selah.', ' "Next words"'],
@@ -481,5 +498,72 @@ describe('collectVerses', () => {
         { text: 'a', classes: ['yv:text-muted-foreground', 'sup'] },
       ],
     ])
+  })
+})
+
+describe('parsePassage tables', () => {
+  // Shaped like NIV Ezra 2: a verse marker opens the first cell, the count cell has
+  // none, a row is short, and a cell carries a footnote.
+  const html =
+    '<div><div class="p"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>The list:</div>' +
+    '<table><tr><td><span class="yv-v" v="3"></span><span class="yv-vlbl">3</span>the descendants of Parosh </td><td>2,172</td></tr>' +
+    '<tr><td><span class="yv-v" v="4"></span><span class="yv-vlbl">4</span>of Shephatiah</td></tr>' +
+    '<tr><td><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span>of Arah<span class="yv-n f"><span class="ft">Or Arab</span></span></td><td>775</td></tr></table>' +
+    '<div class="p"><span class="yv-v" v="6"></span><span class="yv-vlbl">6</span>After</div></div>'
+  const { blocks } = parsePassage(html)
+
+  it('makes each cell a block with its row and column', () => {
+    expect(blocks.map((block) => block.table ?? null)).toEqual([
+      null,
+      { id: 0, row: 0, col: 0, columns: 2 },
+      { id: 0, row: 0, col: 1, columns: 2 },
+      { id: 0, row: 1, col: 0, columns: 2 },
+      { id: 0, row: 2, col: 0, columns: 2 },
+      { id: 0, row: 2, col: 1, columns: 2 },
+      null,
+    ])
+  })
+
+  it('keeps verse labels and trims cell edges', () => {
+    expect(words(blocks.slice(1, 3))).toBe('[3]the descendants of Parosh2,172')
+    // A count cell has no marker of its own; it carries the row's verse.
+    expect(blocks[2]?.verses).toEqual([3])
+  })
+
+  it('parses a footnote inside a cell', () => {
+    expect(blocks[4] && lineKinds(blocks[4])).toEqual(['label', 'text', 'note'])
+    expect(blocks[4]?.verses).toEqual([5])
+    expect(blocks[5]?.verses).toEqual([5])
+    expect(blocks[6]?.verses).toEqual([6])
+  })
+
+  it('keeps the blank b lines NIV puts around a table as spacers, and keeps an empty cell', () => {
+    const wrapped = parsePassage(
+      '<div><div class="p">Before</div><div class="b"></div><div class="mi">The priests:</div>' +
+        '<div class="b"></div><table><tr><td>a</td><td></td></tr></table><div class="b"></div></div>',
+    ).blocks
+    expect(wrapped.map((block) => [words([block]), block.table?.col ?? null])).toEqual([
+      ['Before', null],
+      [' ', null],
+      ['The priests:', null],
+      [' ', null],
+      ['a', 0],
+      ['', 1],
+      [' ', null],
+    ])
+  })
+
+  it('splits a paragraph around a nested table', () => {
+    const nested = parsePassage(
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Before' +
+        '<table><tr><td>a</td><td>b</td></tr></table>after</div></div>',
+    ).blocks
+    expect(nested.map((block) => [words([block]), block.table?.col ?? null])).toEqual([
+      ['[1]Before', null],
+      ['a', 0],
+      ['b', 1],
+      ['after', null],
+    ])
+    expect(nested[3]?.verses).toEqual([1])
   })
 })

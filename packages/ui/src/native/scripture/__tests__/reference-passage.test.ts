@@ -1,4 +1,4 @@
-import type { Block } from '../parse-passage'
+import { parsePassage, type Block } from '../parse-passage'
 import {
   blocksInSpan,
   scripturePhase,
@@ -116,6 +116,50 @@ describe('blocksInSpan', () => {
   it('returns the chapter blocks themselves for a whole chapter', () => {
     const chapter = [block(16, 'For God so loved')]
     expect(blocksInSpan(chapter, { book: 'JHN', chapter: '3', verses: null })).toBe(chapter)
+  })
+
+  function sliced(html: string, start: number, end: number): string[] {
+    const { blocks } = parsePassage(html)
+    return blocksInSpan(blocks, { book: 'X', chapter: '1', verses: { start, end } }).map((b) =>
+      b.segments
+        .flatMap((s) => s.inlines)
+        .map((i) => ('text' in i ? i.text : ''))
+        .join('')
+        .trim(),
+    )
+  }
+
+  it('keeps a stanza break inside a range and drops one that ends it', () => {
+    const html =
+      '<div><div class="q1"><span class="yv-v" v="1"></span>Blessed is the one</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="2"></span>but whose delight</div>' +
+      '<div class="b"> </div>' +
+      '<div class="q1"><span class="yv-v" v="3"></span>That person is like a tree</div></div>'
+    expect(sliced(html, 1, 2)).toEqual(['Blessed is the one', '', 'but whose delight'])
+    expect(sliced(html, 2, 3)).toEqual(['but whose delight', '', 'That person is like a tree'])
+    expect(sliced(html, 1, 1)).toEqual(['Blessed is the one'])
+  })
+
+  it('stops a range before the next subhead', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="6"></span><span class="yv-vlbl">6</span>Because you are his sons. ' +
+      '<span class="yv-v" v="7"></span><span class="yv-vlbl">7</span>So you are an heir.</div>' +
+      '<div class="s1"><span class="yv-h">Paul’s Concern</span></div>' +
+      '<div class="p"><span class="yv-v" v="8"></span><span class="yv-vlbl">8</span>Formerly</div></div>'
+    expect(sliced(html, 6, 7)).toEqual(['6Because you are his sons. 7So you are an heir.'])
+  })
+
+  it('keeps a table verse whole, counts and unmarked rows included, and no more', () => {
+    const html =
+      '<div><table>' +
+      '<tr><td><span class="yv-v" v="9"></span><span class="yv-vlbl">9</span>The first lot</td></tr>' +
+      '<tr><td>his sons</td><td>12</td></tr>' +
+      '<tr><td><span class="yv-v" v="10"></span><span class="yv-vlbl">10</span>the third</td></tr>' +
+      '<tr><td>his sons</td><td>12</td></tr></table>' +
+      '<div class="s1"><span class="yv-h">Gatekeepers</span></div></div>'
+    expect(sliced(html, 9, 9)).toEqual(['9The first lot', 'his sons', '12'])
+    expect(sliced(html, 10, 10)).toEqual(['10the third', 'his sons', '12'])
   })
 })
 
