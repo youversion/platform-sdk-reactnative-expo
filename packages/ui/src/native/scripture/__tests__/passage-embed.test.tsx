@@ -64,6 +64,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -73,11 +74,76 @@ describe('PassageEmbed', () => {
     })
     expect(getByText('16')).toBeTruthy()
     expect(queryByText('In the beginning')).toBeNull()
-    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3.16?'))).toBe(
-      true,
-    )
-    expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3?'))).toBe(false)
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3?'))).toBe(true)
+    expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3.16'))).toBe(false)
     expect(fontSizeOf(getByText('For God so loved'))).toBe(16)
+  })
+
+  describe('a verse range', () => {
+    const RANGE_HTML =
+      '<div><div class="p"><span class="yv-v" v="15"></span><span class="yv-vlbl">15</span>Before</div>' +
+      '<div class="s1 yv-h">God’s love</div>' +
+      '<div class="p"><span class="yv-v" v="16"></span><span class="yv-vlbl">16</span>First in range ' +
+      '<span class="yv-v" v="17"></span><span class="yv-vlbl">17</span>Last in range ' +
+      '<span class="yv-v" v="18"></span><span class="yv-vlbl">18</span>After</div></div>'
+
+    it.each([true, false])('draws only its verses, with headings %s', async (headings) => {
+      fetchStub.html = RANGE_HTML
+      const { getByText, queryByText } = render(
+        <PassageEmbed
+          reference="JHN.3.16-17"
+          versionId={3034}
+          highlights={[]}
+          fontSize={16}
+          font="serif"
+          headings={headings}
+        />,
+        { wrapper },
+      )
+
+      await waitFor(() => {
+        expect(getByText('First in range ', { exact: false })).toBeTruthy()
+      })
+      expect(getByText('Last in range ', { exact: false })).toBeTruthy()
+      expect(queryByText('Before', { exact: false })).toBeNull()
+      expect(queryByText('After', { exact: false })).toBeNull()
+      expect(queryByText('God’s love') !== null).toBe(headings)
+    })
+
+    it('reuses the chapter when the reference moves inside it', async () => {
+      fetchStub.html = RANGE_HTML
+      const view = render(
+        <PassageEmbed
+          reference="JHN.3.16"
+          versionId={3034}
+          highlights={[]}
+          fontSize={16}
+          font="serif"
+          headings
+        />,
+        { wrapper },
+      )
+      await waitFor(() => {
+        expect(view.getByText('First in range ', { exact: false })).toBeTruthy()
+      })
+
+      view.rerender(
+        <PassageEmbed
+          reference="JHN.3.17"
+          versionId={3034}
+          highlights={[]}
+          fontSize={16}
+          font="serif"
+          headings
+        />,
+      )
+
+      await waitFor(() => {
+        expect(view.getByText('Last in range ', { exact: false })).toBeTruthy()
+      })
+      expect(view.queryByText('First in range ', { exact: false })).toBeNull()
+      expect(fetchStub.urls.filter((url) => url.includes('/passages/'))).toHaveLength(1)
+    })
   })
 
   it('uses the sans face at the host size', async () => {
@@ -88,6 +154,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={20}
         font="sans"
+        headings
       />,
       { wrapper },
     )
@@ -108,6 +175,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -127,6 +195,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -155,6 +224,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper },
     )
@@ -181,6 +251,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper: Refused },
     )
@@ -200,6 +271,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
       />,
       { wrapper: youVersionProviderWrapper('light', 'es') },
     )
@@ -218,6 +290,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         onFootnotePress={onFootnotePress}
       />,
       { wrapper },
@@ -241,6 +314,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         onFootnotePress={jest.fn()}
       />,
       { wrapper },
@@ -264,6 +338,7 @@ describe('PassageEmbed', () => {
         highlights={[]}
         fontSize={16}
         font="serif"
+        headings
         direction="rtl"
       />,
       { wrapper },

@@ -156,6 +156,7 @@ export function VerseOfTheDay({
                 highlights={highlights}
                 fontSize={fontSize}
                 font={size === 'lg' ? 'serif' : 'sans'}
+                headings={false}
                 onFootnotePress={showFootnoteSheet ? handleFootnotePress : undefined}
               />
             )

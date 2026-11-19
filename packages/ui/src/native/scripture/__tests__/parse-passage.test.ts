@@ -483,6 +483,28 @@ describe('parseNoteHtml', () => {
 })
 
 describe('collectVerses', () => {
+  it('shares a Psalm title with the verse around it, and leaves section headings out', () => {
+    const { verses } = parsePassage(
+      '<div><div class="d">A psalm of David.</div>' +
+        '<div class="s1 yv-h">Trust</div>' +
+        '<div class="q1"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>LORD, how many</div>' +
+        '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>Many are saying</div>' +
+        '<div class="d">For the director.</div></div>',
+    )
+    expect(verses.get(1)?.text).toBe('A psalm of David.\nLORD, how many')
+    expect(verses.get(2)?.text).toBe('Many are saying\nFor the director.')
+    expect(verses.get(1)?.html).toBe('LORD, how many')
+  })
+
+  it('gives a numbered Psalm title to its own verse, not the next one', () => {
+    const { verses } = parsePassage(
+      '<div><div class="d"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>A prayer of Habakkuk.</div>' +
+        '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>LORD, I have heard</div></div>',
+    )
+    expect(verses.get(1)?.text).toBe('A prayer of Habakkuk.')
+    expect(verses.get(2)?.text).toBe('LORD, I have heard')
+  })
+
   it('keeps the character classes in the footnote-sheet verse html', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span>' +
@@ -537,6 +559,27 @@ describe('parsePassage tables', () => {
     expect(blocks[6]?.verses).toEqual([6])
   })
 
+  it('keeps a mid-cell footnote against its word, with the text after it', () => {
+    // NIV Ezra 2:25.
+    const cell = parsePassage(
+      '<div><table><tr><td><span class="yv-v" v="25"></span><span class="yv-vlbl">25</span>of Kiriath Jearim,' +
+        '<span class="yv-n f"><span class="fr">2:25 </span><span class="ft">Hebrew </span></span> Kephirah</td>' +
+        '<td>743</td></tr></table></div>',
+    ).blocks
+    expect(cell[0] && lineKinds(cell[0])).toEqual(['label', 'text', 'note', 'text'])
+    expect(words(cell.slice(0, 1))).toBe('[25]of Kiriath Jearim,* Kephirah')
+  })
+
+  it('drops a cross-reference in a middle cell, as Swift does', () => {
+    // TSI Numbers 2: the leader column carries the xref.
+    const row = parsePassage(
+      '<div><table><tr><td>Gad</td><td>Eliasaf anak Rehuel<span class="yv-n x">' +
+        '<span class="ref" usfm="NUM.1.14">Bil 1:14</span> CK</span></td><td>45.650</td></tr></table></div>',
+    ).blocks
+    expect(row.map((block) => block.table?.col)).toEqual([0, 1, 2])
+    expect(words(row.slice(1, 2))).toBe('Eliasaf anak Rehuel')
+  })
+
   it('keeps the blank b lines NIV puts around a table as spacers, and keeps an empty cell', () => {
     const wrapped = parsePassage(
       '<div><div class="p">Before</div><div class="b"></div><div class="mi">The priests:</div>' +
@@ -565,5 +608,28 @@ describe('parsePassage tables', () => {
       ['after', null],
     ])
     expect(nested[3]?.verses).toEqual([1])
+  })
+
+  it('splits a paragraph around a nested heading', () => {
+    const nested = parsePassage(
+      '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Before' +
+        '<div class="s1 yv-h">Mid</div><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>after</div></div>',
+    ).blocks
+    expect(nested.map((block) => [words([block]), block.heading])).toEqual([
+      ['[1]Before', false],
+      ['Mid', true],
+      ['[2]after', false],
+    ])
+  })
+
+  it('splits a verse around a nested paragraph and keeps the verse on each part', () => {
+    const nested = parsePassage(
+      '<div><div class="p"><span class="yv-v" v="1">Before<div class="q1">inner</div>after</span></div></div>',
+    ).blocks
+    expect(nested.map((block) => [words([block]), block.classes[0], block.verses])).toEqual([
+      ['Before', 'p', [1]],
+      ['inner', 'q1', [1]],
+      ['after', 'p', [1]],
+    ])
   })
 })

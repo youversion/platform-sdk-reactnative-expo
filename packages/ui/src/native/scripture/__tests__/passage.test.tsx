@@ -11,6 +11,7 @@ import {
   coverRects,
   sampleTop,
   smallCaps,
+  tableColumnWidths,
   type LineWindow,
   type PassageLook,
 } from '../passage'
@@ -287,10 +288,19 @@ describe('paragraph alignment', () => {
 })
 
 describe('verse labels', () => {
-  /** Each text run's own children in reading order, with each footnote button as `[note]`. */
+  /**
+   * Each text run's own children in reading order, with each footnote button as `[note]`.
+   * A paragraph's leading anchor is also a word joiner; it reads as `[anchor]`.
+   */
   function readingOrder(): unknown[] {
+    const insideText = (node: ReactTestInstance): boolean =>
+      node.parent !== null && (node.parent.type === Text || insideText(node.parent))
     const ownText = (node: ReactTestInstance): unknown[] =>
-      Children.toArray(node.props.children).filter((child) => !isValidElement(child))
+      Children.toArray(node.props.children).flatMap((child, i) =>
+        isValidElement(child)
+          ? []
+          : [i === 0 && child === '⁠' && !insideText(node) ? '[anchor]' : child],
+      )
     const labelled = (node: ReactTestInstance | null): boolean =>
       node?.props.accessibilityLabel === en.footnoteAriaLabel
     // The outermost labelled node, so the button and the view it renders count once.
@@ -356,6 +366,30 @@ describe('verse labels', () => {
       ['14', 'to Jesarelah,'],
       ['to Jesarelah,', '[note]'],
     ])
+  })
+})
+
+describe('tableColumnWidths', () => {
+  it('waits until every later column is measured', () => {
+    expect(tableColumnWidths(300, [undefined, 120], 3, 15)).toBeNull()
+  })
+
+  it('keeps natural widths that fit', () => {
+    expect(tableColumnWidths(300, [undefined, 100, 50], 3, 15)).toEqual([100, 50])
+  })
+
+  it('caps a wide middle column at an even share so column 0 keeps the rest', () => {
+    // 330 - 2 gaps - 60 = 240 left; the middle column and column 0 split it.
+    expect(tableColumnWidths(330, [undefined, 400, 60], 3, 15)).toEqual([120, 60])
+  })
+
+  it('serves the narrowest middle column first and passes its slack on', () => {
+    // 370 - 3 gaps - 25 = 300: the 40 column takes 40, the wide one 130, column 0 130.
+    expect(tableColumnWidths(370, [undefined, 500, 40, 25], 4, 15)).toEqual([130, 40, 25])
+  })
+
+  it('gives a two-column table its trailing width', () => {
+    expect(tableColumnWidths(300, [undefined, 80], 2, 15)).toEqual([80])
   })
 })
 

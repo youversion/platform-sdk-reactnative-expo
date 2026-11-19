@@ -172,9 +172,7 @@ describe('VerseOfTheDay', () => {
       expect(getByText('For God so loved')).toBeTruthy()
     })
     expect(fetchStub.appKeys).toContain('test-key')
-    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3.16'))).toBe(
-      true,
-    )
+    expect(fetchStub.urls.some((url) => url.includes('/v1/bibles/3034/passages/JHN.3?'))).toBe(true)
     expect(fetchStub.urls.some((url) => url.includes('dayOfYear'))).toBe(false)
   })
 
@@ -591,7 +589,7 @@ describe('VerseOfTheDay', () => {
         dayOfYear,
       )
       await waitFor(() => {
-        expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3.16'))).toBe(true)
+        expect(fetchStub.urls.some((url) => url.includes('/passages/JHN.3?'))).toBe(true)
       })
     } finally {
       jest.useRealTimers()

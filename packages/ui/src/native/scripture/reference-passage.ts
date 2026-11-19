@@ -1,7 +1,7 @@
 import { expandPassageId } from '@youversion/platform-react-native-expo-core'
 
 import type { VersionGate } from '../../lib/version-usability'
-import { isSpacer, type Block } from './parse-passage'
+import { isPsalmTitle, isSpacer, type Block } from './parse-passage'
 import {
   passageKey,
   passageRefFor,
@@ -47,13 +47,21 @@ export function verseSpanFromPassageId(passageId: string): VerseSpan | null {
 // identity across renders: Passage's layout cache and memo key on it.
 const spanCache = new WeakMap<readonly Block[], Map<string, readonly Block[]>>()
 
-/** A verse embed shows those verses, not the chapter's section headings. */
-export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): readonly Block[] {
+/**
+ * A verse embed shows those verses, as Swift's range render does. With `headings`, a
+ * heading stays when the next verse after it is in range. A Psalm title follows the
+ * verse beside it, headings or not.
+ */
+export function blocksInSpan(
+  blocks: readonly Block[],
+  span: VerseSpan,
+  headings: boolean,
+): readonly Block[] {
   if (span.verses === null) {
     return blocks
   }
   const { start, end } = span.verses
-  const key = `${start}-${end}`
+  const key = `${start}-${end}-${headings ? 'h' : ''}`
   let bySpan = spanCache.get(blocks)
   if (bySpan === undefined) {
     bySpan = new Map()
@@ -63,22 +71,41 @@ export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): readonl
   if (cached !== undefined) {
     return cached
   }
+  const inRange = (verse: number): boolean => verse >= start && verse <= end
+  // Swift starts rendering only when the range opens the chapter.
+  let rendering = start <= 1
   const kept: Block[] = []
-  for (const block of blocks) {
+  blocks.forEach((block, index) => {
     if (block.heading) {
-      continue
+      if (isPsalmTitle(block)) {
+        if (rendering) {
+          kept.push(block)
+        }
+        return
+      }
+      // Swift also keeps one with no verse after it; an orphan heading reads as a bug.
+      const next = headings ? firstVerseFrom(blocks, index + 1) : null
+      if (next !== null && inRange(next)) {
+        kept.push(block)
+      }
+      return
+    }
+    for (const segment of block.segments) {
+      if (segment.verse !== null) {
+        rendering = inRange(segment.verse)
+      }
     }
     const segments = block.segments.filter(
-      (segment) => segment.verse !== null && segment.verse >= start && segment.verse <= end,
+      (segment) => segment.verse !== null && inRange(segment.verse),
     )
     if (segments.length === 0) {
-      continue
+      return
     }
     const verses = [
       ...new Set(segments.flatMap((segment) => (segment.verse === null ? [] : [segment.verse]))),
     ]
     kept.push({ ...block, segments, verses })
-  }
+  })
   // A spacer carries the verse before it, so one can end a range but never start one.
   let last = kept.at(-1)
   while (last !== undefined && isSpacer(last)) {
@@ -87,6 +114,19 @@ export function blocksInSpan(blocks: readonly Block[], span: VerseSpan): readonl
   }
   bySpan.set(key, kept)
   return kept
+}
+
+// The next verse that opens, as Swift's `firstVerseInNode`: a line that only carries
+// the verse before (NIV's "He said:" under a heading) does not count.
+function firstVerseFrom(blocks: readonly Block[], from: number): number | null {
+  for (const block of blocks.slice(from)) {
+    for (const segment of block.segments) {
+      if (segment.verse !== null && segment.inlines.some((inline) => inline.kind === 'label')) {
+        return segment.verse
+      }
+    }
+  }
+  return null
 }
 
 export type VersionLookupError = 'offline' | 'failed'
@@ -108,6 +148,8 @@ export type ScripturePhaseInput = {
   passage: LoadedPassage | null
   loading: boolean
   error: PassageError | null
+  /** Keep section headings in a verse range, as Swift's BibleCard does; VOTD drops them. */
+  headings: boolean
 }
 
 export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
@@ -139,7 +181,7 @@ export function scripturePhase(input: ScripturePhaseInput): ScripturePhase {
   if (!current || loaded === null) {
     return { kind: 'loading' }
   }
-  const blocks = blocksInSpan(loaded.parsed.blocks, input.span)
+  const blocks = blocksInSpan(loaded.parsed.blocks, input.span, input.headings)
   if (blocks.length === 0) {
     return input.loading ? { kind: 'loading' } : { kind: 'unavailable' }
   }
