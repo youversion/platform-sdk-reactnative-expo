@@ -318,23 +318,22 @@ describe('table columns', () => {
     throw new Error('no count column')
   }
 
-  function measureCount(width: number): void {
-    const [measurer] = countColumn().findAll((node) => node.props.onLayout !== undefined)
-    if (measurer === undefined) throw new Error('no measurer')
-    fireEvent(measurer, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } } })
+  function measurer(): ReactTestInstance {
+    const [found] = countColumn().findAll((node) => node.props.onLayout !== undefined)
+    if (found === undefined) throw new Error('no measurer')
+    return found
   }
 
-  it('measures a column again when its cells change', () => {
-    const view = renderTable([cell('his sons', 0), cell('12', 1)])
-    measureCount(20)
-    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(20)
+  function measureCount(width: number): void {
+    fireEvent(measurer(), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } } })
+  }
 
-    // Same look, new content (a note restored): the old width must not cramp it.
+  function rerenderTable(view: ReturnType<typeof render>, blocks: Block[], look: PassageLook): void {
     view.rerender(
       <LocaleProvider locale="en">
         <Passage
-          blocks={[cell('his sons', 0), cell('12', 1)]}
-          look={LOOK}
+          blocks={blocks}
+          look={look}
           selected={new Set()}
           paint={new Map()}
           focus={null}
@@ -343,6 +342,30 @@ describe('table columns', () => {
         />
       </LocaleProvider>,
     )
+  }
+
+  it('keeps a column and its measurer while the cells and look stay put', () => {
+    const blocks = [cell('his sons', 0), cell('12', 1)]
+    const view = renderTable(blocks)
+    measureCount(20)
+    const before = measurer()
+    rerenderTable(view, blocks, LOOK)
+    expect(measurer()).toBe(before)
+    expect(StyleSheet.flatten(countColumn().props.style).width).toBe(20)
+  })
+
+  // onLayout fires only on a changed frame, so a reset must remount the measurer:
+  // the widest cell's frame often stays the same and would never report again.
+  it.each([
+    ['new cells (a note restored)', [cell('his sons', 0), cell('12', 1)], LOOK],
+    ['a new look (a theme switch)', null, { ...LOOK, ink: '#111111' }],
+  ])('measures a column again from a fresh measurer after %s', (_, next, look) => {
+    const blocks = [cell('his sons', 0), cell('12', 1)]
+    const view = renderTable(blocks)
+    measureCount(20)
+    const before = measurer()
+    rerenderTable(view, next ?? blocks, look)
+    expect(measurer()).not.toBe(before)
     expect(StyleSheet.flatten(countColumn().props.style).width).toBeUndefined()
     measureCount(34)
     expect(StyleSheet.flatten(countColumn().props.style).width).toBe(34)

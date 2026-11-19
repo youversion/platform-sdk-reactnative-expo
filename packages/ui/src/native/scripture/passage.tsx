@@ -204,25 +204,27 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
   const { look, onBlockLayout } = rest
   const columns = rows[0]?.cells.length ?? 0
   // Natural widths per column. A new look or new cell content (notes or verse numbers
-  // toggled) drops them, so cells measure again unconstrained by the old width.
+  // toggled) drops them. onLayout fires only on a changed frame, so the new generation
+  // remounts the measurers and every cell reports again, the widest included.
   const [widths, setWidths] = useState<{
     look: PassageLook
     blocks: readonly Block[]
     byColumn: number[]
-  }>({ look, blocks, byColumn: [] })
-  const current = widths.look === look && widths.blocks === blocks
-  const byColumn = current ? widths.byColumn : []
+    generation: number
+  }>({ look, blocks, byColumn: [], generation: 0 })
+  if (widths.look !== look || widths.blocks !== blocks) {
+    setWidths({ look, blocks, byColumn: [], generation: widths.generation + 1 })
+  }
+  const { byColumn, generation } = widths
   const fit = (col: number, width: number): void =>
     setWidths((state) => {
-      const fresh = state.look === look && state.blocks === blocks
-      const known = fresh ? state.byColumn : []
       const next = Math.ceil(width)
-      if ((known[col] ?? 0) >= next) {
-        return fresh ? state : { look, blocks, byColumn: known }
+      if (state.generation !== generation || (state.byColumn[col] ?? 0) >= next) {
+        return state
       }
-      const grown = [...known]
+      const grown = [...state.byColumn]
       grown[col] = next
-      return { look, blocks, byColumn: grown }
+      return { ...state, byColumn: grown }
     })
 
   // Cells report y within their row; the reader needs it within the passage.
@@ -296,6 +298,7 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
             return (
               <View key={col} style={cellStyle}>
                 <View
+                  key={generation}
                   onLayout={
                     col === 0 ? undefined : (event) => fit(col, event.nativeEvent.layout.width)
                   }
