@@ -191,6 +191,37 @@ const TABLE_PAD = 16
 const TABLE_COLUMN_GAP = 15
 const TABLE_ROW_GAP = 10
 
+/**
+ * Widths for columns 1…n-1, shared out like Swift's Grid: the last column keeps its
+ * natural width, each middle column takes at most an even share of what is left (the
+ * narrowest first), and column 0 gets the rest. Null until every column is measured.
+ */
+export function tableColumnWidths(
+  room: number,
+  natural: readonly (number | undefined)[],
+  columns: number,
+  gap: number,
+): number[] | null {
+  const later = Array.from({ length: Math.max(columns - 1, 0) }, (_, i) => natural[i + 1])
+  const measured = later.flatMap((width) => (width === undefined ? [] : [width]))
+  if (measured.length !== later.length) {
+    return null
+  }
+  const widths = [...measured]
+  const trailing = widths.length - 1
+  let left = room - gap * (columns - 1) - (widths[trailing] ?? 0)
+  // Column 0 is always one of the columns still waiting for a share.
+  let waiting = columns - 1
+  const middle = widths.slice(0, trailing).map((width, i) => ({ width, i }))
+  for (const { width, i } of middle.sort((a, b) => a.width - b.width)) {
+    const share = Math.max(left, 0) / waiting
+    widths[i] = Math.min(width, share)
+    left -= widths[i]
+    waiting -= 1
+  }
+  return widths
+}
+
 type PassageTableProps = Omit<PassageProps, 'blocks'> & {
   rows: readonly TableRow[]
   blocks: readonly Block[]
@@ -220,6 +251,9 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
     setWidths({ look, blocks, byColumn: [], generation: widths.generation + 1 })
   }
   const { byColumn, generation } = widths
+  // The width inside the table's padding, from its own layout.
+  const [room, setRoom] = useState<number | null>(null)
+  const shared = room === null ? null : tableColumnWidths(room, byColumn, columns, TABLE_COLUMN_GAP)
   const fit = (col: number, width: number): void =>
     setWidths((state) => {
       const next = Math.ceil(width)
@@ -270,6 +304,7 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
     <View
       onLayout={(event) => {
         layout.current.table = event.nativeEvent.layout.y
+        setRoom(event.nativeEvent.layout.width - TABLE_PAD * 2)
         emitAll()
       }}
       style={{ paddingHorizontal: TABLE_PAD, paddingVertical: TABLE_PAD - leading / 2 }}
@@ -294,12 +329,16 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
         >
           {row.cells.map((index, col) => {
             const last = col === columns - 1 && col > 0
-            const width = byColumn[col]
-            // Until measured, a column takes its cell's own width.
+            // Until every column is measured, a column takes its cell's own width.
+            const width = shared === null ? byColumn[col] : shared[col - 1]
             const cellStyle: ViewStyle =
               col === 0
                 ? { flex: 1, minWidth: 0 }
-                : { marginStart: TABLE_COLUMN_GAP, flexShrink: last ? 0 : 1, width }
+                : {
+                    marginStart: TABLE_COLUMN_GAP,
+                    flexShrink: last || shared !== null ? 0 : 1,
+                    width,
+                  }
             const block = index === null ? undefined : blocks[index]
             if (index === null || block === undefined) {
               return <View key={col} style={cellStyle} />
