@@ -3,6 +3,7 @@ import { isValidElement } from 'react'
 import { StyleSheet } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
+import en from '../../../i18n/locales/en.json'
 import { LocaleProvider } from '../../../i18n/locale-context'
 import { parsePassage, type Block } from '../parse-passage'
 import {
@@ -308,6 +309,30 @@ describe('verse labels', () => {
     // One joiner per label: verses 7 and 8.
     expect(screen.getAllByText('\u2060')).toHaveLength(2)
     expect(screen.getByText('Cyrus king')).toBeTruthy()
+  })
+
+  it('joins a note marker to the word before it', () => {
+    const html =
+      '<div><div class="p"><span class="yv-v" v="14"></span><span class="yv-vlbl">14</span>' +
+      'to Jesarelah,<span class="yv-n f"><span class="ft">Or Asarelah</span></span></div></div>'
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={parsePassage(html).blocks}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+          onBlockLayout={() => undefined}
+          onBlockRef={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    // One for the label, one for the note.
+    expect(screen.getAllByText('\u2060')).toHaveLength(2)
+    expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
   })
 })
 

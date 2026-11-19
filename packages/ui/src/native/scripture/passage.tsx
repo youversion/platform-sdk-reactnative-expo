@@ -120,7 +120,7 @@ const BAND_DESCENT = 0.26
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
 // An inline view is a break opportunity on both sides; this keeps a verse label on the
-// line of its first word, as Swift does.
+// line of its first word, and a note marker on the line of its last, as Swift does.
 const WORD_JOINER = '\u2060'
 
 // The real text, the selection underline, and the highlight backdrop. Bright and
@@ -402,7 +402,7 @@ const BlockView = memo(function BlockView({
     dimmed: boolean,
     layer: Layer,
     last: boolean,
-    afterLabel: boolean,
+    after: Inline['kind'] | undefined,
   ): ReactNode => {
     const ghost = layer !== 'text'
     const fill = verse === null ? undefined : paint.get(verse)
@@ -461,30 +461,36 @@ const BlockView = memo(function BlockView({
     if (inline.kind === 'note') {
       const size = fontSize * NOTE_SCALE
       return (
-        <Pressable
-          key={key}
-          hitSlop={8}
-          disabled={ghost}
-          accessibilityRole="button"
-          accessibilityLabel={t('footnoteAriaLabel')}
-          onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
-          style={{ ...box, paddingStart: fontSize * NOTE_LEAD, paddingEnd: fontSize * NOTE_TRAIL }}
-        >
-          {boxFill}
-          <View
+        <Fragment key={key}>
+          {after === 'text' && <RNText>{WORD_JOINER}</RNText>}
+          <Pressable
+            hitSlop={8}
+            disabled={ghost}
+            accessibilityRole="button"
+            accessibilityLabel={t('footnoteAriaLabel')}
+            onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
             style={{
-              width: size,
-              height: size,
-              transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+              ...box,
+              paddingStart: fontSize * NOTE_LEAD,
+              paddingEnd: fontSize * NOTE_TRAIL,
             }}
           >
-            {!ghost && (
-              <Svg width={size} height={size} viewBox="0 0 20 20">
-                <Path d={NOTE_ICON} fill={color(palette.gray20, 1, dimmed)} fillRule="evenodd" />
-              </Svg>
-            )}
-          </View>
-        </Pressable>
+            {boxFill}
+            <View
+              style={{
+                width: size,
+                height: size,
+                transform: [{ translateY: drift - BOX_SHIFT - fontSize * NOTE_RISE }],
+              }}
+            >
+              {!ghost && (
+                <Svg width={size} height={size} viewBox="0 0 20 20">
+                  <Path d={NOTE_ICON} fill={color(palette.gray20, 1, dimmed)} fillRule="evenodd" />
+                </Svg>
+              )}
+            </View>
+          </Pressable>
+        </Fragment>
       )
     }
     const chars = resolveChars(inline.classes)
@@ -523,7 +529,7 @@ const BlockView = memo(function BlockView({
     const text = inline.text.slice(0, inline.text.length - trailing.length)
     return (
       <Fragment key={key}>
-        {afterLabel && <RNText>{WORD_JOINER}</RNText>}
+        {after === 'label' && <RNText>{WORD_JOINER}</RNText>}
         <RNText
           style={{
             ...look.face(weight, chars.italic ?? rule.italic),
@@ -627,7 +633,7 @@ const BlockView = memo(function BlockView({
                   dimmed,
                   layer,
                   i === segment.inlines.length - 1,
-                  segment.inlines[i - 1]?.kind === 'label',
+                  segment.inlines[i - 1]?.kind,
                 ),
               )}
             </RNText>
