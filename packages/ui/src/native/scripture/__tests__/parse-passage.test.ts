@@ -496,6 +496,15 @@ describe('collectVerses', () => {
     expect(verses.get(1)?.html).toBe('LORD, how many')
   })
 
+  it('gives a numbered Psalm title to its own verse, not the next one', () => {
+    const { verses } = parsePassage(
+      '<div><div class="d"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>A prayer of Habakkuk.</div>' +
+        '<div class="q1"><span class="yv-v" v="2"></span><span class="yv-vlbl">2</span>LORD, I have heard</div></div>',
+    )
+    expect(verses.get(1)?.text).toBe('A prayer of Habakkuk.')
+    expect(verses.get(2)?.text).toBe('LORD, I have heard')
+  })
+
   it('keeps the character classes in the footnote-sheet verse html', () => {
     const html =
       '<div><div class="p"><span class="yv-v" v="5"></span><span class="yv-vlbl">5</span>' +

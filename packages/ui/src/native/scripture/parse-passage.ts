@@ -602,7 +602,11 @@ export function collectVerses(blocks: readonly Block[]): Map<number, VerseInfo> 
   let opening: string[] = []
   let last: number | null = null
   for (const block of blocks) {
-    if (block.heading) {
+    // A title some versions number as its own verse is that verse's text.
+    const numbered =
+      isPsalmTitle(block) &&
+      block.segments.some((segment) => segment.verse !== null && segment.verse !== last)
+    if (block.heading && !numbered) {
       const text = isPsalmTitle(block) ? plainText(block) : ''
       if (text !== '' && last === null) {
         opening.push(text)
