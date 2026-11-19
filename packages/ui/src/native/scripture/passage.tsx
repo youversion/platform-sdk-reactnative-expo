@@ -359,11 +359,11 @@ const BlockView = memo(function BlockView({
   const [measure, setMeasure] = useState<Measure>(() => {
     const kept = measures.get(block)
     if (kept?.look === look) {
-      return { ...kept, originX: kept.originX ?? 0 }
+      return { ...kept, originX: kept.originX ?? 0, textWidth: kept.textWidth ?? null }
     }
-    return { look, lines: [], size: { width: 0, height: 0 }, space: 0, originX: 0 }
+    return { look, lines: [], size: { width: 0, height: 0 }, space: 0, originX: 0, textWidth: null }
   })
-  const { lines, size, space, originX } = measure
+  const { lines, size, space, originX, textWidth } = measure
   const endAligned = rule.align === 'end'
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
@@ -553,7 +553,11 @@ const BlockView = memo(function BlockView({
       paddingStart: rule.headIndent + rule.alignInset.start + highlightEndRoom(look.fontSize),
       paddingEnd: rule.alignInset.end + highlightEndRoom(look.fontSize),
     }
-    if (endAligned) {
+    if (ghost && textWidth !== null) {
+      // A shrink-wrapped block (a table cell) can round a fraction under its text, which
+      // would wrap a ghost ("2,172" as "2,17" / "2") off its line. Copy the real width.
+      paragraphStyle.width = textWidth
+    } else if (endAligned) {
       paragraphStyle.flexShrink = 1
       paragraphStyle.maxWidth = '100%'
     }
@@ -562,12 +566,13 @@ const BlockView = memo(function BlockView({
         ref={ghost || onBlockRef === undefined ? undefined : (node) => onBlockRef(index, node)}
         onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
         onLayout={
-          ghost || !endAligned
+          ghost || (!endAligned && !measured)
             ? undefined
             : (event) => {
-                const x = event.nativeEvent.layout.x
-                if (originX !== x) {
-                  update({ originX: x })
+                const { width } = event.nativeEvent.layout
+                const x = endAligned ? event.nativeEvent.layout.x : 0
+                if (originX !== x || textWidth !== width) {
+                  update({ originX: x, textWidth: width })
                 }
               }
         }
@@ -832,6 +837,8 @@ type Measure = {
   space: number
   /** Left edge of shrink-wrapped end-aligned text inside the block; 0 when full width. */
   originX: number
+  /** Laid-out width of the real paragraph, which its ghosts copy; null until measured. */
+  textWidth: number | null
 }
 
 // Last layout per parsed block, valid while its look holds.

@@ -328,7 +328,11 @@ describe('table columns', () => {
     fireEvent(measurer(), 'layout', { nativeEvent: { layout: { x: 0, y: 0, width, height: 20 } } })
   }
 
-  function rerenderTable(view: ReturnType<typeof render>, blocks: Block[], look: PassageLook): void {
+  function rerenderTable(
+    view: ReturnType<typeof render>,
+    blocks: Block[],
+    look: PassageLook,
+  ): void {
     view.rerender(
       <LocaleProvider locale="en">
         <Passage
@@ -369,5 +373,60 @@ describe('table columns', () => {
     expect(StyleSheet.flatten(countColumn().props.style).width).toBeUndefined()
     measureCount(34)
     expect(StyleSheet.flatten(countColumn().props.style).width).toBe(34)
+  })
+
+  // A shrink-wrapped cell can round a fraction under its text; a ghost at the cell's
+  // width then wraps ("2,172" as "2,17" / "2") and its fill misses the line window.
+  it('lays a painted cell ghost out at the real text width', () => {
+    const count: Block = {
+      ...cell('2,172', 1),
+      verses: [3],
+      segments: [{ verse: 3, inlines: [{ kind: 'text', text: '2,172', classes: [] }] }],
+    }
+    render(
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={[cell('of Parosh', 0), count]}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map([[3, { background: '#ffff00', text: null }]])}
+          focus={null}
+          onVersePress={() => undefined}
+          onNotePress={() => undefined}
+        />
+      </LocaleProvider>,
+    )
+    const paragraphs = (): ReactTestInstance[] =>
+      screen.getAllByText('2,172', { includeHiddenElements: true }).map((node) => {
+        let current: ReactTestInstance | null = node
+        while (
+          current !== null &&
+          StyleSheet.flatten(current.props.style)?.textAlign === undefined
+        ) {
+          current = current.parent
+        }
+        if (current === null) throw new Error('no paragraph')
+        return current
+      })
+    const [real] = paragraphs()
+    if (real === undefined) throw new Error('no real paragraph')
+    const line = {
+      text: '2,172',
+      x: 0,
+      y: 0,
+      width: 41.27,
+      height: 30,
+      descender: 8,
+      capHeight: 12,
+      ascender: 21,
+      xHeight: 8,
+    }
+    fireEvent(real, 'textLayout', { nativeEvent: { lines: [line] } })
+    fireEvent(real, 'layout', { nativeEvent: { layout: { x: 0, y: 0, width: 44.87, height: 30 } } })
+    const ghostWidths = paragraphs()
+      .filter((node) => node.props.onLayout === undefined)
+      .map((node) => StyleSheet.flatten(node.props.style).width)
+    expect(ghostWidths.length).toBeGreaterThan(0)
+    expect(new Set(ghostWidths)).toEqual(new Set([44.87]))
   })
 })
