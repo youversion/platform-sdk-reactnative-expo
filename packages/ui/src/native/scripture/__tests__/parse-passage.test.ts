@@ -525,6 +525,19 @@ describe('parsePassage tables', () => {
     expect(blocks[6]?.verses).toEqual([6])
   })
 
+  it('drops the empty b paragraphs NIV puts around a table, and keeps an empty cell', () => {
+    const wrapped = parsePassage(
+      '<div><div class="p">Before</div><div class="b"></div><div class="mi">The priests:</div>' +
+        '<div class="b"></div><table><tr><td>a</td><td></td></tr></table><div class="b"></div></div>',
+    ).blocks
+    expect(wrapped.map((block) => [words([block]), block.table?.col ?? null])).toEqual([
+      ['Before', null],
+      ['The priests:', null],
+      ['a', 0],
+      ['', 1],
+    ])
+  })
+
   it('splits a paragraph around a nested table', () => {
     const nested = parsePassage(
       '<div><div class="p"><span class="yv-v" v="1"></span><span class="yv-vlbl">1</span>Before' +

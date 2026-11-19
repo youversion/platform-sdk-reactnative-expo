@@ -179,6 +179,12 @@ function walk(doc: Document): Block[] {
     }
 
     function flush(): void {
+      // Swift emits no block for an empty paragraph (`b`, the blank line NIV puts around
+      // tables). Empty cells stay: they hold their column.
+      if (table === undefined && segments.length === 0) {
+        movedSpace = null
+        return
+      }
       if (table !== undefined || split) {
         // Swift trims a cell's trailing whitespace; the HTML's leading space goes too.
         trimEdges(segments)

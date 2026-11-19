@@ -27,6 +27,7 @@ import {
   blockMarginBottom,
   collapsedMarginTop,
   LABEL_SCALE,
+  lineLeading,
   lineMultiple,
   resolveBlock,
   resolveChars,
@@ -182,7 +183,7 @@ type TableLayout = {
   report: PassageProps['onBlockLayout']
 }
 
-// Swift's table grid: `.padding()`, 15pt between columns, 10pt between rows.
+// Swift's table grid: `.padding()`, 15pt between columns, 10pt between text rows.
 const TABLE_PAD = 16
 const TABLE_COLUMN_GAP = 15
 const TABLE_ROW_GAP = 10
@@ -258,6 +259,9 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
     [emit],
   )
   const reportsLayout = onBlockLayout === undefined ? undefined : onCellLayout
+  // Swift's cells carry leading only between lines; take back the half each cell's
+  // line box adds above and below, so rows sit at Swift's pitch.
+  const leading = lineLeading(look.fontSize, look.lineMultiple)
 
   return (
     <View
@@ -265,7 +269,7 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
         layout.current.table = event.nativeEvent.layout.y
         emitAll()
       }}
-      style={{ padding: TABLE_PAD }}
+      style={{ paddingHorizontal: TABLE_PAD, paddingVertical: TABLE_PAD - leading / 2 }}
     >
       {rows.map((row, r) => (
         <View
@@ -277,7 +281,7 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
           style={{
             flexDirection: 'row',
             alignItems: 'flex-start',
-            marginTop: r === 0 ? 0 : TABLE_ROW_GAP,
+            marginTop: r === 0 ? 0 : TABLE_ROW_GAP - leading,
           }}
         >
           {row.cells.map((index, col) => {
