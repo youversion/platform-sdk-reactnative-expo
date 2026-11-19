@@ -537,6 +537,27 @@ describe('parsePassage tables', () => {
     expect(blocks[6]?.verses).toEqual([6])
   })
 
+  it('keeps a mid-cell footnote against its word, with the text after it', () => {
+    // NIV Ezra 2:25.
+    const cell = parsePassage(
+      '<div><table><tr><td><span class="yv-v" v="25"></span><span class="yv-vlbl">25</span>of Kiriath Jearim,' +
+        '<span class="yv-n f"><span class="fr">2:25 </span><span class="ft">Hebrew </span></span> Kephirah</td>' +
+        '<td>743</td></tr></table></div>',
+    ).blocks
+    expect(cell[0] && lineKinds(cell[0])).toEqual(['label', 'text', 'note', 'text'])
+    expect(words(cell.slice(0, 1))).toBe('[25]of Kiriath Jearim,* Kephirah')
+  })
+
+  it('drops a cross-reference in a middle cell, as Swift does', () => {
+    // TSI Numbers 2: the leader column carries the xref.
+    const row = parsePassage(
+      '<div><table><tr><td>Gad</td><td>Eliasaf anak Rehuel<span class="yv-n x">' +
+        '<span class="ref" usfm="NUM.1.14">Bil 1:14</span> CK</span></td><td>45.650</td></tr></table></div>',
+    ).blocks
+    expect(row.map((block) => block.table?.col)).toEqual([0, 1, 2])
+    expect(words(row.slice(1, 2))).toBe('Eliasaf anak Rehuel')
+  })
+
   it('keeps the blank b lines NIV puts around a table as spacers, and keeps an empty cell', () => {
     const wrapped = parsePassage(
       '<div><div class="p">Before</div><div class="b"></div><div class="mi">The priests:</div>' +
