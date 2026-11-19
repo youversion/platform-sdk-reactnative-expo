@@ -279,7 +279,12 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
           key={row.row}
           onLayout={(event) => {
             layout.current.rows.set(row.row, event.nativeEvent.layout.y)
-            emitAll()
+            // Only this row moved; the table's own onLayout covers the rest.
+            for (const index of row.cells) {
+              if (index !== null) {
+                emit(index)
+              }
+            }
           }}
           style={{
             flexDirection: 'row',
