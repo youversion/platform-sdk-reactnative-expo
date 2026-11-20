@@ -76,7 +76,7 @@ function depthOf(
 export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImageStackProps) {
   const tokens = useTokens()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Several cards can be in flight at once, so a quick second tap shuffles instead of waiting.
+  // Several cards can be in flight at once, so a quick second swipe shuffles instead of waiting.
   const [flights, setFlights] = useState<Flights>({})
   const [reduceMotion, setReduceMotion] = useState(false)
   const [stage, setStage] = useState<Size>({ width: 280, height: 280 / 0.85 })
@@ -190,6 +190,7 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
               isTop={depth === 0}
               alone={images.length < 2}
               onLeave={onLeave}
+              onOpen={onOpen}
               onReturned={onReturned}
               onShuffle={shuffle}
               restAngle={index % 2 === 0 ? 4 : -5}
@@ -238,7 +239,7 @@ function positionLabel(count: number, selectedIndex: number): string {
   if (count === 0) return 'No images'
   const position = `${selectedIndex + 1} of ${count}`
   if (count === 1) return position
-  return `${position} · Tap or swipe for more`
+  return `${position} · Swipe for more`
 }
 
 function indicatorImages(
@@ -263,6 +264,7 @@ type StackCardProps = {
   restAngle: number
   // Fade in when the card joins an already-mounted stack, like a SwiftUI insertion.
   appear: boolean
+  onOpen: (image: YouVersionImage) => void
   onShuffle: (direction: Direction) => void
   onLeave: (imageId: string, token: number) => void
   onReturned: (imageId: string, token: number) => void
@@ -277,6 +279,7 @@ function StackCard({
   stage,
   restAngle,
   appear,
+  onOpen,
   onShuffle,
   onLeave,
   onReturned,
@@ -391,10 +394,11 @@ function StackCard({
       y.value = withSpring(0, { duration: 300, dampingRatio: 1 })
     })
 
+  // A tap opens the full-screen viewer; only a swipe shuffles.
   const tap = Gesture.Tap()
     .enabled(isTop && phase === 'idle')
     .onEnd(() => {
-      runOnJS(onShuffle)(-1)
+      runOnJS(onOpen)(image)
     })
 
   return (
