@@ -241,6 +241,38 @@ export function collectionsByTitle<Collection extends { readonly title: string }
   return collections.slice().sort((left, right) => left.title.localeCompare(right.title))
 }
 
+export type ListedCollection = {
+  readonly id: string
+  readonly playlistId: number
+  readonly title: string
+  readonly description: string | null
+  readonly total: number | null
+  readonly videoIds: readonly string[]
+}
+
+type PlaylistRecord = {
+  readonly id?: number
+  readonly title?: string
+  readonly description?: string | null
+  readonly total?: number
+  readonly videos?: readonly string[]
+}
+
+/** A playlist the library can open. Rows without an id or a title are dropped. */
+export function listedCollection(playlist: PlaylistRecord): ListedCollection | null {
+  if (playlist.id === undefined || !Number.isInteger(playlist.id)) return null
+  const title = playlist.title?.trim()
+  if (title === undefined || title === '') return null
+  return {
+    id: String(playlist.id),
+    playlistId: playlist.id,
+    title,
+    description: playlist.description ?? null,
+    total: playlist.total ?? null,
+    videoIds: playlist.videos ?? [],
+  }
+}
+
 export function collectionShareText(
   title: string | null,
   shareUrls: readonly (string | null | undefined)[],

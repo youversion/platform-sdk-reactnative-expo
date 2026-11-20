@@ -8,3 +8,12 @@ export async function shareImageUrl(url: string): Promise<void> {
     return
   }
 }
+
+/** Share text with the platform sheet. Dismissing the sheet is not an error. */
+export async function shareMessage(message: string): Promise<void> {
+  try {
+    await Share.share({ message })
+  } catch {
+    return
+  }
+}

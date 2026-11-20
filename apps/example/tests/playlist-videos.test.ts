@@ -6,6 +6,7 @@ import {
   fetchPlaylistVideoOutcomes,
   firstPlaylistVideoError,
   formatRuntime,
+  listedCollection,
   orderedPlaylistVideos,
   playbackSourceUrl,
   playlistLanguageTags,
@@ -30,9 +31,7 @@ describe('playlist video metadata', () => {
   it('keeps loaded videos visible, skips them on retry, and fills the gap in playlist order', async () => {
     const requestedIds = ['verse-a', 'verse-b', 'verse-c']
     const calls: string[] = []
-    let resolved = new Map<string, LoadedVideo>([
-      ['verse-a', video('response-a', 30, 'en')],
-    ])
+    let resolved = new Map<string, LoadedVideo>([['verse-a', video('response-a', 30, 'en')]])
 
     const firstPending = unresolvedPlaylistVideoIds(requestedIds, resolved)
     const firstOutcomes = await fetchPlaylistVideoOutcomes(firstPending, async (requestedId) => {
@@ -130,6 +129,30 @@ describe('playlist video metadata', () => {
     assert.equal(playlistRuntimeSeconds(requestedIds, complete), 75)
     assert.deepEqual(playlistLanguageTags(requestedIds, partial), ['en'])
     assert.deepEqual(playlistLanguageTags(requestedIds, complete), ['en', 'es'])
+  })
+})
+
+describe('collection rows', () => {
+  it('keeps a titled playlist and drops one the library cannot open', () => {
+    assert.deepEqual(
+      listedCollection({
+        id: 12,
+        title: ' Featured ',
+        description: null,
+        total: 2,
+        videos: ['a', 'b'],
+      }),
+      {
+        id: '12',
+        playlistId: 12,
+        title: 'Featured',
+        description: null,
+        total: 2,
+        videoIds: ['a', 'b'],
+      },
+    )
+    assert.equal(listedCollection({ title: 'Missing id' }), null)
+    assert.equal(listedCollection({ id: 4, title: '   ' }), null)
   })
 })
 
