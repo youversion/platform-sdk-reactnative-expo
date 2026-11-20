@@ -63,6 +63,10 @@ export function emptySearch(): UseSearchResult {
     verses: async () => ({ ok: true, value: { verses: [], didYouMean: [] } }),
     topics: async () => ({ ok: true, value: { topics: [], didYouMean: [], totalSize: 0 } }),
     images: async () => ({ ok: true, value: { images: [], nextPageToken: null } }),
+    videos: async () => ({
+      ok: true,
+      value: { videos: [], didYouMean: [], searchInsteadFor: null, nextPageToken: null },
+    }),
   }
 }
 
