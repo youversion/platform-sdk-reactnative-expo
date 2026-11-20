@@ -50,7 +50,7 @@
   "offlineDownloadTagline": "Đọc bất cứ lúc nào, bất cứ nơi đâu—kể cả ngoại tuyến",
   "passageUnavailable": "Đoạn văn này không có trong phiên bản Kinh Thánh đã chọn.",
   "previousChapterAriaLabel": "Chương trước",
-  "regional": "Khu vực",
+  "regional": "Khu Vực",
   "retry": "Thử lại",
   "search": "Tìm kiếm",
   "searchLanguages": "Tìm Kiếm Ngôn Ngữ",
@@ -81,7 +81,7 @@
   "recentlyUsedVersionsHeading": "Bản Dịch Gần Đây",
   "changeLineSpacingAriaLabel": "Thay đổi khoảng cách dòng",
   "decreaseFontSizeAriaLabel": "Giảm cỡ chữ",
-  "footnoteAriaLabel": "Chú thích",
+  "footnoteAriaLabel": "Chú thích cuối trang",
   "increaseFontSizeAriaLabel": "Tăng cỡ chữ",
   "interFontName": "Inter",
   "untitledSerifFontName": "Phông chữ Untitled Serif"
