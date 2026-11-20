@@ -25,7 +25,7 @@ export default function ExamplesScreen() {
       <ScrollView contentContainerStyle={styles.list}>
         {examples.map((example) => (
           <Link key={example.title} href={example.href} asChild>
-            <Pressable accessibilityRole="button" style={StyleSheet.flatten([styles.row])}>
+            <Pressable accessibilityRole="button" style={styles.row}>
               <Text style={[styles.rowLabel, { color: theme.fg }]}>{example.title}</Text>
               <View style={[styles.separator, { backgroundColor: theme.separator }]} />
             </Pressable>
