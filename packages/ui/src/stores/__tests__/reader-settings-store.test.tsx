@@ -1,8 +1,8 @@
 import { act, renderHook } from '@testing-library/react-native'
-import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
+import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { useShallow } from 'zustand/react/shallow'
 
-import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
+import { BIBLE_READER_FONT } from '../../lib/bible-reader-settings'
 import { READER_SETTINGS_PERSIST_KEY } from '../../lib/constants'
 import { INTER_FONT, SOURCE_SERIF_FONT, UNTITLED_SERIF_FONT } from '../../lib/reader-fonts'
 import { useReaderSettingsStore } from '../reader-settings-store'

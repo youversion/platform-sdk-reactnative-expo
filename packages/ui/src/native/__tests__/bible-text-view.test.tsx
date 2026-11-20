@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import type { UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, Text, View, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
@@ -349,11 +349,7 @@ describe('BibleTextView', () => {
           })
         : undefined,
     )
-    serveOnly(
-      'JHN.3.16',
-      passageHtml(verseBlock(16, `${HEBREW}${note}`)),
-      'John 3:16',
-    )
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, `${HEBREW}${note}`)), 'John 3:16')
     try {
       render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
         wrapper: youVersionProviderWrapper(),
@@ -364,7 +360,9 @@ describe('BibleTextView', () => {
       )
 
       fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
-      await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
+      await waitFor(() =>
+        expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'),
+      )
     } finally {
       restore()
     }
@@ -381,11 +379,7 @@ describe('BibleTextView', () => {
           })
         : undefined,
     )
-    serveOnly(
-      'JHN.3.16',
-      passageHtml(verseBlock(16, `${HEBREW}${note}`)),
-      'John 3:16',
-    )
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, `${HEBREW}${note}`)), 'John 3:16')
     try {
       render(<BibleTextView reference="JHN.3.16" versionId={3034} scriptureDirection="ltr" />, {
         wrapper: youVersionProviderWrapper(),
@@ -433,7 +427,9 @@ describe('BibleTextView', () => {
         expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('rtl'),
       )
       fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
-      await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
+      await waitFor(() =>
+        expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'),
+      )
 
       view.rerender(<BibleTextView reference="JHN.3.16" versionId={111} />)
       await waitFor(() => {

@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'

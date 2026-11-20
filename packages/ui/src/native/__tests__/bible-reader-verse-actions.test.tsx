@@ -12,7 +12,7 @@ import type {
   UseHighlightsOptions,
 } from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
-import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../lib/bible-ui-types'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
@@ -581,9 +581,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
  * `NativeSheet` that renders on web would show a sheet on a surface this SDK
  * does not support.
  *
- * The web `verseActions` value is pinned at layer 1 in
- * `lib/__tests__/resolve-verse-actions.test.ts`. It is read once at module load,
- * so flipping `Platform.OS` inside a test cannot move it.
+ * The sheet is not mounted on web. `onVerseSelect` still fires there.
  */
 describe('BibleReader verse action sheet — web', () => {
   const originalOs = Platform.OS
@@ -618,7 +616,7 @@ describe('BibleReader verse action sheet — web', () => {
     await selectVerses()
 
     // The sheet is the only thing web gives up. `onVerseSelect` is a public prop
-    // on every platform, and the popover fires it exactly as the sheet path does.
+    // on every platform.
     expect(onVerseSelect).toHaveBeenCalledWith(SELECTION)
   })
 })

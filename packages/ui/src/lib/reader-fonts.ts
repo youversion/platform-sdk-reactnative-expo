@@ -2,8 +2,9 @@
  * Mirrors the font-family constants in `@youversion/platform-react-ui`'s
  * `lib/verse-html-utils`, which are not re-exported from the package's
  * public entry. Native settings compare the selected font to these strings
- * in `BibleReaderSettingsContent`. The same strings still cross the Expo DOM
- * bridge, and the DOM component decodes them before the Web SDK sees them.
+ * in `BibleReaderSettingsContent`. The reader passes the raw family. The
+ * encode and decode helpers below remain for any DOM surface that still
+ * needs a quote-free token.
  */
 export const INTER_FONT = '"Inter", sans-serif' as const
 export const UNTITLED_SERIF_FONT = '"Untitled Serif", "Source Serif 4", serif' as const

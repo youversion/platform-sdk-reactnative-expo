@@ -7,13 +7,6 @@ import {
   type HighlightColor,
   type HighlightScope,
 } from '@youversion/platform-react-native-expo-core'
-import type {
-  BibleChapterPickerPressData,
-  BibleReaderShareData,
-  BibleReaderVerseSelection,
-  BibleVersionPickerPressData,
-  FootnoteData,
-} from '@youversion/platform-react-ui'
 import * as Clipboard from 'expo-clipboard'
 import type { DOMProps } from 'expo/dom'
 import * as WebBrowser from 'expo-web-browser'
@@ -37,14 +30,19 @@ import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbrevia
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { useLocale } from '../i18n/locale-context'
 import { adjacentBookChapter, chapterLabelForBook } from '../lib/bible-book-title'
+import type {
+  BibleChapterPickerPressData,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
+  BibleVersionPickerPressData,
+  FootnoteData,
+} from '../lib/bible-ui-types'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
-import { encodeFontFamilyForDom } from '../lib/reader-fonts'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
   reportHighlightWriteError,
   type HighlightWriteError,
 } from '../lib/report-highlight-write-error'
-import { resolveVerseActions } from '../lib/resolve-verse-actions'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
@@ -79,9 +77,6 @@ const EMPTY_FOOTNOTE: FootnoteData = {
 
 const DEFAULT_BOOK = 'JHN'
 const DEFAULT_CHAPTER = '1'
-
-// Computed once: `Platform.OS` cannot change at runtime.
-const VERSE_ACTIONS = resolveVerseActions(Platform.OS)
 
 /**
  * A swatch press the reader holds while it asks the user something. The press
@@ -122,11 +117,7 @@ function sameScope(a: HighlightScope, b: HighlightScope): boolean {
   return a.versionId === b.versionId && a.book === b.book && a.chapter === b.chapter
 }
 
-/**
- * Re-exported so an `onVerseSelect` handler can be typed without depending on
- * `@youversion/platform-react-ui` directly.
- */
-export type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+export type { BibleReaderShareData, BibleReaderVerseSelection } from '../lib/bible-ui-types'
 export type { HighlightWriteError } from '../lib/report-highlight-write-error'
 
 /**
@@ -151,28 +142,13 @@ export type BibleReaderHandle = {
 
 export type BibleReaderProps = Omit<
   BibleReaderBodyProps,
-  | 'appKey'
   | 'highlights'
-  // Picked per platform by `VERSE_ACTIONS` above, not a consumer choice.
-  | 'verseActions'
   | 'fontSize'
   | 'fontFamily'
   | 'lineSpacing'
-  | 'onFontSizeChange'
-  | 'onFontFamilyChange'
-  | 'onLineSpacingChange'
-  | 'onOpenBibleThemeSettings'
   | 'onFootnotePress'
-  | 'onVersionPickerPress'
-  | 'theme'
-  | 'style'
-  | 'apiHost'
-  | 'installationId'
   | 'fetchBibleContent'
-  | 'onSignInPress'
-  | 'onSignOutPress'
   | 'onExternalLinkPress'
-  | 'userInfo'
   // The reader owns its bottom scroll padding (tab bar + home indicator on iOS).
   | 'bottomScrollPadding'
   | 'verseFocus'
@@ -186,6 +162,11 @@ export type BibleReaderProps = Omit<
   defaultBook?: string
   defaultChapter?: string
   defaultVersionId?: number
+  showToolbar?: boolean
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+  onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
   /**
@@ -221,7 +202,10 @@ export type BibleReaderProps = Omit<
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
    */
   dom?: DOMProps
-}
+} & (
+    | { includeAuth: true; authRedirectUrl: string }
+    | { includeAuth?: false; authRedirectUrl?: never }
+  )
 
 export function BibleReader({
   theme,
@@ -257,15 +241,13 @@ export function BibleReader({
 }: BibleReaderProps): ReactNode {
   const context = useYouVersion()
   const { lng } = useLocale()
-  // Read for `userInfo`, `signIn`, and the sign-out guard. The access token stays out of the chapter.
+  // Read for sign-in and the sign-out guard. The access token stays out of the chapter.
   const auth = useYVAuthOptional()
-  const userInfo = auth?.userInfo ?? null
   const signIn = auth?.signIn
   const guardedSignOut = useSignOutGuard(auth)
   const resolvedTheme = useTheme(theme)
 
-  const { setFontFamily, setFontSize, setLineSpacing, fontSize, fontFamily, lineSpacing } =
-    useReaderSettingsStore()
+  const { fontSize, fontFamily, lineSpacing } = useReaderSettingsStore()
 
   const {
     book: storedBook,
@@ -688,18 +670,6 @@ export function BibleReader({
     setIsSettingsSheetOpen(true)
   }
 
-  const handleBookChange = async (b: string) => {
-    setBook(b)
-  }
-
-  const handleChapterChange = async (c: string) => {
-    setChapter(c)
-  }
-
-  const handleVersionChange = async (id: number) => {
-    setVersionId(id)
-  }
-
   const onFootnotePress =
     Platform.OS !== 'web'
       ? (consumerOnFootnotePress ??
@@ -784,10 +754,6 @@ export function BibleReader({
     Platform.OS !== 'web' && showToolbar && !consumerOnVersionPickerPress
   const showSettingsSheet = Platform.OS !== 'web' && showToolbar
 
-  const authProps = context.authRedirectUrl
-    ? ({ includeAuth: true, authRedirectUrl: context.authRedirectUrl } as const)
-    : ({} as const)
-
   // Pad the chapter so the closing copyright clears the tab bar and home indicator.
   // NativeTabs adjusts ScrollViews automatically, but the reader opts out. Clearance is owned here.
   const { bottom: bottomSafeArea } = useSafeAreaInsets()
@@ -856,46 +822,25 @@ export function BibleReader({
           ) : null}
           <View style={{ flex: 1 }}>
             <BibleReaderNative
-              {...authProps}
-              appKey={context.appKey}
-              apiHost={context.apiHost}
-              installationId={context.installationId}
               fetchBibleContent={context.fetchBibleContent}
               permittedVersionIds={context.permittedVersionIds}
               excludedVersionIds={context.excludedVersionIds}
               permittedLanguageTags={context.permittedLanguageTags}
               locale={lng}
               highlights={highlights}
-              verseActions={VERSE_ACTIONS}
               onVerseSelect={handleVerseSelect}
               clearSelectionSignal={clearSelectionSignal + internalClearCount}
               verseFocus={verseFocus}
               appliedFocusSeq={appliedFocusSeq}
               focusStream={focusStream}
               onVerseFocusApplied={handleVerseFocusApplied}
-              onSignInPress={signIn}
-              onSignOutPress={guardedSignOut}
-              userInfo={userInfo}
-              theme={resolvedTheme}
               book={appliedBook}
               chapter={appliedChapter}
               versionId={appliedVersionId}
               versionDirections={versionDirections}
               fontSize={fontSize}
-              fontFamily={encodeFontFamilyForDom(fontFamily)}
+              fontFamily={fontFamily}
               lineSpacing={lineSpacing}
-              onFontSizeChange={setFontSize}
-              onFontFamilyChange={setFontFamily}
-              onLineSpacingChange={setLineSpacing}
-              onOpenBibleThemeSettings={
-                Platform.OS !== 'web' ? handleOpenBibleThemeSettings : undefined
-              }
-              onBookChange={handleBookChange}
-              onChapterChange={handleChapterChange}
-              onVersionChange={handleVersionChange}
-              showToolbar={Platform.OS === 'web' && showToolbar}
-              onChapterPickerPress={handleChapterPickerPress}
-              onVersionPickerPress={handleVersionPickerPress}
               onFootnotePress={onFootnotePress}
               onExternalLinkPress={Platform.OS !== 'web' ? onExternalLinkPress : undefined}
               backgroundColor={backgroundColor}

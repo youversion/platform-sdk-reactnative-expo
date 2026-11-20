@@ -2,7 +2,7 @@ import type {
   BibleContentResponse,
   FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { VerseOfTheDayShareData } from '../lib/bible-ui-types'
 import { z } from 'zod'
 
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'

@@ -1,14 +1,11 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import {
-  BIBLE_READER_FONT,
-  type BibleTextViewProps as WebBibleTextViewProps,
-  type FootnoteData,
-} from '@youversion/platform-react-ui'
 import type { DOMProps } from 'expo/dom'
 import { useState, type ReactNode } from 'react'
 import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
+import { BIBLE_READER_FONT } from '../lib/bible-reader-settings'
+import type { FootnoteData, TextDirection } from '../lib/bible-ui-types'
 import type { FontFamily } from '../lib/reader-fonts'
 import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
 import { getImpl } from './component-impls'
@@ -23,17 +20,15 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: '',
 }
 
-export type BibleTextViewProps = Pick<
-  WebBibleTextViewProps,
-  | 'reference'
-  | 'versionId'
-  | 'fontSize'
-  | 'lineHeight'
-  | 'showVerseNumbers'
-  | 'renderNotes'
-  | 'selectedVerses'
-  | 'scriptureDirection'
-> & {
+export type BibleTextViewProps = {
+  reference: string
+  versionId: number
+  fontSize?: number
+  lineHeight?: number
+  showVerseNumbers?: boolean
+  renderNotes?: boolean
+  selectedVerses?: number[]
+  scriptureDirection?: TextDirection
   theme?: 'light' | 'dark' | 'system'
   fontFamily?: FontFamily
   onVerseSelect?: (verses: number[]) => Promise<void>

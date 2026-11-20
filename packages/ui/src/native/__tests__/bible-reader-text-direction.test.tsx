@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Pressable, Text } from 'react-native'
 

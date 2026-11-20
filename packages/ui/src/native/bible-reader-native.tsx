@@ -20,7 +20,6 @@ import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbrevia
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import { chapterLabelForBook, type BookCatalogEntry } from '../lib/bible-book-title'
-import { decodeFontFamilyFromDom } from '../lib/reader-fonts'
 import type { InternalLocaleProps } from '../lib/locale-props'
 import type { InternalVersionFilterProps } from '../lib/version-filter-props'
 import { versionGate } from '../lib/version-usability'
@@ -148,7 +147,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     highlights,
     fontSize,
     lineMultiple: lineMultiple(lineSpacing),
-    fontFamily: decodeFontFamilyFromDom(fontFamily),
+    fontFamily,
     direction: versionDirection,
     ink,
     background,

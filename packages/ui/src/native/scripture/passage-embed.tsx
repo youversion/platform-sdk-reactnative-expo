@@ -1,5 +1,5 @@
 import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '@youversion/platform-react-ui'
+import type { FootnoteData } from '../../lib/bible-ui-types'
 import { useCallback, useMemo, type ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
@@ -9,10 +9,7 @@ import { useBibleVersionAbbreviation } from '../../hooks/use-bible-version-abbre
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import { INTER_FONT } from '../../lib/reader-fonts'
 import type { InternalVersionFilterProps } from '../../lib/version-filter-props'
-import {
-  isVersionIdDecidablyUnusable,
-  versionGate,
-} from '../../lib/version-usability'
+import { isVersionIdDecidablyUnusable, versionGate } from '../../lib/version-usability'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { highlightEndRoom, Passage } from './passage'
 import { usePassageStyle } from './passage-style'
@@ -130,10 +127,7 @@ export function PassageEmbed({
   }
 
   return (
-    <View
-      testID="scripture-passage"
-      style={{ marginHorizontal: -highlightEndRoom(fontSize) }}
-    >
+    <View testID="scripture-passage" style={{ marginHorizontal: -highlightEndRoom(fontSize) }}>
       <Passage
         blocks={phase.blocks}
         look={look}

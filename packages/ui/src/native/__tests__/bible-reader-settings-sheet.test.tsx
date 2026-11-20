@@ -1,10 +1,17 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import * as Font from 'expo-font'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
-import { StyleSheet, Text, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native'
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native'
 
+import { BIBLE_READER_FONT } from '../../lib/bible-reader-settings'
 import en from '../../i18n/locales/en.json'
 import es from '../../i18n/locales/es.json'
 import { SHEET_SURFACE } from '../../lib/native-sheet-theme'

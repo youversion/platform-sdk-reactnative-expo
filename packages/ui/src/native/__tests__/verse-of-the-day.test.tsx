@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native'
-import type { FootnoteData, VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { FootnoteData, VerseOfTheDayShareData } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'
@@ -638,22 +638,11 @@ describe('VerseOfTheDay', () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
     setImpl(
       'NativeSheet',
-      ({
-        isOpen,
-        children,
-      }: {
-        isOpen: boolean
-        onClose: () => void
-        children: ReactNode
-      }) =>
+      ({ isOpen, children }: { isOpen: boolean; onClose: () => void; children: ReactNode }) =>
         isOpen ? <View testID="footnote-sheet">{children}</View> : null,
     )
 
-    function FilterApp({
-      excludedVersionIds,
-    }: {
-      excludedVersionIds?: number[]
-    }) {
+    function FilterApp({ excludedVersionIds }: { excludedVersionIds?: number[] }) {
       return (
         <YouVersionProvider
           appKey="test-key"
@@ -684,22 +673,11 @@ describe('VerseOfTheDay', () => {
     jest.spyOn(votdApi, 'getVerseOfTheDayPassageId').mockResolvedValue('JHN.1.1')
     setImpl(
       'NativeSheet',
-      ({
-        isOpen,
-        children,
-      }: {
-        isOpen: boolean
-        onClose: () => void
-        children: ReactNode
-      }) =>
+      ({ isOpen, children }: { isOpen: boolean; onClose: () => void; children: ReactNode }) =>
         isOpen ? <View testID="footnote-sheet">{children}</View> : null,
     )
 
-    function FilterApp({
-      permittedLanguageTags,
-    }: {
-      permittedLanguageTags?: string[]
-    }) {
+    function FilterApp({ permittedLanguageTags }: { permittedLanguageTags?: string[] }) {
       return (
         <YouVersionProvider
           appKey="test-key"

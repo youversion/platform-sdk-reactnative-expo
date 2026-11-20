@@ -14,7 +14,7 @@ import type {
   UseHighlightsOptions,
 } from '@youversion/platform-react-native-expo-core'
 import { act, render, screen, userEvent } from '@testing-library/react-native'
-import type { BibleReaderShareData, BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 

@@ -1,4 +1,4 @@
-import { BIBLE_READER_FONT, clampBibleReaderFontSize } from '@youversion/platform-react-ui'
+import { BIBLE_READER_FONT, clampBibleReaderFontSize } from '../lib/bible-reader-settings'
 import { z } from 'zod'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'

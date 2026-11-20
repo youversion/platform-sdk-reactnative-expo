@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
-import type { VerseOfTheDayShareData } from '@youversion/platform-react-ui'
+import type { VerseOfTheDayShareData } from '../../lib/bible-ui-types'
 import type { ReactNode } from 'react'
 
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'
@@ -70,10 +70,9 @@ describe('useVerseOfTheDayShareSource', () => {
     getShare.mockResolvedValueOnce(null)
 
     const wrapper = filterWrapper()
-    const { result, rerender } = renderHook(
-      () => useVerseOfTheDayShareSource(3034, 'JHN.3.16'),
-      { wrapper },
-    )
+    const { result, rerender } = renderHook(() => useVerseOfTheDayShareSource(3034, 'JHN.3.16'), {
+      wrapper,
+    })
 
     await waitFor(() => {
       expect(getShare).toHaveBeenCalledTimes(1)
@@ -112,10 +111,9 @@ describe('useVerseOfTheDayShareSource', () => {
     )
 
     const wrapper = filterWrapper()
-    const { result, rerender } = renderHook(
-      () => useVerseOfTheDayShareSource(3034, 'JHN.3.16'),
-      { wrapper },
-    )
+    const { result, rerender } = renderHook(() => useVerseOfTheDayShareSource(3034, 'JHN.3.16'), {
+      wrapper,
+    })
 
     await waitFor(() => {
       expect(getShare).toHaveBeenCalledTimes(1)
