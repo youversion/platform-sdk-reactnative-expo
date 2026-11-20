@@ -13,7 +13,8 @@ export function bibleContentInstanceId(versionId: number): string {
 }
 
 const bibleContentEntrySchema = z.object({
-  body: z.string(),
+  /** Empty reads as corrupt: heals entries written before the client refused them. */
+  body: z.string().min(1),
   /** Content Expiry, epoch ms. */
   expiresAt: z.number(),
 })

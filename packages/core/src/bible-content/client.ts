@@ -84,7 +84,10 @@ export function createBibleContentClient({
         // null: `no-cache`/`no-store`; 0: already expired — neither is stored (ADR 0020).
         // Only the latest in-flight fetch for this key may write; a slower one
         // would put a stale or empty body back on disk.
+        // An empty 2xx body is never content; stored, it would be served as a
+        // hit until it expired, with no way to refetch.
         if (
+          body !== '' &&
           lifetimeMs !== null &&
           lifetimeMs > 0 &&
           writeGenerationByKey.get(key) === writeGeneration
