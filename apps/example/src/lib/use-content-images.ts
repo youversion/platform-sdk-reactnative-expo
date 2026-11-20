@@ -144,14 +144,18 @@ export function useContentImages(versionId: number, language: string): ContentIm
     if (acceptIfCurrent(gen, generation.current, true) === null) return
     if (submittedRef.current !== requestQuery || versionRef.current !== requestVersion) return
 
+    // A hit the index still lists but `get` can't find would fail every retry, so drop it.
     let failure: string | null = null
+    const missing = new Set<string>()
     for (let index = 0; index < pending.length; index += 1) {
       const id = pending[index]
       const result = loaded[index]
       if (id === undefined || result === undefined) continue
       if (result.ok) resolved.current.set(id, result.value)
+      else if (result.error.kind === 'not-found') missing.add(id)
       else if (failure === null) failure = result.error.message
     }
+    if (missing.size > 0) orderedIds.current = orderedIds.current.filter((id) => !missing.has(id))
 
     const items = imagesInServerOrder(orderedIds.current, resolved.current)
     if (failure !== null) {

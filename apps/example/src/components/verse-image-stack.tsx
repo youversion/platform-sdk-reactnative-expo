@@ -13,7 +13,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-import { imageAspect, renditionUrl, selectionFor } from '../_lib/image-library'
+import { imageAspect, renditionUrl, selectionFor } from '../lib/image-library'
 import { VerseImage } from './verse-image'
 
 const VISIBLE = 3
@@ -188,6 +188,7 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
               flight={cardFlight}
               image={image}
               isTop={depth === 0}
+              alone={images.length < 2}
               onLeave={onLeave}
               onReturned={onReturned}
               onShuffle={shuffle}
@@ -254,6 +255,8 @@ type StackCardProps = {
   image: YouVersionImage
   depth: number
   isTop: boolean
+  // A lone card has nothing to shuffle to, so a throw opens it and springs back.
+  alone: boolean
   flight: Flight | null
   stage: Size
   // The tilt follows the image, not its depth, so a card keeps its angle as it moves up.
@@ -269,6 +272,7 @@ function StackCard({
   image,
   depth,
   isTop,
+  alone,
   flight,
   stage,
   restAngle,
@@ -381,7 +385,7 @@ function StackCard({
       const projected = event.translationX + event.velocityX * FLICK_PROJECTION
       if (horizontal && Math.abs(projected) > width * 0.25) {
         runOnJS(onShuffle)(projected < 0 ? -1 : 1)
-        return
+        if (!alone) return
       }
       x.value = withSpring(0, { duration: 300, dampingRatio: 1 })
       y.value = withSpring(0, { duration: 300, dampingRatio: 1 })

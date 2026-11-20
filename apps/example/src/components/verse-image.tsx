@@ -3,7 +3,7 @@ import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { useState } from 'react'
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
-import { imageAspect, renditionUrl } from '../_lib/image-library'
+import { imageAspect, renditionUrl } from '../lib/image-library'
 
 type VerseImageProps = {
   image: YouVersionImage

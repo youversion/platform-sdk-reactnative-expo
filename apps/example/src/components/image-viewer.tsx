@@ -3,7 +3,7 @@ import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { shareImageUrl } from '../_lib/share-image'
+import { shareImageUrl } from '../lib/share-image'
 import { ImagePassage } from './image-passage'
 import { VerseImage } from './verse-image'
 

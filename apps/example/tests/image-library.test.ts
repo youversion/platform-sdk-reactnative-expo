@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
-import { bookTitlesFromBody, formatPassageLabel } from '../app/_lib/passage-label.ts'
-import { versionIdFromPersistedLocation } from '../app/_lib/reader-version.ts'
+import { bookTitlesFromBody, formatPassageLabel } from '../src/lib/passage-label.ts'
+import { versionIdFromPersistedLocation } from '../src/lib/reader-version.ts'
 import {
   acceptIfCurrent,
   appendUniqueIds,
@@ -12,7 +12,7 @@ import {
   reduceLibrary,
   renditionUrl,
   unresolvedIds,
-} from '../app/_lib/image-library.ts'
+} from '../src/lib/image-library.ts'
 
 const image = (id: string) => ({ id })
 

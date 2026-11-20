@@ -14,13 +14,13 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { VerseImage } from '../../_components/verse-image'
-import { formatPassageLabel } from '../../_lib/passage-label'
-import { rememberOpenedImage } from '../../_lib/opened-images'
-import { useBookTitles } from '../../_lib/use-book-titles'
-import { useContentImages } from '../../_lib/use-content-images'
-import { useContentLanguage } from '../../_lib/use-content-language'
-import { useReaderVersionId } from '../../_lib/reader-session'
+import { VerseImage } from '../../../src/components/verse-image'
+import { formatPassageLabel } from '../../../src/lib/passage-label'
+import { rememberOpenedImage } from '../../../src/lib/opened-images'
+import { useBookTitles } from '../../../src/lib/use-book-titles'
+import { useContentImages } from '../../../src/lib/use-content-images'
+import { useContentLanguage } from '../../../src/lib/use-content-language'
+import { useReaderVersionId } from '../../../src/lib/reader-session'
 
 export default function ContentScreen() {
   const tokens = useTokens()
@@ -36,6 +36,22 @@ export default function ContentScreen() {
     !blocked && !library.loading && library.error === null && library.list.items.length === 0
   const showLoadMore =
     !blocked && !library.loading && library.error === null && library.list.nextPageToken !== null
+
+  // A first-page error shows under the search field; a Load more error shows where the button was.
+  const showError = !blocked && library.error !== null
+  const errorAtTop = library.list.items.length === 0
+  const errorRow = showError ? (
+    <View style={styles.errorRow}>
+      <Text style={[styles.message, { color: tokens.destructive }]}>{library.error}</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={library.retry}
+        style={[styles.button, { borderColor: tokens.border, borderRadius: tokens.radius.full }]}
+      >
+        <Text style={{ color: tokens.foreground }}>Retry</Text>
+      </Pressable>
+    </View>
+  ) : null
 
   const openImage = useCallback((image: YouVersionImage) => {
     rememberOpenedImage(image)
@@ -62,6 +78,7 @@ export default function ContentScreen() {
       ListFooterComponent={
         <View style={styles.footer}>
           {library.loading ? <ActivityIndicator color={tokens.mutedForeground} /> : null}
+          {showError && !errorAtTop ? errorRow : null}
           {showLoadMore ? (
             <Pressable
               accessibilityRole="button"
@@ -114,21 +131,7 @@ export default function ContentScreen() {
               {library.validation}
             </Text>
           )}
-          {blocked || library.error === null ? null : (
-            <View style={styles.errorRow}>
-              <Text style={[styles.message, { color: tokens.destructive }]}>{library.error}</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={library.retry}
-                style={[
-                  styles.button,
-                  { borderColor: tokens.border, borderRadius: tokens.radius.full },
-                ]}
-              >
-                <Text style={{ color: tokens.foreground }}>Retry</Text>
-              </Pressable>
-            </View>
-          )}
+          {errorAtTop ? errorRow : null}
         </View>
       }
       numColumns={2}
