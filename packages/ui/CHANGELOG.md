@@ -1,5 +1,18 @@
 # @youversion/platform-react-native-expo-ui
 
+## 2.5.0
+
+### Minor Changes
+
+- 4a3c97b: Native reader code no longer imports Web SDK runtime values. Font size, line spacing, and settings handlers live in this package, and the public component types keep the same shape. Dropping the `@youversion/platform-react-ui` dependency itself remains YPE-6583.
+
+### Patch Changes
+
+- 6529d97: Sync localization from platform-localization (4bb808c): update 60 keys in af, ar, cy, en, es, ig, ko, no, pt, sr, vi.
+- Updated dependencies [0755daf]
+- Updated dependencies [171e2d3]
+  - @youversion/platform-react-native-expo-core@2.5.0
+
 ## 2.4.0
 
 ### Minor Changes
