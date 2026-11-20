@@ -55,6 +55,10 @@ function searchStub(overrides: Partial<UseSearchResult> = {}): UseSearchResult {
       ok: true as const,
       value: { images: [], nextPageToken: null },
     })),
+    videos: jest.fn(async () => ({
+      ok: true as const,
+      value: { videos: [], didYouMean: [], searchInsteadFor: null, nextPageToken: null },
+    })),
     ...overrides,
   }
 }

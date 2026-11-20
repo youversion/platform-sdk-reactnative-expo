@@ -15,6 +15,8 @@ export default function ContentLayout() {
     >
       <Stack.Screen name="index" options={{ headerShown: false, title: 'Content' }} />
       <Stack.Screen name="image" options={{ title: 'Verse image' }} />
+      <Stack.Screen name="collection" options={{ title: 'Collection' }} />
+      <Stack.Screen name="video" options={{ title: 'Video' }} />
     </Stack>
   )
 }

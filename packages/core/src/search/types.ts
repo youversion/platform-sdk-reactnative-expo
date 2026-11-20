@@ -12,6 +12,8 @@ import type {
   SearchVersesResponse,
 } from '@youversion/platform-core'
 
+import type { SearchVideoHit } from '../content-library/interim/search-unified'
+import type { SearchVideosOptions, SearchVideosResponse } from '../content-library/interim/search-videos'
 import type { Result } from '../result'
 
 /**
@@ -34,9 +36,26 @@ export type YouVersionVerseSearchResults = SearchVersesResponse
 export type YouVersionSearchTopic = SearchTopic
 export type YouVersionTopicSearchResults = SearchTopicsResponse
 
-export type YouVersionUnifiedSearchField = SearchUnifiedField
+// YPE-6577: `videos` joins the platform-core unified result. Drop the intersection when platform-sdk-react#488 ships.
+export type YouVersionUnifiedSearchField = SearchUnifiedField | 'videos'
 
-export type YouVersionUnifiedSearchResults = SearchUnifiedResponse
+export type { SearchVideoHit }
+
+export type YouVersionUnifiedSearchResults = SearchUnifiedResponse & {
+  /** ID-only video hits. Resolve each id with `useVideos().get`. */
+  videos: readonly SearchVideoHit[]
+}
+
+// YPE-6577: replace with `SearchVideosOptions` / `SearchVideosResponse` from `@youversion/platform-core`.
+export type { SearchVideosResponse }
+
+export type SearchVideosParams = {
+  query: string
+  organizationIds?: SearchVideosOptions['organizationIds']
+  acceptLanguage?: string
+  pageSize?: number
+  pageToken?: string
+}
 
 export type YouVersionImageSearchResult = SearchImageHit
 export type YouVersionImageSearchResults = SearchImagesResponse

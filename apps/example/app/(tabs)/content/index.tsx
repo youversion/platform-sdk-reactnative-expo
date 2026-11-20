@@ -1,7 +1,7 @@
 import type { YouVersionImage } from '@youversion/platform-react-native-expo-core'
 import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { router } from 'expo-router'
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +14,9 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import { ContentKindSwitch, type ContentKind } from '../../../src/components/content-kind-switch'
 import { VerseImage } from '../../../src/components/verse-image'
+import { VideoCollections } from '../../../src/components/video-collections'
 import { formatPassageLabel } from '../../../src/lib/passage-label'
 import { rememberOpenedImage } from '../../../src/lib/opened-images'
 import { useBookTitles } from '../../../src/lib/use-book-titles'
@@ -23,6 +25,12 @@ import { useContentLanguage } from '../../../src/lib/use-content-language'
 import { useReaderVersionId } from '../../../src/lib/reader-session'
 
 export default function ContentScreen() {
+  const [kind, setKind] = useState<ContentKind>('images')
+  if (kind === 'videos') return <VideoCollections onKindChange={setKind} />
+  return <ImageCollections onKindChange={setKind} />
+}
+
+function ImageCollections({ onKindChange }: { onKindChange: (kind: ContentKind) => void }) {
   const tokens = useTokens()
   const { bottom } = useSafeAreaInsets()
   const { width } = useWindowDimensions()
@@ -98,6 +106,7 @@ export default function ContentScreen() {
           <Text accessibilityRole="header" style={[styles.title, { color: tokens.foreground }]}>
             Content
           </Text>
+          <ContentKindSwitch kind="images" onChange={onKindChange} />
           <View
             style={[
               styles.search,
