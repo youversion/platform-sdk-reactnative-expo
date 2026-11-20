@@ -59,6 +59,7 @@ describe('useSearch', () => {
     expect(result.current.trendingQueries).toEqual(expect.any(Function))
     expect(result.current.verses).toEqual(expect.any(Function))
     expect(result.current.images).toEqual(expect.any(Function))
+    expect(result.current.videos).toEqual(expect.any(Function))
     expect(result.current.topics).toEqual(expect.any(Function))
 
     const trending = await result.current.trendingQueries({ languageRanges: ['en'] })
@@ -107,6 +108,10 @@ describe('useSearch', () => {
       images: jest.fn(async () => ({
         ok: true as const,
         value: { images: [], nextPageToken: null },
+      })),
+      videos: jest.fn(async () => ({
+        ok: true as const,
+        value: { videos: [], didYouMean: [], searchInsteadFor: null, nextPageToken: null },
       })),
     }
 

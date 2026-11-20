@@ -56,6 +56,9 @@ export type { BiblePassageAnchor } from './passage-anchor'
 
 export { SEARCH_USER_INTENT, useSearch, useUnifiedSearch } from './search'
 export type {
+  SearchVideoHit,
+  SearchVideosParams,
+  SearchVideosResponse,
   SearchApiError,
   SearchApiResult,
   SearchImagesParams,
@@ -81,6 +84,8 @@ export type {
 } from './search'
 
 export { useImages } from './images'
+export { useVideos } from './videos'
+export { usePlaylists } from './playlists'
 export type {
   GetImagesOptions,
   ImagesApiError,
@@ -89,6 +94,29 @@ export type {
   YouVersionImage,
   YouVersionImagePage,
 } from './images'
+
+export type {
+  ContentLibraryVideo,
+  GetVideoOptions,
+  UseVideosResult,
+  VideoPlaybackSource,
+  VideoThumbnail,
+  VideoThumbnailSize,
+  VideosApiError,
+  VideosApiResult,
+} from './videos'
+
+export type {
+  GetPlaylistOptions,
+  GetPlaylistsOptions,
+  PlaylistsApiError,
+  PlaylistsApiResult,
+  UsePlaylistsResult,
+  VideoPlaylist,
+  VideoPlaylistDetail,
+  VideoPlaylistField,
+  YouVersionPlaylistPage,
+} from './playlists'
 
 export { useVerseOfTheDay } from './verse-of-the-day'
 export type {
