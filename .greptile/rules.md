@@ -75,7 +75,7 @@ Flag any PR diff that hand-edits locale JSON string values. Exception: automated
 
 ## dom-versus-native
 
-Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. `dom/bible-text-view.tsx` remains for follow-up deletion; nothing mounts it at this stack tip. packages/ui/src/native/register-dom-impls.ts may still register that entry until cleanup lands. Native code may import Web SDK values. `BibleReader`, `BibleTextView`, footnote sheets, `BibleCard`, and `VerseOfTheDay` ship as native text. New scripture uses `BibleTextViewNative`, not `BibleTextViewDom`.
+Web SDK components mount only inside an Expo DOM wrapper. A 'use dom' file outside packages/ui/src/dom/** is a finding. `dom/bible-text-view.tsx` remains for follow-up deletion; nothing mounts it at this stack tip. `packages/ui/src/native/register-dom-impls.ts` must not register that DOM entry. Native code under `packages/ui/src/native/` must not import `@youversion/platform-react-ui` runtime values. Reader font limits and settings handlers live in `lib/bible-reader-settings.ts`. DOM utilities may still import the Web SDK until YPE-6583. `BibleReader`, `BibleTextView`, footnote sheets, `BibleCard`, and `VerseOfTheDay` ship as native text. New scripture uses `BibleTextViewNative`, not `BibleTextViewDom`.
 
 ## nativesheet-test-seam
 

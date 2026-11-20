@@ -202,10 +202,17 @@ export type BibleReaderProps = Omit<
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
    */
   dom?: DOMProps
-} & (
-    | { includeAuth: true; authRedirectUrl: string }
-    | { includeAuth?: false; authRedirectUrl?: never }
-  )
+  /**
+   * Ignored on native. The reader takes auth from `YouVersionProvider`.
+   * Kept so an app that still passes it compiles.
+   */
+  includeAuth?: boolean
+  /**
+   * Ignored on native. The reader takes the redirect from `YouVersionProvider`.
+   * Kept so an app that still passes it compiles.
+   */
+  authRedirectUrl?: string
+}
 
 export function BibleReader({
   theme,

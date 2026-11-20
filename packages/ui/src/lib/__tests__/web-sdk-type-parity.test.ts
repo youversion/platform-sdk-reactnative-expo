@@ -3,6 +3,7 @@
  * This file is the only place tests import those types on purpose.
  */
 import type { DOMProps } from 'expo/dom'
+import type { Ref } from 'react'
 import type {
   BibleCardProps as WebBibleCardProps,
   BibleChapterPickerSelectData as WebBibleChapterPickerSelectData,
@@ -16,11 +17,23 @@ import type {
 } from '@youversion/platform-react-ui'
 
 import type { BibleCardProps } from '../../native/bible-card'
-import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../native/bible-reader'
+import type {
+  BibleReaderHandle,
+  BibleReaderProps,
+  BibleReaderShareData,
+  BibleReaderVerseSelection,
+} from '../../native/bible-reader'
+import type {
+  BibleReaderNavigation,
+  BibleReaderVerseFocusAcknowledgment,
+} from '../../native/bible-reader-navigation'
 import type { BibleTextViewProps } from '../../native/bible-text-view'
+import type { VersionDirections } from '../../native/scripture/use-version-directions'
 import type { VerseOfTheDayProps } from '../../native/verse-of-the-day'
+import type { HighlightWriteError } from '../report-highlight-write-error'
 import type { FontFamily } from '../reader-fonts'
 import type {
+  BibleChapterPickerPressData,
   BibleChapterPickerSelectData,
   BibleTextViewPassageState,
   BibleVersionPickerPressData,
@@ -28,8 +41,17 @@ import type {
   VerseOfTheDayShareData,
 } from '../bible-ui-types'
 
-type Equal<A, B> =
-  (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false
+/** Collapse intersections so optional fields are part of the compared type. */
+type Flatten<T> = { [K in keyof T]: T[K] }
+
+/**
+ * Strict equality. Dropping a field or adding an optional one makes this `false`.
+ * Assignability (`A extends B`) does not, because extra optional fields still assign.
+ */
+type Equals<A, B> =
+  (<T>() => T extends Flatten<A> ? 1 : 2) extends <T>() => T extends Flatten<B> ? 1 : 2
+    ? true
+    : false
 
 type Assert<T extends true> = T
 
@@ -71,31 +93,71 @@ type ExpectedVerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
   dom?: DOMProps
 }
 
-type _share = Assert<Equal<BibleReaderShareData, WebBibleReaderShareData>>
-type _selection = Assert<Equal<BibleReaderVerseSelection, WebBibleReaderVerseSelection>>
-type _footnote = Assert<Equal<FootnoteData, WebFootnoteData>>
-type _chapter = Assert<Equal<BibleChapterPickerSelectData, WebBibleChapterPickerSelectData>>
-type _version = Assert<Equal<BibleVersionPickerPressData, WebBibleVersionPickerPressData>>
-type _votdShare = Assert<Equal<VerseOfTheDayShareData, WebVerseOfTheDayShareData>>
+type _share = Assert<Equals<BibleReaderShareData, WebBibleReaderShareData>>
+type _selection = Assert<Equals<BibleReaderVerseSelection, WebBibleReaderVerseSelection>>
+type _footnote = Assert<Equals<FootnoteData, WebFootnoteData>>
+type _chapter = Assert<Equals<BibleChapterPickerSelectData, WebBibleChapterPickerSelectData>>
+type _version = Assert<Equals<BibleVersionPickerPressData, WebBibleVersionPickerPressData>>
+type _votdShare = Assert<Equals<VerseOfTheDayShareData, WebVerseOfTheDayShareData>>
 
 type ExpectedPassage = Omit<WebPassageState, 'error'> & {
   error?: { message: string; name?: string; status?: number; code?: string } | null
 }
-type _passage = Assert<Equal<BibleTextViewPassageState['passage'], ExpectedPassage['passage']>>
-type _loading = Assert<Equal<BibleTextViewPassageState['loading'], ExpectedPassage['loading']>>
-type _error = Assert<Equal<BibleTextViewPassageState['error'], ExpectedPassage['error']>>
+type _passage = Assert<Equals<BibleTextViewPassageState['passage'], ExpectedPassage['passage']>>
+type _loading = Assert<Equals<BibleTextViewPassageState['loading'], ExpectedPassage['loading']>>
+type _error = Assert<Equals<BibleTextViewPassageState['error'], ExpectedPassage['error']>>
 
-// Component props are intersections on the Web SDK side. Either type has to
-// be usable as the other, which is what an importing app needs.
-type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
-type _card = Assert<Same<BibleCardProps, ExpectedBibleCardProps>>
-type _votd = Assert<Same<VerseOfTheDayProps, ExpectedVerseOfTheDayProps>>
-type _text = Assert<Same<BibleTextViewProps, ExpectedBibleTextViewProps>>
-type _passageState = Assert<Same<BibleTextViewPassageState, ExpectedPassage>>
+/**
+ * What `BibleReaderProps` accepted on main after `Omit` flattened the auth union.
+ * `{ includeAuth: true }`, `{ authRedirectUrl: 'x' }`, and a boolean `includeAuth`
+ * with a redirect string all compiled.
+ */
+type ExpectedBibleReaderProps = {
+  onVerseSelect?: (selection: BibleReaderVerseSelection) => Promise<void>
+  clearSelectionSignal?: number
+  appliedFocusSeq?: number
+  onVerseFocusApplied?: (acknowledgment: BibleReaderVerseFocusAcknowledgment) => void
+  book?: string
+  chapter?: string
+  versionId?: number
+  versionDirections?: VersionDirections
+  onBookChange?: (book: string) => Promise<void>
+  onChapterChange?: (chapter: string) => Promise<void>
+  onVersionChange?: (versionId: number) => Promise<void>
+  onChapterPickerPress?: (data: BibleChapterPickerPressData) => Promise<void>
+  showToolbar?: boolean
+  backgroundColor?: string
+  foregroundColor?: string
+  includeAuth?: boolean
+  authRedirectUrl?: string
+  theme?: 'light' | 'dark' | 'system'
+  defaultBook?: string
+  defaultChapter?: string
+  defaultVersionId?: number
+  onFootnotePress?: (data: FootnoteData) => Promise<void>
+  onVersionPickerPress?: (data: BibleVersionPickerPressData) => Promise<void>
+  onCopy?: (data: BibleReaderShareData) => void | Promise<void>
+  onShare?: (data: BibleReaderShareData) => void | Promise<void>
+  onHighlightError?: (error: HighlightWriteError) => void
+  ref?: Ref<BibleReaderHandle>
+  navigation?: BibleReaderNavigation
+  dom?: DOMProps
+}
+
+type _card = Assert<Equals<BibleCardProps, ExpectedBibleCardProps>>
+type _votd = Assert<Equals<VerseOfTheDayProps, ExpectedVerseOfTheDayProps>>
+type _text = Assert<Equals<BibleTextViewProps, ExpectedBibleTextViewProps>>
+type _reader = Assert<Equals<BibleReaderProps, ExpectedBibleReaderProps>>
+type _passageState = Assert<Equals<BibleTextViewPassageState, ExpectedPassage>>
 
 describe('web sdk type parity', () => {
   it('keeps the assert types above from being stripped', () => {
-    const ok: true = true
-    expect(ok).toBe(true)
+    const includeAuth: boolean = true
+    const acceptedAuth = [
+      { includeAuth: true },
+      { authRedirectUrl: 'x' },
+      { includeAuth, authRedirectUrl: 'x' },
+    ] satisfies Array<Pick<BibleReaderProps, 'includeAuth' | 'authRedirectUrl'>>
+    expect(acceptedAuth).toHaveLength(3)
   })
 })
