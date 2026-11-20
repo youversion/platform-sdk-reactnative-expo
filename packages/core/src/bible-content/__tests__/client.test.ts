@@ -242,6 +242,21 @@ describe('createBibleContentClient', () => {
     expect(store.read(111, `api.youversion.com${PATH}`, NOW)).toBeNull()
   })
 
+  it('never writes an empty 2xx body, so the next request refetches', async () => {
+    const { client, fetchMock, store } = setup()
+    fetchMock
+      .mockResolvedValueOnce(new Response('', { status: 200 }))
+      .mockResolvedValueOnce(new Response('{"a":1}', { status: 200 }))
+
+    const empty = await client({ path: PATH })
+    const retried = await client({ path: PATH })
+
+    expect(empty).toMatchObject({ status: 200, body: '' })
+    expect(retried.body).toBe('{"a":1}')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(store.read(111, `api.youversion.com${PATH}`, NOW)?.body).toBe('{"a":1}')
+  })
+
   it('refetches once the entry expires', async () => {
     let now = NOW
     const { client, fetchMock } = setup({ now: () => now })

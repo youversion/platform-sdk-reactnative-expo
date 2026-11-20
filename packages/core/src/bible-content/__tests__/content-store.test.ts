@@ -89,6 +89,15 @@ describe('bible content store', () => {
     expect(instance?.contains(KEY)).toBe(false)
   })
 
+  it('treats an entry with an empty body as a miss and deletes it', () => {
+    const { store, opened } = setup()
+    store.write(111, KEY, { body: 'a', expiresAt: 9 })
+    const instance = opened.get(bibleContentInstanceId(111))
+    instance?.set(KEY, '{"body":"","expiresAt":9}')
+    expect(store.read(111, KEY, 0)).toBeNull()
+    expect(instance?.contains(KEY)).toBe(false)
+  })
+
   it('sweeps expired and corrupt entries across every indexed version, keeping live ones', () => {
     const { store, opened } = setup()
     store.write(111, KEY, { body: 'expired', expiresAt: 5_000 })
