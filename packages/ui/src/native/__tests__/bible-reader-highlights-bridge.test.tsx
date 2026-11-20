@@ -11,7 +11,7 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+import type { BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -137,11 +137,9 @@ describe('the Controlled Highlights Latch', () => {
 
   it('never renders with an undefined highlights prop, on any render', async () => {
     stubHighlights([highlight('JHN.3.16')])
-    const { getByTestId } = render(<BibleReader />, { wrapper })
+    const view = render(<BibleReader chapter="1" />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-chapter-change'))
-    })
+    view.rerender(<BibleReader chapter="4" />)
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(1)
     for (const props of mockDomPropsHistory) {
@@ -154,11 +152,9 @@ describe('the Controlled Highlights Latch', () => {
   // WebView `localStorage`, which is disk-backed on iOS and outlives sign-out.
   it('sends no access token across the bridge, on any render', async () => {
     stubHighlights([highlight('JHN.3.16')])
-    const { getByTestId } = render(<BibleReader />, { wrapper })
+    const view = render(<BibleReader chapter="1" />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-chapter-change'))
-    })
+    view.rerender(<BibleReader chapter="4" />)
 
     expect(mockDomPropsHistory.length).toBeGreaterThan(1)
     for (const props of mockDomPropsHistory) {
@@ -206,14 +202,10 @@ describe('the highlights subscription scope', () => {
     expect(useHighlightsMock).toHaveBeenCalledWith({ versionId: 111, book: 'ROM', chapter: '8' })
   })
 
-  it('re-scopes when the WebView navigates to another chapter', async () => {
-    const { getByTestId } = render(<BibleReader defaultBook="ROM" defaultChapter="8" />, {
-      wrapper,
-    })
+  it('re-scopes when the chapter changes', async () => {
+    const view = render(<BibleReader book="ROM" chapter="8" />, { wrapper })
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-chapter-change'))
-    })
+    view.rerender(<BibleReader book="ROM" chapter="4" />)
 
     expect(useHighlightsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ book: 'ROM', chapter: '4' }),
@@ -232,19 +224,15 @@ describe('the verse-action event set', () => {
     expect(props).not.toHaveProperty('onShare')
   })
 
-  it('switches the in-WebView popover off on native', () => {
-    // jest-expo runs as a native platform (ios). Web is the exception, and is
-    // covered at layer 1 in `lib/__tests__/resolve-verse-actions.test.ts` — a
-    // platform fork is invisible to a suite that only ever runs as one platform.
+  it('does not forward a verse-action mode to the chapter body', () => {
     render(<BibleReader />, { wrapper })
-    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
+    expect(lastDomProps()).not.toHaveProperty('verseActions')
   })
 
   it('does not let a consumer choose the verse-action UI', () => {
-    // @ts-expect-error — `verseActions` is omitted from BibleReaderProps; native
-    // owns it per platform. This asserts the omission is real, not just documented.
+    // @ts-expect-error — `verseActions` is not a BibleReader prop.
     render(<BibleReader verseActions="popover" />, { wrapper })
-    expect(lastDomProps()).toHaveProperty('verseActions', 'none')
+    expect(lastDomProps()).not.toHaveProperty('verseActions')
   })
 })
 

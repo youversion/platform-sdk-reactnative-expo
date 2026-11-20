@@ -1,6 +1,6 @@
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+import type { BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import type { ComponentProps } from 'react'
 import { ScrollView, StyleSheet, Text, type ColorValue, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
@@ -196,26 +196,19 @@ function fetchChapters(
   }
 }
 
-type ReaderOverrides = Partial<
-  Omit<ComponentProps<typeof BibleReaderNative>, 'includeAuth' | 'authRedirectUrl'>
->
+type ReaderOverrides = Partial<ComponentProps<typeof BibleReaderNative>>
 
 function mount(overrides: ReaderOverrides = {}) {
   const props: ComponentProps<typeof BibleReaderNative> = {
-    appKey: 'test-key',
-    apiHost: 'https://api.youversion.com',
-    installationId: 'test-install',
     fetchBibleContent: fetchChapters({
       '1': { status: 200, sentence: 'In the beginning' },
       '2': { status: 200, sentence: 'The earth was' },
     }),
     highlights: [],
-    verseActions: 'none',
     locale: 'en',
     book: 'JHN',
     chapter: '1',
     versionId: VERSION_ID,
-    includeAuth: false,
     ...overrides,
   }
   const view = render(<BibleReaderNative {...props} />, {

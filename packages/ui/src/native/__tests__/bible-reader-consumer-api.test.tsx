@@ -7,7 +7,7 @@ import type {
   UseHighlightsOptions,
 } from '@youversion/platform-react-native-expo-core'
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { BibleReaderVerseSelection } from '@youversion/platform-react-ui'
+import type { BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import { createRef } from 'react'
 import { Pressable, Text, View } from 'react-native'
 
@@ -138,10 +138,9 @@ async function selectVerses(getByTestId: (id: string) => Parameters<typeof fireE
 }
 
 describe('BibleReader consumer API', () => {
-  it('passes apiHost and the content action to the DOM entry', () => {
+  it('passes the content action to the chapter body', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    expect(latestReaderDomProps.apiHost).toBe('api.youversion.com')
     expect(latestReaderDomProps.fetchBibleContent).toEqual(expect.any(Function))
   })
 

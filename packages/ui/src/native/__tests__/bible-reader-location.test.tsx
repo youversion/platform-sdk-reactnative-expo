@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
@@ -17,6 +17,7 @@ import {
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
 import { youVersionProviderWrapper } from '../../test-utils/youversion-provider-wrapper'
 import { BibleReader } from '../bible-reader'
+import { createBibleReaderNavigation } from '../bible-reader-navigation'
 import { YouVersionProvider } from '../youversion-provider'
 
 type LatestReaderDomProps = {
@@ -154,11 +155,12 @@ describe('BibleReader Reader Location persistence', () => {
     expect(getByTestId('version-id').props.children).toBe('59')
   })
 
-  it('persists location changes from DOM onChapterChange', async () => {
-    const { getByTestId } = render(<BibleReader />, { wrapper })
+  it('persists a chapter change from reader navigation', async () => {
+    const navigation = createBibleReaderNavigation()
+    render(<BibleReader navigation={navigation} />, { wrapper })
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-chapter-change'))
+      navigation.request({ versionId: 3034, bookId: 'JHN', chapter: 5, verse: 1 })
     })
 
     const raw = mmkvStorage.getString(READER_LOCATION_PERSIST_KEY)

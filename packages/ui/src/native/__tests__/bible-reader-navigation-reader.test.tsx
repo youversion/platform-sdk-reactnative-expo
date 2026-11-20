@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, render } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { Pressable, Text, View } from 'react-native'
 
@@ -120,9 +120,7 @@ describe('BibleReader navigation', () => {
 
     expect(getByTestId('chapter').props.children).toBe('23')
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-chapter-change'))
-    })
+    rerender(<BibleReader navigation={navigation} chapter="5" />)
 
     expect(getByTestId('book').props.children).toBe('PSA')
     expect(getByTestId('chapter').props.children).toBe('5')
@@ -319,9 +317,7 @@ describe('BibleReader navigation', () => {
     })
     expect(latestReaderDomProps.appliedFocusSeq).toBe(1)
 
-    await act(async () => {
-      fireEvent.press(first.getByTestId('trigger-chapter-change'))
-    })
+    first.rerender(<BibleReader navigation={navigation} chapter="5" />)
     expect(first.getByTestId('chapter').props.children).toBe('5')
     expect(latestReaderDomProps.verseFocus).toEqual({
       seq: 1,

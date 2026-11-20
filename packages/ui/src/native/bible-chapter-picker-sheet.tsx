@@ -1,4 +1,4 @@
-import type { BibleChapterPickerSelectData } from '@youversion/platform-react-ui'
+import type { BibleChapterPickerSelectData } from '../types/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Platform, StyleSheet, View, useWindowDimensions } from 'react-native'
 import { ThemeContext, useTheme } from '../hooks/use-theme'

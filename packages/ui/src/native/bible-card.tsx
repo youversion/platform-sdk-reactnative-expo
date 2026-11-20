@@ -5,10 +5,10 @@ import {
   type Highlight,
 } from '@youversion/platform-react-native-expo-core'
 import type {
-  BibleCardProps as WebBibleCardProps,
   BibleVersionPickerPressData,
   FootnoteData,
-} from '@youversion/platform-react-ui'
+  TextDirection,
+} from '../types/bible-ui-types'
 import type { DOMProps } from 'expo/dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'
@@ -41,10 +41,18 @@ const EMPTY_FOOTNOTE: FootnoteData = {
   verseHtml: '',
 }
 
-export type BibleCardProps = Omit<
-  WebBibleCardProps,
-  'highlights' | 'onFootnotePress' | 'onVersionChange' | 'onVersionPickerPress'
-> & {
+export type BibleCardProps = {
+  reference: string
+  versionId?: number
+  defaultVersionId?: number
+  background?: 'light' | 'dark'
+  showVersionPicker?: boolean
+  /**
+   * Caps the painted shell. A number is pixels. `'100%'` fills the parent
+   * and keeps the 600px inner column. Omit for 700.
+   */
+  maxWidth?: number | '100%'
+  scriptureDirection?: TextDirection
   /**
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
    */

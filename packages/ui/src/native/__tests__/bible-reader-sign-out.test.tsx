@@ -7,7 +7,7 @@
  */
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import { render, screen, userEvent } from '@testing-library/react-native'
-import { Alert, Pressable, Text, View } from 'react-native'
+import { Alert, View } from 'react-native'
 
 import en from '../../i18n/locales/en.json'
 import { signedOutAuth } from '../../test-utils/default-hook-overrides'
@@ -36,14 +36,8 @@ const signedInAuth = signedOutAuth({
   hasPermission: () => true,
 })
 
-function MockDOM(props: { onSignOutPress?: () => Promise<void> }) {
-  return (
-    <View testID="mock-dom">
-      <Pressable testID="trigger-sign-out" onPress={() => void props.onSignOutPress?.()}>
-        <Text>Sign out</Text>
-      </Pressable>
-    </View>
-  )
+function MockDOM() {
+  return <View testID="mock-dom" />
 }
 
 const wrapper = youVersionProviderWrapper('light', undefined, { useYVAuth: signedInAuth })
@@ -71,7 +65,8 @@ function pressAlertButton(text: string) {
 async function renderAndPressSignOut(hasQueuedWrites: boolean) {
   if (hasQueuedWrites) seedQueuedHighlightWrites(USER_ID)
   render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
-  await user.press(screen.getByTestId('trigger-sign-out'))
+  await user.press(screen.getByTestId('reader-toolbar-menu'))
+  await user.press(screen.getByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }))
 }
 
 beforeEach(() => {
@@ -141,17 +136,18 @@ describe('BibleReader — sign-out confirmation', () => {
     seedQueuedHighlightWrites('someone-else')
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
-    await user.press(screen.getByTestId('trigger-sign-out'))
+    await user.press(screen.getByTestId('reader-toolbar-menu'))
+    await user.press(screen.getByTestId('reader-toolbar-sign-out', { includeHiddenElements: true }))
 
     expect(alertCall().title).toBe(en.signOutQuestion)
   })
 
-  it('leaves the DOM sign-out unwired when no auth is configured', () => {
+  it('omits sign out when no auth is configured', () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, {
       wrapper: youVersionProviderWrapper('light', undefined, { useYVAuth: null }),
     })
 
-    expect(screen.getByTestId('trigger-sign-out')).toBeTruthy()
+    expect(screen.queryByTestId('reader-toolbar-sign-out', { includeHiddenElements: true })).toBeNull()
     expect(Alert.alert).not.toHaveBeenCalled()
   })
 })

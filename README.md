@@ -208,7 +208,7 @@ Copy and Share fall back to `expo-clipboard` and React Native's `Share`. To hand
 />
 ```
 
-On web, `BibleReader` keeps the React Web SDK's verse action popover, because native bottom sheets do not exist there. Its Copy and Share work. Its color swatches do not write.
+On web, `BibleReader` does not show a verse action sheet, and it does not mount the Web SDK verse action popover. A verse tap still reports the selection through `onVerseSelect` on every platform. Copy, Share, and highlight colors live on the native sheet, which renders on iOS and Android.
 
 #### Highlights made offline
 

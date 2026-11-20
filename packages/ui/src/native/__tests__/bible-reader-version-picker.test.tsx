@@ -1,9 +1,9 @@
-import { act, fireEvent, render } from '@testing-library/react-native'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
-} from '@youversion/platform-react-ui'
+} from '../../types/bible-ui-types'
 import { Pressable, Text, View } from 'react-native'
 
 import {
@@ -47,6 +47,24 @@ function MockDOM(props: LatestDomProps) {
 
 const wrapper = youVersionProviderWrapper()
 
+async function settleToolbar() {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      setImmediate(resolve)
+    })
+  })
+  await waitFor(() => {
+    expect(screen.queryByTestId('reader-toolbar-version-loading')).toBeNull()
+  })
+}
+
+async function pressVersion() {
+  await settleToolbar()
+  await act(async () => {
+    fireEvent.press(screen.getByTestId('reader-toolbar-version'))
+  })
+}
+
 describe('BibleReader version picker integration', () => {
   beforeEach(async () => {
     latestDomProps = {}
@@ -87,27 +105,23 @@ describe('BibleReader version picker integration', () => {
     jest.restoreAllMocks()
   })
 
-  it('opens version picker sheet when DOM triggers onVersionPickerPress', async () => {
-    const { getByTestId, queryByTestId } = render(<BibleReader />, { wrapper })
+  it('opens the version picker sheet from the toolbar', async () => {
+    render(<BibleReader />, { wrapper })
 
-    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+    expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
 
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
-    })
+    await pressVersion()
 
-    expect(getByTestId('mock-version-picker-sheet')).toBeTruthy()
+    expect(screen.getByTestId('mock-version-picker-sheet')).toBeTruthy()
   })
 
   it('updates versionId when version picker selects a version', async () => {
-    const { getByTestId } = render(<BibleReader />, { wrapper })
+    render(<BibleReader />, { wrapper })
+
+    await pressVersion()
 
     await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
-    })
-
-    await act(async () => {
-      fireEvent.press(getByTestId('select-version'))
+      fireEvent.press(screen.getByTestId('select-version'))
     })
 
     expect(latestDomProps.versionId).toBe(59)
@@ -116,16 +130,13 @@ describe('BibleReader version picker integration', () => {
   it('does not render version picker sheet when consumer provides onVersionPickerPress', async () => {
     const consumerHandler = jest.fn().mockResolvedValue(undefined)
 
-    const { getByTestId, queryByTestId } = render(
-      <BibleReader onVersionPickerPress={consumerHandler} />,
-      { wrapper },
+    render(<BibleReader onVersionPickerPress={consumerHandler} />, { wrapper })
+
+    await pressVersion()
+
+    expect(consumerHandler).toHaveBeenCalledWith(
+      expect.objectContaining({ versionId: 3034, languageId: expect.any(String) }),
     )
-
-    await act(async () => {
-      fireEvent.press(getByTestId('trigger-version-picker'))
-    })
-
-    expect(consumerHandler).toHaveBeenCalledWith({ versionId: 3034, languageId: 'eng' })
-    expect(queryByTestId('mock-version-picker-sheet')).toBeNull()
+    expect(screen.queryByTestId('mock-version-picker-sheet')).toBeNull()
   })
 })

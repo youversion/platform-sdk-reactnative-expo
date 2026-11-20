@@ -1,5 +1,5 @@
-// Mirrors the unexported `BIBLE_READER_SPACING` in `@youversion/platform-react-ui`.
-// Values must match exactly so the Web SDK accepts our `lineSpacing` and cycles correctly.
+// Same steps as the Web SDK's `BIBLE_READER_SPACING` (1.45, 1.7, 2).
+// `changeBibleReaderLineSpacing` in `lib/bible-reader-settings.ts` cycles them.
 export const READER_LINE_SPACING = {
   SM: 1.45,
   DEFAULT: 1.7,

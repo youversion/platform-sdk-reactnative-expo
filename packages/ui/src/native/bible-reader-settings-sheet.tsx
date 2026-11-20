@@ -1,7 +1,7 @@
-import { createBibleThemeSettingsContentHandlers } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
+import { createBibleThemeSettingsContentHandlers } from '../lib/bible-reader-settings'
 import { SHEET_SURFACE } from '../lib/native-sheet-theme'
 import type { ThemeInput } from '../lib/resolve-theme'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'

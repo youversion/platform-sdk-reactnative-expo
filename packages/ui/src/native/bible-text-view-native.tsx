@@ -1,12 +1,9 @@
 import { useHighlightPaint, useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type {
-  BibleTextViewProps as WebBibleTextViewProps,
-  FootnoteData,
-} from '@youversion/platform-react-ui'
 import { useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
 import { Button, Text } from '../components/ui'
+import type { BibleTextViewPassageState, FootnoteData } from '../types/bible-ui-types'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { FontFamily } from '../lib/reader-fonts'
@@ -30,11 +27,7 @@ import {
 } from './scripture/use-passage'
 import type { TextDirection, VersionDirections } from './scripture/use-version-directions'
 
-type WebPassageState = NonNullable<WebBibleTextViewProps['passageState']>
-
-export type BibleTextViewPassageState = Omit<WebPassageState, 'error'> & {
-  error?: { message: string; name?: string; status?: number; code?: string } | null
-}
+export type { BibleTextViewPassageState } from '../types/bible-ui-types'
 
 export type BibleTextViewNativeProps = {
   reference: string
@@ -107,9 +100,7 @@ export function BibleTextViewNative({
   const highlights = useHighlightPaint(highlightScopeFor(reference, versionId))
   const multiple = resolvedLineMultiple(lineHeight)
   // By the rendered passage's version: dimmed old text keeps its direction while the next loads.
-  const versionDirection = load.passage
-    ? versionDirections?.get(load.passage.versionId)
-    : undefined
+  const versionDirection = load.passage ? versionDirections?.get(load.passage.versionId) : undefined
   const { look, paint } = usePassageStyle({
     passage: load.passage,
     highlights,
@@ -152,8 +143,7 @@ export function BibleTextViewNative({
   }, [])
 
   // Supplied mode never paints a retained fetch: the host owns passage, loading, and error.
-  const passage =
-    suppliedMode && (hostHtml === null || address === null) ? null : load.passage
+  const passage = suppliedMode && (hostHtml === null || address === null) ? null : load.passage
   const hostLoading = suppliedMode && (passageState?.loading ?? false)
   const currentKey = address === null ? null : passageKey(versionId, address)
   const isCurrent = passage !== null && currentKey !== null && passage.key === currentKey

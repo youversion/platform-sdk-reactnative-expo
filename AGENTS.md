@@ -1,6 +1,6 @@
 # YouVersion Platform React Native Expo SDK
 
-Native chrome, `BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` for React Native. The reader, its footnote sheets, `BibleTextView`, and the cards draw native text. `BibleTextView` grows with its content. `packages/ui/src/dom/bible-text-view.tsx` remains for a follow-up cleanup; nothing mounts it at this stack tip. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay peer dependencies for any remaining DOM utilities. Native code may import Web SDK values.
+Native chrome, `BibleReader`, `BibleTextView`, `BibleCard`, and `VerseOfTheDay` for React Native. The reader, its footnote sheets, `BibleTextView`, and the cards draw native text. `BibleTextView` grows with its content. `packages/ui/src/dom/bible-text-view.tsx` remains for a follow-up cleanup; nothing mounts it at this stack tip. Two packages: `@youversion/platform-react-native-expo-ui` and `@youversion/platform-react-native-expo-core`. `@expo/dom-webview` and the Web SDK stay peer dependencies for any remaining DOM utilities. Native code under `packages/ui/src/native/` does not import `@youversion/platform-react-ui`. Reader font limits and settings handlers live in `lib/bible-reader-settings.ts`. DOM utilities may still import the Web SDK until YPE-6583.
 
 Keep this file brief. Put task-specific guidance behind a pointer.
 

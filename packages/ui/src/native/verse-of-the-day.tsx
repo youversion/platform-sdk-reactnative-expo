@@ -1,8 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type {
-  FootnoteData,
-  VerseOfTheDayProps as WebVerseOfTheDayProps,
-} from '@youversion/platform-react-ui'
+import type { FootnoteData, TextDirection, VerseOfTheDayShareData } from '../types/bible-ui-types'
 import type { DOMProps } from 'expo/dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'
@@ -25,7 +22,17 @@ import { useVerseOfTheDayPassageId } from './use-verse-of-the-day-passage-id'
 import { getDayOfYear } from './verse-of-the-day-api'
 import { useVerseOfTheDayShareSource } from './use-verse-of-the-day-share-source'
 
-export type VerseOfTheDayProps = Omit<WebVerseOfTheDayProps, 'highlights'> & {
+export type VerseOfTheDayProps = {
+  background?: 'light' | 'dark'
+  versionId?: number
+  /** Day of the year, 1–366. */
+  dayOfYear?: number
+  showSunIcon?: boolean
+  showBibleAppAttribution?: boolean
+  showShareButton?: boolean
+  onShare?: (data: VerseOfTheDayShareData) => void | Promise<void>
+  size?: 'default' | 'lg'
+  scriptureDirection?: TextDirection
   theme?: 'light' | 'dark' | 'system'
   /**
    * @deprecated Ignored. Text renders natively. Will be removed in the next major.
@@ -89,9 +96,7 @@ export function VerseOfTheDay({
   })
   // Omitted and [] must differ: [] refuses every language, omitted does not.
   const languageFilterKey =
-    permittedLanguageTags === undefined
-      ? undefined
-      : permittedLanguageTags.join(',')
+    permittedLanguageTags === undefined ? undefined : permittedLanguageTags.join(',')
   useEffect(() => {
     setFootnoteData(null)
   }, [passageId, versionId, versionRefused, languageFilterKey])

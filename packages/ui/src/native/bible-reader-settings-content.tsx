@@ -1,4 +1,3 @@
-import { BIBLE_READER_FONT } from '@youversion/platform-react-ui'
 import type { ReactNode } from 'react'
 import { StyleSheet, View } from 'react-native'
 import type { TextStyle, ViewStyle } from 'react-native'
@@ -8,6 +7,7 @@ import { Text } from '../components/ui/text'
 import { useTheme, type Theme } from '../hooks/use-theme'
 import { useTokens } from '../hooks/use-tokens'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
+import { BIBLE_READER_FONT } from '../lib/bible-reader-settings'
 import { INTER_FONT, UNTITLED_SERIF_FONT, type FontFamily } from '../lib/reader-fonts'
 import { READER_LINE_SPACING } from '../stores/types/reader-line-spacing'
 import type { Tokens } from '../theme'
@@ -175,9 +175,7 @@ export function BibleReaderSettingsContent({
                 <Text variant="muted" style={[styles.fontLabel, { color: labelColor }]}>
                   {t('font')}
                 </Text>
-                <Text style={[styles.fontName, { color: nameColor }, nameFace]}>
-                  {choice.name}
-                </Text>
+                <Text style={[styles.fontName, { color: nameColor }, nameFace]}>{choice.name}</Text>
               </View>
             </Button>
           )
