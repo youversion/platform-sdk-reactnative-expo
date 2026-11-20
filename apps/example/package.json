@@ -15,7 +15,7 @@
     "build:android-release": "expo run:android --variant release",
     "build:android": "expo run:android",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test app/_lib/image-library.test.ts"
+    "test": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test tests/image-library.test.ts"
   },
   "dependencies": {
     "@expo/dom-webview": "57.0.1",
