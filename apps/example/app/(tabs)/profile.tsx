@@ -2,7 +2,7 @@ import { useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
 import { Image, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
-import { colorTheme } from '../_components/color-theme'
+import { colorTheme } from '../../src/components/color-theme'
 
 const profileColorTheme = {
   light: { ...colorTheme.light, muted: '#6b6b6b', email: '#3c3c3c' },

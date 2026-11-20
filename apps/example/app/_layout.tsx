@@ -1,7 +1,7 @@
 import { YouVersionProvider } from '@youversion/platform-react-native-expo-ui'
 import { Stack } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import MissingAppKey from './_components/missing-app-key'
+import MissingAppKey from '../src/components/missing-app-key'
 
 /**
  * An app key has exactly one registered callback URL, and both flows that come
