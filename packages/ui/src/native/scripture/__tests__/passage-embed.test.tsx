@@ -283,7 +283,7 @@ describe('PassageEmbed', () => {
 
   it('opens a footnote from the verse', async () => {
     const onFootnotePress = jest.fn<void, [FootnoteData]>()
-    const { getByLabelText } = render(
+    const { getByTestId } = render(
       <PassageEmbed
         reference="JHN.1.1"
         versionId={3034}
@@ -297,9 +297,9 @@ describe('PassageEmbed', () => {
     )
 
     await waitFor(() => {
-      expect(getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+      expect(getByTestId(/^scripture-footnote-/)).toBeTruthy()
     })
-    fireEvent.press(getByLabelText(en.footnoteAriaLabel))
+    fireEvent.press(getByTestId(/^scripture-footnote-/))
     expect(onFootnotePress).toHaveBeenCalledWith(
       expect.objectContaining({ verseNum: '1', notes: expect.any(Array) }),
     )
@@ -307,7 +307,7 @@ describe('PassageEmbed', () => {
   })
 
   it('leaves verse text and numbers inert, so only footnote markers press', async () => {
-    const { getByLabelText, UNSAFE_root } = render(
+    const { getByTestId, UNSAFE_root } = render(
       <PassageEmbed
         reference="JHN.1.1"
         versionId={3034}
@@ -321,12 +321,12 @@ describe('PassageEmbed', () => {
     )
 
     await waitFor(() => {
-      expect(getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+      expect(getByTestId(/^scripture-footnote-/)).toBeTruthy()
     })
     const live = UNSAFE_root.findAll((node) => node.props.onPress !== undefined, { deep: false })
     expect(live.length).toBeGreaterThan(0)
     for (const node of live) {
-      expect(node.props.accessibilityLabel).toBe(en.footnoteAriaLabel)
+      expect(node.props.testID).toMatch(/^scripture-footnote-/)
     }
   })
 

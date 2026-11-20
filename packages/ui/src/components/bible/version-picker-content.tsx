@@ -12,7 +12,6 @@ import {
   type TextLayoutEvent,
   type ViewStyle,
 } from 'react-native'
-import Animated, { cubicBezier, useReducedMotion } from 'react-native-reanimated'
 import Svg, { Circle, Path } from 'react-native-svg'
 
 import { useTokens } from '../../hooks/use-tokens'
@@ -37,7 +36,6 @@ import type {
 const SIDE_PADDING = 24
 const BADGE_SIZE = 52
 const BADGE_FONT_SIZE = 20
-const PANEL_EASE = cubicBezier(0.23, 1, 0.32, 1)
 
 function PickerPanel({
   visible,
@@ -48,26 +46,16 @@ function PickerPanel({
   language?: boolean
   children: ReactNode
 }): ReactNode {
-  const reducedMotion = useReducedMotion()
   return (
-    <Animated.View
+    <View
       testID={language ? 'version-picker-languages-panel' : 'version-picker-versions-panel'}
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       pointerEvents={visible ? 'auto' : 'none'}
-      style={[
-        styles.panel,
-        language && styles.languagePanel,
-        {
-          opacity: visible ? 1 : 0,
-          transitionProperty: 'opacity',
-          transitionDuration: reducedMotion ? '80ms' : '180ms',
-          transitionTimingFunction: PANEL_EASE,
-        },
-      ]}
+      style={[styles.panel, language && styles.languagePanel, !visible && styles.hiddenPanel]}
     >
       {children}
-    </Animated.View>
+    </View>
   )
 }
 
@@ -746,6 +734,7 @@ export function VersionPickerContent({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   panel: { flex: 1 },
+  hiddenPanel: { display: 'none' },
   languagePanel: { ...StyleSheet.absoluteFill },
   header: {
     flexDirection: 'row',

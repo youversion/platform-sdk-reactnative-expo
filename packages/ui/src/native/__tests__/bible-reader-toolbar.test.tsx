@@ -1071,6 +1071,9 @@ describe('BibleReader native toolbar', () => {
     )
 
     expect(screen.getByText('John 1')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityValue).toEqual({
+      text: 'John 1',
+    })
 
     expect(
       screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,
@@ -1085,6 +1088,9 @@ describe('BibleReader native toolbar', () => {
     expect(latestDomProps.book).toBe('JHN')
     expect(latestDomProps.chapter).toBe('2')
     expect(screen.getByText('John 2')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityValue).toEqual({
+      text: 'John 2',
+    })
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-next-chapter'))
@@ -1093,6 +1099,9 @@ describe('BibleReader native toolbar', () => {
     expect(latestDomProps.chapter).toBe('1')
     expect(useReaderLocationStore.getState()).toMatchObject({ book: 'ACT', chapter: '1' })
     expect(screen.getByText('Acts 1')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityValue).toEqual({
+      text: 'Acts 1',
+    })
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
@@ -1103,6 +1112,9 @@ describe('BibleReader native toolbar', () => {
     expect(latestDomProps.book).toBe('JHN')
     expect(latestDomProps.chapter).toBe('2')
     expect(screen.getByText('John 2')).toBeTruthy()
+    expect(screen.getByTestId('reader-toolbar-chapter').props.accessibilityValue).toEqual({
+      text: 'John 2',
+    })
   })
 
   it('saves book and chapter together when next opens the next book', async () => {

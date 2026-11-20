@@ -319,7 +319,7 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText('For God')).toBeTruthy()
     expect(screen.getByText('so loved the world', { exact: false })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+    expect(screen.queryByTestId(/^scripture-footnote-/)).toBeNull()
   })
 
   it('opens the footnote sheet with the verse number', async () => {
@@ -333,7 +333,7 @@ describe('BibleTextView', () => {
       wrapper: youVersionProviderWrapper(),
     })
 
-    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    fireEvent.press(await screen.findByTestId(/^scripture-footnote-/))
     expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
     expect(screen.getByTestId('footnote-verse').props.children).toBe('16')
   })
@@ -363,7 +363,7 @@ describe('BibleTextView', () => {
         expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('rtl'),
       )
 
-      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
       await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
     } finally {
       restore()
@@ -393,7 +393,7 @@ describe('BibleTextView', () => {
       await screen.findByText(HEBREW)
       expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('ltr')
 
-      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
       expect(screen.getByTestId('footnote-direction').props.children).toBe('ltr')
       expect(indexRequests()).toHaveLength(0)
     } finally {
@@ -432,7 +432,7 @@ describe('BibleTextView', () => {
       await waitFor(() =>
         expect(nearestStyle(HEBREW, 'writingDirection')?.writingDirection).toBe('rtl'),
       )
-      fireEvent.press(screen.getByRole('button', { name: 'Footnote' }))
+      fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
       await waitFor(() => expect(screen.getByTestId('footnote-direction').props.children).toBe('rtl'))
 
       view.rerender(<BibleTextView reference="JHN.3.16" versionId={111} />)
@@ -460,7 +460,7 @@ describe('BibleTextView', () => {
       },
     )
 
-    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    fireEvent.press(await screen.findByTestId(/^scripture-footnote-/))
     expect(onFootnotePress).toHaveBeenCalledWith(
       expect.objectContaining({ verseNum: '16', reference: 'John 3' }),
     )
@@ -481,7 +481,7 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText('For God')).toBeTruthy()
     expect(screen.getByText('so loved the world', { exact: false })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+    expect(screen.queryByTestId(/^scripture-footnote-/)).toBeNull()
     expect(screen.queryByTestId('footnote-sheet')).toBeNull()
   })
 
@@ -800,7 +800,7 @@ describe('BibleTextView', () => {
 
     expect(await screen.findByText('For God')).toBeTruthy()
     expect(styleValue('For God', 'fontSize')).toBe(16)
-    fireEvent.press(await screen.findByRole('button', { name: 'Footnote' }))
+    fireEvent.press(await screen.findByTestId(/^scripture-footnote-/))
     expect(screen.getByTestId('footnote-font-size').props.children).toBe('16')
   })
 

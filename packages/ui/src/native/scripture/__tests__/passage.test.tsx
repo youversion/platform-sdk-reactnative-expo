@@ -1,9 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react-native'
-import { Children, isValidElement } from 'react'
-import { StyleSheet, Text } from 'react-native'
+import { act, fireEvent, render, screen } from '@testing-library/react-native'
+import { Children, isValidElement, type ReactElement } from 'react'
+import { StyleSheet, Text, View } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
-import en from '../../../i18n/locales/en.json'
 import { LocaleProvider } from '../../../i18n/locale-context'
 import { parsePassage, type Block } from '../parse-passage'
 import {
@@ -260,7 +259,10 @@ describe('paragraph alignment', () => {
     expect(endEdgeShrinks('סלה')).toEqual([{ flexShrink: 1, maxWidth: '100%' }])
   })
 
-  it('names the footnote button with the shared label', () => {
+  it('keeps the named footnote button aligned after text reflows within the block', () => {
+    const html = '<span>Or</span>'
+    const onNotePress = jest.fn()
+    const onBlockRef = jest.fn()
     render(
       <LocaleProvider locale="en">
         <Passage
@@ -269,7 +271,7 @@ describe('paragraph alignment', () => {
               classes: ['p'],
               heading: false,
               verses: [1],
-              segments: [{ verse: 1, inlines: [{ kind: 'note', html: '<span>Or</span>' }] }],
+              segments: [{ verse: 1, inlines: [{ kind: 'note', html }] }],
             },
           ]}
           look={LOOK}
@@ -277,13 +279,158 @@ describe('paragraph alignment', () => {
           paint={new Map()}
           focus={null}
           onVersePress={() => undefined}
-          onNotePress={() => undefined}
+          onNotePress={onNotePress}
           onBlockLayout={() => undefined}
-          onBlockRef={() => undefined}
+          onBlockRef={onBlockRef}
         />
       </LocaleProvider>,
     )
-    expect(screen.getByLabelText('Footnote')).toBeTruthy()
+    const views = screen.UNSAFE_getAllByType(View)
+    const block = views.find((view) => view.props.onLayout !== undefined)
+    const inline = views.find((view) => view.props.testID === 'scripture-footnote-0:0')
+    if (block === undefined || inline === undefined) throw new Error('expected the block and note')
+    // SAFETY: The instance was retrieved by the React Native View component type.
+    const measureLayout = jest.spyOn(inline.instance as View, 'measureLayout')
+    measureLayout.mockImplementationOnce((_container, success) => success(30, 40, 16, 20))
+    fireEvent(block, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 160, height: 100 } },
+    })
+    expect(measureLayout).toHaveBeenCalledWith(
+      block.instance,
+      expect.any(Function),
+      expect.any(Function),
+    )
+    const button = screen.getByRole('button', { name: 'Footnote' })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({
+      position: 'absolute',
+      left: 30,
+      top: 40,
+      width: 16,
+      height: 20,
+    })
+    expect(button.props.hitSlop).toBe(8)
+    expect(button.props.accessibilityHint).toBe('1')
+    expect(inline.props.accessible).toBe(false)
+    expect(inline.props.accessibilityLabel).toBeUndefined()
+    fireEvent.press(button)
+    expect(onNotePress).toHaveBeenCalledWith(1, html)
+
+    const paragraph = screen
+      .UNSAFE_getAllByType(Text)
+      .find((text) => text.props.onTextLayout !== undefined)
+    if (paragraph === undefined) throw new Error('expected the measured paragraph')
+    const frame = jest.spyOn(global, 'requestAnimationFrame').mockReturnValue(0)
+    try {
+      const paragraphRefCalls = onBlockRef.mock.calls.length
+      measureLayout.mockClear()
+      measureLayout.mockImplementationOnce((_container, success) => success(70, 60, 16, 20))
+      fireEvent(paragraph, 'textLayout', { nativeEvent: { lines: [] } })
+      fireEvent(paragraph, 'textLayout', { nativeEvent: { lines: [] } })
+      expect(measureLayout).not.toHaveBeenCalled()
+      expect(frame).toHaveBeenCalledTimes(1)
+      const callback = frame.mock.calls[0]?.[0]
+      if (callback === undefined) throw new Error('expected the scheduled measurement')
+      act(() => callback(0))
+
+      expect(measureLayout).toHaveBeenCalledTimes(1)
+      expect(measureLayout).toHaveBeenCalledWith(
+        block.instance,
+        expect.any(Function),
+        expect.any(Function),
+      )
+      const movedButton = screen.getByRole('button', { name: 'Footnote' })
+      expect(StyleSheet.flatten(movedButton.props.style)).toMatchObject({
+        position: 'absolute',
+        left: 70,
+        top: 60,
+        width: 16,
+        height: 20,
+      })
+      fireEvent.press(movedButton)
+      expect(onNotePress).toHaveBeenCalledTimes(2)
+      expect(onNotePress).toHaveBeenLastCalledWith(1, html)
+      expect(onBlockRef).toHaveBeenCalledTimes(paragraphRefCalls)
+
+      measureLayout.mockImplementationOnce((_container, success) => success(0, 0, 0, 0))
+      fireEvent(paragraph, 'textLayout', { nativeEvent: { lines: [] } })
+      const nextCallback = frame.mock.calls[1]?.[0]
+      if (nextCallback === undefined) throw new Error('expected the next measurement')
+      act(() => nextCallback(0))
+      expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+
+      const cancel = jest.spyOn(global, 'cancelAnimationFrame').mockImplementation(() => undefined)
+      try {
+        frame.mockReturnValueOnce(42)
+        fireEvent(paragraph, 'textLayout', { nativeEvent: { lines: [] } })
+        screen.unmount()
+        expect(cancel).toHaveBeenCalledWith(42)
+      } finally {
+        cancel.mockRestore()
+      }
+    } finally {
+      frame.mockRestore()
+    }
+  })
+
+  it('drops old note frames when the block changes and ignores its pending measurement', () => {
+    const onNotePress = jest.fn()
+    const makeBlock = (html: string): Block => ({
+      classes: ['p'],
+      heading: false,
+      verses: [3],
+      segments: [{ verse: 3, inlines: [{ kind: 'note', html }] }],
+    })
+    const passage = (block: Block): ReactElement => (
+      <LocaleProvider locale="en">
+        <Passage
+          blocks={[block]}
+          look={LOOK}
+          selected={new Set()}
+          paint={new Map()}
+          focus={null}
+          onNotePress={onNotePress}
+        />
+      </LocaleProvider>
+    )
+    const view = render(passage(makeBlock('first note')))
+    const inline = screen
+      .UNSAFE_getAllByType(View)
+      .find((node) => node.props.testID === 'scripture-footnote-0:0')
+    const block = screen.UNSAFE_getAllByType(View).find((node) => node.props.onLayout !== undefined)
+    if (inline === undefined || block === undefined) throw new Error('expected block and note')
+    // SAFETY: This instance was retrieved by the React Native View component type.
+    const measureLayout = jest.spyOn(inline.instance as View, 'measureLayout')
+    measureLayout.mockImplementationOnce((_container, success) => success(10, 20, 16, 20))
+    fireEvent(block, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 160, height: 100 } },
+    })
+    expect(screen.getByRole('button', { name: 'Footnote' })).toBeTruthy()
+
+    let oldMeasurement: Parameters<View['measureLayout']>[1] | undefined
+    measureLayout.mockImplementationOnce((_container, success) => {
+      oldMeasurement = success
+    })
+    fireEvent(block, 'layout', {
+      nativeEvent: { layout: { x: 0, y: 0, width: 160, height: 100 } },
+    })
+    let newMeasurement: Parameters<View['measureLayout']>[1] | undefined
+    measureLayout.mockImplementationOnce((_container, success) => {
+      newMeasurement = success
+    })
+    view.rerender(passage(makeBlock('replacement note')))
+    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+    const finishOldMeasurement = oldMeasurement
+    const finishNewMeasurement = newMeasurement
+    if (finishOldMeasurement === undefined || finishNewMeasurement === undefined) {
+      throw new Error('expected measurements for both blocks')
+    }
+    act(() => finishOldMeasurement(90, 90, 16, 20))
+    expect(screen.queryByRole('button', { name: 'Footnote' })).toBeNull()
+    act(() => finishNewMeasurement(40, 50, 16, 20))
+    const button = screen.getByRole('button', { name: 'Footnote' })
+    expect(StyleSheet.flatten(button.props.style)).toMatchObject({ left: 40, top: 50 })
+    fireEvent.press(button)
+    expect(onNotePress).toHaveBeenCalledWith(3, 'replacement note')
   })
 })
 
@@ -302,8 +449,8 @@ describe('verse labels', () => {
           : [i === 0 && child === '⁠' && !insideText(node) ? '[anchor]' : child],
       )
     const labelled = (node: ReactTestInstance | null): boolean =>
-      node?.props.accessibilityLabel === en.footnoteAriaLabel
-    // The outermost labelled node, so the button and the view it renders count once.
+      node?.props.testID?.startsWith('scripture-footnote-') === true
+    // The outermost marker node, so the button and the view it renders count once.
     const isNote = (node: ReactTestInstance): boolean => labelled(node) && !labelled(node.parent)
     return screen.root
       .findAll((node) => isNote(node) || node.type === Text)

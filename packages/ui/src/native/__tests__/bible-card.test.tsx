@@ -75,9 +75,9 @@ function flattenedTextStyle(node: ReactTestInstance): TextStyle {
 
 async function pressFootnote(): Promise<void> {
   await waitFor(() => {
-    expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+    expect(screen.getByTestId(/^scripture-footnote-/)).toBeTruthy()
   })
-  fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+  fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
 }
 
 function MockFootnoteContent(props: {

@@ -386,7 +386,7 @@ describe('BibleVersionPickerSheet selection', () => {
     expect(queryByText('No regional languages available')).toBeNull()
   })
 
-  it('cross-fades panels while keeping the hidden panel inert', async () => {
+  it('keeps only the active picker panel in the layout', async () => {
     installCatalogFetch('ready')
     const { findByText, getByLabelText, UNSAFE_getAllByType } = render(
       <BibleVersionPickerSheet isOpen onClose={() => {}} versionId={3034} />,
@@ -397,18 +397,18 @@ describe('BibleVersionPickerSheet selection', () => {
     const panels = UNSAFE_getAllByType(View)
     const versions = panels.find((view) => view.props.testID === 'version-picker-versions-panel')!
     const languages = panels.find((view) => view.props.testID === 'version-picker-languages-panel')!
-    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(1)
-    expect(StyleSheet.flatten(languages.props.style).opacity).toBe(0)
+    expect(StyleSheet.flatten(versions.props.style).display).toBe(undefined)
+    expect(StyleSheet.flatten(languages.props.style).display).toBe('none')
     expect(languages.props.pointerEvents).toBe('none')
 
     fireEvent.press(getByLabelText('Language'))
-    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(0)
+    expect(StyleSheet.flatten(versions.props.style).display).toBe('none')
     expect(versions.props.pointerEvents).toBe('none')
-    expect(StyleSheet.flatten(languages.props.style).opacity).toBe(1)
+    expect(StyleSheet.flatten(languages.props.style).display).toBe(undefined)
     expect(languages.props.pointerEvents).toBe('auto')
 
     fireEvent.press(getByLabelText('Back to Bible versions'))
-    expect(StyleSheet.flatten(versions.props.style).opacity).toBe(1)
+    expect(StyleSheet.flatten(versions.props.style).display).toBe(undefined)
     expect(languages.props.pointerEvents).toBe('none')
   })
 

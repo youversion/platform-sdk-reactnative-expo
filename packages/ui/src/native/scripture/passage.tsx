@@ -1,4 +1,16 @@
-import { Fragment, memo, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  Fragment,
+  memo,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type Ref,
+  type RefObject,
+} from 'react'
 import {
   PixelRatio,
   Platform,
@@ -6,6 +18,7 @@ import {
   Text as RNText,
   View,
   type LayoutChangeEvent,
+  type LayoutRectangle,
   type TextLayoutEvent,
   type Text as RNTextInstance,
   type TextStyle,
@@ -375,6 +388,134 @@ function PassageTable({ rows, blocks, resolved, plain, ...rest }: PassageTablePr
   )
 }
 
+type FootnoteButtonsHandle = {
+  measure: () => void
+  scheduleMeasurement: () => void
+}
+
+type FootnoteButtonsProps = {
+  ref: Ref<FootnoteButtonsHandle>
+  block: Block
+  container: RefObject<View | null>
+  inlineNotes: RefObject<Map<string, View>>
+  rtl: boolean
+  onNotePress: PassageProps['onNotePress']
+}
+
+/** Own note measurement updates without repainting the paragraph and its highlight layers. */
+function FootnoteButtons({
+  ref,
+  block,
+  container,
+  inlineNotes,
+  rtl,
+  onNotePress,
+}: FootnoteButtonsProps): ReactNode {
+  const { t } = useSdkTranslation()
+  const [measured, setMeasured] = useState<{
+    block: Block
+    frames: ReadonlyMap<string, LayoutRectangle>
+  }>(() => ({ block, frames: new Map() }))
+  const frame = useRef<number | null>(null)
+  const generation = useRef(0)
+  const measure = useCallback(() => {
+    const relativeTo = container.current
+    if (relativeTo === null) return
+    const currentGeneration = generation.current
+    inlineNotes.current.forEach((note, key) => {
+      const updateFrame = (layout: LayoutRectangle | null): void => {
+        if (generation.current !== currentGeneration || inlineNotes.current.get(key) !== note)
+          return
+        setMeasured((current) => {
+          const frames = current.block === block ? current.frames : new Map()
+          const previous = frames.get(key)
+          if (layout === null && previous === undefined) return current
+          if (
+            layout !== null &&
+            previous?.x === layout.x &&
+            previous.y === layout.y &&
+            previous.width === layout.width &&
+            previous.height === layout.height
+          ) {
+            return current
+          }
+          const next = new Map(frames)
+          if (layout === null) next.delete(key)
+          else next.set(key, layout)
+          return { block, frames: next }
+        })
+      }
+      // Fabric positions the attachment without emitting onLayout on its root.
+      note.measureLayout(
+        relativeTo,
+        (x, y, width, height) =>
+          updateFrame(width > 0 && height > 0 ? { x, y, width, height } : null),
+        () => updateFrame(null),
+      )
+    })
+  }, [block, container, inlineNotes])
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      measure,
+      scheduleMeasurement: () => {
+        if (frame.current !== null) return
+        frame.current = requestAnimationFrame(() => {
+          frame.current = null
+          measure()
+        })
+      },
+    }),
+    [measure],
+  )
+
+  useEffect(() => {
+    measure()
+    return () => {
+      generation.current += 1
+      if (frame.current !== null) {
+        cancelAnimationFrame(frame.current)
+        frame.current = null
+      }
+    }
+  }, [measure])
+
+  return (
+    <View
+      pointerEvents="box-none"
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      {/* Fabric's paragraph accessibility container omits inline View attachments. */}
+      {block.segments.map((segment, segmentIndex) =>
+        segment.inlines.map((inline, inlineIndex) => {
+          if (inline.kind !== 'note') return null
+          const key = `${segmentIndex}:${inlineIndex}`
+          const layout = measured.block === block ? measured.frames.get(key) : undefined
+          if (layout === undefined) return null
+          return (
+            <Pressable
+              key={key}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('footnoteAriaLabel')}
+              accessibilityHint={segment.verse === null ? undefined : String(segment.verse)}
+              onPress={() => onNotePress(segment.verse, inline.html)}
+              style={{
+                position: 'absolute',
+                ...leftEdge(layout.x, rtl),
+                top: layout.y,
+                width: layout.width,
+                height: layout.height,
+              }}
+            />
+          )
+        }),
+      )}
+    </View>
+  )
+}
+
 type BlockViewProps = Omit<PassageProps, 'blocks'> & {
   index: number
   block: Block
@@ -417,6 +558,12 @@ const BlockView = memo(function BlockView({
   })
   const { lines, size, space, originX, textWidth } = measure
   const endAligned = rule.align === 'end'
+  const blockRef = useRef<View>(null)
+  const inlineNotes = useRef(new Map<string, View>())
+  const noteButtons = useRef<FootnoteButtonsHandle>(null)
+  const measureNotes =
+    Platform.OS === 'ios' &&
+    block.segments.some(({ inlines }) => inlines.some(({ kind }) => kind === 'note'))
   const update = (change: Partial<Omit<Measure, 'look'>>): void =>
     setMeasure((current) => {
       const next = { ...current, ...change }
@@ -427,6 +574,7 @@ const BlockView = memo(function BlockView({
   const reportLines = onVerseLines !== undefined && blockProbed(block, probeVerses)
   const onParagraphLayout = (event: TextLayoutEvent): void => {
     const laidOut = event.nativeEvent.lines
+    if (measureNotes) noteButtons.current?.scheduleMeasurement()
     if (measured) {
       update({ lines: laidOut })
     }
@@ -447,6 +595,7 @@ const BlockView = memo(function BlockView({
     dimmed: boolean,
     layer: Layer,
     last: boolean,
+    noteKey: string,
     after: Inline['kind'] | undefined,
   ): ReactNode => {
     const ghost = layer !== 'text'
@@ -511,8 +660,18 @@ const BlockView = memo(function BlockView({
           <Pressable
             hitSlop={8}
             disabled={ghost}
+            accessible={!ghost && !measureNotes}
             accessibilityRole="button"
-            accessibilityLabel={t('footnoteAriaLabel')}
+            accessibilityLabel={ghost || measureNotes ? undefined : t('footnoteAriaLabel')}
+            testID={ghost ? undefined : `scripture-footnote-${noteKey}`}
+            ref={
+              measureNotes && !ghost
+                ? (view) => {
+                    if (view === null) inlineNotes.current.delete(noteKey)
+                    else inlineNotes.current.set(noteKey, view)
+                  }
+                : undefined
+            }
             onPress={ghost ? undefined : () => onNotePress(verse, inline.html)}
             style={{
               ...box,
@@ -625,7 +784,9 @@ const BlockView = memo(function BlockView({
     const node = (
       <RNText
         ref={ghost || onBlockRef === undefined ? undefined : (node) => onBlockRef(index, node)}
-        onTextLayout={ghost || (!measured && !reportLines) ? undefined : onParagraphLayout}
+        onTextLayout={
+          ghost || (!measured && !reportLines && !measureNotes) ? undefined : onParagraphLayout
+        }
         onLayout={
           ghost || (!endAligned && !measured)
             ? undefined
@@ -651,9 +812,20 @@ const BlockView = memo(function BlockView({
           const dimmed = blockDimmed || (focus !== null && (verse === null || !focus.has(verse)))
           const isSelected = verse !== null && selected.has(verse)
           const ink = fill?.text ?? look.ink
-          return (
+          const renderAt = (inline: Inline, i: number): ReactNode =>
+            renderInline(
+              inline,
+              i,
+              verse,
+              dimmed,
+              layer,
+              i === segment.inlines.length - 1,
+              `${segmentIndex}:${i}`,
+              segment.inlines[i - 1]?.kind,
+            )
+          const textRun = (start: number, end: number): ReactNode => (
             <RNText
-              key={segmentIndex}
+              key={`text-${start}`}
               suppressHighlighting
               onPress={
                 ghost || verse === null || onVersePress === undefined
@@ -670,19 +842,25 @@ const BlockView = memo(function BlockView({
                     : backdrop(layer, fill, dimmed),
               }}
             >
-              {segment.inlines.map((inline, i) =>
-                renderInline(
-                  inline,
-                  i,
-                  verse,
-                  dimmed,
-                  layer,
-                  i === segment.inlines.length - 1,
-                  segment.inlines[i - 1]?.kind,
-                ),
-              )}
+              {segment.inlines
+                .slice(start, end)
+                .map((inline, offset) => renderAt(inline, start + offset))}
             </RNText>
           )
+          // A nested Text span has no Fabric layout metrics. Make the real
+          // note a direct paragraph attachment so measureLayout can reach it.
+          const runs: ReactNode[] = []
+          let start = 0
+          if (measureNotes && !ghost) {
+            segment.inlines.forEach((inline, i) => {
+              if (inline.kind !== 'note') return
+              if (start < i) runs.push(textRun(start, i))
+              runs.push(renderAt(inline, i))
+              start = i + 1
+            })
+          }
+          if (start < segment.inlines.length) runs.push(textRun(start, segment.inlines.length))
+          return <Fragment key={segmentIndex}>{runs}</Fragment>
         })}
       </RNText>
     )
@@ -693,6 +871,7 @@ const BlockView = memo(function BlockView({
   }
 
   const onLayout = (event: LayoutChangeEvent): void => {
+    if (measureNotes) noteButtons.current?.measure()
     onBlockLayout?.(index, event.nativeEvent.layout.y, event.nativeEvent.layout.height)
     const { width, height } = event.nativeEvent.layout
     if (size.width !== width || size.height !== height) {
@@ -765,6 +944,7 @@ const BlockView = memo(function BlockView({
   const underline = hasSelection ? paragraph('underline') : null
   return (
     <View
+      ref={measureNotes ? blockRef : undefined}
       onLayout={onLayout}
       style={{
         marginTop: collapsedMarginTop(rule, previous, fontSize),
@@ -836,6 +1016,16 @@ const BlockView = memo(function BlockView({
           </View>
         ))}
       {text}
+      {measureNotes && (
+        <FootnoteButtons
+          ref={noteButtons}
+          block={block}
+          container={blockRef}
+          inlineNotes={inlineNotes}
+          rtl={look.rtl}
+          onNotePress={onNotePress}
+        />
+      )}
       {hasSelection &&
         lines.map((line, lineIndex) => {
           const top = underlineTop(line, rule.size)
