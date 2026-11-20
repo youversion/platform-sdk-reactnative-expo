@@ -12,7 +12,7 @@ import type {
   UseHighlightsOptions,
 } from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
-import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../lib/bible-ui-types'
+import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'

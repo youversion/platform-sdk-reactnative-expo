@@ -1,4 +1,4 @@
-import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../lib/bible-ui-types'
+import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../types/bible-ui-types'
 
 /** Ports of the Web SDK's verse-share helpers, so native payloads read the same. */
 export function normalizeVerses(verses: Iterable<number>): number[] {

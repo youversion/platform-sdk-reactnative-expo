@@ -1,5 +1,5 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
-import type { BibleChapterPickerSelectData } from '../../lib/bible-ui-types'
+import type { BibleChapterPickerSelectData } from '../../types/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Pressable, Text, View } from 'react-native'
 

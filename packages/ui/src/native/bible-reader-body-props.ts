@@ -1,6 +1,6 @@
 import type { FetchBibleContent, Highlight } from '@youversion/platform-react-native-expo-core'
 
-import type { FootnoteData, BibleReaderVerseSelection } from '../lib/bible-ui-types'
+import type { FootnoteData, BibleReaderVerseSelection } from '../types/bible-ui-types'
 import type { FontFamily } from '../lib/reader-fonts'
 import type {
   BibleReaderVerseFocus,

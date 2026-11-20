@@ -11,7 +11,7 @@
 import { act, fireEvent, render } from '@testing-library/react-native'
 import type { Highlight, UseHighlightsOptions } from '@youversion/platform-react-native-expo-core'
 import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
-import type { BibleReaderVerseSelection } from '../../lib/bible-ui-types'
+import type { BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import { Pressable, Text, View } from 'react-native'
 
 import {

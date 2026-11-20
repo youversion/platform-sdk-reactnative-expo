@@ -3,7 +3,7 @@ import { mmkvStorage } from '@youversion/platform-react-native-expo-core'
 import type {
   BibleChapterPickerPressData,
   BibleVersionPickerPressData,
-} from '../../lib/bible-ui-types'
+} from '../../types/bible-ui-types'
 import { Pressable, Text, View } from 'react-native'
 
 import {

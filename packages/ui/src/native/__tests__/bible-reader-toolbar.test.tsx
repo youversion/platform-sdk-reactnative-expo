@@ -12,7 +12,7 @@ import type {
   BibleChapterPickerPressData,
   BibleReaderVerseSelection,
   BibleVersionPickerPressData,
-} from '../../lib/bible-ui-types'
+} from '../../types/bible-ui-types'
 import type { ReactNode } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 

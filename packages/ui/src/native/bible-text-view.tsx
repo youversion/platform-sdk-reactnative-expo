@@ -5,7 +5,7 @@ import { Platform } from 'react-native'
 
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { BIBLE_READER_FONT } from '../lib/bible-reader-settings'
-import type { FootnoteData, TextDirection } from '../lib/bible-ui-types'
+import type { FootnoteData, TextDirection } from '../types/bible-ui-types'
 import type { FontFamily } from '../lib/reader-fonts'
 import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
 import { getImpl } from './component-impls'

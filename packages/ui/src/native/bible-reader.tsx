@@ -36,7 +36,7 @@ import type {
   BibleReaderVerseSelection,
   BibleVersionPickerPressData,
   FootnoteData,
-} from '../lib/bible-ui-types'
+} from '../types/bible-ui-types'
 import { DEFAULT_BIBLE_VERSION_ID } from '../lib/constants'
 import { computeReaderBottomScrollPadding } from '../lib/reader-bottom-scroll-padding'
 import {
@@ -117,7 +117,7 @@ function sameScope(a: HighlightScope, b: HighlightScope): boolean {
   return a.versionId === b.versionId && a.book === b.book && a.chapter === b.chapter
 }
 
-export type { BibleReaderShareData, BibleReaderVerseSelection } from '../lib/bible-ui-types'
+export type { BibleReaderShareData, BibleReaderVerseSelection } from '../types/bible-ui-types'
 export type { HighlightWriteError } from '../lib/report-highlight-write-error'
 
 /**

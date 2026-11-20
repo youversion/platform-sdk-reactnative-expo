@@ -2,7 +2,7 @@ import {
   parseChapterScopeFromUsfm,
   type FetchBibleContent,
 } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '../../lib/bible-ui-types'
+import type { FootnoteData } from '../../types/bible-ui-types'
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 

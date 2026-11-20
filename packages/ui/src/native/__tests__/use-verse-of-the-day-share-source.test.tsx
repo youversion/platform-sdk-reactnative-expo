@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
-import type { VerseOfTheDayShareData } from '../../lib/bible-ui-types'
+import type { VerseOfTheDayShareData } from '../../types/bible-ui-types'
 import type { ReactNode } from 'react'
 
 import { defaultHookOverrides } from '../../test-utils/default-hook-overrides'

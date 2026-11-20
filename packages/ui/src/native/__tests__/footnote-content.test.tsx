@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react-native'
-import type { FootnoteData } from '../../lib/bible-ui-types'
+import type { FootnoteData } from '../../types/bible-ui-types'
 import { StyleSheet } from 'react-native'
 
 import { mockWindowDimensions } from '../../../jest.window-dimensions-mock'

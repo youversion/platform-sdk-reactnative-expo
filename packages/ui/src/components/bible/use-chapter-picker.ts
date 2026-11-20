@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type { BibleChapterPickerSelectData } from '../../lib/bible-ui-types'
+import type { BibleChapterPickerSelectData } from '../../types/bible-ui-types'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useLocale } from '../../i18n/locale-context'

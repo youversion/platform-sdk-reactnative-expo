@@ -8,7 +8,7 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
   TextDirection,
-} from '../lib/bible-ui-types'
+} from '../types/bible-ui-types'
 import type { DOMProps } from 'expo/dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, StyleSheet, View } from 'react-native'

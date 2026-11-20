@@ -39,7 +39,7 @@ import type {
   BibleVersionPickerPressData,
   FootnoteData,
   VerseOfTheDayShareData,
-} from '../bible-ui-types'
+} from '../../types/bible-ui-types'
 
 /** Collapse intersections so optional fields are part of the compared type. */
 type Flatten<T> = { [K in keyof T]: T[K] }

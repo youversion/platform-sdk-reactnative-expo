@@ -1,5 +1,5 @@
 import { useYouVersion } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData, TextDirection, VerseOfTheDayShareData } from '../lib/bible-ui-types'
+import type { FootnoteData, TextDirection, VerseOfTheDayShareData } from '../types/bible-ui-types'
 import type { DOMProps } from 'expo/dom'
 import { useEffect, useState, type ReactNode } from 'react'
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native'

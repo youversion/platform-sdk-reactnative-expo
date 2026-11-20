@@ -3,7 +3,7 @@ import { useCallback, useMemo, useRef, type ReactNode } from 'react'
 import { ActivityIndicator, View } from 'react-native'
 
 import { Button, Text } from '../components/ui'
-import type { BibleTextViewPassageState, FootnoteData } from '../lib/bible-ui-types'
+import type { BibleTextViewPassageState, FootnoteData } from '../types/bible-ui-types'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { FontFamily } from '../lib/reader-fonts'
@@ -27,7 +27,7 @@ import {
 } from './scripture/use-passage'
 import type { TextDirection, VersionDirections } from './scripture/use-version-directions'
 
-export type { BibleTextViewPassageState } from '../lib/bible-ui-types'
+export type { BibleTextViewPassageState } from '../types/bible-ui-types'
 
 export type BibleTextViewNativeProps = {
   reference: string

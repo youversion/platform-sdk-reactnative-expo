@@ -1,6 +1,6 @@
 import type { FetchBibleContent } from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native'
-import type { BibleReaderVerseSelection } from '../../lib/bible-ui-types'
+import type { BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import type { ComponentProps } from 'react'
 import { ScrollView, StyleSheet, Text, type ColorValue, type TextStyle } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'

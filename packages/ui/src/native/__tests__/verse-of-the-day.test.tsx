@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react-native'
-import type { FootnoteData, VerseOfTheDayShareData } from '../../lib/bible-ui-types'
+import type { FootnoteData, VerseOfTheDayShareData } from '../../types/bible-ui-types'
 import type { ReactNode } from 'react'
 import type { ReactTestInstance } from 'react-test-renderer'
 import * as ReactNative from 'react-native'

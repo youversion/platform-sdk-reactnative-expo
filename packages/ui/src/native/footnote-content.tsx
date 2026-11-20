@@ -1,4 +1,4 @@
-import type { FootnoteData } from '../lib/bible-ui-types'
+import type { FootnoteData } from '../types/bible-ui-types'
 import { useMemo, type ReactNode } from 'react'
 import {
   Platform,

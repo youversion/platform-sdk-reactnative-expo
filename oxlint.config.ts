@@ -122,7 +122,7 @@ export default defineConfig({
               {
                 name: '@youversion/platform-react-ui',
                 message:
-                  'Native-shipped code must not import @youversion/platform-react-ui runtime values. Use lib/bible-reader-settings.ts and lib/bible-ui-types.ts. Type-only imports are allowed. DOM utilities may still import the Web SDK until YPE-6583.',
+                  'Native-shipped code must not import @youversion/platform-react-ui runtime values. Use lib/bible-reader-settings.ts and types/bible-ui-types.ts. Type-only imports are allowed. DOM utilities may still import the Web SDK until YPE-6583.',
                 allowTypeImports: true,
               },
             ],

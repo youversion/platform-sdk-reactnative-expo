@@ -1,5 +1,5 @@
 import { useYouVersion, type Highlight } from '@youversion/platform-react-native-expo-core'
-import type { FootnoteData } from '../../lib/bible-ui-types'
+import type { FootnoteData } from '../../types/bible-ui-types'
 import { useCallback, useMemo, type ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 
