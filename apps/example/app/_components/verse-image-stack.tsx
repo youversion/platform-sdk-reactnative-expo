@@ -1,7 +1,7 @@
 import type { YouVersionImage } from '@youversion/platform-react-native-expo-core'
 import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native'
+import { AccessibilityInfo, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   Easing,
@@ -11,10 +11,28 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-import { selectionFor } from '../_lib/image-library'
+import { imageAspect, renditionUrl, selectionFor } from '../_lib/image-library'
 import { VerseImage } from './verse-image'
 
 const VISIBLE = 3
+const INSET_X = 24
+const INSET_Y = 20
+
+type Size = { width: number; height: number }
+
+// Swift's `.aspectRatio(contentMode: .fit)`: the card fits the inset stage on both axes.
+function fitCard(stage: Size, aspect: number): Size & { left: number; top: number } {
+  const boxWidth = Math.max(0, stage.width - INSET_X * 2)
+  const boxHeight = Math.max(0, stage.height - INSET_Y * 2)
+  const width = Math.min(boxWidth, boxHeight * aspect)
+  const height = width / aspect
+  return {
+    width,
+    height,
+    left: INSET_X + (boxWidth - width) / 2,
+    top: INSET_Y + (boxHeight - height) / 2,
+  }
+}
 
 type Direction = -1 | 1
 
@@ -49,7 +67,7 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [flight, setFlight] = useState<Flight | null>(null)
   const [reduceMotion, setReduceMotion] = useState(false)
-  const [width, setWidth] = useState(280)
+  const [stage, setStage] = useState<Size>({ width: 280, height: 280 / 0.85 })
   const flightToken = useRef(0)
   const imagesRef = useRef(images)
   const selectedRef = useRef(selectedId)
@@ -78,6 +96,14 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
     const selected = images.find((image) => image.id === validId)
     if (selected) onSelectionChange(selected)
   }, [images, onSelectionChange, validId])
+
+  // Warm the card that enters the stack next so a shuffle never waits on the network.
+  useEffect(() => {
+    const index = images.findIndex((image) => image.id === validId)
+    if (index < 0 || images.length <= VISIBLE) return
+    const upcoming = images[(index + VISIBLE) % images.length]
+    if (upcoming) void Image.prefetch(renditionUrl(upcoming.image_url, 'card')).catch(() => {})
+  }, [images, validId])
 
   const shuffle = useCallback(
     (direction: Direction) => {
@@ -127,7 +153,13 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
 
   return (
     <View style={styles.wrap}>
-      <View onLayout={(event) => setWidth(event.nativeEvent.layout.width)} style={styles.stage}>
+      <View
+        onLayout={(event) => {
+          const { width, height } = event.nativeEvent.layout
+          setStage({ width, height })
+        }}
+        style={styles.stage}
+      >
         {images.map((image) => {
           const depth = depthOf(image.id, images, validId)
           const cardFlight = flight?.imageId === image.id ? flight : null
@@ -142,7 +174,7 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
               onLeave={onLeave}
               onReturned={onReturned}
               onShuffle={shuffle}
-              width={width}
+              stage={stage}
             />
           )
         })}
@@ -200,7 +232,7 @@ type StackCardProps = {
   depth: number
   isTop: boolean
   flight: Flight | null
-  width: number
+  stage: Size
   onShuffle: (direction: Direction) => void
   onLeave: (token: number) => void
   onReturned: (token: number) => void
@@ -211,11 +243,13 @@ function StackCard({
   depth,
   isTop,
   flight,
-  width,
+  stage,
   onShuffle,
   onLeave,
   onReturned,
 }: StackCardProps) {
+  const frame = fitCard(stage, imageAspect(image.aspect_ratio))
+  const width = stage.width
   const x = useSharedValue(0)
   const y = useSharedValue(0)
   const phase = flight?.phase ?? 'idle'
@@ -240,7 +274,7 @@ function StackCard({
   useEffect(() => {
     if (phase !== 'leaving') return
     x.value = withTiming(
-      direction * (width + 24),
+      direction * (width + INSET_X),
       { duration: 200, easing: Easing.out(Easing.cubic) },
       (finished) => {
         if (finished) runOnJS(signalLeave)()
@@ -329,13 +363,13 @@ function StackCard({
       <Animated.View
         accessibilityElementsHidden={!isTop}
         pointerEvents={isTop ? 'auto' : 'none'}
-        style={[styles.card, styles.shadow, { shadowColor: tokens.foreground }, animatedStyle]}
+        style={[styles.card, styles.shadow, frame, { shadowColor: tokens.foreground }, animatedStyle]}
       >
         <VerseImage
           frame="natural"
           image={image}
           presentation={phase === 'leaving' || depth === 0 ? 'standard' : 'decorative'}
-          size={depth === 0 ? 'card' : 'thumb'}
+          size="card"
         />
       </Animated.View>
     </GestureDetector>
@@ -350,11 +384,7 @@ const styles = StyleSheet.create({
     aspectRatio: 0.85,
   },
   card: {
-    bottom: 20,
-    left: 24,
     position: 'absolute',
-    right: 24,
-    top: 20,
   },
   shadow: {
     shadowOffset: { width: 0, height: 8 },

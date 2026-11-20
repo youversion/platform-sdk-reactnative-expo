@@ -46,7 +46,7 @@ export function VerseImage({ image, presentation, frame, size }: VerseImageProps
       ]}
     >
       <Image
-        key={`${image.id}-${attempt}-${uri}`}
+        key={`${image.id}-${attempt}`}
         accessibilityLabel={decorative ? undefined : image.passage_id}
         onError={() => setPhase('failed')}
         onLoad={() => setPhase('loaded')}
