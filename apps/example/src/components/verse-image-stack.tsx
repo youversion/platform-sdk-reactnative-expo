@@ -404,7 +404,20 @@ function StackCard({
   return (
     <GestureDetector gesture={Gesture.Exclusive(pan, tap)}>
       <Animated.View
+        // Screen readers can't swipe the card, so shuffling is also a custom action.
+        accessible={isTop}
+        accessibilityActions={
+          alone
+            ? [{ name: 'activate' }]
+            : [{ name: 'activate' }, { name: 'next', label: 'Next image' }]
+        }
         accessibilityElementsHidden={!isTop}
+        accessibilityLabel="Verse image"
+        accessibilityRole="button"
+        onAccessibilityAction={(event) => {
+          if (event.nativeEvent.actionName === 'next') onShuffle(-1)
+          else onOpen(image)
+        }}
         pointerEvents={isTop && phase === 'idle' ? 'auto' : 'none'}
         style={[
           styles.card,
