@@ -37,6 +37,7 @@ type UnifiedWire = {
   verses?: { reference: string }[]
   topics?: { id?: number | null; text: string; subtopics: string[] }[]
   images?: ({ id?: string | number | null; passage_id?: string | number | null } | null)[]
+  videos?: ({ id?: string; title?: string; nope?: boolean } | null)[]
   user_intent?: string | null
   did_you_mean?: string[]
   search_instead_for?: string | null
@@ -70,6 +71,7 @@ const loveSnapshot = {
   verses: [{ id: 'JHN.3.16' }],
   topics: [{ id: 7, text: 'Love', subtopics: ['charity'] }],
   images: [{ id: 'img-1', passageId: 'JHN.3.16' }],
+  videos: [],
   userIntent: 'topical',
   didYouMean: ['love'],
   searchInsteadFor: null,
@@ -85,6 +87,7 @@ const hopeSnapshot = {
   verses: [{ id: 'ROM.8.28' }],
   topics: [],
   images: [],
+  videos: [],
   didYouMean: [],
   searchInsteadFor: null,
 }
@@ -338,6 +341,7 @@ describe('useUnifiedSearch', () => {
         verses: [],
         topics: [],
         images: [],
+        videos: [],
         didYouMean: ['override'],
         searchInsteadFor: null,
       },
@@ -389,6 +393,7 @@ describe('useUnifiedSearch', () => {
       verses: [],
       topics: [],
       images: [{ id: 'art-2', passageId: 'PSA.23.1' }],
+      videos: [],
       didYouMean: [],
       searchInsteadFor: null,
     })
@@ -445,6 +450,7 @@ describe('useUnifiedSearch', () => {
       verses: [],
       topics: [{ id: null, text: 'Love', subtopics: ['grace'] }],
       images: [{ id: 'opaque+/=id', passageId: '1CO.13.4-7' }],
+      videos: [],
       userIntent: 'future-intent',
       didYouMean: ['love'],
       searchInsteadFor: 'love',
@@ -467,13 +473,50 @@ describe('useUnifiedSearch', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('requests id-only video hits from the stable unified route', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        videos: [
+          { id: 'search-issued-id', title: 'not part of a unified hit' },
+          { id: '' },
+          { nope: true },
+        ],
+        did_you_mean: [],
+        search_instead_for: null,
+      }),
+    )
+    const { result } = renderHook(
+      () =>
+        useUnifiedSearch({
+          ...ready,
+          fields: ['videos'],
+        }),
+      { wrapper: Wrapper },
+    )
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.error).toBeNull()
+    expect(result.current.data).toEqual({
+      verses: [],
+      topics: [],
+      images: [],
+      videos: [{ id: 'search-issued-id' }],
+      didYouMean: [],
+      searchInsteadFor: null,
+    })
+    const url = lastUrl()
+    expect(url.pathname).toBe('/v1/search-unified')
+    expect(url.searchParams.getAll('fields[]')).toEqual(['videos'])
+    expect(url.searchParams.has('page_token')).toBe(false)
+  })
+
   it('reports invalid-parameter for an unknown field and does not fetch', async () => {
     const { result } = renderHook(
       () =>
         useUnifiedSearch({
           ...ready,
-          // @ts-expect-error — videos is not a unified search field
-          fields: ['videos'],
+          // @ts-expect-error — nope is not a unified search field
+          fields: ['nope'],
         }),
       { wrapper: Wrapper },
     )

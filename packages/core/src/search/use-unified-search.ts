@@ -1,12 +1,14 @@
-import {
-  clampSearchText,
-  parseSearchLanguageRange,
-  type SearchUnifiedOptions,
-} from '@youversion/platform-core'
+import { clampSearchText, parseSearchLanguageRange } from '@youversion/platform-core'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { createApiClient } from '../api-client'
+// YPE-6577: swap this for `SearchClient.searchUnified` when platform-sdk-react#488 ships.
+import {
+  searchUnified,
+  type ContentLibrarySearchOptions,
+} from '../content-library/interim/search-unified'
 import { useYouVersion } from '../use-youversion'
-import { catchAsResult, createSearchClient } from './api'
+import { catchAsResult } from './api'
 import type {
   SearchApiError,
   YouVersionUnifiedSearchField,
@@ -17,7 +19,7 @@ export type UseUnifiedSearchProps = Readonly<{
   query: string
   bibleId: number
   languageRanges: string | readonly string[]
-  userIntent?: SearchUnifiedOptions['userIntent']
+  userIntent?: ContentLibrarySearchOptions['userIntent']
   fields?: readonly YouVersionUnifiedSearchField[]
 }>
 
@@ -78,15 +80,17 @@ function inputKey(props: UseUnifiedSearchProps): string {
   ])
 }
 
-function searchOptions(props: UseUnifiedSearchProps): SearchUnifiedOptions {
-  let options: SearchUnifiedOptions = {}
+function searchOptions(props: UseUnifiedSearchProps): ContentLibrarySearchOptions {
+  if (props.fields !== undefined && props.userIntent !== undefined) {
+    return { fields: props.fields, userIntent: props.userIntent }
+  }
   if (props.fields !== undefined) {
-    options = { ...options, fields: props.fields }
+    return { fields: props.fields }
   }
   if (props.userIntent !== undefined) {
-    options = { ...options, userIntent: props.userIntent }
+    return { userIntent: props.userIntent }
   }
-  return options
+  return {}
 }
 
 export function useUnifiedSearch(
@@ -109,7 +113,7 @@ function useLiveUnifiedSearch(
 ): UseUnifiedSearchResult {
   const { appKey, apiHost, installationId } = useYouVersion()
   const client = useMemo(
-    () => createSearchClient({ appKey, apiHost, installationId }),
+    () => createApiClient({ appKey, apiHost, installationId }),
     [appKey, apiHost, installationId],
   )
   const active = run && options?.enabled !== false && isInputReady(props)
@@ -142,7 +146,8 @@ function useLiveUnifiedSearch(
     const requestedGeneration = generation
     let cancelled = false
     void catchAsResult(() =>
-      client.searchUnified(
+      searchUnified(
+        client,
         request.query,
         request.bibleId,
         request.languageRanges,
