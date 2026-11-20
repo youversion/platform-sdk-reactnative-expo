@@ -2,9 +2,11 @@ import { Link, type Href } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const colorTheme = {
-  light: { bg: '#ffffff', fg: '#000000', separator: '#c6c6c8' },
-  dark: { bg: '#000000', fg: '#ffffff', separator: '#38383a' },
+import { colorTheme } from '../../_components/color-theme'
+
+const examplesColorTheme = {
+  light: { ...colorTheme.light, separator: '#c6c6c8' },
+  dark: { ...colorTheme.dark, separator: '#38383a' },
 } as const
 
 const examples: { href: Href; title: string }[] = [
@@ -15,7 +17,7 @@ const examples: { href: Href; title: string }[] = [
 export default function ExamplesScreen() {
   const { top } = useSafeAreaInsets()
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light'
-  const theme = colorTheme[colorScheme]
+  const theme = examplesColorTheme[colorScheme]
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bg, paddingTop: top }]}>

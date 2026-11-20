@@ -2,10 +2,17 @@ import { useYVAuthOptional } from '@youversion/platform-react-native-expo-core'
 import { YouVersionAuthButton } from '@youversion/platform-react-native-expo-ui'
 import { Image, StyleSheet, Text, useColorScheme, View } from 'react-native'
 
+import { colorTheme } from '../_components/color-theme'
+
+const profileColorTheme = {
+  light: { ...colorTheme.light, muted: '#6b6b6b', email: '#3c3c3c' },
+  dark: { ...colorTheme.dark, muted: '#9b9b9b', email: '#c8c8c8' },
+} as const
+
 export default function ProfileScreen() {
   const auth = useYVAuthOptional()
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light'
-  const theme = colorTheme[colorScheme]
+  const theme = profileColorTheme[colorScheme]
 
   if (auth === null) {
     return (
@@ -53,11 +60,6 @@ export default function ProfileScreen() {
     </View>
   )
 }
-
-const colorTheme = {
-  light: { bg: '#ffffff', fg: '#000000', muted: '#6b6b6b', email: '#3c3c3c' },
-  dark: { bg: '#000000', fg: '#ffffff', muted: '#9b9b9b', email: '#c8c8c8' },
-} as const
 
 const styles = StyleSheet.create({
   container: {

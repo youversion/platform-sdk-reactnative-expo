@@ -1,10 +1,7 @@
 import { StyleSheet, Text, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-const colorTheme = {
-  light: { bg: '#ffffff', fg: '#000000' },
-  dark: { bg: '#000000', fg: '#ffffff' },
-} as const
+import { colorTheme } from '../_components/color-theme'
 
 export default function ContentScreen() {
   const { top } = useSafeAreaInsets()
