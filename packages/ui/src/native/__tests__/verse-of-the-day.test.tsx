@@ -671,9 +671,9 @@ describe('VerseOfTheDay', () => {
     const screen = await renderAndSettle(<FilterApp />)
 
     await waitFor(() => {
-      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+      expect(screen.getByTestId(/^scripture-footnote-/)).toBeTruthy()
     })
-    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
     expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
 
     screen.rerender(<FilterApp excludedVersionIds={[3034]} />)
@@ -717,9 +717,9 @@ describe('VerseOfTheDay', () => {
     const screen = await renderAndSettle(<FilterApp />)
 
     await waitFor(() => {
-      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+      expect(screen.getByTestId(/^scripture-footnote-/)).toBeTruthy()
     })
-    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
     expect(screen.getByTestId('footnote-sheet')).toBeTruthy()
 
     screen.rerender(<FilterApp permittedLanguageTags={[]} />)
@@ -743,9 +743,9 @@ describe('VerseOfTheDay', () => {
       wrapper: wrapper(),
     })
     await waitFor(() => {
-      expect(screen.getByLabelText(en.footnoteAriaLabel)).toBeTruthy()
+      expect(screen.getByTestId(/^scripture-footnote-/)).toBeTruthy()
     })
-    fireEvent.press(screen.getByLabelText(en.footnoteAriaLabel))
+    fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
 
     expect(screen.getByTestId('mock-footnote-verse').children).toContain('1')
   })

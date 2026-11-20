@@ -770,7 +770,7 @@ describe('BibleReaderNative', () => {
         mount({ fetchBibleContent: withNote, onFootnotePress })
         await screen.findByText('In the beginning')
         await waitFor(() => {
-          fireEvent.press(screen.getByLabelText('Footnote'))
+          fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
           expect(onFootnotePress).toHaveBeenLastCalledWith(
             expect.objectContaining({ verseNum: '1', reference: 'يوحنا ١' }),
           )
@@ -786,7 +786,7 @@ describe('BibleReaderNative', () => {
       try {
         mount({ fetchBibleContent: withNote, onFootnotePress })
         await screen.findByText('In the beginning')
-        fireEvent.press(screen.getByLabelText('Footnote'))
+        fireEvent.press(screen.getByTestId(/^scripture-footnote-/))
         expect(onFootnotePress).toHaveBeenLastCalledWith(
           expect.objectContaining({ verseNum: '1', reference: '1 API' }),
         )
