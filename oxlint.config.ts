@@ -105,7 +105,15 @@ export default defineConfig({
       },
     },
     {
-      files: ['packages/ui/src/native/**/*.{ts,tsx}'],
+      files: ['packages/ui/src/**/*.{ts,tsx}'],
+      excludeFiles: [
+        'packages/ui/src/dom/**',
+        'packages/ui/src/lib/dom-apply.ts',
+        'packages/ui/src/lib/web-yv-provider.ts',
+        '**/__tests__/**',
+        '**/*.test.ts',
+        '**/*.test.tsx',
+      ],
       rules: {
         'no-restricted-imports': [
           'error',
@@ -114,7 +122,7 @@ export default defineConfig({
               {
                 name: '@youversion/platform-react-ui',
                 message:
-                  'Native code must not import @youversion/platform-react-ui runtime values. Use lib/bible-reader-settings.ts and lib/bible-ui-types.ts. Type-only imports are allowed. DOM utilities outside native/ may still import the Web SDK until YPE-6583.',
+                  'Native-shipped code must not import @youversion/platform-react-ui runtime values. Use lib/bible-reader-settings.ts and lib/bible-ui-types.ts. Type-only imports are allowed. DOM utilities may still import the Web SDK until YPE-6583.',
                 allowTypeImports: true,
               },
             ],
