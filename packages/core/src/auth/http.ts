@@ -18,6 +18,8 @@ export class TokenEndpointError extends Error {
   }
 }
 
+const TOKEN_REQUEST_TIMEOUT_MS = 10_000
+
 const tokenResponseSchema = z.object({
   access_token: z.string(),
   refresh_token: z.string(),
@@ -69,20 +71,34 @@ async function postTokenEndpoint(
     'X-YVP-Installation-Id': installationId,
   })
 
-  const response = await fetch(`https://${apiHost}/auth/token`, {
-    method: 'POST',
-    body: new URLSearchParams(body).toString(),
-    headers: headers,
-  })
+  // RN's OkHttp client ships with no timeouts; without this an Android
+  // token request on a stalled connection never settles.
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), TOKEN_REQUEST_TIMEOUT_MS)
+  try {
+    const response = await fetch(`https://${apiHost}/auth/token`, {
+      method: 'POST',
+      body: new URLSearchParams(body).toString(),
+      headers,
+      signal: controller.signal,
+    })
 
-  if (!response.ok) {
-    throw new TokenEndpointError(response.status, await response.text())
+    if (!response.ok) {
+      throw new TokenEndpointError(response.status, await response.text())
+    }
+
+    const parsed = tokenResponseSchema.safeParse(await response.json())
+    if (!parsed.success) {
+      throw new Error('Token endpoint returned a malformed response')
+    }
+
+    return parsed.data
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('Token request timed out after 10s')
+    }
+    throw error
+  } finally {
+    clearTimeout(timer)
   }
-
-  const parsed = tokenResponseSchema.safeParse(await response.json())
-  if (!parsed.success) {
-    throw new Error('Token endpoint returned a malformed response')
-  }
-
-  return parsed.data
 }

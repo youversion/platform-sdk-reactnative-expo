@@ -358,8 +358,7 @@ function useHighlightsImplementation(
   // token); writes are the exposure, so they wait here.
   //
   // Resolve on EITHER a token arriving OR auth settling with none — never on
-  // `isLoading` alone, because `postTokenEndpoint` has no AbortController and a
-  // hung network can leave `isLoading` true indefinitely.
+  // `isLoading` alone: a stalled bootstrap refresh holds it for up to 10s.
   //
   // Unmounting is a third exit, and it carries its own marker. A plain flush on
   // unmount would resume `runWrite` against a token that is STILL null, which
