@@ -58,103 +58,113 @@ export default function ContentScreen() {
     router.push({ pathname: '/content/image', params: { id: image.id } })
   }, [])
 
+  // Same shell as Examples: pad the outer view for the status bar. Putting the
+  // inset on the FlatList content doubles it on iOS, where the list already sits below.
   return (
-    <FlatList
-      columnWrapperStyle={styles.row}
-      contentContainerStyle={{ paddingTop: top, paddingBottom: bottom + 24 }}
-      contentInsetAdjustmentBehavior="never"
-      data={blocked ? [] : library.list.items}
-      keyboardDismissMode="on-drag"
-      keyboardShouldPersistTaps="handled"
-      keyExtractor={(item) => item.id}
-      ListEmptyComponent={
-        showEmpty ? (
-          <Text style={[styles.empty, { color: tokens.mutedForeground }]}>
-            {library.submittedQuery === ''
-              ? 'No images found'
-              : `There are no images for ${library.submittedQuery}`}
-          </Text>
-        ) : null
-      }
-      ListFooterComponent={
-        <View style={styles.footer}>
-          {library.loading ? <ActivityIndicator color={tokens.mutedForeground} /> : null}
-          {showError && !errorAtTop ? errorRow : null}
-          {showLoadMore ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={library.loadMore}
+    <View style={[styles.screen, { backgroundColor: tokens.background, paddingTop: top }]}>
+      <FlatList
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={{ paddingBottom: bottom + 24 }}
+        contentInsetAdjustmentBehavior="never"
+        data={blocked ? [] : library.list.items}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        keyExtractor={(item) => item.id}
+        ListEmptyComponent={
+          showEmpty ? (
+            <Text style={[styles.empty, { color: tokens.mutedForeground }]}>
+              {library.submittedQuery === ''
+                ? 'No images found'
+                : `There are no images for ${library.submittedQuery}`}
+            </Text>
+          ) : null
+        }
+        ListFooterComponent={
+          <View style={styles.footer}>
+            {library.loading ? <ActivityIndicator color={tokens.mutedForeground} /> : null}
+            {showError && !errorAtTop ? errorRow : null}
+            {showLoadMore ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={library.loadMore}
+                style={[
+                  styles.button,
+                  { borderColor: tokens.border, borderRadius: tokens.radius.full },
+                ]}
+              >
+                <Text style={{ color: tokens.foreground }}>Load more</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        }
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <Text accessibilityRole="header" style={[styles.title, { color: tokens.foreground }]}>
+              Content
+            </Text>
+            <View
               style={[
-                styles.button,
-                { borderColor: tokens.border, borderRadius: tokens.radius.full },
+                styles.search,
+                { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
               ]}
             >
-              <Text style={{ color: tokens.foreground }}>Load more</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      }
-      ListHeaderComponent={
-        <View style={styles.header}>
-          <Text accessibilityRole="header" style={[styles.title, { color: tokens.foreground }]}>
-            Content
-          </Text>
-          <View
-            style={[
-              styles.search,
-              { backgroundColor: tokens.muted, borderRadius: tokens.radius.full },
-            ]}
-          >
-            <TextInput
-              accessibilityLabel="Search images"
-              autoCapitalize="sentences"
-              autoCorrect={false}
-              onChangeText={library.setQuery}
-              onSubmitEditing={() => library.submit(library.query)}
-              placeholder="Search by verse reference"
-              placeholderTextColor={tokens.mutedForeground}
-              returnKeyType="search"
-              style={[styles.input, { color: tokens.foreground }]}
-              value={library.query}
-            />
-            {library.query.length === 0 ? null : (
-              <Pressable
-                accessibilityLabel="Clear search"
-                accessibilityRole="button"
-                onPress={library.clear}
-              >
-                <Text style={{ color: tokens.mutedForeground }}>Clear</Text>
-              </Pressable>
+              <TextInput
+                accessibilityLabel="Search images"
+                autoCapitalize="sentences"
+                autoCorrect={false}
+                onChangeText={library.setQuery}
+                onSubmitEditing={() => library.submit(library.query)}
+                placeholder="Search by verse reference"
+                placeholderTextColor={tokens.mutedForeground}
+                returnKeyType="search"
+                style={[styles.input, { color: tokens.foreground }]}
+                value={library.query}
+              />
+              {library.query.length === 0 ? null : (
+                <Pressable
+                  accessibilityLabel="Clear search"
+                  accessibilityRole="button"
+                  onPress={library.clear}
+                >
+                  <Text style={{ color: tokens.mutedForeground }}>Clear</Text>
+                </Pressable>
+              )}
+            </View>
+            {library.validation === null ? null : (
+              <Text style={[styles.message, { color: tokens.mutedForeground }]}>
+                {library.validation}
+              </Text>
             )}
+            {errorAtTop ? errorRow : null}
           </View>
-          {library.validation === null ? null : (
-            <Text style={[styles.message, { color: tokens.mutedForeground }]}>
-              {library.validation}
+        }
+        numColumns={2}
+        renderItem={({ item }) => (
+          <Pressable
+            accessibilityLabel={formatPassageLabel(item.passage_id, titles)}
+            accessibilityRole="button"
+            onPress={() => openImage(item)}
+            style={{ width: cellWidth }}
+          >
+            <VerseImage frame="square" image={item} presentation="standard" size="thumb" />
+            <Text numberOfLines={2} style={[styles.caption, { color: tokens.foreground }]}>
+              {formatPassageLabel(item.passage_id, titles)}
             </Text>
-          )}
-          {errorAtTop ? errorRow : null}
-        </View>
-      }
-      numColumns={2}
-      renderItem={({ item }) => (
-        <Pressable
-          accessibilityLabel={formatPassageLabel(item.passage_id, titles)}
-          accessibilityRole="button"
-          onPress={() => openImage(item)}
-          style={{ width: cellWidth }}
-        >
-          <VerseImage frame="square" image={item} presentation="standard" size="thumb" />
-          <Text numberOfLines={2} style={[styles.caption, { color: tokens.foreground }]}>
-            {formatPassageLabel(item.passage_id, titles)}
-          </Text>
-        </Pressable>
-      )}
-      style={{ backgroundColor: tokens.background }}
-    />
+          </Pressable>
+        )}
+        style={styles.list}
+      />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
   header: {
     gap: 12,
     paddingBottom: 16,
