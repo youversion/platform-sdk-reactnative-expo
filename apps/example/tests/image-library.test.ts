@@ -35,50 +35,6 @@ describe('image library pages', () => {
     assert.equal(second.nextPageToken, null)
   })
 
-  it('keeps the selected card when a shorter replacement still contains it', () => {
-    const current = {
-      items: [image('a'), image('b'), image('c')],
-      nextPageToken: 'next',
-      selectedId: 'b',
-    }
-    const next = reduceLibrary(current, {
-      type: 'replace',
-      page: [image('c'), image('b')],
-      nextPageToken: null,
-    })
-
-    assert.deepEqual(
-      next.items.map((item) => item.id),
-      ['c', 'b'],
-    )
-    assert.equal(next.selectedId, 'b')
-  })
-
-  it('selects the first remaining card when a shorter replacement drops the selection', () => {
-    const current = {
-      items: [image('a'), image('b')],
-      nextPageToken: null,
-      selectedId: 'b',
-    }
-    const next = reduceLibrary(current, {
-      type: 'replace',
-      page: [image('a')],
-      nextPageToken: null,
-    })
-
-    assert.equal(next.selectedId, 'a')
-  })
-
-  it('leaves loaded cards, the page token, and the selection alone when a later page fails', () => {
-    const current = {
-      items: [image('a'), image('b')],
-      nextPageToken: 'next',
-      selectedId: 'b',
-    }
-
-    assert.equal(reduceLibrary(current, { type: 'failure' }), current)
-  })
-
   it('drops a repeated id inside one page without moving the first copy', () => {
     const page = dedupeAppend([], [image('a'), image('a'), image('b')])
     assert.deepEqual(

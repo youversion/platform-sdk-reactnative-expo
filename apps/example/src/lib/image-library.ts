@@ -5,16 +5,14 @@ export type Identified = {
 export type CardList<T extends Identified> = {
   readonly items: readonly T[]
   readonly nextPageToken: string | null
-  readonly selectedId: string | null
 }
 
 export type LibraryEvent<T extends Identified> =
   | { type: 'replace'; page: readonly T[]; nextPageToken: string | null }
   | { type: 'append'; page: readonly T[]; nextPageToken: string | null }
-  | { type: 'failure' }
 
 export function emptyCardList<T extends Identified>(): CardList<T> {
-  return { items: [], nextPageToken: null, selectedId: null }
+  return { items: [], nextPageToken: null }
 }
 
 /** Keep the first copy of each id. Later copies are dropped and earlier cards stay put. */
@@ -57,15 +55,11 @@ export function selectionFor(
   return first === undefined ? null : first.id
 }
 
-/**
- * A later page that fails leaves the list alone, including its selection and page token.
- * A successful page either replaces the list or appends unseen cards without reordering.
- */
+/** A successful page either replaces the list or appends unseen cards without reordering. */
 export function reduceLibrary<T extends Identified>(
   current: CardList<T>,
   event: LibraryEvent<T>,
 ): CardList<T> {
-  if (event.type === 'failure') return current
   const items =
     event.type === 'replace'
       ? dedupeAppend([], event.page)
@@ -73,7 +67,6 @@ export function reduceLibrary<T extends Identified>(
   return {
     items,
     nextPageToken: event.nextPageToken,
-    selectedId: selectionFor(items, current.selectedId),
   }
 }
 
