@@ -143,8 +143,10 @@ export function VerseImageStack({ images, onOpen, onSelectionChange }: VerseImag
       }
       const token = flightToken.current + 1
       flightToken.current = token
+      // Keep next's leave/return if a prior swipe still owns it. Dropping that flight
+      // puts the card in idle mid-air, and idle sets x/y to 0 with no animation.
       setFlights((cur) => ({
-        ...withoutFlights(cur, [next.id]),
+        ...cur,
         [current.id]: { token, phase: 'leaving', direction },
       }))
       setSelectedId(next.id)
