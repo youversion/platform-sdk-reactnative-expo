@@ -10,6 +10,22 @@ it affected.
 Generated from the per-package changelogs by `scripts/build-root-changelog.mjs`. Edit those,
 or the changeset, rather than this file.
 
+## 2.5.0
+
+### Minor Changes
+
+- _(@youversion/platform-react-native-expo-ui)_ 4a3c97b: Native reader code no longer imports Web SDK runtime values. Font size, line spacing, and settings handlers live in this package, and the public component types keep the same shape. Dropping the `@youversion/platform-react-ui` dependency itself remains YPE-6583.
+
+### Patch Changes
+
+- _(@youversion/platform-react-native-expo-core)_ 0755daf: The Bible content cache no longer stores an empty response body. Before, one empty `200` for a version's books or index was served from disk for up to a day, and the chapter picker showed an error that Retry could not clear. Entries that an earlier version already stored empty are treated as missing and refetched.
+
+- _(@youversion/platform-react-native-expo-core)_ 171e2d3: Abort an auth token request that does not finish within 10 seconds, so a stalled network cannot leave auth loading forever.
+
+- _(@youversion/platform-react-native-expo-ui)_ b154ed9: BibleCard and BibleReader use the version’s trimmed `promotional_content` for attribution when its `copyright` is blank or missing. A nonblank `copyright` still takes precedence.
+
+- _(@youversion/platform-react-native-expo-ui)_ 6529d97: Sync localization from platform-localization (4bb808c): update 60 keys in af, ar, cy, en, es, ig, ko, no, pt, sr, vi.
+
 ## 2.4.0
 
 ### Minor Changes

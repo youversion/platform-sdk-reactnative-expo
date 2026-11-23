@@ -1,5 +1,12 @@
 # @youversion/platform-react-native-expo-core
 
+## 2.5.0
+
+### Patch Changes
+
+- 0755daf: The Bible content cache no longer stores an empty response body. Before, one empty `200` for a version's books or index was served from disk for up to a day, and the chapter picker showed an error that Retry could not clear. Entries that an earlier version already stored empty are treated as missing and refetched.
+- 171e2d3: Abort an auth token request that does not finish within 10 seconds, so a stalled network cannot leave auth loading forever.
+
 ## 2.4.0
 
 ### Patch Changes
