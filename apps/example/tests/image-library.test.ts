@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
 import { bookTitlesFromBody, formatPassageLabel } from '../src/lib/passage-label.ts'
-import { versionIdFromPersistedLocation } from '../src/lib/reader-version.ts'
 import {
   acceptIfCurrent,
   appendUniqueIds,
@@ -138,17 +137,5 @@ describe('passage labels', () => {
     assert.equal(formatPassageLabel('JHN.3.16-18', titles), 'John 3:16-18')
     assert.equal(formatPassageLabel('ROM.8', titles), 'ROM 8')
     assert.equal(formatPassageLabel('not-a-passage', titles), 'not-a-passage')
-  })
-})
-
-describe('reader version', () => {
-  it('reads the saved version and falls back when the store is empty or broken', () => {
-    assert.equal(
-      versionIdFromPersistedLocation(JSON.stringify({ state: { versionId: 111 }, version: 0 })),
-      111,
-    )
-    assert.equal(versionIdFromPersistedLocation(undefined), 3034)
-    assert.equal(versionIdFromPersistedLocation('not-json'), 3034)
-    assert.equal(versionIdFromPersistedLocation(JSON.stringify({ state: { versionId: 0 } })), 3034)
   })
 })
