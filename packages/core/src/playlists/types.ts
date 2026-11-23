@@ -1,5 +1,5 @@
 // YPE-6577: replace these interim types with the `@youversion/platform-core` exports when platform-sdk-react#488 ships.
-// Playlist options keep platform-core names: `page_size`, `page_token`, `accept_language`.
+// Playlist options use #488 names: `pageSize`, `pageToken`, `acceptLanguage`.
 
 import type { Collection } from '@youversion/platform-core'
 
@@ -8,7 +8,6 @@ import type {
   GetPlaylistOptions,
   GetPlaylistsOptions,
   VideoPlaylist,
-  VideoPlaylistDetail,
   VideoPlaylistField,
 } from '../content-library/interim/video-schemas'
 
@@ -16,9 +15,11 @@ export type {
   GetPlaylistOptions,
   GetPlaylistsOptions,
   VideoPlaylist,
-  VideoPlaylistDetail,
   VideoPlaylistField,
 }
+
+/** Full playlist. Every field is present. Matches #488's getPlaylist return. */
+export type VideoPlaylistDetail = Readonly<Required<VideoPlaylist>>
 
 export type YouVersionPlaylistPage = Collection<VideoPlaylist>
 

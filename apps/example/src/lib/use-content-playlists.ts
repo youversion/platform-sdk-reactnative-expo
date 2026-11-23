@@ -57,9 +57,9 @@ export function useContentPlaylists(language: string): ContentPlaylists {
     }
 
     const result = await apiRef.current.list(BIBLE_PROJECT_ORGANIZATION_ID, {
-      page_size: PAGE_SIZE,
-      page_token: pageToken === null ? undefined : pageToken,
-      accept_language: languageRef.current,
+      pageSize: PAGE_SIZE,
+      pageToken,
+      acceptLanguage: languageRef.current,
     })
     if (acceptIfCurrent(gen, generation.current, true) === null) return
     if (!result.ok) {

@@ -54,11 +54,11 @@ describe('usePlaylists', () => {
     })
 
     const page = await result.current.list('550e8400-e29b-41d4-a716-446655440000', {
-      page_size: 10,
+      pageSize: 10,
     })
     expect(page).toEqual({ ok: true, value: { data: [], next_page_token: null } })
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain(
-      'https://api.example.com/v1/organizations/550e8400-e29b-41d4-a716-446655440000/playlists',
+      'https://api.example.com/v1-beta/organizations/550e8400-e29b-41d4-a716-446655440000/playlists',
     )
   })
 

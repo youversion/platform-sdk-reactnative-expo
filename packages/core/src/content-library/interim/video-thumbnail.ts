@@ -1,11 +1,10 @@
 // INTERIM (YPE-6577): replaced by @youversion/platform-core once platform-sdk-react#488 ships. Delete this file when adopting it.
+// Mirrors packages/core/src/video-thumbnail.ts @ c748d1f942bc9089ea2f466b4fdc973687794487.
 
-import type { ContentLibraryVideo, VideoThumbnailSize } from './video-schemas'
+import type { ContentLibraryVideo } from './video-resource'
+import type { VideoThumbnailSize } from './video-schemas'
 
-/**
- * YPE-6538: thumbnail URLs are whatever the deployment returns. This only
- * selects a rendition. It does not add an app key.
- */
+/** @internal Response normalization shared by video detail and video search. */
 export function resolveVideoThumbnail(
   video: ContentLibraryVideo,
   size?: VideoThumbnailSize,
@@ -22,27 +21,17 @@ export function resolveVideoThumbnail(
 
 function withThumbnailSize(url: string, size?: VideoThumbnailSize): string {
   const fragmentIndex = url.indexOf('#')
-  let fragment = ''
-  let beforeFragment = url
-  if (fragmentIndex !== -1) {
-    fragment = url.slice(fragmentIndex)
-    beforeFragment = url.slice(0, fragmentIndex)
-  }
+  const fragment = fragmentIndex === -1 ? '' : url.slice(fragmentIndex)
+  const beforeFragment = fragmentIndex === -1 ? url : url.slice(0, fragmentIndex)
   const queryIndex = beforeFragment.indexOf('?')
-  let resource = beforeFragment
-  let rawQuery = ''
-  if (queryIndex !== -1) {
-    resource = beforeFragment.slice(0, queryIndex)
-    rawQuery = beforeFragment.slice(queryIndex + 1)
-  }
-  let parameters: string[] = []
-  if (rawQuery !== '') {
-    parameters = rawQuery.split('&')
-  }
+  const resource = queryIndex === -1 ? beforeFragment : beforeFragment.slice(0, queryIndex)
+  const rawQuery = queryIndex === -1 ? '' : beforeFragment.slice(queryIndex + 1)
+  const parameters = rawQuery === '' ? [] : rawQuery.split('&')
   if (size === undefined && !parameters.some(isSizeParameter)) {
     return url
   }
   const keptParameters = parameters.filter((parameter) => !isSizeParameter(parameter))
+
   if (size !== undefined) {
     keptParameters.push(`size=${size}`)
   }

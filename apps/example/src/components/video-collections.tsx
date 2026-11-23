@@ -17,7 +17,7 @@ type VideoCollectionsProps = {
 
 export function VideoCollections({ onKindChange }: VideoCollectionsProps) {
   const tokens = useTokens()
-  const { bottom } = useSafeAreaInsets()
+  const { bottom, top } = useSafeAreaInsets()
   const language = useContentLanguage()
   const library = useContentPlaylists(language)
   const collections = collectionsByTitle(library.list.items)
@@ -47,8 +47,10 @@ export function VideoCollections({ onKindChange }: VideoCollectionsProps) {
   ) : null
 
   return (
+    <View style={[styles.screen, { backgroundColor: tokens.background, paddingTop: top }]}>
     <FlatList
       contentContainerStyle={{ paddingBottom: bottom + 24 }}
+      contentInsetAdjustmentBehavior="never"
       data={collections}
       keyExtractor={(item) => item.id}
       ListEmptyComponent={
@@ -129,8 +131,9 @@ export function VideoCollections({ onKindChange }: VideoCollectionsProps) {
           <Text style={{ color: tokens.mutedForeground }}>›</Text>
         </Pressable>
       )}
-      style={{ backgroundColor: tokens.background }}
+      style={styles.list}
     />
+    </View>
   )
 }
 
@@ -140,6 +143,12 @@ function videoCount(total: number): string {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
   header: {
     gap: 16,
     paddingBottom: 8,

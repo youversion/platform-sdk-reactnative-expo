@@ -32,7 +32,7 @@ export default function ContentScreen() {
 
 function ImageCollections({ onKindChange }: { onKindChange: (kind: ContentKind) => void }) {
   const tokens = useTokens()
-  const { bottom } = useSafeAreaInsets()
+  const { bottom, top } = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const versionId = useReaderVersionId()
   const language = useContentLanguage()
@@ -66,10 +66,14 @@ function ImageCollections({ onKindChange }: { onKindChange: (kind: ContentKind) 
     router.push({ pathname: '/content/image', params: { id: image.id } })
   }, [])
 
+  // Same shell as Examples: pad the outer view for the status bar. Putting the
+  // inset on the FlatList content doubles it on iOS, where the list already sits below.
   return (
+    <View style={[styles.screen, { backgroundColor: tokens.background, paddingTop: top }]}>
     <FlatList
       columnWrapperStyle={styles.row}
       contentContainerStyle={{ paddingBottom: bottom + 24 }}
+      contentInsetAdjustmentBehavior="never"
       data={blocked ? [] : library.list.items}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
@@ -157,12 +161,19 @@ function ImageCollections({ onKindChange }: { onKindChange: (kind: ContentKind) 
           </Text>
         </Pressable>
       )}
-      style={{ backgroundColor: tokens.background }}
+      style={styles.list}
     />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+  },
+  list: {
+    flex: 1,
+  },
   header: {
     gap: 12,
     paddingBottom: 16,

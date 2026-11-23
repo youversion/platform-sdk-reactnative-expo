@@ -162,14 +162,47 @@ describe('createSearchApi videos', () => {
     expect(new Headers(second.init.headers).get('Accept-Language')).toBe('es-MX')
   })
 
+  it('treats an empty organization list and a null cursor as the first unfiltered page', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({ videos: [], did_you_mean: [], user_intent: null, search_instead_for: null }),
+    )
+    const query = 'é'.repeat(100)
+    const result = await api().videos({ query, organizationIds: [], pageToken: null })
+    expect(result.ok).toBe(true)
+    const url = lastCall().url
+    expect(url.searchParams.get('query')).toBe(query)
+    expect(url.searchParams.has('organization_ids[]')).toBe(false)
+    expect(url.searchParams.has('page_token')).toBe(false)
+  })
+
+  it('keeps a relative thumbnail and does not invent a host', async () => {
+    mockFetch.mockResolvedValue(
+      jsonResponse({
+        videos: [
+          {
+            id: 'relative',
+            thumbnail: { url: '/images/art.jpg?signature=a%2Fb&size=thumb' },
+            playback_sources: [],
+            playback_preview_sources: [],
+          },
+        ],
+        did_you_mean: [],
+      }),
+    )
+    const result = await api().videos({ query: 'love' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.value.videos[0]?.thumbnail?.url).toBe('/images/art.jpg?signature=a%2Fb')
+    expect(result.value.searchInsteadFor).toBeNull()
+    expect(result.value.userIntent).toBeUndefined()
+  })
+
   it('rejects invalid search input before fetching', async () => {
     const empty = await api().videos({ query: '' })
     const long = await api().videos({ query: 'a'.repeat(101) })
     const page = await api().videos({ query: 'hope', pageSize: 100 })
     const org = await api().videos({ query: 'hope', organizationIds: ['not-a-uuid'] })
-    const none = await api().videos({ query: 'hope', organizationIds: [] })
-
-    for (const result of [empty, long, page, org, none]) {
+    for (const result of [empty, long, page, org]) {
       expect(result.ok).toBe(false)
       if (!result.ok) expect(result.error.kind).toBe('invalid-parameter')
     }

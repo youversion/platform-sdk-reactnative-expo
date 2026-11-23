@@ -238,6 +238,28 @@ function pressVerse(text: string): void {
 }
 
 describe('BibleReaderNative', () => {
+  it.each([
+    ['padded', '  NIV copyright\n', 'NIV copyright'],
+    ['blank', ' \t\n', 'Publisher attribution'],
+    ['missing', undefined, 'Publisher attribution'],
+  ])('renders version attribution with %s copyright', async (_, copyright, expected) => {
+    const fetchChapter = fetchChapters({ '1': { status: 200, sentence: 'In the beginning' } })
+    mount({
+      fetchBibleContent: async (request) =>
+        request.path === `/v1/bibles/${VERSION_ID}`
+          ? {
+              status: 200,
+              body: JSON.stringify({ copyright, promotional_content: '  Publisher attribution\n' }),
+              contentType: 'application/json',
+            }
+          : fetchChapter(request),
+    })
+
+    expect(await screen.findByText(expected, { normalizer: (text) => text })).toBeTruthy()
+    const other = expected === 'NIV copyright' ? 'Publisher attribution' : 'NIV copyright'
+    expect(screen.queryByText(other)).toBeNull()
+  })
+
   it('reports the verse when its text is tapped', async () => {
     const onVerseSelect = jest.fn()
     mount({ onVerseSelect })

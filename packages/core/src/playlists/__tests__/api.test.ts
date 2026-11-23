@@ -58,7 +58,7 @@ describe('createPlaylistsApi', () => {
       value: { data: [fullPlaylist], next_page_token: 'next-page' },
     })
     const url = lastUrl()
-    expect(url.pathname).toBe(`/v1/organizations/${organizationId}/playlists`)
+    expect(url.pathname).toBe(`/v1-beta/organizations/${organizationId}/playlists`)
     expect(url.searchParams.has('fields[]')).toBe(false)
     expect(url.searchParams.has('page_size')).toBe(false)
     expect(lastHeaders().get('Accept-Language')).toBe('en')
@@ -74,9 +74,9 @@ describe('createPlaylistsApi', () => {
 
     const result = await api().list(organizationId, {
       fields: ['id', 'videos', 'title'],
-      page_size: '*',
-      page_token: 'a+/=&b',
-      accept_language: 'en',
+      pageSize: '*',
+      pageToken: 'a+/=&b',
+      acceptLanguage: 'en',
     })
 
     expect(result).toEqual({
@@ -96,7 +96,7 @@ describe('createPlaylistsApi', () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({ data: [fullPlaylist], next_page_token: '' }),
     )
-    const first = await api().list(organizationId, { page_token: '' })
+    const first = await api().list(organizationId, { pageToken: '' })
     expect(first).toEqual({
       ok: true,
       value: { data: [fullPlaylist], next_page_token: '' },
@@ -105,7 +105,7 @@ describe('createPlaylistsApi', () => {
     expect(lastUrl().searchParams.has('page_token')).toBe(true)
 
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 204 }))
-    const empty = await api().list(organizationId, { accept_language: 'de' })
+    const empty = await api().list(organizationId, { acceptLanguage: 'de' })
     expect(empty).toEqual({
       ok: true,
       value: { data: [], next_page_token: null },
@@ -115,7 +115,7 @@ describe('createPlaylistsApi', () => {
     mockFetch.mockResolvedValueOnce(
       new Response('', { status: 200, headers: { 'content-type': 'application/json' } }),
     )
-    const blank = await api().list(organizationId, { accept_language: 'it' })
+    const blank = await api().list(organizationId, { acceptLanguage: 'it' })
     expect(blank).toEqual({
       ok: true,
       value: { data: [], next_page_token: null },
@@ -134,7 +134,7 @@ describe('createPlaylistsApi', () => {
       }),
     )
 
-    const result = await api().get(organizationId, 3669, { accept_language: 'es' })
+    const result = await api().get(organizationId, 3669, { acceptLanguage: 'es' })
 
     expect(result).toEqual({
       ok: true,
@@ -147,19 +147,19 @@ describe('createPlaylistsApi', () => {
         videos: ['52186'],
       },
     })
-    expect(lastUrl().pathname).toBe(`/v1/organizations/${organizationId}/playlists/3669`)
+    expect(lastUrl().pathname).toBe(`/v1-beta/organizations/${organizationId}/playlists/3669`)
     expect(lastHeaders().get('Accept-Language')).toBe('es')
   })
 
   it('rejects invalid playlist parameters before fetching', async () => {
     const badOrg = await api().list('not-a-uuid')
-    const star = await api().list(organizationId, { page_size: '*' })
+    const star = await api().list(organizationId, { pageSize: '*' })
     const tooMany = await api().list(organizationId, {
-      page_size: '*',
+      pageSize: '*',
       fields: ['id', 'title', 'total', 'videos'],
     })
-    const zero = await api().list(organizationId, { page_size: 0 })
-    const hundred = await api().list(organizationId, { page_size: 100 })
+    const zero = await api().list(organizationId, { pageSize: 0 })
+    const hundred = await api().list(organizationId, { pageSize: 100 })
     const playlistId = await api().get(organizationId, 2_147_483_648)
 
     expect(badOrg.ok).toBe(false)
@@ -184,6 +184,23 @@ describe('createPlaylistsApi', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
+  it('omits a null page token', async () => {
+    mockFetch.mockResolvedValue(jsonResponse({ data: [{ id: 7 }], next_page_token: null }))
+    const page = await api().list(organizationId, {
+      fields: ['id'],
+      pageSize: 1,
+      pageToken: null,
+      acceptLanguage: 'fr',
+    })
+    expect(page).toEqual({
+      ok: true,
+      value: { data: [{ id: 7 }], next_page_token: null },
+    })
+    expect(lastUrl().searchParams.has('page_token')).toBe(false)
+    expect(lastUrl().searchParams.get('page_size')).toBe('1')
+    expect(lastHeaders().get('Accept-Language')).toBe('fr')
+  })
+
   it('maps a partial playlist body, auth, and not-found', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ id: 3669 }))
     const partial = await api().get(organizationId, 3669)
@@ -194,9 +211,14 @@ describe('createPlaylistsApi', () => {
     expect(partial.error.message.startsWith('Unexpected playlists API response')).toBe(true)
 
     mockFetch.mockResolvedValueOnce(jsonResponse(null))
-    const nullBody = await api().list(organizationId, { page_token: 'null-body' })
+    const nullBody = await api().list(organizationId, { pageToken: 'null-body' })
     expect(nullBody.ok).toBe(false)
     if (!nullBody.ok) expect(nullBody.error.kind).toBe('transient')
+
+    mockFetch.mockResolvedValueOnce(jsonResponse(''))
+    const jsonString = await api().list(organizationId, { pageToken: 'json-string' })
+    expect(jsonString.ok).toBe(false)
+    if (!jsonString.ok) expect(jsonString.error.kind).toBe('transient')
 
     mockFetch.mockResolvedValueOnce(new Response('', { status: 403 }))
     const forbidden = await api().list(organizationId)

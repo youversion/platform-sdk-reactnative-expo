@@ -1,13 +1,16 @@
 // INTERIM (YPE-6577): replaced by @youversion/platform-core once platform-sdk-react#488 ships. Delete this file when adopting it.
+// Mirrors packages/core/src/videos.ts @ c748d1f942bc9089ea2f466b4fdc973687794487.
 
 import type { ApiClient, Collection } from '@youversion/platform-core'
-import * as z from 'zod/mini'
 
+import { getWithStatus } from './get-with-status'
+import { OrganizationIdSchema } from './organization-id'
 import {
   ContentLibraryVideoSchema,
   GetPlaylistOptionsSchema,
   GetPlaylistsOptionsSchema,
   GetVideoOptionsSchema,
+  VideoIdSchema,
   VideoPlaylistCollectionSchema,
   VideoPlaylistFullCollectionSchema,
   VideoPlaylistFullSchema,
@@ -17,20 +20,13 @@ import {
   type GetPlaylistsOptions,
   type GetVideoOptions,
   type VideoPlaylist,
-  type VideoPlaylistDetail,
   type VideoPlaylistField,
 } from './video-schemas'
-import { VideoIdSchema } from './video-id'
 import { resolveVideoThumbnail } from './video-thumbnail'
 
 export type { GetPlaylistOptions, GetPlaylistsOptions, GetVideoOptions }
 
-const VIDEOS_PATH = '/v1/videos'
-
-const OrganizationIdSchema = z.pipe(
-  z.string().check(z.trim()),
-  z.uuid({ error: 'Organization ID must be a valid UUID' }),
-)
+const VIDEOS_PATH = '/v1-beta/videos'
 
 type PlaylistsQuery = {
   'fields[]'?: VideoPlaylistField[]
@@ -38,30 +34,52 @@ type PlaylistsQuery = {
   page_token?: string
 }
 
-/** Video detail and organization playlists. */
+/**
+ * Client for beta video detail and playlist resources. Requires a beta-enabled app key.
+ *
+ * Playlist requests explicitly default to English for YPE-6461, which can return
+ * a cached empty catalog when the language header is absent. Explicit caller
+ * preferences are honored. Video details preserve the runtime's language default.
+ *
+ * Failures:
+ * - Invalid options or IDs throw schema errors before a request.
+ * - Playlist collection 204 or empty wire bodies return an empty collection.
+ * - Nonempty malformed payloads, including JSON null, throw contract errors.
+ * - Detail calls require a resource body; a 204 or empty body rejects.
+ * - Non-2xx responses throw; read their status with `getHttpStatus`.
+ */
 export class VideosClient {
-  private readonly client: ApiClient
+  private client: ApiClient
 
+  /** @param client The API client to use for requests. */
   constructor(client: ApiClient) {
     this.client = client
   }
 
   /**
    * Fetches one video by its opaque id.
-   * YPE-6568: a search id can 404. The error is returned as-is. The id is not parsed or replaced.
+   *
+   * If `acceptLanguage` is omitted, browsers may send the user's locale while
+   * non-browser runtimes may send no language preference.
+   *
+   * @param videoId A video id returned by search or a playlist. Pass it unchanged.
+   * @param options Language and thumbnail rendition preferences.
+   * @returns The validated video with a ready-to-use thumbnail URL.
+   * @throws An error with status 404 for an unknown or expired opaque id. A 404
+   *   can also mean the app has not accepted the Extra-Biblical Content agreement.
+   *   Read the status with `getHttpStatus`.
    */
   async getVideo(videoId: string, options: GetVideoOptions = {}): Promise<ContentLibraryVideo> {
     const id = VideoIdSchema.parse(videoId)
     const parsedOptions = GetVideoOptionsSchema.parse(options)
-    const path = `${VIDEOS_PATH}/${encodeURIComponent(id)}`
-    let body: unknown
-    if (parsedOptions.acceptLanguage === undefined) {
-      body = await this.client.get<unknown>(path)
-    } else {
-      body = await this.client.get<unknown>(path, undefined, {
-        'Accept-Language': parsedOptions.acceptLanguage,
-      })
-    }
+    const headers = parsedOptions.acceptLanguage
+      ? { 'Accept-Language': parsedOptions.acceptLanguage }
+      : undefined
+    const body = await this.client.get<unknown>(
+      `${VIDEOS_PATH}/${encodeURIComponent(id)}`,
+      undefined,
+      headers,
+    )
     const parsed = ContentLibraryVideoSchema.safeParse(body)
     if (!parsed.success) {
       throw new Error(`Unexpected videos API response: ${parsed.error.message}`)
@@ -70,10 +88,13 @@ export class VideosClient {
   }
 
   /**
-   * Lists an organization's playlists.
-   * YPE-6461: a non-English Accept-Language can 204. Language defaults to English.
-   * A language the caller sets is still sent. 204 and an empty body become an empty page.
-   * Omitted `fields` sends no `fields[]`. `page_size: '*'` needs 1–3 selected fields.
+   * Lists an organization's localized video playlists.
+   * @param organizationId Organization UUID.
+   * @param options Field selection, pagination, and language. Language defaults to English.
+   *   `pageSize: '*'` requires one to three selected fields.
+   * @returns One page, or an empty page when no language catalog matches.
+   * @throws Invalid input, malformed nonempty payloads (including JSON null), or
+   *   HTTP errors. Read HTTP status with `getHttpStatus`.
    */
   async getPlaylists(
     organizationId: string,
@@ -81,56 +102,60 @@ export class VideosClient {
   ): Promise<Collection<VideoPlaylist>> {
     const id = OrganizationIdSchema.parse(organizationId)
     const parsedOptions = GetPlaylistsOptionsSchema.parse(options)
+    if (
+      parsedOptions.pageSize === '*' &&
+      (parsedOptions.fields === undefined || parsedOptions.fields.length > 3)
+    ) {
+      throw new Error('pageSize="*" requires 1-3 fields to be specified')
+    }
     const query: PlaylistsQuery = {}
-    if (parsedOptions.fields !== undefined) {
-      query['fields[]'] = parsedOptions.fields
-    }
-    if (parsedOptions.page_size !== undefined) {
-      query.page_size = parsedOptions.page_size
-    }
-    if (parsedOptions.page_token !== undefined) {
-      query.page_token = parsedOptions.page_token
-    }
-    let language = 'en'
-    if (parsedOptions.accept_language !== undefined) {
-      language = parsedOptions.accept_language
-    }
-    const body = await this.client.get<unknown>(
-      `/v1/organizations/${encodeURIComponent(id)}/playlists`,
+    if (parsedOptions.fields !== undefined) query['fields[]'] = parsedOptions.fields
+    if (parsedOptions.pageSize !== undefined) query.page_size = parsedOptions.pageSize
+    if (parsedOptions.pageToken != null) query.page_token = parsedOptions.pageToken
+
+    // RN: 2.17 ApiClient has no getWithStatus. The adapter copies #488's empty-body check.
+    const response = await getWithStatus<unknown>(
+      this.client,
+      `/v1-beta/organizations/${encodeURIComponent(id)}/playlists`,
       query,
-      { 'Accept-Language': language },
+      { 'Accept-Language': parsedOptions.acceptLanguage ?? 'en' },
     )
-    if (body === undefined || body === '') {
+    if (response.status === 204 || response.emptyBody) {
       return { data: [], next_page_token: null }
     }
-    const schema =
+    const body = response.data
+    const parsed = (
       parsedOptions.fields === undefined
         ? VideoPlaylistFullCollectionSchema
         : VideoPlaylistCollectionSchema
-    const parsed = schema.safeParse(body)
+    ).safeParse(body)
     if (!parsed.success) {
       throw new Error(`Unexpected playlists API response: ${parsed.error.message}`)
     }
     return parsed.data
   }
 
-  /** Fetches one playlist. Language defaults to English. */
+  /**
+   * Fetches one full localized playlist. Language defaults to English.
+   * @param organizationId Publisher organization UUID.
+   * @param playlistId Numeric playlist identifier.
+   * @param options Accept-Language preference.
+   * @returns The validated full playlist, with every resource field present.
+   * @throws Invalid input, malformed/empty responses, or HTTP errors. Read HTTP
+   *   status with `getHttpStatus`.
+   */
   async getPlaylist(
     organizationId: string,
     playlistId: number,
     options: GetPlaylistOptions = {},
-  ): Promise<VideoPlaylistDetail> {
+  ): Promise<Readonly<Required<VideoPlaylist>>> {
     const organization = OrganizationIdSchema.parse(organizationId)
     const playlist = VideoPlaylistIdSchema.parse(playlistId)
     const parsedOptions = GetPlaylistOptionsSchema.parse(options)
-    let language = 'en'
-    if (parsedOptions.accept_language !== undefined) {
-      language = parsedOptions.accept_language
-    }
     const body = await this.client.get<unknown>(
-      `/v1/organizations/${encodeURIComponent(organization)}/playlists/${playlist}`,
+      `/v1-beta/organizations/${encodeURIComponent(organization)}/playlists/${playlist}`,
       undefined,
-      { 'Accept-Language': language },
+      { 'Accept-Language': parsedOptions.acceptLanguage ?? 'en' },
     )
     const parsed = VideoPlaylistFullSchema.safeParse(body)
     if (!parsed.success) {

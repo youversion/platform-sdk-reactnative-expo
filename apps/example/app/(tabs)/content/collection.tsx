@@ -76,7 +76,7 @@ export default function ContentCollectionScreen() {
     let alive = true
     setFetching(true)
     void playlists
-      .get(BIBLE_PROJECT_ORGANIZATION_ID, playlistId, { accept_language: language })
+      .get(BIBLE_PROJECT_ORGANIZATION_ID, playlistId, { acceptLanguage: language })
       .then((result) => {
         if (!alive) return
         setFetching(false)

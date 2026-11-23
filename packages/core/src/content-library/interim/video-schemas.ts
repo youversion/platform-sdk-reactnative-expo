@@ -1,52 +1,38 @@
 // INTERIM (YPE-6577): replaced by @youversion/platform-core once platform-sdk-react#488 ships. Delete this file when adopting it.
+// Mirrors packages/core/src/schemas/video.ts @ c748d1f942bc9089ea2f466b4fdc973687794487.
 
 import * as z from 'zod/mini'
 
+import { object } from './object'
 import { VideoIdSchema } from './video-id'
+import { VideoFields } from './video-resource'
 
-/** A playable video or audio source. */
-export const VideoPlaybackSourceSchema = z.object({
-  url: z.string(),
-  format: z.enum(['hls', 'webm', 'mp4', 'mp3']),
+export { VideoIdSchema }
+export {
+  ContentLibraryVideoSchema,
+  VideoPlaybackSourceSchema,
+  VideoThumbnailSchema,
+} from './video-resource'
+export type { ContentLibraryVideo, VideoPlaybackSource, VideoThumbnail } from './video-resource'
+
+const LegacyVideoSchema = object({
+  ...VideoFields,
+  /** Legacy numeric video identifier. */
+  id: z.number(),
 })
 
-export type VideoPlaybackSource = Readonly<z.infer<typeof VideoPlaybackSourceSchema>>
+/** Legacy v3 video model with numeric IDs and Bible references. */
+export type Video = Readonly<z.infer<typeof LegacyVideoSchema>>
 
-export const VideoThumbnailSchema = z.object({
-  url: z.optional(z.nullable(z.url())),
-  width: z.optional(z.nullable(z.int())),
-  height: z.optional(z.nullable(z.int())),
-})
-
-export type VideoThumbnail = Readonly<z.infer<typeof VideoThumbnailSchema>>
-
-/**
- * Full Content Library video returned by video detail and dedicated search.
- * `playback_preview_sources` can 404 when played (YPE-6537). That failure is
- * separate from `playback_sources`; this model keeps both lists as returned.
- */
-export const ContentLibraryVideoSchema = z.object({
-  id: VideoIdSchema,
-  title: z.optional(z.nullable(z.string())),
-  description: z.optional(z.nullable(z.string())),
-  passage_id: z.optional(z.nullable(z.string())),
-  language_tag: z.optional(z.nullable(z.string())),
-  runtime: z.optional(z.nullable(z.int())),
-  orientation: z.optional(z.nullable(z.enum(['landscape', 'portrait']))),
-  thumbnail: z.optional(z.nullable(VideoThumbnailSchema)),
-  playback_sources: z.array(VideoPlaybackSourceSchema),
-  playback_preview_sources: z.array(VideoPlaybackSourceSchema),
-  share_url: z.optional(z.nullable(z.string())),
-})
-
-export type ContentLibraryVideo = Readonly<z.infer<typeof ContentLibraryVideoSchema>>
-
+/** Supported thumbnail renditions. Omit the option for the full-size image. */
 export const VideoThumbnailSizeSchema = z.enum(['thumb', 'card', 'full'])
 
 export type VideoThumbnailSize = z.infer<typeof VideoThumbnailSizeSchema>
 
-export const GetVideoOptionsSchema = z.object({
+export const GetVideoOptionsSchema = object({
+  /** Language preference sent as `Accept-Language`. Omit to use the runtime's default. */
   acceptLanguage: z.optional(z.string().check(z.minLength(1))),
+  /** Requested thumbnail rendition. Omit for the full-size image. */
   thumbnailSize: z.optional(VideoThumbnailSizeSchema),
 })
 
@@ -58,6 +44,7 @@ export const VideoPlaylistIdSchema = z
   .int({ error: PLAYLIST_ID_ERROR })
   .check(z.gte(-2_147_483_648, PLAYLIST_ID_ERROR), z.lte(2_147_483_647, PLAYLIST_ID_ERROR))
 
+/** Full playlist wire shape used when field selection is not active. */
 const VideoPlaylistFields = {
   id: VideoPlaylistIdSchema,
   title: z.string(),
@@ -67,29 +54,27 @@ const VideoPlaylistFields = {
   videos: z.array(VideoIdSchema),
 }
 
-export const VideoPlaylistFullSchema = z.object(VideoPlaylistFields)
+export const VideoPlaylistFullSchema = object(VideoPlaylistFields)
 
-/** One playlist model. Collection field selection may omit any field. */
-export const VideoPlaylistSchema = z.object({
+/** A video playlist. Fields are optional because collection field selection can omit any field. */
+export const VideoPlaylistSchema = object({
+  /** Playlist identifier. */
   id: z.optional(VideoPlaylistFields.id),
+  /** Localized playlist title. */
   title: z.optional(VideoPlaylistFields.title),
+  /** Localized description, or null when the playlist has none. */
   description: z.optional(VideoPlaylistFields.description),
+  /** Upstream playlist type. */
   type: z.optional(VideoPlaylistFields.type),
+  /** Number of videos in the playlist. */
   total: z.optional(VideoPlaylistFields.total),
+  /** Ordered opaque video ids. */
   videos: z.optional(VideoPlaylistFields.videos),
 })
 
 export type VideoPlaylist = Readonly<z.infer<typeof VideoPlaylistSchema>>
 
-export const VideoPlaylistFieldSchema = z.enum([
-  'id',
-  'title',
-  'description',
-  'type',
-  'total',
-  'videos',
-])
-
+export const VideoPlaylistFieldSchema = z.keyof(VideoPlaylistSchema)
 export type VideoPlaylistField = z.infer<typeof VideoPlaylistFieldSchema>
 
 const PlaylistNextPageTokenSchema = z.pipe(
@@ -97,49 +82,41 @@ const PlaylistNextPageTokenSchema = z.pipe(
   z.transform((token): string | null => token ?? null),
 )
 
-export const VideoPlaylistCollectionSchema = z.object({
+export const VideoPlaylistCollectionSchema = object({
   data: z.array(VideoPlaylistSchema),
   next_page_token: PlaylistNextPageTokenSchema,
 })
 
-export const VideoPlaylistFullCollectionSchema = z.object({
+export const VideoPlaylistFullCollectionSchema = object({
   data: z.array(VideoPlaylistFullSchema),
   next_page_token: PlaylistNextPageTokenSchema,
 })
 
 const PLAYLIST_PAGE_SIZE_ERROR = 'Page size must be an integer from 1 to 99, or "*"'
 
-export const GetPlaylistsOptionsSchema = z
-  .object({
-    fields: z.optional(z.array(VideoPlaylistFieldSchema).check(z.minLength(1))),
-    page_size: z.optional(
-      z.union([
-        z
-          .int({ error: PLAYLIST_PAGE_SIZE_ERROR })
-          .check(z.gte(1, PLAYLIST_PAGE_SIZE_ERROR), z.lte(99, PLAYLIST_PAGE_SIZE_ERROR)),
-        z.literal('*'),
-      ]),
-    ),
-    page_token: z.optional(z.string()),
-    accept_language: z.optional(z.string().check(z.minLength(1))),
-  })
-  .check(
-    z.refine((options) => {
-      if (options.page_size !== '*') {
-        return true
-      }
-      return (
-        options.fields !== undefined && options.fields.length >= 1 && options.fields.length <= 3
-      )
-    }, 'page_size="*" requires 1-3 fields to be specified'),
-  )
+export const GetPlaylistsOptionsSchema = object({
+  /** Fields to include. Omit for full resources; wildcard page size requires 1–3 fields. */
+  fields: z.optional(z.array(VideoPlaylistFieldSchema).check(z.minLength(1))),
+  /** Results per page (1–99), or "*" with 1–3 selected fields. */
+  pageSize: z.optional(
+    z.union([
+      z
+        .int({ error: PLAYLIST_PAGE_SIZE_ERROR })
+        .check(z.gte(1, PLAYLIST_PAGE_SIZE_ERROR), z.lte(99, PLAYLIST_PAGE_SIZE_ERROR)),
+      z.literal('*'),
+    ]),
+  ),
+  /** Opaque cursor. Omit or pass null for the first page; empty strings are preserved. */
+  pageToken: z.optional(z.nullable(z.string())),
+  /** Accept-Language preference. Defaults to English. */
+  acceptLanguage: z.optional(z.string().check(z.minLength(1))),
+})
 
 export type GetPlaylistsOptions = z.infer<typeof GetPlaylistsOptionsSchema>
 
-export const GetPlaylistOptionsSchema = z.object({
-  accept_language: z.optional(z.string().check(z.minLength(1))),
+export const GetPlaylistOptionsSchema = object({
+  /** Accept-Language preference. Defaults to English. */
+  acceptLanguage: z.optional(z.string().check(z.minLength(1))),
 })
 
 export type GetPlaylistOptions = z.infer<typeof GetPlaylistOptionsSchema>
-
-export type VideoPlaylistDetail = Readonly<Required<VideoPlaylist>>

@@ -14,6 +14,7 @@ const passageMetadataSchema = z.object({
 const versionMetadataSchema = z.object({
   localized_abbreviation: z.string().optional(),
   copyright: z.string().nullable().optional(),
+  promotional_content: z.string().nullish(),
   language_tag: z.string().optional(),
 })
 
@@ -56,7 +57,8 @@ function versionFromResponse(response: BibleContentResponse | null): ParsedVersi
     }
     return {
       abbreviation: version.data.localized_abbreviation,
-      copyright: version.data.copyright ?? undefined,
+      copyright:
+        version.data.copyright?.trim() || version.data.promotional_content?.trim() || undefined,
       languageTag: version.data.language_tag,
     }
   } catch {

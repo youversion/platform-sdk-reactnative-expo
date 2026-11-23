@@ -20,6 +20,7 @@ import {
   type BibleContentFetchStub,
 } from '../../test-utils/stub-bible-content-fetch'
 import { stubDeviceLocale } from '../../test-utils/stub-device-locale'
+import { stubFetch } from '../../test-utils/stub-fetch'
 import { youVersionProviderWrapper as wrapper } from '../../test-utils/youversion-provider-wrapper'
 import { getTokens } from '../../theme'
 import { BibleCard } from '../bible-card'
@@ -165,6 +166,32 @@ describe('BibleCard', () => {
     })
     expect(getByText('16')).toBeTruthy()
     expect(queryByTestId('bible-card-version')).toBeNull()
+  })
+
+  it.each([
+    ['padded', '  NIV copyright\n', 'NIV copyright'],
+    ['blank', ' \t\n', 'Publisher attribution'],
+    ['missing', undefined, 'Publisher attribution'],
+  ])('renders version attribution with %s copyright', async (_, copyright, expected) => {
+    jest.mocked(bibleCardMetadata.getBibleCardMetadata).mockRestore()
+    const restoreVersion = stubFetch((url) => {
+      if (!url.endsWith('/v1/bibles/3034')) {
+        return undefined
+      }
+      return new Response(
+        JSON.stringify({ copyright, promotional_content: '  Publisher attribution\n' }),
+        { headers: { 'cache-control': 'no-store' } },
+      )
+    })
+    try {
+      render(<BibleCard reference="JHN.3.16" versionId={3034} />, { wrapper: wrapper() })
+
+      expect(await screen.findByText(expected, { normalizer: (text) => text })).toBeTruthy()
+      const other = expected === 'NIV copyright' ? 'Publisher attribution' : 'NIV copyright'
+      expect(screen.queryByText(other)).toBeNull()
+    } finally {
+      restoreVersion()
+    }
   })
 
   it('keeps the Bible App name when the catalog translates it', async () => {

@@ -505,7 +505,7 @@ describe('useUnifiedSearch', () => {
       searchInsteadFor: null,
     })
     const url = lastUrl()
-    expect(url.pathname).toBe('/v1/search-unified')
+    expect(url.pathname).toBe('/v1-beta/search-unified')
     expect(url.searchParams.getAll('fields[]')).toEqual(['videos'])
     expect(url.searchParams.has('page_token')).toBe(false)
   })
