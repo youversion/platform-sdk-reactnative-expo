@@ -79,6 +79,7 @@ const passageBodySchema = z.object({
 
 const versionBodySchema = z.object({
   copyright: z.string().nullish(),
+  promotional_content: z.string().nullish(),
   publisher_url: z.string().nullish(),
 })
 
@@ -289,7 +290,7 @@ export function useVersionCopyright(
         setOwned({
           versionId,
           value: {
-            copyright: body.copyright?.trim() || null,
+            copyright: body.copyright?.trim() || body.promotional_content?.trim() || null,
             publisherUrl: body.publisher_url?.trim() || null,
           },
         })
