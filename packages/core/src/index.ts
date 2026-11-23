@@ -90,6 +90,19 @@ export type {
   YouVersionImagePage,
 } from './images'
 
+export { useNotes } from './notes'
+export type {
+  CreateNote,
+  GetNotesOptions,
+  Note,
+  NotePage,
+  NotePassage,
+  NotesApiError,
+  NotesApiResult,
+  UpdateNote,
+  UseNotesResult,
+} from './notes'
+
 export { useVerseOfTheDay } from './verse-of-the-day'
 export type {
   UseVerseOfTheDayResult,
