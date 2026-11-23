@@ -58,7 +58,7 @@ describe('createPlaylistsApi', () => {
       value: { data: [fullPlaylist], next_page_token: 'next-page' },
     })
     const url = lastUrl()
-    expect(url.pathname).toBe(`/v1-beta/organizations/${organizationId}/playlists`)
+    expect(url.pathname).toBe(`/v1/organizations/${organizationId}/playlists`)
     expect(url.searchParams.has('fields[]')).toBe(false)
     expect(url.searchParams.has('page_size')).toBe(false)
     expect(lastHeaders().get('Accept-Language')).toBe('en')
@@ -147,7 +147,7 @@ describe('createPlaylistsApi', () => {
         videos: ['52186'],
       },
     })
-    expect(lastUrl().pathname).toBe(`/v1-beta/organizations/${organizationId}/playlists/3669`)
+    expect(lastUrl().pathname).toBe(`/v1/organizations/${organizationId}/playlists/3669`)
     expect(lastHeaders().get('Accept-Language')).toBe('es')
   })
 

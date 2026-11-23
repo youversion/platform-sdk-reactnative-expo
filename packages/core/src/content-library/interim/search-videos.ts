@@ -56,7 +56,7 @@ type SearchVideosQuery = {
 }
 
 /**
- * Searches the beta video catalog and returns full video resource records.
+ * Searches the video catalog and returns full video resource records.
  * When continuing with a page token, repeat the query, organization filters, and
  * language from the previous request. The page size may change. A null input
  * cursor requests the first page. Language defaults to English, as in the search API.
@@ -75,7 +75,8 @@ export async function searchVideos(
   if (parsedOptions.pageSize !== undefined) params.page_size = parsedOptions.pageSize
   if (parsedOptions.pageToken != null) params.page_token = parsedOptions.pageToken
 
-  const body = await client.get<unknown>('/v1-beta/search-videos', params, {
+  // RN divergence from #488 @ c748d1f: dedicated search is on stable /v1/search-videos. #488 still uses /v1-beta.
+  const body = await client.get<unknown>('/v1/search-videos', params, {
     'Accept-Language': parsedOptions.acceptLanguage ?? 'en',
   })
   const parsed = SearchVideosWireSchema.safeParse(body)

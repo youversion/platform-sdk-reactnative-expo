@@ -149,7 +149,7 @@ function toSearchUnifiedResponse(
 
 /**
  * Searches verses, topics, images, and lightweight video ids in one unpaginated request.
- * Selecting `videos` sends the request to beta and requires a beta-enabled app key.
+ * Every field selection, including `videos`, uses stable `/v1/search-unified`.
  */
 export async function searchUnified(
   client: ApiClient,
@@ -176,11 +176,8 @@ export async function searchUnified(
     params['fields[]'] = parsedOptions.fields
   }
 
-  // Match Swift and Kotlin rollout routing; existing searches keep stable access.
-  const path = parsedOptions.fields?.includes('videos')
-    ? '/v1-beta/search-unified'
-    : '/v1/search-unified'
-  const response = await client.get<unknown>(path, params)
+  // RN divergence from #488 @ c748d1f: videos are on stable unified search, so this is always /v1/search-unified. #488 still sends a `videos` selection to /v1-beta.
+  const response = await client.get<unknown>('/v1/search-unified', params)
 
   const parsed = SearchUnifiedWireSchema.safeParse(response)
   if (!parsed.success) {

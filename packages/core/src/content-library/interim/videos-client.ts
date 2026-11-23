@@ -26,7 +26,8 @@ import { resolveVideoThumbnail } from './video-thumbnail'
 
 export type { GetPlaylistOptions, GetPlaylistsOptions, GetVideoOptions }
 
-const VIDEOS_PATH = '/v1-beta/videos'
+// RN divergence from #488 @ c748d1f: video detail is on stable /v1. #488 still calls /v1-beta/videos.
+const VIDEOS_PATH = '/v1/videos'
 
 type PlaylistsQuery = {
   'fields[]'?: VideoPlaylistField[]
@@ -35,7 +36,7 @@ type PlaylistsQuery = {
 }
 
 /**
- * Client for beta video detail and playlist resources. Requires a beta-enabled app key.
+ * Client for video detail and playlist resources.
  *
  * Playlist requests explicitly default to English for YPE-6461, which can return
  * a cached empty catalog when the language header is absent. Explicit caller
@@ -114,9 +115,10 @@ export class VideosClient {
     if (parsedOptions.pageToken != null) query.page_token = parsedOptions.pageToken
 
     // RN: 2.17 ApiClient has no getWithStatus. The adapter copies #488's empty-body check.
+    // RN divergence from #488 @ c748d1f: playlists are on stable /v1. #488 still calls /v1-beta.
     const response = await getWithStatus<unknown>(
       this.client,
-      `/v1-beta/organizations/${encodeURIComponent(id)}/playlists`,
+      `/v1/organizations/${encodeURIComponent(id)}/playlists`,
       query,
       { 'Accept-Language': parsedOptions.acceptLanguage ?? 'en' },
     )
@@ -152,8 +154,9 @@ export class VideosClient {
     const organization = OrganizationIdSchema.parse(organizationId)
     const playlist = VideoPlaylistIdSchema.parse(playlistId)
     const parsedOptions = GetPlaylistOptionsSchema.parse(options)
+    // RN divergence from #488 @ c748d1f: playlist detail is on stable /v1. #488 still calls /v1-beta.
     const body = await this.client.get<unknown>(
-      `/v1-beta/organizations/${encodeURIComponent(organization)}/playlists/${playlist}`,
+      `/v1/organizations/${encodeURIComponent(organization)}/playlists/${playlist}`,
       undefined,
       { 'Accept-Language': parsedOptions.acceptLanguage ?? 'en' },
     )
