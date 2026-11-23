@@ -10,9 +10,13 @@ import { isZodError } from '../zod-error'
 import type {
   GetPlaylistOptions,
   GetPlaylistsOptions,
-  VideoPlaylistDetail,
 } from '../content-library/interim/video-schemas'
-import type { PlaylistsApiError, PlaylistsApiResult, YouVersionPlaylistPage } from './types'
+import type {
+  PlaylistsApiError,
+  PlaylistsApiResult,
+  VideoPlaylistDetail,
+  YouVersionPlaylistPage,
+} from './types'
 
 export type CreatePlaylistsApiConfig = {
   appKey: string
@@ -74,6 +78,11 @@ function toPlaylistsApiError(caught: Error): PlaylistsApiError {
   }
 
   if (status === undefined && isZodError(caught)) {
+    return { kind: 'invalid-parameter', message }
+  }
+
+  // #488 throws a plain Error for pageSize="*". Keep that as an invalid parameter.
+  if (status === undefined && caught.message.includes('pageSize="*"')) {
     return { kind: 'invalid-parameter', message }
   }
 

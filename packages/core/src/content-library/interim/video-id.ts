@@ -1,4 +1,5 @@
 // INTERIM (YPE-6577): replaced by @youversion/platform-core once platform-sdk-react#488 ships. Delete this file when adopting it.
+// Mirrors packages/core/src/schemas/video-id.ts @ c748d1f942bc9089ea2f466b4fdc973687794487.
 
 import * as z from 'zod/mini'
 

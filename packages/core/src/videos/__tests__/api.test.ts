@@ -80,11 +80,12 @@ describe('createVideosApi', () => {
         },
         playback_sources: [{ url: 'https://cdn.example/video.m3u8', format: 'hls' }],
         playback_preview_sources: [{ url: 'https://cdn.example/preview.mp4', format: 'mp4' }],
+        references: ['JHN.3.16'],
         share_url: 'https://www.bible.com/videos/video-id',
       },
     })
     const { url, init } = lastRequest()
-    expect(url.href).toBe('https://api.example.com/v1/videos/video%2Fid')
+    expect(url.href).toBe('https://api.example.com/v1-beta/videos/video%2Fid')
     expect(new Headers(init.headers).get('Accept-Language')).toBe('es')
     expect(new Headers(init.headers).get('X-YVP-App-Key')).toBe('appkey')
     expect(mockFetch).toHaveBeenCalledTimes(1)

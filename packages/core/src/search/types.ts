@@ -54,7 +54,8 @@ export type SearchVideosParams = {
   organizationIds?: SearchVideosOptions['organizationIds']
   acceptLanguage?: string
   pageSize?: number
-  pageToken?: string
+  /** Omit or pass null for the first page. An empty string is kept. */
+  pageToken?: string | null
 }
 
 export type YouVersionImageSearchResult = SearchImageHit
