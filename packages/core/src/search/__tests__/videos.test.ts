@@ -90,7 +90,7 @@ describe('createSearchApi videos', () => {
       },
     })
     const { url, init } = lastCall()
-    expect(url.pathname).toBe('/v1-beta/search-videos')
+    expect(url.pathname).toBe('/v1/search-videos')
     expect(url.searchParams.get('query')).toBe('teaching clips')
     expect(url.searchParams.getAll('organization_ids[]')).toEqual(organizationIds)
     expect(url.searchParams.get('page_size')).toBe('12')

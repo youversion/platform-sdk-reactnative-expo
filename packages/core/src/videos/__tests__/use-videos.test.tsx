@@ -64,7 +64,7 @@ describe('useVideos', () => {
       value: { id: 'clip-1', playback_sources: [], playback_preview_sources: [] },
     })
     expect(String(mockFetch.mock.calls[0]?.[0])).toBe(
-      'https://api.example.com/v1-beta/videos/clip-1',
+      'https://api.example.com/v1/videos/clip-1',
     )
   })
 
