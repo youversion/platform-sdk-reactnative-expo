@@ -24,7 +24,7 @@ import { useReaderVersionId } from '../../../src/lib/reader-session'
 
 export default function ContentScreen() {
   const tokens = useTokens()
-  const { bottom } = useSafeAreaInsets()
+  const { bottom, top } = useSafeAreaInsets()
   const { width } = useWindowDimensions()
   const versionId = useReaderVersionId()
   const language = useContentLanguage()
@@ -61,7 +61,8 @@ export default function ContentScreen() {
   return (
     <FlatList
       columnWrapperStyle={styles.row}
-      contentContainerStyle={{ paddingBottom: bottom + 24 }}
+      contentContainerStyle={{ paddingTop: top, paddingBottom: bottom + 24 }}
+      contentInsetAdjustmentBehavior="never"
       data={blocked ? [] : library.list.items}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
