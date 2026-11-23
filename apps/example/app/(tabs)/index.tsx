@@ -2,6 +2,12 @@ import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
+import {
+  DEFAULT_READER_VERSION_ID,
+  readerNavigation,
+  setReaderVersionId,
+} from '../../src/lib/reader-session'
+
 export default function BibleScreen() {
   const { top } = useSafeAreaInsets()
   const isDark = useColorScheme() === 'dark'
@@ -13,7 +19,14 @@ export default function BibleScreen() {
         { backgroundColor: isDark ? '#000000' : '#ffffff', paddingTop: top },
       ]}
     >
-      <BibleReader defaultVersionId={3034} />
+      <BibleReader
+        defaultVersionId={DEFAULT_READER_VERSION_ID}
+        navigation={readerNavigation}
+        onVersionChange={(next) => {
+          setReaderVersionId(next)
+          return Promise.resolve()
+        }}
+      />
     </View>
   )
 }

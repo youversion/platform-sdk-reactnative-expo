@@ -93,6 +93,9 @@ importers:
       expo-linking:
         specifier: 57.0.10
         version: 57.0.10(expo@57.0.23)(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
+      expo-localization:
+        specifier: 57.0.2
+        version: 57.0.2(expo@57.0.23)(react@19.2.3)
       expo-network:
         specifier: 57.0.2
         version: 57.0.2(expo@57.0.23)(react@19.2.3)
@@ -150,6 +153,9 @@ importers:
       react-native-worklets:
         specifier: 0.10.1
         version: 0.10.1(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)
+      zod:
+        specifier: 4.1.12
+        version: 4.1.12
       zustand:
         specifier: 5.0.13
         version: 5.0.13(@types/react@19.2.14)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
@@ -12307,6 +12313,12 @@ snapshots:
       - expo
       - supports-color
     optional: true
+
+  expo-localization@57.0.2(expo@57.0.23)(react@19.2.3):
+    dependencies:
+      expo: 57.0.23(@babel/core@7.29.0)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@57.0.15)(expo-router@57.0.20)(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native-webview@13.16.1(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.0)(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.0)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3(@babel/core@7.29.0))(@types/react@19.2.14)(react@19.2.3))(react@19.2.3)(typescript@7.0.2)
+      react: 19.2.3
+      rtl-detect: 1.1.2
 
   expo-localization@57.0.2(expo@57.0.23)(react@19.2.5):
     dependencies:
