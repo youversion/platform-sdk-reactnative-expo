@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useImages, type YouVersionImage } from '@youversion/platform-react-native-expo-core'
 
 import {
-  acceptIfCurrent,
   dedupeAppend,
   emptyCardList,
   reduceLibrary,
@@ -72,7 +71,7 @@ export function usePassageImages(primary: YouVersionImage | null, language: stri
       let first = true
       let pages = 0
 
-      while (acceptIfCurrent(requestGeneration, generation.current, true) !== null) {
+      while (requestGeneration === generation.current) {
         pages += 1
         if (pages > MAX_PAGES) {
           setError("Couldn't load more images.")
@@ -94,7 +93,7 @@ export function usePassageImages(primary: YouVersionImage | null, language: stri
           page_size: PAGE_SIZE,
           page_token: token,
         })
-        if (acceptIfCurrent(requestGeneration, generation.current, true) === null) return
+        if (requestGeneration !== generation.current) return
         if (!result.ok) {
           setError(result.error.message)
           setLoading(false)

@@ -70,16 +70,6 @@ export function reduceLibrary<T extends Identified>(
   }
 }
 
-/** Drop a result that belongs to an older search or an older screen. */
-export function acceptIfCurrent<T>(
-  requestGeneration: number,
-  currentGeneration: number,
-  value: T,
-): T | null {
-  if (requestGeneration !== currentGeneration) return null
-  return value
-}
-
 /** Search hits are only ids. Resolved records are shown in the order the server sent. */
 export function imagesInServerOrder<T extends Identified>(
   orderedIds: readonly string[],

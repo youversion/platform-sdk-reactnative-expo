@@ -3,7 +3,6 @@ import { describe, it } from 'node:test'
 
 import { bookTitlesFromBody, formatPassageLabel } from '../src/lib/passage-label.ts'
 import {
-  acceptIfCurrent,
   appendUniqueIds,
   dedupeAppend,
   emptyCardList,
@@ -41,13 +40,6 @@ describe('image library pages', () => {
       page.map((item) => item.id),
       ['a', 'b'],
     )
-  })
-})
-
-describe('stale results', () => {
-  it('rejects a result from an older request and keeps the current one', () => {
-    assert.equal(acceptIfCurrent(1, 2, 'old'), null)
-    assert.equal(acceptIfCurrent(2, 2, 'current'), 'current')
   })
 })
 
