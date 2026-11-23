@@ -1,8 +1,15 @@
 import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { useFocusEffect } from 'expo-router'
 import { useVideoPlayer, VideoView } from 'expo-video'
-import { useCallback, useEffect, useState } from 'react'
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 
 type LibraryVideoPlayerProps = {
   url: string
@@ -20,6 +27,10 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
   })
   const [status, setStatus] = useState(player.status)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
+  const viewRef = useRef<VideoView>(null)
+  const focused = useRef(false)
+  const { width, height } = useWindowDimensions()
+  const landscape = width > height
 
   useEffect(() => {
     const subscription = player.addListener('statusChange', (payload) => {
@@ -37,11 +48,23 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
 
   useFocusEffect(
     useCallback(() => {
+      focused.current = true
       return () => {
+        focused.current = false
         player.pause()
       }
     }, [player]),
   )
+
+  // Fullscreen follows the window: landscape opens it, portrait closes it. expo-video's
+  // autoExitOnRotate races the app's own rotation on iOS and leaves the UI sideways.
+  useEffect(() => {
+    if (!focused.current) return
+    const view = viewRef.current
+    if (view === null) return
+    const change = landscape ? view.enterFullscreen() : view.exitFullscreen()
+    change.catch(() => {})
+  }, [landscape])
 
   function retry() {
     setPlaybackError(null)
@@ -87,8 +110,10 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       <VideoView
         accessibilityLabel="Video player"
         contentFit="contain"
+        fullscreenOptions={{ enable: true, orientation: 'default' }}
         nativeControls
         player={player}
+        ref={viewRef}
         style={[
           styles.player,
           {
