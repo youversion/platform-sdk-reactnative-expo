@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router'
 import { useColorScheme } from 'react-native'
 
-import { colorTheme } from '../../_components/color-theme'
+import { colorTheme } from '../../../src/components/color-theme'
 
 export default function ExamplesLayout() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light'

@@ -23,7 +23,7 @@ For **Sign in with YouVersion**, also register `yvp-rn-example://callback` as a 
 ## Tabs
 
 - **Bible** — Full interactive Bible reader with chapter and version navigation
-- **Content** — Destination for verse images. This sample has no verse-image screen, so the tab shows its title only.
+- **Content** — Verse-art images in a grid. Search uses the reader's Bible version, and Load more fetches the next page. Open an image to shuffle through other art for that passage, view it full screen, share it, or read the passage in the Bible tab.
 - **Examples** — Verse of the Day and Bible Card. Each opens on its own screen, and the back button returns to the list.
 - **Profile** — Sign in with YouVersion
 

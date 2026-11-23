@@ -2,7 +2,7 @@ import { Link, type Href } from 'expo-router'
 import { Pressable, ScrollView, StyleSheet, Text, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import { colorTheme } from '../../_components/color-theme'
+import { colorTheme } from '../../../src/components/color-theme'
 
 const examplesColorTheme = {
   light: { ...colorTheme.light, separator: '#c6c6c8' },
