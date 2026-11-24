@@ -12,10 +12,6 @@ import Svg, { Path } from 'react-native-svg'
 
 import { DEFAULT_READER_VERSION_ID } from '../../../src/lib/reader-session'
 
-/**
- * Figma marker chip: `Utility/Info` (`#3d79c2`) at 50% opacity. Over white that
- * reads as `blue20`; dark uses a soft mix of the DM info blue on the canvas.
- */
 const MARKER_FILL = { light: '#9ebce1', dark: '#1e4b83' } as const
 
 function BookmarkIcon({ color, size }: { color: string; size: number }) {
