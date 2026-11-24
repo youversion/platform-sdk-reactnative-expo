@@ -1,3 +1,5 @@
+import { getHttpStatus } from '@youversion/platform-core'
+
 import pkg from '../../../package.json'
 import { createNotesApi } from '../api'
 
@@ -64,10 +66,7 @@ describe('createNotesApi', () => {
       page_size: 2,
     })
 
-    expect(result).toEqual({
-      ok: true,
-      value: { data: [note], next_page_token: 'next' },
-    })
+    expect(result).toEqual({ data: [note], next_page_token: 'next' })
     const { url, init } = lastRequest()
     expect(url.origin + url.pathname).toBe('https://api.example.com/v1/notes')
     expect(url.searchParams.get('bible_id')).toBe('3034')
@@ -82,10 +81,7 @@ describe('createNotesApi', () => {
 
   it('treats a 204 list as an empty page', async () => {
     mockFetch.mockResolvedValue(new Response(null, { status: 204 }))
-    await expect(api().list('reader')).resolves.toEqual({
-      ok: true,
-      value: { data: [], next_page_token: null },
-    })
+    await expect(api().list('reader')).resolves.toEqual({ data: [], next_page_token: null })
   })
 
   it('creates, updates, and deletes a note', async () => {
@@ -101,7 +97,7 @@ describe('createNotesApi', () => {
       status: 'private',
       color: '44AA44',
     })
-    expect(created).toEqual({ ok: true, value: note })
+    expect(created).toEqual(note)
     expect(JSON.parse(String(mockFetch.mock.calls[0]?.[1]?.body))).toEqual({
       request_id: requestId,
       content: note.content,
@@ -110,71 +106,40 @@ describe('createNotesApi', () => {
     })
 
     const updated = await notes.update('writer', note.id, { title: null })
-    expect(updated).toEqual({ ok: true, value: { ...note, title: null } })
+    expect(updated).toEqual({ ...note, title: null })
     expect(mockFetch.mock.calls[1]?.[1]?.method).toBe('PATCH')
     expect(JSON.parse(String(mockFetch.mock.calls[1]?.[1]?.body))).toEqual({ title: null })
 
-    await expect(notes.delete('writer', note.id)).resolves.toEqual({ ok: true, value: undefined })
+    await expect(notes.delete('writer', note.id)).resolves.toBeUndefined()
     expect(mockFetch.mock.calls[2]?.[1]?.method).toBe('DELETE')
   })
 
-  it('reports 404 after delete as not-found', async () => {
+  it('throws 404 after delete', async () => {
     mockFetch.mockResolvedValue(new Response(null, { status: 404 }))
-    const result = await api().get('reader', note.id)
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error.kind).toBe('not-found')
-    expect(result.error.status).toBe(404)
+    await expect(api().get('reader', note.id).catch(getHttpStatus)).resolves.toBe(404)
   })
 
-  it('reports a missing token as auth and does not call the network', async () => {
-    const result = await api().list('')
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        kind: 'auth',
-        status: 401,
-        message:
-          'Authentication required. Please provide a token or sign in before accessing notes.',
-      },
-    })
+  it('throws before the request for a missing token or an invalid page size', async () => {
+    await expect(api().list('')).rejects.toThrow(
+      'Authentication required. Please provide a token or sign in before accessing notes.',
+    )
+    await expect(api().list('reader', { page_size: 100 })).rejects.toThrow('page_size')
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('reports an invalid page size before the request', async () => {
-    const result = await api().list('reader', { page_size: 100 })
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error.kind).toBe('invalid-parameter')
-    expect(result.error.status).toBeUndefined()
-    expect(mockFetch).not.toHaveBeenCalled()
-  })
-
-  it('reports a 422 as invalid-parameter and a network failure as transient', async () => {
-    mockFetch.mockResolvedValueOnce(new Response(null, { status: 422 }))
-    const rejected = await api().update('writer', note.id, { title: 'Later' })
-    expect(rejected.ok).toBe(false)
-    if (!rejected.ok)
-      expect(rejected.error).toMatchObject({ kind: 'invalid-parameter', status: 422 })
-
-    mockFetch.mockRejectedValueOnce(new Error('offline'))
-    const offline = await api().list('reader')
-    expect(offline.ok).toBe(false)
-    if (!offline.ok) {
-      expect(offline.error.kind).toBe('transient')
-      expect(offline.error.status).toBeUndefined()
-    }
-  })
-
-  it('reports HTTP 401 as auth and HTTP 500 as transient', async () => {
+  it('throws the HTTP status for 401, 422, and 500, and rethrows a network failure', async () => {
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 401 }))
-    const denied = await api().get('reader', note.id)
-    expect(denied.ok).toBe(false)
-    if (!denied.ok) expect(denied.error).toMatchObject({ kind: 'auth', status: 401 })
+    await expect(api().get('reader', note.id).catch(getHttpStatus)).resolves.toBe(401)
+
+    mockFetch.mockResolvedValueOnce(new Response(null, { status: 422 }))
+    await expect(
+      api().update('writer', note.id, { title: 'Later' }).catch(getHttpStatus),
+    ).resolves.toBe(422)
 
     mockFetch.mockResolvedValueOnce(new Response(null, { status: 500 }))
-    const down = await api().get('reader', note.id)
-    expect(down.ok).toBe(false)
-    if (!down.ok) expect(down.error).toMatchObject({ kind: 'transient', status: 500 })
+    await expect(api().get('reader', note.id).catch(getHttpStatus)).resolves.toBe(500)
+
+    mockFetch.mockRejectedValueOnce(new Error('offline'))
+    await expect(api().list('reader')).rejects.toThrow('offline')
   })
 })

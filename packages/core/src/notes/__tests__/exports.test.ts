@@ -10,6 +10,8 @@ describe('notes package exports', () => {
     const names = Object.keys(core)
     expect(names).not.toContain('createNotesApi')
     expect(names).not.toContain('NotesClient')
+    expect(names).not.toContain('NotesApiError')
+    expect(names).not.toContain('NotesApiResult')
     expect(names).not.toContain('ApiClient')
     expect(names).not.toContain('createApiClient')
     expect(names).not.toContain('DEFAULT_API_HOST')

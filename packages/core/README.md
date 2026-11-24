@@ -313,7 +313,7 @@ function useCuratedImage(day: number) {
 
 ### Notes
 
-`useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. Each call returns `{ ok: true, value }` or `{ ok: false, error }`.
+`useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. Each call returns the note or the page. A failure throws.
 
 Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_notes` scope and writes need `write_notes`. Put those on `auth.scopes` at sign-in. They are OAuth scopes, not data-exchange permissions, so they do not belong in `auth.permissions`.
 
@@ -321,7 +321,7 @@ Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_
 
 `create` sends the `request_id` you pass. Reuse that same UUID to retry the same note. `update` changes only the fields you pass. Pass `null` to clear `title`, `color`, `passage`, `language_tag`, or `tags`. Omit a field to leave it as it is. `color` is six hex digits without `#`. Writes send it lowercase. A read keeps the case the API returned.
 
-`error.kind` matches Images. A missing token is `auth`. A deleted note's next read is `not-found`. A bad id, color, page size, or empty update is `invalid-parameter` and does not call the network.
+A missing token throws before the request. A bad id, color, page size, or empty update throws before the request. A deleted note's next read throws, and that error's HTTP status is 404.
 
 ```tsx
 import { useNotes, useYVAuth } from '@youversion/platform-react-native-expo-core'

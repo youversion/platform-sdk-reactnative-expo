@@ -97,8 +97,6 @@ export type {
   Note,
   NotePage,
   NotePassage,
-  NotesApiError,
-  NotesApiResult,
   UpdateNote,
   UseNotesResult,
 } from './notes'

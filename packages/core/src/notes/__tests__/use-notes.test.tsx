@@ -61,7 +61,7 @@ describe('useNotes', () => {
     expect(result.current.delete).toEqual(expect.any(Function))
 
     const page = await result.current.list('reader', { passage_id: 'JHN.3' })
-    expect(page).toEqual({ ok: true, value: { data: [], next_page_token: null } })
+    expect(page).toEqual({ data: [], next_page_token: null })
     expect(String(mockFetch.mock.calls[0]?.[0])).toContain('https://api.example.com/v1/notes')
     expect(new Headers(mockFetch.mock.calls[0]?.[1]?.headers).get('authorization')).toBe(
       'Bearer reader',
@@ -107,27 +107,23 @@ describe('useNotes', () => {
 
   it('returns the hookOverrides stub instead of calling fetch', async () => {
     const stub: UseNotesResult = {
-      list: jest.fn(async () => ({
-        ok: true as const,
-        value: { data: [], next_page_token: null },
-      })),
+      list: jest.fn(async () => ({ data: [], next_page_token: null })),
       get: jest.fn(async () => ({
-        ok: true as const,
-        value: {
-          id: 'stub',
-          content: 'Stub',
-          status: 'private' as const,
-        },
+        id: 'stub',
+        content: 'Stub',
+        status: 'private' as const,
       })),
       create: jest.fn(async () => ({
-        ok: true as const,
-        value: { id: 'stub', content: 'Stub', status: 'private' as const },
+        id: 'stub',
+        content: 'Stub',
+        status: 'private' as const,
       })),
       update: jest.fn(async () => ({
-        ok: true as const,
-        value: { id: 'stub', content: 'Stub', status: 'private' as const },
+        id: 'stub',
+        content: 'Stub',
+        status: 'private' as const,
       })),
-      delete: jest.fn(async () => ({ ok: true as const, value: undefined })),
+      delete: jest.fn(async () => undefined),
     }
 
     const { result } = renderHook(() => useNotes(), {
