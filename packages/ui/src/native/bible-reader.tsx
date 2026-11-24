@@ -566,7 +566,20 @@ export function BibleReader({
     setPrompt(NO_PROMPT)
   }
 
+  // Held until the verse sheet's dismiss animation finishes (`onClosed`), so a
+  // host that opens another surface cannot stack it on the still-visible sheet.
+  const pendingCustomActionRef = useRef<{
+    action: BibleReaderCustomVerseAction
+    ranges: BibleReaderVerseRange[]
+  } | null>(null)
+
   const handleVerseSelect = async (next: BibleReaderVerseSelection) => {
+    // A custom action is waiting for this sheet to finish closing. Taking the
+    // tap would reopen it and delay or replace that action.
+    if (next.verses.length > 0 && pendingCustomActionRef.current !== null) {
+      setInternalClearCount((count) => count + 1)
+      return
+    }
     // A new non-empty selection is the user picking other verses. Drop a
     // held tap so settle cannot prompt for the old ones. An empty payload is
     // our own `closeVerseActions` after the swatch press — keep the hold.
@@ -576,13 +589,6 @@ export function BibleReader({
     setVerseSelection(next.verses.length > 0 ? next : null)
     await onVerseSelect?.(next)
   }
-
-  // Held until the verse sheet's dismiss animation finishes (`onClosed`), so a
-  // host that opens another surface cannot stack it on the still-visible sheet.
-  const pendingCustomActionRef = useRef<{
-    action: BibleReaderCustomVerseAction
-    ranges: BibleReaderVerseRange[]
-  } | null>(null)
 
   const closeVerseActions = () => {
     setVerseSelection(null)
@@ -794,14 +800,16 @@ export function BibleReader({
   )
 
   const handleActionPress = (item: VerseActionTile) => {
+    // The sheet can still take a tap while it slides closed. Keep the first action.
+    if (pendingCustomActionRef.current !== null) return
     if (item.kind === 'copy') return handleCopyPress()
     if (item.kind === 'share') return handleSharePress()
-    // Snapshot and clear now; `onPress` waits for `handleVerseSheetClosed`.
+    // Snapshot before clear; `onPress` waits for `handleVerseSheetClosed`.
     const ranges = verseSelection ? mergeVerseRanges(verseSelection) : []
-    closeVerseActions()
     if (ranges.length > 0) {
       pendingCustomActionRef.current = { action: item.action, ranges }
     }
+    closeVerseActions()
   }
 
   const onExternalLinkPress = async (url: string) => {

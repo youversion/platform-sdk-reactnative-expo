@@ -19,7 +19,7 @@ import type {
   VerseIndicatorTarget,
 } from '../../types/verse-hook-types'
 import * as Clipboard from 'expo-clipboard'
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 
 import {
@@ -235,6 +235,41 @@ function MockNativeSheet({
       {children}
     </View>
   ) : null
+}
+
+/**
+ * Stays up after `isOpen` flips false until the test finishes the dismiss.
+ * The real sheet does the same while it slides closed, so a second tap can
+ * still land.
+ */
+function HoldingSheet({
+  isOpen,
+  onClosed,
+  children,
+}: {
+  isOpen: boolean
+  onClosed?: () => void
+  children: ReactNode
+}) {
+  const [held, setHeld] = useState(isOpen)
+  useEffect(() => {
+    if (isOpen) setHeld(true)
+  }, [isOpen])
+  if (!held) return null
+  return (
+    <View testID="sheet">
+      {children}
+      <Pressable
+        testID="finish-dismiss"
+        onPress={() => {
+          setHeld(false)
+          onClosed?.()
+        }}
+      >
+        <Text>Finish</Text>
+      </Pressable>
+    </View>
+  )
 }
 
 const wrapper = youVersionProviderWrapper('light', undefined, testHookOverrides)
@@ -828,6 +863,75 @@ describe('BibleReader verse action sheet — verseActions', () => {
     ])
     expect(seenSheetOpen).toBe(false)
     expect(seenSignal).toBe(before + 1)
+  })
+
+  it('runs the first custom action when another verse is tapped while the sheet is closing', async () => {
+    const onPress = jest.fn()
+    const onVerseSelect = jest.fn(async () => undefined)
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[customAction('save', onPress)]}
+        onVerseSelect={onVerseSelect}
+      />,
+      { wrapper },
+    )
+
+    fireEvent.press(screen.getByTestId('trigger-verse-select'))
+    const cleared = latestDomProps.clearSelectionSignal ?? 0
+    fireEvent.press(screen.getByTestId('bible-verse-action-custom-save'))
+    expect(onPress).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+
+    mockNextVerseSelection = { ...SELECTION, verses: [9], passageIds: ['JHN.1.9'] }
+    fireEvent.press(screen.getByTestId('trigger-verse-select'))
+
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+    expect(onVerseSelect).toHaveBeenCalledTimes(1)
+    expect(latestDomProps.clearSelectionSignal).toBe(cleared + 2)
+
+    await waitFor(() => expect(onPress).toHaveBeenCalledTimes(1))
+    expect(onPress).toHaveBeenCalledWith([
+      {
+        versionId: VERSION_ID,
+        book: 'JHN',
+        chapter: '1',
+        verseStart: 1,
+        verseEnd: 2,
+        passageId: 'JHN.1.1-2',
+      },
+    ])
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+
+    mockNextVerseSelection = SELECTION
+    fireEvent.press(screen.getByTestId('trigger-verse-select'))
+    expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
+  })
+
+  it('keeps the first custom action when a second one is tapped while the sheet is closing', async () => {
+    const first = jest.fn()
+    const second = jest.fn()
+    setImpl('NativeSheet', HoldingSheet)
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[customAction('save', first), customAction('note', second)]}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+    await user.press(screen.getByTestId('bible-verse-action-custom-save'))
+    await user.press(screen.getByTestId('bible-verse-action-custom-note'))
+    await user.press(screen.getByTestId('finish-dismiss'))
+
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(second).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
   })
 
   it('logs a rejected custom action instead of throwing', async () => {
