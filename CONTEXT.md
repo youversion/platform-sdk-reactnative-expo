@@ -175,7 +175,7 @@ A host-defined button in the **Verse Action Sheet** row: an `id`, a localized `l
 _Avoid_: Verse menu item; calling `onPress` before the sheet closes; crashing on a duplicate `id` (Swift traps; we warn)
 
 **Verse Indicator**:
-A host-styled marker on a printed verse number, with its own tap. The host resolves a style per verse; `null` keeps the plain number. Only a verse with a printed number can carry one, so hidden verse numbers mean no indicators. A marker tap goes to `onVerseIndicatorPress` and never selects the verse; the rest of the verse still selects. The marker draws over a highlight. Its tap target grows to a minimum square through `hitSlop`, and the marker does not. Every `Passage` layer draws the same padded text, so the selection underline and highlight fills keep their line breaks.
+A host-styled marker on a printed verse number, with its own tap. The host resolves a style per verse; `null` keeps the plain number. Only a verse with a printed number can carry one, so hidden verse numbers mean no indicators. A marker tap goes to `onVerseIndicatorPress` and never selects the verse; the rest of the verse still selects. The marker draws over a highlight. Its tap target is an invisible square centered on the marker, 44pt by default, because `hitSlop` did not catch taps on iOS. The marker does not grow. Every `Passage` layer draws the same padded text, so the selection underline and highlight fills keep their line breaks.
 _Avoid_: Note dot, badge (names a feature, not the hook); padding the marker only in the text layer (the ghost layers would break lines differently)
 
 **Verse Action Swatches**:

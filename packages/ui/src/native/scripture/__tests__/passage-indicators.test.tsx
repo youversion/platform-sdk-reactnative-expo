@@ -34,6 +34,7 @@ const HTML =
   '<span class="yv-n f"><span class="ft">Or Koresh</span></span></div></div>'
 
 type Options = {
+  html?: string
   indicators?: ReadonlyMap<number, VerseIndicatorStyle>
   onIndicatorPress?: (verse: number) => void
   onVersePress?: (verse: number) => void
@@ -44,7 +45,7 @@ type Options = {
 
 function renderPassage(options: Options = {}) {
   const props = {
-    blocks: parsePassage(HTML).blocks,
+    blocks: parsePassage(options.html ?? HTML).blocks,
     look: LOOK,
     selected: options.selected ?? new Set<number>(),
     paint: options.paint ?? new Map<number, HighlightPaint>(),
@@ -201,6 +202,54 @@ describe('verse indicators', () => {
     expect(style(label!).backgroundColor).toBe('#3366ff')
     // No host foreground: the highlight's ink, so a dark swatch keeps a light number.
     expect(style(label!).color).toBe('#ffffff')
+  })
+
+  it('keeps one marker on a verse whose text wraps across lines', () => {
+    const onIndicatorPress = jest.fn()
+    const onVersePress = jest.fn()
+    const words = 'In the beginning God created the heavens and the earth'
+    renderPassage({
+      html:
+        '<div><div class="p"><span class="yv-v" v="8"></span><span class="yv-vlbl">8</span>' +
+        `${words}</div></div>`,
+      indicators: new Map([[8, MARKER]]),
+      onIndicatorPress,
+      onVersePress,
+      selected: new Set([8]),
+    })
+
+    const [real] = screen.root.findAll((node) => node.props.onTextLayout !== undefined)
+    const metrics = {
+      x: 0,
+      width: 200,
+      height: 30,
+      descender: 8,
+      capHeight: 12,
+      ascender: 21,
+      xHeight: 8,
+    }
+    fireEvent(real!, 'textLayout', {
+      nativeEvent: {
+        lines: [
+          { text: '8 In the beginning ', y: 0, ...metrics },
+          { text: 'God created the heavens and the earth', y: 32, ...metrics },
+        ],
+      },
+    })
+
+    const painted = textNodes('8').filter((node) => style(node).backgroundColor === '#3366ff')
+    expect(painted).toHaveLength(1)
+    expect(screen.getAllByTestId('verse-indicator-8')).toHaveLength(1)
+
+    fireEvent.press(screen.getByTestId('verse-indicator-8'))
+
+    expect(onIndicatorPress).toHaveBeenCalledWith(8)
+    expect(onVersePress).not.toHaveBeenCalled()
+
+    fireEvent.press(screen.getByText(words))
+
+    expect(onVersePress).toHaveBeenCalledWith(8)
+    expect(onIndicatorPress).toHaveBeenCalledTimes(1)
   })
 
   it('repaints a block when only the marker style changes', () => {
