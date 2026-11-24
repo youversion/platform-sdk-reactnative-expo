@@ -31,7 +31,8 @@
           }
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-screen-orientation"
     ],
     "experiments": {
       "typedRoutes": true

@@ -110,6 +110,32 @@ export default function ContentVideoScreen() {
             ) : null,
         }}
       />
+      {/* Player sits outside the ScrollView so AVKit mute/volume pans are not stolen. */}
+      {current !== null ? (
+        <View style={styles.playerSlot}>
+          {playbackUrl === null ? (
+            <View
+              style={[
+                styles.unavailable,
+                {
+                  aspectRatio: videoDisplayAspect(current.thumbnail, current.orientation),
+                  backgroundColor: tokens.muted,
+                  borderRadius: 8,
+                },
+              ]}
+            >
+              <Text style={[styles.unavailableTitle, { color: tokens.foreground }]}>
+                Video unavailable
+              </Text>
+            </View>
+          ) : (
+            <LibraryVideoPlayer
+              aspect={videoDisplayAspect(current.thumbnail, current.orientation)}
+              url={playbackUrl}
+            />
+          )}
+        </View>
+      ) : null}
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottom + 24 }]}>
         {fetching ? <ActivityIndicator color={tokens.mutedForeground} /> : null}
         {fetchError !== null && current === null ? (
@@ -129,27 +155,6 @@ export default function ContentVideoScreen() {
         ) : null}
         {current === null ? null : (
           <>
-            {playbackUrl === null ? (
-              <View
-                style={[
-                  styles.unavailable,
-                  {
-                    aspectRatio: videoDisplayAspect(current.thumbnail, current.orientation),
-                    backgroundColor: tokens.muted,
-                    borderRadius: tokens.radius.surface,
-                  },
-                ]}
-              >
-                <Text style={[styles.unavailableTitle, { color: tokens.foreground }]}>
-                  Video unavailable
-                </Text>
-              </View>
-            ) : (
-              <LibraryVideoPlayer
-                aspect={videoDisplayAspect(current.thumbnail, current.orientation)}
-                url={playbackUrl}
-              />
-            )}
             {title === null ? null : (
               <Text style={[styles.title, { color: tokens.foreground }]}>{title}</Text>
             )}
@@ -170,9 +175,14 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  playerSlot: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
   content: {
     gap: 16,
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
   },
   title: {
     fontSize: 22,
