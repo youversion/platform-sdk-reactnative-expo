@@ -33,7 +33,7 @@ Verse actions are the reference, Copy, and Share, and the highlight swatches whe
 
 **A duplicate action id keeps the first.** Swift traps on it. A typo in a host list should not crash a reader, so React Native warns in development and drops the later entry.
 
-**A custom action runs after the sheet commits closed.** The reader snapshots the merged ranges, clears the selection, and calls `onPress` on the next effect, in Swift's order. A rejection is logged, not surfaced. The host owns its own feedback.
+**A custom action runs after the sheet commits closed.** The reader snapshots the merged ranges, clears the selection, and calls `onPress` once the native sheet finishes dismissing (`NativeSheet` `onClosed`), in Swift's order. A rejection is logged, not surfaced. The host owns its own feedback.
 
 **One scrolling row holds every action.** Tiles grow from their content (`flexGrow: 1`, not `flex: 1`), so a long custom label scrolls instead of squeezing its neighbours.
 

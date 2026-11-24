@@ -11,7 +11,7 @@ import type {
   HookOverrides,
   UseHighlightsOptions,
 } from '@youversion/platform-react-native-expo-core'
-import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
+import { fireEvent, render, screen, userEvent, waitFor } from '@testing-library/react-native'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../types/bible-ui-types'
 import type {
   BibleReaderCustomVerseAction,
@@ -19,7 +19,7 @@ import type {
   VerseIndicatorTarget,
 } from '../../types/verse-hook-types'
 import * as Clipboard from 'expo-clipboard'
-import type { ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 
 import {
@@ -159,9 +159,12 @@ function MockDOM(props: LatestDomProps) {
 
 /**
  * Real `NativeSheet` drives a Gorhom bottom sheet through a portal host; the
- * only thing these tests need from it is "renders its children while open, and
- * calls `onClose` when dismissed". `sheet-dismiss` stands in for the swipe-down
- * and displacement paths, both of which reach the same handler.
+ * only thing these tests need from it is "renders its children while open,
+ * calls `onClose` when dismiss is requested, and `onClosed` after dismiss
+ * finishes". `sheet-dismiss` stands in for the swipe-down and displacement
+ * paths. `onClosed` is deferred one macrotask so custom actions can assert they
+ * wait for dismiss — the real sheet animates; this mock used to vanish and fire
+ * in the same turn.
  *
  * `sheet-modal-<bool>` surfaces the `modal` prop so the verse action sheet's
  * non-modal contract is pinned. That is not cosmetic: a modal sheet renders a
@@ -178,10 +181,13 @@ type LatestSheetProps = {
 }
 
 let latestSheetProps: LatestSheetProps = {}
+/** True only after the mock's deferred `onClosed` — proves custom actions wait. */
+let mockSheetDismissFinished = false
 
 type MockNativeSheetProps = {
   isOpen: boolean
   onClose: () => void
+  onClosed?: () => void
   modal?: boolean
   enableContentPanningGesture?: boolean
   panActiveOffsetY?: [number, number]
@@ -191,11 +197,32 @@ type MockNativeSheetProps = {
 function MockNativeSheet({
   isOpen,
   onClose,
+  onClosed,
   modal,
   enableContentPanningGesture,
   panActiveOffsetY,
   children,
 }: MockNativeSheetProps) {
+  const wasOpenRef = useRef(false)
+  const onClosedRef = useRef(onClosed)
+  onClosedRef.current = onClosed
+
+  useEffect(() => {
+    if (isOpen) {
+      wasOpenRef.current = true
+      mockSheetDismissFinished = false
+      return
+    }
+    if (!wasOpenRef.current) return
+    wasOpenRef.current = false
+    // Next macrotask ≈ dismiss animation finished (Gorhom index -1).
+    const id = setTimeout(() => {
+      mockSheetDismissFinished = true
+      onClosedRef.current?.()
+    }, 0)
+    return () => clearTimeout(id)
+  }, [isOpen])
+
   if (isOpen) {
     latestSheetProps = { enableContentPanningGesture, panActiveOffsetY }
   }
@@ -223,6 +250,7 @@ async function selectVerses(verseSelection: BibleReaderVerseSelection = SELECTIO
 beforeEach(() => {
   latestDomProps = {}
   latestSheetProps = {}
+  mockSheetDismissFinished = false
   mockNextVerseSelection = SELECTION
   highlightPermissionFlowApply.mockClear()
   rawApply.mockClear()
@@ -747,7 +775,7 @@ describe('BibleReader verse action sheet — verseActions', () => {
     expect(rowOrder()).toEqual(['custom-save', 'copy'])
     await user.press(screen.getByTestId('bible-verse-action-custom-save'))
 
-    expect(first).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(first).toHaveBeenCalledTimes(1))
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('"save"'))
   })
 
@@ -755,6 +783,9 @@ describe('BibleReader verse action sheet — verseActions', () => {
     let seenSheetOpen: boolean | null = null
     let seenSignal: number | undefined
     const onPress = jest.fn(() => {
+      // Must run from `onClosed`, after the mock marks dismiss finished — not
+      // from a React effect that only saw `isOpen` flip.
+      expect(mockSheetDismissFinished).toBe(true)
       seenSheetOpen = screen.queryByTestId('bible-verse-action-sheet') !== null
       seenSignal = latestDomProps.clearSelectionSignal
     })
@@ -776,7 +807,7 @@ describe('BibleReader verse action sheet — verseActions', () => {
     const before = latestDomProps.clearSelectionSignal ?? 0
     await user.press(screen.getByTestId('bible-verse-action-custom-save'))
 
-    expect(onPress).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(onPress).toHaveBeenCalledTimes(1))
     expect(onPress).toHaveBeenCalledWith([
       {
         versionId: VERSION_ID,
@@ -815,7 +846,9 @@ describe('BibleReader verse action sheet — verseActions', () => {
     await selectVerses()
     await user.press(screen.getByTestId('bible-verse-action-custom-save'))
 
-    expect(error).toHaveBeenCalledWith(expect.stringContaining('"save"'), failure)
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('"save"'), failure),
+    )
   })
 
   it('opens no sheet for an empty list but still forwards the selection', async () => {

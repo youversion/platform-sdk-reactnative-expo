@@ -577,14 +577,23 @@ export function BibleReader({
     await onVerseSelect?.(next)
   }
 
-  const [pendingCustomAction, setPendingCustomAction] = useState<{
+  // Held until the verse sheet's dismiss animation finishes (`onClosed`), so a
+  // host that opens another surface cannot stack it on the still-visible sheet.
+  const pendingCustomActionRef = useRef<{
     action: BibleReaderCustomVerseAction
     ranges: BibleReaderVerseRange[]
   } | null>(null)
-  useEffect(() => {
-    if (pendingCustomAction === null) return
-    setPendingCustomAction(null)
-    const { action, ranges } = pendingCustomAction
+
+  const closeVerseActions = () => {
+    setVerseSelection(null)
+    setInternalClearCount((count) => count + 1)
+  }
+
+  const handleVerseSheetClosed = useCallback(() => {
+    const pending = pendingCustomActionRef.current
+    if (pending === null) return
+    pendingCustomActionRef.current = null
+    const { action, ranges } = pending
     void (async () => {
       try {
         await action.onPress(ranges)
@@ -592,12 +601,7 @@ export function BibleReader({
         console.error(`BibleReader verse action "${action.id}" failed:`, error)
       }
     })()
-  }, [pendingCustomAction])
-
-  const closeVerseActions = () => {
-    setVerseSelection(null)
-    setInternalClearCount((count) => count + 1)
-  }
+  }, [])
 
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
@@ -792,10 +796,12 @@ export function BibleReader({
   const handleActionPress = (item: VerseActionTile) => {
     if (item.kind === 'copy') return handleCopyPress()
     if (item.kind === 'share') return handleSharePress()
-    // Swift order: snapshot, close and clear, then call the host once that has committed.
+    // Snapshot and clear now; `onPress` waits for `handleVerseSheetClosed`.
     const ranges = verseSelection ? mergeVerseRanges(verseSelection) : []
     closeVerseActions()
-    if (ranges.length > 0) setPendingCustomAction({ action: item.action, ranges })
+    if (ranges.length > 0) {
+      pendingCustomActionRef.current = { action: item.action, ranges }
+    }
   }
 
   const onExternalLinkPress = async (url: string) => {
@@ -951,6 +957,7 @@ export function BibleReader({
           onSwatchPress={handleSwatchPress}
           onActionPress={handleActionPress}
           onClose={closeVerseActions}
+          onClosed={handleVerseSheetClosed}
           theme={resolvedTheme}
         />
       )}

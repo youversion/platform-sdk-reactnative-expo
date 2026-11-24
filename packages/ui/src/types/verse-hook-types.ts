@@ -22,7 +22,7 @@ export type BibleReaderCustomVerseAction = {
   label: string
   /** Drawn in the sheet's foreground so it follows the theme. */
   icon: (props: { color: string; size: number }) => ReactNode
-  /** Sorted, contiguous-merged ranges. Runs after the sheet closes and the selection clears. */
+  /** Sorted, contiguous-merged ranges. Runs after the sheet finishes dismissing and the selection clears. */
   onPress: (references: readonly BibleReaderVerseRange[]) => void | Promise<void>
 }
 

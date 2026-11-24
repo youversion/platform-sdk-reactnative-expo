@@ -95,6 +95,8 @@ export type BibleVerseActionSheetProps = {
   onActionPress: (item: VerseActionTile) => void
   /** Swipe-down, or displacement by another sheet. Both are a cancel. */
   onClose: () => void
+  /** After the native sheet finishes dismissing. Custom actions wait here. */
+  onClosed?: () => void
   theme: Theme
 }
 
@@ -117,6 +119,7 @@ function BibleVerseActionSheetImpl({
   onSwatchPress,
   onActionPress,
   onClose,
+  onClosed,
   theme,
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
@@ -236,6 +239,7 @@ function BibleVerseActionSheetImpl({
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
+      onClosed={onClosed}
       theme={theme}
       modal={false}
       panActiveOffsetY={PAN_ACTIVE_OFFSET_Y}
