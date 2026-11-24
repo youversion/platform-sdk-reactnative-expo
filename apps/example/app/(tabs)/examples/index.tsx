@@ -12,7 +12,6 @@ const examplesColorTheme = {
 const examples: { href: Href; title: string }[] = [
   { href: '/examples/verse-of-the-day', title: 'Verse of the Day' },
   { href: '/examples/bible-card', title: 'Bible Card' },
-  { href: '/examples/verse-hooks', title: 'Verse Actions & Markers' },
 ]
 
 export default function ExamplesScreen() {
