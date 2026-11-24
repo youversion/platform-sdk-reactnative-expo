@@ -926,7 +926,9 @@ describe('BibleReader verse action sheet — verseActions', () => {
 
     await selectVerses()
     await user.press(screen.getByTestId('bible-verse-action-custom-save'))
+    const clearSignal = latestDomProps.clearSelectionSignal
     await user.press(screen.getByTestId('bible-verse-action-custom-note'))
+    expect(latestDomProps.clearSelectionSignal).toBe(clearSignal)
     await user.press(screen.getByTestId('finish-dismiss'))
 
     expect(first).toHaveBeenCalledTimes(1)
