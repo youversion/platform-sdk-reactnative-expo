@@ -23,6 +23,7 @@ import {
   type ListedCollection,
 } from '../../../src/lib/playlist-videos'
 import { shareMessage } from '../../../src/lib/share-image'
+import { sampleCollection } from '../../../src/lib/sample-video-library'
 import { useContentLanguage } from '../../../src/lib/use-content-language'
 import { BIBLE_PROJECT_ORGANIZATION_ID } from '../../../src/lib/use-content-playlists'
 import { usePlaylistVideos } from '../../../src/lib/use-playlist-videos'
@@ -49,11 +50,12 @@ export default function ContentCollectionScreen() {
   const language = useContentLanguage()
   const playlists = usePlaylists()
   const stored = id === null ? undefined : openedCollection(id)
+  const local = id === null ? null : sampleCollection(id)
   const [fetched, setFetched] = useState<ListedCollection | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
-  const collection = stored ?? (fetched?.id === id ? fetched : null)
+  const collection = stored ?? local ?? (fetched?.id === id ? fetched : null)
 
   useEffect(() => {
     setFetched(null)
@@ -63,7 +65,7 @@ export default function ContentCollectionScreen() {
       setFetchError('Collection unavailable')
       return
     }
-    if (openedCollection(id) !== undefined) {
+    if (openedCollection(id) !== undefined || sampleCollection(id) !== null) {
       setFetching(false)
       return
     }

@@ -11,6 +11,7 @@ import {
   type OrderedPlaylistVideo,
   type PlaylistVideoFetch,
 } from './playlist-videos'
+import { sampleVideo } from './sample-video-library'
 
 export type PlaylistVideos = {
   videos: readonly OrderedPlaylistVideo<ContentLibraryVideo>[]
@@ -50,6 +51,14 @@ export function usePlaylistVideos(videoIds: readonly string[]): PlaylistVideos {
     setLoading(true)
     setError(null)
     void fetchPlaylistVideoOutcomes(pending, async (requestedId) => {
+      const local = sampleVideo(requestedId)
+      if (local !== null) {
+        const loaded: PlaylistVideoFetch<ContentLibraryVideo> = {
+          ok: true,
+          video: local,
+        }
+        return loaded
+      }
       const result = await apiRef.current.get(requestedId, {
         acceptLanguage: languageRef.current,
         thumbnailSize: 'card',

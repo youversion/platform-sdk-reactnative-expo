@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useVideos, type ContentLibraryVideo } from '@youversion/platform-react-native-expo-core'
 import { useTokens } from '@youversion/platform-react-native-expo-ui'
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { formatRuntime, videoDisplayAspect } from '../lib/playlist-videos'
+import { sampleVideo } from '../lib/sample-video-library'
 import { useContentLanguage } from '../lib/use-content-language'
 
 type VideoThumbnailProps = {
@@ -29,7 +30,8 @@ export function VideoThumbnail({
   const [attempt, setAttempt] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
   const [imageAttempt, setImageAttempt] = useState(0)
-  const provided = video ?? null
+  const local = requestedId === null ? null : sampleVideo(requestedId)
+  const provided = video ?? local
   const shown = provided ?? loaded
   const aspect = videoDisplayAspect(shown?.thumbnail, shown?.orientation)
 
@@ -62,8 +64,10 @@ export function VideoThumbnail({
   const runtime = shown?.runtime
   const duration = runtime === null || runtime === undefined ? '' : formatRuntime(runtime, false)
   const waiting = failure === null && provided === null && requestedId !== null && loaded === null
-  let placeholder = <Text style={{ color: tokens.mutedForeground }}>▶</Text>
+  let placeholder: ReactNode = <Text style={{ color: tokens.mutedForeground }}>▶</Text>
   if (waiting) placeholder = <ActivityIndicator color={tokens.mutedForeground} />
+  // The Retry overlay fills the frame; a centered ▶ under it collides with the label.
+  if (failure !== null || imageFailed) placeholder = null
 
   return (
     <View style={stacked ? styles.stack : null}>

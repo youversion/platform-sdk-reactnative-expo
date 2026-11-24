@@ -5,6 +5,7 @@ import {
   applyPlaylistVideoOutcomes,
   fetchPlaylistVideoOutcomes,
   firstPlaylistVideoError,
+  formatLanguageList,
   formatRuntime,
   listedCollection,
   orderedPlaylistVideos,
@@ -188,5 +189,15 @@ describe('video playback details', () => {
     assert.equal(formatRuntime(3661, false), '1:01:01')
     assert.equal(formatRuntime(65, true), '0:01:05')
     assert.equal(formatRuntime(Number.NaN, false), '')
+  })
+
+  it('joins language labels without requiring Intl.ListFormat', () => {
+    assert.equal(formatLanguageList([]), '')
+    assert.equal(formatLanguageList(['English']), 'English')
+    assert.equal(formatLanguageList(['English', 'Spanish']), 'English and Spanish')
+    assert.equal(
+      formatLanguageList(['English', 'Spanish', 'French']),
+      'English, Spanish, and French',
+    )
   })
 })

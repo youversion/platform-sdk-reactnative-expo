@@ -169,7 +169,13 @@ export function playlistLanguageTags(
 
 export function formatLanguageList(labels: readonly string[]): string {
   if (labels.length === 0) return ''
-  return new Intl.ListFormat(undefined, { type: 'conjunction' }).format(labels)
+  // Hermes lacks Intl.ListFormat; the constructor then throws and we join by hand.
+  try {
+    return new Intl.ListFormat(undefined, { type: 'conjunction' }).format(labels)
+  } catch {}
+  if (labels.length === 1) return labels[0] ?? ''
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`
+  return `${labels.slice(0, -1).join(', ')}, and ${labels[labels.length - 1]}`
 }
 
 export function languageName(tag: string): string {

@@ -13,6 +13,7 @@ import {
   videoDisplayAspect,
   visibleText,
 } from '../../../src/lib/playlist-videos'
+import { sampleVideo } from '../../../src/lib/sample-video-library'
 import { shareImageUrl } from '../../../src/lib/share-image'
 import { useContentLanguage } from '../../../src/lib/use-content-language'
 
@@ -34,6 +35,7 @@ export default function ContentVideoScreen() {
   const language = useContentLanguage()
   const videos = useVideos()
   const stored = id === null ? undefined : openedPlaylistVideo(id)
+  const local = id === null ? null : sampleVideo(id)
   const [fetched, setFetched] = useState<ContentLibraryVideo | null>(null)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [fetching, setFetching] = useState(false)
@@ -46,7 +48,7 @@ export default function ContentVideoScreen() {
       setFetchError('Video unavailable')
       return
     }
-    if (openedPlaylistVideo(id) !== undefined) {
+    if (openedPlaylistVideo(id) !== undefined || sampleVideo(id) !== null) {
       setFetching(false)
       return
     }
@@ -73,7 +75,7 @@ export default function ContentVideoScreen() {
     }
   }, [id, language, reloadKey, videos])
 
-  const current = stored ?? fetched
+  const current = stored ?? local ?? fetched
   const playbackUrl = current === null ? null : playbackSourceUrl(current.playback_sources)
   const title = current === null ? null : visibleText(current.title)
   const description = current === null ? null : visibleText(current.description)

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePlaylists } from '@youversion/platform-react-native-expo-core'
 
 import { acceptIfCurrent, emptyCardList, reduceLibrary, type CardList } from './image-library'
+import { collectionsOrSample } from './sample-video-library'
 import { listedCollection, type ListedCollection } from './playlist-videos'
 
 /** Bible Project organization from the Swift sample's video library. */
@@ -75,11 +76,12 @@ export function useContentPlaylists(language: string): ContentPlaylists {
     })
     let nextPageToken = result.value.next_page_token
     if (nextPageToken !== null && nextPageToken === pageToken) nextPageToken = null
+    const seeded = replace ? collectionsOrSample(page) : page
     const base = replace ? emptyCardList<ListedCollection>() : listRef.current
     publish(
       reduceLibrary(base, {
         type: replace ? 'replace' : 'append',
-        page,
+        page: [...seeded],
         nextPageToken,
       }),
     )
