@@ -1,5 +1,5 @@
 {
-  "ignorePatterns": "**/interim/**",
+  "ignorePatterns": "packages/core/src/notes/interim/**",
   "rules": [
     {
       "id": "native-i18n-no-hardcoded-strings",
