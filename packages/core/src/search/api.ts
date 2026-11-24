@@ -7,6 +7,7 @@ import {
 } from '@youversion/platform-core'
 
 import { createApiClient } from '../api-client'
+import { searchVideos } from '../content-library/interim/search-videos'
 import { toMessage } from '../error-message'
 import { err, ok } from '../result'
 import { isZodError } from '../zod-error'
@@ -16,6 +17,8 @@ import type {
   SearchImagesParams,
   SearchTopicsParams,
   SearchVersesParams,
+  SearchVideosParams,
+  SearchVideosResponse,
   SuggestedQueriesParams,
   TrendingQueriesParams,
   YouVersionImageSearchResults,
@@ -34,6 +37,8 @@ export type SearchApi = {
   trendingQueries: (params: TrendingQueriesParams) => Promise<SearchApiResult<SearchQueries>>
   verses: (params: SearchVersesParams) => Promise<SearchApiResult<SearchVersesResponse>>
   images: (params: SearchImagesParams) => Promise<SearchApiResult<YouVersionImageSearchResults>>
+  // YPE-6577: swap this method to `SearchClient.searchVideos` when platform-sdk-react#488 ships.
+  videos: (params: SearchVideosParams) => Promise<SearchApiResult<SearchVideosResponse>>
   topics: (params: SearchTopicsParams) => Promise<SearchApiResult<SearchTopicsResponse>>
 }
 
@@ -43,6 +48,7 @@ export function createSearchClient(config: CreateSearchApiConfig): SearchClient 
 
 export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
   const client = createSearchClient(config)
+  const apiClient = createApiClient(config)
 
   return {
     suggestedQueries({ query, languageRanges }) {
@@ -56,6 +62,16 @@ export function createSearchApi(config: CreateSearchApiConfig): SearchApi {
     },
     images({ query, bibleId, ...options }) {
       return catchAsResult(() => client.searchImages(query, bibleId, options))
+    },
+    videos({ query, organizationIds, acceptLanguage, pageSize, pageToken }) {
+      return catchAsResult(() =>
+        searchVideos(apiClient, query, {
+          organizationIds,
+          acceptLanguage,
+          pageSize,
+          pageToken,
+        }),
+      )
     },
     topics({ query, languageRanges }) {
       return catchAsResult(() => client.searchTopics(query, languageRanges))
