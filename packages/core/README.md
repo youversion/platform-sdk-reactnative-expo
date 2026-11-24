@@ -313,7 +313,7 @@ function useCuratedImage(day: number) {
 
 ### Notes
 
-`useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. Each call returns the note or the page. A failure throws.
+`useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. `list` returns a page, `get`, `create`, and `update` return a note, and `delete` resolves to `undefined`. A failure throws.
 
 Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_notes` scope and writes need `write_notes`. Put those on `auth.scopes` at sign-in. They are OAuth scopes, not data-exchange permissions, so they do not belong in `auth.permissions`.
 

@@ -1,5 +1,13 @@
 import * as core from '../../index'
-import type { CreateNote, Note, NotePage, UpdateNote } from '../../index'
+import type {
+  CreateNote,
+  GetNotesOptions,
+  Note,
+  NotePage,
+  NotePassage,
+  UpdateNote,
+  UseNotesResult,
+} from '../../index'
 
 describe('notes package exports', () => {
   it('exposes the notes hook', () => {
@@ -31,10 +39,27 @@ describe('notes package exports', () => {
       next_page_token: null,
     } satisfies NotePage
     const note = page.data[0] satisfies Note | undefined
+    const listOptions = { version_id: 111, passage_id: 'JHN.3.16' } satisfies GetNotesOptions
+    const passage = { version_id: 111, passage_id: 'JHN.3.16' } satisfies NotePassage
+    const pinnedNote = {
+      id: 'note-1',
+      content: 'Trust in God.',
+      status: 'private',
+    } satisfies Note
+    const hook: UseNotesResult = {
+      list: async () => page,
+      get: async () => pinnedNote,
+      create: async () => pinnedNote,
+      update: async () => pinnedNote,
+      delete: async () => undefined,
+    }
 
     expect(create.request_id).toBe('2f8c5d2e-6f6c-4b4f-9b36-8c1b5a17d3f9')
     expect(update.title).toBeNull()
     expect(note?.id).toBe('note-1')
     expect(page.next_page_token).toBeNull()
+    expect(listOptions.passage_id).toBe('JHN.3.16')
+    expect(passage.version_id).toBe(111)
+    expect(hook.delete).toEqual(expect.any(Function))
   })
 })
