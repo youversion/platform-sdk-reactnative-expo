@@ -333,7 +333,20 @@ function useChapterNotes(versionId: number, passageId: string) {
   return async () => {
     const token = await getAccessToken()
     if (token.status !== 'ok') return token
-    return notes.list(token.token, { version_id: versionId, passage_id: passageId })
+    try {
+      return await notes.list(token.token, {
+        version_id: versionId,
+        passage_id: passageId,
+      })
+    } catch (error) {
+      // HTTP failures carry a numeric `status` (e.g. 404 on get after delete).
+      const status =
+        error instanceof Error && 'status' in error ? error.status : undefined
+      if (status === 401 || status === 403) {
+        // Prompt for sign-in or re-authorize with note scopes, then retry.
+      }
+      throw error
+    }
   }
 }
 ```
