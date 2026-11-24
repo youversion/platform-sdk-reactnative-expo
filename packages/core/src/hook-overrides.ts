@@ -2,6 +2,7 @@ import type { AuthContextValue } from './auth/auth-context'
 import type { UseHighlightPermissionFlowResult } from './highlights/use-highlight-permission-flow'
 import type { UseHighlightsOptions, UseHighlightsResult } from './highlights/use-highlights'
 import type { UseImagesResult } from './images/use-images'
+import type { UseNotesResult } from './notes/use-notes'
 import type { UseSearchResult } from './search/use-search'
 import type { UseVerseOfTheDayResult } from './verse-of-the-day/use-verse-of-the-day'
 import type {
@@ -27,5 +28,6 @@ export type HookOverrides = {
     options?: UseUnifiedSearchOptions,
   ) => UseUnifiedSearchResult
   useImages?: () => UseImagesResult
+  useNotes?: () => UseNotesResult
   useVerseOfTheDay?: () => UseVerseOfTheDayResult
 }
