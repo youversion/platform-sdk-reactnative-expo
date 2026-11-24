@@ -447,8 +447,8 @@ const BlockView = memo(function BlockView({
   }
   const color = (value: string, alpha: number, dimmed: boolean): string => {
     const scale = dimmed ? alpha * DIM_ALPHA : alpha
-    // Hex stays hex when fully opaque; rgba (host translucent fills) keeps its
-    // channels and only scales alpha when dimming, so focus never re-enters withAlpha.
+    // Opaque hex stays hex. A fill that already has alpha (rgba or #rrggbbaa)
+    // keeps it and only scales it when dimming.
     return scale === 1 ? value : scaleAlpha(value, scale)
   }
 

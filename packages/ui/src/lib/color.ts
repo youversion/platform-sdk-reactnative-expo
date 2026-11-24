@@ -16,8 +16,22 @@ export function withAlpha(hex: string, alpha: number): string {
 
 const RGBA = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/i
 
+/** Alpha already in a `#rrggbbaa` or `#rgba` color, or 1 when the color is opaque. */
+function hexAlpha(color: string): number {
+  const value = color.trim()
+  const long = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(value)
+  if (long?.[1] !== undefined) {
+    return Number.parseInt(long[1], 16) / 255
+  }
+  const short = /^#[0-9a-f]{3}([0-9a-f])$/i.exec(value)
+  if (short?.[1] !== undefined) {
+    return Number.parseInt(short[1] + short[1], 16) / 255
+  }
+  return 1
+}
+
 export function scaleAlpha(color: string, factor: number): string {
-  const match = RGBA.exec(color)
+  const match = RGBA.exec(color.trim())
   if (match !== null) {
     const [, r, g, b, alpha] = match
     return `rgba(${r}, ${g}, ${b}, ${Number(alpha) * factor})`
@@ -26,5 +40,5 @@ export function scaleAlpha(color: string, factor: number): string {
   if (hex === null) {
     return withAlpha(color, factor)
   }
-  return withAlpha(hex, factor)
+  return withAlpha(hex, hexAlpha(color) * factor)
 }

@@ -272,6 +272,17 @@ describe('verse indicators', () => {
     expect(style(label!).backgroundColor).toBe('rgba(51, 102, 255, 0.175)')
   })
 
+  it('dims an 8-digit hex marker by its own alpha', () => {
+    renderPassage({
+      indicators: new Map([[8, { backgroundColor: '#3366ff00' }]]),
+      onIndicatorPress: jest.fn(),
+      focus: new Set([7]),
+    })
+
+    const [label] = textNodes('8')
+    expect(style(label!).backgroundColor).toBe('rgba(51, 102, 255, 0)')
+  })
+
   it('dims a short-hex marker outside the focused verses without throwing', () => {
     renderPassage({
       indicators: new Map([[8, { backgroundColor: '#36f' }]]),
