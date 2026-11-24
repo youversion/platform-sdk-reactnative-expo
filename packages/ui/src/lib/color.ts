@@ -11,3 +11,19 @@ export function withAlpha(hex: string, alpha: number): string {
   const value = Number.parseInt(digits, 16)
   return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${alpha})`
 }
+
+const RGBA = /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([0-9.]+)\s*\)$/i
+
+/**
+ * Multiplies a color's alpha by `factor`. Hex goes through {@link withAlpha};
+ * `rgba(...)` keeps its channels and scales the existing alpha — so a translucent
+ * marker can dim without feeding `rgba` back into `withAlpha`.
+ */
+export function scaleAlpha(color: string, factor: number): string {
+  const match = RGBA.exec(color)
+  if (match !== null) {
+    const [, r, g, b, alpha] = match
+    return `rgba(${r}, ${g}, ${b}, ${Number(alpha) * factor})`
+  }
+  return withAlpha(color, factor)
+}

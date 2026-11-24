@@ -7,10 +7,11 @@ import { StyleSheet, Text } from 'react-native'
 import type { ReactTestInstance } from 'react-test-renderer'
 
 import { LocaleProvider } from '../../../i18n/locale-context'
+import { withAlpha } from '../../../lib/color'
 import type { VerseIndicatorStyle } from '../../../types/verse-hook-types'
 import type { HighlightPaint } from '../highlight-colors'
 import { parsePassage } from '../parse-passage'
-import { Passage, type PassageLook } from '../passage'
+import { Passage, type PassageLook, type VerseFocusDim } from '../passage'
 
 const LOOK: PassageLook = {
   fontSize: 20,
@@ -41,6 +42,7 @@ type Options = {
   onNotePress?: (verse: number | null, html: string) => void
   selected?: ReadonlySet<number>
   paint?: ReadonlyMap<number, HighlightPaint>
+  focus?: VerseFocusDim
 }
 
 function renderPassage(options: Options = {}) {
@@ -49,7 +51,7 @@ function renderPassage(options: Options = {}) {
     look: LOOK,
     selected: options.selected ?? new Set<number>(),
     paint: options.paint ?? new Map<number, HighlightPaint>(),
-    focus: null,
+    focus: options.focus ?? null,
     onVersePress: options.onVersePress ?? jest.fn(),
     onNotePress: options.onNotePress ?? jest.fn(),
     indicators: options.indicators,
@@ -250,6 +252,18 @@ describe('verse indicators', () => {
 
     expect(onVersePress).toHaveBeenCalledWith(8)
     expect(onIndicatorPress).toHaveBeenCalledTimes(1)
+  })
+
+  it('dims a translucent marker outside the focused verses without throwing', () => {
+    renderPassage({
+      indicators: new Map([[8, { backgroundColor: withAlpha('#3366ff', 0.5) }]]),
+      onIndicatorPress: jest.fn(),
+      focus: new Set([7]),
+    })
+
+    const [label] = textNodes('8')
+    // Existing 0.5 alpha × DIM_ALPHA (0.35).
+    expect(style(label!).backgroundColor).toBe('rgba(51, 102, 255, 0.175)')
   })
 
   it('repaints a block when only the marker style changes', () => {

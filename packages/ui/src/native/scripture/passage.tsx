@@ -15,7 +15,7 @@ import Svg, { Path } from 'react-native-svg'
 
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import type { VerseIndicatorStyle } from '../../types/verse-hook-types'
-import { withAlpha } from '../../lib/color'
+import { scaleAlpha, withAlpha } from '../../lib/color'
 import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { directionMark } from './direction-mark'
@@ -445,9 +445,11 @@ const BlockView = memo(function BlockView({
       onVerseLines(index, verseLineBoxes(laidOut, block, rule.smallCaps))
     }
   }
-  const color = (hex: string, alpha: number, dimmed: boolean): string => {
-    const value = dimmed ? alpha * DIM_ALPHA : alpha
-    return value === 1 ? hex : withAlpha(hex, value)
+  const color = (value: string, alpha: number, dimmed: boolean): string => {
+    const scale = dimmed ? alpha * DIM_ALPHA : alpha
+    // Hex stays hex when fully opaque; rgba (host translucent fills) keeps its
+    // channels and only scales alpha when dimming, so focus never re-enters withAlpha.
+    return scale === 1 ? value : scaleAlpha(value, scale)
   }
 
   // A ghost lays out exactly like the real text but paints only its layer.
