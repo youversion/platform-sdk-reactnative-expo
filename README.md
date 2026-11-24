@@ -276,6 +276,49 @@ const [clearSelectionSignal, setClearSelectionSignal] = useState(0)
 
 Clearing the selection also closes the verse action sheet. Clears arrive on `onVerseSelect` as well, as a selection with `verses: []`. Type a handler with `BibleReaderVerseSelection` / `BibleReaderShareData`, both re-exported from this package.
 
+#### Verse actions
+
+`verseActions` sets the buttons on the verse action sheet, in order. The default is `['highlight', 'copy', 'share']`. Omit an entry to drop that button. Add an object to add your own button. Each `id` must be unique. If two entries share an `id`, the reader keeps the first and warns in development.
+
+```tsx
+<BibleReader
+  defaultVersionId={3034}
+  verseActions={[
+    'highlight',
+    {
+      id: 'bookmark',
+      label: 'Bookmark', // localize it yourself
+      icon: ({ color, size }) => <BookmarkIcon color={color} size={size} />,
+      onPress: (references) => {
+        // [{ versionId, book, chapter, verseStart, verseEnd, passageId: 'JHN.3.16-18' }]
+      },
+    },
+    'copy',
+    'share',
+  ]}
+/>
+```
+
+`onPress` runs after the sheet closes and the selection clears. `references` is sorted, and contiguous verses merge into one range. `'highlight'` shows nothing when `auth` is not configured. An empty list opens no sheet, but `onVerseSelect` still reports the selection.
+
+#### Verse indicators
+
+`verseIndicatorStyle` puts a marker on a verse number. The reader calls it once for each verse that shows a number. Return `null` to keep the plain number. `onVerseIndicatorPress` receives a tap on a marker. A marker tap does not select the verse. `BibleTextView` takes the same two props.
+
+```tsx
+<BibleReader
+  defaultVersionId={3034}
+  verseIndicatorStyle={({ passageId }) =>
+    bookmarked.has(passageId)
+      ? { backgroundColor: '#9ebce1', foregroundColor: '#636161', inlinePadding: true, accessibilityLabel: 'Bookmarked' }
+      : null
+  }
+  onVerseIndicatorPress={({ passageId }) => openBookmark(passageId)}
+/>
+```
+
+The marker draws over a highlight. Its tap target is at least `minimumHitSize` points square (default 44), and the marker itself does not grow. `foregroundColor` defaults to the verse-number color. The screen reader label defaults to the verse number. When verse numbers are hidden, no markers show. Pass a stable function, for example from `useCallback`: a new function asks for every marker again.
+
 #### Custom picker flows
 
 To present your own picker UI instead of the built-in sheets, pass `onChapterPickerPress` or `onVersionPickerPress`. The built-in sheet is suppressed and you receive the current selection. `languageId` is the Bible language tag (`en`, `es`), the same value the Web SDK picker uses. On native the trigger stays disabled until the version lookup settles, so the callback never fires mid-flight; if that lookup fails, `languageId` arrives as an empty string rather than a guess.

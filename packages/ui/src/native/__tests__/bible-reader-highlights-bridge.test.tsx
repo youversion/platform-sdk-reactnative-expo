@@ -229,9 +229,8 @@ describe('the verse-action event set', () => {
     expect(lastDomProps()).not.toHaveProperty('verseActions')
   })
 
-  it('does not let a consumer choose the verse-action UI', () => {
-    // @ts-expect-error — `verseActions` is not a BibleReader prop.
-    render(<BibleReader verseActions="popover" />, { wrapper })
+  it('keeps a consumer action list in the reader, out of the chapter body', () => {
+    render(<BibleReader verseActions={['copy', 'share']} />, { wrapper })
     expect(lastDomProps()).not.toHaveProperty('verseActions')
   })
 })

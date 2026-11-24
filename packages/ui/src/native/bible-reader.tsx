@@ -44,6 +44,16 @@ import {
   type HighlightWriteError,
 } from '../lib/report-highlight-write-error'
 import { buildVerseActionSwatches, type VerseActionSwatch } from '../lib/verse-action-swatches'
+import {
+  DEFAULT_VERSE_ACTIONS,
+  mergeVerseRanges,
+  resolveVerseActions,
+} from '../lib/verse-actions'
+import type {
+  BibleReaderCustomVerseAction,
+  BibleReaderVerseAction,
+  BibleReaderVerseRange,
+} from '../types/verse-hook-types'
 import { useReaderLocationStore } from '../stores/reader-location-store'
 import { useReaderSettingsStore } from '../stores/reader-settings-store'
 import {
@@ -61,7 +71,7 @@ import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { BibleReaderSearchSheet } from './bible-reader-search-sheet'
 import { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 import { BibleReaderToolbar } from './bible-reader-toolbar'
-import { BibleVerseActionSheet } from './bible-verse-action-sheet'
+import { BibleVerseActionSheet, type VerseActionTile } from './bible-verse-action-sheet'
 import { BibleVersionPickerSheet } from './bible-version-picker-sheet'
 import { HighlightConsentSheet } from './highlight-consent-sheet'
 import { NativeSheet } from './native-sheet'
@@ -179,6 +189,15 @@ export type BibleReaderProps = Omit<
   /** Share's counterpart to {@link BibleReaderProps.onCopy}. Falls back to RN's `Share.share`. */
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
   /**
+   * The verse action sheet's row, in order. Built-ins are `'highlight'` (the
+   * swatch tray), `'copy'`, and `'share'`; omit one to drop it. A custom action
+   * gets the selection as sorted, contiguous-merged ranges after the sheet
+   * closes. Ids must be unique; a duplicate is ignored. `[]` shows no sheet.
+   *
+   * @default ['highlight', 'copy', 'share']
+   */
+  verseActions?: readonly BibleReaderVerseAction[]
+  /**
    * A highlight has not reached the server yet — queued and retrying, or a
    * transient failure the write queue will keep retrying. The paint stays on
    * screen; render an offline or pending hint rather than an error toast.
@@ -239,6 +258,9 @@ export function BibleReader({
   clearSelectionSignal = 0,
   onCopy: consumerOnCopy,
   onShare: consumerOnShare,
+  verseActions = DEFAULT_VERSE_ACTIONS,
+  verseIndicatorStyle,
+  onVerseIndicatorPress,
   onHighlightError,
   backgroundColor,
   foregroundColor,
@@ -544,7 +566,20 @@ export function BibleReader({
     setPrompt(NO_PROMPT)
   }
 
+  // Held until the verse sheet's dismiss animation finishes (`onClosed`), so a
+  // host that opens another surface cannot stack it on the still-visible sheet.
+  const pendingCustomActionRef = useRef<{
+    action: BibleReaderCustomVerseAction
+    ranges: BibleReaderVerseRange[]
+  } | null>(null)
+
   const handleVerseSelect = async (next: BibleReaderVerseSelection) => {
+    // A custom action is waiting for this sheet to finish closing. Taking the
+    // tap would reopen it and delay or replace that action.
+    if (next.verses.length > 0 && pendingCustomActionRef.current !== null) {
+      setInternalClearCount((count) => count + 1)
+      return
+    }
     // A new non-empty selection is the user picking other verses. Drop a
     // held tap so settle cannot prompt for the old ones. An empty payload is
     // our own `closeVerseActions` after the swatch press — keep the hold.
@@ -559,6 +594,20 @@ export function BibleReader({
     setVerseSelection(null)
     setInternalClearCount((count) => count + 1)
   }
+
+  const handleVerseSheetClosed = useCallback(() => {
+    const pending = pendingCustomActionRef.current
+    if (pending === null) return
+    pendingCustomActionRef.current = null
+    const { action, ranges } = pending
+    void (async () => {
+      try {
+        await action.onPress(ranges)
+      } catch (error) {
+        console.error(`BibleReader verse action "${action.id}" failed:`, error)
+      }
+    })()
+  }, [])
 
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
@@ -745,6 +794,24 @@ export function BibleReader({
     if (data) void handleShare(data)
   }
 
+  const verseActionItems = useMemo(
+    () => resolveVerseActions(verseActions, { hasSwatches: swatches.length > 0 }),
+    [verseActions, swatches],
+  )
+
+  const handleActionPress = (item: VerseActionTile) => {
+    // The sheet can still take a tap while it slides closed. Keep the first action.
+    if (pendingCustomActionRef.current !== null) return
+    if (item.kind === 'copy') return handleCopyPress()
+    if (item.kind === 'share') return handleSharePress()
+    // Snapshot before clear; `onPress` waits for `handleVerseSheetClosed`.
+    const ranges = verseSelection ? mergeVerseRanges(verseSelection) : []
+    if (ranges.length > 0) {
+      pendingCustomActionRef.current = { action: item.action, ranges }
+    }
+    closeVerseActions()
+  }
+
   const onExternalLinkPress = async (url: string) => {
     try {
       await WebBrowser.openBrowserAsync(url, {
@@ -853,6 +920,8 @@ export function BibleReader({
               backgroundColor={backgroundColor}
               foregroundColor={foregroundColor}
               bottomScrollPadding={bottomScrollPadding}
+              verseIndicatorStyle={verseIndicatorStyle}
+              onVerseIndicatorPress={onVerseIndicatorPress}
             />
           </View>
         </ThemeContext.Provider>
@@ -883,17 +952,20 @@ export function BibleReader({
           // Yielded, not displaced. A prompt that takes over the sheet host
           // would fire this sheet's `onClose`, which clears the selection the
           // prompt's own answer still needs.
+          // An empty row shows no sheet (Swift); selection still reaches `onVerseSelect`.
           isOpen={
             verseSelection !== null &&
+            verseActionItems.length > 0 &&
             renderedPrompt.kind === 'none' &&
             !highlightPermissionFlow.isConfirming
           }
           reference={verseSelection?.reference ?? ''}
+          items={verseActionItems}
           swatches={swatches}
           onSwatchPress={handleSwatchPress}
-          onCopyPress={handleCopyPress}
-          onSharePress={handleSharePress}
+          onActionPress={handleActionPress}
           onClose={closeVerseActions}
+          onClosed={handleVerseSheetClosed}
           theme={resolvedTheme}
         />
       )}

@@ -3,6 +3,10 @@ import type { FetchBibleContent, Highlight } from '@youversion/platform-react-na
 import type { FootnoteData, BibleReaderVerseSelection } from '../types/bible-ui-types'
 import type { FontFamily } from '../lib/reader-fonts'
 import type {
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../types/verse-hook-types'
+import type {
   BibleReaderVerseFocus,
   BibleReaderVerseFocusAcknowledgment,
 } from './bible-reader-navigation'
@@ -54,4 +58,12 @@ export type BibleReaderBodyProps = {
   backgroundColor?: string
   foregroundColor?: string
   bottomScrollPadding?: number
+  /**
+   * Marks a verse number with a styled indicator. Return `null` to keep the
+   * plain number. Resolved once per chapter render; only verses that render a
+   * number can carry one.
+   */
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  /** A tap on an indicator. It wins over the verse tap and does not select the verse. */
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
 }

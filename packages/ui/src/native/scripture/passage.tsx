@@ -14,7 +14,8 @@ import {
 import Svg, { Path } from 'react-native-svg'
 
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
-import { withAlpha } from '../../lib/color'
+import type { VerseIndicatorStyle } from '../../types/verse-hook-types'
+import { scaleAlpha, withAlpha } from '../../lib/color'
 import { palette } from '../../theme/palette'
 import { READER_LINE_SPACING } from '../../stores/types/reader-line-spacing'
 import { directionMark } from './direction-mark'
@@ -47,6 +48,8 @@ export type PassageLook = {
   labelFace: TextStyle
   /** `#rrggbb`, so alphas can be applied. */
   ink: string
+  /** Verse number color. Figma Text/Muted when the host does not override ink. */
+  label: string
   wj: string
   underline: string
   background: string
@@ -64,6 +67,10 @@ type PassageProps = {
   /** Absent for read-only text: verses take no taps. */
   onVersePress?: (verse: number) => void
   onNotePress: (verse: number | null, html: string) => void
+  /** Verses whose number draws as a marker. Absent is the plain path. */
+  indicators?: ReadonlyMap<number, VerseIndicatorStyle>
+  /** A marker's own tap. Never also calls `onVersePress`. */
+  onIndicatorPress?: (verse: number) => void
   /** Reader-only. Scroll and focus measure blocks. */
   onBlockLayout?: (index: number, y: number, height: number) => void
   onBlockRef?: (index: number, node: RNTextInstance | null) => void
@@ -78,9 +85,6 @@ const LABEL_RISE = Platform.select({ android: -0.25, default: -0.32 })
 // iOS centres the glyphs in an enlarged line box but not the inline views, so
 // LABEL_RISE (tuned at the default spacing) drifts as spacing moves off it.
 const ATTACHMENT_DRIFT = Platform.OS === 'ios' ? 0.5 : 0
-// Swift paints labels in iOS `secondaryLabel` (~#8a8a8e on white); half the ink lands
-// there in both schemes and still follows a custom foreground.
-const LABEL_ALPHA = 0.5
 // Swift draws its untinted asset (gray20) in a square the height of an 0.8em run,
 // raised a quarter of that, in every scheme and over highlights. Android seats inline
 // views higher, so it rises less to sit the same against the glyphs (measured).
@@ -117,6 +121,11 @@ export function highlightEndRoom(size: number): number {
 }
 const BAND_ASCENT = 0.98
 const BAND_DESCENT = 0.26
+// Figma verse-marker chip (Utility/Info @ 50%, 13×22) uses a 2pt corner. Vertical pad
+// grows the painted chip; the label transform drops by the same amount so the extra
+// height falls into the highlight band instead of above it.
+const INDICATOR_RADIUS = 2
+const INDICATOR_PAD_Y = 3
 // iOS counts a wrapped line's trailing spaces in its width (measured); Android is unchecked.
 const TRIM_TRAILING_SPACE = Platform.OS === 'ios'
 const NBSP = '\u00a0'
@@ -393,6 +402,8 @@ const BlockView = memo(function BlockView({
   focus,
   onVersePress,
   onNotePress,
+  indicators,
+  onIndicatorPress,
   onBlockLayout,
   onBlockRef,
   probeVerses = null,
@@ -434,9 +445,11 @@ const BlockView = memo(function BlockView({
       onVerseLines(index, verseLineBoxes(laidOut, block, rule.smallCaps))
     }
   }
-  const color = (hex: string, alpha: number, dimmed: boolean): string => {
-    const value = dimmed ? alpha * DIM_ALPHA : alpha
-    return value === 1 ? hex : withAlpha(hex, value)
+  const color = (value: string, alpha: number, dimmed: boolean): string => {
+    const scale = dimmed ? alpha * DIM_ALPHA : alpha
+    // Opaque hex stays hex. A fill that already has alpha (rgba or #rrggbbaa)
+    // keeps it and only scales it when dimming.
+    return scale === 1 ? value : scaleAlpha(value, scale)
   }
 
   // A ghost lays out exactly like the real text but paints only its layer.
@@ -476,6 +489,41 @@ const BlockView = memo(function BlockView({
         }}
       />
     )
+    const indicator = verse === null ? undefined : indicators?.get(verse)
+    if (inline.kind === 'label' && indicator !== undefined && verse !== null) {
+      const live = !ghost && onIndicatorPress !== undefined
+      return (
+        <IndicatorLabel
+          key={key}
+          verse={verse}
+          text={indicator.inlinePadding ? `${NBSP}${inline.text}${NBSP}` : inline.text}
+          indicator={indicator}
+          live={live}
+          onPress={live ? onIndicatorPress : pressable ? onVersePress : undefined}
+          style={{ ...box, paddingEnd: fontSize * 0.25 }}
+          boxFill={boxFill}
+          textStyle={{
+            ...look.labelFace,
+            fontSize: fontSize * LABEL_SCALE,
+            lineHeight: fontSize * LABEL_SCALE * 1.2,
+            // Drop by INDICATOR_PAD_Y so vertical padding grows the chip into the
+            // highlight instead of poking out above the band (Figma 13×22 chip).
+            transform: [
+              { translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT + INDICATOR_PAD_Y },
+            ],
+          }}
+          // Ghost layers keep the marker's box so they lay out alike, but paint nothing.
+          // Marker fill is its own; do not borrow highlight ink or a light number
+          // disappears on a light chip over a dark swatch.
+          foreground={
+            ghost
+              ? TRANSPARENT
+              : color(indicator.foregroundColor ?? look.label, 1, dimmed)
+          }
+          background={ghost ? undefined : color(indicator.backgroundColor, 1, dimmed)}
+        />
+      )
+    }
     if (inline.kind === 'label') {
       return (
         // End padding, not a trailing space: under RTL the space lands on the far side.
@@ -492,9 +540,7 @@ const BlockView = memo(function BlockView({
               ...look.labelFace,
               fontSize: fontSize * LABEL_SCALE,
               lineHeight: fontSize * LABEL_SCALE * 1.2,
-              color: ghost
-                ? TRANSPARENT
-                : color(overInk ?? look.ink, overInk === null ? LABEL_ALPHA : 1, dimmed),
+              color: ghost ? TRANSPARENT : color(overInk ?? look.label, 1, dimmed),
               transform: [{ translateY: fontSize * LABEL_RISE + drift - BOX_SHIFT }],
             }}
           >
@@ -1069,7 +1115,7 @@ function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): strin
   const focused = state.focus === null ? 'n' : 'f'
   // Remount when a focus starts measuring lines. An in-place update does not emit them again.
   const probe = blockProbed(block, state.probeVerses) ? 'p' : '.'
-  const looks = `${look.fontSize}|${look.lineMultiple}|${look.face(400, false).fontFamily}|${look.ink}|`
+  const looks = `${look.fontSize}|${look.lineMultiple}|${look.face(400, false).fontFamily}|${look.ink}|${look.label}|`
   return (
     looks +
     focused +
@@ -1077,7 +1123,7 @@ function blockStateKey(block: Block, state: Omit<PassageProps, 'blocks'>): strin
     block.verses
       .map(
         (verse) =>
-          `${state.selected.has(verse) ? 's' : ''}${state.paint.get(verse)?.background ?? ''}${state.focus?.has(verse) ? 'f' : ''}`,
+          `${state.selected.has(verse) ? 's' : ''}${state.paint.get(verse)?.background ?? ''}${state.focus?.has(verse) ? 'f' : ''}${indicatorKey(state.indicators?.get(verse))}`,
       )
       .join(',')
   )
@@ -1092,6 +1138,7 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
     a.previous?.bottom !== b.previous?.bottom ||
     a.onVersePress !== b.onVersePress ||
     a.onNotePress !== b.onNotePress ||
+    a.onIndicatorPress !== b.onIndicatorPress ||
     a.onBlockLayout !== b.onBlockLayout ||
     a.onBlockRef !== b.onBlockRef ||
     a.onVerseLines !== b.onVerseLines ||
@@ -1104,7 +1151,89 @@ function sameBlockState(a: BlockViewProps, b: BlockViewProps): boolean {
     (verse) =>
       a.selected.has(verse) === b.selected.has(verse) &&
       a.paint.get(verse) === b.paint.get(verse) &&
-      (a.focus?.has(verse) ?? false) === (b.focus?.has(verse) ?? false),
+      (a.focus?.has(verse) ?? false) === (b.focus?.has(verse) ?? false) &&
+      indicatorKey(a.indicators?.get(verse)) === indicatorKey(b.indicators?.get(verse)),
+  )
+}
+
+// By value: a host resolver returns fresh style objects on every chapter build.
+function indicatorKey(style: VerseIndicatorStyle | undefined): string {
+  if (style === undefined) {
+    return ''
+  }
+  const { backgroundColor, foregroundColor, minimumHitSize, inlinePadding, accessibilityLabel } =
+    style
+  return `|i${backgroundColor}/${foregroundColor ?? ''}/${minimumHitSize ?? ''}/${inlinePadding ? 1 : 0}/${accessibilityLabel ?? ''}`
+}
+
+const DEFAULT_INDICATOR_HIT = 44
+
+type IndicatorLabelProps = {
+  verse: number
+  text: string
+  indicator: VerseIndicatorStyle
+  live: boolean
+  onPress: ((verse: number) => void) | undefined
+  style: ViewStyle
+  boxFill: ReactNode
+  textStyle: TextStyle
+  foreground: string
+  background: string | undefined
+}
+
+function IndicatorLabel({
+  verse,
+  text,
+  indicator,
+  live,
+  onPress,
+  style,
+  boxFill,
+  textStyle,
+  foreground,
+  background,
+}: IndicatorLabelProps): ReactNode {
+  const minimum = indicator.minimumHitSize ?? DEFAULT_INDICATOR_HIT
+  return (
+    <Pressable
+      testID={live ? `verse-indicator-${verse}` : undefined}
+      disabled={onPress === undefined}
+      onPress={onPress === undefined ? undefined : () => onPress(verse)}
+      accessible={live ? true : undefined}
+      accessibilityRole={live ? 'button' : undefined}
+      accessibilityLabel={live ? (indicator.accessibilityLabel ?? text.trim()) : undefined}
+      style={style}
+    >
+      {boxFill}
+      <RNText
+        allowFontScaling={false}
+        style={{
+          ...textStyle,
+          color: foreground,
+          backgroundColor: background,
+          borderRadius: INDICATOR_RADIUS,
+          overflow: 'hidden',
+          paddingVertical: INDICATOR_PAD_Y,
+        }}
+      >
+        {text}
+      </RNText>
+      {live && (
+        <View
+          testID={`verse-indicator-hit-${verse}`}
+          collapsable={false}
+          style={{
+            position: 'absolute',
+            left: '50%',
+            top: '50%',
+            width: minimum,
+            height: minimum,
+            marginLeft: -minimum / 2,
+            marginTop: -minimum / 2,
+          }}
+        />
+      )}
+    </Pressable>
   )
 }
 

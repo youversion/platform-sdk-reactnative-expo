@@ -16,6 +16,15 @@ export { BibleReaderNavigation, createBibleReaderNavigation } from './bible-read
 export type { BibleReaderNavigationRequest } from './bible-reader-navigation'
 export { BibleReaderSettingsSheet } from './bible-reader-settings-sheet'
 export type { BibleReaderSettingsSheetProps } from './bible-reader-settings-sheet'
+export type {
+  BibleReaderBuiltInVerseAction,
+  BibleReaderCustomVerseAction,
+  BibleReaderVerseAction,
+  BibleReaderVerseRange,
+  VerseIndicatorStyle,
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../types/verse-hook-types'
 export { BibleTextView } from './bible-text-view'
 export type { BibleTextViewProps } from './bible-text-view'
 export { BibleVersionPickerSheet } from './bible-version-picker-sheet'

@@ -69,6 +69,11 @@ export type PassageStyleInput = {
   direction?: TextDirection
   /** `#rrggbb`. Defaults to the scheme's foreground. */
   ink?: string
+  /**
+   * Verse number color (`#rrggbb`). Defaults to muted foreground (Figma Text/Muted).
+   * Pass the same value as `ink` when a host foreground should tint the numbers too.
+   */
+  label?: string
   /** `#rrggbb` under the text. Highlight covers paint it. Defaults to the scheme's background. */
   background?: string
 }
@@ -88,12 +93,14 @@ export function usePassageStyle({
   fontFamily,
   direction,
   ink: inkOverride,
+  label: labelOverride,
   background: backgroundOverride,
 }: PassageStyleInput): PassageStyle {
   const theme = useTheme()
   const tokens = useTokens()
   const serifFaceFor = useSerifFace()
   const ink = inkOverride ?? tokens.foreground
+  const label = labelOverride ?? tokens.mutedForeground
   const background = backgroundOverride ?? tokens.background
   const cssKind = fontFamily === undefined ? null : cssFontKind(fontFamily)
   const isSans = fontFamily === INTER_FONT || cssKind === 'sans'
@@ -123,11 +130,12 @@ export function usePassageStyle({
       },
       labelFace: sansFace(tokens.fontFamily.sans, 400),
       ink,
+      label,
       wj: tokens.wj,
       underline: tokens.border,
       background,
     }),
-    [fontSize, lineMultiple, rtl, isSans, hostFamily, tokens, serifFaceFor, ink, background],
+    [fontSize, lineMultiple, rtl, isSans, hostFamily, tokens, serifFaceFor, ink, label, background],
   )
 
   // Scoped to the rendered passage: the old one stays up while the next one loads.

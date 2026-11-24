@@ -6,6 +6,10 @@ import { Platform } from 'react-native'
 import { ThemeContext, useTheme } from '../hooks/use-theme'
 import { BIBLE_READER_FONT } from '../lib/bible-reader-settings'
 import type { FootnoteData, TextDirection } from '../types/bible-ui-types'
+import type {
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../types/verse-hook-types'
 import type { FontFamily } from '../lib/reader-fonts'
 import { BibleTextViewNative, type BibleTextViewPassageState } from './bible-text-view-native'
 import { getImpl } from './component-impls'
@@ -34,6 +38,10 @@ export type BibleTextViewProps = {
   onVerseSelect?: (verses: number[]) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   passageState?: BibleTextViewPassageState
+  /** Draws a marker on a verse number; return `null` for a plain number. */
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  /** A marker's tap. Wins over `onVerseSelect` where the two overlap. */
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
   /**
    * @deprecated Ignored. The signed-in user's cached highlights paint the passage.
    * This was already true under Expo DOM, where cached highlights won.

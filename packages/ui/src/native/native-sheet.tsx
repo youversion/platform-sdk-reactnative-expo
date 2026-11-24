@@ -51,6 +51,9 @@ export type NativeSheetProps = {
   onClose: () => void
   // Fired when a backdrop tap or pan-down close animation starts, before onClose.
   onDismissKeyboardStart?: () => void
+  // Fired when the sheet has finished dismissing (Gorhom index -1), after close
+  // animations. Callers that open another surface from a sheet action wait here.
+  onClosed?: () => void
   // false drops the backdrop entirely, so content behind the sheet stays bright
   // and interactive. The backdrop is removed instead of made transparent because
   // Gorhom reads `enableTouchThrough` only for the initial pointerEvents, then
@@ -95,6 +98,7 @@ function NativeSheetImpl({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  onClosed,
   modal = true,
   panActiveOffsetY,
   children,
@@ -142,6 +146,7 @@ function NativeSheetImpl({
         enableContentPanningGesture={enableContentPanningGesture}
         onClose={onClose}
         onDismissKeyboardStart={onDismissKeyboardStart}
+        onClosed={onClosed}
         modal={modal}
         panActiveOffsetY={panActiveOffsetY}
         theme={theme}
@@ -164,6 +169,7 @@ function SheetHost({
   enableContentPanningGesture,
   onClose,
   onDismissKeyboardStart,
+  onClosed,
   modal,
   panActiveOffsetY,
   children,
@@ -180,6 +186,7 @@ function SheetHost({
   enableContentPanningGesture?: boolean
   onClose: () => void
   onDismissKeyboardStart?: () => void
+  onClosed?: () => void
   modal: boolean
   panActiveOffsetY?: [number, number]
   children: ReactNode
@@ -263,10 +270,14 @@ function SheetHost({
         closingRef.current = false
         return
       }
+      // Skip mount/idle -1 reports. Only a sheet that was open or mid-close
+      // counts as a finished dismiss for `onClosed`.
+      const finishedDismiss = closingRef.current || wasActiveRef.current
       if (!closingRef.current && wasActiveRef.current) onClose()
       closingRef.current = false
+      if (finishedDismiss) onClosed?.()
     },
-    [onClose],
+    [onClose, onClosed],
   )
 
   const handleSheetAnimate = useCallback(

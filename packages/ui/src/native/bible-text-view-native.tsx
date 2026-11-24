@@ -4,6 +4,10 @@ import { ActivityIndicator, View } from 'react-native'
 
 import { Button, Text } from '../components/ui'
 import type { BibleTextViewPassageState, FootnoteData } from '../types/bible-ui-types'
+import type {
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../types/verse-hook-types'
 import { useBibleVersionAbbreviation } from '../hooks/use-bible-version-abbreviation'
 import { useSdkTranslation } from '../i18n/use-sdk-translation'
 import type { FontFamily } from '../lib/reader-fonts'
@@ -16,6 +20,7 @@ import { usePassageStyle } from './scripture/passage-style'
 import { visibleBlocks } from './scripture/parse-passage'
 import { normalizeVerses } from './scripture/selection'
 import { lineMultiple } from './scripture/styles'
+import { indicatorTarget, resolveIndicators } from './scripture/verse-indicators'
 import {
   footnoteFor,
   passageErrorKey,
@@ -48,6 +53,10 @@ export type BibleTextViewNativeProps = {
   versionDirections?: VersionDirections
   /** Supplied passage. Skips the fetch and the version gate. */
   passageState?: BibleTextViewPassageState
+  /** Draws a marker on a verse number. Hidden verse numbers draw none. */
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  /** A marker's tap. Wins over `onVerseSelect` where the two overlap. */
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
 }
 
 /**
@@ -68,6 +77,8 @@ export function BibleTextViewNative({
   scriptureDirection,
   versionDirections,
   passageState,
+  verseIndicatorStyle,
+  onVerseIndicatorPress,
 }: BibleTextViewNativeProps): ReactNode {
   const { fetchBibleContent, permittedVersionIds, excludedVersionIds, permittedLanguageTags } =
     useYouVersion()
@@ -116,13 +127,31 @@ export function BibleTextViewNative({
     () => visibleBlocks(parsedBlocks ?? [], { verseNumbers: showVerseNumbers, notes: drawNotes }),
     [drawNotes, parsedBlocks, showVerseNumbers],
   )
+  const loaded = load.passage
+  const indicators = useMemo(
+    () => (loaded === null ? undefined : resolveIndicators(blocks, loaded, verseIndicatorStyle)),
+    [blocks, loaded, verseIndicatorStyle],
+  )
   const latest = useRef({
     passage: load.passage,
     onVerseSelect,
     onFootnotePress,
+    onVerseIndicatorPress,
     selected,
   })
-  latest.current = { passage: load.passage, onVerseSelect, onFootnotePress, selected }
+  latest.current = {
+    passage: load.passage,
+    onVerseSelect,
+    onFootnotePress,
+    onVerseIndicatorPress,
+    selected,
+  }
+  const pressIndicator = useCallback((verse: number): void => {
+    const now = latest.current
+    if (now.passage !== null) {
+      now.onVerseIndicatorPress?.(indicatorTarget(now.passage, verse))
+    }
+  }, [])
   const pressVerse = useCallback((verse: number): void => {
     const now = latest.current
     if (now.onVerseSelect === undefined) {
@@ -209,6 +238,8 @@ export function BibleTextViewNative({
         focus={null}
         onVersePress={onVerseSelect === undefined ? undefined : pressVerse}
         onNotePress={onNotePress}
+        indicators={indicators}
+        onIndicatorPress={onVerseIndicatorPress === undefined ? undefined : pressIndicator}
       />
     </View>
   )

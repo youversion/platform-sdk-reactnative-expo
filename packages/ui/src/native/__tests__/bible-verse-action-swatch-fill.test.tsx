@@ -37,8 +37,8 @@ function SheetHarness({
         reference="John 1:1"
         swatches={swatches}
         onSwatchPress={() => undefined}
-        onCopyPress={() => undefined}
-        onSharePress={() => undefined}
+        items={[{ kind: 'swatches' }, { kind: 'copy' }, { kind: 'share' }]}
+        onActionPress={() => undefined}
         onClose={() => undefined}
         theme={theme}
       />

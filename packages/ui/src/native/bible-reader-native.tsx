@@ -28,6 +28,7 @@ import { sansFace } from '../theme/fonts'
 import type { BibleReaderBodyProps } from './bible-reader-body-props'
 import { toHex6 } from './scripture/highlight-colors'
 import { highlightEndRoom, Passage, type VerseFocusDim } from './scripture/passage'
+import { indicatorTarget, resolveIndicators } from './scripture/verse-indicators'
 import { usePassageStyle } from './scripture/passage-style'
 import { buildVerseSelection, parseFocusPassageId } from './scripture/selection'
 import { lineMultiple } from './scripture/styles'
@@ -102,6 +103,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     permittedVersionIds,
     excludedVersionIds,
     permittedLanguageTags,
+    verseIndicatorStyle,
+    onVerseIndicatorPress,
   } = props
   const tokens = useTokens()
   const { t } = useSdkTranslation()
@@ -150,6 +153,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     fontFamily,
     direction: versionDirection,
     ink,
+    label: muted,
     background,
   })
 
@@ -190,8 +194,35 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
 
   // Hosts pass fresh callbacks each render; read them through a ref so effects keyed on
   // `emit` do not refire (and loop) every time the host rerenders from a selection.
-  const callbacks = useRef({ onVerseSelect, onFootnotePress, onVerseFocusApplied })
-  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied }
+  const callbacks = useRef({
+    onVerseSelect,
+    onFootnotePress,
+    onVerseFocusApplied,
+    onVerseIndicatorPress,
+  })
+  callbacks.current = { onVerseSelect, onFootnotePress, onVerseFocusApplied, onVerseIndicatorPress }
+
+  // Resolved per loaded chapter, against the passage's own address: a dimmed old
+  // chapter keeps its markers until the new one lands.
+  const indicators = useMemo(
+    () =>
+      passage === null ? undefined : resolveIndicators(passage.parsed.blocks, passage, verseIndicatorStyle),
+    [passage, verseIndicatorStyle],
+  )
+  const hasIndicatorPress = onVerseIndicatorPress !== undefined
+  const onIndicatorPress = useMemo(
+    () =>
+      hasIndicatorPress
+        ? (verse: number): void => {
+            const now = latest.current
+            if (now.refused || now.passage === null) {
+              return
+            }
+            callbacks.current.onVerseIndicatorPress?.(indicatorTarget(now.passage, verse))
+          }
+        : undefined,
+    [hasIndicatorPress],
+  )
 
   const emit = useCallback((verses: ReadonlySet<number>): void => {
     const handler = callbacks.current.onVerseSelect
@@ -558,6 +589,8 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
                 focus={focusDim}
                 onVersePress={onVersePress}
                 onNotePress={onNotePress}
+                indicators={indicators}
+                onIndicatorPress={onIndicatorPress}
                 onBlockLayout={onBlockLayout}
                 onBlockRef={onBlockRef}
                 probeVerses={probeVerses}
