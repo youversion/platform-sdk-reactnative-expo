@@ -13,6 +13,7 @@ import {
 import type { Theme } from '../lib/resolve-theme'
 import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action-fade-gates'
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
+import type { ResolvedVerseAction } from '../lib/verse-actions'
 import { getImpl, registerDefault } from './component-impls'
 import { CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
@@ -24,7 +25,7 @@ import { NativeSheet } from './native-sheet'
 const HIGHLIGHT_MIX_P = { light: 1, dark: 0.2 } satisfies Record<Theme, number>
 
 /**
- * Row metrics. The swatch tray and both action tiles share one row height, and
+ * Row metrics. The swatch tray and the action tiles share one row height, and
  * the tiles set it. The row is `alignItems: 'stretch'`, so only the tile (icon
  * over label) is measured. `ROW_HEIGHT` records that height, so the sizes
  * derived from it stay in sync when the tile's contents change.
@@ -42,33 +43,33 @@ const CORNER_RADIUS = Math.round(ROW_HEIGHT * 0.14)
 const CHECK_ICON_SIZE = 18
 
 /**
- * Width of the gradient mask at each end of the swatch tray, so clipped swatches
+ * Width of the gradient mask at each end of the action row, so clipped items
  * fade instead of being hard-cut. One swatch wide.
  */
 const FADE_WIDTH = SWATCH_SIZE
 
-/** Minimum spacing between swatches once the tray overflows and `space-evenly` has no slack left. */
+/** Minimum spacing between swatches once the row has no slack left for `space-evenly`. */
 const SWATCH_GAP = 8
 
 /**
  * Vertical travel, in points, before the sheet's pan gesture may take over.
  *
- * Without it the tray does not scroll on Android at all. Gorhom's pan has no
+ * Without it the action row does not scroll on Android at all. Gorhom's pan has no
  * activation criteria by default, so RNGH falls back to a direction-agnostic
  * touch slop and the sheet claims a sideways drag — which cancels the touch
  * stream in the `ScrollView` underneath it. The trailing fade still rendered, so
- * the tray knew swatches were hidden; they were simply unreachable. Overflow is
+ * the row knew items were hidden; they were simply unreachable. Overflow is
  * routine here (seven swatches the moment a selection spans two colors), which
  * made that a common case, not an edge one.
  *
  * A vertical-only threshold is the fix that keeps both halves. Turning the
- * content pan off also scrolls the tray, but takes swipe-down with it — and this
+ * content pan off also scrolls the row, but takes swipe-down with it — and this
  * is the one sheet with no backdrop, so swipe-down is its only exit that does
  * not require acting on the sheet. Verified on device: with content panning off,
  * neither a pan nor a fling on the grabber closed it.
  *
  * 10 sits just above Android's ~8dp touch slop, so a horizontal drag reliably
- * reaches the tray first, while a swipe-down clears it in its opening points.
+ * reaches the row first, while a swipe-down clears it in its opening points.
  */
 const PAN_ACTIVE_OFFSET_Y: [number, number] = [-10, 10]
 
@@ -87,42 +88,44 @@ export type BibleVerseActionSheetProps = {
   isOpen: boolean
   /** Localized display reference for the selection, e.g. `Hebrews 11:4`. */
   reference: string
+  /** The row, in display order. `lib/verse-actions.ts` resolves it from the host's list. */
+  items: readonly ResolvedVerseAction[]
   swatches: VerseActionSwatch[]
   onSwatchPress: (swatch: VerseActionSwatch) => void
-  onCopyPress: () => void
-  onSharePress: () => void
+  onActionPress: (item: VerseActionTile) => void
   /** Swipe-down, or displacement by another sheet. Both are a cancel. */
   onClose: () => void
   theme: Theme
 }
 
+/** Every row item except the swatch tray. */
+export type VerseActionTile = Exclude<ResolvedVerseAction, { kind: 'swatches' }>
+
 /**
- * The verse action sheet raised over a verse selection: reference label,
- * highlight swatch tray, Copy, and Share.
+ * The verse action sheet raised over a verse selection: the reference label,
+ * then one horizontally scrolling row of actions in the host's order.
  *
  * Presentational only. `lib/verse-action-swatches.ts` decides which swatches to
- * show. An empty list omits the tray, so Copy and Share can stand alone when
- * highlighting is not available. Acting on a press, which means writing the
- * highlight and clearing the selection, is the reader's job.
+ * show and `lib/verse-actions.ts` the row. Acting on a press, which means
+ * writing the highlight and clearing the selection, is the reader's job.
  */
 function BibleVerseActionSheetImpl({
   isOpen,
   reference,
+  items,
   swatches,
   onSwatchPress,
-  onCopyPress,
-  onSharePress,
+  onActionPress,
   onClose,
   theme,
 }: BibleVerseActionSheetProps) {
   const { t } = useSdkTranslation()
-  const hasSwatches = swatches.length > 0
+  const hasSwatches = items.some((item) => item.kind === 'swatches') && swatches.length > 0
 
-  // Each edge shows its fade only while swatches are hidden under it. The
-  // gates (`lib/verse-action-fade-gates.ts`) use remaining distance on the
-  // trailing edge and distance already scrolled on the leading, not raw
-  // overflow, so a fade retires at the end it guards. Gating on overflow
-  // leaves the outermost swatch permanently dimmed, which reads as disabled.
+  // Each edge shows its fade only while items are hidden under it. The gates
+  // (`lib/verse-action-fade-gates.ts`) use remaining distance on the trailing
+  // edge and distance already scrolled on the leading, not raw overflow, so a
+  // fade retires at the end it guards.
   //
   // Layout and offset stay in a ref. React state holds only the two booleans
   // the fades mount on, so a drag does not re-render the sheet every frame.
@@ -140,15 +143,96 @@ function BibleVerseActionSheetImpl({
     setHasMoreToScroll(next.hasMoreToScroll)
   }
 
+  const tileStyle = [
+    styles.action,
+    { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
+    // With no tray to take the slack, the tiles share it.
+    !hasSwatches && styles.actionFill,
+  ]
+
+  const renderTile = (item: VerseActionTile) => {
+    const foreground = SHEET_FOREGROUND[theme]
+    const { key, testID, label, icon } =
+      item.kind === 'custom'
+        ? {
+            key: `custom-${item.action.id}`,
+            testID: `bible-verse-action-custom-${item.action.id}`,
+            label: item.action.label,
+            icon: item.action.icon({ color: foreground, size: ACTION_ICON_SIZE }),
+          }
+        : item.kind === 'copy'
+          ? {
+              key: 'copy',
+              testID: 'bible-verse-action-copy',
+              label: t('copy'),
+              icon: <CopyIcon color={foreground} size={ACTION_ICON_SIZE} />,
+            }
+          : {
+              key: 'share',
+              testID: 'bible-verse-action-share',
+              label: t('share'),
+              icon: <ShareIcon color={foreground} size={ACTION_ICON_SIZE} />,
+            }
+    return (
+      <Pressable
+        key={key}
+        testID={testID}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={() => onActionPress(item)}
+        style={tileStyle}
+      >
+        {icon}
+        <Text style={[styles.actionLabel, { color: foreground }]}>{label}</Text>
+      </Pressable>
+    )
+  }
+
+  const renderTray = () => (
+    <View
+      key="swatches"
+      testID="bible-verse-action-swatches"
+      style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
+    >
+      {swatches.map((swatch) => (
+        <Pressable
+          key={`${swatch.color}-${swatch.state}`}
+          testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
+          accessibilityRole="button"
+          accessibilityLabel={
+            swatch.state === 'remove' ? t('clearHighlightAriaLabel') : t('applyHighlightAriaLabel')
+          }
+          onPress={() => onSwatchPress(swatch)}
+          style={[
+            styles.swatch,
+            {
+              backgroundColor: swatchFillHex(swatch.color, theme),
+              borderColor: SHEET_STROKE[theme],
+            },
+          ]}
+        >
+          {/*
+           * The check takes the on-surface foreground, not a contrast pick
+           * against the fill. Light paints the stored hex; dark mixes it at
+           * 20% over the sheet surface. White reads on both.
+           */}
+          {swatch.state === 'remove' && (
+            <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
+          )}
+        </Pressable>
+      ))}
+    </View>
+  )
+
   return (
     // Non-modal: the user is still building the selection, so the passage behind
     // stays bright and tappable. A backdrop would take the tap that extends the
     // selection. The exits are swipe-down, deselection, and the sheet's own
     // buttons.
     //
-    // `panActiveOffsetY` keeps the swatch tray scrollable without giving any of
+    // `panActiveOffsetY` keeps the action row scrollable without giving any of
     // that up: the sheet's pan needs vertical intent, so a sideways drag belongs
-    // to the tray. See PAN_ACTIVE_OFFSET_Y.
+    // to the row. See PAN_ACTIVE_OFFSET_Y.
     <NativeSheet
       isOpen={isOpen}
       onClose={onClose}
@@ -164,99 +248,37 @@ function BibleVerseActionSheetImpl({
           {reference}
         </Text>
 
-        <View style={styles.row}>
-          {hasSwatches && (
-            <View
-              testID="bible-verse-action-swatches"
-              style={[styles.swatchTray, { backgroundColor: SHEET_MUTED_BACKGROUND[theme] }]}
-            >
-              <ScrollView
-                testID="bible-verse-action-swatch-scroll"
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                onLayout={(event) => {
-                  metricsRef.current.trayWidth = event.nativeEvent.layout.width
-                  syncFadeGates()
-                }}
-                onContentSizeChange={(width) => {
-                  metricsRef.current.contentWidth = width
-                  syncFadeGates()
-                }}
-                onScroll={(event) => {
-                  metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
-                  syncFadeGates()
-                }}
-                scrollEventThrottle={16}
-                style={styles.swatchScroll}
-                contentContainerStyle={styles.swatchTrayContent}
-              >
-                {swatches.map((swatch) => (
-                  <Pressable
-                    key={`${swatch.color}-${swatch.state}`}
-                    testID={`bible-verse-action-swatch-${swatch.state}-${swatch.color}`}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      swatch.state === 'remove'
-                        ? t('clearHighlightAriaLabel')
-                        : t('applyHighlightAriaLabel')
-                    }
-                    onPress={() => onSwatchPress(swatch)}
-                    style={[
-                      styles.swatch,
-                      {
-                        backgroundColor: swatchFillHex(swatch.color, theme),
-                        borderColor: SHEET_STROKE[theme],
-                      },
-                    ]}
-                  >
-                    {/*
-                     * The check takes the on-surface foreground, not a contrast
-                     * pick against the fill. Light paints the stored hex; dark
-                     * mixes it at 20% over the sheet surface. White reads on both.
-                     */}
-                    {swatch.state === 'remove' && (
-                      <CheckIcon color={SHEET_FOREGROUND[theme]} size={CHECK_ICON_SIZE} />
-                    )}
-                  </Pressable>
-                ))}
-              </ScrollView>
-
-              {hasScrolledPast && <SwatchTrayFade edge="leading" theme={theme} />}
-              {hasMoreToScroll && <SwatchTrayFade edge="trailing" theme={theme} />}
-            </View>
-          )}
-
-          <Pressable
-            testID="bible-verse-action-copy"
-            accessibilityRole="button"
-            onPress={onCopyPress}
-            style={[
-              styles.action,
-              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
-              !hasSwatches && styles.actionFill,
-            ]}
+        {/*
+         * One scrolling row, like Swift's drawer. The tray is a plain row inside
+         * it, not a second horizontal scroll, so nothing nests.
+         */}
+        <View style={styles.rowWindow}>
+          <ScrollView
+            testID="bible-verse-action-row-scroll"
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            onLayout={(event) => {
+              metricsRef.current.trayWidth = event.nativeEvent.layout.width
+              syncFadeGates()
+            }}
+            onContentSizeChange={(width) => {
+              metricsRef.current.contentWidth = width
+              syncFadeGates()
+            }}
+            onScroll={(event) => {
+              metricsRef.current.scrollX = event.nativeEvent.contentOffset.x
+              syncFadeGates()
+            }}
+            scrollEventThrottle={16}
+            contentContainerStyle={styles.row}
           >
-            <CopyIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
-            <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
-              {t('copy')}
-            </Text>
-          </Pressable>
+            {items.map((item) =>
+              item.kind === 'swatches' ? (hasSwatches ? renderTray() : null) : renderTile(item),
+            )}
+          </ScrollView>
 
-          <Pressable
-            testID="bible-verse-action-share"
-            accessibilityRole="button"
-            onPress={onSharePress}
-            style={[
-              styles.action,
-              { backgroundColor: SHEET_MUTED_BACKGROUND[theme] },
-              !hasSwatches && styles.actionFill,
-            ]}
-          >
-            <ShareIcon color={SHEET_FOREGROUND[theme]} size={ACTION_ICON_SIZE} />
-            <Text style={[styles.actionLabel, { color: SHEET_FOREGROUND[theme] }]}>
-              {t('share')}
-            </Text>
-          </Pressable>
+          {hasScrolledPast && <RowFade edge="leading" theme={theme} />}
+          {hasMoreToScroll && <RowFade edge="trailing" theme={theme} />}
         </View>
       </View>
     </NativeSheet>
@@ -271,37 +293,37 @@ export function BibleVerseActionSheet(props: BibleVerseActionSheetProps): ReactN
 }
 
 /**
- * One end of the swatch tray, fading the scrolling strip into the tray surface.
- * It is opaque at the tray's outer edge and transparent where the swatches are
+ * One end of the action row, fading the scrolling strip into the sheet surface.
+ * It is opaque at the sheet's outer edge and transparent where the items are
  * legible.
  *
  * Both edges share one `x1 → x2` direction and swap only the stop opacities, so
  * they cannot drift apart. `theme` is in the gradient id because both fades can
  * be on screen at once, and SVG defs share one id namespace.
  */
-function SwatchTrayFade({ edge, theme }: { edge: 'leading' | 'trailing'; theme: Theme }) {
+function RowFade({ edge, theme }: { edge: 'leading' | 'trailing'; theme: Theme }) {
   const isLeading = edge === 'leading'
-  const gradientId = `yv-verse-swatch-fade-${edge}-${theme}`
+  const gradientId = `yv-verse-action-fade-${edge}-${theme}`
 
   return (
     <View
-      testID={`bible-verse-action-swatch-fade-${edge}`}
-      // Sits over the scrolling swatches but must never take their taps. The
-      // swatch under the fade is still a live target.
+      testID={`bible-verse-action-row-fade-${edge}`}
+      // Sits over the scrolling row but must never take its taps. The item
+      // under the fade is still a live target.
       pointerEvents="none"
-      style={[styles.swatchFade, isLeading ? styles.swatchFadeLeading : styles.swatchFadeTrailing]}
+      style={[styles.rowFade, isLeading ? styles.rowFadeLeading : styles.rowFadeTrailing]}
     >
       <Svg width="100%" height="100%">
         <Defs>
           <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="0">
             <Stop
               offset="0"
-              stopColor={SHEET_MUTED_BACKGROUND[theme]}
+              stopColor={SHEET_SURFACE[theme]}
               stopOpacity={isLeading ? 1 : 0}
             />
             <Stop
               offset="1"
-              stopColor={SHEET_MUTED_BACKGROUND[theme]}
+              stopColor={SHEET_SURFACE[theme]}
               stopOpacity={isLeading ? 0 : 1}
             />
           </LinearGradient>
@@ -312,10 +334,13 @@ function SwatchTrayFade({ edge, theme }: { edge: 'leading' | 'trailing'; theme: 
   )
 }
 
+/** The sheet's side padding. The row bleeds through it so scrolled items reach the edge. */
+const SHEET_PADDING_HORIZONTAL = 20
+
 const styles = StyleSheet.create({
   container: {
     gap: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: SHEET_PADDING_HORIZONTAL,
     paddingTop: 8,
     paddingBottom: 16,
   },
@@ -323,47 +348,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  /** Tray plus both tiles, one row. `stretch` is what gives them a shared height. */
+  /** Full sheet width, so the fades sit on the sheet's own edges. */
+  rowWindow: {
+    marginHorizontal: -SHEET_PADDING_HORIZONTAL,
+  },
+  /**
+   * `flexGrow: 1` stretches the row to the window, so the tray (or, without
+   * one, the tiles) takes the slack when everything fits. Past that the row
+   * scrolls. `stretch` gives every item the tile's height.
+   */
   row: {
     alignItems: 'stretch',
     flexDirection: 'row',
+    flexGrow: 1,
     gap: 8,
+    paddingHorizontal: SHEET_PADDING_HORIZONTAL,
   },
-  /**
-   * A fixed-width window that clips a horizontally scrolling strip of swatches.
-   * `flex: 1` takes the row's slack. The tray does not grow or animate.
-   */
+  /** A plain row of swatches. `flexGrow: 1` takes the row's slack; `space-evenly` spreads them. */
   swatchTray: {
-    borderRadius: CORNER_RADIUS,
-    flex: 1,
-    overflow: 'hidden',
-  },
-  /** Fills the tray's stretched height so the content container can center the swatches in it. */
-  swatchScroll: {
-    flex: 1,
-  },
-  /**
-   * `flexGrow: 1` stretches the content to the tray, so `space-evenly` spreads
-   * the swatches across it. Past that point the content outgrows the tray and
-   * scrolls, and `gap` supplies the spacing `space-evenly` has no slack for.
-   */
-  swatchTrayContent: {
     alignItems: 'center',
+    borderRadius: CORNER_RADIUS,
+    flexDirection: 'row',
     flexGrow: 1,
     gap: SWATCH_GAP,
     justifyContent: 'space-evenly',
     paddingHorizontal: 6,
   },
-  swatchFade: {
+  rowFade: {
     bottom: 0,
     position: 'absolute',
     top: 0,
     width: FADE_WIDTH,
   },
-  swatchFadeLeading: {
+  rowFadeLeading: {
     left: 0,
   },
-  swatchFadeTrailing: {
+  rowFadeTrailing: {
     right: 0,
   },
   swatch: {
@@ -374,7 +394,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: SWATCH_SIZE,
   },
-  /** Compact, roughly square, and *not* `flex: 1`. The tray takes the slack. */
+  /** Compact, roughly square. The tray takes the slack. */
   action: {
     alignItems: 'center',
     borderRadius: CORNER_RADIUS,
@@ -383,9 +403,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: ACTION_PADDING_VERTICAL,
   },
-  /** Equal half of the row when the tray is omitted. */
+  /** Tiles share the slack when the tray is omitted. */
   actionFill: {
-    flex: 1,
+    flexGrow: 1,
   },
   actionLabel: {
     fontSize: 13,

@@ -601,6 +601,49 @@ describe('BibleTextView', () => {
     expect(onVerseSelect).toHaveBeenLastCalledWith([])
   })
 
+  it('marks a verse and reports a marker tap without selecting the verse', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    const onVerseSelect = jest.fn(async () => undefined)
+    const onVerseIndicatorPress = jest.fn()
+    const verseIndicatorStyle = jest.fn(() => ({ backgroundColor: '#3366ff' }))
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        onVerseSelect={onVerseSelect}
+        verseIndicatorStyle={verseIndicatorStyle}
+        onVerseIndicatorPress={onVerseIndicatorPress}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    fireEvent.press(await screen.findByTestId('verse-indicator-16'))
+
+    const target = { versionId: 3034, book: 'JHN', chapter: '3', verse: 16, passageId: 'JHN.3.16' }
+    expect(verseIndicatorStyle).toHaveBeenCalledWith(target)
+    expect(onVerseIndicatorPress).toHaveBeenCalledWith(target)
+    expect(onVerseSelect).not.toHaveBeenCalled()
+  })
+
+  it('draws no marker when verse numbers are hidden', async () => {
+    serveOnly('JHN.3.16', passageHtml(verseBlock(16, JOHN)), 'John 3:16')
+    const verseIndicatorStyle = jest.fn(() => ({ backgroundColor: '#3366ff' }))
+    render(
+      <BibleTextView
+        reference="JHN.3.16"
+        versionId={3034}
+        showVerseNumbers={false}
+        verseIndicatorStyle={verseIndicatorStyle}
+        onVerseIndicatorPress={jest.fn()}
+      />,
+      { wrapper: youVersionProviderWrapper() },
+    )
+
+    await screen.findByText(JOHN)
+    expect(screen.queryByTestId('verse-indicator-16')).toBeNull()
+    expect(verseIndicatorStyle).not.toHaveBeenCalled()
+  })
+
   it('shows an excluded version as unavailable and does not request the passage', async () => {
     render(<BibleTextView reference="JHN.3.16" versionId={3034} />, {
       wrapper: filteredWrapper({ excludedVersionIds: [3034] }),

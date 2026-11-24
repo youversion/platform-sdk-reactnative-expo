@@ -1,10 +1,48 @@
 import { renderHook } from '@testing-library/react-native'
 
 import { INTER_FONT, UNTITLED_SERIF_FONT } from '../../../lib/reader-fonts'
+import { getTokens } from '../../../theme'
 import { youVersionProviderWrapper } from '../../../test-utils/youversion-provider-wrapper'
 import { usePassageStyle } from '../passage-style'
 
 const wrapper = youVersionProviderWrapper()
+
+describe('usePassageStyle verse labels', () => {
+  it('paints verse numbers with muted foreground (Figma Text/Muted)', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: undefined,
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.label).toBe(getTokens('light').mutedForeground)
+    expect(result.current.look.label).toBe('#636161')
+  })
+
+  it('lets a host label override follow a custom foreground', () => {
+    const { result } = renderHook(
+      () =>
+        usePassageStyle({
+          passage: null,
+          highlights: [],
+          fontSize: 16,
+          lineMultiple: 1.5,
+          fontFamily: undefined,
+          ink: '#112233',
+          label: '#112233',
+        }),
+      { wrapper },
+    )
+
+    expect(result.current.look.label).toBe('#112233')
+  })
+})
 
 describe('usePassageStyle host fontFamily', () => {
   it('styles host italics with fontStyle, not a suffixed family name', () => {

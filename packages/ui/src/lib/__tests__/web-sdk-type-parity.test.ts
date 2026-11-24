@@ -40,6 +40,11 @@ import type {
   FootnoteData,
   VerseOfTheDayShareData,
 } from '../../types/bible-ui-types'
+import type {
+  BibleReaderVerseAction,
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../../types/verse-hook-types'
 
 /** Collapse intersections so optional fields are part of the compared type. */
 type Flatten<T> = { [K in keyof T]: T[K] }
@@ -73,6 +78,8 @@ type ExpectedBibleTextViewProps = Pick<
   onVerseSelect?: (verses: number[]) => Promise<void>
   onFootnotePress?: (data: FootnoteData) => Promise<void>
   passageState?: BibleTextViewPassageState
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
   highlightedVerses?: Record<number, string>
   dom?: DOMProps
 }
@@ -139,6 +146,9 @@ type ExpectedBibleReaderProps = {
   onCopy?: (data: BibleReaderShareData) => void | Promise<void>
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
   onHighlightError?: (error: HighlightWriteError) => void
+  verseActions?: readonly BibleReaderVerseAction[]
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
   ref?: Ref<BibleReaderHandle>
   navigation?: BibleReaderNavigation
   dom?: DOMProps

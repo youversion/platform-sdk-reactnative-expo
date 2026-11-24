@@ -20,6 +20,7 @@ export default function ExamplesLayout() {
       <Stack.Screen name="index" options={{ headerShown: false, title: 'Examples' }} />
       <Stack.Screen name="verse-of-the-day" options={{ title: 'Verse of the Day' }} />
       <Stack.Screen name="bible-card" options={{ title: 'Bible Card' }} />
+      <Stack.Screen name="verse-hooks" options={{ title: 'Verse Actions & Markers' }} />
     </Stack>
   )
 }

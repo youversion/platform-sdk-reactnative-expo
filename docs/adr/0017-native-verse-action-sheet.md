@@ -7,6 +7,7 @@ Amended: 2026-08-25 — apply palette is six hexes (YPE-5059). Native dots mix a
 Amended: 2026-09-01 — pin `@youversion/platform-react-ui` 2.12.0 so reader fill and WOC match YPE-5058.
 Amended: 2026-10-08. `BibleReader` draws selection and highlights in native text.
 Amended: 2026-10-13. The WebView reader is gone.
+Amended: 2026-11-24. Hosts order the actions and add their own (YPE-6787). The sheet stays internal.
 
 ## Status
 
@@ -28,6 +29,12 @@ Verse actions are the reference, Copy, and Share, and the highlight swatches whe
 
 **Writes go through `useHighlightPermissionFlow`.** A second gate in the UI layer gives a write two places to disagree. The reader adds only a sign-in prompt in front, because the flow calls `signIn()` with no UI of its own. A `null` auth is unconfigured, not signed out, and must not raise a prompt. The swatch tray is omitted in that case — Copy and Share stay — so a color tap cannot no-op. The action sheet stays closed while a prompt is up, so displacement cannot clear a Pending Highlight.
 
-**The sheet stays internal.** A host that wants its own UI uses `onVerseSelect` plus `useHighlights`.
+**The sheet stays internal; its row is the host's.** `verseActions` orders the built-ins and adds custom actions, as in Swift. A host that wants a different sheet uses `onVerseSelect` plus `useHighlights`.
+
+**A duplicate action id keeps the first.** Swift traps on it. A typo in a host list should not crash a reader, so React Native warns in development and drops the later entry.
+
+**A custom action runs after the sheet commits closed.** The reader snapshots the merged ranges, clears the selection, and calls `onPress` on the next effect, in Swift's order. A rejection is logged, not surfaced. The host owns its own feedback.
+
+**One scrolling row holds every action.** Tiles grow from their content (`flexGrow: 1`, not `flex: 1`), so a long custom label scrolls instead of squeezing its neighbours.
 
 Apply offers only the six `HIGHLIGHT_COLORS`. Remove follows the ANY rule: every valid hex on any selected verse earns a remove circle, palette or not. Invalid hex is dropped. That matches web YPE-4494, Swift, and Kotlin on the remove list. Native dots mix stored hex against `SHEET_SURFACE` with `mixSrgb` (light identity, dark `p = 0.20`). Reader fill and Words of Christ (`#94000C` / `#e4bfc2`, unmixed) come from the pinned `@youversion/platform-react-ui` 2.12.0.

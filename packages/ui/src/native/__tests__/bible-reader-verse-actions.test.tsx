@@ -13,6 +13,11 @@ import type {
 } from '@youversion/platform-react-native-expo-core'
 import { fireEvent, render, screen, userEvent } from '@testing-library/react-native'
 import type { BibleReaderShareData, BibleReaderVerseSelection } from '../../types/bible-ui-types'
+import type {
+  BibleReaderCustomVerseAction,
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+} from '../../types/verse-hook-types'
 import * as Clipboard from 'expo-clipboard'
 import type { ReactNode } from 'react'
 import { Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
@@ -132,6 +137,8 @@ type LatestDomProps = {
   onCopy?: (data: BibleReaderShareData) => Promise<void>
   onShare?: (data: BibleReaderShareData) => Promise<void>
   onVerseSelect?: (verseSelection: BibleReaderVerseSelection) => Promise<void>
+  verseIndicatorStyle?: VerseIndicatorStyleResolver
+  onVerseIndicatorPress?: (target: VerseIndicatorTarget) => void
 }
 
 let latestDomProps: LatestDomProps = {}
@@ -255,8 +262,9 @@ describe('BibleReader verse action sheet — visibility', () => {
   /**
    * A consumer with no `auth` config (a kids app, no sign-in) still gets Copy
    * and Share. Highlight colors would tap into a write that can only fail, and
-   * the sign-in prompt has nowhere to go, so the tray stays off. The two
-   * buttons split the row evenly instead of sitting compact on one edge.
+   * the sign-in prompt has nowhere to go, so the tray stays off. The buttons
+   * grow to fill the row instead of sitting compact on one edge; auto basis keeps
+   * a long custom label scrolling rather than squeezed.
    */
   it('omits highlight swatches when auth is unconfigured, and keeps Copy and Share', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
@@ -265,11 +273,11 @@ describe('BibleReader verse action sheet — visibility', () => {
 
     expect(screen.getByTestId('bible-verse-action-sheet')).toBeTruthy()
     expect(screen.queryByTestId('bible-verse-action-swatches')).toBeNull()
-    expect(StyleSheet.flatten(screen.getByTestId('bible-verse-action-copy').props.style).flex).toBe(
-      1,
-    )
     expect(
-      StyleSheet.flatten(screen.getByTestId('bible-verse-action-share').props.style).flex,
+      StyleSheet.flatten(screen.getByTestId('bible-verse-action-copy').props.style).flexGrow,
+    ).toBe(1)
+    expect(
+      StyleSheet.flatten(screen.getByTestId('bible-verse-action-share').props.style).flexGrow,
     ).toBe(1)
   })
 
@@ -473,13 +481,13 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
   // the scroll offset they feed are the layout pass standing in for itself, not
   // a gesture. `userEvent.scroll` would need the measurements this is supplying.
   function measureTray(trayWidth: number, contentWidth: number) {
-    const scroll = screen.getByTestId('bible-verse-action-swatch-scroll')
+    const scroll = screen.getByTestId('bible-verse-action-row-scroll')
     fireEvent(scroll, 'layout', { nativeEvent: { layout: { width: trayWidth } } })
     fireEvent(scroll, 'contentSizeChange', contentWidth, 56)
   }
 
   function scrollTray(x: number) {
-    fireEvent.scroll(screen.getByTestId('bible-verse-action-swatch-scroll'), {
+    fireEvent.scroll(screen.getByTestId('bible-verse-action-row-scroll'), {
       nativeEvent: { contentOffset: { x, y: 0 } },
     })
   }
@@ -490,8 +498,8 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await selectVerses()
     measureTray(200, 200)
 
-    expect(screen.queryByTestId('bible-verse-action-swatch-fade-trailing')).toBeNull()
-    expect(screen.queryByTestId('bible-verse-action-swatch-fade-leading')).toBeNull()
+    expect(screen.queryByTestId('bible-verse-action-row-fade-trailing')).toBeNull()
+    expect(screen.queryByTestId('bible-verse-action-row-fade-leading')).toBeNull()
   })
 
   it('fades the trailing edge once the swatches overflow, without swallowing their taps', async () => {
@@ -501,7 +509,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await selectVerses()
     measureTray(200, 320)
 
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-trailing')).toBeTruthy()
 
     // The fade is `pointerEvents="none"`: a swatch beneath it is still live.
     await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
@@ -521,7 +529,7 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     measureTray(200, 320)
     scrollTray(120)
 
-    expect(screen.queryByTestId('bible-verse-action-swatch-fade-trailing')).toBeNull()
+    expect(screen.queryByTestId('bible-verse-action-row-fade-trailing')).toBeNull()
   })
 
   /**
@@ -535,11 +543,11 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     await selectVerses()
     measureTray(200, 320)
 
-    expect(screen.queryByTestId('bible-verse-action-swatch-fade-leading')).toBeNull()
+    expect(screen.queryByTestId('bible-verse-action-row-fade-leading')).toBeNull()
 
     scrollTray(60)
 
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-leading')).toBeTruthy()
   })
 
   it('draws both fades mid-strip, and neither swallows a swatch tap', async () => {
@@ -550,8 +558,8 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     measureTray(200, 320)
     scrollTray(60)
 
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-leading')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-trailing')).toBeTruthy()
 
     await user.press(screen.getByTestId(`bible-verse-action-swatch-apply-${PINK}`))
     expect(highlightPermissionFlowApply).toHaveBeenCalledWith(PINK, [1, 2])
@@ -570,8 +578,8 @@ describe('BibleReader verse action sheet — swatch tray overflow', () => {
     scrollTray(60)
     measureTray(200, 320)
 
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-leading')).toBeTruthy()
-    expect(screen.getByTestId('bible-verse-action-swatch-fade-trailing')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-leading')).toBeTruthy()
+    expect(screen.getByTestId('bible-verse-action-row-fade-trailing')).toBeTruthy()
   })
 })
 
@@ -662,5 +670,207 @@ describe('BibleReader verse action sheet — copy and share', () => {
     expect(onShare).toHaveBeenCalledWith(SHARE_DATA)
     expect(Clipboard.setStringAsync).not.toHaveBeenCalled()
     expect(Share.share).not.toHaveBeenCalled()
+  })
+})
+
+const ROW_ITEM = /^bible-verse-action-(swatches|copy|share|custom-.+)$/
+
+function rowOrder(): string[] {
+  return screen
+    .getAllByTestId(ROW_ITEM)
+    .map((node) => String(node.props.testID).replace('bible-verse-action-', ''))
+}
+
+function customAction(
+  id: string,
+  onPress: BibleReaderCustomVerseAction['onPress'] = jest.fn(),
+): BibleReaderCustomVerseAction {
+  return { id, label: `Label ${id}`, icon: () => <View testID={`icon-${id}`} />, onPress }
+}
+
+describe('BibleReader verse action sheet — verseActions', () => {
+  beforeEach(() => {
+    stubAuth()
+  })
+
+  it('keeps tray, Copy, Share by default', async () => {
+    render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
+
+    await selectVerses()
+
+    expect(rowOrder()).toEqual(['swatches', 'copy', 'share'])
+  })
+
+  it('reorders built-ins and places custom actions where the host lists them', async () => {
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={['share', customAction('save'), 'highlight', 'copy']}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
+    expect(rowOrder()).toEqual(['share', 'custom-save', 'swatches', 'copy'])
+    expect(screen.getByTestId('icon-save')).toBeTruthy()
+    expect(screen.getByLabelText('Label save')).toBeTruthy()
+  })
+
+  it('omits built-ins the host leaves out', async () => {
+    render(
+      <BibleReader book="JHN" chapter="1" versionId={VERSION_ID} verseActions={['copy']} />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
+    expect(rowOrder()).toEqual(['copy'])
+  })
+
+  it('keeps the first of two actions with one id and warns', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const first = jest.fn()
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[customAction('save', first), 'copy', customAction('save'), 'copy']}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+    expect(rowOrder()).toEqual(['custom-save', 'copy'])
+    await user.press(screen.getByTestId('bible-verse-action-custom-save'))
+
+    expect(first).toHaveBeenCalledTimes(1)
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"save"'))
+  })
+
+  it('hands a custom action merged ranges after the sheet closes and the selection clears', async () => {
+    let seenSheetOpen: boolean | null = null
+    let seenSignal: number | undefined
+    const onPress = jest.fn(() => {
+      seenSheetOpen = screen.queryByTestId('bible-verse-action-sheet') !== null
+      seenSignal = latestDomProps.clearSelectionSignal
+    })
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[customAction('save', onPress)]}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses({
+      ...SELECTION,
+      verses: [5, 1, 2, 3],
+      passageIds: ['JHN.1.1', 'JHN.1.2', 'JHN.1.3', 'JHN.1.5'],
+    })
+    const before = latestDomProps.clearSelectionSignal ?? 0
+    await user.press(screen.getByTestId('bible-verse-action-custom-save'))
+
+    expect(onPress).toHaveBeenCalledTimes(1)
+    expect(onPress).toHaveBeenCalledWith([
+      {
+        versionId: VERSION_ID,
+        book: 'JHN',
+        chapter: '1',
+        verseStart: 1,
+        verseEnd: 3,
+        passageId: 'JHN.1.1-3',
+      },
+      {
+        versionId: VERSION_ID,
+        book: 'JHN',
+        chapter: '1',
+        verseStart: 5,
+        verseEnd: 5,
+        passageId: 'JHN.1.5',
+      },
+    ])
+    expect(seenSheetOpen).toBe(false)
+    expect(seenSignal).toBe(before + 1)
+  })
+
+  it('logs a rejected custom action instead of throwing', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => undefined)
+    const failure = new Error('host failed')
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[customAction('save', async () => Promise.reject(failure))]}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+    await user.press(screen.getByTestId('bible-verse-action-custom-save'))
+
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('"save"'), failure)
+  })
+
+  it('opens no sheet for an empty list but still forwards the selection', async () => {
+    const onVerseSelect = jest.fn(async () => undefined)
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={[]}
+        onVerseSelect={onVerseSelect}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
+    expect(screen.queryByTestId('bible-verse-action-sheet')).toBeNull()
+    expect(onVerseSelect).toHaveBeenCalledWith(SELECTION)
+  })
+
+  it('drops the tray from a host list when highlights are unavailable', async () => {
+    testHookOverrides.useYVAuth = null
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={['highlight', customAction('save')]}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
+    expect(rowOrder()).toEqual(['custom-save'])
+  })
+})
+
+describe('BibleReader verse indicators — props', () => {
+  it('hands the indicator resolver and tap to the reader body', () => {
+    const verseIndicatorStyle: VerseIndicatorStyleResolver = () => null
+    const onVerseIndicatorPress = jest.fn()
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseIndicatorStyle={verseIndicatorStyle}
+        onVerseIndicatorPress={onVerseIndicatorPress}
+      />,
+      { wrapper },
+    )
+
+    expect(latestDomProps.verseIndicatorStyle).toBe(verseIndicatorStyle)
+    expect(latestDomProps.onVerseIndicatorPress).toBe(onVerseIndicatorPress)
   })
 })

@@ -101,6 +101,7 @@ const LOOK: PassageLook = {
   face: () => ({}),
   labelFace: {},
   ink: '#000000',
+  label: '#636161',
   wj: '#ff0000',
   underline: '#cccccc',
   background: '#ffffff',
