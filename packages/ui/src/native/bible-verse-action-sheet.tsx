@@ -155,27 +155,27 @@ function BibleVerseActionSheetImpl({
 
   const renderTile = (item: VerseActionTile) => {
     const foreground = SHEET_FOREGROUND[theme]
-    const { key, testID, label, icon } =
-      item.kind === 'custom'
-        ? {
-            key: `custom-${item.action.id}`,
-            testID: `bible-verse-action-custom-${item.action.id}`,
-            label: item.action.label,
-            icon: item.action.icon({ color: foreground, size: ACTION_ICON_SIZE }),
-          }
-        : item.kind === 'copy'
-          ? {
-              key: 'copy',
-              testID: 'bible-verse-action-copy',
-              label: t('copy'),
-              icon: <CopyIcon color={foreground} size={ACTION_ICON_SIZE} />,
-            }
-          : {
-              key: 'share',
-              testID: 'bible-verse-action-share',
-              label: t('share'),
-              icon: <ShareIcon color={foreground} size={ACTION_ICON_SIZE} />,
-            }
+    let key: string
+    let testID: string
+    let label: string
+    let icon: ReactNode
+    if (item.kind === 'custom') {
+      const Icon = item.action.icon
+      key = `custom-${item.action.id}`
+      testID = `bible-verse-action-custom-${item.action.id}`
+      label = item.action.label
+      icon = <Icon color={foreground} size={ACTION_ICON_SIZE} />
+    } else if (item.kind === 'copy') {
+      key = 'copy'
+      testID = 'bible-verse-action-copy'
+      label = t('copy')
+      icon = <CopyIcon color={foreground} size={ACTION_ICON_SIZE} />
+    } else {
+      key = 'share'
+      testID = 'bible-verse-action-share'
+      label = t('share')
+      icon = <ShareIcon color={foreground} size={ACTION_ICON_SIZE} />
+    }
     return (
       <Pressable
         key={key}

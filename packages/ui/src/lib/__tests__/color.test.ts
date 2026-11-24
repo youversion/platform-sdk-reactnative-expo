@@ -22,4 +22,9 @@ describe('scaleAlpha', () => {
   it('multiplies an existing rgba alpha instead of throwing', () => {
     expect(scaleAlpha('rgba(51, 102, 255, 0.5)', 0.35)).toBe('rgba(51, 102, 255, 0.175)')
   })
+
+  it('expands short and 8-digit hex instead of throwing', () => {
+    expect(scaleAlpha('#36f', 0.35)).toBe('rgba(51, 102, 255, 0.35)')
+    expect(scaleAlpha('#3366ff80', 0.35)).toBe('rgba(51, 102, 255, 0.35)')
+  })
 })

@@ -498,6 +498,7 @@ const BlockView = memo(function BlockView({
           verse={verse}
           text={indicator.inlinePadding ? `${NBSP}${inline.text}${NBSP}` : inline.text}
           indicator={indicator}
+          live={live}
           onPress={live ? onIndicatorPress : pressable ? onVersePress : undefined}
           style={{ ...box, paddingEnd: fontSize * 0.25 }}
           boxFill={boxFill}
@@ -1171,6 +1172,7 @@ type IndicatorLabelProps = {
   verse: number
   text: string
   indicator: VerseIndicatorStyle
+  live: boolean
   onPress: ((verse: number) => void) | undefined
   style: ViewStyle
   boxFill: ReactNode
@@ -1179,12 +1181,11 @@ type IndicatorLabelProps = {
   background: string | undefined
 }
 
-// The marker is a verse label with a fill. An invisible child, centred on it, widens
-// the tap to the minimum hit size; hitSlop on a view inside Text never caught a tap on iOS.
 function IndicatorLabel({
   verse,
   text,
   indicator,
+  live,
   onPress,
   style,
   boxFill,
@@ -1195,14 +1196,12 @@ function IndicatorLabel({
   const minimum = indicator.minimumHitSize ?? DEFAULT_INDICATOR_HIT
   return (
     <Pressable
-      testID={onPress === undefined ? undefined : `verse-indicator-${verse}`}
+      testID={live ? `verse-indicator-${verse}` : undefined}
       disabled={onPress === undefined}
       onPress={onPress === undefined ? undefined : () => onPress(verse)}
-      accessible={onPress !== undefined}
-      accessibilityRole={onPress === undefined ? undefined : 'button'}
-      accessibilityLabel={
-        onPress === undefined ? undefined : (indicator.accessibilityLabel ?? text.trim())
-      }
+      accessible={live ? true : undefined}
+      accessibilityRole={live ? 'button' : undefined}
+      accessibilityLabel={live ? (indicator.accessibilityLabel ?? text.trim()) : undefined}
       style={style}
     >
       {boxFill}
@@ -1219,7 +1218,7 @@ function IndicatorLabel({
       >
         {text}
       </RNText>
-      {onPress !== undefined && (
+      {live && (
         <View
           testID={`verse-indicator-hit-${verse}`}
           collapsable={false}

@@ -13,7 +13,17 @@
  * convention forbids.
  */
 import * as ui from '../index'
-import type { BibleCardProps, VerseOfTheDayProps } from '../index'
+import type {
+  BibleCardProps,
+  BibleReaderBuiltInVerseAction,
+  BibleReaderCustomVerseAction,
+  BibleReaderVerseAction,
+  BibleReaderVerseRange,
+  VerseIndicatorStyle,
+  VerseIndicatorStyleResolver,
+  VerseIndicatorTarget,
+  VerseOfTheDayProps,
+} from '../index'
 
 const PUBLIC_COMPONENTS = [
   'BibleCard',
@@ -80,6 +90,41 @@ describe('package exports', () => {
     expect(names).not.toContain('BibleTextViewNative')
     expect(names).not.toContain('Passage')
     expect(names).not.toContain('usePassage')
+  })
+
+  it('exports verse action and indicator types', () => {
+    const builtIn = 'copy' satisfies BibleReaderBuiltInVerseAction
+    const range = {
+      versionId: 1,
+      book: 'JHN',
+      chapter: '3',
+      verseStart: 16,
+      verseEnd: 16,
+      passageId: 'JHN.3.16',
+    } satisfies BibleReaderVerseRange
+    const custom = {
+      id: 'save',
+      label: 'Save',
+      icon: () => null,
+      onPress: () => undefined,
+    } satisfies BibleReaderCustomVerseAction
+    const fromBuiltIn = builtIn satisfies BibleReaderVerseAction
+    const fromCustom = custom satisfies BibleReaderVerseAction
+    const target = {
+      versionId: 1,
+      book: 'JHN',
+      chapter: '3',
+      verse: 16,
+      passageId: 'JHN.3.16',
+    } satisfies VerseIndicatorTarget
+    const style = { backgroundColor: '#3366ff' } satisfies VerseIndicatorStyle
+    const resolve = ((indicatorTarget: VerseIndicatorTarget) =>
+      indicatorTarget.verse === target.verse ? style : null) satisfies VerseIndicatorStyleResolver
+
+    expect(fromBuiltIn).toBe('copy')
+    expect(fromCustom.id).toBe('save')
+    expect(range.passageId).toBe('JHN.3.16')
+    expect(resolve(target)?.backgroundColor).toBe('#3366ff')
   })
 
   it('accepts theme system on BibleCard and VerseOfTheDay', () => {

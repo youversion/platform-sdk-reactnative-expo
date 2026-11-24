@@ -131,7 +131,13 @@ describe('verse indicators', () => {
     const onVersePress = jest.fn()
     renderPassage({ indicators: new Map([[8, MARKER]]), onVersePress })
 
-    fireEvent.press(textNodes('8')[0]!)
+    expect(screen.queryByTestId('verse-indicator-8')).toBeNull()
+    expect(screen.queryByTestId('verse-indicator-hit-8')).toBeNull()
+    const [label] = textNodes('8')
+    expect(label?.parent?.props.accessibilityRole).toBeUndefined()
+    expect(label?.parent?.props.accessibilityLabel).toBeUndefined()
+
+    fireEvent.press(label!)
 
     expect(onVersePress).toHaveBeenCalledWith(8)
   })
@@ -264,6 +270,17 @@ describe('verse indicators', () => {
     const [label] = textNodes('8')
     // Existing 0.5 alpha × DIM_ALPHA (0.35).
     expect(style(label!).backgroundColor).toBe('rgba(51, 102, 255, 0.175)')
+  })
+
+  it('dims a short-hex marker outside the focused verses without throwing', () => {
+    renderPassage({
+      indicators: new Map([[8, { backgroundColor: '#36f' }]]),
+      onIndicatorPress: jest.fn(),
+      focus: new Set([7]),
+    })
+
+    const [label] = textNodes('8')
+    expect(style(label!).backgroundColor).toBe('rgba(51, 102, 255, 0.35)')
   })
 
   it('repaints a block when only the marker style changes', () => {
