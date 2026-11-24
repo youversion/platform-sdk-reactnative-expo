@@ -193,17 +193,17 @@ describe('verse indicators', () => {
     expect(padded.map((node) => style(node).backgroundColor ?? null)).toEqual(['#3366ff', null])
   })
 
-  it('draws the marker over a highlight', () => {
+  it('draws the marker over a highlight without borrowing highlight ink', () => {
     renderPassage({
       indicators: new Map([[8, { backgroundColor: '#3366ff' }]]),
       onIndicatorPress: jest.fn(),
-      paint: new Map([[8, { background: '#ffec5b', text: '#ffffff' }]]),
+      paint: new Map([[8, { background: '#1a1a1a', text: '#ffffff' }]]),
     })
 
     const [label] = textNodes('8')
     expect(style(label!).backgroundColor).toBe('#3366ff')
-    // No host foreground: the highlight's ink, so a dark swatch keeps a light number.
-    expect(style(label!).color).toBe('#ffffff')
+    // Default to verse-number ink, not the highlight's white (would vanish on a light chip).
+    expect(style(label!).color).toBe(LOOK.label)
   })
 
   it('keeps one marker on a verse whose text wraps across lines', () => {

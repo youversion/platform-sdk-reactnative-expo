@@ -512,10 +512,12 @@ const BlockView = memo(function BlockView({
             ],
           }}
           // Ghost layers keep the marker's box so they lay out alike, but paint nothing.
+          // Marker fill is its own; do not borrow highlight ink or a light number
+          // disappears on a light chip over a dark swatch.
           foreground={
             ghost
               ? TRANSPARENT
-              : color(indicator.foregroundColor ?? overInk ?? look.label, 1, dimmed)
+              : color(indicator.foregroundColor ?? look.label, 1, dimmed)
           }
           background={ghost ? undefined : color(indicator.backgroundColor, 1, dimmed)}
         />
