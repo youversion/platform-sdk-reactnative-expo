@@ -51,7 +51,11 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       focused.current = true
       return () => {
         focused.current = false
-        player.pause()
+        // On unmount useVideoPlayer releases the player before this runs, and pause()
+        // then throws. Release already stopped playback, so the throw is safe to ignore.
+        try {
+          player.pause()
+        } catch {}
       }
     }, [player]),
   )
