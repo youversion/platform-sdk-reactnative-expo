@@ -1,4 +1,5 @@
 {
+  "ignorePatterns": "**/interim/**",
   "rules": [
     {
       "id": "native-i18n-no-hardcoded-strings",

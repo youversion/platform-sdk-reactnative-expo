@@ -188,6 +188,12 @@ describe('signInWithPKCE — requested permissions', () => {
     ])
   })
 
+  it('sends note scopes on scope and not as data-exchange permissions', async () => {
+    const params = await authorizeParams({ scopes: ['read_notes', 'write_notes'] })
+    expect(params.get('scope')).toBe('openid read_notes write_notes')
+    expect(params.has('requested_permissions[]')).toBe(false)
+  })
+
   it('never leaks a permission value into the scope param', async () => {
     const params = await authorizeParams({
       scopes: ['profile', 'email'],
