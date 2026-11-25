@@ -101,5 +101,13 @@
   "notesDiscardTitle": "Discard note?",
   "notesDiscardMessage": "Your note hasn’t been saved. Discard your changes?",
   "notesDiscard": "Discard",
-  "notesVerseIndicatorAccessibilityLabel": "Notes {{verse}}"
+  "notesVerseIndicatorAccessibilityLabel": "Notes {{verse}}",
+  "addHighlightAriaLabel": "Add {{color}} highlight",
+  "highlightBlue": "blue",
+  "highlightGreen": "green",
+  "highlightOrange": "orange",
+  "highlightPink": "pink",
+  "highlightPurple": "purple",
+  "highlightYellow": "yellow",
+  "removeHighlightAriaLabel": "Remove {{color}} highlight"
 }
