@@ -61,3 +61,26 @@ export function ExpandGlyph({ size = 24, ...props }: SvgProps & { size?: number 
     </Svg>
   )
 }
+
+/** Inward corner arrows that collapse fullscreen back to inline. */
+export function CollapseGlyph({ size = 24, ...props }: SvgProps & { size?: number }): ReactNode {
+  return (
+    <Svg
+      accessibilityElementsHidden
+      fill="none"
+      height={size}
+      importantForAccessibility="no-hide-descendants"
+      viewBox="0 0 24 24"
+      width={size}
+      {...props}
+    >
+      <Path
+        d="M4 8h3a1 1 0 0 0 1-1V4M20 8h-3a1 1 0 0 1-1-1V4M4 16h3a1 1 0 0 1 1 1v3M20 16h-3a1 1 0 0 0-1 1v3"
+        stroke="white"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+      />
+    </Svg>
+  )
+}

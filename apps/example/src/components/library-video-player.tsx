@@ -5,6 +5,7 @@ import { useVideoPlayer, VideoView } from 'expo-video'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -13,9 +14,12 @@ import {
 } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS } from 'react-native-reanimated'
+import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { formatRuntime } from '../lib/playlist-videos'
-import { ExpandGlyph, PauseGlyph, PlayGlyph } from './playback-control-icons'
+import { CollapseGlyph, ExpandGlyph, PauseGlyph, PlayGlyph } from './playback-control-icons'
+
+type FullscreenOrientation = 'landscape' | 'default'
 
 type LibraryVideoPlayerProps = {
   url: string
@@ -29,26 +33,18 @@ const FRAME_RADIUS = 8
 const CONTROL_SCRIM = 'rgba(0, 0, 0, 0.75)'
 const METER_TRACK = 'rgba(237, 235, 235, 0.6)'
 
-/**
- * Landscape fullscreen locks the interface sideways. Dismissing with the device
- * already upright can leave the window stuck in landscape — nudge portrait, then
- * unlock so free rotation works again.
- */
-async function releaseFullscreenOrientation(): Promise<void> {
-  try {
-    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
-    await ScreenOrientation.unlockAsync()
-  } catch {
-    // Locks can fail on web or if the native module is not in this binary yet.
-  }
-}
+// Within this many seconds of the end, play restarts from the top.
+const END_EPSILON = 0.5
+// A seek settles within this window; older timeUpdates are stale.
+const SEEK_SETTLE_MS = 1500
 
 /**
  * Plays `playback_sources` only. Preview clips are a different asset, and a
  * preview failure must not replace a video that can still play.
  *
- * Inline: Figma overlay (AVKit chrome is unreliable on this iOS sim). Fullscreen:
- * expo-video forces system controls even when `nativeControls` is false.
+ * Inline: Figma overlay. Fullscreen: our own Modal with AVKit's inline controls
+ * and a collapse button. AVKit's own fullscreen draws no controls here, and
+ * nothing from React Native can sit on top of it.
  */
 export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
   const tokens = useTokens()
@@ -64,10 +60,9 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
-  const [fullscreen, setFullscreen] = useState(false)
-  const viewRef = useRef<VideoView>(null)
+  const [fullscreen, setFullscreen] = useState<FullscreenOrientation | null>(null)
   const focused = useRef(false)
-  const dismissedWhileLandscape = useRef(false)
+  const pendingSeek = useRef<{ target: number; at: number } | null>(null)
   const scrubbing = useRef(false)
   const [scrubTime, setScrubTime] = useState<number | null>(null)
   const trackWidth = useRef(0)
@@ -91,8 +86,18 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       setPlaying(payload.isPlaying)
     })
     const timeSub = player.addListener('timeUpdate', (payload) => {
-      if (!scrubbing.current) setCurrentTime(payload.currentTime)
       if (player.duration > 0) setDuration(player.duration)
+      if (scrubbing.current) return
+      const seek = pendingSeek.current
+      if (seek !== null) {
+        const stale = Math.abs(payload.currentTime - seek.target) > 1
+        if (stale && Date.now() - seek.at < SEEK_SETTLE_MS) return
+        pendingSeek.current = null
+      }
+      setCurrentTime(payload.currentTime)
+    })
+    const endSub = player.addListener('playToEnd', () => {
+      if (player.duration > 0) setCurrentTime(player.duration)
     })
     const loadSub = player.addListener('sourceLoad', (payload) => {
       if (payload.duration > 0) setDuration(payload.duration)
@@ -101,6 +106,7 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       statusSub.remove()
       playingSub.remove()
       timeSub.remove()
+      endSub.remove()
       loadSub.remove()
     }
   }, [player])
@@ -110,6 +116,8 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       focused.current = true
       return () => {
         focused.current = false
+        setFullscreen(null)
+        void ScreenOrientation.unlockAsync()
         try {
           player.pause()
         } catch {}
@@ -117,17 +125,14 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
     }, [player]),
   )
 
+  // Rotation-entered fullscreen follows the device: turning portrait exits it.
   useEffect(() => {
     if (!focused.current) return
-    const view = viewRef.current
-    if (view === null) return
-    if (landscape) {
-      if (dismissedWhileLandscape.current) return
-      void view.enterFullscreen().catch(() => {})
+    if (!landscape) {
+      if (fullscreen === 'default') setFullscreen(null)
       return
     }
-    dismissedWhileLandscape.current = false
-    void view.exitFullscreen().catch(() => {})
+    requestFullscreen('default')
   }, [landscape])
 
   function retry() {
@@ -147,17 +152,34 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
       player.pause()
       return
     }
+    if (duration > 0 && player.currentTime >= duration - END_EPSILON) {
+      seekTo(0)
+    }
     player.play()
   }
 
-  function expandFullscreen() {
-    const view = viewRef.current
-    if (view === null || fullscreen) return
-    dismissedWhileLandscape.current = false
-    setFullscreen(true)
-    void view.enterFullscreen().catch(() => {
-      setFullscreen(false)
-    })
+  function seekTo(time: number) {
+    pendingSeek.current = { target: time, at: Date.now() }
+    playerRef.current.currentTime = time
+    setCurrentTime(time)
+  }
+
+  // The expand button forces landscape so it still works under rotation lock.
+  function requestFullscreen(orientation: FullscreenOrientation) {
+    if (fullscreen !== null) return
+    setFullscreen(orientation)
+    if (orientation === 'landscape') {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
+    }
+  }
+
+  // Collapsing while sideways pins portrait; without a device-orientation
+  // signal we cannot tell when to unlock, so the lock lasts until blur.
+  function collapseFullscreen() {
+    setFullscreen(null)
+    if (landscape) {
+      void ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+    }
   }
 
   const timeAtX = useCallback((x: number): number => {
@@ -186,6 +208,7 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
     (x: number) => {
       const next = timeAtX(x)
       if (durationRef.current > 0) {
+        pendingSeek.current = { target: next, at: Date.now() }
         playerRef.current.currentTime = next
         setCurrentTime(next)
       }
@@ -204,7 +227,7 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
   const scrubGesture = Gesture.Pan()
     .activeOffsetX([-6, 6])
     .failOffsetY([-10, 10])
-    .onBegin((event) => {
+    .onStart((event) => {
       runOnJS(beginScrub)(event.x)
     })
     .onUpdate((event) => {
@@ -255,25 +278,47 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
 
   return (
     <View style={[styles.root, { aspectRatio: aspect, borderRadius: FRAME_RADIUS }]}>
-      <VideoView
-        accessibilityLabel="Video player"
-        contentFit="contain"
-        fullscreenOptions={{ enable: true, orientation: 'landscape' }}
-        nativeControls={false}
-        onFullscreenEnter={() => {
-          dismissedWhileLandscape.current = false
-          setFullscreen(true)
-        }}
-        onFullscreenExit={() => {
-          dismissedWhileLandscape.current = true
-          setFullscreen(false)
-          void releaseFullscreenOrientation()
-        }}
-        player={player}
-        ref={viewRef}
-        style={[styles.player, { backgroundColor: tokens.muted }]}
-      />
-      {fullscreen ? null : (
+      {/* One view per player at a time: the inline view leaves while the Modal holds it. */}
+      {fullscreen === null ? (
+        <VideoView
+          accessibilityLabel="Video player"
+          contentFit="contain"
+          fullscreenOptions={{ enable: false }}
+          nativeControls={false}
+          player={player}
+          style={[styles.player, { backgroundColor: tokens.muted }]}
+        />
+      ) : null}
+      <Modal
+        animationType="fade"
+        onRequestClose={collapseFullscreen}
+        statusBarTranslucent
+        supportedOrientations={['portrait', 'landscape']}
+        visible={fullscreen !== null}
+      >
+        <View style={styles.fullscreen}>
+          <VideoView
+            accessibilityLabel="Video player"
+            contentFit="contain"
+            fullscreenOptions={{ enable: false }}
+            nativeControls
+            player={player}
+            style={styles.player}
+          />
+          <SafeAreaView edges={['top', 'left', 'right']} pointerEvents="box-none" style={styles.fullscreenBar}>
+            <Pressable
+              accessibilityLabel="Exit full screen"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={collapseFullscreen}
+              style={styles.playButton}
+            >
+              <CollapseGlyph size={20} />
+            </Pressable>
+          </SafeAreaView>
+        </View>
+      </Modal>
+      {fullscreen !== null ? null : (
         <View pointerEvents="box-none" style={styles.overlay}>
           <View style={styles.chrome}>
             <View style={styles.row}>
@@ -295,7 +340,9 @@ export function LibraryVideoPlayer({ url, aspect }: LibraryVideoPlayerProps) {
                   accessibilityLabel="Full screen"
                   accessibilityRole="button"
                   hitSlop={8}
-                  onPress={expandFullscreen}
+                  onPress={() => {
+                    requestFullscreen('landscape')
+                  }}
                   style={styles.playButton}
                 >
                   <ExpandGlyph />
@@ -348,6 +395,17 @@ const styles = StyleSheet.create({
   },
   player: {
     ...StyleSheet.absoluteFill,
+  },
+  fullscreen: {
+    backgroundColor: '#000000',
+    flex: 1,
+  },
+  fullscreenBar: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'flex-end',
+    padding: 12,
+    // Clears AVKit's own top-right mute button.
+    paddingRight: 64,
   },
   overlay: {
     ...StyleSheet.absoluteFill,
