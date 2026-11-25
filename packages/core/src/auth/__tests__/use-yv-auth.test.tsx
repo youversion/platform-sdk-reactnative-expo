@@ -23,6 +23,7 @@ describe('useYVAuth', () => {
       isLoading: false,
       requestedPermissions: ['highlights'],
       grantedPermissions: null,
+      grantedScopes: null,
       hasPermission: jest.fn(() => false),
       invalidatePermissions: jest.fn(),
       requestPermissions: jest.fn(),

@@ -8,6 +8,7 @@ export type {
   AccessTokenResult,
   AuthContextValue,
   GetAccessTokenOptions,
+  SignInOptions,
   AuthConfig,
   AuthPermission,
   AuthScope,

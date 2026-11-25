@@ -82,6 +82,8 @@ Native chrome does not auto-pick another version or rewrite persisted reader loc
 
 `auth.permissions` asks for YouVersion Platform permissions (e.g. `'highlights'`) at sign-in; the user can decline. Read the grant back with `useYVAuth()`: `hasPermission(permission)`, or `grantedPermissions` for the list (`null` = nothing requested or nothing known yet, `[]` = declined).
 
+OAuth scopes are separate from those permissions. `signIn({ scopes })` adds scopes for that attempt and merges them with `auth.scopes`. `grantedScopes` is the `scope` string from the token response, split on spaces (`null` when the response omitted it).
+
 `requestedPermissions` is the other side of that pair — what your app **asked for**, straight from this config, always an array (`[]` when `auth` is unconfigured). Some SDK behavior gates on the request rather than the grant: `useHighlights` issues no network request at all unless `'highlights'` is in this list, so an app that never asks pays nothing.
 
 To ask an already signed-in user — without making them sign out — call `requestPermissions`:
@@ -315,11 +317,11 @@ function useCuratedImage(day: number) {
 
 `useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. `list` returns a page, `get`, `create`, and `update` return a note, and `delete` resolves to `undefined`. A failure throws.
 
-Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_notes` scope and writes need `write_notes`. Put those on `auth.scopes` at sign-in. They are OAuth scopes, not data-exchange permissions, so they do not belong in `auth.permissions`.
+Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_notes` scope and writes need `write_notes`. Put those on `auth.scopes`, or pass them to `signIn({ scopes })`. That call merges them with the scopes already configured. Read the grant with `grantedScopes`. They are OAuth scopes, not data-exchange permissions, so they do not belong in `auth.permissions`.
 
 `list` accepts `version_id`, `passage_id`, `page_size` (1–99), and `page_token`. `version_id` is sent as `bible_id`. An empty page can still include `next_page_token`. Keep the same filters when you follow that token. A 204 is an empty page. A page of notes uses `NotePage`: `{ data, next_page_token }`.
 
-`create` sends the `request_id` you pass. Reuse that same UUID to retry the same note. `update` changes only the fields you pass. Pass `null` to clear `title`, `color`, `passage`, `language_tag`, or `tags`. Omit a field to leave it as it is. `color` is six hex digits without `#`. Writes send it lowercase. A read keeps the case the API returned.
+`create` sends the `request_id` you pass. Reuse that same UUID to retry the same note. `content` may be empty, which saves a passage without note text. `update` changes only the fields you pass. Pass `null` to clear `title`, `color`, `passage`, `language_tag`, or `tags`. Omit a field to leave it as it is. `color` is six hex digits without `#`. Writes send it lowercase. A read keeps the case the API returned.
 
 A missing token throws before the request. A bad id, color, page size, or empty update throws before the request. A deleted note's next read throws, and that error's HTTP status is 404.
 

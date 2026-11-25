@@ -170,6 +170,27 @@ describe('NotesClient', () => {
     await expect(client.getNote(updated.id, 'reader').catch(getHttpStatus)).resolves.toBe(404)
   })
 
+  it('creates a passage-only note with empty content', async () => {
+    const client = createClient()
+    const body = {
+      request_id: requestId,
+      content: '',
+      status: 'private' as const,
+      passage: note.passage,
+    }
+    mockFetch.mockImplementation(async (_input, init) => {
+      expect(JSON.parse(String(init?.body))).toEqual({
+        ...body,
+        passage: wireNote.passage,
+      })
+      return jsonResponse({ ...wireNote, content: '', title: null, color: null, tags: null }, 201)
+    })
+
+    const created = await client.createNote(body, 'writer')
+    expect(created.content).toBe('')
+    expect(created.passage).toEqual(note.passage)
+  })
+
   it('rejects invalid writes, pagination, and missing auth before sending a request', async () => {
     const client = createClient()
     mockFetch.mockImplementation(async () => new Response(null, { status: 500 }))

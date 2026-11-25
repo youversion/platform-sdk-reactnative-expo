@@ -10,8 +10,16 @@ import {
   type AccessTokenResult,
   type AuthContextValue,
   type GetAccessTokenOptions,
+  type SignInOptions,
 } from './auth-context'
 import { MMKV_AUTH_KEYS, REFRESH_LEEWAY_SECONDS } from './constants'
+import {
+  clearGrantedScopes,
+  loadCachedGrantedScopes,
+  mergeSignInScopes,
+  parseGrantedScopes,
+  saveGrantedScopes,
+} from './granted-scopes'
 import { requestDataExchange, type AuthIdentity, type DataExchangeOutcome } from './data-exchange'
 import { createDataExchangeApi } from './data-exchange-api'
 import {
@@ -52,6 +60,9 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
   // userInfo initializer above, which useHighlights also depends on.
   const [grantedPermissions, setGrantedPermissions] = useState<readonly string[] | null>(() =>
     loadCachedGrantedPermissions(userInfo?.id ?? null),
+  )
+  const [grantedScopes, setGrantedScopes] = useState<readonly string[] | null>(() =>
+    loadCachedGrantedScopes(userInfo?.id ?? null),
   )
   const [error, setError] = useState<Error | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
@@ -175,6 +186,8 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
         // Cached user info survived; the session is gone either way.
       }
       invalidatePermissions()
+      clearGrantedScopes()
+      setGrantedScopes(null)
       clearHighlightsCache()
       clearHighlightQueue()
       expiryRef.current = null
@@ -185,6 +198,21 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
       setError(null)
     },
     [invalidatePermissions, setIdentity],
+  )
+
+  const rememberScopes = useCallback(
+    (scope: string | undefined, userId: string | null, fallbackToCache: boolean) => {
+      const parsed = parseGrantedScopes(scope)
+      if (parsed === null) {
+        if (fallbackToCache) {
+          setGrantedScopes(loadCachedGrantedScopes(userId))
+        }
+        return
+      }
+      saveGrantedScopes(userId, parsed)
+      setGrantedScopes(parsed)
+    },
+    [],
   )
 
   const refreshToken = useCallback(
@@ -234,6 +262,8 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
             refreshToken: response.refresh_token,
             expiryDate: new Date(Date.now() + Number(response.expires_in) * 1000),
           })
+          // A refresh that omits `scope` is not a revocation. Leave the grant.
+          rememberScopes(response.scope, userInfoRef.current?.id ?? null, false)
           return 'ok'
         } catch (e) {
           const revoked = e instanceof TokenEndpointError && e.isRevoked
@@ -269,7 +299,7 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
         refreshPromiseRef.current = null
       }
     },
-    [apiHost, appKey, setAuthState, clearAuthState],
+    [apiHost, appKey, setAuthState, clearAuthState, rememberScopes],
   )
 
   // The bootstrap effect below runs once on mount but calls setAuthState /
@@ -324,14 +354,14 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
     return () => sub.remove()
   }, [refreshToken])
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (options?: SignInOptions) => {
     setError(null)
     try {
       const result = await signInWithPKCE({
         apiHost,
         appKey,
         redirectUri: config.redirectUri,
-        scopes: config.scopes,
+        scopes: mergeSignInScopes(config.scopes, options?.scopes),
         permissions: config.permissions,
       })
 
@@ -365,12 +395,21 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
         // user's previous grant.
         setGrantedPermissions(loadCachedGrantedPermissions(nextUserId))
       }
+      rememberScopes(result.tokens.scope, nextUserId, true)
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e))
       setError(err)
       throw err
     }
-  }, [apiHost, appKey, config.redirectUri, config.scopes, config.permissions, setAuthState])
+  }, [
+    apiHost,
+    appKey,
+    config.redirectUri,
+    config.scopes,
+    config.permissions,
+    setAuthState,
+    rememberScopes,
+  ])
 
   // The one caller that opts into the loud abort. A user asked for this, so a
   // Keychain that refuses the token clear is theirs to hear about and retry —
@@ -580,6 +619,7 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
       isLoading,
       requestedPermissions,
       grantedPermissions,
+      grantedScopes,
       hasPermission,
       invalidatePermissions,
       requestPermissions,
@@ -595,6 +635,7 @@ export function AuthProvider({ config, appKey, apiHost, children }: AuthProvider
       isLoading,
       requestedPermissions,
       grantedPermissions,
+      grantedScopes,
       hasPermission,
       invalidatePermissions,
       requestPermissions,

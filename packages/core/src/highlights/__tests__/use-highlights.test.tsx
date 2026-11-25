@@ -137,6 +137,7 @@ function authValue(overrides: Partial<AuthContextValue>): AuthContextValue {
     // *requested*, so an unknown grant must still fetch. See the gate note in
     // `shouldFetchHighlights`.
     grantedPermissions: null,
+    grantedScopes: null,
     hasPermission: jest.fn(() => false),
     invalidatePermissions: jest.fn(),
     requestPermissions: jest.fn(),

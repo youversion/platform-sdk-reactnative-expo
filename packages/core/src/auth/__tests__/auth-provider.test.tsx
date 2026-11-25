@@ -112,6 +112,9 @@ function AuthPeek() {
       <Text testID="grantedPermissions">
         {auth.grantedPermissions ? JSON.stringify(auth.grantedPermissions) : 'null'}
       </Text>
+      <Text testID="grantedScopes">
+        {auth.grantedScopes ? JSON.stringify(auth.grantedScopes) : 'null'}
+      </Text>
       <Text testID="hasHighlights">{String(auth.hasPermission('highlights'))}</Text>
       <Text testID="signInOutcome">{signInOutcome}</Text>
       <Text testID="signOutOutcome">{signOutOutcome}</Text>
@@ -500,6 +503,179 @@ describe('AuthProvider — signIn', () => {
     await waitFor(() => expect(getText('signInOutcome')).toBe('rejected: PKCE blew up'))
     expect(getText('error')).toBe('PKCE blew up')
     expect(getText('isAuthenticated')).toBe('false')
+  })
+
+  it('merges extra scopes with the host list and drops duplicates', async () => {
+    mockSignInWithPKCE.mockResolvedValue({ kind: 'cancel' })
+
+    render(
+      <AuthProvider
+        {...defaultProps}
+        config={{ redirectUri: 'https://app/cb', scopes: ['email'] }}
+      >
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    await act(async () => {
+      await latestAuth?.signIn({ scopes: ['write_notes', 'email', 'read_notes'] })
+    })
+
+    expect(mockSignInWithPKCE).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopes: ['email', 'write_notes', 'read_notes'],
+        permissions: undefined,
+      }),
+    )
+  })
+
+  it('keeps a no-argument sign-in on the host scopes', async () => {
+    mockSignInWithPKCE.mockResolvedValue({ kind: 'cancel' })
+
+    render(
+      <AuthProvider
+        {...defaultProps}
+        config={{ redirectUri: 'https://app/cb', scopes: ['email'] }}
+      >
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    await act(async () => {
+      await latestAuth?.signIn()
+    })
+
+    expect(mockSignInWithPKCE).toHaveBeenCalledWith(
+      expect.objectContaining({ scopes: ['email'] }),
+    )
+  })
+
+  it('adds the default scopes when the host set none and the caller adds some', async () => {
+    mockSignInWithPKCE.mockResolvedValue({ kind: 'cancel' })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    await act(async () => {
+      await latestAuth?.signIn({ scopes: ['read_notes', 'write_notes'] })
+    })
+
+    expect(mockSignInWithPKCE).toHaveBeenCalledWith(
+      expect.objectContaining({ scopes: ['profile', 'email', 'read_notes', 'write_notes'] }),
+    )
+  })
+
+  it('exposes the token scope, keeps it when a refresh omits scope, and clears it on sign-out', async () => {
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: { ...validTokens, scope: 'openid email write_notes' },
+      userInfo: adaUserInfo,
+      grantedPermissions: null,
+    })
+    mockRefreshTokens.mockResolvedValue({
+      ...validTokens,
+      access_token: 'refreshed-access',
+      scope: 'openid email read_notes write_notes',
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    await act(async () => {
+      await latestAuth?.signIn()
+    })
+    await waitFor(() =>
+      expect(JSON.parse(getText('grantedScopes'))).toEqual(['openid', 'email', 'write_notes']),
+    )
+    expect(JSON.parse(mmkvStorage.getString(MMKV_AUTH_KEYS.grantedScopes)!)).toEqual({
+      userId: 'u1',
+      scopes: ['openid', 'email', 'write_notes'],
+    })
+
+    await act(async () => {
+      await latestAuth?.refreshNow()
+    })
+    await waitFor(() => expect(getText('accessToken')).toBe('refreshed-access'))
+    expect(JSON.parse(getText('grantedScopes'))).toEqual([
+      'openid',
+      'email',
+      'read_notes',
+      'write_notes',
+    ])
+
+    mockRefreshTokens.mockResolvedValue({
+      ...validTokens,
+      access_token: 'again-access',
+    })
+    await act(async () => {
+      await latestAuth?.refreshNow()
+    })
+    await waitFor(() => expect(getText('accessToken')).toBe('again-access'))
+    expect(JSON.parse(getText('grantedScopes'))).toEqual([
+      'openid',
+      'email',
+      'read_notes',
+      'write_notes',
+    ])
+
+    fireEvent.press(screen.getByTestId('signOut'))
+    await waitFor(() => expect(getText('signOutOutcome')).toBe('resolved'))
+    expect(getText('grantedScopes')).toBe('null')
+    expect(mmkvStorage.contains(MMKV_AUTH_KEYS.grantedScopes)).toBe(false)
+  })
+
+  it('keeps the same account’s scopes when a later sign-in omits scope, and drops them for someone else', async () => {
+    mockLoadTokens.mockResolvedValue(noStoredTokens)
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: { ...validTokens, scope: 'write_notes' },
+      userInfo: adaUserInfo,
+      grantedPermissions: null,
+    })
+
+    render(
+      <AuthProvider {...defaultProps}>
+        <AuthPeek />
+      </AuthProvider>,
+    )
+    await waitFor(() => expect(getText('isLoading')).toBe('false'))
+
+    await act(async () => {
+      await latestAuth?.signIn()
+    })
+    await waitFor(() => expect(JSON.parse(getText('grantedScopes'))).toEqual(['write_notes']))
+
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: adaUserInfo,
+      grantedPermissions: null,
+    })
+    await act(async () => {
+      await latestAuth?.signIn()
+    })
+    expect(JSON.parse(getText('grantedScopes'))).toEqual(['write_notes'])
+
+    mockSignInWithPKCE.mockResolvedValue({
+      kind: 'success',
+      tokens: validTokens,
+      userInfo: { id: 'u2', name: 'Bob' },
+      grantedPermissions: null,
+    })
+    await act(async () => {
+      await latestAuth?.signIn()
+    })
+    expect(getText('grantedScopes')).toBe('null')
   })
 })
 

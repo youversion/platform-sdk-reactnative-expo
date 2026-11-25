@@ -48,7 +48,8 @@ export const CreateNoteSchema = strictObject({
   ...optionalWriteFields,
   /** Reuse this UUID to retry the same logical create without duplicating the note. */
   request_id: z.uuid(),
-  content: nonEmptyContent,
+  /** Empty text saves the passage without a note body. */
+  content: z.string(),
   /** `private` is visible only to the author; `public` is visible to others. */
   status,
 })

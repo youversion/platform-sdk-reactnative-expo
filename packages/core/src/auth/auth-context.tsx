@@ -1,6 +1,6 @@
 import { createContext } from 'react'
 import type { DataExchangeOutcome } from './data-exchange'
-import type { AuthPermission, YVUserInfo } from './types'
+import type { AuthPermission, AuthScope, YVUserInfo } from './types'
 
 /**
  * What {@link AuthContextValue.getAccessToken} resolves to. `refresh-failed`
@@ -29,12 +29,20 @@ export type GetAccessTokenOptions = {
   force?: boolean
 }
 
+export type SignInOptions = {
+  /**
+   * OAuth scopes for this attempt. Merged with `auth.scopes` (or the defaults
+   * when the host set none). Duplicates drop. Does not change `auth.permissions`.
+   */
+  scopes?: readonly AuthScope[]
+}
+
 export type AuthContextValue = {
   isAuthenticated: boolean
   accessToken: string | null
   userInfo: YVUserInfo | null
   error: Error | null
-  signIn: () => Promise<void>
+  signIn: (options?: SignInOptions) => Promise<void>
   signOut: () => Promise<void>
   refreshNow: () => Promise<void>
   /**
@@ -81,6 +89,13 @@ export type AuthContextValue = {
    * `isAuthenticated` / `isLoading` too.
    */
   grantedPermissions: readonly string[] | null
+  /**
+   * Scopes from the token response `scope` string, cached per user.
+   * `null` means that response omitted `scope`. An empty array means it sent
+   * an empty scope. Tokens this SDK does not name are kept.
+   * A later refresh that omits `scope` leaves this list alone.
+   */
+  grantedScopes: readonly string[] | null
   /**
    * Whether `permission` is in {@link grantedPermissions}; false when unknown.
    * Advisory — the server remains the enforcement point.

@@ -124,6 +124,7 @@ function authValue(): AuthContextValue {
     isLoading: false,
     requestedPermissions: ['highlights'],
     grantedPermissions: cachedGrant(),
+    grantedScopes: null,
     hasPermission,
     invalidatePermissions: mockInvalidatePermissions,
     requestPermissions,
