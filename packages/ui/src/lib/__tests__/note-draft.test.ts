@@ -170,7 +170,7 @@ describe('note flow', () => {
       account: ada,
     })
     const saving = step(opened.flow, { type: 'save-started' })
-    const failed = step(saving.flow, { type: 'save-failed' })
+    const failed = step(saving.flow, { type: 'save-failed', requestId: 'req-1' })
     expect(failed.flow).toMatchObject({
       status: 'composing',
       saving: false,
@@ -237,6 +237,62 @@ describe('note flow', () => {
     })
     expect(step(opened.flow, { type: 'account-changed', account: null }).flow).toEqual({
       status: 'idle',
+    })
+  })
+
+  it('does not hand a bound draft to a different account', () => {
+    const parked = step({ status: 'idle' }, {
+      type: 'start',
+      draft: draft({ account: ada }),
+      gate: 'settling',
+      hasWriteNotes: false,
+      account: ada,
+    })
+    const switched = step(parked.flow, {
+      type: 'auth-settled',
+      gate: 'ready',
+      hasWriteNotes: true,
+      account: grace,
+    })
+    expect(switched.flow).toEqual({ status: 'idle' })
+  })
+
+  it('opens the composer when write_notes is granted and there is no user id', () => {
+    const opened = step({ status: 'idle' }, {
+      type: 'start',
+      draft: draft(),
+      gate: 'ready',
+      hasWriteNotes: true,
+      account: null,
+    })
+    expect(opened.flow.status).toBe('composing')
+  })
+
+  it('ignores a save result after a newer draft has replaced the one that was saving', () => {
+    const opened = step({ status: 'idle' }, {
+      type: 'start',
+      draft: draft({ account: ada }),
+      gate: 'ready',
+      hasWriteNotes: true,
+      account: ada,
+    })
+    const saving = step(opened.flow, { type: 'save-started' })
+    const left = step(saving.flow, { type: 'left-passage' })
+    const next = step(left.flow, {
+      type: 'start',
+      draft: draft({ account: ada, text: 'newer', requestId: 'req-new' }),
+      gate: 'ready',
+      hasWriteNotes: true,
+      account: ada,
+    })
+    expect(step(next.flow, { type: 'save-succeeded', requestId: 'req-1' }).flow).toMatchObject({
+      status: 'composing',
+      draft: { text: 'newer', requestId: 'req-new' },
+    })
+    expect(step(next.flow, { type: 'save-failed', requestId: 'req-1' }).flow).toMatchObject({
+      status: 'composing',
+      saveError: false,
+      draft: { text: 'newer' },
     })
   })
 

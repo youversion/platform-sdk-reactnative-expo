@@ -52,7 +52,12 @@ export const CreateNoteSchema = strictObject({
   content: z.string(),
   /** `private` is visible only to the author; `public` is visible to others. */
   status,
-})
+}).check(
+  z.refine(
+    (value) => value.content.length > 0 || value.passage != null,
+    'A note needs text or a passage',
+  ),
+)
 
 export const UpdateNoteSchema = strictObject({
   ...optionalWriteFields,

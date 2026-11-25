@@ -295,7 +295,9 @@ describe('BibleReaderNative', () => {
     reader.update({ clearSelectionSignal: 1 })
     await waitFor(() => expect(onVerseSelect).toHaveBeenLastCalledWith(expect.objectContaining({ verses: [] })))
 
-    reader.update({ selectionRestore: { seq: 1, verses: [1] } })
+    reader.update({
+      selectionRestore: { seq: 1, verses: [1], versionId: VERSION_ID, book: 'JHN', chapter: '1' },
+    })
     await waitFor(() => expect(onVerseSelect).toHaveBeenLastCalledWith(JOHN_1))
   })
 

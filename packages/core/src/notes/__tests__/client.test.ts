@@ -191,6 +191,17 @@ describe('NotesClient', () => {
     expect(created.passage).toEqual(note.passage)
   })
 
+  it('rejects an empty note that has no passage before sending', async () => {
+    mockFetch.mockImplementation(async () => new Response(null, { status: 500 }))
+    await expect(
+      createClient().createNote(
+        { request_id: requestId, content: '', status: 'private' },
+        'writer',
+      ),
+    ).rejects.toThrow('passage')
+    expect(mockFetch).not.toHaveBeenCalled()
+  })
+
   it('rejects invalid writes, pagination, and missing auth before sending a request', async () => {
     const client = createClient()
     mockFetch.mockImplementation(async () => new Response(null, { status: 500 }))

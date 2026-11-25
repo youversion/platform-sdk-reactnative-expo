@@ -11,6 +11,7 @@ import { Alert } from 'react-native'
 
 import { useSdkTranslation } from '../../i18n/use-sdk-translation'
 import {
+  newNoteRequestId,
   noteFlowReducer,
   notePassageId,
   type NoteAccount,
@@ -47,7 +48,13 @@ type NoteDraftController = {
   composing: boolean
   saving: boolean
   signInPromptOpen: boolean
-  restore: { seq: number; verses: readonly number[] } | null
+  restore: {
+    seq: number
+    verses: readonly number[]
+    versionId: number
+    book: string
+    chapter: string
+  } | null
   start: (input: StartInput) => boolean
   confirmSignIn: () => Promise<void>
   cancelSignIn: () => void
@@ -55,7 +62,7 @@ type NoteDraftController = {
   setVisibility: (visibility: NoteVisibility) => void
   setColor: (color: string | null) => void
   save: () => Promise<void>
-  requestDismiss: () => void
+  requestDismiss: () => boolean
 }
 
 export function useNoteDraft(options: {
@@ -72,7 +79,13 @@ export function useNoteDraft(options: {
   const flowRef = useRef(flow)
   const authRef = useRef(auth)
   authRef.current = auth
-  const [restore, setRestore] = useState<{ seq: number; verses: readonly number[] } | null>(null)
+  const [restore, setRestore] = useState<{
+    seq: number
+    verses: readonly number[]
+    versionId: number
+    book: string
+    chapter: string
+  } | null>(null)
   const restoreSeq = useRef(0)
   const renderWaiters = useRef<Array<() => void>>([])
   const [, bumpRender] = useState(0)
@@ -86,12 +99,20 @@ export function useNoteDraft(options: {
   const hasWriteNotes = auth?.grantedScopes?.includes('write_notes') ?? false
 
   const send = useCallback((event: NoteFlowEvent) => {
-    const result = noteFlowReducer(flowRef.current, event, () => crypto.randomUUID())
+    const previous = flowRef.current
+    const result = noteFlowReducer(previous, event, newNoteRequestId)
     flowRef.current = result.flow
     setFlow(result.flow)
-    if (result.restoreVerses !== null) {
+    if (result.restoreVerses !== null && previous.status !== 'idle') {
+      const range = previous.draft.ranges[0]
       restoreSeq.current += 1
-      setRestore({ seq: restoreSeq.current, verses: result.restoreVerses })
+      setRestore({
+        seq: restoreSeq.current,
+        verses: result.restoreVerses,
+        versionId: range?.versionId ?? 0,
+        book: range?.book ?? '',
+        chapter: range?.chapter ?? '',
+      })
     }
     return result
   }, [])
@@ -114,7 +135,7 @@ export function useNoteDraft(options: {
   )
 
   const runSignIn = useCallback(async () => {
-    const attemptId = crypto.randomUUID()
+    const attemptId = newNoteRequestId()
     const begun = send({ type: 'begin-sign-in', attemptId })
     if (begun.flow.status !== 'needs-auth' || begun.flow.attemptId !== attemptId) {
       return
@@ -221,7 +242,7 @@ export function useNoteDraft(options: {
           text: '',
           visibility: 'private',
           color: null,
-          requestId: crypto.randomUUID(),
+          requestId: newNoteRequestId(),
           account: null,
         },
       })
@@ -240,7 +261,7 @@ export function useNoteDraft(options: {
     try {
       const token = await authRef.current?.getAccessToken()
       if (token === undefined || token.status !== 'ok') {
-        send({ type: 'save-failed' })
+        send({ type: 'save-failed', requestId: draft.requestId })
         return
       }
       if (draft.account !== null && token.userId !== draft.account.userId) {
@@ -257,10 +278,12 @@ export function useNoteDraft(options: {
         body.color = draft.color
       }
       await notes.create(token.token, body)
-      send({ type: 'save-succeeded' })
-      void refreshHighlights()
+      const settled = send({ type: 'save-succeeded', requestId: draft.requestId })
+      if (settled.flow.status === 'idle') {
+        void refreshHighlights()
+      }
     } catch {
-      send({ type: 'save-failed' })
+      send({ type: 'save-failed', requestId: draft.requestId })
     }
   }, [notes, refreshHighlights, send])
 
@@ -291,8 +314,9 @@ export function useNoteDraft(options: {
       send({ type: 'set-color', color })
     },
     save,
-    requestDismiss: (): void => {
-      send({ type: 'request-dismiss' })
+    requestDismiss: (): boolean => {
+      const result = send({ type: 'request-dismiss' })
+      return result.flow.status === 'composing'
     },
   }
 }

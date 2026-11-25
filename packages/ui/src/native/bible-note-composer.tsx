@@ -37,6 +37,8 @@ type BibleNoteComposerProps = {
   onSelectColor: (color: string | null) => void
   onDismiss: () => void
   onSave: () => void
+  /** Bumps when a swipe should snap the sheet back open. */
+  openKey: number
 }
 
 function swatchFill(stored: string, theme: Theme): string {
@@ -89,6 +91,7 @@ export function BibleNoteComposer({
   onSelectColor,
   onDismiss,
   onSave,
+  openKey,
 }: BibleNoteComposerProps): ReactNode {
   const { t } = useSdkTranslation()
   const tokens = useTokens()
@@ -96,7 +99,7 @@ export function BibleNoteComposer({
   const visibilityLabel = draft.visibility === 'public' ? t('notesPublic') : t('notesPrivate')
 
   return (
-    <NativeSheet isOpen={isOpen} onClose={onDismiss} theme={theme}>
+    <NativeSheet isOpen={isOpen} openKey={openKey} onClose={onDismiss} theme={theme}>
       <View
         testID="bible-note-composer"
         style={[styles.body, { paddingBottom: 16 + keyboardPadding }]}

@@ -554,6 +554,7 @@ export function BibleReader({
   // The stale intent on the ref is left alone. Closing the sheet means nothing
   // can fire `onConfirm`, the next swatch press overwrites the intent, and the
   // confirm handler re-checks the scope anyway.
+  const [composerOpenKey, setComposerOpenKey] = useState(0)
   const currentScope: HighlightScope = useMemo(
     () => ({
       versionId: appliedVersionId,
@@ -562,6 +563,8 @@ export function BibleReader({
     }),
     [appliedVersionId, appliedBook, appliedChapter],
   )
+  const scopeRef = useRef(currentScope)
+  scopeRef.current = currentScope
   let renderedPrompt = prompt
   if (prompt.kind === 'sign-in' && !sameScope(prompt.scope, currentScope)) {
     renderedPrompt = NO_PROMPT
@@ -612,7 +615,16 @@ export function BibleReader({
     const save = pendingSaveRef.current
     if (save !== null) {
       pendingSaveRef.current = null
-      startNoteRef.current(save)
+      const range = save.ranges[0]
+      const scope = scopeRef.current
+      if (
+        range !== undefined &&
+        range.versionId === scope.versionId &&
+        range.book === scope.book &&
+        range.chapter === scope.chapter
+      ) {
+        startNoteRef.current(save)
+      }
       return
     }
     const pending = pendingCustomActionRef.current
@@ -1023,7 +1035,12 @@ export function BibleReader({
             notes.setVisibility(next)
           }}
           onSelectColor={notes.setColor}
-          onDismiss={notes.requestDismiss}
+          openKey={composerOpenKey}
+          onDismiss={() => {
+            if (notes.requestDismiss()) {
+              setComposerOpenKey((key) => key + 1)
+            }
+          }}
           onSave={() => {
             void notes.save()
           }}

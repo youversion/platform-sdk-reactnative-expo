@@ -64,8 +64,8 @@ export type NoteFlowEvent =
   | { type: 'set-visibility'; visibility: NoteVisibility }
   | { type: 'set-color'; color: string | null }
   | { type: 'save-started' }
-  | { type: 'save-failed' }
-  | { type: 'save-succeeded' }
+  | { type: 'save-failed'; requestId: string }
+  | { type: 'save-succeeded'; requestId: string }
   | { type: 'dismiss-error' }
   | { type: 'request-dismiss' }
   | { type: 'confirm-discard' }
@@ -133,12 +133,15 @@ function openOrPark(
   if (gate === 'unconfigured') {
     return idleStep
   }
-  const parked = { ...draft, account }
+  if (draft.account !== null && (account === null || !sameNoteAccount(draft.account, account))) {
+    return idleStep
+  }
+  const parked = { ...draft, account: draft.account ?? account }
   if (gate === 'settling') {
     return keep({ status: 'waiting', draft: parked })
   }
-  if (gate === 'ready' && hasWriteNotes && account !== null) {
-    return keep(composing({ ...parked, account }))
+  if (gate === 'ready' && hasWriteNotes) {
+    return keep(composing(parked))
   }
   return keep({ status: 'needs-auth', draft: parked, attemptId: '' })
 }
@@ -178,13 +181,13 @@ export function noteFlowReducer(
         return keep(flow)
       }
       const { draft } = flow
-      if (!event.grantedWriteNotes || event.account === null) {
+      if (!event.grantedWriteNotes) {
         return { flow: { status: 'idle' }, restoreVerses: draft.verses }
       }
-      if (draft.account !== null && !sameNoteAccount(draft.account, event.account)) {
+      if (draft.account !== null && (event.account === null || !sameNoteAccount(draft.account, event.account))) {
         return idleStep
       }
-      return keep(composing({ ...draft, account: event.account }))
+      return keep(composing({ ...draft, account: event.account ?? draft.account }))
     }
     case 'sign-in-cancelled': {
       if (flow.status !== 'needs-auth') {
@@ -228,13 +231,17 @@ export function noteFlowReducer(
       return keep({ ...flow, saving: true, saveError: false })
     }
     case 'save-failed': {
-      if (flow.status !== 'composing') {
+      if (flow.status !== 'composing' || !flow.saving || flow.draft.requestId !== event.requestId) {
         return keep(flow)
       }
       return keep({ ...flow, saving: false, saveError: true })
     }
-    case 'save-succeeded':
-      return flow.status === 'composing' ? idleStep : keep(flow)
+    case 'save-succeeded': {
+      if (flow.status !== 'composing' || !flow.saving || flow.draft.requestId !== event.requestId) {
+        return keep(flow)
+      }
+      return idleStep
+    }
     case 'dismiss-error': {
       if (flow.status !== 'composing') {
         return keep(flow)
@@ -275,4 +282,30 @@ export function noteFlowReducer(
       return _exhaustive
     }
   }
+}
+
+type CryptoWithUuid = { randomUUID?: () => string }
+
+/** A UUID for a create. Uses the runtime when it has one, otherwise a v4-shaped id. */
+export function newNoteRequestId(): string {
+  // SAFETY: React Native's TypeScript lib omits `crypto`. The read is guarded below.
+  const scope = globalThis as { crypto?: CryptoWithUuid }
+  const randomUUID = scope.crypto?.randomUUID
+  if (randomUUID !== undefined) {
+    try {
+      return randomUUID.call(scope.crypto)
+    } catch {
+      // The runtime method failed. Fall through to a local id.
+    }
+  }
+  const bytes = new Uint8Array(16)
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = Math.floor(Math.random() * 256)
+  }
+  const version = bytes[6] ?? 0
+  const variant = bytes[8] ?? 0
+  bytes[6] = (version & 0x0f) | 0x40
+  bytes[8] = (variant & 0x3f) | 0x80
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
 }

@@ -247,6 +247,7 @@ describe('BibleReader notes composer', () => {
       color: 'ffec5b',
       passage: { version_id: VERSION_ID, passage_id: 'JHN.1.1-2+JHN.1.4' },
     })
+    await waitFor(() => expect(refreshHighlights).toHaveBeenCalledTimes(2))
   })
 
   it('reuses the request id after a failed save and replaces it after an edit', async () => {
@@ -266,7 +267,7 @@ describe('BibleReader notes composer', () => {
     expect(screen.getByTestId('bible-note-composer')).toBeTruthy()
     await waitFor(() => expect(Alert.alert).toHaveBeenCalledWith('Error', expect.any(String), expect.any(Array)))
 
-    createNote.mockResolvedValueOnce(savedNote)
+    createNote.mockRejectedValueOnce(new Error('down'))
     await user.press(screen.getByTestId('bible-note-save'))
     await waitFor(() => expect(createNote).toHaveBeenCalledTimes(2))
     const retried = createNote.mock.calls[1]
@@ -274,15 +275,17 @@ describe('BibleReader notes composer', () => {
       throw new Error('expected a retry')
     }
     expect(retried[1].request_id).toBe(requestId)
+    expect(screen.getByTestId('bible-note-composer')).toBeTruthy()
 
-    await selectAndSave()
     fireEvent.changeText(screen.getByTestId('bible-note-text'), 'Edited')
+    createNote.mockResolvedValueOnce({ ...savedNote, content: 'Edited' })
     await user.press(screen.getByTestId('bible-note-save'))
     await waitFor(() => expect(createNote).toHaveBeenCalledTimes(3))
     const edited = createNote.mock.calls[2]
     if (edited === undefined) {
       throw new Error('expected an edited create')
     }
+    expect(edited[1].content).toBe('Edited')
     expect(edited[1].request_id).not.toBe(requestId)
   })
 
@@ -328,36 +331,50 @@ describe('BibleReader notes composer', () => {
       resolveFirst = resolve
     })
     let calls = 0
+    hookOverrides.useYVAuth = auth
+
+    let resolveSecond: (() => void) | undefined
+    const second = new Promise<void>((resolve) => {
+      resolveSecond = resolve
+    })
     auth.signIn = jest.fn(() => {
       calls += 1
       if (calls === 1) {
         return first
       }
-      auth.isAuthenticated = true
-      auth.accessToken = 'token'
-      auth.userInfo = { id: 'user-1' }
-      auth.grantedScopes = ['read_notes', 'write_notes']
-      auth.getAccessToken = async () => ({ status: 'ok', token: 'token', userId: 'user-1' })
-      return Promise.resolve()
+      return second
     })
-    hookOverrides.useYVAuth = auth
 
     const view = render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
     await user.press(screen.getByTestId('trigger-verse-select'))
     await user.press(screen.getByTestId('bible-verse-action-save'))
     await screen.findByTestId('sign-in-with-youversion-sheet')
     await user.press(screen.getByTestId('sign-in-with-youversion-confirm'))
-    await waitFor(() => expect(auth.signIn).toHaveBeenCalledWith({ scopes: ['read_notes', 'write_notes'] }))
+    await waitFor(() => expect(auth.signIn).toHaveBeenCalledTimes(1))
 
     view.rerender(<BibleReader book="JHN" chapter="2" versionId={VERSION_ID} />)
-    resolveFirst?.()
-    await waitFor(() => expect(screen.queryByTestId('bible-note-composer')).toBeNull())
-
     view.rerender(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />)
     await user.press(screen.getByTestId('trigger-verse-select'))
     await user.press(screen.getByTestId('bible-verse-action-save'))
     await screen.findByTestId('sign-in-with-youversion-sheet')
     await user.press(screen.getByTestId('sign-in-with-youversion-confirm'))
+    await waitFor(() => expect(auth.signIn).toHaveBeenCalledTimes(2))
+
+    auth.isAuthenticated = true
+    auth.accessToken = 'token'
+    auth.userInfo = { id: 'user-1' }
+    auth.grantedScopes = ['read_notes', 'write_notes']
+    auth.getAccessToken = async () => ({ status: 'ok', token: 'token', userId: 'user-1' })
+    await act(async () => {
+      resolveFirst?.()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+    expect(screen.queryByTestId('bible-note-composer')).toBeNull()
+
+    await act(async () => {
+      resolveSecond?.()
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
     await screen.findByTestId('bible-note-composer')
   })
 
