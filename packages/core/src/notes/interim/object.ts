@@ -1,0 +1,30 @@
+// INTERIM (YPE-6786): replaced by @youversion/platform-core once platform-sdk-react#497 ships. Delete this file when adopting it.
+// Mirrors packages/core/src/schemas/object.ts @ 10dd292a71aaf8fac5fe07aa46d5ff7c98a99b87.
+
+import * as z from 'zod/mini'
+
+/**
+ * `z.object` with the return type zod used before 4.6. Since 4.6, `z.object`
+ * returns `ZodMiniObject<Writeable<T>>`, and tsc drops field doc comments when
+ * it writes that mapped type to `.d.ts` files, so consumers lose IDE hover docs.
+ * Build object schemas with this instead of `z.object`.
+ */
+export const object =
+  // SAFETY: this is the same function. `Writeable<T>` only removes `readonly`
+  // from field keys. For an ordinary field object, it equals `T`. A field
+  // object written with `as const` keeps `readonly` on the schema's `.shape`
+  // keys, while zod's own type removes it. Parsed values are the same either
+  // way. That only restricts callers, and no schema in core does it today.
+  z.object as <T extends Record<string, z.core.$ZodType>>(
+    fields: T,
+    params?: string | z.core.$ZodObjectParams,
+  ) => z.ZodMiniObject<T, z.core.$strip>
+
+/** Like {@link object}, but rejects fields outside the schema. */
+export const strictObject =
+  // SAFETY: as with `object`, this preserves the supplied shape instead of applying
+  // `Writeable<T>`. The runtime parser and strict config are unchanged.
+  z.strictObject as <T extends Record<string, z.core.$ZodType>>(
+    fields: T,
+    params?: string | z.core.$ZodObjectParams,
+  ) => z.ZodMiniObject<T, z.core.$strict>

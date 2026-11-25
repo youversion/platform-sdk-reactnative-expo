@@ -2,7 +2,7 @@
 
 # @youversion/platform-react-native-expo-core
 
-Auth, highlights, search, images, verse of the day, and storage primitives for the YouVersion Platform React Native (Expo) SDK. It covers installation id, optional PKCE OAuth, token storage, Bible search, and the Bible highlights hooks.
+Auth, highlights, notes, search, images, verse of the day, and storage primitives for the YouVersion Platform React Native (Expo) SDK. It covers installation id, optional PKCE OAuth, token storage, Bible search, and the Bible highlights hooks.
 
 ## When to use this package
 
@@ -15,10 +15,11 @@ Use `@youversion/platform-react-native-expo-core` when you need:
 - ✅ A guarded highlight flow for users who are not signed in yet (`useHighlightPermissionFlow`)
 - ✅ Bible search (`useSearch`, `useUnifiedSearch`) and `biblePassageAnchorFromPassageId` for turning a hit into a book, chapter, and verse
 - ✅ Paged image search (`useSearch().images`), image records (`useImages`), and Verse of the Day reads (`useVerseOfTheDay`)
+- ✅ Signed-in notes (`useNotes`): list, read, create, update, and delete
 
 ❌ Want ready-made Bible UI instead? Use [@youversion/platform-react-native-expo-ui](https://www.npmjs.com/package/@youversion/platform-react-native-expo-ui).
 
-Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package. Import `useYVAuth`, `useSearch`, `useImages`, and `useVerseOfTheDay` from core.
+Install this package directly alongside the UI package. The UI package already depends on core, but a direct dependency is what lets TypeScript resolve the auth APIs, so add it any time your app touches auth. Import Bible components from the UI package. Import `useYVAuth`, `useSearch`, `useImages`, `useVerseOfTheDay`, and `useNotes` from core.
 
 ## Install
 
@@ -80,6 +81,8 @@ Native chrome does not auto-pick another version or rewrite persisted reader loc
 ### Permissions
 
 `auth.permissions` asks for YouVersion Platform permissions (e.g. `'highlights'`) at sign-in; the user can decline. Read the grant back with `useYVAuth()`: `hasPermission(permission)`, or `grantedPermissions` for the list (`null` = nothing requested or nothing known yet, `[]` = declined).
+
+OAuth scopes are separate from those permissions. `signIn({ scopes })` adds scopes for that attempt and merges them with `auth.scopes`. `grantedScopes` is the `scope` string from the token response, split on spaces (`null` when the response omitted it).
 
 `requestedPermissions` is the other side of that pair — what your app **asked for**, straight from this config, always an array (`[]` when `auth` is unconfigured). Some SDK behavior gates on the request rather than the grant: `useHighlights` issues no network request at all unless `'highlights'` is in this list, so an app that never asks pays nothing.
 
@@ -306,6 +309,46 @@ function useCuratedImage(day: number) {
       return null
     }
     return images.get(dayResult.value.image_id)
+  }
+}
+```
+
+### Notes
+
+`useNotes()` lists, reads, creates, updates, and deletes the signed-in user's notes on `/v1/notes`. Call it under `YouVersionProvider`. `list` returns a page, `get`, `create`, and `update` return a note, and `delete` resolves to `undefined`. A failure throws.
+
+Pass the access token from `useYVAuth().getAccessToken()`. Reads need the `read_notes` scope and writes need `write_notes`. Put those on `auth.scopes`, or pass them to `signIn({ scopes })`. That call merges them with the scopes already configured. Read the grant with `grantedScopes`. They are OAuth scopes, not data-exchange permissions, so they do not belong in `auth.permissions`.
+
+`list` accepts `version_id`, `passage_id`, `page_size` (1–99), and `page_token`. `version_id` is sent as `bible_id`. An empty page can still include `next_page_token`. Keep the same filters when you follow that token. A 204 is an empty page. A page of notes uses `NotePage`: `{ data, next_page_token }`.
+
+`create` sends the `request_id` you pass. Reuse that same UUID to retry the same note. `content` may be empty, which saves a passage without note text. `update` changes only the fields you pass. Pass `null` to clear `title`, `color`, `passage`, `language_tag`, or `tags`. Omit a field to leave it as it is. `color` is six hex digits without `#`. Writes send it lowercase. A read keeps the case the API returned.
+
+A missing token throws before the request. A bad id, color, page size, or empty update throws before the request. A deleted note's next read throws, and that error's HTTP status is 404.
+
+```tsx
+import { useNotes, useYVAuth } from '@youversion/platform-react-native-expo-core'
+
+function useChapterNotes(versionId: number, passageId: string) {
+  const notes = useNotes()
+  const { getAccessToken } = useYVAuth()
+
+  return async () => {
+    const token = await getAccessToken()
+    if (token.status !== 'ok') return token
+    try {
+      return await notes.list(token.token, {
+        version_id: versionId,
+        passage_id: passageId,
+      })
+    } catch (error) {
+      // HTTP failures carry a numeric `status` (e.g. 404 on get after delete).
+      const status =
+        error instanceof Error && 'status' in error ? error.status : undefined
+      if (status === 401 || status === 403) {
+        // Prompt for sign-in or re-authorize with note scopes, then retry.
+      }
+      throw error
+    }
   }
 }
 ```

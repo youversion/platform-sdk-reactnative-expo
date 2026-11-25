@@ -91,6 +91,7 @@ function authValue(state: AuthState): AuthContextValue {
     // varies.
     requestedPermissions: ['highlights'],
     grantedPermissions: state.permissions,
+    grantedScopes: null,
     hasPermission: (permission) => {
       calls.push(`hasPermission:${permission}`)
       return state.permissions.includes(permission)

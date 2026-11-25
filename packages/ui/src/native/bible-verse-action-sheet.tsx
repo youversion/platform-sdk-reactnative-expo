@@ -15,7 +15,7 @@ import { swatchTrayFadeGates, type SwatchTrayMetrics } from '../lib/verse-action
 import type { VerseActionSwatch } from '../lib/verse-action-swatches'
 import type { ResolvedVerseAction } from '../lib/verse-actions'
 import { getImpl, registerDefault } from './component-impls'
-import { CheckIcon, CopyIcon, ShareIcon } from './icons'
+import { BookmarkIcon, CheckIcon, CopyIcon, ShareIcon } from './icons'
 import { NativeSheet } from './native-sheet'
 
 /**
@@ -165,6 +165,11 @@ function BibleVerseActionSheetImpl({
       testID = `bible-verse-action-custom-${item.action.id}`
       label = item.action.label
       icon = <Icon color={foreground} size={ACTION_ICON_SIZE} />
+    } else if (item.kind === 'save') {
+      key = 'save'
+      testID = 'bible-verse-action-save'
+      label = t('notesSave')
+      icon = <BookmarkIcon color={foreground} size={ACTION_ICON_SIZE} />
     } else if (item.kind === 'copy') {
       key = 'copy'
       testID = 'bible-verse-action-copy'

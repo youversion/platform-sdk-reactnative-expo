@@ -36,6 +36,7 @@ export function signedOutAuth(overrides: Partial<AuthContextValue> = {}): AuthCo
     isLoading: false,
     requestedPermissions: [],
     grantedPermissions: null,
+    grantedScopes: null,
     hasPermission: () => false,
     invalidatePermissions: () => undefined,
     requestPermissions: async () => ({ status: 'cancel' }),

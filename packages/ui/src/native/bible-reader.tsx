@@ -49,6 +49,8 @@ import {
   mergeVerseRanges,
   resolveVerseActions,
 } from '../lib/verse-actions'
+import { BibleNoteComposer } from './bible-note-composer'
+import { useNoteDraft } from './hooks/use-note-draft'
 import type {
   BibleReaderCustomVerseAction,
   BibleReaderVerseAction,
@@ -190,11 +192,11 @@ export type BibleReaderProps = Omit<
   onShare?: (data: BibleReaderShareData) => void | Promise<void>
   /**
    * The verse action sheet's row, in order. Built-ins are `'highlight'` (the
-   * swatch tray), `'copy'`, and `'share'`; omit one to drop it. A custom action
+   * swatch tray), `'save'`, `'copy'`, and `'share'`; omit one to drop it. A custom action
    * gets the selection as sorted, contiguous-merged ranges after the sheet
    * closes. Ids must be unique; a duplicate is ignored. `[]` shows no sheet.
    *
-   * @default ['highlight', 'copy', 'share']
+   * @default ['highlight', 'save', 'copy', 'share']
    */
   verseActions?: readonly BibleReaderVerseAction[]
   /**
@@ -552,6 +554,7 @@ export function BibleReader({
   // The stale intent on the ref is left alone. Closing the sheet means nothing
   // can fire `onConfirm`, the next swatch press overwrites the intent, and the
   // confirm handler re-checks the scope anyway.
+  const [composerOpenKey, setComposerOpenKey] = useState(0)
   const currentScope: HighlightScope = useMemo(
     () => ({
       versionId: appliedVersionId,
@@ -560,6 +563,8 @@ export function BibleReader({
     }),
     [appliedVersionId, appliedBook, appliedChapter],
   )
+  const scopeRef = useRef(currentScope)
+  scopeRef.current = currentScope
   let renderedPrompt = prompt
   if (prompt.kind === 'sign-in' && !sameScope(prompt.scope, currentScope)) {
     renderedPrompt = NO_PROMPT
@@ -572,11 +577,22 @@ export function BibleReader({
     action: BibleReaderCustomVerseAction
     ranges: BibleReaderVerseRange[]
   } | null>(null)
+  const pendingSaveRef = useRef<{
+    ranges: ReturnType<typeof mergeVerseRanges>
+    title: string
+    verses: number[]
+  } | null>(null)
+  const startNoteRef = useRef<
+    (input: { ranges: ReturnType<typeof mergeVerseRanges>; title: string; verses: number[] }) => boolean
+  >(() => false)
 
   const handleVerseSelect = async (next: BibleReaderVerseSelection) => {
     // A custom action is waiting for this sheet to finish closing. Taking the
     // tap would reopen it and delay or replace that action.
-    if (next.verses.length > 0 && pendingCustomActionRef.current !== null) {
+    if (
+      next.verses.length > 0 &&
+      (pendingCustomActionRef.current !== null || pendingSaveRef.current !== null)
+    ) {
       setInternalClearCount((count) => count + 1)
       return
     }
@@ -596,6 +612,21 @@ export function BibleReader({
   }
 
   const handleVerseSheetClosed = useCallback(() => {
+    const save = pendingSaveRef.current
+    if (save !== null) {
+      pendingSaveRef.current = null
+      const range = save.ranges[0]
+      const scope = scopeRef.current
+      if (
+        range !== undefined &&
+        range.versionId === scope.versionId &&
+        range.book === scope.book &&
+        range.chapter === scope.chapter
+      ) {
+        startNoteRef.current(save)
+      }
+      return
+    }
     const pending = pendingCustomActionRef.current
     if (pending === null) return
     pendingCustomActionRef.current = null
@@ -611,6 +642,12 @@ export function BibleReader({
 
   const applyHighlight = highlightPermissionFlow.apply
   const authGate = resolveAuthGate(auth)
+  const notes = useNoteDraft({
+    gate: authGate,
+    scope: currentScope,
+    refreshHighlights,
+  })
+  startNoteRef.current = notes.start
 
   // Which circles the tray shows, projected from the painted highlights.
   // A swatch can never disagree with the passage behind it.
@@ -799,11 +836,27 @@ export function BibleReader({
     [verseActions, swatches],
   )
 
+  const handleSavePress = () => {
+    if (pendingCustomActionRef.current !== null || pendingSaveRef.current !== null) return
+    if (authGate === 'unconfigured') return
+    const selection = verseSelection
+    if (selection === null || selection.verses.length === 0) return
+    const ranges = mergeVerseRanges(selection)
+    if (ranges.length === 0) return
+    pendingSaveRef.current = {
+      ranges,
+      title: selection.reference,
+      verses: selection.verses,
+    }
+    closeVerseActions()
+  }
+
   const handleActionPress = (item: VerseActionTile) => {
     // The sheet can still take a tap while it slides closed. Keep the first action.
-    if (pendingCustomActionRef.current !== null) return
+    if (pendingCustomActionRef.current !== null || pendingSaveRef.current !== null) return
     if (item.kind === 'copy') return handleCopyPress()
     if (item.kind === 'share') return handleSharePress()
+    if (item.kind === 'save') return handleSavePress()
     // Snapshot before clear; `onPress` waits for `handleVerseSheetClosed`.
     const ranges = verseSelection ? mergeVerseRanges(verseSelection) : []
     if (ranges.length > 0) {
@@ -904,6 +957,7 @@ export function BibleReader({
               highlights={highlights}
               onVerseSelect={handleVerseSelect}
               clearSelectionSignal={clearSelectionSignal + internalClearCount}
+              selectionRestore={notes.restore}
               verseFocus={verseFocus}
               appliedFocusSeq={appliedFocusSeq}
               focusStream={focusStream}
@@ -969,11 +1023,46 @@ export function BibleReader({
           theme={resolvedTheme}
         />
       )}
+      {Platform.OS !== 'web' && notes.composing && notes.draft !== null && (
+        <BibleNoteComposer
+          isOpen
+          draft={notes.draft}
+          saving={notes.saving}
+          theme={resolvedTheme}
+          onChangeText={notes.setText}
+          onToggleVisibility={() => {
+            const next = notes.draft?.visibility === 'public' ? 'private' : 'public'
+            notes.setVisibility(next)
+          }}
+          onSelectColor={notes.setColor}
+          openKey={composerOpenKey}
+          onDismiss={() => {
+            if (notes.requestDismiss()) {
+              setComposerOpenKey((key) => key + 1)
+            }
+          }}
+          onSave={() => {
+            void notes.save()
+          }}
+        />
+      )}
       {Platform.OS !== 'web' && (
         <SignInWithYouVersionSheet
-          isOpen={renderedPrompt.kind === 'sign-in'}
-          onConfirm={handleSignInConfirm}
-          onDismiss={handleSignInDismiss}
+          isOpen={renderedPrompt.kind === 'sign-in' || notes.signInPromptOpen}
+          onConfirm={() => {
+            if (notes.signInPromptOpen) {
+              void notes.confirmSignIn()
+              return
+            }
+            handleSignInConfirm()
+          }}
+          onDismiss={() => {
+            if (notes.signInPromptOpen) {
+              notes.cancelSignIn()
+              return
+            }
+            handleSignInDismiss()
+          }}
           theme={resolvedTheme}
         />
       )}

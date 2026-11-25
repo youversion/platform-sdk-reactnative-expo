@@ -1,6 +1,10 @@
 import type { DefaultScope } from './constants'
 
-export type AuthScope = DefaultScope
+/**
+ * OAuth scopes for the authorize `scope` param.
+ * `read_notes` and `write_notes` belong here. They are not data-exchange permissions.
+ */
+export type AuthScope = DefaultScope | 'read_notes' | 'write_notes'
 
 /** The permissions this SDK version knows about. See {@link AuthPermission}. */
 export type KnownAuthPermission =

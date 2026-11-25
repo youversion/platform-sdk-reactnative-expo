@@ -171,7 +171,7 @@ The **Native Sheet** the reader raises over a live **Verse Selection**: the loca
 _Avoid_: Verse popover, verse menu; "tap outside to dismiss" (there is nothing outside to tap); giving another sheet `modal={false}` for looks; treating the highlight swatches as always present
 
 **Custom Verse Action**:
-A host-defined button in the **Verse Action Sheet** row: an `id`, a localized `label`, an `icon` drawn in the sheet's foreground, and `onPress`. It receives the **Verse Selection** as sorted, contiguous-merged ranges after the sheet closes and the selection clears. A duplicate `id` keeps the first entry. Built-ins are named by string (`'highlight'`, `'copy'`, `'share'`) in the same list.
+A host-defined button in the **Verse Action Sheet** row: an `id`, a localized `label`, an `icon` drawn in the sheet's foreground, and `onPress`. It receives the **Verse Selection** as sorted, contiguous-merged ranges after the sheet closes and the selection clears. A duplicate `id` keeps the first entry. Built-ins are named by string (`'highlight'`, `'save'`, `'copy'`, `'share'`) in the same list. Save opens the reader's note composer for that passage. Hosts omit it by leaving `'save'` out of `verseActions`.
 _Avoid_: Verse menu item; calling `onPress` before the sheet closes; crashing on a duplicate `id` (Swift traps; we warn)
 
 **Verse Indicator**:
@@ -193,6 +193,10 @@ _Avoid_: Collapsing `refresh-failed` into `signed-out`; treating an unforced `ok
 **Granted Permissions**:
 What the user actually granted at sign-in, read off the OAuth **app redirect** and cached per user. A three-state signal, not a list: `null` = no `granted_permissions` key at all, so nothing was requested and nothing is known; `[]` = requested and **denied**; populated = granted. Requesting a permission (`AuthConfig.permissions`) is a separate thing from being granted it. Values the SDK does not recognize are kept verbatim rather than narrowed to the known permission union.
 _Avoid_: Scopes (permissions travel as `requested_permissions[]`, never in `scope`); collapsing `[]` into `null` (it erases "the user said no"); "requested permissions" when you mean the grant
+
+**Granted Scopes**:
+The OAuth `scope` string from the token response, split on spaces and cached per user. `null` means the response omitted `scope`. An empty list means it sent an empty scope. A refresh that omits `scope` leaves the list in place. `signIn({ scopes })` merges those scopes with `auth.scopes` for that attempt. This is not **Granted Permissions**.
+_Avoid_: Putting `read_notes` or `write_notes` in `auth.permissions`; treating a missing `scope` on refresh as a revocation
 
 **Data Exchange**:
 YouVersion's just-in-time permission grant: a signed-in user grants a permission on the spot through a hosted consent page, without signing out. Mint a short-lived token, run the consent page in an auth session, parse the return, and **merge** the result into **Granted Permissions**. Resolves to a granted / cancel / failure outcome and never throws. The consent page returns to the app's `redirectUri` — the same callback URL sign-in uses, because an app key has exactly one — see [ADR 0015](docs/adr/0015-data-exchange-return-scheme.md).
