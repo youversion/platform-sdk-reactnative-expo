@@ -1,12 +1,23 @@
-import { biblePassageAnchorFromPassageId } from '@youversion/platform-react-native-expo-core'
+import {
+  biblePassageAnchorFromPassageId,
+  mmkvStorage,
+} from '@youversion/platform-react-native-expo-core'
 import { createBibleReaderNavigation } from '@youversion/platform-react-native-expo-ui'
 import { useSyncExternalStore } from 'react'
 
-export const DEFAULT_READER_VERSION_ID = 3034
+import { READER_LOCATION_KEY, versionIdFromPersistedLocation } from './reader-version'
 
 export const readerNavigation = createBibleReaderNavigation()
 
-let versionId = DEFAULT_READER_VERSION_ID
+function readInitialVersion(): number {
+  try {
+    return versionIdFromPersistedLocation(mmkvStorage.getString(READER_LOCATION_KEY))
+  } catch {
+    return versionIdFromPersistedLocation(undefined)
+  }
+}
+
+let versionId = readInitialVersion()
 const listeners = new Set<() => void>()
 
 function emit(): void {

@@ -2,11 +2,7 @@ import { BibleReader } from '@youversion/platform-react-native-expo-ui'
 import { StyleSheet, useColorScheme, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
-import {
-  DEFAULT_READER_VERSION_ID,
-  readerNavigation,
-  setReaderVersionId,
-} from '../../src/lib/reader-session'
+import { readerNavigation, setReaderVersionId } from '../../src/lib/reader-session'
 
 export default function BibleScreen() {
   const { top } = useSafeAreaInsets()
@@ -20,7 +16,7 @@ export default function BibleScreen() {
       ]}
     >
       <BibleReader
-        defaultVersionId={DEFAULT_READER_VERSION_ID}
+        defaultVersionId={3034}
         navigation={readerNavigation}
         onVersionChange={(next) => {
           setReaderVersionId(next)

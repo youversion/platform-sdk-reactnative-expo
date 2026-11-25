@@ -7,6 +7,7 @@ import {
 } from '@youversion/platform-react-native-expo-core'
 
 import {
+  acceptIfCurrent,
   appendUniqueIds,
   emptyCardList,
   imagesInServerOrder,
@@ -78,7 +79,7 @@ export function useContentImages(versionId: number, language: string): ContentIm
     setError(null)
 
     const finish = () => {
-      if (gen !== generation.current) return
+      if (acceptIfCurrent(gen, generation.current, true) === null) return
       loadingRef.current = false
       setLoading(false)
     }
@@ -90,7 +91,7 @@ export function useContentImages(versionId: number, language: string): ContentIm
         page_size: PAGE_SIZE,
         page_token: pageToken,
       })
-      if (gen !== generation.current) return
+      if (acceptIfCurrent(gen, generation.current, true) === null) return
       if (!result.ok) {
         setError(result.error.message)
         finish()
@@ -123,7 +124,7 @@ export function useContentImages(versionId: number, language: string): ContentIm
         pageSize: PAGE_SIZE,
         pageToken: token === null ? undefined : token,
       })
-      if (gen !== generation.current) return
+      if (acceptIfCurrent(gen, generation.current, true) === null) return
       if (submittedRef.current !== requestQuery || versionRef.current !== requestVersion) return
       if (!result.ok) {
         setError(result.error.message)
@@ -140,7 +141,7 @@ export function useContentImages(versionId: number, language: string): ContentIm
 
     const pending = unresolvedIds(orderedIds.current, resolved.current)
     const loaded = await Promise.all(pending.map((id) => imagesApiRef.current.get(id)))
-    if (gen !== generation.current) return
+    if (acceptIfCurrent(gen, generation.current, true) === null) return
     if (submittedRef.current !== requestQuery || versionRef.current !== requestVersion) return
 
     // A hit the index still lists but `get` can't find would fail every retry, so drop it.

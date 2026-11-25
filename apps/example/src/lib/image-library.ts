@@ -5,14 +5,16 @@ export type Identified = {
 export type CardList<T extends Identified> = {
   readonly items: readonly T[]
   readonly nextPageToken: string | null
+  readonly selectedId: string | null
 }
 
 export type LibraryEvent<T extends Identified> =
   | { type: 'replace'; page: readonly T[]; nextPageToken: string | null }
   | { type: 'append'; page: readonly T[]; nextPageToken: string | null }
+  | { type: 'failure' }
 
 export function emptyCardList<T extends Identified>(): CardList<T> {
-  return { items: [], nextPageToken: null }
+  return { items: [], nextPageToken: null, selectedId: null }
 }
 
 /** Keep the first copy of each id. Later copies are dropped and earlier cards stay put. */
@@ -55,11 +57,15 @@ export function selectionFor(
   return first === undefined ? null : first.id
 }
 
-/** A successful page either replaces the list or appends unseen cards without reordering. */
+/**
+ * A later page that fails leaves the list alone, including its selection and page token.
+ * A successful page either replaces the list or appends unseen cards without reordering.
+ */
 export function reduceLibrary<T extends Identified>(
   current: CardList<T>,
   event: LibraryEvent<T>,
 ): CardList<T> {
+  if (event.type === 'failure') return current
   const items =
     event.type === 'replace'
       ? dedupeAppend([], event.page)
@@ -67,7 +73,18 @@ export function reduceLibrary<T extends Identified>(
   return {
     items,
     nextPageToken: event.nextPageToken,
+    selectedId: selectionFor(items, current.selectedId),
   }
+}
+
+/** Drop a result that belongs to an older search or an older screen. */
+export function acceptIfCurrent<T>(
+  requestGeneration: number,
+  currentGeneration: number,
+  value: T,
+): T | null {
+  if (requestGeneration !== currentGeneration) return null
+  return value
 }
 
 /** Search hits are only ids. Resolved records are shown in the order the server sent. */
