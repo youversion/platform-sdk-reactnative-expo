@@ -45,7 +45,10 @@ import {
 
 type BibleReaderNativeProps = BibleReaderBodyProps &
   InternalVersionFilterProps &
-  InternalLocaleProps
+  InternalLocaleProps & {
+    /** Put these verses back after a cancelled note sign-in. `seq` changes once per restore. */
+    selectionRestore?: { seq: number; verses: readonly number[] } | null
+  }
 
 type BlockLayouts = {
   key: string | null
@@ -84,6 +87,7 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
     highlights,
     onVerseSelect,
     clearSelectionSignal = 0,
+    selectionRestore = null,
     verseFocus = DEFAULT_FOCUS,
     appliedFocusSeq = 0,
     focusStream = 0,
@@ -301,6 +305,20 @@ export function BibleReaderNative(props: BibleReaderNativeProps): ReactNode {
       emit(EMPTY_SELECTION)
     }
   }, [clearSelectionSignal, emit])
+
+  const restoreRef = useRef(0)
+  useEffect(() => {
+    if (selectionRestore === null || restoreRef.current === selectionRestore.seq) {
+      return
+    }
+    restoreRef.current = selectionRestore.seq
+    if (latest.current.refused) {
+      return
+    }
+    const next = new Set(selectionRestore.verses)
+    setSelected(next)
+    emit(next)
+  }, [selectionRestore, emit])
 
   // ---- Footnotes ----
   const onNotePress = useCallback((verse: number | null, html: string): void => {

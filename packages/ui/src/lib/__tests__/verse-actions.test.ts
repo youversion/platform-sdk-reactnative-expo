@@ -12,6 +12,15 @@ describe('resolveVerseActions', () => {
   it('keeps the shipped order by default', () => {
     expect(kinds(resolveVerseActions(DEFAULT_VERSE_ACTIONS, { hasSwatches: true }))).toEqual([
       'swatches',
+      'save',
+      'copy',
+      'share',
+    ])
+  })
+
+  it('drops save when the host leaves it out', () => {
+    expect(kinds(resolveVerseActions(['highlight', 'copy', 'share'], { hasSwatches: true }))).toEqual([
+      'swatches',
       'copy',
       'share',
     ])

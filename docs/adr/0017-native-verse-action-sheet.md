@@ -8,6 +8,7 @@ Amended: 2026-09-01 — pin `@youversion/platform-react-ui` 2.12.0 so reader fil
 Amended: 2026-10-08. `BibleReader` draws selection and highlights in native text.
 Amended: 2026-10-13. The WebView reader is gone.
 Amended: 2026-11-24. Hosts order the actions and add their own (YPE-6787). The sheet stays internal.
+Amended: 2026-11-25. Save is a built-in, on by default (YPE-6788). It opens the note composer after the sheet closes.
 
 ## Status
 
@@ -30,6 +31,8 @@ Verse actions are the reference, Copy, and Share, and the highlight swatches whe
 **Writes go through `useHighlightPermissionFlow`.** A second gate in the UI layer gives a write two places to disagree. The reader adds only a sign-in prompt in front, because the flow calls `signIn()` with no UI of its own. A `null` auth is unconfigured, not signed out, and must not raise a prompt. The swatch tray is omitted in that case — Copy and Share stay — so a color tap cannot no-op. The action sheet stays closed while a prompt is up, so displacement cannot clear a Pending Highlight.
 
 **The sheet stays internal; its row is the host's.** `verseActions` orders the built-ins and adds custom actions, as in Swift. A host that wants a different sheet uses `onVerseSelect` plus `useHighlights`.
+
+**Save is a built-in.** The default row is highlight, Save, Copy, Share. Save closes this sheet, then opens the note composer for the same passage, gaps included. A missing `auth` config leaves the button in place and does not start sign-in.
 
 **A duplicate action id keeps the first.** Swift traps on it. A typo in a host list should not crash a reader, so React Native warns in development and drops the later entry.
 

@@ -7,6 +7,7 @@ import type {
 
 export const DEFAULT_VERSE_ACTIONS: readonly BibleReaderVerseAction[] = [
   'highlight',
+  'save',
   'copy',
   'share',
 ]
@@ -14,12 +15,13 @@ export const DEFAULT_VERSE_ACTIONS: readonly BibleReaderVerseAction[] = [
 /** One item in the sheet's action row, in display order. */
 export type ResolvedVerseAction =
   | { kind: 'swatches' }
+  | { kind: 'save' }
   | { kind: 'copy' }
   | { kind: 'share' }
   | { kind: 'custom'; action: BibleReaderCustomVerseAction }
 
 function isBuiltIn(action: BibleReaderVerseAction): action is BibleReaderBuiltInVerseAction {
-  return action === 'highlight' || action === 'copy' || action === 'share'
+  return action === 'highlight' || action === 'save' || action === 'copy' || action === 'share'
 }
 
 /**
@@ -42,7 +44,7 @@ export function resolveVerseActions(
     seen.add(id)
     if (action === 'highlight') {
       if (hasSwatches) resolved.push({ kind: 'swatches' })
-    } else if (action === 'copy' || action === 'share') {
+    } else if (action === 'save' || action === 'copy' || action === 'share') {
       resolved.push({ kind: action })
     } else {
       resolved.push({ kind: 'custom', action })

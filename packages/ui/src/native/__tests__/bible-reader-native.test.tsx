@@ -284,6 +284,21 @@ describe('BibleReaderNative', () => {
     expect(onVerseSelect).toHaveBeenLastCalledWith(CLEARED)
   })
 
+  it('restores a cleared selection when asked', async () => {
+    const onVerseSelect = jest.fn()
+    const reader = mount({ onVerseSelect, clearSelectionSignal: 0 })
+
+    await screen.findByText('In the beginning')
+    pressVerse('In the beginning')
+    expect(onVerseSelect).toHaveBeenCalledWith(JOHN_1)
+
+    reader.update({ clearSelectionSignal: 1 })
+    await waitFor(() => expect(onVerseSelect).toHaveBeenLastCalledWith(expect.objectContaining({ verses: [] })))
+
+    reader.update({ selectionRestore: { seq: 1, verses: [1] } })
+    await waitFor(() => expect(onVerseSelect).toHaveBeenLastCalledWith(JOHN_1))
+  })
+
   it('does not relabel the open selection when a visited version is chosen', async () => {
     const otherId = 111
     const restoreNames = stubVersionNames({

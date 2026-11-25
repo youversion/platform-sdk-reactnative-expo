@@ -736,7 +736,7 @@ describe('BibleReader verse action sheet — copy and share', () => {
   })
 })
 
-const ROW_ITEM = /^bible-verse-action-(swatches|copy|share|custom-.+)$/
+const ROW_ITEM = /^bible-verse-action-(swatches|save|copy|share|custom-.+)$/
 
 function rowOrder(): string[] {
   return screen
@@ -756,12 +756,30 @@ describe('BibleReader verse action sheet — verseActions', () => {
     stubAuth()
   })
 
-  it('keeps tray, Copy, Share by default', async () => {
+  it('keeps tray, Save, Copy, and Share by default', async () => {
     render(<BibleReader book="JHN" chapter="1" versionId={VERSION_ID} />, { wrapper })
 
     await selectVerses()
 
+    expect(rowOrder()).toEqual(['swatches', 'save', 'copy', 'share'])
+    expect(screen.getByTestId('bible-verse-action-save')).toBeTruthy()
+  })
+
+  it('omits Save when the host leaves it out', async () => {
+    render(
+      <BibleReader
+        book="JHN"
+        chapter="1"
+        versionId={VERSION_ID}
+        verseActions={['highlight', 'copy', 'share']}
+      />,
+      { wrapper },
+    )
+
+    await selectVerses()
+
     expect(rowOrder()).toEqual(['swatches', 'copy', 'share'])
+    expect(screen.queryByTestId('bible-verse-action-save')).toBeNull()
   })
 
   it('reorders built-ins and places custom actions where the host lists them', async () => {

@@ -13,7 +13,7 @@ export type BibleReaderVerseRange = {
   passageId: string
 }
 
-export type BibleReaderBuiltInVerseAction = 'highlight' | 'copy' | 'share'
+export type BibleReaderBuiltInVerseAction = 'highlight' | 'save' | 'copy' | 'share'
 
 export type BibleReaderCustomVerseAction = {
   /** Unique within the list. Also the testID suffix. */
