@@ -331,13 +331,24 @@ describe('useBibleBookTitle', () => {
     expect(booksCalls).toBe(1)
   })
 
-  it('stays null when the lookup fails', async () => {
+  it.each([
+    {
+      failure: 'a persistent network error',
+      response: () => Promise.reject(new Error('network down')),
+      attempts: 2,
+    },
+    {
+      failure: 'an HTTP 403',
+      response: () => Promise.resolve(new Response(null, { status: 403 })),
+      attempts: 1,
+    },
+  ])('stays null after $failure', async ({ response, attempts }) => {
     fetchMock.mockImplementation((input: RequestInfo | URL) => {
       const url = urlFromFetchInput(input)
       if (url.includes('/v1/fonts/')) {
         return fontResponse()
       }
-      return Promise.reject(new Error('network down'))
+      return response()
     })
 
     const { result } = renderHook(() => useBibleBookTitle(3034, 'JHN'), { wrapper: wrapper() })
@@ -357,6 +368,9 @@ describe('useBibleBookTitle', () => {
       isLoading: false,
       catalog: null,
     })
+    expect(
+      fetchMock.mock.calls.filter(([input]) => isBooksCatalogUrl(urlFromFetchInput(input))),
+    ).toHaveLength(attempts)
   })
 
   it('does not let a cancelled catalog overwrite a newer cache entry', async () => {

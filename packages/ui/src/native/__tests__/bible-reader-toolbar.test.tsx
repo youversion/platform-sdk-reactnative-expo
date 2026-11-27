@@ -190,12 +190,15 @@ function isBooksCatalogUrl(url: string): boolean {
 function installToolbarFetches({
   abbreviation = 'NIV',
   languageTag = 'en',
+  firstBooksResponse,
   books = [{ id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] }],
 }: {
   abbreviation?: string
   languageTag?: string
   books?: unknown[]
+  firstBooksResponse?: () => Promise<Response>
 } = {}) {
+  let booksRequests = 0
   ensureSetupFetch().mockImplementation((input: RequestInfo | URL) => {
     const url = urlFromFetchInput(input)
     if (isVersionUrl(url) && url.includes('/3034')) {
@@ -207,6 +210,10 @@ function installToolbarFetches({
       )
     }
     if (isBooksCatalogUrl(url) && url.includes('/3034/')) {
+      booksRequests += 1
+      if (booksRequests === 1 && firstBooksResponse) {
+        return firstBooksResponse()
+      }
       return Promise.resolve(
         new Response(JSON.stringify({ data: books }), {
           status: 200,
@@ -600,7 +607,7 @@ describe('BibleReader native toolbar', () => {
       }
       if (isBooksCatalogUrl(url) && url.includes('/3034/')) {
         booksAttempts += 1
-        if (booksAttempts === 1) {
+        if (booksAttempts <= 2) {
           return Promise.reject(new Error('network down'))
         }
         return Promise.resolve(
@@ -643,7 +650,7 @@ describe('BibleReader native toolbar', () => {
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
     ).toMatchObject({ disabled: true })
-    const booksCallsAfterSettle = booksAttempts
+    expect(booksAttempts).toBe(2)
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('reader-toolbar-chapter'))
@@ -652,7 +659,7 @@ describe('BibleReader native toolbar', () => {
 
     expect(screen.getByText('1')).toBeTruthy()
     expect(screen.queryByText('John 1')).toBeNull()
-    expect(booksAttempts).toBe(booksCallsAfterSettle)
+    expect(booksAttempts).toBe(2)
     expect(screen.getByTestId('mock-chapter-picker-sheet')).toBeTruthy()
     expect(
       screen.getByTestId('reader-toolbar-next-chapter').props.accessibilityState,
@@ -1055,8 +1062,21 @@ describe('BibleReader native toolbar', () => {
     expect(screen.getByText('Acts 1')).toBeTruthy()
   })
 
-  it('steps chapter with chevrons and opens the next book at the last chapter', async () => {
+  it.each([
+    { catalog: 'healthy catalog', firstBooksResponse: undefined, expectedRequests: 1 },
+    {
+      catalog: 'a transient catalog HTTP failure',
+      firstBooksResponse: () => Promise.resolve(new Response(null, { status: 503 })),
+      expectedRequests: 2,
+    },
+    {
+      catalog: 'a transient catalog transport failure',
+      firstBooksResponse: () => Promise.reject(new Error('network unavailable')),
+      expectedRequests: 2,
+    },
+  ])('steps chapters and books with $catalog', async ({ firstBooksResponse, expectedRequests }) => {
     installToolbarFetches({
+      firstBooksResponse,
       books: [
         { id: 'JHN', title: 'John', chapters: [{ id: '1' }, { id: '2' }] },
         { id: 'ACT', title: 'Acts', chapters: [{ id: '1' }] },
@@ -1071,6 +1091,11 @@ describe('BibleReader native toolbar', () => {
     )
 
     expect(screen.getByText('John 1')).toBeTruthy()
+    expect(
+      ensureSetupFetch().mock.calls.filter(([input]) =>
+        isBooksCatalogUrl(urlFromFetchInput(input)),
+      ),
+    ).toHaveLength(expectedRequests)
 
     expect(
       screen.getByTestId('reader-toolbar-previous-chapter').props.accessibilityState,

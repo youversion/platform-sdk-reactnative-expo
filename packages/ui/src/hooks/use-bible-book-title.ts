@@ -63,14 +63,27 @@ export function useBibleBookTitle(
     const generation = (generationRef.current.get(versionId) ?? 0) + 1
     generationRef.current.set(versionId, generation)
 
-    void fetchBibleContent({
-      path: `/v1/bibles/${versionId}/books`,
-    })
-      .then((response) => {
-        if (response.status !== 200) {
-          return
+    const loadCatalog = async (): Promise<Catalog | null> => {
+      // A transient failure can otherwise disable chapter navigation until remount.
+      // Retry only this read, and only while the same version is active.
+      for (let attempt = 0; attempt < 2 && !cancelled; attempt += 1) {
+        try {
+          const response = await fetchBibleContent({ path: `/v1/bibles/${versionId}/books` })
+          if (response.status === 200) {
+            return catalogFromBooksBody(response.body)
+          }
+          if (response.status !== 408 && (response.status < 500 || response.status >= 600)) {
+            return null
+          }
+        } catch {
+          // The native client also rejects on a transport error or timeout.
         }
-        const next = catalogFromBooksBody(response.body)
+      }
+      return null
+    }
+
+    void loadCatalog()
+      .then((next) => {
         if (next === null) {
           return
         }
@@ -80,10 +93,6 @@ export function useBibleBookTitle(
         if (!cancelled) {
           setOwned({ versionId, value: next })
         }
-      })
-      .catch(() => {
-        // The miss is reported by leaving `owned` on the version it came from, which `isStale`
-        // below then drops. Painting the last version's book name would misname this one.
       })
       .finally(() => {
         if (!cancelled) {
